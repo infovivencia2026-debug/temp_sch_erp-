@@ -1805,7 +1805,15 @@ export function EmptyState({
 }) {
   return (
     <Card className="empty-state p-10 text-center">
-      <p className="text-[15px] font-semibold">{title}</p>
+      {/* Capped like the sentence under it.
+
+          The body was already `max-w-md` and the title was not, so at 1920px a
+          title ran 1239px wide while its own explanation sat at 392px beneath
+          it. Callers pass a full server sentence as the title -- MyPay hands
+          it "You are not on the staff roll, so there is no pay record here."
+          -- so the title is often the longer of the two lines, and it was the
+          uncapped one. */}
+      <p className="mx-auto max-w-md text-[15px] font-semibold">{title}</p>
       {body && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-muted-foreground">{body}</p>}
       {/* A HAIRLINE, BECAUSE THE CARD IS LIGHT AND SO IS THE BUTTON.
 

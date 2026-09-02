@@ -148,8 +148,17 @@ export default function RoleSelect({
             .filter((r) => r.key !== value)
             .map((r) => (
               <label key={r.key} className="flex items-center gap-2 text-[13.5px]">
+                {/* Sized on both axes. The touch floor in index.css gives
+                    every input a 44px minimum height and deliberately no
+                    minimum width, which is right for a text field and leaves a
+                    checkbox at the browser's 13px default: a control three
+                    times taller than it is wide, missed sideways on a phone.
+                    Sixteen pixels on a desk, the full square under a coarse
+                    pointer, and `shrink-0` so the role name beside it cannot
+                    squeeze the box people are reading the state off. */}
                 <input
                   type="checkbox"
+                  className="h-4 w-4 shrink-0 accent-primary [@media(pointer:coarse)]:min-w-[44px]"
                   checked={chosen.includes(r.key)}
                   onChange={(e) =>
                     onExtra!(

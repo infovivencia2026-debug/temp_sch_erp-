@@ -224,12 +224,43 @@ export default function Leave() {
               showed zero approvals to a school that had approved several —
               a summary that changes when you filter the list underneath it is
               not a summary. */}
+          {/* FOUR CELLS, FOUR CAPTIONS, BECAUSE ONE CAPTION MADE A RAGGED COLUMN.
+
+              Only the first cell carried a hint, and a hint is a line of 13px
+              text under a 6px margin: 24.75px of height that cell had and the
+              other three did not. Measured at 390px, where the four cells
+              stack into one column, the label tops came out at 148.5, 273.94,
+              374.63 and 475.31 - a first gap of 125.44 against 100.69 and
+              100.68 for the rest. A column of identical tiles with one tile a
+              quarter of a line taller reads as a rendering fault rather than
+              as a caption, and the eye finds the odd one out before it reads
+              any of the numbers.
+
+              Levelled by giving the other three the caption they were always
+              owed rather than by taking the first one's away. Each of these
+              four numbers is counted from every request on file and not from
+              the rows the filter left on screen, which is exactly the thing
+              somebody reading "Pending approval" over a list filtered to
+              "Approved" needs told. The captions were missing information,
+              and the uneven column was that omission showing. */}
           <Stat label="Total requests" value={all.length} hint="Every request" />
-          <Stat label="Pending approval" value={all.filter((r) => r.status === 'pending').length} />
-          <Stat label="Approved" value={all.filter((r) => r.status === 'approved').length} />
+          <Stat
+            label="Pending approval"
+            value={all.filter((r) => r.status === 'pending').length}
+            hint="Awaiting a decision"
+          />
+          <Stat
+            label="Approved"
+            value={all.filter((r) => r.status === 'approved').length}
+            hint="Decided in favour"
+          />
           {/* The fourth box was a headcount split that repeated what the Who
               column already says. Rejected is the one somebody looks for. */}
-          <Stat label="Rejected" value={all.filter((r) => r.status === 'rejected').length} />
+          <Stat
+            label="Rejected"
+            value={all.filter((r) => r.status === 'rejected').length}
+            hint="Turned down"
+          />
         </CellGrid>
 
         <Card>
@@ -237,9 +268,34 @@ export default function Leave() {
             title="Apply for my leave"
             description="Your own request. It goes to whoever approves leave at this school."
             action={
-              <Button variant={apply ? 'ghost' : 'primary'} onClick={() => setApply((v) => !v)}>
-                {apply ? 'Cancel' : 'Apply for leave'}
-              </Button>
+              /* THE BUTTON'S WORDS SAT BELOW THE HEADING'S, ON THE SAME ROW.
+
+                 CardHeader lays its title and its action out with
+                 `items-start`, which lines up the TOP of the two boxes. The
+                 heading is a 21px line; the button is a 31.5px control with
+                 its own padding, so its label sits 5.25px lower - half the
+                 difference in the two heights - and the row reads as two
+                 sentences at two different heights rather than as one heading
+                 with its control beside it. Measured at 390px: heading
+                 baseline 616.5, button label baseline 621.75.
+
+                 The alignment CardHeader wants is `items-baseline`, or at
+                 least `items-center`, and that belongs in the shared
+                 component; it is owned by somebody else, so this is corrected
+                 here for this one header.
+
+                 The two margins are a pair on purpose. The negative top pulls
+                 the control up onto the heading's baseline and the equal
+                 positive bottom gives the height straight back, so the header
+                 keeps the 60.5px and the even padding it already had. A bare
+                 negative margin would have aligned the words by making the
+                 card's header shallower at the top than at the bottom, which
+                 is trading one crooked thing for another. */
+              <div className="-mt-[5.25px] mb-[5.25px]">
+                <Button variant={apply ? 'ghost' : 'primary'} onClick={() => setApply((v) => !v)}>
+                  {apply ? 'Cancel' : 'Apply for leave'}
+                </Button>
+              </div>
             }
           />
           {apply && (

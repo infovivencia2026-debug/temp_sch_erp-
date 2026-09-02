@@ -637,7 +637,7 @@ export default function BulkImport({
             </div>
 
             {result.rejected > 0 && (
-              <div className="mt-3 scroll-x">
+              <div className="mt-4 scroll-x">
                 <p className="mb-2 text-[12.5px] text-muted-foreground">
                   Nothing has been added. Fix these rows in your spreadsheet and drop it again —
                   the row numbers match the file.
@@ -788,20 +788,53 @@ function History({
   if (!runs.length) return null
 
   return (
-    <div className="mt-5 border-t pt-4">
+    <div className="mt-4 border-t pt-4">
       <p className="mb-2 text-[12.5px] font-medium">
         Uploaded before
         <span className="ml-1.5 font-normal text-muted-foreground">
           {runs.length === 1 ? '1 time' : `${runs.length} times`}
         </span>
       </p>
-      {/* Capped and scrolled. A step that has been re-uploaded a dozen times
-          was pushing the form off the screen with its own history. */}
+      {/* Capped and scrolled, in both directions.
+
+          The cap was the easy half: a step re-uploaded a dozen times was
+          pushing the form off the screen with its own history, so the box got
+          a height and a scrollbar.
+
+          The hard half is the width, and it was wrong. This table is
+          hand-rolled rather than the shared `Table`, so the `NARROW_WIDE` rule
+          that recently taught narrow tables to scroll sideways never reached
+          it -- and `w-full` on five columns inside a 265px panel does not
+          decline to fit, it breaks words to fit. The result was a filename
+          reading "vig/nan" over two lines and a status reading "un/do/ne",
+          which is worse than a scrollbar by every measure: it is slower to
+          read, it is ambiguous about whether the hyphen is in the data, and it
+          makes a row two or three times taller than the one above it.
+
+          `w-max min-w-full` is the same shape as the shared component's fix.
+          The table fills the box when the box is wide enough and takes its
+          natural content width when it is not, and the `overflow-auto` that
+          was already here carries it sideways. `whitespace-nowrap` on the
+          cells is what actually forbids the break: without it the table would
+          still choose to shrink a column rather than overflow.
+
+          Not editing ui.tsx to share the constant, because this table wants
+          the behaviour at every width rather than only between 640 and 900. */}
       <div className="max-h-56 overflow-auto rounded-md border">
-        <table className="w-full text-[12.5px]">
+        <table
+          className="w-max min-w-full text-[12.5px]
+                     [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap
+                     [&_td:first-child]:pl-2 [&_th:first-child]:pl-2
+                     [&_td:last-child]:pr-2 [&_th:last-child]:pr-2"
+        >
           <thead className="sticky top-0 bg-muted">
             <tr className="text-left text-muted-foreground">
-              <th className="px-2 py-1 pr-3 font-medium">File</th>
+              {/* The header carried `px-2` that no body cell carried, so
+                  "File" sat 7px right of the filename underneath it. The inset
+                  off the box border is now stated once on the table, for the
+                  first and last cell of every row, so a header and the column
+                  under it cannot disagree about it again. */}
+              <th className="py-1 pr-3 font-medium">File</th>
               <th className="py-1 pr-3 font-medium">When</th>
               <th className="py-1 pr-3 font-medium">By</th>
               <th className="py-1 pr-3 font-medium">Rows</th>
@@ -867,7 +900,7 @@ function History({
         </table>
       </div>
       {confirming && (
-        <div className="mt-3 rounded-md border border-destructive/50 bg-destructive/5 p-3">
+        <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/5 p-3">
           <p className="text-[13px] font-medium text-destructive">
             Delete {confirming.created_rows}{' '}
             {confirming.created_rows === 1 ? 'record' : 'records'} permanently?
@@ -890,7 +923,7 @@ function History({
               timetable \u2014 is kept and counted, not deleted.
             </li>
           </ul>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button size="sm" variant="secondary" onClick={() => setConfirming(null)}>
               Cancel
             </Button>
@@ -1004,9 +1037,9 @@ function IssueLogins({ entity }: { entity: string }) {
   }
 
   return (
-    <div className="mt-5 border-t pt-4">
+    <div className="mt-4 border-t pt-4">
       <p className="mb-1 text-[13px] font-medium">Give them logins</p>
-      <p className="mb-3 text-[12.5px] text-muted-foreground">
+      <p className="mb-4 text-[12.5px] text-muted-foreground">
         Anybody who already has one keeps it — nothing here changes a password
         somebody is already using.
       </p>

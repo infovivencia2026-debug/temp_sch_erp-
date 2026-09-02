@@ -54,7 +54,16 @@ function useRouteFeatureKey(override?: string): string | undefined {
   const [roleKey, sectionSlug, featureSlug] = at.split('/').filter(Boolean)
   if (!roleKey || !sectionSlug) return undefined
 
-  const role = catalog.roles.find((r) => r.key === roleKey) ?? catalog.roles[0]
+  /* NO FALLBACK HERE EITHER.
+
+     This file's own header says it refuses to guess where FeatureRoute would
+     not, and then guessed: `?? catalog.roles[0]` meant a path naming a
+     workspace the account does not hold resolved its section against the
+     user's FIRST workspace instead, so a Bento user on /faculty/... could be
+     shown a screen belonging to a role they were never granted. FeatureRoute
+     now refuses that path outright; returning undefined here falls through to
+     the classic layout, which shows the same refusal rather than a screen. */
+  const role = catalog.roles.find((r) => r.key === roleKey)
   const section = role?.sections.find((s) => s.slug === sectionSlug)
   if (!section) return undefined
 

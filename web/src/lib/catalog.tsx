@@ -131,9 +131,13 @@ export function useCatalog(): CatalogResponse {
 }
 
 /**
- * Resolves the active role from the URL, falling back to the first role the
- * user holds. A URL naming a role they do not hold resolves to the fallback
- * rather than rendering an empty shell.
+ * The role the CHROME should draw itself as: from the URL where the URL names
+ * one the account holds, and otherwise the first role the account holds.
+ *
+ * The fallback is kept deliberately, and is only correct for chrome. Anything
+ * choosing what to RENDER at a URL must use useResolvedRole below, which
+ * refuses to substitute a workspace the address bar did not name. See the long
+ * note under it for what the substitution used to do to a URL.
  */
 export function useActiveRole(): ApiRole {
   /* Read from the address, not from route params.
@@ -151,14 +155,63 @@ export function useActiveRole(): ApiRole {
      The first path segment is the workspace by construction — every screen is
      /role/section/feature — so reading it works wherever this hook is called
      from. */
+  const catalog = useCatalog()
+  // Both hooks called unconditionally: `??` would make the second one
+  // conditional on the first's value, which React forbids.
+  const { role } = useResolvedRole()
+  return role ?? catalog.roles[0]
+}
+
+/* THE SAME QUESTION, ANSWERED HONESTLY, FOR THE ONE CALLER THAT ROUTES ON IT.
+
+   useActiveRole above ends `?? catalog.roles[0]`, and for the chrome that is
+   the right answer: the sidebar, the workspace switcher and the launcher all
+   have to draw something, and drawing the account's first workspace is a
+   better failure than drawing nothing. For anything that DECIDES WHAT TO
+   RENDER it was the wrong answer, and it was wrong in the same shape as the
+   feature-level bug fixed in useFeature below.
+
+   What it did: the first path segment is the workspace by construction, so
+   /faculty/anything on an account that holds only institution_admin found no
+   match, fell to roles[0], and quietly activated Institution Admin. The
+   address bar still read /faculty. The sidebar read Institution Admin. Every
+   screen under it resolved against the principal's catalogue, so a link
+   copied out of somebody else's workspace did not fail, it silently became a
+   different workspace's screen with the original URL still on display. On a
+   school mid-setup, whose catalogue is deliberately cut down, this is how a
+   URL for a workspace nobody holds still rendered a working product and left
+   the reader believing they were somewhere they were not.
+
+   WHY useParams AND NOT THE PATH is the whole of the fix. The fallback is
+   legitimate and must stay legitimate for "/" (Home picks roles[0] itself),
+   for /account, for /go/..., and for the Shell, which renders OUTSIDE the
+   route tree and would otherwise lose its sidebar the moment anybody typed an
+   unknown first segment. All of those have no :roleKey, because none of them
+   matched a route that declares one. Only the three catalogue routes do. So
+   `roleKey` being present is exactly the statement "the URL explicitly named
+   a workspace", and only then is refusing to substitute another one correct.
+
+   Returning role: undefined here is what lets RoleIndex and FeatureRoute say
+   so, the same way returning undefined from useFeature is what finally let
+   "That feature is not in your workspace" appear on screen. */
+export function useResolvedRole(): { role: ApiRole | undefined; named: boolean } {
   const { roleKey } = useParams()
   const { pathname } = useLocation()
   const catalog = useCatalog()
   return useMemo(() => {
+    if (roleKey) {
+      // Named outright. Held or refused; never swapped for another.
+      return { role: catalog.roles.find((r) => r.key === roleKey), named: true }
+    }
+    /* Off the catalogue routes. Read the first segment anyway, because the
+       Shell asks this question from outside the route tree and would
+       otherwise always get the fallback and always draw the wrong sidebar --
+       which is the bug the comment below was written for. */
     const fromPath = pathname.split('/').filter(Boolean)[0]
-    const match = catalog.roles.find((r) => r.key === (roleKey ?? fromPath))
-      ?? catalog.roles.find((r) => r.key === fromPath)
-    return match ?? catalog.roles[0]
+    return {
+      role: catalog.roles.find((r) => r.key === fromPath) ?? catalog.roles[0],
+      named: false,
+    }
   }, [catalog.roles, roleKey, pathname])
 }
 
@@ -202,7 +255,10 @@ export function firstUsable(role: ApiRole | undefined) {
    caller keeps its own words for that case. */
 export function useRouteFeature(): { section?: ApiSection; feature?: ApiFeature } {
   const { sectionSlug, featureSlug } = useParams()
-  const role = useActiveRole()
+  /* The resolved role rather than the chrome's, for the same reason this hook
+     is exact about slugs: a name borrowed from a workspace the URL did not
+     name is a wrong name confidently displayed. */
+  const { role } = useResolvedRole()
   return useMemo(() => {
     const section = role?.sections.find((s) => s.slug === sectionSlug)
     const feature = section?.features.find((f) => f.slug === featureSlug)
@@ -212,7 +268,16 @@ export function useRouteFeature(): { section?: ApiSection; feature?: ApiFeature 
 
 /** Looks up a feature across the active role by section + feature slug. */
 export function useFeature(sectionSlug?: string, featureSlug?: string) {
-  const role = useActiveRole()
+  /* AND THE ROLE HALF OF THE SAME BUG.
+
+     This asked useActiveRole, which never returns undefined, so a URL naming
+     an unheld workspace arrived here already silently rewritten to the
+     account's own first workspace -- and every lookup below then succeeded
+     against the wrong catalogue. useResolvedRole hands back undefined for a
+     workspace the URL named and the account does not hold, and the guard on
+     the next line turns that into the miss FeatureRoute already knows how to
+     say out loud. */
+  const { role } = useResolvedRole()
   return useMemo(() => {
     if (!role) return { section: undefined, feature: undefined }
 

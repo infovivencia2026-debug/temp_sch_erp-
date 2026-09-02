@@ -205,7 +205,36 @@ export default function Wizard() {
       />
       <PageBody>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] lg:items-start">
+        {/* THE RAIL IS AS WIDE AS THE NAMES IT CARRIES.
+
+            The step list was a fixed 17rem track, which left 155px of text
+            room once the numbered dot, the padding, the lock and the count
+            had taken theirs. "Create classes and their sections" wants 216px,
+            so 28% of it sat behind an ellipsis -- and it read exactly the same
+            at 1920 as at 1024, with 280px of empty gutter beside it, because
+            the track never grew. A list whose only job is naming the steps
+            should not be the one screen element that hides their names.
+
+            Two changes, and both are needed. The track goes to 22rem once
+            there is a desk-sized window to spend it in, which is where the
+            gutter actually exists; and the label wraps instead of truncating,
+            which is what makes this correct rather than merely wider. A
+            wider rail alone only moves the cut-off to the next long label
+            somebody writes, and to the narrow laptop that never reaches xl.
+            Wrapping costs a second line on two of sixteen rows and can never
+            hide a word at any width. */}
+        {/* `minmax(0,1fr)` on the single-column case as well, not only on the
+            two-column ones. Below lg the grid had no template at all, so its
+            implicit column was sized by its content with no lower bound on the
+            minimum -- which means anything inside the panel that refuses to
+            shrink, such as a table of file names that must not break words,
+            widens the whole panel past the viewport instead of scrolling
+            inside its own box. The two desktop tracks already said
+            `minmax(0,...)` for exactly this reason; the phone case was the one
+            that had never been written down. */}
+        <div className="grid gap-6 grid-cols-[minmax(0,1fr)]
+                        lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]
+                        xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
           <Spine steps={d.steps} active={current.key} onPick={setActive} settled={d.ready} />
 
           <Card>
@@ -319,7 +348,7 @@ function Spine({
                 <span className="min-w-0 flex-1">
                   <span
                     className={cn(
-                      'block truncate text-[14px]',
+                      'block text-[14px] leading-snug',
                       s.done && !on && 'text-muted-foreground',
                     )}
                   >

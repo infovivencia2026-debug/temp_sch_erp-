@@ -5,7 +5,7 @@ import { SessionProvider, useSession } from '@/lib/session'
 import ApplyForm from '@/features/public/ApplyForm'
 import AccountPage from '@/features/shared/Profile'
 import {
-  CatalogProvider, useCatalog, useActiveRole, useFeature, featurePath, firstUsable,
+  CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
 import { Shell } from '@/components/Shell'
 import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
@@ -38,8 +38,8 @@ const queryClient = new QueryClient({
 
 /** Sends the user to the first feature of their first role. */
 function RoleIndex() {
-  const role = useActiveRole()
-  if (!role) return <EmptyState title="No workspace" body="Your account holds no feature grants yet." />
+  const { role } = useResolvedRole()
+  if (!role) return <UnheldWorkspace />
   /* The first feature that actually opens, not the first one catalogued.
 
      Taking sections[0].features[0] meant a role whose first catalogued entry
@@ -74,14 +74,66 @@ function RoleIndex() {
   return <Navigate to={featurePath(role.key, first.section.slug, first.feature.slug)} replace />
 }
 
+/* WHAT /faculty USED TO DO ON AN ACCOUNT THAT DOES NOT HOLD FACULTY.
+
+   Nothing visible. useActiveRole ended `?? catalog.roles[0]`, so the unheld
+   name resolved to the account's own first workspace and RoleIndex redirected
+   into it -- Institution Admin's dashboard, under a URL that had said
+   /faculty. The reader had no way to tell they had been moved, which is the
+   whole defect: not that the URL failed, but that it succeeded as somebody
+   else's.
+
+   Said here rather than redirecting to "/" on purpose. A silent bounce to the
+   account's own workspace is the same lie in a different shape; a person who
+   followed a link that named a workspace needs to be told the link named a
+   workspace they do not hold, otherwise they retry it and blame the product.
+
+   First load is unaffected: "/" carries no :roleKey, Home still picks the
+   account's first workspace, and the Shell still draws its sidebar from
+   useActiveRole, which keeps its fallback for exactly that reason. */
+function UnheldWorkspace() {
+  /* An account with no grants at all is a different sentence, and it was
+     already written: telling somebody their workspace "is not theirs" when
+     they have none reads as a mistake on their part rather than a missing
+     grant on the school's. */
+  const catalog = useCatalog()
+  if (catalog.roles.length === 0) {
+    return <EmptyState title="No workspace" body="Your account holds no feature grants yet." />
+  }
+  return (
+    <>
+      <PageHead eyebrow="Not found" title="No such workspace" />
+      <PageBody>
+        <EmptyState
+          title="That workspace is not yours"
+          body={
+            'The address names a workspace your account does not hold. It may ' +
+            'have been copied from somebody with a different role, or the role ' +
+            'may have been taken off your account. Your own workspaces are in ' +
+            'the switcher at the top of the sidebar.'
+          }
+        />
+      </PageBody>
+    </>
+  )
+}
+
 function FeatureRoute() {
   const { sectionSlug, featureSlug } = useParams()
-  const role = useActiveRole()
+  const { role } = useResolvedRole()
   const session = useSession()
   const { section, feature } = useFeature(sectionSlug, featureSlug)
   const catalog = useCatalog()
 
-  if (!role || !section || !feature) {
+  /* Checked before setup_required and before the feature message, because
+     "this screen opens after setup" and "that feature is not in your
+     workspace" both presume the workspace in the address is yours. Neither is
+     true of a workspace you do not hold, and offering the setup button under
+     the first of them sends somebody to a screen in a workspace they cannot
+     reach. */
+  if (!role) return <UnheldWorkspace />
+
+  if (!section || !feature) {
     /* WHY IT IS MISSING, WHEN WE KNOW WHY.
 
        The catalogue sets setup_required while a school still owes a required
@@ -109,7 +161,7 @@ function FeatureRoute() {
                 'switched off.'
               }
               action={
-                <Link to={featurePath(role?.key ?? 'institution_admin', 'getting_started', 'school_setup')}>
+                <Link to={featurePath(role.key, 'getting_started', 'school_setup')}>
                   <Button>Open setup</Button>
                 </Link>
               }

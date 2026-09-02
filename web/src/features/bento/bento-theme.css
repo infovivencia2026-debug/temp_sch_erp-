@@ -377,10 +377,37 @@ html.dark[data-layout='bento'] {
    what.
 
    Built from two gradients rather than two elements, so it costs one pseudo
-   and no layout. The stops are at 49.8%/50.2% because a gradient stop pair
-   exactly at 50% renders as a hairline the browser rounds inconsistently
-   between device pixel ratios -- on a 1.5x screen it disappears on some cards
-   and doubles on others.
+   and no layout.
+
+   IT WAS DRAWN IN PERCENTAGES, AND A PERCENTAGE OF A WIDE CARD IS NOT A LINE.
+
+   The stops were 49.8% / 50% / 50.2%, chosen so the pair would not land
+   exactly on 50% and get rounded away by the browser. But 0.4% is a ramp, not
+   a rule, and its width is whatever 0.4% of the card happens to be: a hairline
+   on a 180px cell, and four to five CSS pixels on a card that spans the board.
+   Pixel-sampled across the middle of a full-width phone card, 369px wide: the
+   card reads rgb(17,19,22) and a band at its centre reads rgb(20,22,25). At
+   that width the mark stops being a registration cue and becomes a SEAM -- the
+   card looks like two cards butted together, or like the grid gutter showing
+   through, which is the one thing a full-width card must not look like. The
+   same band was measurable at every desktop width, widening with the card.
+
+   So the cross is painted as a background of a DEFINITE SIZE instead: a 1px
+   column and a 1px row, centred, not repeated. One pixel is one pixel whether
+   the card is 180px or 750px, and it cannot ramp, so the seam cannot appear at
+   any width. The rounding worry the percentages were working around goes away
+   with them, because there is no stop pair left to round -- a solid 1px band
+   snaps to the device pixel grid the way any 1px background does.
+
+   And the rules no longer REACH THE EDGES. A line that runs from one border of
+   a card to the other is the shape of a join, which is precisely why the eye
+   read it as one; a line that fades out before it arrives is a mark drawn ON
+   the card. So each rule is faded to nothing over its outer fifth. The centre,
+   where the two cross and where the whole effect lives, is untouched.
+
+   The mark itself is kept. It is doing the job the note below describes, and
+   as a fading hairline it does that job on the small cards where it was always
+   legible without turning the large ones into two halves.
 
    `currentColor` is deliberate: on a pale domain tint the card's ink is black
    and the cross is a dark rule, on a dark ground it is a light one. A fixed
@@ -397,9 +424,21 @@ html.dark[data-layout='bento'] {
   pointer-events: none;
   border-radius: inherit;
   opacity: 0.4;
-  background:
-    linear-gradient(90deg, transparent 0 49.8%, color-mix(in srgb, currentColor 6%, transparent) 50%, transparent 50.2%),
-    linear-gradient(transparent 0 49.8%, color-mix(in srgb, currentColor 5%, transparent) 50%, transparent 50.2%);
+  background-image:
+    linear-gradient(to bottom,
+      transparent 0,
+      color-mix(in srgb, currentColor 6%, transparent) 20%,
+      color-mix(in srgb, currentColor 6%, transparent) 80%,
+      transparent 100%),
+    linear-gradient(to right,
+      transparent 0,
+      color-mix(in srgb, currentColor 5%, transparent) 20%,
+      color-mix(in srgb, currentColor 5%, transparent) 80%,
+      transparent 100%);
+  /* The vertical rule first, then the horizontal one. */
+  background-size: 1px 100%, 100% 1px;
+  background-position: center center, center center;
+  background-repeat: no-repeat, no-repeat;
 }
 html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: none; }
 
@@ -1885,11 +1924,11 @@ html[data-layout='bento'] body {
 }
 
 [data-layout='bento'] .bento-cell {
-  --card-title: clamp(11px, 5.4cqh, 18px);
-  --card-sub: clamp(7px, 2.6cqh, 9.5px);
+  --card-title: clamp(14px, max(5.4cqh, 2.4cqi), 20px);
+  --card-sub: clamp(12px, max(2.8cqh, 1.6cqi), 14px);
   --card-fig: clamp(30px, 22cqh, 96px);
-  --card-change: clamp(9.5px, 4.4cqh, 14px);
-  --card-note: clamp(8.5px, 4cqh, 13px);
+  --card-change: clamp(12px, max(4.4cqh, 2cqi), 15px);
+  --card-note: clamp(12px, max(4cqh, 1.9cqi), 14px);
   --card-action: clamp(13px, 3.2cqh, 15px);
 }
 
@@ -1911,12 +1950,124 @@ html[data-layout='bento'] body {
      The cqh coefficients move with the sizes, because these are fractions of
      the cell's own height — the figure taking 22% of a card rather than 16%
      is the same decision expressed for a cell that has room. */
-  --card-title: calc(clamp(11px, 5.4cqh, 18px) * var(--bento-text, 1));
-  --card-sub: calc(clamp(7px, 2.6cqh, 9.5px) * var(--bento-text, 1));
+  /* THE DESKTOP READ THE SCALE BACKWARDS, AND THE FLOORS WERE WHERE IT SHOWED.
+
+     Every one of these is a fraction of the CELL'S OWN HEIGHT. That is the
+     right instrument and the reasoning above it still stands: a card twice as
+     tall should set its type twice as large, and no breakpoint can know how
+     tall a card is when a person can drop it anywhere on a fifteen-slot grid.
+
+     What was never checked is which way cell height moves when the SCREEN
+     grows. It moves down. The desktop board divides one viewport height into
+     rows, so a wider screen packs more cards across, the board needs fewer
+     rows, and each row is SHORTER. Measured on the live finance dashboard:
+     the eyebrow ("Now", "This month - September 2026") was 12px on a 768px
+     tablet, 6.44px at both 1024x768 and 1440x900, and 6.99px at 1920x1080.
+     Six point four pixels on a desktop monitor, and getting smaller as the
+     monitor got bigger. The supporting sentence measured 8.5px at 1024 and
+     9.29px at 1440. The ceilings sealed it: `clamp(7px, 2.6cqh, 9.5px)` could
+     not have produced a readable label on any screen ever made, because 9.5px
+     was the most it was allowed to be.
+
+     Two changes, and the container-query scale is kept in both.
+
+     FIRST, the floors are the sizes a person can actually read rather than the
+     smallest a dense grid could be talked into. Nothing on this surface now
+     computes under 11px: the eyebrow floors at 12px and is then worn at 0.94
+     of that (see --card-sub-mult below) for 11.28px, prose and the change line
+     floor at 12px, the title at 14px. On the boards that ship, the cqh term
+     lands under the floor and these behave as fixed sizes -- which is the
+     honest description of a board whose rows are 250px, and exactly what the
+     phone block below already concluded for the same reason.
+
+     SECOND, a card is allowed to notice that it is WIDE, not only that it is
+     tall. `max(N cqh, M cqi)` takes whichever of the two dimensions says the
+     card is large, so the full-width cards that were the worst offenders --
+     750px across and 250px down at 1920 -- finally set type at a size that
+     matches the room they occupy, while a 1x1 at the same width is untouched
+     because its inline size is small. `max` can only ever raise a value, so no
+     card anywhere gets smaller type than it had.
+
+     The ceilings move up a step to leave the tall 2x2 somewhere to grow into.
+     The figure is deliberately not given an inline term and keeps its range
+     exactly: it was never the size that failed, and a 96px number is already
+     as loud as a card can be without swallowing itself. */
+  --card-title: calc(clamp(14px, max(5.4cqh, 2.4cqi), 20px) * var(--bento-text, 1));
+  --card-sub: calc(clamp(12px, max(2.8cqh, 1.6cqi), 14px) * var(--bento-text, 1));
   --card-fig: calc(clamp(30px, 22cqh, 96px) * var(--bento-text, 1));
-  --card-change: calc(clamp(9.5px, 4.4cqh, 14px) * var(--bento-text, 1));
-  --card-note: calc(clamp(8.5px, 4cqh, 13px) * var(--bento-text, 1));
+  --card-change: calc(clamp(12px, max(4.4cqh, 2cqi), 15px) * var(--bento-text, 1));
+  --card-note: calc(clamp(12px, max(4cqh, 1.9cqi), 14px) * var(--bento-text, 1));
   --card-action: calc(clamp(13px, 3.2cqh, 15px) * var(--bento-text, 1));
+
+  /* ONE NUMBER FOR THE EYEBROW'S SHAVE, AND IT IS ABOVE THE FLOOR.
+
+     The eyebrow is set a shade under the supporting size because a tracked
+     uppercase run occupies more width than the same string set proportionally.
+     That shave lived only as a FALLBACK at the two call sites, and they did
+     not agree: 0.92 on the card's own label, 0.9 on the caption under a delta.
+     Nothing declared the variable on the desktop, so both fallbacks applied,
+     and a shave applied to a floor is a size below the floor -- which is how a
+     12px floor would still have produced a 10.8px caption.
+
+     Declared here, once, at 0.94. Against the 12px floor that is 11.28px, so
+     the smallest text on the desktop board clears eleven with the shave
+     already taken. The phone block below still resets it to 1, for the reason
+     given there: off a fixed base there is nothing to shave. */
+  --card-sub-mult: 0.94;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE SHORT CELL SAYS ONE LINE, AND SAYS ALL OF IT.
+
+   The shell's rows were fixed twice already and this card survived both. The
+   note row went from `auto` to `min-content` so the grid could no longer
+   squeeze the sentence below its own text, and the drawing row gave up its
+   26px floor for `minmax(0,1fr)` so the drawing would be the thing that
+   yields. Together those saved every card whose note is one line.
+
+   They cannot save a card whose note is TWO. Measured on the live phone board,
+   the "Collected" cell: 119px of grid holding a 43px header, a 51px figure, a
+   38px two-line note and three 6px gaps -- 150px of content that no
+   redistribution can fit into 119, because none of those rows is padding. With
+   the note refusing to shrink, the excess goes over the bottom edge and the
+   cell's `overflow: hidden` cuts the second line through the middle of its
+   letters. Sampled: 7.4px of the note outside the cell, and the zero-state
+   sentence inside the drawing 3.7px outside it as well.
+
+   Three ways out were open and two of them are worse.
+
+   Shrinking the FIGURE undoes the card. The whole shell exists to say one
+   number loudly with labels around it, and a card that quietly drops its
+   number to fit its caption has its priorities backwards. Tightening the row
+   GAP buys 9px of the 31 needed -- real, but not enough on its own, and it
+   costs the separation that stops the card reading as a paragraph.
+
+   So the sentence is CLAMPED TO ONE LINE on a cell too short to hold two, and
+   is allowed its ellipsis. The constraint being defended is that no sentence
+   is ever cut through the middle of its letters; an ellipsis at a word is not
+   that. It is the ordinary way a line ends early, the reader can see that
+   something was left out, and the card's own link goes to the page where the
+   rest of it is. A half-glyph tells the reader nothing except that the card is
+   broken.
+
+   A container query on HEIGHT rather than a phone media query, because the
+   condition is not "this is a phone", it is "this cell cannot hold two lines"
+   -- which a 1x1 on a crowded desktop board can also be true of, and which a
+   tall phone card is not. The cell is already a size container for the type
+   scale above, so this costs nothing new. 150px is a little over the measured
+   119: a cell with more room than that fits both lines with the drawing
+   reduced, and this must not fire on cards that were never in trouble.
+
+   Only the note. The title's own two-line clamp is left alone -- it was added
+   deliberately so a phone card keeps its name instead of truncating it, and
+   the title is in an `auto` row at the top of the grid that is never the row
+   pushed off the bottom.
+   ───────────────────────────────────────────────────────────────────────── */
+@container cell (max-height: 150px) {
+  [data-layout='bento'] .bento-cell p.line-clamp-2.font-light {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

@@ -23,6 +23,35 @@ import { cn } from '@/lib/utils'
    them in one at a time is data entry dressed up as configuration. The preset
    fills the form — it never saves behind the user's back. */
 
+/* THE VERTICAL SCALE, WRITTEN DOWN SO IT STOPS DRIFTING.
+
+   These panels had no unit. Six consecutive gaps down the classes form
+   measured 14, 10.5, 5.3, 7, 14.5 and 17.5 -- no two of them alike -- and the
+   staff form ran 14, 14, 21, 17.5. Nobody chose any of that. It is what you
+   get when `mb-4`, `mb-3`, `mb-1.5`, `mt-2`, `mt-3`, `mt-5` and `mt-6` are
+   picked one element at a time, each one reasonable on its own and none of
+   them agreeing with the element above it. The eye does not read a 10.5 and a
+   14 as two deliberate sizes; it reads them as a page that was not measured.
+
+   The unit is 14px, the root font size this product pins itself to, and the
+   scale is that unit halved, whole and doubled:
+
+     7px  (mt-2 / mb-2 / space-y-2)   inside one thing: a header over its own
+                                      rows, a list of rows, a label over its
+                                      control.
+     14px (mt-4 / mb-4)               between things: block to block down a
+                                      form, and the air on each side of a
+                                      section rule.
+     28px (mt-4 border-t pt-4)        between sections, which is the 14 above
+                                      the rule plus the 14 below it, so a
+                                      section break is literally two units and
+                                      not a seventh arbitrary number.
+
+   Anything smaller than 7 belongs to a caption glued to the line above it and
+   is not block rhythm. `FormGrid` owns the gap between fields inside a grid
+   and lives in ui.tsx; it is one consistent value already and is not ours to
+   change from here. */
+
 /** A member of teaching staff as the picker needs them: who they are, what
  *  they teach, and whether they already hold a section of their own. */
 interface Teacher {
@@ -59,7 +88,7 @@ function useSave<T>(fn: (v: T) => Promise<unknown>, onDone: () => void) {
 
 function Existing({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="mt-5 border-t pt-4">
+    <div className="mt-4 border-t pt-4">
       <p className="eyebrow mb-2">{label}</p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
@@ -200,6 +229,26 @@ function SaveRow({
     </>
   )
 }
+
+/* A TICK BOX THAT IS A TARGET IN BOTH DIRECTIONS.
+
+   The touch floor in index.css puts a 44px minimum height on every input, and
+   deliberately puts no minimum width on one: a text field is already wide, and
+   forcing a width on one sitting in a narrow grid column would shove the whole
+   row sideways for nothing. A checkbox is the case that rule was not written
+   for. It is not wide already. It is the browser's default 13px square, so the
+   two panels here were drawing controls measured at 13 by 44 -- a target three
+   times taller than it is wide, which on a phone means a tick that is missed
+   sideways while there is dead space above and below it.
+
+   Fixed here rather than in the base rule, because widening every input is
+   exactly the harm the base rule is avoiding. Sixteen pixels on a desk, where
+   13 was simply small, and the full 44 square under a coarse pointer, which is
+   the same "both axes or neither" the shared floor already applies to buttons.
+   `shrink-0` because these sit next to a label in a flex row and a squeezed
+   checkbox is a checkbox nobody can tell the state of. */
+const CHECKBOX =
+  'h-4 w-4 shrink-0 accent-primary [@media(pointer:coarse)]:min-w-[44px]'
 
 const rupeesToPaise = (r: string) => Math.round(parseFloat(r || '0') * 100)
 
@@ -651,7 +700,7 @@ function ClassesPanel({ onDone }: PanelProps) {
         </Preset>
       </div>
 
-      <p className="mb-3 text-[14px] text-muted-foreground">
+      <p className="mb-4 text-[14px] text-muted-foreground">
         Sections go in here with the class. Write them as you say them \u2014 A, B,
         or Rose, Newton \u2014 separated by commas. The order of classes is read
         from the name, so Class 10 sorts below Class 9 with nothing to fill in.
@@ -663,9 +712,20 @@ function ClassesPanel({ onDone }: PanelProps) {
           would be a table header over no table. */}
       {/* Headers, because three boxes in a row with nothing above them is a
           guess about which is which. */}
+      {/* NO PADDING ON THE HEADER ROW.
+
+          The header and the rows beneath it are two separate grids that agree
+          only because they are given the same track list. The header carried
+          `px-1`, which is 3.5px at this root size, so its three tracks were
+          resolved against 3.5px less width than the body's: 455/455/84 against
+          458.5/458.5/84. The headings then drifted in opposite directions --
+          "Class" 3.5px right of its input, "Seats each" 3.5px left of its own,
+          and only the middle column, which happens to sit at the midpoint the
+          drift pivots around, ever lined up. Padding on one of two grids that
+          are meant to share a column geometry is padding that breaks it. */}
       {rows.length > 0 && (
-        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem] gap-2
-                        px-1 text-[12px] font-medium text-muted-foreground">
+        <div className="mb-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_6rem] gap-2
+                        text-[12px] font-medium text-muted-foreground">
           <span>Class</span>
           <span>Sections</span>
           <span>Seats each</span>
@@ -754,7 +814,7 @@ function ClassesPanel({ onDone }: PanelProps) {
           </div>
         </div>
       )}
-          <div className="mt-5 border-t pt-5">
+          <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="classes"
           title="Or add every class from a sheet"
@@ -863,7 +923,7 @@ function SubjectsPanel({ onDone }: PanelProps) {
         })}
       </div>
 
-      <div className="mt-5 border-t pt-4">
+      <div className="mt-4 border-t pt-4">
         <p className="eyebrow mb-2">Something else</p>
         <FormGrid>
           <Field label="Subject name">
@@ -881,7 +941,7 @@ function SubjectsPanel({ onDone }: PanelProps) {
         label={`Add ${picked.size + (custom.name.trim() ? 1 : 0) || ''} subjects`}
       />
 
-      <div className="mt-5 border-t pt-5">
+      <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="subjects"
           title="Or add every subject from a sheet"
@@ -1063,7 +1123,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
           ? 'This is what the class studies now. Saving writes back exactly what is selected — untick one and it is removed.'
           : 'Choose a class above and its current subjects appear ticked.'}
       </p>
-      <div className="mt-3 flex flex-wrap items-end gap-2 border-t pt-3">
+      <div className="mt-4 flex flex-wrap items-end gap-2 border-t pt-4">
         <Field label="Not in the list? Add a subject">
           <Input
             value={newSubject}
@@ -1093,7 +1153,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
         saved={saved}
         onDismissSaved={() => setSaved(null)}
       />
-      <div className="mt-5 border-t pt-5">
+      <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="class_subjects"
           title="Or map every class from a sheet"
@@ -1113,7 +1173,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
           is what it is. The ordering that actually matters is stated where it
           bites: it finds teachers by email, so the people have to exist
           first. */}
-      <div className="mt-5 border-t pt-5">
+      <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="allocations"
           title="Allocation sheet — who teaches what, where"
@@ -1270,6 +1330,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
                 <label key={c.id} className="flex items-center gap-1.5 text-[13px]">
                   <input
                     type="checkbox"
+                    className={CHECKBOX}
                     checked={!!forClasses[c.id]}
                     onChange={(e) =>
                       setForClasses({ ...forClasses, [c.id]: e.target.checked })}
@@ -1301,7 +1362,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
         )}
       </div>
 
-      <p className="mb-3 text-[14px] text-muted-foreground">
+      <p className="mb-4 text-[14px] text-muted-foreground">
         Breaks are listed too. The timetable needs them to know a teacher is free, and attendance
         needs them to know a period was not taught.
       </p>
@@ -1314,6 +1375,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
             <label className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
               <input
                 type="checkbox"
+                className={CHECKBOX}
                 checked={r.is_break}
                 onChange={(e) => setRows(rows.map((v, j) => (i === j ? { ...v, is_break: e.target.checked } : v)))}
               />
@@ -1443,7 +1505,7 @@ function StaffPanel({ onDone }: PanelProps) {
       )}
       {(teachers?.items.length ?? 0) > 0 && <StaffLogins staff={teachers!.items} />}
       <Assignments onDone={onDone} />
-          <div className="mt-5 border-t pt-5">
+          <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="staff"
           title="Staff sheet — who works here"
@@ -1556,9 +1618,9 @@ function Assignments({ onDone }: PanelProps) {
   }))
 
   return (
-    <div className="mt-6 border-t pt-5">
-      <p className="eyebrow mb-1">Assign them to a section</p>
-      <p className="mb-3 text-[14px] text-muted-foreground">
+    <div className="mt-4 border-t pt-4">
+      <p className="eyebrow mb-2">Assign them to a section</p>
+      <p className="mb-4 text-[14px] text-muted-foreground">
         This is the step that grants access. Pick a section, name its class teacher, and put a
         teacher against each subject.
       </p>
@@ -2037,7 +2099,7 @@ function ExistingScales() {
   if (!scales.length) return null
 
   return (
-    <div className="mt-5 border-t pt-4">
+    <div className="mt-4 border-t pt-4">
       <p className="eyebrow mb-2">Scales you have set up</p>
       <div className="space-y-3">
         {scales.map((sc) => (
@@ -2351,7 +2413,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-end gap-2">
+      <div className="mt-4 flex flex-wrap items-end gap-2">
         {hidden.length > 0 && (
           <Field label="Add a head">
             <Select
@@ -2399,7 +2461,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
        * because the office then has to know which one is live. */}
       <FeeStructureList />
 
-      <div className="mt-5 border-t pt-5">
+      <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="fee_structures"
           title="Or price every class from a sheet"
@@ -2445,7 +2507,7 @@ function FeeStructureList() {
   }
 
   return (
-    <div className="mt-5 border-t pt-4">
+    <div className="mt-4 border-t pt-4">
       <p className="eyebrow mb-2">Structures already priced</p>
       <div className="scroll-x rounded-md border">
         <table className="w-full text-[13px]">
@@ -2949,7 +3011,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
    * reset, and the password it shows is still shown only once. */
   if (!open) {
     return (
-      <div className="mt-5 border-t pt-4">
+      <div className="mt-4 border-t pt-4">
         <Button variant="secondary" onClick={() => setOpen(true)}>
           <KeyRound className="h-3.5 w-3.5" />
           Staff logins
