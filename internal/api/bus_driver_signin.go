@@ -378,11 +378,18 @@ func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret 
 	// here that puts a bus on another school's map.
 	var matches int
 	err := s.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
+		/* The school's status counts here too. A driver whose school has been
+		   archived must not be able to put a bus on anybody's map, and a phone
+		   left behind by a shut-off tenant must not make a live driver's number
+		   look ambiguous. Same join, same reasoning, as the browser sign-in. */
 		if err := tx.QueryRow(ctx, `
-			SELECT count(*) FROM users
-			 WHERE status = 'active'
-			   AND (email = $1::citext OR phone = $1 OR username = $1::citext
-			        OR right(regexp_replace(phone, '\D', '', 'g'), 10) = $1)`,
+			SELECT count(*)
+			  FROM users u
+			  LEFT JOIN institutions i ON i.id = u.institution_id
+			 WHERE u.status = 'active'
+			   AND (u.institution_id IS NULL OR i.status = 'active')
+			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext
+			        OR right(regexp_replace(u.phone, '\D', '', 'g'), 10) = $1)`,
 			identifier).Scan(&matches); err != nil {
 			return err
 		}
@@ -390,11 +397,13 @@ func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret 
 			return pgx.ErrNoRows
 		}
 		return tx.QueryRow(ctx, `
-			SELECT id, institution_id, COALESCE(full_name,''), password_hash
-			  FROM users
-			 WHERE status = 'active'
-			   AND (email = $1::citext OR phone = $1 OR username = $1::citext
-			        OR right(regexp_replace(phone, '\D', '', 'g'), 10) = $1)`,
+			SELECT u.id, u.institution_id, COALESCE(u.full_name,''), u.password_hash
+			  FROM users u
+			  LEFT JOIN institutions i ON i.id = u.institution_id
+			 WHERE u.status = 'active'
+			   AND (u.institution_id IS NULL OR i.status = 'active')
+			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext
+			        OR right(regexp_replace(u.phone, '\D', '', 'g'), 10) = $1)`,
 			identifier).Scan(&out.UserID, &out.Institution, &out.Name, &hash)
 	})
 	if err == nil && hash != nil && s.Hasher.Verify(*hash, secret) == nil {

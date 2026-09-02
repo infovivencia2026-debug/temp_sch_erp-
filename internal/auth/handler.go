@@ -205,12 +205,32 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 
 	var candidates []candidate
 	err := h.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		/* A LOGIN DIES WITH THE SCHOOL THAT ISSUED IT.
+
+		   This asked only whether the USER was active. Nothing asked whether
+		   the school still was — so every account of an archived or suspended
+		   institution kept working: its parents could sign in, its staff could
+		   sign in, and the tenant that had been shut off went on serving
+		   whoever still had a password. Archiving a school looked complete on
+		   the platform screen and removed nobody's access.
+
+		   It also poisoned the sign-in of live schools. Identifiers are unique
+		   per institution, so a number reused at a school that no longer
+		   operates still counted as a second match, and this deployment has
+		   been logging matches:2 for a parent whose only real account is at
+		   Yajur.
+
+		   institution_id IS NULL is the platform staff — the vendor's own
+		   accounts belong to no school and must not be filtered out by a join
+		   to one. */
 		rows, err := tx.Query(ctx, `
-			SELECT id, institution_id, password_hash
-			  FROM users
-			 WHERE status = 'active'
-			   AND (email = $1::citext OR phone = $1 OR username = $1::citext)
-			 ORDER BY created_at
+			SELECT u.id, u.institution_id, u.password_hash
+			  FROM users u
+			  LEFT JOIN institutions i ON i.id = u.institution_id
+			 WHERE u.status = 'active'
+			   AND (u.institution_id IS NULL OR i.status = 'active')
+			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext)
+			 ORDER BY u.created_at
 			 LIMIT $2`, identifier, maxCandidates)
 		if err != nil {
 			return err
