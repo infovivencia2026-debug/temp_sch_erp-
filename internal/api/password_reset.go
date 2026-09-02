@@ -243,13 +243,82 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 
 		   The body carries the link and never a password: a link expires and a
 		   password sitting in a message log does not. */
+		/* A CHANNEL THE SCHOOL CAN ACTUALLY SEND ON.
+
+		   The old order asked two questions — which channel was requested, and
+		   which contact exists — and never the third: whether the school has
+		   that channel at all. So a request defaulting to WhatsApp, for a
+		   person who has a mobile, queued a WhatsApp message at a school with
+		   no WhatsApp account, and the page reported that the school had no
+		   delivery channel. It had one. Nobody asked about it.
+
+		   Measured here: every reset on Yajur failed this way, including the
+		   administrator's own, while its SMTP was configured, enabled, tested
+		   and sending mail the same afternoon.
+
+		   Read from the same table the dispatcher reads, in this transaction,
+		   rather than through the readiness callback — that opens its own
+		   connection, and doing it inside this one risks waiting on a pool
+		   this transaction is already holding. */
+		enabled := map[string]bool{}
+		{
+			rows, err := tx.Query(r.Context(), `
+				SELECT provider FROM integrations
+				 WHERE institution_id = $1 AND kind = 'messaging' AND enabled`, *instID)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				var ch string
+				if err := rows.Scan(&ch); err != nil {
+					rows.Close()
+					return err
+				}
+				enabled[ch] = true
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+
+		mail := ""
+		if email != nil {
+			mail = strings.TrimSpace(*email)
+		}
+		mobile := ""
+		if phone != nil {
+			mobile = strings.TrimSpace(*phone)
+		}
+
+		/* Preference order: what they asked for, then whatever else can carry
+		   it. A channel with no contact is no use, and a contact on a channel
+		   the school cannot send through is worse than no use — it queues a
+		   message that will never leave and tells the person a link is coming. */
+		type route struct{ ch, to string }
+		var routes []route
+		if channel == "whatsapp" {
+			routes = []route{{"whatsapp", mobile}, {"email", mail}}
+		} else {
+			routes = []route{{"email", mail}, {"whatsapp", mobile}}
+		}
 		to, ch := "", channel
-		if channel == "whatsapp" && phone != nil && strings.TrimSpace(*phone) != "" {
-			to = strings.TrimSpace(*phone)
-		} else if email != nil && strings.TrimSpace(*email) != "" {
-			to, ch = strings.TrimSpace(*email), "email"
-		} else if phone != nil && strings.TrimSpace(*phone) != "" {
-			to, ch = strings.TrimSpace(*phone), "whatsapp"
+		for _, r := range routes {
+			if r.to != "" && enabled[r.ch] {
+				to, ch = r.to, r.ch
+				break
+			}
+		}
+		if to == "" {
+			// Nothing the school can send through. Queue on whichever contact
+			// exists so the row is an honest record of the attempt, and let the
+			// page say it could not be sent.
+			for _, r := range routes {
+				if r.to != "" {
+					to, ch = r.to, r.ch
+					break
+				}
+			}
 		}
 
 		if instID != nil && to != "" {
