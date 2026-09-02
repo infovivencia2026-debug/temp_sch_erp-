@@ -6,4 +6,10 @@
     <string name="retry">Try again</string>
     <string name="download_started">Downloading %1$s</string>
     <string name="download_failed">Could not download %1$s</string>
+    <!-- The file chooser. Named for what the parent is doing rather than
+         "Open with", because the system's own wording describes picking an app
+         and this is about picking a document. -->
+    <string name="choose_file">Choose a file</string>
+    <string name="no_picker">This phone has no app that can choose a file.</string>
+    <string name="capture_failed">The photo was not saved. Check there is space on the phone and try again.</string>
 </resources>

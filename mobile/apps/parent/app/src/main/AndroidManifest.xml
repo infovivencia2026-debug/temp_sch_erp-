@@ -4,6 +4,33 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- DELIBERATELY NOT android.permission.CAMERA.
+
+         Taking the photograph is the camera app's act, not this app's: the
+         picture is captured under its identity and arrives here as a result.
+         Declaring CAMERA would not enable anything, and would actively break
+         the flow, because an app that declares the permission and has not been
+         granted it gets a SecurityException from ACTION_IMAGE_CAPTURE rather
+         than a camera. So the upload path asks a parent for nothing at all.
+
+         Nor WRITE_EXTERNAL_STORAGE. The captured file goes to this app's own
+         external cache through PickedFileProvider, which needs no permission
+         on any API this builds for. -->
+
+    <!-- Android 11 hides every installed app from this one unless it declares
+         an interest. Without this, resolveActivity for the camera returns null
+         on a phone that plainly has a camera, and the camera silently vanishes
+         from the file chooser with nothing anywhere to say why. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -17,11 +44,58 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.Parent">
+            android:theme="@style/Theme.Parent"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- A LINK IN AN SMS THAT LANDS ON THE RIGHT SCREEN.
+
+                 The paths claimed here are narrow on purpose, and the reason
+                 is worth writing down because the tempting version is to claim
+                 the host and be done. The portal's router matches
+                 /:roleKey/:sectionSlug/:featureSlug, which is to say it owns
+                 very nearly every path there is, /api included. Claiming all
+                 of that would mean this app volunteering to open URLs that are
+                 not pages at all, and a parent who followed one would get raw
+                 JSON inside something wearing the school's icon.
+
+                 So: /go/ , which is the site's own stable deep link scheme and
+                 exists precisely so a link can name a feature without knowing
+                 the route to it; /account, which is where a "your fees are
+                 due" message wants to land; and the site root. Everything else
+                 keeps going to the browser, which handles it correctly today.
+
+                 autoVerify is set, which on Android 12 and up means these
+                 links open this app WITHOUT asking only once the server serves
+                 /.well-known/assetlinks.json naming this package and the
+                 signing certificate. Until that file is deployed the filter is
+                 inert unless a parent turns the app on by hand in Settings.
+                 That is the correct failure: an unverified claim on somebody
+                 else's links should not be honoured, and the alternative is a
+                 disambiguation sheet on every tap. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${portalHost}" />
+                <data android:path="/" />
+                <data android:pathPrefix="/account" />
+                <data android:pathPrefix="/go/" />
+            </intent-filter>
         </activity>
+
+        <!-- The camera writes the parent's photograph through this. Not
+             exported: the only access anything ever gets is the per Uri grant
+             the capture intent carries, and it lapses with the task. See
+             PickedFileProvider for why this is hand written rather than the
+             androidx FileProvider. -->
+        <provider
+            android:name=".PickedFileProvider"
+            android:authorities="${applicationId}.picked"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

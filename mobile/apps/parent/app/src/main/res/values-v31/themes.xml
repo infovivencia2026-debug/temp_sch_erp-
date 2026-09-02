@@ -1,0 +1,26 @@
+<resources>
+    <!-- THE SYSTEM SPLASH, SAID OUT LOUD RATHER THAN LEFT TO DEFAULTS.
+
+         Android 12 and up put a splash in front of every cold start whether an
+         app asks for one or not. Left unstated it takes its ground from
+         windowBackground, which happens to be right here, and its icon from
+         the launcher icon, which is also right. Both are written down anyway,
+         because "correct by coincidence" is how a later change to
+         windowBackground turns into a white flash nobody connects to the
+         commit that caused it.
+
+         The ground is the portal's own page colour, in light and in dark, so
+         the handover from splash to page has no colour change in it at all.
+         The activity holds this splash up until the web content has actually
+         painted; see holdSplash in MainActivity for why that matters and for
+         the timeout that stops it becoming a hang. -->
+    <style name="Theme.Parent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/page_bg</item>
+        <item name="android:navigationBarColor">@color/page_bg</item>
+        <item name="android:windowBackground">@color/page_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowSplashScreenBackground">@color/page_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>
