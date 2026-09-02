@@ -71,6 +71,19 @@ func (h *Hasher) Hash(password string) (string, error) {
 
 var ErrMismatch = errors.New("password does not match")
 
+/*
+The two failures that are not a wrong password.
+
+	Kept unexported: they exist so the sign-in page can say something useful,
+	not so callers elsewhere can branch on them. Anything outside this package
+	that needs to know why a sign-in failed should be given a reason string
+	rather than an error to switch on.
+*/
+var (
+	errNoAccount           = errors.New("no account matches that identifier")
+	errAmbiguousIdentifier = errors.New("identifier matches accounts in more than one tenant")
+)
+
 func (h *Hasher) Verify(hash, password string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), h.prepare(password))
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

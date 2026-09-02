@@ -125,11 +125,36 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	userID, instID, err := h.authenticate(r.Context(), identifier, password)
 	if err != nil {
 		h.throttle.Failed(identifier)
-		// One message for "no such user" and "wrong password" alike, so the
-		// form cannot be used to enumerate accounts.
+		/* THREE DIFFERENT FACTS, SAID AS THREE.
+
+		   This was one message — "Incorrect username or password" — chosen so
+		   the form could not be used to enumerate accounts. That is a real
+		   concern and the reason it stood for a long time. It also cost a full
+		   day of this school's time: a parent's number was registered at two
+		   institutions, every sign-in was refused for THAT reason, and the
+		   screen said the password was wrong. The office reissued the password
+		   four times, each one correct, each one rejected, and concluded the
+		   accounts were not being created at all.
+
+		   Enumeration is a modest risk here and it is already available: the
+		   forgot-password form answers per address, and a school's roll is not
+		   a secret from the people holding it. Being unable to tell a wrong
+		   password from an unusable account is a daily, certain cost. So the
+		   three cases are now three sentences, and only the one that is
+		   actually about the password mentions the password. */
+		msg := "That password is not right. Try again, or use Forgotten your password."
+		switch {
+		case errors.Is(err, errNoAccount):
+			msg = "No account here uses that username, email or phone. " +
+				"Check it with the school office."
+		case errors.Is(err, errAmbiguousIdentifier):
+			msg = "That number or address is registered at more than one school, " +
+				"so we cannot tell which account you mean. Sign in with your email " +
+				"address instead, or ask the office for a username."
+		}
 		h.render(w, r, http.StatusUnauthorized, loginPage{
 			CSRFToken: h.issueCSRF(w),
-			Error:     "Incorrect username or password.",
+			Error:     msg,
 			Next:      next,
 		})
 		return
@@ -170,8 +195,15 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 			identifier).Scan(&matches); err != nil {
 			return err
 		}
-		if matches != 1 {
-			return pgx.ErrNoRows
+		if matches == 0 {
+			return errNoAccount
+		}
+		if matches > 1 {
+			// Refusing is right — see above — but it is a different fact from
+			// a wrong password and the caller has to be able to tell them
+			// apart, or the person holding a correct password is told it is
+			// wrong and gives up.
+			return errAmbiguousIdentifier
 		}
 		return tx.QueryRow(ctx, `
 			SELECT id, institution_id, password_hash
@@ -185,9 +217,16 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		slog.Warn("ambiguous login identifier across tenants",
 			"identifier", identifier, "matches", matches)
 	}
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && hash == nil) {
+	if errors.Is(err, errAmbiguousIdentifier) {
+		// Still a constant-time path: the work below is skipped either way and
+		// the caller decides what to say.
 		_ = h.hasher.Verify(dummyHash, password)
-		return uuid.Nil, uuid.Nil, ErrMismatch
+		return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
+	}
+	if errors.Is(err, errNoAccount) || errors.Is(err, pgx.ErrNoRows) ||
+		(err == nil && hash == nil) {
+		_ = h.hasher.Verify(dummyHash, password)
+		return uuid.Nil, uuid.Nil, errNoAccount
 	}
 	if err != nil {
 		return uuid.Nil, uuid.Nil, err
