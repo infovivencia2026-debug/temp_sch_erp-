@@ -211,7 +211,20 @@ export function CommandSearch() {
       <div
         role="dialog"
         aria-label="Search features"
-        className="fixed left-1/2 top-[12vh] z-50 w-[min(640px,calc(100vw-2rem))] -translate-x-1/2"
+        /* CENTRED BY MARGINS, NOT BY A TRANSFORM.
+
+           This was `left-1/2 -translate-x-1/2`, and the translate did not
+           survive: measured on the live site the computed transform was the
+           identity matrix while --tw-translate-x still read -50%, so the panel
+           began at exactly half the viewport and ran off the right edge. At
+           768px that put 256px of a 640px panel off-screen, the search field
+           among it, which is the one control the panel exists for.
+
+           Insetting to both edges and centring with auto margins asks the
+           layout engine for the same result without going through a transform
+           that something else can flatten. It also keeps the 1rem gutter on a
+           narrow window, which the width calc was already trying to hold. */
+        className="fixed inset-x-4 top-[12vh] z-50 mx-auto w-auto max-w-[640px]"
       >
         <div className="overflow-hidden rounded-md border bg-popover shadow-pop">
           <div className="flex items-center gap-2.5 border-b px-4">
