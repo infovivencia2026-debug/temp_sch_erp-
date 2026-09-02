@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -159,25 +160,56 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   would have picked whichever the planner returned first and mailed a
 		   link that resets a stranger's account. Refusing the ambiguous case
 		   matches what the sign-in handler already does with it. */
+		/* THE SAME SET SIGN-IN CONSIDERS, AND NO WIDER.
+
+		   This counted every user whose status was not 'disabled' — archived
+		   people included — and never asked whether their school still
+		   operated. Sign-in counts active users of active institutions. So the
+		   two disagreed, and this one found two candidates where sign-in found
+		   one: it gave up, queued nothing, and the page reported the only
+		   reason it knew how to report, which was that the school had no
+		   delivery channel.
+
+		   That sentence was false for every account tried on this deployment,
+		   including the administrator's own, on a school whose SMTP is
+		   configured, enabled and sending. A leftover row at a shut-off school
+		   was silently vetoing password resets for a live one.
+
+		   Whatever the rule is, both paths have to use it. A person who can
+		   sign in must be able to reset, and a row that cannot sign anybody in
+		   must not be able to block them. */
 		var matches int
 		if err := tx.QueryRow(r.Context(), `
-			SELECT count(*) FROM users
-			 WHERE status <> 'disabled'
-			   AND (email = $1::citext OR username = $1::citext OR phone = $1)`,
+			SELECT count(*)
+			  FROM users u
+			  LEFT JOIN institutions i ON i.id = u.institution_id
+			 WHERE u.status = 'active'
+			   AND (u.institution_id IS NULL OR i.status = 'active')
+			   AND (u.email = $1::citext OR u.username = $1::citext OR u.phone = $1)`,
 			who).Scan(&matches); err != nil {
 			return err
 		}
 		if matches != 1 {
-			// Said the same way as "no such account": a form that distinguishes
-			// them tells a stranger which addresses are shared between schools.
+			/* Said the same way as "no such account": a form that distinguishes
+			   them tells a stranger which addresses are shared between schools.
+
+			   Logged, though. Silence here is what made a false sentence the
+			   only evidence anybody had. */
+			if matches > 1 {
+				slog.Warn("password reset: identifier matches more than one live account",
+					"matches", matches)
+			}
 			return nil
 		}
 
 		var phone *string
 		err := tx.QueryRow(r.Context(), `
-			SELECT id, institution_id, email::text, phone FROM users
-			 WHERE status <> 'disabled'
-			   AND (email = $1::citext OR username = $1::citext OR phone = $1)`,
+			SELECT u.id, u.institution_id, u.email::text, u.phone
+			  FROM users u
+			  LEFT JOIN institutions i ON i.id = u.institution_id
+			 WHERE u.status = 'active'
+			   AND (u.institution_id IS NULL OR i.status = 'active')
+			   AND (u.email = $1::citext OR u.username = $1::citext OR u.phone = $1)`,
 			who).Scan(&userID, &instID, &email, &phone)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil // answered identically below
