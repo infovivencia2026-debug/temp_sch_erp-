@@ -513,6 +513,11 @@ func (s *Server) authorisePickup(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// pickupCodeDigits is the length, named once. Two separate literals for the
+// mint and the check is how the SMS gateway shipped nine digits against a
+// hard-coded eight and refused every code it printed for a week.
+const pickupCodeDigits = 6
+
 // pickupCode returns a six-digit code from the cryptographic source.
 func pickupCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
@@ -579,7 +584,7 @@ verifyPickup is the gate's lookup: somebody has recited a code.
 */
 func (s *Server) verifyPickup(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(r.URL.Query().Get("code"))
-	if len(code) != 6 {
+	if len(code) != pickupCodeDigits {
 		httpx.BadRequest(w, r, "a pickup code is six digits")
 		return
 	}

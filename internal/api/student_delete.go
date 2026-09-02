@@ -77,10 +77,14 @@ func (s *Server) deleteStudent(w http.ResponseWriter, r *http.Request) {
 			return errNameMismatch
 		}
 
-		if err := tx.QueryRow(r.Context(), `
-			SELECT count(*) FROM payments p
-			  JOIN invoices i ON i.id = p.invoice_id
-			 WHERE i.student_id = $1`, sid).Scan(&paid); err != nil {
+		/* payments carries the child directly. An earlier draft joined it to
+		   invoices on p.invoice_id, which does not exist on this schema —
+		   money is recorded against the student and allocated to invoices
+		   afterwards. The join compiled, shipped, and made every delete a 500:
+		   the guard against erasing an accounting record was itself the thing
+		   that broke, which is the worst direction for a mistake here. */
+		if err := tx.QueryRow(r.Context(),
+			`SELECT count(*) FROM payments WHERE student_id = $1`, sid).Scan(&paid); err != nil {
 			return err
 		}
 		if paid > 0 {
