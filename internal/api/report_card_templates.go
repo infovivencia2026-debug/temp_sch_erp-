@@ -151,7 +151,17 @@ const defaultReportCardCSS = `
    force -- the app's, the browser's default, or one somebody sets in the
    print dialogue. No number here has to agree with a number somewhere else,
    which is what made the old one wrong. */
-.card { width: 100%; max-width: 190mm; margin: 0 auto; padding: 8mm;
+/* A DEFINITE WIDTH ON SCREEN, A FLEXIBLE ONE ON PAPER.
+
+   width:100% was wrong on screen: the viewer measures the card to scale it to
+   fit, so it sits in a fit-content box, and a percentage inside a box that is
+   sized by its contents has nothing to resolve against. The card collapsed
+   towards its own text and every column with it.
+
+   190mm is what a sheet of A4 is, so that is the width. max-width lets it
+   give way when the paper turns out to be narrower -- which it does, since
+   the application prints at a 14mm margin and leaves 182mm. */
+.card { width: 190mm; max-width: 100%; margin: 0 auto; padding: 8mm;
         box-sizing: border-box;
         border: 2px solid #1e3a5f;
         /* The face is the school's choice, substituted below. A fallback chain
