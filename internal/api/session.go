@@ -99,6 +99,14 @@ func (s *Server) requirePasswordChanged(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		/* Reading the session, for the same reason: the screen has to know who
+		   it is talking to. It is registered outside this group today and so
+		   never arrives here, which is exactly why it stays listed — the day
+		   somebody moves it inside, the screen must not go blank. */
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/session") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		httpx.Error(w, r, http.StatusForbidden, "password_change_required",
 			"set your own password before using the app")
 	})
