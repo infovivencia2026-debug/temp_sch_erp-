@@ -69,8 +69,27 @@ type studentWriteRequest struct {
 	APAARID      string `json:"apaar_id,omitempty"`
 	ChildInfoID  string `json:"child_info_id,omitempty"`
 	PriorSchool  string `json:"prior_school,omitempty"`
-	IsRTE        bool   `json:"is_rte"`
-	IsCWSN       bool   `json:"is_cwsn"`
+	/* THE DAY THE CHILD ACTUALLY JOINED.
+
+	   This was CURRENT_DATE with nothing able to set it, so a school importing
+	   the roll it has kept for fifteen years got a file in which every child
+	   joined on the morning of the import. Length of service is not a detail:
+	   it decides seniority, it prints on a transfer certificate, and it is the
+	   difference between a child continuing from past years and a new joiner,
+	   which is the distinction the school is importing the file to preserve. */
+	AdmissionDate string `json:"admission_date,omitempty"`
+	/* Where they were before this year, for a child who did not start here.
+
+	   A roll imported mid-life has no history: the child appears in this
+	   year's section having existed nowhere previously, so "which class was
+	   she in last year" -- asked on every transfer certificate and every
+	   promotion -- has no answer. One prior placement is enough to make the
+	   record continuous; a school with more can import the file once per
+	   year. */
+	PreviousClass string `json:"previous_class,omitempty"`
+	PreviousYear  string `json:"previous_year,omitempty"`
+	IsRTE         bool   `json:"is_rte"`
+	IsCWSN        bool   `json:"is_cwsn"`
 	/* Whatever else this school keeps about a child.
 
 	   Schools differ in ways no fixed column list survives: a bus stop name, a
@@ -235,7 +254,7 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		        $17,$18,$19,$20,$21,$22,$23,
 		        COALESCE($24,'Indian'),$25,
 		        COALESCE($26::jsonb,'{}'::jsonb), $27::uuid,
-		        $28,$29,$30,$31, CURRENT_DATE,'active')
+		        $28,$29,$30,$31, COALESCE($32::date, CURRENT_DATE),'active')
 		ON CONFLICT (institution_id, admission_no) DO UPDATE SET
 		    first_name = EXCLUDED.first_name, middle_name = EXCLUDED.middle_name,
 		    last_name = EXCLUDED.last_name, date_of_birth = EXCLUDED.date_of_birth,
@@ -260,6 +279,9 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		    emergency_contact_name = EXCLUDED.emergency_contact_name,
 		    emergency_contact_phone = EXCLUDED.emergency_contact_phone,
 		    emergency_contact_relation = EXCLUDED.emergency_contact_relation,
+		    -- COALESCE: a re-upload whose sheet has no admission_date column
+		    -- must not reset a date somebody already got right.
+		    admission_date = COALESCE(EXCLUDED.admission_date, students.admission_date),
 		    updated_at = now()
 		RETURNING id::text`,
 		instID, campus, admissionNo, req.FirstName, nullString(req.MiddleName),
@@ -274,7 +296,8 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		customFieldsJSON(req.CustomFields),
 		nullString(req.HouseID), nullString(req.PermanentAddress),
 		nullString(req.EmergencyName), nullString(req.EmergencyPhone),
-		nullString(req.EmergencyRelation)).Scan(&studentID); err != nil {
+		nullString(req.EmergencyRelation),
+		nullString(req.AdmissionDate)).Scan(&studentID); err != nil {
 		return "", "", err
 	}
 
@@ -332,6 +355,42 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			              roll_no    = COALESCE(EXCLUDED.roll_no, enrollments.roll_no),
 			              status     = 'active'`,
 			instID, studentID, yearID, req.SectionID, rollNo); err != nil {
+			return "", "", err
+		}
+	}
+
+	/* LAST YEAR'S CLASS, where the sheet carries it.
+
+	   Matched on the class name and the year's name as the school writes them,
+	   because that is what is in the file: "Grade 5" and "2025-26". A name
+	   that matches nothing is skipped rather than failing the row -- the child
+	   and this year's placement are the record, and refusing to import a
+	   family because a historic year was spelt differently would lose the
+	   thing that matters to preserve the thing that does not.
+
+	   Recorded as completed, not active: it is where they were, and an active
+	   second enrolment would put the child in two classes at once and count
+	   them twice in every roll. */
+	if req.PreviousClass != "" && req.PreviousYear != "" {
+		var prevYear, prevClass uuid.UUID
+		err := tx.QueryRow(r.Context(), `
+			SELECT y.id, c.id
+			  FROM academic_years y, classes c
+			 WHERE y.institution_id = $1 AND c.institution_id = $1
+			   AND replace(lower(y.name),' ','') = replace(lower($2),' ','')
+			   AND lower(c.name) = lower($3)
+			 LIMIT 1`, instID, req.PreviousYear, req.PreviousClass).
+			Scan(&prevYear, &prevClass)
+		if err == nil {
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO enrollments (institution_id, student_id, academic_year_id,
+				                         class_id, status)
+				VALUES ($1,$2::uuid,$3,$4,'completed')
+				ON CONFLICT (student_id, academic_year_id) DO NOTHING`,
+				instID, studentID, prevYear, prevClass); err != nil {
+				return "", "", err
+			}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return "", "", err
 		}
 	}
@@ -603,22 +662,27 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		}
 
 		req := studentWriteRequest{
-			AdmissionNo:      get(rec, "admission_no"),
-			FirstName:        first,
-			MiddleName:       middle,
-			LastName:         last,
-			DateOfBirth:      normaliseDate(get(rec, "date_of_birth")),
-			Gender:           strings.ToLower(get(rec, "gender")),
-			BloodGroup:       get(rec, "blood_group"),
-			Medium:           strings.ToLower(get(rec, "medium")),
-			MotherTongue:     get(rec, "mother_tongue"),
-			AddressLine1:     get(rec, "address"),
-			City:             get(rec, "city"),
-			State:            get(rec, "state"),
-			Pincode:          get(rec, "pincode"),
-			APAARID:          get(rec, "apaar_id"),
-			ChildInfoID:      get(rec, "child_info_id"),
-			PriorSchool:      get(rec, "prior_school"),
+			AdmissionNo:  get(rec, "admission_no"),
+			FirstName:    first,
+			MiddleName:   middle,
+			LastName:     last,
+			DateOfBirth:  normaliseDate(get(rec, "date_of_birth")),
+			Gender:       strings.ToLower(get(rec, "gender")),
+			BloodGroup:   get(rec, "blood_group"),
+			Medium:       strings.ToLower(get(rec, "medium")),
+			MotherTongue: get(rec, "mother_tongue"),
+			AddressLine1: get(rec, "address"),
+			City:         get(rec, "city"),
+			State:        get(rec, "state"),
+			Pincode:      get(rec, "pincode"),
+			APAARID:      get(rec, "apaar_id"),
+			ChildInfoID:  get(rec, "child_info_id"),
+			PriorSchool:  get(rec, "prior_school"),
+			// Optional, like every column but the name: a school that keeps
+			// none of this imports exactly as well without them.
+			AdmissionDate:    normaliseDate(get(rec, "admission_date")),
+			PreviousClass:    get(rec, "previous_class"),
+			PreviousYear:     get(rec, "previous_year"),
 			IsRTE:            isTruthy(get(rec, "is_rte")),
 			IsCWSN:           isTruthy(get(rec, "is_cwsn")),
 			GuardianName:     get(rec, "guardian_name"),
@@ -804,11 +868,15 @@ func (s *Server) getImportTemplate(w http.ResponseWriter, r *http.Request) {
 		"full_name", "admission_no", "date_of_birth", "gender", "blood_group",
 		"medium", "mother_tongue", "section", "roll_no",
 		"address", "city", "state", "pincode", "prior_school",
+		// The three that make an existing roll import as a history rather
+		// than as a room full of children who all arrived this morning.
+		"admission_date", "previous_class", "previous_year",
 		"guardian_name", "guardian_relation", "guardian_phone", "guardian_email",
 	}, ",")+"\n")
 	_, _ = io.WriteString(w,
 		"Meera Menon,ADM0001,14/06/2013,female,B+,english,Malayalam,Class 6-A,1,"+
 			"12 Green Park,Hyderabad,Telangana,500001,St Teresa's,"+
+			"12/06/2021,Grade 5,2025-26,"+
 			"Suresh Menon,father,9845012345,suresh@example.com\n")
 }
 
