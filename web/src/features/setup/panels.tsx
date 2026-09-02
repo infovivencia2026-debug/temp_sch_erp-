@@ -1624,9 +1624,14 @@ function HistoryPanel({ onDone }: PanelProps) {
         onDone={onDone}
       />
 
+      {/* The grid first, because it is the sheet a school actually has. The
+          row-per-subject file stays for anyone whose export is already in
+          that shape. */}
+      <MarksGridUpload onDone={onDone} />
+
       <BulkImport
         entity="marks"
-        title="Past exam results"
+        title="Past exam results, one row per subject"
         hint="One row per child, per exam, per subject. These go into the real exam tables, so a report card for that year prints exactly as it did before. Exams and years named here are created for you; children and subjects are not."
         onDone={onDone}
       />
@@ -1637,6 +1642,79 @@ function HistoryPanel({ onDone }: PanelProps) {
         hint="One row per person per year: designation, attendance and leave. What the school reads when it writes an experience certificate or settles seniority."
         onDone={onDone}
       />
+    </div>
+  )
+}
+
+
+/* THE MARK SHEET AS THE STAFF ROOM KEEPS IT.
+
+   The row-per-subject import is the right shape for a database and the wrong
+   shape for a school. Forty children across six subjects is two hundred and
+   forty rows, and nobody keeps marks that way: the sheet on the table is a
+   grid, children down the side, subjects across the top, one mark in a cell.
+
+   Asking somebody to reshape that first is asking them to do by hand, forty
+   times, the transformation a computer exists for. Most will not, and the
+   year's results stay in the spreadsheet.
+
+   The four facts below describe the whole sheet, so they are asked once. A
+   grid has no column for the exam or the class -- it is titled "Grade 5,
+   Annual Examination" at the top and every cell belongs to that -- and asking
+   per row is how one mistyped cell puts one child in another class. */
+function MarksGridUpload({ onDone }: { onDone?: () => void }) {
+  const [year, setYear] = useState('')
+  const [exam, setExam] = useState('')
+  const [cls, setCls] = useState('')
+  const [max, setMax] = useState('100')
+
+  const classes = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/academics/classes'),
+  })
+
+  const ready = year.trim() && exam.trim() && cls.trim() && Number(max) > 0
+
+  return (
+    <div className="space-y-3">
+      <FormGrid>
+        <Field label="Which year" required hint="As the school writes it, e.g. 2024-25.">
+          <Input value={year} onChange={setYear} placeholder="2024-25" />
+        </Field>
+        <Field label="Which examination" required
+          hint="Created if the school has never recorded it here.">
+          <Input value={exam} onChange={setExam} placeholder="Annual Examination" />
+        </Field>
+        <Field label="Which class" required
+          hint="The class as it is now named. Subjects are checked against it.">
+          <Select
+            value={cls}
+            onChange={setCls}
+            placeholder="Choose a class"
+            options={(classes.data?.items ?? []).map((c) => ({ value: c.name, label: c.name }))}
+          />
+        </Field>
+        <Field label="Out of" required
+          hint="What every paper on this sheet is marked out of.">
+          <Input type="number" value={max} onChange={setMax} />
+        </Field>
+      </FormGrid>
+
+      {ready ? (
+        <BulkImport
+          entity="marks_grid"
+          title="Upload the mark sheet"
+          hint="Children down, subjects across — the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
+          params={{ year, exam, class: cls, max_marks: max }}
+          subjectMapping
+          onDone={onDone}
+        />
+      ) : (
+        <p className="rounded-md border border-dashed p-3 text-[13px] text-muted-foreground">
+          Fill in the four above and the upload box appears. They describe the
+          whole sheet, so they are asked once rather than repeated on every row.
+        </p>
+      )}
     </div>
   )
 }

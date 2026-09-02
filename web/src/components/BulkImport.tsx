@@ -115,6 +115,8 @@ export default function BulkImport({
   onDone,
   endpoint,
   templateUrl,
+  params,
+  subjectMapping,
 }: {
   /** classes | sections | staff — must be an entity the server imports. */
   entity: string
@@ -126,6 +128,14 @@ export default function BulkImport({
    *  placement; pointing at it beats reimplementing it here. */
   endpoint?: string
   templateUrl?: string
+  /** Facts true of the whole sheet rather than of one row, sent with it. A
+   *  grid mark sheet is one exam, of one class, in one year, out of one
+   *  maximum; repeating those on every row is how one typo puts one child's
+   *  paper out of ten. */
+  params?: Record<string, string>
+  /** Lets the clerk say which of their columns hold marks, and for which
+   *  subject. Only a mark sheet needs this. */
+  subjectMapping?: boolean
 }) {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -156,6 +166,13 @@ export default function BulkImport({
      a column nobody thought to check. So every field is pointed at a column
      by a person, and a field left alone is a field this file does not carry. */
   const [colMap, setColMap] = useState<Record<string, string>>({})
+  /* their header -> the subject whose marks it holds.
+   *
+   * Which columns are subjects cannot be worked out from the file: "Total",
+   * "Rank", "Attendance" and "Remarks" sit in the same header row and are not
+   * subjects. Guessing wrong writes a child's total into a paper nobody sat,
+   * so it is asked. */
+  const [subjectMap, setSubjectMap] = useState<Record<string, string>>({})
 
   const fields = useQuery({
     queryKey: ['import-fields', entity],
@@ -176,7 +193,16 @@ export default function BulkImport({
       const base = endpoint ?? `/api/v1/setup/import/${entity}`
       // The filename travels with the commit so the history can say
       // "students-final-v3.csv" rather than "312 rows".
-      const q = commit ? `?commit=true&filename=${encodeURIComponent(name)}` : ''
+      const qs = new URLSearchParams()
+      if (commit) {
+        qs.set('commit', 'true')
+        qs.set('filename', name)
+      }
+      for (const [k, v] of Object.entries(params ?? {})) {
+        if (v) qs.set(k, v)
+      }
+      const query = qs.toString()
+      const q = query ? `?${query}` : ''
       const res = await fetch(
         `${base}${q}`,
         {
@@ -186,8 +212,20 @@ export default function BulkImport({
             'Content-Type': 'text/csv',
             // Sent beside the file rather than wrapped around it, so the same
             // request works from a script and from this screen.
-            ...(Object.keys(colMap).length
-              ? { 'X-Column-Map': JSON.stringify(colMap) }
+            /* Subject columns travel in the same map under a subject:
+               prefix, so there is one mechanism for "which of your columns is
+               this" rather than two that can disagree. */
+            ...(Object.keys({ ...colMap, ...subjectMap }).length
+              ? {
+                  'X-Column-Map': JSON.stringify({
+                    ...colMap,
+                    ...Object.fromEntries(
+                      Object.entries(subjectMap)
+                        .filter(([, subject]) => subject.trim())
+                        .map(([header, subject]) => [`subject:${subject.trim()}`, header]),
+                    ),
+                  }),
+                }
               : {}),
             // A platform operator working inside a school must import into
             // that school, not into none.
@@ -228,6 +266,7 @@ export default function BulkImport({
     setShowAll(false)
     setError('')
     setColMap({})
+    setSubjectMap({})
   }
 
   const take = (text: string, label: string) => {
@@ -490,6 +529,36 @@ export default function BulkImport({
                 </div>
               ))}
             </div>
+            {subjectMapping && (
+              <div className="border-t">
+                <div className="px-3 py-2">
+                  <p className="text-[13px] font-medium">Which columns hold marks</p>
+                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                    Name the subject each marks column belongs to. Leave the
+                    rest \u2014 Total, Rank, Attendance, Remarks \u2014 empty: they are
+                    worked out from the marks, not read from the sheet.
+                  </p>
+                </div>
+                <div className="max-h-56 overflow-y-auto divide-y">
+                  {theirHeaders
+                    .filter((h) => !Object.values(colMap).includes(h))
+                    .map((h, i) => (
+                      <div key={`${h}-${i}`} className="flex items-center gap-3 px-3 py-1.5">
+                        <span className="w-48 flex-none truncate text-[13px]">{h}</span>
+                        <Input
+                          value={subjectMap[h] ?? ''}
+                          onChange={(v) => setSubjectMap((m) => ({ ...m, [h]: v }))}
+                          placeholder="Subject name, or leave empty"
+                        />
+                        <span className="w-24 flex-none truncate text-[12px] text-muted-foreground">
+                          {grid[1]?.[theirHeaders.indexOf(h)] ?? ''}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2 border-t px-3 py-2">
               {missing.length > 0 ? (
                 <p className="text-[12.5px] text-warning">
