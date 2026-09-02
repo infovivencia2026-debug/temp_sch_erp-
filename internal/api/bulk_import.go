@@ -1215,6 +1215,27 @@ var importSpecs = map[string]importSpec{
 				c.noteCreated("staff", parsed, created)
 			}
 
+			/* THE COLUMNS THIS PRODUCT HAS NO FIELD FOR.
+
+			   Every school's staff sheet carries something we did not think of
+			   — a PF number, a bus route, a qualification code, the branch
+			   they were hired at. Those columns were read into the row and
+			   then dropped, so the import reported sixty staff imported and
+			   quietly lost half of what the file said about them.
+
+			   Kept under the school's own header, which is the label the
+			   office will look for. employees.custom_fields exists for exactly
+			   this and had nothing writing to it from the importer. */
+			if extra := leftoverColumns(row, staffKnownColumns); len(extra) > 0 {
+				if _, err := c.tx.Exec(c.r.Context(), `
+					UPDATE employees
+					   SET custom_fields = custom_fields || $2::jsonb,
+					       updated_at = now()
+					 WHERE id = $1`, empID, jsonMap(extra)); err != nil {
+					return err
+				}
+			}
+
 			/* What they teach, where the sheet says.
 
 			   A school knows who its maths teachers are and had nowhere to
@@ -1805,6 +1826,45 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 
 // normaliseHeader makes "Employee Code", "employee_code" and "EMPLOYEE CODE"
 // the same column, because the sheet came from somebody else's software.
+/* What the staff importer knows about, so everything else can be kept.
+
+   Listed once rather than derived from the spec's Columns, because the two
+   answer different questions: Columns is what the template offers, and this is
+   what the writer above actually reads. A column added to one and not the
+   other would silently start being stored twice. */
+var staffKnownColumns = map[string]bool{
+	"employee_code": true, "first_name": true, "last_name": true,
+	"email": true, "phone": true, "designation": true, "role": true,
+	"joined_on": true, "subjects": true,
+}
+
+// leftoverColumns is everything in the row this importer did not read, with
+// blanks left out: an extra field that is empty on most people is a column of
+// dashes on every record, which is worse than not having it.
+func leftoverColumns(row map[string]string, known map[string]bool) map[string]string {
+	out := map[string]string{}
+	for k, v := range row {
+		if known[k] {
+			continue
+		}
+		if v = strings.TrimSpace(v); v != "" {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// jsonMap renders a flat map for a jsonb parameter.
+func jsonMap(m map[string]string) []byte {
+	b, err := json.Marshal(m)
+	if err != nil {
+		// A map[string]string cannot fail to marshal; an empty object is
+		// still the safe thing to concatenate.
+		return []byte("{}")
+	}
+	return b
+}
+
 func normaliseHeader(h string) string {
 	// The byte order mark Excel writes is not whitespace, so TrimSpace
 	// leaves it on the first column and that column stops matching its

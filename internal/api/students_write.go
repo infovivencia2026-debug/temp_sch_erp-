@@ -672,6 +672,37 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		col = remapped
 	}
 
+	/* AND A COLUMN NOBODY MAPPED AT ALL IS STILL THE SCHOOL'S DATA.
+
+	   Keeping an unknown column required somebody to notice it and map it as
+	   custom:Something, which asks the clerk to know in advance which of their
+	   own columns this product has a field for. They do not, and the ones they
+	   miss are silently dropped — a sheet is uploaded, the import says 812
+	   children imported, and the scholarship number that was in column N is
+	   gone with no line anywhere saying so.
+
+	   So anything left over is kept, under the school's own header as its
+	   label. The cost of being wrong in this direction is a field on a record
+	   that nobody reads; the cost of the other is data destroyed on the way
+	   in. */
+	usedColumns := map[int]bool{}
+	for _, i := range col {
+		usedColumns[i] = true
+	}
+	for _, i := range customCols {
+		usedColumns[i] = true
+	}
+	for i, h := range header {
+		if usedColumns[i] {
+			continue
+		}
+		label := strings.TrimSpace(strings.TrimPrefix(h, "\ufeff"))
+		if label == "" {
+			continue
+		}
+		customCols[label] = i
+	}
+
 	get := func(rec []string, name string) string {
 		i, ok := col[name]
 		if !ok || i >= len(rec) {

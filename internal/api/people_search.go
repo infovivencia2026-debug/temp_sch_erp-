@@ -75,10 +75,12 @@ func (s *Server) searchPeople(w http.ResponseWriter, r *http.Request) {
 				       trim(concat_ws(' · ',
 				            NULLIF(concat_ws(' ', c.name, sec.name), ''),
 				            st.admission_no,
+				            COALESCE(st.person_code, ''),
 				            NULLIF(st.status, 'active'))) AS detail,
 				       st.id::text AS student_id,
 				       CASE
-				         WHEN lower(st.admission_no) = lower((SELECT q FROM needle)) THEN 0
+				         WHEN lower(st.admission_no) = lower((SELECT q FROM needle))
+				              OR lower(COALESCE(st.person_code,'')) = lower((SELECT q FROM needle)) THEN 0
 				         WHEN lower(trim(concat_ws(' ', st.first_name, st.last_name)))
 				              LIKE lower((SELECT q FROM needle)) || '%' THEN 1
 				         ELSE 3
@@ -90,6 +92,8 @@ func (s *Server) searchPeople(w http.ResponseWriter, r *http.Request) {
 				 WHERE trim(concat_ws(' ', st.first_name, st.middle_name, st.last_name))
 				         ILIKE '%' || (SELECT q FROM needle) || '%'
 				    OR st.admission_no ILIKE '%' || (SELECT q FROM needle) || '%'
+				    -- The app's own code, so a person quoting it is found by it.
+				    OR COALESCE(st.person_code,'') ILIKE '%' || (SELECT q FROM needle) || '%'
 
 				UNION ALL
 

@@ -13,7 +13,14 @@ import (
 )
 
 type student struct {
-	ID          string  `json:"id"`
+	ID string `json:"id"`
+	/* This app's own permanent identifier, alongside the school's.
+
+	   admission_no is whatever the school writes — a format that differs at
+	   every school, is sometimes text, and is occasionally reissued when a
+	   child leaves. person_code is ours, never changes, and is what an import
+	   can be re-run against without creating a second copy of a child. */
+	PersonCode  *string `json:"person_code,omitempty"`
 	AdmissionNo string  `json:"admission_no"`
 	FullName    string  `json:"full_name"`
 	FirstName   string  `json:"first_name"`
@@ -124,7 +131,7 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 		}
 
 		rows, err := tx.Query(r.Context(), `
-			SELECT st.id::text, st.admission_no,
+			SELECT st.id::text, st.person_code, st.admission_no,
 			       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 			       st.first_name, st.middle_name, st.last_name, st.gender,
 			       to_char(st.date_of_birth, 'YYYY-MM-DD'), st.status,
@@ -144,7 +151,7 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 
 		for rows.Next() {
 			var st student
-			if err := rows.Scan(&st.ID, &st.AdmissionNo, &st.FullName,
+			if err := rows.Scan(&st.ID, &st.PersonCode, &st.AdmissionNo, &st.FullName,
 				&st.FirstName, &st.MiddleName, &st.LastName, &st.Gender,
 				&st.DateOfBirth, &st.Status, &st.AdmissionOn,
 				&st.ClassName, &st.SectionName, &st.RollNo,
