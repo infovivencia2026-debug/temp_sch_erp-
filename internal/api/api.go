@@ -55,6 +55,15 @@ func (s *Server) Routes() http.Handler {
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
+		/* An account still on the password the office issued reaches exactly
+		   two things: the session it needs to render the screen, and the call
+		   that sets a real password.
+
+		   Here rather than in the client, because a client is not a gate: the
+		   issued password is the person's own mobile number, so anybody with
+		   the class list can sign in as any parent, and "the SPA shows a form"
+		   stops precisely nobody who can type a URL. */
+		r.Use(s.requirePasswordChanged)
 		// A platform operator may name the school they are working on. Must sit
 		// after RequireAuth (there is no identity to amend before it) and
 		// before every handler that reads one.

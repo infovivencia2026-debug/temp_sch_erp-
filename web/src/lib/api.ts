@@ -102,7 +102,14 @@ export const api = {
 
 export interface SessionResponse {
   authenticated: boolean
-  user?: { id: string; full_name: string; roles: string[]; platform_admin: boolean }
+  user?: {
+    id: string
+    full_name: string
+    roles: string[]
+    platform_admin: boolean
+    /** Still on the password the office issued — their own phone number. */
+    must_change_password?: boolean
+  }
   institution?: {
     id: string; name: string; short_name: string; slug: string
     primary_color: string; timezone: string; locale: string

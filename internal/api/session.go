@@ -27,6 +27,10 @@ type sessionUser struct {
 	FullName      string   `json:"full_name"`
 	Roles         []string `json:"roles"`
 	PlatformAdmin bool     `json:"platform_admin"`
+	// Still on the password the office issued. The client renders one screen
+	// and nothing else until this is false; the API enforces the same thing,
+	// because a client is not a gate.
+	MustChangePassword bool `json:"must_change_password,omitempty"`
 }
 
 type institution struct {
@@ -57,6 +61,40 @@ type moduleState struct {
 	Enabled bool   `json:"enabled"`
 }
 
+/*
+requirePasswordChanged holds an account on its issued password.
+
+	Bulk-issued logins start with the person's mobile number as both the
+	sign-in name and the password, because that is the only pair a school can
+	hand to four hundred families and expect to work. Until they replace it,
+	the credential proves they were given an account and nothing more: the
+	number is on the class list, on the admission form, and in every other
+	parent's phone.
+
+	Two exemptions, and they are the two the screen needs to exist: reading the
+	session, and setting the new password. Everything else is 403 with a code
+	the client can act on rather than a redirect, because this is an API.
+*/
+func (s *Server) requirePasswordChanged(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := httpx.IdentityFrom(r.Context())
+		if id == nil || !id.MustChangePassword {
+			next.ServeHTTP(w, r)
+			return
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/session":
+			next.ServeHTTP(w, r)
+			return
+		case r.Method == http.MethodPost && r.URL.Path == "/profile/password":
+			next.ServeHTTP(w, r)
+			return
+		}
+		httpx.Error(w, r, http.StatusForbidden, "password_change_required",
+			"set your own password before using the app")
+	})
+}
+
 // getSession is the SPA's boot call. It answers 200 either way so the client
 // can branch on `authenticated` instead of treating a 401 as an error state.
 func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
@@ -76,10 +114,11 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 		Authenticated: true,
 		Permissions:   perms,
 		User: &sessionUser{
-			ID:            id.UserID.String(),
-			FullName:      id.FullName,
-			PlatformAdmin: id.PlatformAdmin,
-			Roles:         []string{},
+			ID:                 id.UserID.String(),
+			FullName:           id.FullName,
+			PlatformAdmin:      id.PlatformAdmin,
+			MustChangePassword: id.MustChangePassword,
+			Roles:              []string{},
 		},
 	}
 

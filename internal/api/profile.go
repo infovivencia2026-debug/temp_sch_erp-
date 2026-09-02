@@ -171,8 +171,12 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Clearing must_change_password here and nowhere else: this is the
+		// only route that takes a password the account holder chose.
 		if _, err := tx.Exec(r.Context(),
-			`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+			`UPDATE users
+			    SET password_hash = $2, must_change_password = false, updated_at = now()
+			  WHERE id = $1`,
 			id.UserID, hash); err != nil {
 			return err
 		}

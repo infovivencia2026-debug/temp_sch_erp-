@@ -89,9 +89,16 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* A generated password is a value the office reads aloud, so the
+		   account is held on it until the person replaces it. One the
+		   administrator typed is not: they chose it, often with the person in
+		   front of them, and forcing an immediate second change would make
+		   that feature useless. */
 		tag, err := tx.Exec(r.Context(), `
-			UPDATE users SET password_hash = $2, status = 'active', updated_at = now()
-			 WHERE id = $1`, target, hash)
+			UPDATE users
+			   SET password_hash = $2, status = 'active',
+			       must_change_password = $3, updated_at = now()
+			 WHERE id = $1`, target, hash, chosen == "")
 		if err != nil {
 			return err
 		}
