@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormGrid,
-  FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  FormNotice, Input, Select, Textarea, Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -76,7 +77,7 @@ export default function ReportAbsence() {
   })
 
   if (query.isLoading) return <Loading label={t('portal.report_absence.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
 
   const ready = studentId !== '' && (reason !== 'Other' || detail.trim() !== '')
   const today = (recent.data?.items ?? []).filter(

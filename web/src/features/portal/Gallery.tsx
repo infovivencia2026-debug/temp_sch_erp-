@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
   Field, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -74,7 +75,7 @@ export default function Gallery() {
   })
 
   if (albums.isLoading) return <Loading label={t('portal.gallery.loading')} />
-  if (albums.error) return <ErrorState error={albums.error} />
+  if (albums.error) return <ScreenError error={albums.error} />
 
   const rows = albums.data?.items ?? []
   const photos = rows.reduce((n, a) => n + a.photo_count, 0)

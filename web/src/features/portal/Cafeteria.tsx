@@ -3,8 +3,9 @@ import { Utensils, Flame, Wallet } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -68,7 +69,7 @@ export default function Cafeteria() {
   })
 
   if (query.isLoading) return <Loading label={t('portal.cafeteria.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
 
   const purchases = query.data?.items ?? []
   const days = query.data?.days ?? []

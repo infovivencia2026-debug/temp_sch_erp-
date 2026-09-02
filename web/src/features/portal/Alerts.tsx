@@ -3,8 +3,9 @@ import { Bell, BookOpen, CalendarX2, Megaphone, Receipt } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, Loading, ErrorState, EmptyState,
+  Field, Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -94,7 +95,7 @@ export default function Alerts() {
   })
 
   if (query.isLoading) return <Loading label={t('portal.alerts.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
 
   const items = query.data?.items ?? []
   const unread = query.data?.unread ?? 0

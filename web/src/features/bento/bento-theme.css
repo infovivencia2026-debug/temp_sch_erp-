@@ -1315,6 +1315,88 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
     grid-auto-rows: minmax(0, 1fr) !important;
   }
 
+  /* THE FIRST MORNING. A BOARD WITH NOTHING ON IT COLLAPSES.
+
+     Fifteen slots sized from the viewport is the right model for a board with
+     a school's day on it: a cell's size depends only on its own W and H, three
+     rows are three rows, and nothing resizes when a card is added. All of that
+     stands. But it has one state it was never designed for, and it is the
+     first state every customer sees: a school with no students, no invoices
+     and no register marked. There, every one of those slots is a large empty
+     rectangle holding a zero and a sentence, and the board is a wall of them.
+     That -- more than any single card -- is what "looks like a prototype"
+     means. Nothing is broken; there is simply an enormous amount of room and
+     nothing to put in it.
+
+     So when EVERY card on the sheet reports that it has nothing to show, the
+     board stops claiming the viewport. The rows size to their contents, the
+     cards come out short and dense, and the empty school reads as a tidy
+     ruled sheet of nine short cards at the top of the page rather than as a
+     screen of vacant boxes. As soon as one card has real data the condition
+     fails and the fixed fifteen-slot board is back, unchanged, for good.
+
+     THE CONDITION IS EXACT. `[data-card]` is on every card shell and
+     `[data-quiet]` is added only when the card's drawing has reported that it
+     has nothing to draw. So: there is at least one card, and there is no card
+     that is not quiet. Written against cards rather than against the board's
+     children on purpose -- the board also holds the arrange toolbar, the
+     widget layer's mark and the pager's spacers, and a rule that counted those
+     would be wrong the moment any of them changed.
+
+     Rejected: doing this from JavaScript by counting empty widgets. The
+     information is already in the DOM, a class computed in JS is a second
+     source of truth for the same fact, and the two would disagree during the
+     render where one has updated and the other has not.
+
+     THE ROW IS A DEFINITE HEIGHT, AND `auto` CANNOT BE USED HERE. Measured,
+     because the first attempt at this rule wrote `minmax(0, auto)` on the
+     reasoning that a short card should size to its contents, and the board
+     came out 24x12 with every cell at zero. The reason is two rules further
+     down this file: a cell is `container-type: size`, which is `contain: size`
+     -- the cell's contents are explicitly not allowed to contribute to its
+     size, because that is what lets the card measure itself for the
+     container-query type scale. A size-contained box in an `auto` track is
+     zero pixels tall, correctly and by design.
+
+     So the collapsed board states a height. 148px is what a quiet card holds:
+     a two-line title, a figure and one sentence, with the block centred and a
+     little air round it. It is also comfortably above the 150px container
+     query that switches the card to its short-cell type scale, so the type on
+     a collapsed board is the compact scale it was tuned for rather than the
+     one meant for a half-screen tile. */
+  .bento-board:has([data-card][data-quiet]):not(:has([data-card]:not([data-quiet]))) {
+    height: auto !important;
+    /* `flex: 0 0 auto` and NOT `align-self: start`. The board is a child of a
+       COLUMN flex container, so its cross axis is horizontal: measured, an
+       `align-self: start` meant to stop the board stretching downwards shrank
+       it to 24 pixels WIDE and took every column with it. Only the main-axis
+       growth needed switching off, and that is what flex-grow does. */
+    flex: 0 0 auto !important;
+    grid-template-rows: repeat(var(--board-rows, 3), 148px) !important;
+    grid-auto-rows: 148px !important;
+  }
+
+  /* AND A QUIET CARD TAKES ONE ROW, WHATEVER HEIGHT ITS OWNER GAVE IT.
+
+     Row spans are the reader's own arrangement and are honoured everywhere
+     else, including the moment a single card on this board gets data. But a
+     card that is holding a name, a zero and one sentence does not become more
+     informative by being given two rows of it; measured before this rule, the
+     Attendance tile came out 537x281 to hold three lines and was the one
+     remaining large empty rectangle on an otherwise tidy sheet.
+
+     Rows only. The COLUMN span is left exactly as it is, and that is the piece
+     of hierarchy this board keeps: a card its owner made wide is still twice
+     the width of its neighbours, so the eye still has an order to read the
+     sheet in, without any card claiming height it has nothing to put in.
+
+     Applied to the grid ITEM, which is the link wrapping the card rather than
+     the card shell that carries the attribute -- hence `:has`. */
+  .bento-board:has([data-card][data-quiet]):not(:has([data-card]:not([data-quiet])))
+    > *:has([data-card][data-quiet]) {
+    grid-row: span 1 !important;
+  }
+
   /* THE SHEET IS THE OBJECT HERE, NOT THE CARD.
 
      ELEVATION HAS TO FOLLOW THE GUTTER, and this is the judgement the whole
@@ -2847,16 +2929,38 @@ html:not(.dark)[data-layout='bento'] {
    side, 24px is its offset from the bottom edge (bottom-6), and the safe area
    is what an iPhone's home indicator takes on top of all of it.
 
-   Zero above 1024px, where the dock no longer floats over the content. */
+   THE RESERVE IS NOT ZERO ON A DESKTOP, and the comment that said it was had
+   no basis in the markup.
+
+   What stood here: `@media (min-width: 1024px) { --dock-reserve: 0px }`, on
+   the stated reason that "the dock no longer floats over the content" above
+   1024. It does. BentoDock renders `fixed left-1/2 bottom-6 z-50` with no
+   responsive class that ever puts it back in flow, at every width there is.
+   Measured at 1440x900 on the school-setup wizard: the dock occupies y 821 to
+   879 of a 900px viewport, `main` computes `padding-bottom: 0px`, and the
+   wizard's last line -- "Drop a CSV here, or choose a file" -- renders
+   underneath it. It is the drop target on the page whose job is to receive a
+   file, and it was unreachable on a laptop.
+
+   Whether it was ever true does not matter now: a reserve derived from the
+   dock's own tokens and a dock that is fixed at all widths agree at all widths
+   only if the reserve is never zeroed. So the zeroing is gone and the one
+   expression stands for every viewport, which is also why it cannot drift out
+   of step again with a change to the dock's size.
+
+   Bento pages were never affected -- BentoOutlet pads itself from
+   --bento-dock -- so this only ever hurt the pages that use the plain shell,
+   which is most of the product's forms and every setup wizard.
+
+   NOTE FOR THE SHELL: Shell.tsx sets `pb-[var(--dock-reserve,0px)] lg:pb-0` on
+   the scrolling main, and that `lg:pb-0` was written from the same false
+   premise and still wins above 1024 whatever this token says. It has to go for
+   this fix to reach the page. */
 :root {
   --dock-reserve: calc(
     var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 16px +
     env(safe-area-inset-bottom, 0px)
   );
-}
-
-@media (min-width: 1024px) {
-  :root { --dock-reserve: 0px; }
 }
 
 

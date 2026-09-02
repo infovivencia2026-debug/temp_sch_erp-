@@ -4,8 +4,9 @@ import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice,
+  Table, Td, Badge, Button, Select, Loading, EmptyState, PrintButton, FormNotice,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -105,7 +106,7 @@ export default function PortalFees() {
      stays disabled while there is no child and a disabled query never stops
      being pending. Three separate answers, in the order the page learns them. */
   if (children.isLoading) return <Loading />
-  if (children.error) return <ErrorState error={children.error} />
+  if (children.error) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
       <>
@@ -119,7 +120,7 @@ export default function PortalFees() {
       </>
     )
   if (isLoading) return <Loading />
-  if (error) return <ErrorState error={error} />
+  if (error) return <ScreenError error={error} />
   if (!data)
     return (
       <>

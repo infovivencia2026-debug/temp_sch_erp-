@@ -3,8 +3,9 @@ import { Target, ClipboardList } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
@@ -101,7 +102,7 @@ export default function IEPGoals() {
   })
 
   if (query.isLoading) return <Loading label={t('portal.iep_goals.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
 
   const plan = query.data?.plan
   const goals = query.data?.goals ?? []

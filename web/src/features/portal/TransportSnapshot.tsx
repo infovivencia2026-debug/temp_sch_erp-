@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { BusFront, Clock, MapPin } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState, CellGrid, Stat,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import {
   ageText, minutes, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -40,7 +41,7 @@ export default function TransportSnapshot() {
   const every = usePoll(rows, visible, () => void feed.refetch())
 
   if (feed.isLoading) return <Loading label="Reading today's transport…" />
-  if (feed.error) return <ErrorState error={feed.error} />
+  if (feed.error) return <ScreenError error={feed.error} />
 
   /* Stale is not counted as running. A tile that says "1 on a run now" over a
      bus whose last fix is half an hour old is the screen telling a parent the

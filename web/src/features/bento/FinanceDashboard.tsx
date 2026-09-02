@@ -335,7 +335,7 @@ function Say({ children }: { children: ReactNode }) {
      Every drawing returns null when its data has no signal, so a cell at zero
      used to be a short line of text floating in a large empty rectangle —
      which reads as a card that failed to load rather than as a queue that is
-     clear. `Nil` puts an empty track under the sentence: it says the cell is a
+     clear. `Nil` says the cell is a
      measure, that the measure is genuinely at nought, and it shows the shape
      the card will take tomorrow when there is something in it.
 

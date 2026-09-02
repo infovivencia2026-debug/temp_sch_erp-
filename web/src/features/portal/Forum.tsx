@@ -5,8 +5,9 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Loading,
-  ErrorState, EmptyState,
+  EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -127,8 +128,8 @@ export default function Forum() {
   if (boards.isLoading) return <Loading label={t('portal.forum.loading')} />
   // Never an empty state for a failed query: "your class has said nothing" and
   // "we could not ask" are different facts and only one of them is reassuring.
-  if (boards.error) return <ErrorState error={boards.error} />
-  if (threads.error) return <ErrorState error={threads.error} />
+  if (boards.error) return <ScreenError error={boards.error} />
+  if (threads.error) return <ScreenError error={threads.error} />
 
   const rows = threads.data?.items ?? []
   const mine = rows.filter((r) => r.written_by_me)
@@ -398,11 +399,11 @@ function ThreadDetail({
   })
 
   if (thread.isLoading) return <Loading label={t('portal.forum.loading_thread')} />
-  if (thread.error) return <ErrorState error={thread.error} />
+  if (thread.error) return <ScreenError error={thread.error} />
 
   const head = thread.data?.thread
   const posts = thread.data?.posts ?? []
-  if (!head) return <ErrorState error={new Error(t('portal.forum.thread_missing'))} />
+  if (!head) return <ScreenError error={new Error(t('portal.forum.thread_missing'))} />
 
   return (
     <Card>

@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { FleetMap } from '@/components/FleetMap'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState,
+  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import {
   ageText, hasPlot, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -25,7 +26,7 @@ export default function ChildBus() {
   const every = usePoll(rows, visible, () => void feed.refetch())
 
   if (feed.isLoading) return <Loading label="Finding your child's bus…" />
-  if (feed.error) return <ErrorState error={feed.error} />
+  if (feed.error) return <ScreenError error={feed.error} />
 
   return (
     <>

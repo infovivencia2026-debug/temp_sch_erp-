@@ -4,8 +4,9 @@ import { Award, TriangleAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Select,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from './use-children'
 
@@ -60,16 +61,61 @@ export default function ChildRemarks() {
   const { children: kids, query: kidsQuery } = useChildren()
   const [studentID, setStudentID] = useState('')
 
+  /* ASK ONLY ONCE THERE IS A CHILD TO ASK ABOUT.
+   *
+   * listChildRemarks refuses an account with no linked student, and it is
+   * right to: answering with an empty list would say "no teacher has written
+   * anything about your child", which is a claim about a child this account
+   * does not have. So it returns 403 "a parent's own remarks", which is a
+   * sentence written for whoever reads the log.
+   *
+   * That sentence was reaching parents. An account holding the parent role
+   * with no student linked to it yet is not a broken account or a misuse of
+   * the product -- it is every family, in the window between the school
+   * issuing the login and the office connecting the record, which for most of
+   * them is the first day and the first thing they do with the application.
+   * What they got was the words "missing permission: a parent's own remarks"
+   * in red on an otherwise blank screen.
+   *
+   * `enabled` keeps the request from being made at all until the family list
+   * has arrived and has somebody in it, so the refusal is never provoked, and
+   * the branch below says the same thing the fees and results screens already
+   * say in the same state. Those two were written with this guard and this one
+   * was not; the difference was never intentional.
+   *
+   * The query still exists for the case the guard cannot cover -- a link
+   * removed between the family list loading and this request landing -- and
+   * that failure now renders with its own page heading rather than replacing
+   * the page.
+   */
   const q = useQuery({
     queryKey: ['child-remarks', studentID],
     queryFn: () =>
       api.get<List<Remark>>(
         `/api/v1/portal/remarks${studentID ? `?student_id=${studentID}` : ''}`,
       ),
+    enabled: kids.length > 0,
   })
 
-  if (q.isLoading || kidsQuery.isLoading) return <Loading />
-  if (q.error) return <ErrorState error={q.error} />
+  if (kidsQuery.isLoading) return <Loading />
+  if (kidsQuery.error) return <ScreenError error={kidsQuery.error} />
+
+  if (kids.length === 0) {
+    return (
+      <>
+        <PageHead eyebrow="My child" title="Remarks" />
+        <PageBody>
+          <EmptyState
+            title="No student record linked"
+            body="Your account is not linked to a student yet. Ask the school office to connect it. Once it is, everything your child's teachers write appears here on the day they write it."
+          />
+        </PageBody>
+      </>
+    )
+  }
+
+  if (q.isLoading) return <Loading />
+  if (q.error) return <ScreenError error={q.error} />
 
   const items = q.data?.items ?? []
   const praise = items.filter((x) => TONE[x.kind] === 'success').length

@@ -1010,12 +1010,23 @@ export function Shell({
               tokens so a school that sets a larger dock in Appearance gets a
               larger reserve without a second number to keep in step. The safe
               area is added on top for the phones with a home indicator, which
-              eats another 34px on an iPhone. Phones and tablets only: above
-              1024px the dock is inside the layout and this is not needed. */}
+              eats another 34px on an iPhone.
+
+              AT EVERY WIDTH, not phones and tablets only. This carried
+              `lg:pb-0` and the token carried a matching zero above 1024px,
+              both written from the belief that the dock returns to the layout
+              on a desktop. It does not. BentoDock renders `fixed left-1/2
+              bottom-6` with no responsive class that ever puts it back in
+              flow, and it was measured floating at 821 to 879 in a 900px
+              viewport at 1024, 1280, 1440 and 1920 alike. So the foot of every
+              desktop page sat under it: on the setup wizard the line reading
+              "Drop a CSV here, or choose a file" was drawn underneath the
+              dock. Content sliding under floating chrome is the plainest way
+              an interface says it was never checked at that size. */}
           <main
             data-paint="workarea"
             className={cn(
-              'min-h-0 min-w-0 flex-1 pb-[var(--dock-reserve,0px)] lg:pb-0',
+              'min-h-0 min-w-0 flex-1 pb-[var(--dock-reserve,0px)]',
               split ? 'overflow-hidden' : 'overflow-y-auto',
             )}
           >

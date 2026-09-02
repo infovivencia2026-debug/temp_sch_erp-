@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Loading, ErrorState, PrintButton,
+  PageHead, PageBody, Card, Loading, PrintButton,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { useT } from '@/lib/i18n'
 
 /* The guardian's own card for the school gate.
@@ -53,12 +54,12 @@ export default function ParentIDCard() {
   })
 
   if (query.isLoading) return <Loading label={t('portal.parent_id_card.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
 
   const card = query.data?.card
   const pass = query.data?.pass
   const children = query.data?.children ?? []
-  if (!card || !pass) return <ErrorState error={new Error(t('portal.parent_id_card.no_card'))} />
+  if (!card || !pass) return <ScreenError error={new Error(t('portal.parent_id_card.no_card'))} />
 
   return (
     <>

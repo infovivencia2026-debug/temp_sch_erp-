@@ -323,7 +323,7 @@ export function Say({ children }: { children: ReactNode }) {
      rectangle, and "0 pending approvals" filling a 2x2 tile with nothing reads
      as a card that failed to load rather than as a queue that is clear.
 
-     `Nil` puts an empty track under the sentence. It says the cell is a
+     `Nil` says the cell is a
      measure, that the measure is genuinely at nought, and it shows the shape
      the card takes tomorrow when there IS something — which is what makes the
      same card legible then.

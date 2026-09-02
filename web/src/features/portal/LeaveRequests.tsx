@@ -5,8 +5,8 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Checkbox, Loading, ErrorState,
-} from '@/components/ui'
+  Checkbox, Loading, } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -74,7 +74,7 @@ export default function LeaveRequests() {
   })
 
   if (leave.isLoading) return <Loading label={t('portal.leave_requests.loading')} />
-  if (leave.error) return <ErrorState error={leave.error} />
+  if (leave.error) return <ScreenError error={leave.error} />
 
   const rows = leave.data?.items ?? []
   const pending = rows.filter((r) => r.status === 'pending')

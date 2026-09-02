@@ -4,8 +4,9 @@ import { Award, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Select, Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import CardViewer from '@/components/CardViewer'
@@ -81,7 +82,7 @@ export default function PortalResults() {
      without a child, and a query that never starts never stops being pending.
      A parent is owed the reason. */
   if (children.isLoading) return <Loading />
-  if (children.error) return <ErrorState error={children.error} />
+  if (children.error) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
       <>
@@ -95,7 +96,7 @@ export default function PortalResults() {
       </>
     )
   if (isLoading) return <Loading />
-  if (error) return <ErrorState error={error} />
+  if (error) return <ScreenError error={error} />
   if (!data)
     return (
       <>

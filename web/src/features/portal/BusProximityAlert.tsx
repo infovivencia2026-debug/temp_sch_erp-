@@ -4,8 +4,9 @@ import { Footprints } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Checkbox, Field, Input, FormNotice,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import type { ChildBusFeed } from './child-bus'
 import {
   ALL_CHILDREN, PROXIMITY_MAX, PROXIMITY_MIN, currentFor, proximityError, savePrefs, walkText,
@@ -63,7 +64,7 @@ export default function BusProximityAlert() {
   })
 
   if (feed.isLoading) return <Loading label="Reading your settings…" />
-  if (feed.error) return <ErrorState error={feed.error} />
+  if (feed.error) return <ScreenError error={feed.error} />
 
   return (
     <>

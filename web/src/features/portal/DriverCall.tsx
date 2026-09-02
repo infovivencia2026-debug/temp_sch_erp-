@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Phone, PhoneOff } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, ErrorState, EmptyState,
+  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import {
   ageText, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -39,7 +40,7 @@ export default function DriverCall() {
   usePoll(rows, visible, () => void feed.refetch())
 
   if (feed.isLoading) return <Loading label="Checking whether a run is open…" />
-  if (feed.error) return <ErrorState error={feed.error} />
+  if (feed.error) return <ScreenError error={feed.error} />
 
   return (
     <>

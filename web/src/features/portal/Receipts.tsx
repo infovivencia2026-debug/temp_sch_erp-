@@ -4,8 +4,8 @@ import { Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Button,
-  PrintButton, Loading, ErrorState,
-} from '@/components/ui'
+  PrintButton, Loading, } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -64,7 +64,7 @@ export default function Receipts() {
   })
 
   if (receipts.isLoading) return <Loading label={t('portal.receipts.loading')} />
-  if (receipts.error) return <ErrorState error={receipts.error} />
+  if (receipts.error) return <ScreenError error={receipts.error} />
 
   const rows = receipts.data?.items ?? []
   const total = rows.reduce((n, r) => n + r.amount_paise, 0)
@@ -135,7 +135,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   })
 
   if (detail.isLoading) return <Loading label={t('portal.receipts.detail_loading')} />
-  if (detail.error) return <ErrorState error={detail.error} />
+  if (detail.error) return <ScreenError error={detail.error} />
   const d = detail.data
   if (!d) return null
 

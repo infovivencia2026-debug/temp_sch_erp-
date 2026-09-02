@@ -7,6 +7,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
    Button, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -317,7 +318,7 @@ export default function Portal() {
   })
 
   if (children.isLoading) return <Loading />
-  if (children.error) return <ErrorState error={children.error} />
+  if (children.error) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
   if (!kids.length) {

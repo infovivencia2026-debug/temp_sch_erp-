@@ -5,8 +5,9 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -87,7 +88,7 @@ export default function Consent() {
   })
 
   if (passes.isLoading) return <Loading label={t('portal.consent.loading')} />
-  if (passes.error) return <ErrorState error={passes.error} />
+  if (passes.error) return <ScreenError error={passes.error} />
 
   const allPasses = passes.data?.items ?? []
   const needConsent = allPasses.filter(

@@ -4,8 +4,9 @@ import { Ticket, Armchair } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, FormGrid, FormNotice, Loading, ErrorState, EmptyState, PrintButton,
+  Field, FormGrid, FormNotice, Loading, EmptyState, PrintButton,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -102,7 +103,7 @@ export default function EventPasses() {
   })
 
   if (passes.isLoading) return <Loading label={t('portal.event_passes.loading')} />
-  if (passes.error) return <ErrorState error={passes.error} />
+  if (passes.error) return <ScreenError error={passes.error} />
 
   const rows = passes.data?.items ?? []
   const today = new Date().toISOString().slice(0, 10)

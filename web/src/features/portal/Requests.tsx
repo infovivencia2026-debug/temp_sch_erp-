@@ -4,8 +4,8 @@ import { FileCheck2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Field, FormGrid, FormNotice, Select, Textarea, Loading, ErrorState,
-} from '@/components/ui'
+  Button, Field, FormGrid, FormNotice, Select, Textarea, Loading, } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -98,7 +98,7 @@ export default function Requests() {
   })
 
   if (requests.isLoading) return <Loading label={t('portal.requests.loading')} />
-  if (requests.error) return <ErrorState error={requests.error} />
+  if (requests.error) return <ScreenError error={requests.error} />
 
   const rows = requests.data?.items ?? []
   const available = types.data?.items ?? []

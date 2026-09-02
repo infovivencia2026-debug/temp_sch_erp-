@@ -3,8 +3,9 @@ import { ShieldCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, Badge, Select, Field,
-  Loading, ErrorState, EmptyState, PrintButton,
+  Loading, EmptyState, PrintButton,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
@@ -82,7 +83,7 @@ export default function StudentIDCard() {
   )
 
   if (query.isLoading) return <Loading label={t('portal.student_id_card.loading')} />
-  if (query.error) return <ErrorState error={query.error} />
+  if (query.error) return <ScreenError error={query.error} />
   if (!ready)
     return (
       <>
@@ -103,7 +104,7 @@ export default function StudentIDCard() {
 
   const card = query.data?.card
   const pass = query.data?.pass
-  if (!card || !pass) return <ErrorState error={new Error(t('portal.student_id_card.no_card'))} />
+  if (!card || !pass) return <ScreenError error={new Error(t('portal.student_id_card.no_card'))} />
 
   const klass = [card.class_name, card.section_name].filter(Boolean).join(' ')
 

@@ -1,4 +1,4 @@
-import { Fragment, createContext, useContext, useId, type ReactNode } from 'react'
+import { Fragment, createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
@@ -62,10 +62,72 @@ const QUIET = ink(38)
     duplicate. */
 const CardNote = createContext<string | null>(null)
 
-/** Is this sentence already printed as the card's change note? */
+/** Is this sentence already printed as the card's change note?
+
+    Kept because it states the rule, but note what it could and could not see.
+    It compares two strings for equality, and equality is a much narrower test
+    than the one the card actually needs. On the empty board the Collected card
+    printed "Receipts banked in this period, whatever year's bill they settle"
+    as its note and "No fee has been invoiced or collected yet" as its zero
+    sentence: two different strings, so nothing here fired, and the reader got
+    two lines that say the same thing in different words. Students did the same
+    with "0 sections, 0 staff" over "No student is on the roll yet". A string
+    comparison cannot catch a paraphrase, and no amount of tightening it will.
+
+    So the duplication is settled structurally instead, by ONE_SENTENCE below:
+    a card at zero has one sentence, and it is the one written for the zero
+    case. This stays for the exact-match case and for callers outside the
+    shell. */
 export function useNoteAlreadySaid(text: ReactNode) {
   const note = useContext(CardNote)
   return typeof text === 'string' && note !== null && note === text
+}
+
+/* ── ONE SENTENCE, AND IT IS THE ONE WRITTEN FOR THE ZERO CASE ──────────
+
+   The card shell writes its change note before it renders the drawing, and
+   the drawing is passed in as opaque `children`, so the shell has no way of
+   knowing that the thing below it is about to say the same sentence in other
+   words. That is why the equality test above never fired on the cards that
+   duplicated worst.
+
+   The drawing therefore reports upward. `Nil` -- the only drawing that stands
+   for "there is nothing here" -- announces itself and hands up the sentence it
+   would have printed, and the shell prints that sentence INSTEAD of its own
+   note and drops the drawing row entirely.
+
+   Which sentence survives is a judgement, and it is the zero sentence every
+   time. "No student is on the roll yet" tells a reader on their first morning
+   what state the school is in; "0 sections, 0 staff" restates a zero they have
+   already read in 51px type an inch above. The note is written for a school
+   with data in it and the zero sentence is written for a school without, and
+   the empty board is the one being read here.
+
+   Rejected: doing this at the call sites. There are twenty-odd of them across
+   five boards, the ones that would be missed are exactly the ones that already
+   duplicate, and the next card somebody adds would duplicate again. A rule the
+   shell enforces cannot be forgotten.
+
+   Rejected: comparing the two sentences more cleverly -- shared prefixes,
+   normalised words, a similarity score. Every version of that is a guess about
+   English that gets a card wrong in a language nobody on the team reads, and
+   this product ships in Telugu. */
+/** `false` withdraws the report -- the drawing has data again, or unmounted.
+    A string or `null` is a live report: quiet, with or without a sentence. */
+type ZeroReport = (said: string | null | false) => void
+const CardZero = createContext<ZeroReport | null>(null)
+
+/** Tell the enclosing card that this drawing has nothing to draw, and what it
+    would have said. Reports on mount and whenever the sentence changes; the
+    shell holds it in state, so the card re-renders once into its quiet form. */
+function useReportNothing(text: ReactNode) {
+  const report = useContext(CardZero)
+  const said = typeof text === 'string' ? text : null
+  useEffect(() => {
+    if (!report) return
+    report(said)
+    return () => report(false)
+  }, [report, said])
 }
 
 /* ── the shell ─────────────────────────────────────────────────────────── */
@@ -130,7 +192,16 @@ export function CardShell({
      row that takes whatever height is left and still the row that gives way
      first. Where there is no drawing at all there is no fraction, and the card
      sits to its natural height rather than reserving 26px for nothing. */
-  const note = change && !delta
+  /* WHAT THE DRAWING REPORTED. `false` while no drawing has said anything,
+     which is every card with real data on it: those take the branch they
+     always took and nothing below this changes for them. */
+  const [zero, setZero] = useState<string | null | false>(false)
+  const quiet = zero !== false
+  /* The sentence the card prints. The zero sentence wins where there is one --
+     see ONE SENTENCE above -- and where the drawing reported nothing to say,
+     the card's own note carries on. */
+  const said = quiet && zero !== null ? zero : change
+  const note = said && !delta
   /* THE SENTENCE IS NOT ALLOWED TO SHRINK, AND THE DRAWING NO LONGER HAS A
      FLOOR IT CANNOT GIVE UP.
 
@@ -148,11 +219,32 @@ export function CardShell({
      nobody was reading at 26px either; a sentence cut in half is a card that
      looks broken. Above phone height the fraction is generous and both fit,
      so this changes nothing where nothing was wrong. */
+  /* A QUIET CARD HAS NO DRAWING ROW AT ALL.
+
+     `Nil` used to fill this row with a rule of grey slots standing for a
+     measure at nought. Screenshotted on an empty school it does not read as a
+     measure at nought: it reads as a chart that failed to render, or as a
+     placeholder somebody forgot to replace, and it was the single loudest
+     unfinished-looking thing on the board. The idea behind it was sound -- the
+     reader learns the shape the card takes when there IS something -- but a
+     row of empty compartments teaches nobody that, and it costs the card its
+     credibility on the one morning the reader has no other evidence.
+
+     So a card with nothing to show shows nothing, and says one sentence about
+     what will appear here. No drawing row, no fraction, and therefore no
+     stretched-open gap where a chart is implied and never arrives.
+
+     The drawing stays MOUNTED, hidden, rather than being dropped: it is what
+     reports, and unmounting it would withdraw the report and bring it back on
+     the next render forever. A `display: none` grid item is not a grid item at
+     all, so it takes no track and generates no gap, which is why the track
+     list can leave the fraction out without a child falling into an implicit
+     row -- the failure this template already has a long comment about. */
   const rows = [
     'auto',
     'auto',
     ...(note ? ['min-content'] : []),
-    ...(children ? ['minmax(0,1fr)'] : []),
+    ...(children && !quiet ? ['minmax(0,1fr)'] : []),
   ].join(' ')
   return (
     /* FOUR rows: header, figure, drawing, action.
@@ -198,8 +290,38 @@ export function CardShell({
            conditional child list is what put the chart in a 15px implicit row
            in the first place. */
         'group/cell relative grid h-full min-h-0 gap-y-1.5 overflow-hidden',
+        /* NO VERTICAL CENTRING, AND THIS WAS TRIED AND SCREENSHOTTED.
+
+           The reasoning was that a three-line card in a tall cell leaves one
+           large rectangle of nothing beneath it, and that centring turns that
+           hole into margin above and below a composed block. On the board it
+           does the opposite. Most cells on a collapsed board are exactly as
+           tall as their contents, so centring moves nothing at all; the only
+           cards it moves are the two-row spans, and it moves their titles into
+           the middle of the cell while every neighbouring title sits on the
+           top line. One card's name floating half way down the tile is a worse
+           fault than the slack it was spent to hide, because a board is read
+           along its top edges.
+
+           The slack is dealt with where it comes from instead -- the board
+           collapses its rows when every card is quiet, see bento-theme.css --
+           and the card keeps one alignment at every height.
+
+           `content-start` is what enforces that, and it is not the same as
+           doing nothing. A grid whose tracks are all `auto` defaults to
+           `align-content: stretch`, and the auto tracks then absorb the free
+           space -- so on the one card that spans two rows the header row grew
+           and the figure and its sentence were pushed to the FOOT of the tile,
+           measured at 390px down a 281px cell. Top-aligned, every card on the
+           board starts on the same line. */
+        quiet && 'content-start',
         className,
       )}
+      /* Read by the board: a sheet on which every card is quiet is an empty
+         board, and it collapses rather than filling the screen with empty
+         rectangles. See bento-theme.css. */
+      data-card=""
+      data-quiet={quiet ? '' : undefined}
       style={{ gridTemplateRows: rows }}
     >
       {/* THE RESERVE MUST EXCEED THE MARK, not equal it after subtracting the
@@ -275,7 +397,19 @@ export function CardShell({
                    phone, and at that size a tenth of an em is a visible gap
                    between every pair of letters — the word comes apart. Just
                    enough to keep the capitals from touching, and no more. */
-                'mt-1 truncate opacity-55',
+                /* OPACITY 0.60, NOT 0.55, AND IT IS A CONTRAST FIX.
+
+                   Measured on the default palettes: the eyebrow is the card's
+                   ink at 55%, which on the light theme is #545456-ish on white
+                   -- 4.36:1, under the 4.5 floor, at around eleven pixels. It
+                   is a short uppercase run and not a paragraph, but "NOW" and
+                   "LAST 30 DAYS" are the only thing on the card that says what
+                   period the figure covers, and a figure whose period cannot
+                   be read is a figure that cannot be trusted. 0.60 measures
+                   5.18:1 light and 7.19:1 dark and is still plainly the
+                   quietest line on the card, which is all the treatment was
+                   ever asking for. */
+                'mt-1 truncate opacity-60',
                 isLatin(sub)
                   ? 'font-normal uppercase leading-none tracking-[0.04em] text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.92))]'
                   : 'font-normal leading-tight text-[length:var(--card-sub,10px)]',
@@ -331,7 +465,7 @@ export function CardShell({
             </span>
             {deltaNote && (
               <span className="mt-0.5 block whitespace-nowrap font-normal uppercase
-                               leading-none tracking-[0.06em] opacity-55
+                               leading-none tracking-[0.06em] opacity-60
                                text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.9))]">
                 {deltaNote}
               </span>
@@ -350,7 +484,7 @@ export function CardShell({
       {note && (
         <p className="line-clamp-2 font-light leading-tight opacity-70
                       text-[length:var(--card-change,11px)]">
-          {change}
+          {said}
         </p>
       )}
       {children && (
@@ -364,8 +498,12 @@ export function CardShell({
            second copy pushing the measure it was meant to introduce out of
            sight. Handing the note down means the drawing can see that it has
            already been said and draw the measure alone. */
-        <CardNote.Provider value={note && typeof change === 'string' ? change : null}>
-          <div className="min-h-0 min-w-0 overflow-hidden">{children}</div>
+        <CardNote.Provider value={note && typeof said === 'string' ? said : null}>
+          <CardZero.Provider value={setZero}>
+            <div className={cn('min-h-0 min-w-0 overflow-hidden', quiet && 'hidden')}>
+              {children}
+            </div>
+          </CardZero.Provider>
         </CardNote.Provider>
       )}
       {action && (
@@ -436,13 +574,61 @@ function Figure({ text }: { text: string }) {
   const m = FIGURE.exec(text.trim())
   if (!m || (!m[1] && !m[3])) return <>{text}</>
   const [, mark, digits, unit] = m
-  const small =
-    'text-[length:max(0.42em,10px)] [font-weight:500] opacity-70'
+  /* THE CURRENCY MARK WAS BEING READ AS A SUBSCRIPT, and it was the first
+     thing the eye landed on on half the board.
+
+     It was set at max(0.42em, 10px) and aligned to the baseline. Baseline is
+     the typographically correct alignment for a unit sitting beside a number
+     and it is the wrong LOOK here, because of how far apart the two sizes had
+     got: a 21px rupee against a 51px zero, sharing a baseline, puts the whole
+     glyph inside the bottom two fifths of the numeral's height, and a small
+     mark tucked into the bottom of a big one is the exact shape of a
+     subscript. Measured on the live board, the mark's cap reached 15px of the
+     numeral's 37px cap. It looked like a footnote attached to the zero.
+
+     Two changes, and they only work together.
+
+     SIZE. Up to max(0.58em, 12px). Look at how a large figure is actually set
+     with a currency mark on it: Apple's pricing, Stripe's dashboard and
+     Monzo's balance all run the mark at somewhere between half and two thirds
+     of the numeral, never at two fifths. Below about half the mark stops
+     reading as part of the same word and starts reading as an annotation on
+     it. The 12px floor is the product's own minimum legible size and it binds
+     on the phone board, where the figure is 34px.
+
+     ALIGNMENT. Cap-aligned, not baseline-aligned. The mark is lifted so its
+     top sits level with the top of the digits, which is what all three of
+     those references do and what makes the mark read as the first character
+     of the amount rather than as something hanging off it. The lift is
+     0.42em OF THE MARK'S OWN em -- vertical-align resolves against the
+     element's own font-size -- which at 0.58em of the figure is 0.24em of the
+     figure, and 0.24 plus the mark's own 0.42em cap lands within a hair of the
+     digits' 0.72em cap at every size in the clamp. Expressed in em rather
+     than pixels so it holds from the 34px phone figure to the 96px ceiling
+     without a breakpoint.
+
+     THE TRAILING UNIT KEEPS ITS BASELINE. "%" and "ms" follow the number and
+     are read after it, and a trailing mark lifted to the cap line reads as an
+     exponent -- "4.92%" would look like four point nine two to the percent.
+     Its only change is the size floor, from 10px to 11px, which is the
+     smallest type this product allows anywhere. */
+  const small = '[font-weight:500] opacity-70'
   return (
     <>
-      {mark && <span className={cn(small, 'mr-[0.06em] align-baseline')}>{mark}</span>}
+      {mark && (
+        <span
+          className={cn(small, 'mr-[0.08em] text-[length:max(0.58em,12px)]')}
+          style={{ verticalAlign: '0.42em' }}
+        >
+          {mark}
+        </span>
+      )}
       {digits}
-      {unit && <span className={cn(small, 'ml-[0.08em] align-baseline')}>{unit}</span>}
+      {unit && (
+        <span className={cn(small, 'ml-[0.08em] align-baseline text-[length:max(0.5em,11px)]')}>
+          {unit}
+        </span>
+      )}
     </>
   )
 }
@@ -1511,53 +1697,46 @@ export function Matrix({
   )
 }
 
-/** NOTHING TO SHOW, drawn rather than left blank.
+/** NOTHING TO SHOW, AND SO NOTHING SHOWN.
 
-    Every drawing in this file returns null when its data carries no signal,
-    and that is the right rule — an all-zero series is not a small series, and
-    drawing one invents activity that did not happen. But it left the cells
-    that matter most on a good day as a short sentence floating in a large
-    empty rectangle: "0 pending approvals" occupying a 2x2 tile with nothing
-    in it, which reads as a card that failed to load rather than as a queue
-    that is clear.
+    This used to draw an empty track with its slots marked, on the argument
+    that a blank box reads as a card that failed to load while a row of empty
+    compartments says "this is a measure, and it is genuinely at nought". The
+    argument is good and the drawing did not carry it. Screenshotted at 1440
+    and at 390, in both schemes, on a school with no data in it: twelve grey
+    compartments under a hairline read as an unstyled placeholder or as a chart
+    that errored out, and nine of them on one screen were the main reason the
+    board was called a prototype. A shape that has to be explained to be read
+    is not doing the reading.
 
-    So zero gets a drawing of its own. An empty track with its slots marked
-    says two things a blank box does not: that this cell is a measure, and
-    that the measure is genuinely at nought. The reader learns the shape the
-    card takes when there IS something, which is what makes the same card
-    legible tomorrow when there is.
+    What replaces it is nothing at all, plus one sentence, which the card
+    prints in its own note row rather than here. That is a real design
+    position, not an omission:
 
-    Deliberately quiet — track ink, no fill anywhere. It must never be
-    mistaken at a glance for a small non-zero reading, which is exactly what a
-    single faint bar would be. Slots, not a bar: an empty row of compartments
-    is unambiguous. */
-export function Nil({ children, slots = 12 }: { children?: ReactNode; slots?: number }) {
-  const { w, h } = useWidgetSize()
-  const count = Math.max(5, Math.min(slots, densityFor(w, h, 9)))
-  /* SAID ONCE. Most cards that reach a zero state pass the same sentence to
-     the shell's change note and to the drawing here, because both slots
-     answer the same question - and the card then printed it twice, one line
-     under the other, with the second copy squeezing out the measure it was
-     there to introduce. Where the shell has already said it, this draws the
-     empty measure alone. */
-  const duplicate = useNoteAlreadySaid(children)
-  return (
-    <div className="flex h-full min-h-0 flex-col justify-center gap-2 overflow-hidden">
-      {children && !duplicate && (
-        <p className="line-clamp-3 leading-snug opacity-70 text-[length:var(--card-note,10.5px)]">
-          {children}
-        </p>
-      )}
-      <div aria-hidden="true" className="shrink-0">
-        <div className="flex h-[7px] items-stretch gap-[2px]">
-          {Array.from({ length: count }, (_, i) => (
-            <span key={i} className="min-w-0 flex-1" style={{ background: TRACK }} />
-          ))}
-        </div>
-        {/* The floor. Without it the slots read as a dotted line rather than as
-            an empty measure sitting on an axis. */}
-        <div className="mt-[3px] h-px w-full" style={{ background: ink(16) }} />
-      </div>
-    </div>
-  )
+      - The card stops implying data it does not have. An empty measure is a
+        promise that a chart lives here; a sentence is a fact.
+      - The card gets short. Losing the drawing row loses the fraction, so
+        header, figure and sentence sit as one centred block and the cell is
+        composed instead of top-heavy.
+      - The card says its thing once. The shell prints the zero sentence in
+        place of its own note, so "0" and "No student is on the roll yet" are
+        the whole card, where before there were two sentences competing.
+
+    Rejected: a call to action here ("Add your first student"). Every one of
+    these cards is already wrapped in a link to the place it opens and draws a
+    corner arrow saying so. A second, differently-shaped navigation affordance
+    inside the card would be two ways to do one thing, which is the same
+    mistake the three separate corner marks were.
+
+    Rejected: keeping the slots and merely quietening them. They were already
+    at 10% ink. Below that they are invisible, above it they are a broken
+    chart; there is no strength at which a fake measure becomes honest.
+
+    Still a component, still called at every site that called it, still taking
+    the same children. It renders no DOM and instead tells the shell what it
+    would have said. `slots` is accepted and ignored so no caller breaks. */
+export function Nil({ children }: { children?: ReactNode; slots?: number }) {
+  useReportNothing(children)
+  return null
 }
+

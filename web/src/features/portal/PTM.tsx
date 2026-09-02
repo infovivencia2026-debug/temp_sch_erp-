@@ -5,8 +5,9 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Select, Input,
-  Loading, ErrorState, EmptyState,
+  Loading, EmptyState,
 } from '@/components/ui'
+import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -104,7 +105,7 @@ export default function PTM() {
   })
 
   if (slots.isLoading) return <Loading label={t('portal.ptm.loading')} />
-  if (slots.error) return <ErrorState error={slots.error} />
+  if (slots.error) return <ScreenError error={slots.error} />
 
   const rows = slots.data?.items ?? []
   const mine = bookings.data?.items ?? []
