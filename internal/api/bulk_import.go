@@ -120,6 +120,10 @@ type importCtx struct {
 	// of values that cannot change during one import.
 	sections map[string]uuid.UUID
 	teachers map[string]uuid.UUID
+	// Years and exams the import itself brought into being, so a file with
+	// nine terms across three years creates each of them once.
+	pastYears map[string]uuid.UUID
+	pastExams map[string]uuid.UUID
 	/* What this import created.
 
 	   Every writer here upserts, so a second upload of a corrected sheet
@@ -656,6 +660,237 @@ var importSpecs = map[string]importSpec{
 
 	   One row per child per year, so a corrected re-upload edits a history
 	   rather than doubling it. */
+	/* PAST EXAM RESULTS, INTO THE REAL TABLES.
+
+	   Unlike attendance and fees, marks belong in the live tables and nothing
+	   is distorted by putting them there: an exam is scoped to its academic
+	   year, so a 2023 exam is simply an exam in 2023. It does not appear in
+	   this year's analysis, and a report card for that year renders from it
+	   like any other -- which is the point. A school that carried three years
+	   across can print the card it could print before.
+
+	   The year, the exam and the paper are created where the file names ones
+	   that do not exist, because they do not: they predate the school's use of
+	   this system, and asking a clerk to key in nine terms of exams by hand
+	   before uploading the marks is asking them not to bother.
+
+	   The child, the class and the subject are NOT created. Those are the
+	   school's own lists, and inventing a subject called "Maths" beside the
+	   existing "Mathematics" is how a roll ends up with two of everything. */
+	/* A MEMBER OF STAFF'S CLOSED YEARS.
+
+	   The same shape as a child's, and for the same reason: a teacher who has
+	   been at the school eleven years arrives with eleven years of service
+	   that the live tables cannot hold. Their attendance is a total, not a
+	   register, and writing invented days into the staff register would show
+	   them present on dates the school can still be asked about.
+
+	   Service history is what a school reaches for when it writes an
+	   experience certificate, decides seniority, or answers an inspector
+	   asking how long somebody has taught a subject. Without it, an imported
+	   teacher has worked here since the day of the upload. */
+	"staff_history": {
+		Perm: rbac.EmployeesWrite,
+		Columns: []string{"employee_code", "year", "designation", "days_present",
+			"days_total", "leaves_taken", "notes"},
+		Required: []string{"employee_code", "year"},
+		Sample: []string{"T-014", "2025-26", "Senior Teacher", "212", "220", "8",
+			"Class teacher, Grade 5-A"},
+		Check: func(row map[string]string) error {
+			for _, k := range []string{"days_present", "days_total", "leaves_taken"} {
+				v := strings.TrimSpace(row[k])
+				if v == "" {
+					continue
+				}
+				n, err := strconv.Atoi(v)
+				if err != nil || n < 0 {
+					return fmt.Errorf("%s must be a whole number that is not negative", k)
+				}
+			}
+			pres, total := strings.TrimSpace(row["days_present"]), strings.TrimSpace(row["days_total"])
+			if pres != "" && total != "" {
+				a, _ := strconv.Atoi(pres)
+				b, _ := strconv.Atoi(total)
+				if b > 0 && a > b {
+					return errors.New("days_present is more than days_total")
+				}
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM employees
+				                 WHERE institution_id = $1 AND employee_code = $2)`,
+				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("nobody on the roll with employee code %q. Import the staff first",
+					strings.TrimSpace(row["employee_code"]))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			var empID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM employees WHERE institution_id = $1 AND employee_code = $2`,
+				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&empID); err != nil {
+				return err
+			}
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO employee_year_history (institution_id, employee_id, year_name,
+				        designation, days_present, days_total, leaves_taken, notes)
+				VALUES ($1,$2,$3,NULLIF($4,''),$5,$6,$7,NULLIF($8,''))
+				ON CONFLICT (employee_id, year_name) DO UPDATE SET
+				    designation = EXCLUDED.designation,
+				    days_present = EXCLUDED.days_present,
+				    days_total = EXCLUDED.days_total,
+				    leaves_taken = EXCLUDED.leaves_taken,
+				    notes = EXCLUDED.notes,
+				    updated_at = now()
+				RETURNING id, xmax = 0`,
+				c.inst, empID, strings.TrimSpace(row["year"]),
+				strings.TrimSpace(row["designation"]),
+				intOrNil(row["days_present"]), intOrNil(row["days_total"]),
+				intOrNil(row["leaves_taken"]),
+				strings.TrimSpace(row["notes"])).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("staff_history", id, inserted)
+			return nil
+		},
+	},
+
+	"marks": {
+		Perm: rbac.MarksWrite,
+		Columns: []string{"admission_no", "year", "exam", "class", "subject",
+			"max_marks", "marks_obtained", "grade"},
+		Required: []string{"admission_no", "year", "exam", "class", "subject", "max_marks"},
+		Sample: []string{"ADM0001", "2025-26", "Annual Examination", "Grade 5",
+			"Mathematics", "100", "87", "A1"},
+		Check: func(row map[string]string) error {
+			maxM, err := strconv.ParseFloat(strings.TrimSpace(row["max_marks"]), 64)
+			if err != nil || maxM <= 0 {
+				return errors.New("max_marks must be a number above zero")
+			}
+			got := strings.TrimSpace(row["marks_obtained"])
+			if got == "" {
+				// Blank is absent, which is a real result and not a mistake.
+				return nil
+			}
+			n, err := strconv.ParseFloat(got, 64)
+			if err != nil || n < 0 {
+				return errors.New("marks_obtained must be a number that is not negative, or blank for absent")
+			}
+			// A mark above the paper prints as over 100 per cent on a report
+			// card, and is nearly always a column read into the wrong field.
+			if n > maxM {
+				return fmt.Errorf("marks_obtained (%s) is more than max_marks (%s)", got, row["max_marks"])
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM students
+				                 WHERE institution_id = $1 AND admission_no = $2)`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("no child with admission number %q. Import the students first",
+					strings.TrimSpace(row["admission_no"]))
+			}
+			classID, err := c.classID(row["class"])
+			if err != nil {
+				return err
+			}
+			var ok bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT EXISTS (
+				  SELECT 1 FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id
+				   WHERE cs.class_id = $1
+				     AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2)))`,
+				classID, strings.TrimSpace(row["subject"])).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("%s does not teach %q. Check the class-subject list for the exact name",
+					strings.TrimSpace(row["class"]), strings.TrimSpace(row["subject"]))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			var studentID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM students WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&studentID); err != nil {
+				return err
+			}
+			classID, err := c.classID(row["class"])
+			if err != nil {
+				return err
+			}
+			yearID, err := c.pastYearID(strings.TrimSpace(row["year"]))
+			if err != nil {
+				return err
+			}
+			examID, err := c.pastExamID(yearID, strings.TrimSpace(row["exam"]))
+			if err != nil {
+				return err
+			}
+
+			var classSubjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT cs.id FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.class_id = $1
+				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))
+				 LIMIT 1`, classID, strings.TrimSpace(row["subject"])).Scan(&classSubjectID); err != nil {
+				return err
+			}
+
+			maxM, _ := strconv.ParseFloat(strings.TrimSpace(row["max_marks"]), 64)
+			var examSubjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id, max_marks)
+				VALUES ($1,$2,$3,$4)
+				ON CONFLICT (exam_id, class_subject_id)
+				DO UPDATE SET max_marks = EXCLUDED.max_marks
+				RETURNING id`, c.inst, examID, classSubjectID, maxM).Scan(&examSubjectID); err != nil {
+				return err
+			}
+
+			got := strings.TrimSpace(row["marks_obtained"])
+			var obtained any
+			absent := got == ""
+			if !absent {
+				n, _ := strconv.ParseFloat(got, 64)
+				obtained = n
+			}
+			var markID uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO marks (institution_id, exam_subject_id, student_id,
+				                   marks_obtained, grade, is_absent)
+				VALUES ($1,$2,$3,$4,NULLIF($5,''),$6)
+				ON CONFLICT (exam_subject_id, student_id) DO UPDATE SET
+				    marks_obtained = EXCLUDED.marks_obtained,
+				    grade = EXCLUDED.grade,
+				    is_absent = EXCLUDED.is_absent
+				RETURNING id, xmax = 0`,
+				c.inst, examSubjectID, studentID, obtained,
+				strings.TrimSpace(row["grade"]), absent).Scan(&markID, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("marks", markID, inserted)
+			return nil
+		},
+	},
+
 	"student_history": {
 		Perm: rbac.StudentsWrite,
 		Columns: []string{"admission_no", "year", "class", "days_present",
@@ -841,6 +1076,86 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 	},
+}
+
+/*
+pastYearID finds an academic year by the name a school writes, creating it if
+it is genuinely new.
+
+	Created, unlike a class or a subject, because these are the years before
+	the school used this system: by definition none of them is on file, and
+	requiring a clerk to key in nine terms of exams before uploading the marks
+	is requiring them not to bother.
+
+	Never current. One year is current at a time and it is this one; a past
+	year that marked itself current would move the whole school into it.
+
+	The dates are the Indian school year around the leading number, so the year
+	sorts and reports correctly. A school whose year runs differently can
+	correct the dates afterwards; what it must not do is fail the import.
+*/
+func (c *importCtx) pastYearID(name string) (uuid.UUID, error) {
+	key := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), " ", "")
+	if c.pastYears == nil {
+		c.pastYears = map[string]uuid.UUID{}
+	}
+	if id, ok := c.pastYears[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err := c.tx.QueryRow(c.r.Context(), `
+		SELECT id FROM academic_years
+		 WHERE institution_id = $1
+		   AND replace(lower(name),' ','') = $2`, c.inst, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		start := 0
+		if len(key) >= 4 {
+			start, _ = strconv.Atoi(key[:4])
+		}
+		if start == 0 {
+			return uuid.Nil, fmt.Errorf("cannot read a year from %q. Write it as 2025-26", name)
+		}
+		err = c.tx.QueryRow(c.r.Context(), `
+			INSERT INTO academic_years (institution_id, campus_id, name,
+			                            starts_on, ends_on, is_current)
+			VALUES ($1,$2,$3, make_date($4,6,1), make_date($4 + 1,3,31), false)
+			RETURNING id`,
+			c.inst, c.campus, strings.TrimSpace(name), start).Scan(&id)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.pastYears[key] = id
+	return id, nil
+}
+
+// pastExamID finds or creates one exam within a past year. Unpublished:
+// publishing is what tells families a result is ready, and a result from three
+// years ago has already been told.
+func (c *importCtx) pastExamID(year uuid.UUID, name string) (uuid.UUID, error) {
+	key := year.String() + "|" + strings.ToLower(strings.TrimSpace(name))
+	if c.pastExams == nil {
+		c.pastExams = map[string]uuid.UUID{}
+	}
+	if id, ok := c.pastExams[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err := c.tx.QueryRow(c.r.Context(), `
+		SELECT id FROM exams
+		 WHERE institution_id = $1 AND academic_year_id = $2
+		   AND lower(name) = lower($3)`, c.inst, year, strings.TrimSpace(name)).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = c.tx.QueryRow(c.r.Context(), `
+			INSERT INTO exams (institution_id, campus_id, academic_year_id, name, kind)
+			VALUES ($1,$2,$3,$4,'term') RETURNING id`,
+			c.inst, c.campus, year, strings.TrimSpace(name)).Scan(&id)
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.pastExams[key] = id
+	return id, nil
 }
 
 // intOrNil turns a blank column into NULL rather than into zero. A school that

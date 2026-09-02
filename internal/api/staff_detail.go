@@ -40,6 +40,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 	teaching := []map[string]any{}
 	classTeacherOf := []map[string]any{}
 	documents := []map[string]any{}
+	priorYears := []map[string]any{}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var (
@@ -194,6 +195,34 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		/* THE YEARS BEFORE THIS SYSTEM.
+
+		   A teacher of eleven years standing was, until this, somebody who
+		   started work on the morning their record was imported. Their service
+		   is what a school reads when it writes an experience certificate or
+		   settles seniority, so it is on the record and not only in the file
+		   the office uploaded. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT year_name, COALESCE(designation,''), days_present, days_total,
+			       leaves_taken, COALESCE(notes,'')
+			  FROM employee_year_history
+			 WHERE employee_id = $1
+			 ORDER BY year_name DESC`,
+			func(rows pgx.Rows) error {
+				var year, desig, notes string
+				var present, total, leaves *int
+				if err := rows.Scan(&year, &desig, &present, &total, &leaves, &notes); err != nil {
+					return err
+				}
+				priorYears = append(priorYears, map[string]any{
+					"year": year, "designation": desig,
+					"days_present": present, "days_total": total,
+					"leaves_taken": leaves, "notes": notes,
+				})
+				return nil
+			}, eid); err != nil {
+			return err
+		}
 		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -204,6 +233,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	out["prior_years"] = priorYears
 	out["documents"] = documents
 	out["teaching"] = teaching
 	out["class_teacher_of"] = classTeacherOf

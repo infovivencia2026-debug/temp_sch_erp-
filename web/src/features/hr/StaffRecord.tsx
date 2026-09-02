@@ -58,6 +58,14 @@ interface Detail {
     section_id: string; class_subject_id: string
   }[]
   class_teacher_of: { section_id: string; class: string; section: string; students: string }[]
+  /* Years served before the school used this system, imported from whatever
+     it kept. Not folded into anything live: an attendance total is not a
+     register, and it must never be counted as this year's. */
+  prior_years?: {
+    year: string; designation: string
+    days_present?: number | null; days_total?: number | null
+    leaves_taken?: number | null; notes: string
+  }[]
   documents: {
     id: string; doc_type: string; file_id: string; uploaded_on: string
     expires_on: string; filename: string
@@ -431,6 +439,37 @@ export default function StaffRecord({ employeeID, onClose }: {
                   </div>
                 </div>
               </Card>
+
+              {/* SERVICE BEFORE THIS SYSTEM.
+
+                  A teacher of eleven years standing was, until now, somebody
+                  who started work the morning their record was imported. This
+                  is what a school reads when it writes an experience
+                  certificate or settles seniority, so it belongs on the record
+                  and not only in the spreadsheet the office uploaded. */}
+              {!!(d.prior_years ?? []).length && (
+                <Card>
+                  <CardHeader
+                    title="Service before this system"
+                    description="Years the school carried across, as it recorded them."
+                  />
+                  <Table head={['Year', 'Designation', 'Attendance', 'Leave', 'Note']}>
+                    {(d.prior_years ?? []).map((h) => (
+                      <tr key={h.year}>
+                        <Td className="font-medium">{h.year}</Td>
+                        <Td>{h.designation || 'â'}</Td>
+                        <Td className="tabular-nums">
+                          {h.days_total
+                            ? `${h.days_present ?? 0} of ${h.days_total}`
+                            : 'â'}
+                        </Td>
+                        <Td className="tabular-nums">{h.leaves_taken ?? 'â'}</Td>
+                        <Td className="text-muted-foreground">{h.notes || 'â'}</Td>
+                      </tr>
+                    ))}
+                  </Table>
+                </Card>
+              )}
 
               {/* THE PAPERS, AND WHAT LAPSES. More of a teacher's file is
                   statutory than a child's and most of it expires, which is why
