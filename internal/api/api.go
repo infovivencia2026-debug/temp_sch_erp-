@@ -472,6 +472,9 @@ func (s *Server) Routes() http.Handler {
 			// The file itself, so an upload can be opened and read back.
 			r.Get("/import/history/{id}/content", s.getImportContent)
 			r.Get("/import/{entity}/template", s.getBulkTemplate)
+			// What this importer can be given, so the screen can ask somebody
+			// to point each field at a column of their own file.
+			r.Get("/import/{entity}/fields", s.getImportFields)
 			r.Post("/import/{entity}", s.bulkImport)
 		})
 

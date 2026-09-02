@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1198,6 +1199,77 @@ func paiseOrNil(v string) any {
 	return int64(math.Round(f * 100))
 }
 
+/*
+columnMapFrom reads the column mapping a clerk chose on screen.
+
+	Sent as a header rather than in the body because the body is the file, and
+	a school's file is not ours to wrap in an envelope: it arrives as the CSV
+	it is, so the same request works from a script, from curl, and from the
+	screen.
+
+	Absent means the file's own headers are the names, which is every upload
+	made before this existed and every file written from our template.
+*/
+func columnMapFrom(r *http.Request) map[string]string {
+	raw := strings.TrimSpace(r.Header.Get("X-Column-Map"))
+	if raw == "" {
+		return nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		// A malformed map is treated as no map rather than as an error: the
+		// file is still readable by its own headers, and the required-column
+		// check below will say what is missing in plain words.
+		return nil
+	}
+	return m
+}
+
+/*
+getImportFields lists what this importer can be given, so the screen can ask
+somebody to point each one at a column of their own file.
+
+	Required is the honest word: those are the fields a row cannot be built
+	without, and the import refuses when nothing is pointed at them. Everything
+	else may be left unmapped, and a school that does not keep blood groups
+	does not have to invent a column to satisfy us.
+
+	Nothing here is guessed on the school's behalf. A guessed mapping that is
+	wrong is worse than no mapping at all: it imports, it reports success, and
+	the error is found months later in a column nobody thought to check.
+*/
+func (s *Server) getImportFields(w http.ResponseWriter, r *http.Request) {
+	entity := chiURLParam(r, "entity")
+
+	// The students importer predates the shared one and has its own columns.
+	if entity == "students" {
+		httpx.JSON(w, http.StatusOK, map[string]any{"fields": studentImportFields()})
+		return
+	}
+	spec, ok := importSpecs[entity]
+	if !ok {
+		httpx.BadRequest(w, r, "nothing can be imported as "+entity)
+		return
+	}
+	if !httpx.IdentityFrom(r.Context()).Can(spec.Perm) {
+		httpx.Error(w, r, http.StatusForbidden, "forbidden", "you cannot import "+entity)
+		return
+	}
+	required := map[string]bool{}
+	for _, k := range spec.Required {
+		required[k] = true
+	}
+	fields := make([]map[string]any, 0, len(spec.Columns))
+	for i, c := range spec.Columns {
+		f := map[string]any{"name": c, "required": required[c]}
+		if i < len(spec.Sample) {
+			f["example"] = spec.Sample[i]
+		}
+		fields = append(fields, f)
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"fields": fields})
+}
+
 // getBulkTemplate hands back a CSV with the headers and one filled example
 // row, because an empty template is a puzzle about what the columns mean.
 func (s *Server) getBulkTemplate(w http.ResponseWriter, r *http.Request) {
@@ -1263,10 +1335,34 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 	for i, h := range head {
 		index[normaliseHeader(h)] = i
 	}
+	/* THE SCHOOL'S COLUMN NAMES, NOT OURS.
+
+	   Header matching only ever normalised case and spacing, so a sheet whose
+	   column says "Adm No" where we say "admission_no" did not fail loudly --
+	   it imported every child with a generated admission number instead,
+	   because that column was simply not seen.
+
+	   A mapping replaces the index outright rather than adding to it. Falling
+	   back to a same-named column when a mapping exists would mean a field
+	   somebody deliberately left unmapped could still be read from the file,
+	   which is the opposite of what leaving it unmapped says. */
+	if m := columnMapFrom(r); len(m) > 0 {
+		remapped := map[string]int{}
+		for ours, theirs := range m {
+			if strings.TrimSpace(theirs) == "" {
+				continue
+			}
+			if i, ok := index[normaliseHeader(theirs)]; ok {
+				remapped[normaliseHeader(ours)] = i
+			}
+		}
+		index = remapped
+	}
 	for _, need := range spec.Required {
 		if _, ok := index[need]; !ok {
 			httpx.BadRequest(w, r,
-				"the file needs a column called "+need+". Download the template if the headers do not match.")
+				"nothing is mapped to "+need+", and a row cannot be built without it. "+
+					"Choose which of your columns holds it.")
 			return
 		}
 	}

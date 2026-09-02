@@ -620,6 +620,25 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* The clerk's own column choices, where they made any.
+
+	   Replaces the index rather than adding to it: a field deliberately left
+	   unmapped must not still be read from a same-named column, because
+	   leaving it unmapped is a statement that the file does not carry it. */
+	if m := columnMapFrom(r); len(m) > 0 {
+		remapped := map[string]int{}
+		for ours, theirs := range m {
+			if strings.TrimSpace(theirs) == "" {
+				continue
+			}
+			key := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(theirs, "\ufeff")))
+			if i, ok := col[key]; ok {
+				remapped[strings.ToLower(strings.TrimSpace(ours))] = i
+			}
+		}
+		col = remapped
+	}
+
 	get := func(rec []string, name string) string {
 		i, ok := col[name]
 		if !ok || i >= len(rec) {
@@ -847,6 +866,39 @@ func isTruthy(v string) bool {
 }
 
 // getImportTemplate returns the CSV header a school should fill in.
+// studentImportFields is the list the mapping screen asks about, in the order
+// a school reads them. Only the name is required -- every other column is
+// optional by design, so a sheet with six columns imports as well as one with
+// eighteen.
+func studentImportFields() []map[string]any {
+	f := func(name, example string, required bool) map[string]any {
+		return map[string]any{"name": name, "example": example, "required": required}
+	}
+	return []map[string]any{
+		f("full_name", "Meera Menon", true),
+		f("admission_no", "ADM0001", false),
+		f("date_of_birth", "14/06/2013", false),
+		f("gender", "female", false),
+		f("blood_group", "B+", false),
+		f("medium", "english", false),
+		f("mother_tongue", "Malayalam", false),
+		f("section", "Class 6-A", false),
+		f("roll_no", "1", false),
+		f("address", "12 Green Park", false),
+		f("city", "Hyderabad", false),
+		f("state", "Telangana", false),
+		f("pincode", "500001", false),
+		f("prior_school", "St Teresa's", false),
+		f("admission_date", "12/06/2021", false),
+		f("previous_class", "Grade 5", false),
+		f("previous_year", "2025-26", false),
+		f("guardian_name", "Suresh Menon", false),
+		f("guardian_relation", "father", false),
+		f("guardian_phone", "9845012345", false),
+		f("guardian_email", "suresh@example.com", false),
+	}
+}
+
 func (s *Server) getImportTemplate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="students-template.csv"`)

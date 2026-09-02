@@ -93,6 +93,12 @@ interface Problem {
   problem?: string
   data?: Record<string, string>
 }
+interface ImportField {
+  name: string
+  required: boolean
+  example?: string
+}
+
 interface Result {
   total: number
   valid: number
@@ -138,6 +144,30 @@ export default function BulkImport({
   const [dragging, setDragging] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [paste, setPaste] = useState('')
+  /* WHICH OF YOUR COLUMNS IS WHICH OF OURS.
+
+     Header matching only ever normalised case and spacing, so a sheet saying
+     "Adm No" where we say "admission_no" did not fail loudly -- it imported
+     every child with a generated admission number, because that column was
+     never seen.
+
+     Nothing is guessed. A guessed mapping that is wrong is worse than none:
+     it imports, it reports success, and the mistake is found months later in
+     a column nobody thought to check. So every field is pointed at a column
+     by a person, and a field left alone is a field this file does not carry. */
+  const [colMap, setColMap] = useState<Record<string, string>>({})
+
+  const fields = useQuery({
+    queryKey: ['import-fields', entity],
+    queryFn: () => api.get<{ fields: ImportField[] }>(
+      `/api/v1/setup/import/${entity}/fields`),
+  })
+
+  const theirHeaders = grid.length ? grid[0] : []
+  const fieldList = fields.data?.fields ?? []
+  const missing = fieldList
+    .filter((f) => f.required && !colMap[f.name])
+    .map((f) => f.name)
 
   const send = async (text: string, commit: boolean) => {
     setBusy(true)
@@ -154,6 +184,11 @@ export default function BulkImport({
           credentials: 'same-origin',
           headers: {
             'Content-Type': 'text/csv',
+            // Sent beside the file rather than wrapped around it, so the same
+            // request works from a script and from this screen.
+            ...(Object.keys(colMap).length
+              ? { 'X-Column-Map': JSON.stringify(colMap) }
+              : {}),
             // A platform operator working inside a school must import into
             // that school, not into none.
             ...(actingInstitution() ? { 'X-Acting-Institution': actingInstitution()! } : {}),
@@ -192,15 +227,37 @@ export default function BulkImport({
     setGrid([])
     setShowAll(false)
     setError('')
+    setColMap({})
   }
 
   const take = (text: string, label: string) => {
+    const rows = parseCsv(text)
     setCsv(text)
     setName(label)
     setResult(null)
     setShowAll(false)
-    setGrid(parseCsv(text))
-    void send(text, false)
+    setGrid(rows)
+
+    /* A HEADER THAT IS ALREADY OUR NAME IS NOT A GUESS.
+
+       Only an exact match is filled in, after the same normalising the server
+       does -- "Admission No" and "admission_no" are the same word, not a
+       resemblance. Anything that merely looks similar is left empty for a
+       person to decide, because a plausible wrong match is the failure this
+       screen exists to prevent: it imports, it says it worked, and the error
+       surfaces months later in a column nobody thought to check.
+
+       A file written from our own template therefore needs no work, and a
+       school's own sheet is mapped by hand. */
+      const norm = (h: string) =>
+        h.replace(/^\ufeff/, '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+    const byName = new Map((rows[0] ?? []).map((h) => [norm(h), h]))
+    const exact: Record<string, string> = {}
+    for (const f of fields.data?.fields ?? []) {
+      const hit = byName.get(norm(f.name))
+      if (hit) exact[f.name] = hit
+    }
+    setColMap(exact)
   }
 
   const onFile = (f: File | undefined) => {
@@ -377,6 +434,85 @@ export default function BulkImport({
                 Showing the first 10 of {grid.length - 1} rows.
               </p>
             )}
+          </div>
+        )}
+
+        {!!grid.length && !result && (
+          <div className="mt-4 rounded-md border">
+            <div className="border-b px-3 py-2">
+              <p className="text-[13px] font-medium">Which column is which</p>
+              <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                Point each field we need at a column of your file. Anything you
+                leave alone is not imported. Nothing is matched for you unless
+                your header is already the same word.
+              </p>
+            </div>
+            <div className="max-h-72 overflow-y-auto divide-y">
+              {fieldList.map((f) => (
+                <div key={f.name} className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-48 flex-none">
+                    <p className="text-[13px]">
+                      {f.name.replace(/_/g, ' ')}
+                      {f.required && <span className="text-destructive"> *</span>}
+                    </p>
+                    {f.example && (
+                      <p className="text-[11.5px] text-muted-foreground">
+                        like {f.example}
+                      </p>
+                    )}
+                  </div>
+                  <select
+                    className="h-8 flex-1 rounded-md border bg-surface px-2 text-[13px]"
+                    value={colMap[f.name] ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setColMap((m) => {
+                        const next = { ...m }
+                        if (v) next[f.name] = v
+                        else delete next[f.name]
+                        return next
+                      })
+                    }}
+                  >
+                    <option value="">Not in my file</option>
+                    {theirHeaders.map((h, i) => (
+                      <option key={`${h}-${i}`} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  {/* The first row's value under the chosen column, because a
+                      column of ADM0019s identifies itself faster than any
+                      header does. */}
+                  <span className="w-40 flex-none truncate text-[12px] text-muted-foreground">
+                    {colMap[f.name] && grid[1]
+                      ? grid[1][theirHeaders.indexOf(colMap[f.name])] ?? ''
+                      : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t px-3 py-2">
+              {missing.length > 0 ? (
+                <p className="text-[12.5px] text-warning">
+                  Still to choose: {missing.map((m) => m.replace(/_/g, ' ')).join(', ')}
+                </p>
+              ) : (
+                <p className="text-[12.5px] text-muted-foreground">
+                  {fieldList.length - Object.keys(colMap).length} of{' '}
+                  {fieldList.length} fields not in this file, and will be left
+                  empty.
+                </p>
+              )}
+              <span className="ml-auto flex items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={discard}>Cancel</Button>
+                <Button
+                  size="sm"
+                  disabled={busy || missing.length > 0}
+                  onClick={() => send(csv, false)}
+                >
+                  {busy ? 'Checking\u2026' : 'Check the file'}
+                </Button>
+              </span>
+            </div>
           </div>
         )}
 
