@@ -112,6 +112,7 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
+			       u.must_change_password,
 			       COALESCE(array_agg(DISTINCT rp.permission_key)
 			                FILTER (WHERE rp.permission_key IS NOT NULL), '{}'),
 			       COALESCE(array_agg(DISTINCT ro.key)
@@ -125,10 +126,11 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 			   AND s.revoked_at IS NULL
 			   AND s.expires_at > now()
 			   AND u.status = 'active'
-			 GROUP BY s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name`,
+			 GROUP BY s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
+			          u.must_change_password`,
 			hashToken(c.Value))
 		return row.Scan(&id.SessionID, &id.UserID, &instID, &lastSeen, &id.FullName,
-			&perms, &roleKeys)
+			&id.MustChangePassword, &perms, &roleKeys)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoSession

@@ -35,8 +35,13 @@ type Identity struct {
 	// read a child's medical record; before this they inherited everything by
 	// virtue of having no institution, which is exactly the over-collection
 	// the DPDP Act makes expensive.
-	Restricted  bool
-	Permissions map[string]struct{}
+	Restricted bool
+	// MustChangePassword is true while the account still carries the password
+	// the office issued in bulk -- which is the person's own mobile number,
+	// and therefore known to anybody holding the class list. Everything except
+	// reading the session and setting a new one is refused until it is false.
+	MustChangePassword bool
+	Permissions        map[string]struct{}
 }
 
 func (i *Identity) Can(perm string) bool {

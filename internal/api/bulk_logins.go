@@ -73,6 +73,34 @@ type bulkLoginResult struct {
 }
 
 // issueLoginsInBulk mints an account for everybody of one kind who has none.
+/*
+The password the office hands out, which is the number they already have.
+
+	A generated code is unguessable and, at four hundred families, unusable: it
+	has to be printed, carried home, and typed correctly by somebody who has
+	never seen this system, and it is lost by the second week. Every school
+	that has tried it ends up reading codes down the phone all August.
+
+	So the first password is the person's own mobile number -- the same value
+	they sign in with -- and the account cannot do anything until they replace
+	it. See migrations/00196 and requirePasswordChanged: the pair proves the
+	school gave them a login, and nothing more.
+
+	A person with neither a number nor an address still gets a generated one,
+	because there is nothing else to use. In practice that is a child whose
+	sign-in is their admission number.
+*/
+func issuedPassword(phone, email string) (string, bool, error) {
+	if v := strings.TrimSpace(phone); v != "" {
+		return v, true, nil
+	}
+	if v := strings.TrimSpace(email); v != "" {
+		return v, true, nil
+	}
+	generated, err := temporaryPassword()
+	return generated, false, err
+}
+
 func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
 		return
@@ -192,7 +220,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			   Those get a password here, which is the whole point of running
 			   this after an import. */
 			if p.userID != nil && !p.usable {
-				password, err := temporaryPassword()
+				password, known, err := issuedPassword(p.phone, p.email)
 				if err != nil {
 					return err
 				}
@@ -202,10 +230,12 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				}
 				var signIn string
 				if err := tx.QueryRow(r.Context(), `
-					UPDATE users SET password_hash = $2, status = 'active'
+					UPDATE users
+					   SET password_hash = $2, status = 'active',
+					       must_change_password = $3
 					 WHERE id = $1
 					RETURNING COALESCE(username::text, email::text, phone, '')`,
-					*p.userID, hash).Scan(&signIn); err != nil {
+					*p.userID, hash, known).Scan(&signIn); err != nil {
 					return err
 				}
 				out.Created++
@@ -219,7 +249,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			// name — in which case this is the deliberate act of replacing a
 			// list somebody has lost.
 			if p.userID != nil && req.Reset {
-				password, err := temporaryPassword()
+				password, known, err := issuedPassword(p.phone, p.email)
 				if err != nil {
 					return err
 				}
@@ -229,10 +259,12 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				}
 				var signIn string
 				if err := tx.QueryRow(r.Context(), `
-					UPDATE users SET password_hash = $2, status = 'active'
+					UPDATE users
+					   SET password_hash = $2, status = 'active',
+					       must_change_password = $3
 					 WHERE id = $1
 					RETURNING COALESCE(username::text, email::text, phone, '')`,
-					*p.userID, hash).Scan(&signIn); err != nil {
+					*p.userID, hash, known).Scan(&signIn); err != nil {
 					return err
 				}
 				out.Created++
@@ -276,7 +308,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return err
 			}
-			password, err := temporaryPassword()
+			password, known, err := issuedPassword(p.phone, p.email)
 			if err != nil {
 				return err
 			}
@@ -305,10 +337,10 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			insert := func(tx pgx.Tx, email string) error {
 				return tx.QueryRow(r.Context(), `
 					INSERT INTO users (institution_id, username, email, phone, full_name,
-					                   password_hash, status)
-					VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active')
+					                   password_hash, status, must_change_password)
+					VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active',$7)
 					RETURNING id`,
-					id.InstitutionID, username, email, p.phone, p.name, hash).Scan(&newID)
+					id.InstitutionID, username, email, p.phone, p.name, hash, known).Scan(&newID)
 			}
 			err = insert(sp, p.email)
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
+import SetYourPassword from '@/features/shared/SetYourPassword'
 import { claimTabs } from './tabs'
 
 const SessionContext = createContext<SessionResponse | null>(null)
@@ -53,6 +54,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // module briefly appears before the notice replaces it.
   if (data.subscription && !data.subscription.active) {
     return <Locked session={data} />
+  }
+
+  /* A login issued in bulk starts on the person's own phone number, which is
+     on the class list and in every other parent's phone. One screen until they
+     replace it — above the app rather than inside it, so there is no route,
+     no tab and no back button that reaches anything else. The API refuses the
+     same requests regardless; this is the half that explains why. */
+  if (data.user?.must_change_password) {
+    return <SetYourPassword signInName={data.user.full_name} />
   }
 
   /* The tab strip belongs to whoever is signed in.
