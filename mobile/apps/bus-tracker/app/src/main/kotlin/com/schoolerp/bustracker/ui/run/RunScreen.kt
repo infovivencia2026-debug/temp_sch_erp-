@@ -86,67 +86,39 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            status.vehicleRegistration ?: "Unknown bus",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-        status.institution?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        /* THE HEADING IS THE SCHOOL, AND THAT IS ALL.
+
+           It used to be the bus registration in display type with the school
+           under it -- from when a phone was one bus for ever. A phone is now a
+           driver's, and the bus is whatever he scans this morning, so putting
+           a registration at the top of the app states something that is not
+           true until a run opens. The bus belongs to the run, and that is
+           where it is now shown. */
+        status.institution?.let {
+            Text(it, style = MaterialTheme.typography.titleMedium)
+        }
 
         ReportingCard(status)
 
-        status.locationBlocker?.let { blocker ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(blocker.headline, style = MaterialTheme.typography.titleMedium)
-                    Text(blocker.detail, style = MaterialTheme.typography.bodyMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { open(viewModel.openAppSettings()) }) {
-                            Text("App permissions")
-                        }
-                        OutlinedButton(onClick = { open(viewModel.openLocationSettings()) }) {
-                            Text("Location settings")
-                        }
-                    }
-                }
-            }
-        }
+        /* PHONE SETUP, FOLDED AWAY.
 
-        if (!status.ignoringBatteryOptimisations) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Battery saving may thin out the tracking", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "On many phones the battery manager slows this app down when the screen " +
-                            "has been off for a while, and the bus starts jumping across the map " +
-                            "instead of moving. Allowing it to run unrestricted fixes that.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = { open(viewModel.requestBatteryExemption()) }) {
-                        Text("Allow unrestricted")
-                    }
-                }
-            }
-        }
+           Location, battery and notifications each had a full-width card with
+           a headline and a paragraph, stacked above the only two controls the
+           driver came for. On a handset that is three screenfuls of settings
+           advice before the Start button, every morning, for ever -- and the
+           app looked broken because it opened on a wall of warnings.
 
-        /* Every warning the service raises -- the school closed the run, the
-           token was revoked, the phone stopped reporting -- is a notification.
-           With notifications refused they went nowhere, and nothing on this
-           screen said so. */
-        if (!status.notificationsAllowed) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Notifications are switched off", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "This app tells you through a notification when the school closes a run " +
-                            "or the phone stops reporting. With them off you will not be told.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = { open(viewModel.openNotificationSettings()) }) {
-                        Text("Turn notifications on")
-                    }
-                }
-            }
-        }
+           They are still here, and still say the same thing, behind one line
+           that counts them. A driver whose phone is set up correctly never
+           sees any of it. */
+        PhoneSetupSection(
+            status = status,
+            onOpen = ::open,
+            appSettings = viewModel::openAppSettings,
+            locationSettings = viewModel::openLocationSettings,
+            batteryExemption = viewModel::requestBatteryExemption,
+            notificationSettings = viewModel::openNotificationSettings,
+        )
 
         /* THE SHIFT.
          *
@@ -158,9 +130,20 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
          * A login wall in front of the app would also mean a phone picked up
          * mid-run shows a form instead of the route, which is the worst moment
          * for it. */
-        if (status.trip == null) {
+        /* ONE THING AT A TIME.
+
+           Sign-in and Start-a-run were both drawn whenever no run was open, so
+           a driver who had not signed in was shown a login form, a bus field,
+           a route list, a direction toggle and a route-setup form together --
+           and the Start button he could not use yet was the one below the fold.
+
+           Signing in is the step in front; the run is the step after. Drawing
+           the second before the first is done is what made the screen look
+           like a settings page instead of a two-tap morning. */
+        val trip = status.trip
+        if (trip == null && !signedIn) {
             DriverSignIn(
-                signedIn = signedIn,
+                signedIn = false,
                 driverName = viewModel.driverName,
                 busy = busy,
                 onSignIn = viewModel::signIn,
@@ -168,8 +151,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             )
         }
 
-        val trip = status.trip
-        if (trip == null) {
+        if (trip == null && signedIn) {
             StartRunSection(
                 routes = routes,
                 busy = busy,
@@ -880,6 +862,95 @@ private fun RollCard(
                             ) { Text(label) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * The three phone settings that quietly ruin tracking, behind one line.
+ *
+ * Each of these was a card with a headline and a paragraph, and all three were
+ * above the Start button. A driver with notifications off and battery saving
+ * on -- which is most phones out of the box -- opened the app to three
+ * screenfuls of settings advice and had to scroll past it every morning to
+ * reach the two controls he actually wanted.
+ *
+ * Nothing is hidden that matters: the line says how many need attention, and
+ * shows nothing at all when none of them do. What has gone is the assumption
+ * that a warning must be the biggest thing on the screen to have been made.
+ */
+@Composable
+private fun PhoneSetupSection(
+    status: TrackerStatus,
+    onOpen: (android.content.Intent) -> Unit,
+    appSettings: () -> android.content.Intent,
+    locationSettings: () -> android.content.Intent,
+    batteryExemption: () -> android.content.Intent,
+    notificationSettings: () -> android.content.Intent,
+) {
+    val problems = listOfNotNull(
+        status.locationBlocker?.let { "location" },
+        if (!status.ignoringBatteryOptimisations) "battery" else null,
+        if (!status.notificationsAllowed) "notifications" else null,
+    )
+    if (problems.isEmpty()) return
+
+    var open by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TextButton(onClick = { open = !open }) {
+            Text(
+                if (open) "Hide phone settings"
+                else "${problems.size} phone setting${if (problems.size == 1) "" else "s"} " +
+                    "could thin out the tracking",
+            )
+        }
+        if (!open) return@Column
+
+        status.locationBlocker?.let { blocker ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(blocker.headline, style = MaterialTheme.typography.titleSmall)
+                Text(blocker.detail, style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { onOpen(appSettings()) }) {
+                        Text("App permissions")
+                    }
+                    OutlinedButton(onClick = { onOpen(locationSettings()) }) {
+                        Text("Location settings")
+                    }
+                }
+            }
+        }
+
+        if (!status.ignoringBatteryOptimisations) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Battery saving thins out the tracking",
+                    style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "The battery manager slows this app down once the screen has been off " +
+                        "a while, and the bus starts jumping across the map instead of moving.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedButton(onClick = { onOpen(batteryExemption()) }) {
+                    Text("Allow unrestricted")
+                }
+            }
+        }
+
+        if (!status.notificationsAllowed) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Notifications are switched off",
+                    style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "This app tells you through a notification when the school closes a run " +
+                        "or the phone stops reporting. With them off you will not be told.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedButton(onClick = { onOpen(notificationSettings()) }) {
+                    Text("Turn notifications on")
                 }
             }
         }
