@@ -717,9 +717,68 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		return strings.TrimSpace(rec[i])
 	}
 
+	/* WHICH COLUMN SAYS "THIS IS THE SAME CHILD".
+
+	   The importer matched on admission_no and nothing else, so a school whose
+	   sheet has no admission numbers — or has them in a column we did not read
+	   — got a fresh record and a generated number for every row, every time
+	   they uploaded. Re-uploading a corrected file doubled the roll, which is
+	   the single most expensive thing a school can do to itself here and the
+	   one nobody notices until the headcount is wrong.
+
+	   So the office says which column identifies a person. Their admission
+	   number usually; the app's own person_code where they have exported it;
+	   or one of their own columns, because at some schools the identity is a
+	   scholarship number or a government id and not an admission number at
+	   all.
+
+	   "none" is honest rather than absent: a school importing a fresh roll into
+	   an empty system genuinely has no key yet, and forcing them to invent one
+	   would be worse than letting them say so. */
+	matchOn := strings.TrimSpace(r.URL.Query().Get("match_on"))
+	if matchOn == "" {
+		matchOn = "admission_no"
+	}
+	matchLabel := matchOn
+	keyOf := func(rec []string) string { return "" }
+	switch {
+	case matchOn == "none":
+		matchLabel = "nothing"
+	case matchOn == "admission_no":
+		keyOf = func(rec []string) string { return get(rec, "admission_no") }
+	case matchOn == "person_code":
+		keyOf = func(rec []string) string { return get(rec, "person_code") }
+	case strings.HasPrefix(matchOn, "custom:"):
+		label := strings.TrimSpace(strings.TrimPrefix(matchOn, "custom:"))
+		i, ok := customCols[label]
+		if !ok {
+			httpx.BadRequest(w, r,
+				"no column is being kept as \""+label+"\", so it cannot identify a person")
+			return
+		}
+		matchLabel = label
+		keyOf = func(rec []string) string {
+			if i < len(rec) {
+				return strings.TrimSpace(rec[i])
+			}
+			return ""
+		}
+	default:
+		httpx.BadRequest(w, r,
+			"identify people by admission_no, person_code, one of your own columns, or none")
+		return
+	}
+
+	// Row number of the first time each key was seen, so a duplicate can be
+	// reported against the row it collides with rather than on its own.
+	seenKeys := map[string]int{}
+
 	type parsed struct {
 		req studentWriteRequest
 		row int
+		// The value of the column chosen to identify people, kept so the
+		// commit can look the person up by it.
+		key string
 	}
 	var good []parsed
 	out := importResult{DryRun: !commit, Problems: []importRow{}}
@@ -787,6 +846,40 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			req.RollNo, _ = strconv.Atoi(v)
 		}
 
+		/* THE SAME PERSON TWICE IN ONE FILE.
+
+		   A spreadsheet that has been edited by three people has the same
+		   child on two rows about as often as not. Whichever row is written
+		   second silently overwrites the first, so the import reports success
+		   and the school is left with one record holding a mixture of two rows
+		   — which is worse than either row alone and impossible to spot
+		   afterwards. Both rows are named here, before anything is written. */
+		if matchOn != "none" {
+			key := strings.ToLower(keyOf(rec))
+			if key == "" {
+				out.Rejected++
+				out.Problems = append(out.Problems, importRow{
+					Row: rowNum,
+					Problem: "this row has no " + matchLabel + ", which is the column " +
+						"chosen to identify people. Fill it in, or choose a different column",
+					Data: map[string]string{"first_name": req.FirstName},
+				})
+				continue
+			}
+			if first, dup := seenKeys[key]; dup {
+				out.Rejected++
+				out.Problems = append(out.Problems, importRow{
+					Row: rowNum,
+					Problem: fmt.Sprintf(
+						"%s %q is already on row %d of this file. Two rows cannot be the "+
+							"same person", matchLabel, keyOf(rec), first),
+					Data: map[string]string{"first_name": req.FirstName},
+				})
+				continue
+			}
+			seenKeys[key] = rowNum
+		}
+
 		if err := req.validate(); err != nil {
 			out.Rejected++
 			out.Problems = append(out.Problems, importRow{
@@ -797,7 +890,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		out.Valid++
-		good = append(good, parsed{req: req, row: rowNum})
+		good = append(good, parsed{req: req, row: rowNum, key: keyOf(rec)})
 	}
 
 	// Resolve "Class 6-A" style placement once, not per row.
@@ -831,6 +924,56 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%d of %d rows are invalid; fix them and upload again",
 				out.Rejected, out.Total))
 		return
+	}
+
+	/* THE PERSON THIS ROW IS ABOUT, when the key is not the admission number.
+
+	   upsertStudent matches on (institution, admission_no) — that is the
+	   unique index, and building a second write path for every other key would
+	   be two upserts to keep in step. So the key is resolved to the child it
+	   belongs to and their existing admission number is put on the row, which
+	   turns the write into an update of exactly that record. A key that
+	   matches nobody is a new child and keeps whatever the sheet said.
+
+	   One query for the whole file rather than one per row: a thousand-row
+	   import should not be a thousand round trips. */
+	if matchOn == "person_code" || strings.HasPrefix(matchOn, "custom:") {
+		keys := make([]string, 0, len(good))
+		for _, g := range good {
+			keys = append(keys, g.key)
+		}
+		byKey := map[string]string{}
+		lookupErr := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			sql := `SELECT lower(person_code), admission_no FROM students WHERE person_code = ANY($1)`
+			args := []any{keys}
+			if label, isCustom := strings.CutPrefix(matchOn, "custom:"); isCustom {
+				sql = `SELECT lower(custom_fields ->> $2), admission_no
+				         FROM students WHERE custom_fields ->> $2 = ANY($1)`
+				args = append(args, strings.TrimSpace(label))
+			}
+			rows, err := tx.Query(r.Context(), sql, args...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var k, adm string
+				if err := rows.Scan(&k, &adm); err != nil {
+					return err
+				}
+				byKey[k] = adm
+			}
+			return rows.Err()
+		})
+		if lookupErr != nil {
+			httpx.Internal(w, r, lookupErr)
+			return
+		}
+		for i := range good {
+			if adm, ok := byKey[strings.ToLower(good[i].key)]; ok {
+				good[i].req.AdmissionNo = adm
+			}
+		}
 	}
 
 	// Re-read placement labels from the parsed rows.
