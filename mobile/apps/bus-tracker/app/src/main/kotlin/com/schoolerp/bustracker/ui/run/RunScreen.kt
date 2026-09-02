@@ -17,7 +17,11 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +62,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val stops by viewModel.stops.collectAsStateWithLifecycle()
     val routes by viewModel.routeBook.collectAsStateWithLifecycle()
+    val scannedBus by viewModel.scannedBus.collectAsStateWithLifecycle()
     val alert by viewModel.alert.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
@@ -166,6 +171,8 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             StartRunSection(
                 routes = routes,
                 busy = busy,
+                bus = scannedBus,
+                onBusScanned = viewModel::onBusScanned,
                 onStart = viewModel::startRun,
                 onAddRoute = viewModel::addRoute,
                 onRemoveRoute = viewModel::removeRoute,
@@ -548,6 +555,8 @@ private fun NextStopCard(stops: List<StopEntity>, lastArrival: String?) {
 private fun StartRunSection(
     routes: List<SavedRoute>,
     busy: Boolean,
+    bus: String,
+    onBusScanned: (String) -> Unit,
     onStart: (SavedRoute, String, Boolean) -> Unit,
     onAddRoute: (String, String) -> Unit,
     onRemoveRoute: (String) -> Unit,
@@ -562,6 +571,41 @@ private fun StartRunSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Start a run", style = MaterialTheme.typography.titleLarge)
+
+        /* WHICH BUS, BEFORE WHICH ROUTE.
+
+           The handset is paired to a bus and the driver may not be in it. He
+           reads the sticker in the windscreen — by camera, or by typing the
+           code under it when the glass is dirty — and that bus carries this
+           run. Empty means the paired one, so a driver who always takes the
+           same bus never touches this. */
+        val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+            result.contents?.let(onBusScanned)
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedTextField(
+                value = bus,
+                onValueChange = onBusScanned,
+                label = { Text("Bus") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = {
+                    scanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Point at the sticker in the windscreen")
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(false),
+                    )
+                },
+            ) { Text("Scan") }
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(DIRECTION_PICKUP to "Pickup", DIRECTION_DROP to "Drop").forEach { (value, label) ->

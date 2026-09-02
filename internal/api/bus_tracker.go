@@ -38,6 +38,10 @@ errRouteOtherVehicle is the route that exists, in this school, and is the
 */
 var errRouteOtherVehicle = errors.New("route is assigned to another vehicle")
 
+// errBusNotFound is a scanned sticker this school has no bus for -- a code from
+// another school, or a vehicle that has been retired.
+var errBusNotFound = errors.New("no bus matches that code")
+
 /* The driver's phone as the vehicle's GPS unit.
 
    Eight catalogued transport features were deferred on one sentence — "GPS
@@ -603,7 +607,13 @@ func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request)
 // --- trips -------------------------------------------------------------------
 
 type startTripRequest struct {
-	RouteID   string `json:"route_id"`
+	RouteID string `json:"route_id"`
+	/* The bus the driver is actually on, read off the sticker in its
+	   windscreen. Empty means the one this handset is paired to, which is what
+	   every existing app sends and what a school with one bus per driver
+	   wants. A school where drivers swap buses scans instead, and the scan
+	   wins for this trip only — the pairing is not disturbed. */
+	BusCode   string `json:"bus_code,omitempty"`
 	Direction string `json:"direction"`
 	StartedAt string `json:"started_at,omitempty"`
 	Supersede bool   `json:"supersede,omitempty"`
@@ -697,7 +707,34 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   would file this vehicle's positions against the other bus's line,
 		   and the parents watching that line would be shown the wrong bus
 		   moving along their child's route. */
-		if routeVehicle != nil && *routeVehicle != dev.Vehicle {
+		/* THE BUS FOR THIS RUN.
+
+		   dev.Vehicle is what the handset was paired to. A scanned code
+		   replaces it for this trip and nothing else: the pairing row is
+		   untouched, so a driver who scans a relief bus this morning is back on
+		   his own tomorrow without anybody re-pairing anything.
+
+		   Resolved inside the device's institution, so a code from another
+		   school matches nothing. Both the sticker's bus_code and a typed
+		   registration are accepted, for the same reason enrolment accepts
+		   both. */
+		tripVehicle := dev.Vehicle
+		if code := strings.ToUpper(strings.TrimSpace(req.BusCode)); code != "" {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT id FROM vehicles
+				 WHERE institution_id = $1
+				   AND (upper(bus_code) = $2
+				        OR upper(regexp_replace(registration_no,'[^A-Za-z0-9]','','g')) = $2)
+				   AND status <> 'retired'
+				 LIMIT 1`, dev.Institution, code).Scan(&tripVehicle); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return errBusNotFound
+				}
+				return err
+			}
+		}
+
+		if routeVehicle != nil && *routeVehicle != tripVehicle {
 			return errRouteOtherVehicle
 		}
 
@@ -715,7 +752,7 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		   with trip_already_open over a trip that ended when his battery did.
 		   Closed here, against the same rule and the same ended_reason the
 		   sweep uses, so the two can never disagree about when the run ended. */
-		if err := closeTimedOutTrips(r.Context(), tx, dev.Vehicle, policy.TripTimeoutMins); err != nil {
+		if err := closeTimedOutTrips(r.Context(), tx, tripVehicle, policy.TripTimeoutMins); err != nil {
 			return err
 		}
 
@@ -729,7 +766,7 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 		var open uuid.UUID
 		err = tx.QueryRow(r.Context(), `
 			SELECT id FROM vehicle_trips
-			 WHERE vehicle_id = $1 AND ended_at IS NULL`, dev.Vehicle).Scan(&open)
+			 WHERE vehicle_id = $1 AND ended_at IS NULL`, tripVehicle).Scan(&open)
 		switch {
 		case err == nil && !req.Supersede:
 			conflict = true
@@ -750,7 +787,7 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 			    tracker_id, direction, started_at, started_by, driver_session_id)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 			RETURNING id`,
-			dev.Institution, dev.Vehicle, route, dev.ID, req.Direction, started,
+			dev.Institution, tripVehicle, route, dev.ID, req.Direction, started,
 			driver.UserID, driver.ID).
 			Scan(&tripID); err != nil {
 			return err
@@ -792,6 +829,12 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errNoSuchRoute) {
 		httpx.Error(w, r, http.StatusNotFound, "no_such_route",
 			"that route does not belong to this school")
+		return
+	}
+	if errors.Is(err, errBusNotFound) {
+		httpx.Error(w, r, http.StatusNotFound, "bus_not_found",
+			"that sticker is not a bus at this school. Check it is the right "+
+				"vehicle, or ask the office")
 		return
 	}
 	if errors.Is(err, errRouteOtherVehicle) {

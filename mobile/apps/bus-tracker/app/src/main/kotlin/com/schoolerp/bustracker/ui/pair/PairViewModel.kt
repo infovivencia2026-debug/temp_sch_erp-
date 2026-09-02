@@ -36,14 +36,14 @@ data class PairUiState(
      * assigned yet and for schools already using codes. */
     val phone: String = "",
     val pin: String = "",
-    val usePairCode: Boolean = false,
+    val usePairCode: Boolean = true,
     /** The bus read off the sticker in the windscreen, if the driver scanned
      *  one. Empty means "whichever bus HR has this driver against", which is
      *  the ordinary case and stays the default. */
     val scannedBus: String = "",
     /** Pair codes are a fallback for a bus with no driver assigned yet, and
      *  belong to whoever is debugging -- not to the man beside the bus. */
-    val pairCodeAvailable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
+    val pairCodeAvailable: Boolean = true,
     val baseUrlEditable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
     val submitting: Boolean = false,
     val error: String? = null,

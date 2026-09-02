@@ -172,11 +172,18 @@ class RunViewModel @Inject constructor(
         }
     }
 
+    /** The bus scanned for this run, cleared when the run ends. */
+    private val _scannedBus = MutableStateFlow("")
+    val scannedBus: StateFlow<String> = _scannedBus.asStateFlow()
+
+    fun onBusScanned(code: String) { _scannedBus.value = code.trim() }
+    fun clearScannedBus() { _scannedBus.value = "" }
+
     fun startRun(route: SavedRoute, direction: String = DIRECTION_PICKUP, supersede: Boolean = false) {
         if (_busy.value) return
         _busy.value = true
         viewModelScope.launch {
-            when (val outcome = repository.startTrip(route.routeId, route.label, direction, supersede)) {
+            when (val outcome = repository.startTrip(route.routeId, route.label, direction, supersede, _scannedBus.value)) {
                 is StartOutcome.Started -> {
                     // The service starts only now. Before this moment there is
                     // no run, and an app collecting location without one would

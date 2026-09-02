@@ -335,6 +335,8 @@ class TrackerRepository @Inject constructor(
         routeName: String,
         direction: String,
         supersede: Boolean = false,
+        /** The bus scanned for this run. Null keeps the paired one. */
+        busCode: String? = null,
     ): StartOutcome {
         val ctx = requireContext() ?: return StartOutcome.NotPaired
         // The server refuses this route without a driver session, so refusing
@@ -349,6 +351,7 @@ class TrackerRepository @Inject constructor(
                 ctx.token,
                 session,
                 StartTripRequest(
+                    busCode = busCode?.takeIf { it.isNotBlank() },
                     routeId = routeId,
                     direction = direction,
                     startedAt = Rfc3339.format(startedAtMillis),

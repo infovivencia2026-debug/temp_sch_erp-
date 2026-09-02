@@ -211,6 +211,9 @@ data class SignOutResponse(
 
 @Serializable
 data class StartTripRequest(
+    /** The bus read off the sticker, for this run only. Null keeps the bus
+     *  this handset is paired to, which is what a one-bus driver wants. */
+    @SerialName("bus_code") val busCode: String? = null,
     @SerialName("route_id") val routeId: String,
     /** `"pickup"` or `"drop"`; the server rejects anything else. */
     val direction: String,
