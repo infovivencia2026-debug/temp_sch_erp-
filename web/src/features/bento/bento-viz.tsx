@@ -301,7 +301,7 @@ export function Ring({
             {pctText(v, total)}
           </span>
           <span
-            className="mt-1 text-[10.5px] leading-none tabular-nums"
+            className="mt-1 text-[length:var(--viz-label,10.5px)] leading-none tabular-nums"
             style={{ color: VIZ_QUIET }}
           >
             {v}/{total}
@@ -402,7 +402,7 @@ export function SegmentBar({
       </div>
       <ul
         className={cn(
-          'm-0 list-none p-0 text-[11px] leading-tight tabular-nums',
+          'm-0 list-none p-0 text-[length:var(--viz-label,11px)] leading-tight tabular-nums',
           wide ? 'flex flex-wrap gap-x-3 gap-y-1' : 'flex flex-col gap-1',
         )}
         aria-hidden="true"
@@ -483,7 +483,7 @@ export function AgeBands({
         <div key={`${b.label}-${i}`} className="flex items-center gap-2">
           <span
             className={cn(
-              'shrink-0 text-[10.5px] leading-none tabular-nums',
+              'shrink-0 text-[length:var(--viz-label,10.5px)] leading-none tabular-nums',
               wide ? 'w-14' : 'w-11',
             )}
             style={{ color: VIZ_QUIET }}
@@ -513,7 +513,7 @@ export function AgeBands({
           </div>
           <span
             className={cn(
-              'shrink-0 text-right text-[11px] font-semibold leading-none tabular-nums',
+              'shrink-0 text-right text-[length:var(--viz-label,11px)] font-semibold leading-none tabular-nums',
               wide ? 'w-14' : 'w-9',
             )}
           >
@@ -628,7 +628,7 @@ export function HeatStrip({
       </div>
       {/* The key back to numbers. Without it the strip is colour-only. */}
       <div
-        className="flex items-baseline justify-between text-[10px] leading-none tabular-nums"
+        className="flex items-baseline justify-between text-[length:var(--viz-label,10px)] leading-none tabular-nums"
         style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >
@@ -786,7 +786,7 @@ export function Timeline({
           seatedMarks.map((m, i) => (
             <span
               key={`label-${m.label}-${i}`}
-              className="absolute whitespace-nowrap text-[10px] leading-none"
+              className="absolute whitespace-nowrap text-[length:var(--viz-label,10px)] leading-none"
               style={{
                 left: `${m.x}%`,
                 bottom: `${m.lane * laneStep + 10}px`,
@@ -800,7 +800,7 @@ export function Timeline({
           ))}
       </div>
       <div
-        className="flex items-baseline justify-between text-[10px] leading-none tabular-nums"
+        className="flex items-baseline justify-between text-[length:var(--viz-label,10px)] leading-none tabular-nums"
         style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >
@@ -946,7 +946,7 @@ export function Quadrant({
           <span
             key={r.at}
             className={cn(
-              'pointer-events-none absolute max-w-[46%] truncate text-[9.5px] leading-none',
+              'pointer-events-none absolute max-w-[46%] truncate text-[length:var(--viz-label,9.5px)] leading-none',
               r.at,
             )}
             style={{ color: VIZ_LINE_TEXT }}
@@ -982,7 +982,7 @@ export function Quadrant({
       </div>
       {/* The axes named once, under the field, rather than twice inside it. */}
       <div
-        className="flex shrink-0 items-baseline justify-between gap-2 text-[10px] leading-[13px]"
+        className="flex shrink-0 items-baseline justify-between gap-2 text-[length:var(--viz-label,10px)] leading-[13px]"
         style={{ color: VIZ_QUIET }}
         aria-hidden="true"
       >

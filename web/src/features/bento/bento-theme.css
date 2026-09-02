@@ -1814,6 +1814,26 @@ html[data-layout='bento'] body {
      for 13px prose a parent actually reads: at phone sizes the lines close up
      and the card reads as a block rather than as sentences. */
   [data-layout='bento'] .bento-cell p { line-height: 1.45; }
+
+  /* THE CHART LABELS TOO.
+
+     The figures and prose were the loud half of this. The quiet half is inside
+     the drawings: axis ticks, legends, the counts beside a bar. Those are
+     hard-coded at 9.5, 10, 10.5 and 11px in bento-viz -- sensible in a desktop
+     cell where a chart is 90px tall and the label is a footnote, and the same
+     unreadable smudge on a phone as everything else was.
+
+     One variable rather than four, because at phone sizes the distinction
+     between a 9.5px tick and an 11px legend is a distinction nobody can see.
+     Each call site keeps its original as the fallback, so the desktop board is
+     byte-for-byte what it was. */
+  [data-layout='bento'] .bento-cell { --viz-label: 12px; }
+
+  /* The dock is the only navigation on a phone, and its labels were 10px --
+     the smallest text on the screen sitting under the most-used control. The
+     icons carry the meaning, so this does not need to be large; it needs to
+     stop looking like a caption. */
+  [data-layout='bento'] .bento-dock { --dock-label: 11.5px; }
 }
 
 /* ── THE DEFAULT PALETTE — one material, one accent ─────────────────────

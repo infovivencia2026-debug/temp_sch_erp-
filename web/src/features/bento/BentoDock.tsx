@@ -238,7 +238,7 @@ export function BentoDock() {
   const tab = phone ? 'h-auto w-auto rounded-[8px]' : ''
   const tabLabel = (text: string) =>
     phone ? (
-      <span className="dock-tab-label max-w-full truncate text-[10px] font-medium leading-[12px] opacity-80">
+      <span className="dock-tab-label max-w-full truncate text-[length:var(--dock-label,10px)] font-medium leading-[1.2] opacity-80">
         {text}
       </span>
     ) : null
