@@ -1713,11 +1713,26 @@ export function PrintButton({ label = 'Print' }: { label?: string }) {
   )
 }
 
-export function EmptyState({ title, body }: { title: string; body?: string }) {
+/* An optional way out.
+
+   Most empty states are a statement of fact and want nothing after them. A few
+   are a fork in somebody's morning -- "the school is still being set up" is
+   read by a principal who then has to find the setup screen from a page that
+   just told them it exists. Optional, so every existing caller is unchanged. */
+export function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string
+  body?: string
+  action?: ReactNode
+}) {
   return (
     <Card className="empty-state p-10 text-center">
       <p className="text-[15px] font-semibold">{title}</p>
       {body && <p className="mx-auto mt-1.5 max-w-md text-[14px] text-muted-foreground">{body}</p>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
     </Card>
   )
 }

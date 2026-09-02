@@ -226,6 +226,27 @@ export function useFeature(sectionSlug?: string, featureSlug?: string) {
       }
     }
 
+    /* AND AN EXACT REQUEST THAT MISSES IS ALSO HONOURED - AS A MISS.
+
+       The comment above states the rule and the code below broke it. When both
+       slugs were given and neither matched, this fell through to
+       firstUsable(role) and returned the workspace's own front page. So a URL
+       naming a feature the role does not hold rendered the dashboard, headed
+       "Executive overview", while the address bar still read
+       /finance/fees/take_fee_payment. Verified with a control: /zzz/zzz/zzz
+       rendered the same dashboard.
+
+       The cost was not only the wrong screen. FeatureRoute in App.tsx has an
+       EmptyState reading "That feature is not in your workspace" that could
+       never appear, because this hook and useActiveRole between them
+       guaranteed something non-undefined for every input. The honest message
+       was written, and was unreachable.
+
+       Returning undefined here is what lets that message show. */
+    if (sectionSlug && featureSlug) {
+      return { section: undefined, feature: undefined }
+    }
+
     // Anything we choose ourselves lands on something that works.
     if (sectionSlug) {
       const section = role.sections.find((s) => s.slug === sectionSlug)

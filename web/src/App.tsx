@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
 import ApplyForm from '@/features/public/ApplyForm'
@@ -11,7 +11,7 @@ import { Shell } from '@/components/Shell'
 import ChunkBoundary, { clearChunkReloadGuard } from '@/components/ChunkBoundary'
 import { useLiveUpdates } from '@/lib/live'
 import GoTo from '@/features/shared/GoTo'
-import { PageHead, PageBody, Loading, EmptyState, UnavailableState } from '@/components/ui'
+import { PageHead, PageBody, Loading, EmptyState, UnavailableState, Button } from '@/components/ui'
 import { componentFor } from '@/features/registry'
 import { ToastHost } from './components/Toast'
 import NeedsAttention from '@/components/NeedsAttention'
@@ -79,8 +79,45 @@ function FeatureRoute() {
   const role = useActiveRole()
   const session = useSession()
   const { section, feature } = useFeature(sectionSlug, featureSlug)
+  const catalog = useCatalog()
 
   if (!role || !section || !feature) {
+    /* WHY IT IS MISSING, WHEN WE KNOW WHY.
+
+       The catalogue sets setup_required while a school still owes a required
+       setup step, and says in its own type comment that the reason most
+       sections are absent "is said on screen rather than leaving somebody to
+       wonder where the product went". Nothing read the flag: a principal whose
+       school had no classes yet saw the menu fall from seventy features to
+       four, with no sentence anywhere connecting the two.
+
+       It matters most to a school on its first morning, which is the only
+       morning this state exists, and the only one where losing confidence in
+       the product costs it a customer. */
+    if (catalog.setup_required) {
+      return (
+        <>
+          <PageHead eyebrow="Not set up yet" title="This screen opens after setup" />
+          <PageBody>
+            <EmptyState
+              title="The school is still being set up"
+              body={
+                'Most of the product stays out of the way until the basics are ' +
+                'in: the classes, the sections, the subjects and at least one ' +
+                'member of staff. Finish those and this screen, and the rest of ' +
+                'the menu, appear on their own. Nothing here is missing or ' +
+                'switched off.'
+              }
+              action={
+                <Link to={featurePath(role?.key ?? 'institution_admin', 'getting_started', 'school_setup')}>
+                  <Button>Open setup</Button>
+                </Link>
+              }
+            />
+          </PageBody>
+        </>
+      )
+    }
     return (
       <>
         <PageHead eyebrow="Not found" title="No such feature" />
