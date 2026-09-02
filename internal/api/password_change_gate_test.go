@@ -98,3 +98,37 @@ func TestIssuedPasswordPrefersTheNumberOverAGeneratedCode(t *testing.T) {
 		t.Errorf("generated password %q is too short to be unguessable", pw)
 	}
 }
+
+/*
+An issued PIN is six digits, and the gate that accepts it agrees.
+
+	The product settled on six for everything a person types on a keypad --
+	the pairing codes, the bus sticker, this. A school that has to remember
+	"the PIN is four but the bus code is six" gets one of them wrong at the
+	counter, and four digits is ten thousand guesses where six is a million.
+
+	The window either side stays open on purpose: a PIN handed out before this
+	change still verifies, because locking every driver out of their handset on
+	the morning of a deploy is not a security improvement.
+*/
+func TestTemporaryPINIsSixDigitsAndAccepted(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		pin, err := temporaryPIN()
+		if err != nil {
+			t.Fatalf("mint: %v", err)
+		}
+		if len(pin) != pinDigits {
+			t.Fatalf("PIN %q is %d digits, want %d", pin, len(pin), pinDigits)
+		}
+		if !validPIN(pin) {
+			t.Fatalf("the sign-in gate refuses %q, which was just issued", pin)
+		}
+	}
+	// The four-digit PINs already in the field.
+	if !validPIN("1234") {
+		t.Error("a PIN issued before this change stopped working")
+	}
+	if validPIN("12345a") || validPIN("123") {
+		t.Error("the gate accepts a PIN it should not")
+	}
+}

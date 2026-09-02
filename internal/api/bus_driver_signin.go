@@ -355,8 +355,8 @@ a person.
 	looking for a typo that is not there.
 
 	The PIN stays as a second attempt, for the handsets and the drivers already
-	carrying one, and because a four-digit code is genuinely easier at six in
-	the morning than a password with a capital letter in it. Password first
+	carrying one, and because six digits are genuinely easier at six in the
+	morning than a password with a capital letter in it. Password first
 	because it is the one that always exists.
 
 	Identifier is a phone number, but not necessarily only that: users match on
