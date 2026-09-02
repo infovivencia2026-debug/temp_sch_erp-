@@ -254,9 +254,20 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   still created and stored — it can be consumed if the school
 		   configures delivery later within 15 minutes — but the page no
 		   longer hands it over without verification. */
-		view.Notice = "This school does not have a delivery channel " +
-			"(email or WhatsApp) configured yet. Please ask your school " +
-			"office to reset your password."
+		/* Three different reasons reach this branch — the school has no
+		   provider, the account has no address or mobile on it, or the link
+		   could not be queued — and the page cannot tell the reader which
+		   without saying whether the account exists, which this form must not
+		   do. So it stops asserting the one it used to pick.
+
+		   The old sentence named the school's configuration outright, and was
+		   wrong in the field: a school with a working, tested mail server was
+		   told it had no delivery channel. Being vague about which of three
+		   causes it is beats being confidently wrong about one. The log now
+		   carries the specific reason for whoever can act on it. */
+		view.Notice = "We could not send a reset link — either this school has " +
+			"no email or WhatsApp set up, or there is no address or mobile on " +
+			"the account. Please ask your school office to reset your password."
 	} else {
 		view.Notice = sameAnswer
 	}

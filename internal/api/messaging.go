@@ -3413,12 +3413,24 @@ func (s *Server) EmailProviderReady(r *http.Request, inst uuid.UUID, channel str
 			   AND kind = 'messaging' AND provider = $2 AND enabled
 			 LIMIT 1`, inst, channel).Scan(&cfg, &secret)
 		if errors.Is(err, pgx.ErrNoRows) {
+			/* Said out loud, because the page that asks this can only report
+			   "no delivery channel" and that sentence has already been wrong
+			   once: a school with a working mail server was told it had none.
+			   Which of the three reasons it was is not visible from the
+			   outside, so it goes in the log. */
+			slog.Warn("password reset: no enabled provider row",
+				"institution", inst, "channel", channel)
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		ready = buildProvider(channel, cfg, secret).Configured()
+		p := buildProvider(channel, cfg, secret)
+		ready = p.Configured()
+		if !ready {
+			slog.Warn("password reset: provider row found but not usable",
+				"institution", inst, "channel", channel, "why", p.Why())
+		}
 		return nil
 	})
 	_ = id
