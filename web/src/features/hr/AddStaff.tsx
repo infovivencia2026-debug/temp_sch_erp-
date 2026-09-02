@@ -86,6 +86,16 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
   const [f, setF] = useState(blank)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
 
+  /* The roles that stand in front of a class.
+
+     Deliberately short. A head of department and a vice principal teach in
+     most Indian schools and a class teacher obviously does; a librarian, a
+     nurse, a driver and an accountant do not, and an examination controller
+     runs the exam rather than the lesson. */
+  const TEACHING_ROLES = new Set(['faculty', 'class_teacher', 'hod', 'vice_principal'])
+  const teaches =
+    TEACHING_ROLES.has(f.role_key) || f.role_keys.some((k) => TEACHING_ROLES.has(k))
+
   const save = useMutation({
     mutationFn: async () => {
       const made = await api.post<{ user_id?: string; employee?: { user_id?: string } }>(
@@ -187,9 +197,22 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           </Field>
         </FormGrid>
 
-        {/* Only for somebody who can allocate. HR gets the note below
-            instead — a picker they cannot submit is worse than no picker. */}
-        {mayAllocate && (
+        {/* Only for somebody who can allocate, AND only for somebody who
+            teaches.
+
+            A bus attendant was being asked which subject they take in which
+            section. The block was gated on the permission of the person
+            filling the form and not on the job of the person being added, so
+            every driver, cleaner, nurse and accountant got a section picker
+            and a "make them class teacher" tick. It is not merely noise: a
+            form that asks a nonsense question about somebody teaches whoever
+            is filling it in that the product does not know what a school is.
+
+            An unknown role — one this school invented — is treated as not
+            teaching. Wrong occasionally, and wrong in the direction where the
+            answer is "set it on Teacher Assignment", which is where every
+            timetable actually gets decided anyway. */}
+        {mayAllocate && teaches && (
           <div className="mt-5 border-t pt-5">
             <div className="eyebrow mb-3">What they will teach</div>
             <FormGrid>
@@ -246,7 +269,11 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           >
             {save.isPending ? 'Adding…' : 'Add staff member'}
           </Button>
-          {!mayAllocate && (
+          {/* The same note, and only for somebody who will actually stand in
+              front of a class: telling the office that a driver "sees nothing
+              until somebody puts them in front of a class" is the same
+              nonsense as offering them a subject picker. */}
+          {!mayAllocate && teaches && (
             <span className="text-[12.5px] text-muted-foreground">
               A teacher added here sees nothing until somebody puts them in front of a class.
               Ask your principal or the head of department to assign them a section and a subject —
