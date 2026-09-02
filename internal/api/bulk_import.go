@@ -126,6 +126,13 @@ type importCtx struct {
 	// nine terms across three years creates each of them once.
 	pastYears map[string]uuid.UUID
 	pastExams map[string]uuid.UUID
+	/* What is true of the whole mark sheet rather than of one child: it is
+	   one exam, of one class, in one year, out of one maximum. Carried once
+	   instead of repeated on every row, because a value repeated forty times
+	   is a value that can differ on the thirty-ninth. */
+	sheet sheetFacts
+	// subject name -> the header of the column holding its marks.
+	subjectCols map[string]string
 	/* What this import created.
 
 	   Every writer here upserts, so a second upload of a corrected sheet
@@ -767,6 +774,168 @@ var importSpecs = map[string]importSpec{
 		},
 	},
 
+	/* THE MARK SHEET THE SCHOOL ALREADY HAS.
+
+	   The row-per-subject importer above is the correct shape for a database
+	   and the wrong shape for a school. A class of forty across six subjects
+	   is two hundred and forty rows, and nobody keeps marks that way: the
+	   sheet in every staff room is a grid -- children down the side, subjects
+	   across the top, one mark in each cell.
+
+	   Asking somebody to reshape that before uploading it is asking them to do
+	   by hand, forty times, the transformation a computer exists to do. Most
+	   will not, which means the marks stay in the spreadsheet and the year has
+	   no results in the system.
+
+	   So the subjects are the columns. Which columns those are cannot be
+	   guessed -- "Total", "Rank", "Remarks" and "Attendance" sit in the same
+	   header row and are not subjects -- so the clerk maps each subject
+	   column, exactly as they map everything else, using subject:<name>.
+
+	   Everything else is one value for the whole sheet: it is one exam, of one
+	   class, in one year, out of one maximum. Repeating those on every row is
+	   how one typo puts one child's paper out of ten. */
+	"marks_grid": {
+		Perm:     rbac.MarksWrite,
+		Columns:  []string{"admission_no", "year", "exam", "class", "max_marks"},
+		Required: []string{"admission_no"},
+		Sample:   []string{"ADM0001", "2025-26", "Annual Examination", "Grade 5", "100"},
+		// The four that describe the sheet rather than the child are taken
+		// from the request, because they are the same on every row of it.
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["admission_no"]) == "" {
+				return errors.New("every row needs the child's admission number")
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM students
+				                 WHERE institution_id = $1 AND admission_no = $2)`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("no child with admission number %q. Import the students first",
+					strings.TrimSpace(row["admission_no"]))
+			}
+			if len(c.subjectCols) == 0 {
+				return errors.New("no subject columns were chosen. Point at least one " +
+					"column at a subject, so the marks in it have somewhere to go")
+			}
+			classID, err := c.classID(c.sheet.class)
+			if err != nil {
+				return err
+			}
+			for subject, header := range c.subjectCols {
+				var ok bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT EXISTS (
+					  SELECT 1 FROM class_subjects cs
+					    JOIN subjects sub ON sub.id = cs.subject_id
+					   WHERE cs.class_id = $1
+					     AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2)))`,
+					classID, subject).Scan(&ok); err != nil {
+					return err
+				}
+				if !ok {
+					return fmt.Errorf("%s does not teach %q, which you pointed the %q column at",
+						c.sheet.class, subject, header)
+				}
+			}
+			// One bad cell fails its own row and names the subject, rather
+			// than failing the sheet: a class of forty where one child's
+			// Hindi was typed as "AB" should import thirty-nine.
+			for subject := range c.subjectCols {
+				v := strings.TrimSpace(row[normaliseHeader("subject:"+subject)])
+				if v == "" || strings.EqualFold(v, "AB") || strings.EqualFold(v, "A") {
+					continue
+				}
+				n, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", ""), 64)
+				if err != nil || n < 0 {
+					return fmt.Errorf("%s is %q, which is not a mark. Leave it blank, or write AB for absent",
+						subject, v)
+				}
+				if c.sheet.maxMarks > 0 && n > c.sheet.maxMarks {
+					return fmt.Errorf("%s is %s, more than the %g the paper is out of",
+						subject, v, c.sheet.maxMarks)
+				}
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			var studentID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM students WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, strings.TrimSpace(row["admission_no"])).Scan(&studentID); err != nil {
+				return err
+			}
+			classID, err := c.classID(c.sheet.class)
+			if err != nil {
+				return err
+			}
+			yearID, err := c.pastYearID(c.sheet.year)
+			if err != nil {
+				return err
+			}
+			examID, err := c.pastExamID(yearID, c.sheet.exam)
+			if err != nil {
+				return err
+			}
+
+			for subject := range c.subjectCols {
+				raw := strings.TrimSpace(row[normaliseHeader("subject:"+subject)])
+				// A blank cell is a subject this child does not take, which is
+				// not the same as a zero and must not be recorded as one.
+				if raw == "" {
+					continue
+				}
+				var classSubjectID uuid.UUID
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT cs.id FROM class_subjects cs
+					  JOIN subjects sub ON sub.id = cs.subject_id
+					 WHERE cs.class_id = $1
+					   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))
+					 LIMIT 1`, classID, subject).Scan(&classSubjectID); err != nil {
+					return err
+				}
+				var examSubjectID uuid.UUID
+				if err := c.tx.QueryRow(c.r.Context(), `
+					INSERT INTO exam_subjects (institution_id, exam_id, class_subject_id, max_marks)
+					VALUES ($1,$2,$3,$4)
+					ON CONFLICT (exam_id, class_subject_id)
+					DO UPDATE SET max_marks = EXCLUDED.max_marks
+					RETURNING id`,
+					c.inst, examID, classSubjectID, c.sheet.maxMarks).Scan(&examSubjectID); err != nil {
+					return err
+				}
+
+				absent := strings.EqualFold(raw, "AB") || strings.EqualFold(raw, "A")
+				var obtained any
+				if !absent {
+					n, _ := strconv.ParseFloat(strings.ReplaceAll(raw, ",", ""), 64)
+					obtained = n
+				}
+				var markID uuid.UUID
+				var inserted bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					INSERT INTO marks (institution_id, exam_subject_id, student_id,
+					                   marks_obtained, is_absent)
+					VALUES ($1,$2,$3,$4,$5)
+					ON CONFLICT (exam_subject_id, student_id) DO UPDATE SET
+					    marks_obtained = EXCLUDED.marks_obtained,
+					    is_absent = EXCLUDED.is_absent
+					RETURNING id, xmax = 0`,
+					c.inst, examSubjectID, studentID, obtained, absent).Scan(&markID, &inserted); err != nil {
+					return err
+				}
+				c.noteCreated("marks", markID, inserted)
+			}
+			return nil
+		},
+	},
+
 	"marks": {
 		Perm: rbac.MarksWrite,
 		Columns: []string{"admission_no", "year", "exam", "class", "subject",
@@ -1301,6 +1470,57 @@ func (s *Server) getImportFields(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"fields": fields})
 }
 
+// sheetFacts is what one uploaded mark sheet says about itself.
+type sheetFacts struct {
+	year     string
+	exam     string
+	class    string
+	maxMarks float64
+}
+
+/*
+sheetFactsFrom reads them off the request rather than off every row.
+
+	A grid mark sheet has no column for the exam or the class -- it is titled
+	"Grade 5, Annual Examination" at the top and every cell below belongs to
+	it. Asking for them once is both what the file looks like and what stops
+	one mistyped row putting one child in a different class.
+*/
+func sheetFactsFrom(r *http.Request) sheetFacts {
+	q := r.URL.Query()
+	f := sheetFacts{
+		year:  strings.TrimSpace(q.Get("year")),
+		exam:  strings.TrimSpace(q.Get("exam")),
+		class: strings.TrimSpace(q.Get("class")),
+	}
+	if v := strings.TrimSpace(q.Get("max_marks")); v != "" {
+		if n, err := strconv.ParseFloat(v, 64); err == nil {
+			f.maxMarks = n
+		}
+	}
+	return f
+}
+
+/*
+subjectColumnsFrom picks the subject columns out of the column map.
+
+	Which columns are subjects cannot be guessed: "Total", "Rank", "Remarks"
+	and "Attendance" live in the same header row and are not subjects, and a
+	guess that treats Total as a subject writes a child's total into a paper
+	nobody sat. So the clerk says, one column at a time, with subject:<name>.
+*/
+func subjectColumnsFrom(r *http.Request) map[string]string {
+	out := map[string]string{}
+	for ours, theirs := range columnMapFrom(r) {
+		if name, ok := strings.CutPrefix(ours, "subject:"); ok {
+			if name = strings.TrimSpace(name); name != "" && strings.TrimSpace(theirs) != "" {
+				out[name] = strings.TrimSpace(theirs)
+			}
+		}
+	}
+	return out
+}
+
 // getBulkTemplate hands back a CSV with the headers and one filled example
 // row, because an empty template is a puzzle about what the columns mean.
 func (s *Server) getBulkTemplate(w http.ResponseWriter, r *http.Request) {
@@ -1464,6 +1684,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			ctx := &importCtx{r: r, tx: tx, inst: id.InstitutionID, campus: campus,
+				sheet: sheetFactsFrom(r), subjectCols: subjectColumnsFrom(r),
 				classes: map[string]uuid.UUID{}, server: s}
 			for _, p := range rows {
 				if err := spec.Verify(ctx, p.data); err != nil {
@@ -1522,6 +1743,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		ctx := &importCtx{r: r, tx: tx, inst: id.InstitutionID, campus: campus,
+			sheet: sheetFactsFrom(r), subjectCols: subjectColumnsFrom(r),
 			classes: map[string]uuid.UUID{}, server: s}
 
 		var year uuid.UUID

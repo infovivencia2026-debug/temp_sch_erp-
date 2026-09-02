@@ -1003,6 +1003,14 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 		                                 AND m.student_id = st.id
 		          WHERE cs.class_id = e.class_id
 		            AND ($2::uuid IS NULL OR es.exam_id = $2)
+		            /* Never another year's paper, and never another term's.
+		               Without this, a card with no exam chosen listed every
+		               paper the class had ever sat -- including results
+		               carried across from a previous school year, which is
+		               how the same subject appeared twice with two different
+		               maximums. */
+		            AND ex.academic_year_id = rc.academic_year_id
+		            AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
 		       ), '[]'::json)
 		  FROM report_cards rc
 		  JOIN students st ON st.id = rc.student_id

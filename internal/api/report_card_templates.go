@@ -194,8 +194,18 @@ const defaultReportCardCSS = `
    continuous instead of stopping at the gap between the label and the value.
    The last row has none: a line under the final fact is a line under nothing,
    and it reads as a row that failed to print. */
+.card .facts { width: 100%; }
+/* One hairline under each fact and no vertical rules at all.
+
+   The two columns are a label and its value, not a grid: a line between them
+   turns a list of facts into a table of two things, and the eye starts reading
+   down the second column as if it were a series. */
 .card .facts tr { border-bottom: 1px solid #dbe2ea; }
 .card .facts tr:last-child { border-bottom: none; }
+.card .facts th, .card .facts td { border-left: none; border-right: none; }
+/* A fixed label column, so the values line up with each other rather than
+   with the longest label. */
+.card .facts th { width: 42%; }
 .card .facts th { text-align: left; font-weight: normal; color: #4a5568;
                   padding: 1.4mm 4mm 1.4mm 0; white-space: nowrap; }
 .card .facts td { font-weight: bold; padding: 1.4mm 0; }
@@ -624,8 +634,15 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		         WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC NULLS LAST LIMIT 1),
 		       rc.max_marks, rc.total_marks, rc.percentage, rc.attendance_percent,
 		       rc.grade, NULL::text,
+		       /* The exam this card is actually for.
+		
+		          This took the most recently created exam of the whole year,
+		          so entering a later exam renamed every card already printed
+		          for an earlier one. A card belongs to a term; the exam named
+		          is one sat in that term. */
 		       (SELECT ex.name FROM exams ex
 		         WHERE ex.academic_year_id = rc.academic_year_id
+		           AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
 		         ORDER BY ex.created_at DESC LIMIT 1),
 		       ay.name,
 		       /* Who actually signed, not who holds the post.
@@ -708,6 +725,21 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		c.values["attendance"] = strconv.FormatFloat(*attendance, 'f', 1, 64) + "%"
 	}
 
+	/* THE PAPERS OF THIS CARD'S OWN EXAM, and no others.
+
+	   This joined exam_subjects on the class subject alone, with nothing tying
+	   it to the card. So every paper ever set for that class, in any exam and
+	   any year, printed on every card: English out of 100 with no mark above
+	   English out of 20 with one, and a total that agreed with neither.
+
+	   It was invisible while a class had one exam -- one row each, and the
+	   join looked right. The moment a school ran a second exam, or carried a
+	   past year's results across, every card in the class grew a shadow of
+	   itself. A parent reads that as the school not knowing what their child
+	   sat.
+
+	   Tied to the card's year and term now, which is what a card is: exams
+	   from other years cannot appear at all, and neither can the next term's. */
 	rows, err := tx.Query(r.Context(), `
 		SELECT sub.name, es.max_marks, m.marks_obtained, m.grade
 		  FROM report_cards rc
@@ -715,6 +747,9 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		  JOIN class_subjects cs ON cs.class_id = e.class_id
 		  JOIN subjects sub      ON sub.id = cs.subject_id
 		  JOIN exam_subjects es  ON es.class_subject_id = cs.id
+		  JOIN exams ex          ON ex.id = es.exam_id
+		                        AND ex.academic_year_id = rc.academic_year_id
+		                        AND (rc.term_id IS NULL OR ex.term_id = rc.term_id)
 		  LEFT JOIN marks m      ON m.exam_subject_id = es.id AND m.student_id = rc.student_id
 		 WHERE rc.id = $1
 		 ORDER BY sub.name`, cardID)
