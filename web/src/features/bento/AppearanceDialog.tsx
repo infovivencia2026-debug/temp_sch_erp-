@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Check, LayoutGrid, LogOut, Maximize2, Minimize2, Minus, Palette, Plus,
-  Sliders, Type, UserCircle, X, Contrast as RotateCcw,
+  Building2, Check, ChevronRight, LayoutGrid, LogOut, Maximize2, MessageSquare,
+  Minimize2, Minus, Palette, Plus, ShieldCheck, Sliders, Type, UserCircle, X,
+  Contrast as RotateCcw,
 } from 'lucide-react'
 import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
@@ -17,7 +18,7 @@ import {
   INK, EDGE, TRACK, WASH, RING, CHOSEN, SLIDER, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { useActiveRole } from '@/lib/catalog'
+import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
@@ -322,6 +323,289 @@ function DockItemsToggle() {
   )
 }
 
+
+/* THE PART OF SETTINGS THAT IS NOT DECORATION.
+
+   Everything above this comment is about how the product looks: the typeface,
+   the palette, the size of the dock, which cards sit on the board. That was
+   the WHOLE of Settings, and it should not have been. A principal presses a
+   cog labelled Settings expecting the school -- the year and the classes, who
+   the school messages and from what address, who can sign in and with what
+   role -- and found a font picker. The real screens all existed; there was
+   simply no cog that led to them, so the only way in was to know the section
+   of the sidebar they were filed under, and on a phone in Focus layout there
+   is no sidebar to know.
+
+   So Appearance became ONE section of Settings rather than the entirety of it,
+   and the sections below link out to the screens that were already there. They
+   are links and not embedded forms on purpose: message channels is a page with
+   a test button on it, school setup is sixteen steps, and reimplementing
+   either inside a 980px dialog would give us two of them to keep in step.
+
+   HONESTY IS THE WHOLE DESIGN CONSTRAINT HERE.
+
+   A settings list that offers a principal a row leading to "That feature is
+   not in your workspace" is worse than a settings list that does not mention
+   it: the first is a broken promise, the second is merely silence. So nothing
+   below is hardcoded to a role name. Every row names a section slug and a
+   feature slug, and is rendered only if the signed-in user's own catalogue
+   response contains that pair AND `usable` says it is built and in scope. The
+   server decides; this file only asks.
+
+   That is not a theoretical guard. A school still in its first-run setup gets
+   a deliberately reduced catalogue -- the live tenant used for checking this
+   comes back with four usable features in total -- so on that account School
+   and Account appear and Messaging and Security do not, which is exactly what
+   that principal can actually reach today. When the setup completes and the
+   grants arrive, the rows appear with no client release. */
+type LinkSpec = {
+  /** section slug, then feature slug, as the catalogue names them. */
+  at: [string, string]
+  /** What the screen does, said the way somebody would say it out loud. */
+  note: string
+}
+
+type LinkGroup = {
+  id: LinkTab
+  label: string
+  icon: typeof Building2
+  blurb: string
+  rows: LinkSpec[]
+}
+
+type LinkTab = 'school' | 'messaging' | 'account' | 'security'
+
+/* Grouped by what somebody came here to change, not by which workspace the
+   catalogue happens to file the screen under. Sender identity lives under
+   institution_admin and login audit under super_admin, and nobody deciding
+   "how do families see mail from us" cares which. */
+const LINK_GROUPS: LinkGroup[] = [
+  {
+    id: 'school',
+    label: 'School',
+    icon: Building2,
+    blurb: 'The school itself: the year it is running, and everything that hangs off it.',
+    rows: [
+      {
+        at: ['getting_started', 'school_setup'],
+        note: 'The sixteen steps of setting the school up, in order, with what is done and what is left.',
+      },
+      /* The tracking policy is a genuine settings screen wearing a hardware
+         name. The catalogue calls it GPS hardware integration and describes
+         IMEI mapping, but there is no hardware: what the screen actually
+         holds is whether parents may watch the bus at all, how often a
+         driver's phone reports, and how long the trail is kept. Those are
+         school policy, so the row is here as well as in Transport, and it is
+         described by what it does rather than by what the catalogue calls
+         it. */
+      {
+        at: ['transport', 'driver_phone_tracker'],
+        note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
+      },
+      {
+        at: ['payments_devices', 'gps_hardware_integration'],
+        note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
+      },
+    ],
+  },
+  {
+    id: 'messaging',
+    label: 'Messaging',
+    icon: MessageSquare,
+    blurb: 'How a message leaves this school, and who is allowed to receive one.',
+    rows: [
+      {
+        at: ['channel_setup', 'message_channels'],
+        note: 'The email, SMS and WhatsApp accounts messages actually go out through. Testable from the screen.',
+      },
+      {
+        at: ['channel_setup', 'sender_identity'],
+        note: 'The name, address and reply-to a family sees, and the SMS sender ID the operator approved.',
+      },
+      {
+        at: ['channel_setup', 'quiet_hours_sending_limits'],
+        note: 'The hours the school will not message a family, and the monthly ceiling on what it spends.',
+      },
+      {
+        at: ['channel_setup', 'who_we_may_message'],
+        note: 'Everybody, or a named list while the school is still testing. Held-back messages are logged.',
+      },
+    ],
+  },
+  {
+    id: 'account',
+    label: 'Account',
+    icon: UserCircle,
+    blurb: 'Your own record, which is separate from anything the school-wide settings do.',
+    rows: [
+      {
+        at: ['my_profile', 'leave_self_service'],
+        note: 'Apply for your own leave and see where the application has got to.',
+      },
+      {
+        at: ['my_profile', 'my_pay'],
+        note: 'Your payslips month by month, the days you were marked present, and the leave you have left.',
+      },
+      /* The parent app's own language switch. Filed here rather than in
+         Appearance because it changes the words a person reads and not the
+         way the page looks, and because it is the one preference in this
+         dialog that is stored on the server rather than in this browser. */
+      {
+        at: ['profile', 'language'],
+        note: 'Read the app in English or Telugu. Yours alone; it changes nothing anybody else sees.',
+      },
+    ],
+  },
+  {
+    id: 'security',
+    label: 'Security',
+    icon: ShieldCheck,
+    blurb: 'Who can sign in, what they may do once they are in, and what they did.',
+    rows: [
+      {
+        at: ['access_security', 'user_directory'],
+        note: 'Create, search, suspend and reset the accounts of everybody at the school.',
+      },
+      /* Two catalogue entries, one screen: the principal reaches roles under
+         Staff and the platform admin under Access & security. Whichever of
+         the two this user holds is the one that renders, and if they hold
+         both the dedupe below leaves one row. */
+      {
+        at: ['staff', 'roles_permissions'],
+        note: 'What each role may see and do, and over how much of the school. Copy a built-in role to make your own.',
+      },
+      {
+        at: ['access_security', 'roles_permissions'],
+        note: 'What each role may see and do, and over how much of the school.',
+      },
+      {
+        at: ['access_security', 'sso_mfa'],
+        note: 'Single sign-on and second-factor sign-in, for schools that are required to have them.',
+      },
+      {
+        at: ['access_security', 'login_session_audit'],
+        note: 'Who signed in, from where, and which sessions are still open right now.',
+      },
+    ],
+  },
+]
+
+type ResolvedLink = { href: string; name: string; note: string }
+
+/* Resolving a row against the catalogue the server sent THIS user.
+
+   Searched across every role they hold rather than only the active one,
+   because these are settings and not navigation: a head of department looking
+   at a Faculty screen still wants their own payslips, and the row for those
+   lives on whichever role carries my_profile. The active role is tried first
+   so that a person holding several gets their own workspace's copy of a screen
+   that several roles share.
+
+   `usable` is the gate the rest of the app uses for anything that picks a
+   feature on somebody's behalf -- built, and inside their data scope -- so
+   this uses the same one rather than a second opinion that could drift from
+   it. A catalogued-but-unbuilt entry is silently dropped, which is the point.
+
+   Deduplicated by href, because two catalogue entries pointing at one screen
+   would otherwise print the same destination twice under different words. */
+function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
+  const catalog = useCatalog()
+  const active = useActiveRole()
+
+  return useMemo(() => {
+    const roles = [
+      ...catalog.roles.filter((r) => r.key === active?.key),
+      ...catalog.roles.filter((r) => r.key !== active?.key),
+    ]
+
+    const resolve = (spec: LinkSpec): ResolvedLink | undefined => {
+      const [sectionSlug, featureSlug] = spec.at
+      for (const role of roles) {
+        for (const section of role.sections) {
+          if (section.slug !== sectionSlug) continue
+          const feature = section.features.find(
+            (f) => f.slug === featureSlug && usable(f),
+          )
+          if (feature) {
+            return {
+              href: featurePath(role.key, section.slug, feature.slug),
+              name: feature.name,
+              note: spec.note,
+            }
+          }
+        }
+      }
+      return undefined
+    }
+
+    const out: { group: LinkGroup; links: ResolvedLink[] }[] = []
+    for (const group of LINK_GROUPS) {
+      const links: ResolvedLink[] = []
+      const seen = new Set<string>()
+      for (const spec of group.rows) {
+        const link = resolve(spec)
+        if (!link || seen.has(link.href)) continue
+        seen.add(link.href)
+        links.push(link)
+      }
+      // A group with nothing in it is not rendered as an empty group; it is
+      // not rendered at all, and its tab does not appear either.
+      if (links.length) out.push({ group, links })
+    }
+    return out
+  }, [catalog, active])
+}
+
+/* One row per screen, at 44px minimum.
+
+   This product is used on phones on a corridor, and the touch floor is 44px,
+   so the row is a block link with generous padding rather than the tight
+   12.5px list the rest of the dialog uses for pill controls -- a pill you miss
+   costs you a second press, a settings row you miss costs you a page load and
+   a way back. The name and the sentence stack at narrow widths for the same
+   reason: a two-column row at 390px gives the description about eleven
+   characters.
+
+   A plain <a> and not a router push. Leaving Settings for a full screen is the
+   intent every time one of these is pressed, and a hard navigation guarantees
+   the dialog, the overlay and the dock's lifted state all go with it. */
+function LinkRow({ link }: { link: ResolvedLink }) {
+  return (
+    <a
+      href={link.href}
+      className={cn(
+        'flex min-h-[44px] items-center gap-3 px-3.5 py-3 transition-colors',
+        WASH, RING, INK,
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] font-medium">{link.name}</span>
+        <span className="mt-0.5 block text-[12px]">{link.note}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+    </a>
+  )
+}
+
+function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[] }) {
+  const Icon = group.icon
+  return (
+    <section>
+      <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
+        <Icon className="size-4" aria-hidden="true" />
+        {group.label}
+      </h3>
+      <p className={cn('mb-4 text-[12px]', INK)}>{group.blurb}</p>
+      <div className={cn(
+        'divide-y overflow-hidden rounded-[10px] border', EDGE,
+        'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+      )}>
+        {links.map((l) => <LinkRow key={l.href} link={l} />)}
+      </div>
+    </section>
+  )
+}
+
 export function AppearanceDialog({
   open,
   onClose,
@@ -348,12 +632,33 @@ export function AppearanceDialog({
      The menu items that open this dialog already say which part somebody
      wanted, so that choice seeds the page rather than being thrown away and
      replaced with a scroll-into-view. */
-  type Tab = 'appearance' | 'colour' | 'dock' | 'dashboard'
+  /* The four display pages, and then whatever the catalogue grants.
+
+     The display tabs are a fixed union because this file implements them. The
+     link tabs are not: they exist only when the signed-in user has something
+     usable behind them, so the type is the union of both and the nav is built
+     from a list rather than written out. On a school still in setup the nav is
+     five tabs; on a fully granted institution admin it is eight. */
+  type Tab = 'appearance' | 'colour' | 'dock' | 'dashboard' | LinkTab
+  const sections = useSettingsLinks()
   const [tab, setTab] = useState<Tab>(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
   useEffect(() => {
     if (!open) return
     setTab(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
   }, [open, initialTab])
+
+  /* If a grant goes away while the dialog is open -- a role change, a
+     catalogue refetch -- the tab that was selected can stop existing. Falling
+     back to Appearance is better than rendering a blank page under a tab
+     header that is still highlighted. */
+  useEffect(() => {
+    const isLink = LINK_GROUPS.some((g) => g.id === tab)
+    if (isLink && !sections.some((s) => s.group.id === tab)) setTab('appearance')
+  }, [sections, tab])
+
+  /* Whether the page on screen is one of the four this file draws itself.
+     The device promise in the header is only true of those. */
+  const display = tab === 'appearance' || tab === 'colour' || tab === 'dock' || tab === 'dashboard'
 
   const dockRef = useRef<HTMLElement>(null)
   const dashRef = useRef<HTMLElement>(null)
@@ -424,7 +729,7 @@ export function AppearanceDialog({
       onClick={picking ? undefined : handleClose}
       role="dialog"
       aria-modal="true"
-      aria-label={t('bento.appearance.title')}
+      aria-label={t('bento.settings.label')}
     >
       <div
         data-appearance-dialog=""
@@ -459,10 +764,24 @@ export function AppearanceDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <header className={cn('flex items-start justify-between gap-4 border-b px-7 py-5', SEAM)}>
+          {/* THE WINDOW IS CALLED SETTINGS AGAIN.
+
+              It was headed Appearance, under a subtitle promising the choices
+              are "remembered on this device", which was true of everything it
+              held while everything it held was a font and a palette. It is not
+              true of school setup or of who the school may message: those are
+              the school's, they are on the server, and they are the same for
+              everybody. Leaving the old heading over the new sections would
+              have been a window telling somebody their change is local while
+              it changes the school. So the panel takes the name the cog has
+              always had, and the device promise moves down to the pages it
+              still describes. */}
           <div>
-            <h2 className={cn('text-[21px] font-semibold', INK)}>{t('bento.appearance.title')}</h2>
+            <h2 className={cn('text-[21px] font-semibold', INK)}>{t('bento.settings.label')}</h2>
             <p className={cn('mt-0.5 text-[13px]', INK)}>
-              {t('bento.appearance.subtitle')}
+              {display
+                ? t('bento.appearance.subtitle')
+                : 'The school, your account, and how this product is set up.'}
             </p>
           </div>
           <button
@@ -478,14 +797,33 @@ export function AppearanceDialog({
           </button>
         </header>
 
-          {/* The four pages, named. A dialog that opens on one of them with no
-              way to see the others is a dialog people think is broken. */}
-          <nav className={cn('flex shrink-0 gap-1 border-b px-7 pt-3', SEAM)} aria-label="Settings sections">
+          {/* The pages, named. A dialog that opens on one of them with no way
+              to see the others is a dialog people think is broken.
+
+              THE ROW SCROLLS SIDEWAYS RATHER THAN WRAPPING.
+
+              It was four tabs and could afford `flex`; it is up to eight now,
+              and at 390px eight of them wrapped to three lines, which pushed
+              the panel's content below the fold before it had drawn anything
+              and moved every tab under the finger each time one was pressed.
+              A single scrolling line keeps the header a fixed height and keeps
+              the tab you just pressed where you pressed it. `px-7` stays as
+              scroll padding at the ends so the first and last tabs are not
+              flush against the panel edge.
+
+              Each tab is 44px tall, which is the touch floor, and `shrink-0`
+              so they keep their labels rather than compressing into ellipses
+              when the row is wider than the panel. */}
+          <nav
+            className={cn('scroll-x flex shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3', SEAM)}
+            aria-label="Settings sections"
+          >
             {([
               ['appearance', t('bento.appearance.title')],
               ['colour', 'Colour'],
               ['dock', 'Dock'],
               ['dashboard', 'Dashboard'],
+              ...sections.map(({ group }) => [group.id, group.label] as [Tab, string]),
             ] as [Tab, string][]).map(([id, label]) => (
               <button
                 key={id}
@@ -493,7 +831,7 @@ export function AppearanceDialog({
                 onClick={() => setTab(id)}
                 aria-current={tab === id}
                 className={cn(
-                  'rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
+                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
                   tab === id
                     ? 'border-primary font-medium text-foreground'
                     : cn('border-transparent', INK, WASH),
@@ -682,6 +1020,20 @@ export function AppearanceDialog({
             <DashboardWidgets onArrange={onClose} />
           </section>
           )}
+
+          {/* The catalogue-driven pages.
+
+              One section per tab rather than all of them on one scroller: the
+              reason the display settings were split into pages in the first
+              place applies here too, and School is one row while Security is
+              four. Nothing renders for a group the user has no grant in, and
+              its tab was never drawn either, so there is no state in which
+              this pane is empty. */}
+          {sections.map(({ group, links }) => tab === group.id && (
+            <div key={group.id}>
+              <LinkSection group={group} links={links} />
+            </div>
+          ))}
         </div>
 
         <DialogActions onClose={onClose} />

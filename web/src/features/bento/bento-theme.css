@@ -228,10 +228,50 @@ html.dark[data-layout='bento'] {
 
   /* On a dark ground a drop shadow does nothing — black on black. Depth there
      is a hairline of light along the top edge, which is how a raised surface
-     actually behaves, plus a deeper shadow underneath to seat it. */
-  --bento-depth-sm: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 1px 3px rgb(0 0 0 / 0.5);
-  --bento-depth: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 10px 26px -8px rgb(0 0 0 / 0.7);
-  --bento-depth-lg: 0 1px 0 rgb(255 255 255 / 0.09) inset, 0 20px 44px -12px rgb(0 0 0 / 0.85);
+     actually behaves, plus a deeper shadow underneath to seat it.
+
+     THE HAIRLINE WAS WRITTEN AT AN ALPHA THAT DOES NOT RENDER.
+
+     0.05 white over #111316 lands on rgb(29,31,34). Against the card itself
+     that is a contrast ratio of 1.09, which is the same ratio the card has
+     against the ground, which is to say the edge said exactly as much as the
+     thing it was supposed to be distinguishing. Screenshot at 1440 with the
+     default palette: twelve cards and no visible edge on any of them, so the
+     board reads as one dark rectangle with text on it. The reasoning was
+     right and the number was decorative.
+
+     0.10 on the small step lands on rgb(42,44,47), 1.42 against the card.
+     That is a line you can see without being able to say you looked at it,
+     which is what a lit edge is for. The two heavier steps scale with it.
+
+     The seat underneath is split into two layers now rather than one. A
+     single 3px blur is a contact shadow and nothing else, so a card on a
+     dark ground had a hard little rim and no ambient falloff; the eye reads
+     that as a sticker rather than as a panel above a surface. The near layer
+     is kept and a wide, offset, low-opacity layer is added under it. */
+  --bento-depth-sm:
+    0 1px 2px rgb(0 0 0 / 0.55), 0 4px 12px -3px rgb(0 0 0 / 0.55);
+  --bento-depth:
+    0 2px 4px rgb(0 0 0 / 0.6), 0 12px 30px -8px rgb(0 0 0 / 0.72);
+  --bento-depth-lg:
+    0 4px 10px rgb(0 0 0 / 0.6), 0 22px 48px -12px rgb(0 0 0 / 0.85);
+
+  /* THE EDGE IS ITS OWN TOKEN NOW, AND THAT IS THE POINT OF THIS CHANGE.
+
+     It used to be the first layer inside each --bento-depth-* value, which
+     tied the edge of a card to whether that card was allowed a drop shadow.
+     Two places broke on that coupling. The Shadow axis set to 'flat' removed
+     the edge along with the shadow, and the depth SLIDER further down this
+     file rewrites the three depth tokens from a multiplier and never
+     reproduced the inset at all, so moving that slider one notch silently
+     deleted every card edge in the product.
+
+     Separating them lets the board below carry an edge on a surface that is
+     deliberately not lifted, which is the whole design of the desktop board:
+     one ruled sheet, no per-cell elevation, but cards that still have a top
+     lip. Depth and edge are different claims about a surface and they now
+     have different switches. */
+  --bento-edge: inset 0 1px 0 rgb(255 255 255 / 0.10);
 
   /* The domains against the dark ground. Inverted in role rather than
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
@@ -315,7 +355,13 @@ html.dark[data-layout='bento'] {
      'deep' did nothing at all. The DEFAULT is none — see --bento-depth-sm
      below — and that is the right way to make a default: move the value the
      axis reads, never bypass the axis. */
-  box-shadow: var(--bento-shadow-sm);
+  /* Edge first, elevation second, and they are separate tokens on purpose --
+     see --bento-edge in the palettes. The edge is the card's own lip and it
+     is drawn on every cell in every layout; the elevation says the card is
+     floating above the ground, which is only true where there is a gutter
+     wide enough for a shadow to fall into. The desktop rule further down
+     takes the elevation back off for exactly that reason. */
+  box-shadow: var(--bento-edge, none), var(--bento-shadow-sm);
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
   /* The crosshair below is positioned against this. */
   position: relative;
@@ -442,8 +488,43 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 [data-layout='bento'] .bento-cell:focus-within {
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+    var(--bento-edge, none),
     var(--bento-shadow-sm, none);
   border-color: color-mix(in srgb, currentColor 75%, transparent);
+}
+
+/* AND IT GOES DOWN WHEN YOU PUSH IT.
+
+   Hover said the pointer was on the card. Nothing said the card had been
+   pressed: mouse-down, touch-down and the keyboard's own activation all
+   looked identical to hovering, so on a phone -- where there is no hover at
+   all -- a card gave no feedback whatsoever between the finger landing and
+   the next screen arriving. On a slow connection that is a second or more of
+   an interface that appears not to have heard you, which is the state that
+   produces a second tap.
+
+   The press is the elevation coming OFF, not a transform. A card that scales
+   or translates moves the thing the finger is already on, and the file has
+   turned that down twice already for the packed grid; but a card that stops
+   floating and gains a shade over its face reads unmistakably as pushed into
+   the surface, and it costs no layout at all because both halves are shadows.
+
+   The hover ring is repeated here rather than inherited, because :active and
+   :hover are both matched during a mouse press and the later rule wins
+   outright -- omitting the ring would make the card lose its outline at the
+   moment of being clicked.
+
+   Only on cells that lead somewhere. :has(.bento-cue) is the same test the
+   hover rules use: pressing a card that is only a number should do nothing,
+   and pretending otherwise is the promise the file's own note warns about. */
+[data-layout='bento'] .bento-cell:has(.bento-cue):active {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+    inset 0 1px 3px color-mix(in srgb, currentColor 14%, transparent);
+  border-color: color-mix(in srgb, currentColor 75%, transparent);
+  /* Faster going down than coming back up, which is how a physical key feels
+     and how every press state that reads as a press is timed. */
+  transition-duration: 60ms;
 }
 
 /* The state change stays; only its animation goes. Somebody who asked for less
@@ -504,7 +585,11 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
      dialogs, which genuinely do float" -- and then nothing read it. So the one
      surface in the product that is unambiguously floating above the content
      was drawn flat against it. */
-  box-shadow: var(--bento-depth-lg);
+  /* --bento-edge is named explicitly. The lit top hairline used to ride
+     inside --bento-depth-lg; it has moved to its own token, and the dock is
+     the one surface in the product that is unarguably floating, so it is the
+     last place that should lose its lip. */
+  box-shadow: var(--bento-edge, none), var(--bento-depth-lg);
   background-color: color-mix(
     in srgb, var(--bento-dock-bg, var(--bento-card)) 78%, transparent);
   backdrop-filter: blur(28px) saturate(180%);
@@ -944,6 +1029,11 @@ html[data-shadow='flat'][data-layout='bento'] {
   --bento-depth-sm: none;
   --bento-depth: none;
   --bento-depth-lg: none;
+  /* The edge goes too. It is a separate token now so that the depth SLIDER
+     stops deleting it by accident, but 'flat' is not an accident -- somebody
+     asking for a flat surface is asking for no lip either, the same way the
+     crosshair turns itself off under this attribute. */
+  --bento-edge: none;
 }
 html[data-shadow='lifted'] [data-layout='bento'],
 html[data-shadow='lifted'][data-layout='bento'] {
@@ -1024,6 +1114,11 @@ html[data-shadow='flat'] {
   --bento-depth-sm: none;
   --bento-depth: none;
   --bento-depth-lg: none;
+  /* The edge goes too. It is a separate token now so that the depth SLIDER
+     stops deleting it by accident, but 'flat' is not an accident -- somebody
+     asking for a flat surface is asking for no lip either, the same way the
+     crosshair turns itself off under this attribute. */
+  --bento-edge: none;
 }
 html[data-shadow='lifted'] {
   --bento-depth-sm: 0 3px 14px rgba(0,0,0,0.06);
@@ -1179,6 +1274,80 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
     height: var(--board-h, auto);
     grid-template-rows: repeat(var(--board-rows, 3), minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr) !important;
+  }
+
+  /* THE SHEET IS THE OBJECT HERE, NOT THE CARD.
+
+     ELEVATION HAS TO FOLLOW THE GUTTER, and this is the judgement the whole
+     change turns on. Below 1024 the board is one or two columns with real
+     space between the cards, and there each card is plainly its own object:
+     a shadow has somewhere to fall and it reads correctly. From 1024 up the
+     board is a fifteen-slot grid with a ONE-PIXEL gutter, and that gutter is
+     not a gap, it is the rule -- the board paints its own colour and every
+     cell paints an opaque ground over it, which is how the hairlines between
+     cards get drawn without a single border.
+
+     Put a drop shadow on each cell in that arrangement and it falls into a
+     one-pixel gap it cannot fit in. Twelve cards each casting into the same
+     seam means every rule on the board is painted twice over from both
+     sides, and a hairline becomes a grey trough. The board stops looking
+     ruled and starts looking like a tray of tiles, which is the look the
+     palette note above spent its length getting rid of. The file already
+     says this in the base token block -- "a shadow under every cell of a
+     sheet is a contradiction" -- and it is right.
+
+     So the elevation is taken off the cells and given to the sheet. One
+     object, lifted once, with the ruled grid drawn on its face: which is
+     what the design has claimed to be all along and never actually looked
+     like, because nothing lifted it off the ground.
+
+     The cells keep --bento-edge. An edge is a property of the card itself
+     and does not fall anywhere, so it survives the gutter argument intact,
+     and it is what stops the lifted sheet from reading as a single flat
+     slab with lines scored into it.
+
+     Rejected: lifting the cells and opening the gutter to make room. That is
+     the Density axis, it is the school's setting to make, and taking it by
+     force from a stylesheet would change the layout geometry rather than the
+     material. */
+  /* ON .bento-surface, NOT ON .bento-board, AND THAT COST A MEASUREMENT TO
+     FIND. The shadow was written on the board first. It rendered as nothing:
+     .bento-surface is the board's immediate parent, it has exactly the same
+     bounding rectangle, and it carries overflow:hidden, so every pixel of an
+     OUTSET shadow on the board is clipped by a box the same size. Sampled the
+     column just below the board's bottom edge at 1440 in light mode and got
+     rgb(244,245,247) -- the untouched ground -- with the rule computing
+     correctly in the inspector the whole time. A shadow that computes and
+     does not paint is worse than no shadow, because the next person reads the
+     rule and believes it.
+
+     The wrapper is the same rectangle and its own parent does not clip, so
+     the sheet lifts and the arrange toolbar, which lives in the same wrapper,
+     lifts with it -- which is right, it is part of the sheet. */
+  [data-layout='bento'] .bento-surface:has(> .bento-board) {
+    box-shadow: var(--bento-depth);
+  }
+
+  [data-layout='bento'] .bento-board .bento-cell {
+    box-shadow: var(--bento-edge, none);
+  }
+
+  /* The hover and press states are unaffected: they draw INSET rings, which
+     is why the note on them chose inset in the first place, and an inset
+     ring has no relationship to whether the cell is elevated. Both are
+     restated here only because the resting rule above is more specific than
+     the plain .bento-cell rule they were written against. */
+  [data-layout='bento'] .bento-board .bento-cell:hover,
+  [data-layout='bento'] .bento-board .bento-cell:focus-within {
+    box-shadow:
+      inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+      var(--bento-edge, none);
+  }
+
+  [data-layout='bento'] .bento-board .bento-cell:has(.bento-cue):active {
+    box-shadow:
+      inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+      inset 0 1px 3px color-mix(in srgb, currentColor 14%, transparent);
   }
 
   /* While arranging, the toolbar takes the first row and the cards share the
@@ -1892,7 +2061,23 @@ html:not(.dark)[data-layout='bento'][data-force-dark] {
   --bento-card: #111316;
   --bento-card-2: #171a1e;
   --bento-ink: #ffffff;
-  --bento-muted: #7c7d7f;
+  /* WAS #7c7d7f, AND THE MEASUREMENT ABOVE WAS TAKEN ON THE WRONG PANEL.
+
+     The note says the muted tone is white at 45%, 4.52:1, "it recedes without
+     dropping below what body text needs". That ratio is against --bento-card,
+     #111316. The setup wizard does not draw its steps on --bento-card; it
+     draws them on a Tailwind neutral panel that resolves to rgb(23,23,23),
+     and every step label on it measured 4.35:1 in dark mode at both 390 and
+     1440. Under the floor, on the first screen a school ever opens, in the
+     scheme most people leave their phone in.
+
+     4.52 was never enough headroom for a token used across panels that are
+     not all the same value. #808184 measures 4.60:1 on that wizard panel and
+     4.77:1 on the card, so it clears the floor on the darkest AND the
+     lightest surface it lands on rather than on the one it was sampled
+     against. Two levels of grey brighter is not a visible change in how far
+     the tone recedes; it is the difference between passing and failing. */
+  --bento-muted: #808184;
   --bento-line: rgba(255,255,255,0.07);
   --bento-mint: #7fe3f0;   --bento-mint-tint: #171a1e;
   --bento-purple: #7fe3f0; --bento-purple-tint: #171a1e;
@@ -1923,6 +2108,54 @@ html:not(.dark)[data-layout='bento'][data-force-dark] {
    the same relationship the dark palette was tuned to rather than a second
    scheme with its own opinions. */
 html:not(.dark)[data-layout='bento'] {
+  /* LIGHT HAD NO ELEVATION AT ALL, AND THAT IS WHY IT LOOKED FLAT.
+
+     The dark palette above at least shipped a depth scale. Light never did:
+     it fell through to the base token block, where --bento-depth-sm and
+     --bento-depth are the literal keyword `none`, so a card in daylight was
+     a white rectangle with no shadow, no edge and no seat. Measured, the
+     card is #ffffff and the ground is #f4f5f7, a contrast ratio of 1.09.
+     Nine per cent is not a surface boundary. It is the same value difference
+     the eye discards as uneven backlighting on a phone, which is exactly
+     what a school reports as "it looks flat".
+
+     Daylight is also where a shadow is worth having. On a near-black ground
+     a drop shadow is black on black and the dark palette has to spend its
+     depth on a lit edge instead; here there is somewhere for a shadow to
+     fall, so it does most of the work and the edge does very little.
+
+     Two layers, deliberately. A single blurred layer is a smudge under the
+     card; a tight near-opaque contact layer plus a wide soft ambient one is
+     what an object resting on a surface actually casts, and the tight layer
+     is the one that carries the sense of contact. Kept small in absolute
+     terms: these cards sit at 14px gutters on a phone and one pixel on the
+     desktop board, and a 40px ambient blur at that spacing pools in the gaps
+     and greys the whole sheet. */
+  --bento-depth-sm:
+    0 1px 2px rgb(10 11 13 / 0.06), 0 3px 8px -2px rgb(10 11 13 / 0.08);
+  --bento-depth:
+    0 2px 4px rgb(10 11 13 / 0.07), 0 10px 24px -6px rgb(10 11 13 / 0.12);
+  --bento-depth-lg:
+    0 4px 10px rgb(10 11 13 / 0.08), 0 20px 44px -10px rgb(10 11 13 / 0.16);
+
+  /* THE EDGE, WHICH IS ON THE OTHER SIDE HERE.
+
+     In the dark palette the edge is a hairline of light along the TOP of the
+     card, because a raised surface catches the light on its upper lip. On a
+     white card that highlight has nowhere to go: white light on a white face
+     is white, and the token would render nothing.
+
+     So in daylight the lip that reads is the BOTTOM one, in shade. Same
+     physics, same overhead light, opposite available side. A single inset
+     dark hairline at the foot of the card gives the panel a thickness that a
+     drop shadow alone does not, because a drop shadow says the card is above
+     the ground while this says the card is a slab with a depth to it.
+
+     Rejected: a grey border all round. That is what the file's own note on
+     .bento-cell threw out — a border doubles against the one-pixel gutter
+     wherever two cells meet and turns the seam into a trough. */
+  --bento-edge: inset 0 -1px 0 rgb(10 11 13 / 0.06);
+
   --bento-bg: #f4f5f7;
   --bento-card: #ffffff;
   --bento-card-2: #eceef2;
