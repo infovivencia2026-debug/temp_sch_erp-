@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Building2, Check, ChevronRight, LayoutGrid, LogOut, Maximize2, MessageSquare,
+  Building2, Check, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, MessageSquare,
   Minimize2, Minus, Palette, Plus, ShieldCheck, Sliders, Type, UserCircle, X,
   Contrast as RotateCcw,
 } from 'lucide-react'
@@ -68,7 +68,17 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
       <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
-      <div className="flex min-w-[240px] flex-1 items-center gap-3">
+      {/* WRAPS, BECAUSE AT 390 IT DID NOT.
+
+          Six things in a row that refuses to wrap -- minus, track, plus, the
+          percentage and the 100% button -- needed more than the 275px the
+          panel has inside its padding on a phone, so the reset button sat past
+          the right edge of the scroller with nothing to say it was there. The
+          same defect as the tab strip, one level down and one control wide.
+          Wrapping puts it on a second line instead, which costs a row of
+          height on the width that has height to spare and nothing at all on
+          the widths where it already fitted. */}
+      <div className="flex min-w-[180px] flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {/* Minus and plus either side of the track.
 
             A slider is good at "somewhere around here" and bad at "one step
@@ -359,8 +369,15 @@ function DockItemsToggle() {
    that principal can actually reach today. When the setup completes and the
    grants arrive, the rows appear with no client release. */
 type LinkSpec = {
-  /** section slug, then feature slug, as the catalogue names them. */
-  at: [string, string]
+  /** section slug, then feature slug, as the catalogue names them.
+
+      Absent on the two rows below that are not catalogue features at all --
+      see `always` on the group. */
+  at?: [string, string]
+  /** Where a built-in row goes, and what it is called. Only for rows with no
+      `at`, which the catalogue therefore never gets a vote on. */
+  href?: string
+  name?: string
   /** What the screen does, said the way somebody would say it out loud. */
   note: string
 }
@@ -370,7 +387,28 @@ type LinkGroup = {
   label: string
   icon: typeof Building2
   blurb: string
+  /* The one line this group gets in the phone's section list, and the
+     subtitle over it once you are inside.
+
+     Separate from `blurb` because the two answer different questions. `blurb`
+     is read with the rows already on screen and only has to say what they have
+     in common. `note` is read with nothing on screen but the row itself, so it
+     also has to say WHERE the change lands -- the dialog used to promise, over
+     every page, that a change is "remembered on this device", which is true of
+     a typeface and a lie about who the school may message. Every line in the
+     list now carries its own answer to that, and no line carries somebody
+     else's. */
+  note: string
   rows: LinkSpec[]
+  /* Rendered even when the catalogue resolves none of its rows.
+
+     True of exactly one group, Account, and only because two of its rows are
+     not catalogue features: /account and /logout exist for every person who
+     can sign in at all, whatever their role and whatever their school has
+     bought. Every other group stays silent when it has nothing, which is the
+     rule this file was built on and which the resolver below still enforces
+     row by row -- `always` buys the group a heading, never a row. */
+  always?: boolean
 }
 
 type LinkTab = 'school' | 'messaging' | 'account' | 'security'
@@ -382,6 +420,7 @@ type LinkTab = 'school' | 'messaging' | 'account' | 'security'
 const LINK_GROUPS: LinkGroup[] = [
   {
     id: 'school',
+    note: 'The school year, its setup, and the transport policy. Shared by everybody at the school.',
     label: 'School',
     icon: Building2,
     blurb: 'The school itself: the year it is running, and everything that hangs off it.',
@@ -410,6 +449,7 @@ const LINK_GROUPS: LinkGroup[] = [
   },
   {
     id: 'messaging',
+    note: 'How messages leave the school, and who may receive one. Shared by everybody at the school.',
     label: 'Messaging',
     icon: MessageSquare,
     blurb: 'How a message leaves this school, and who is allowed to receive one.',
@@ -434,10 +474,36 @@ const LINK_GROUPS: LinkGroup[] = [
   },
   {
     id: 'account',
+    note: 'Your profile, your language, and signing out. Yours alone, on whatever device you use.',
     label: 'Account',
     icon: UserCircle,
     blurb: 'Your own record, which is separate from anything the school-wide settings do.',
+    always: true,
     rows: [
+      /* THE TWO ROWS THAT USED TO BE IN THE FOOTER.
+
+         My profile and Sign out sat in a strip along the bottom of the dialog,
+         repeated under every page, because when the settings popover collapsed
+         into this window they had nowhere else to go. A strip under Colour
+         offering to sign you out is not a category of anything; it is two
+         account doors filed beside a colour wheel because the colour wheel got
+         there first.
+
+         They are account actions, so they live in Account, which is the row
+         somebody opens when they want their own record. That is also why the
+         group is `always` above: the footer was reachable from everywhere, and
+         moving these into a group the catalogue could suppress would have
+         taken the only sign-out in the product away from a school still in
+         first-run setup. Neither row asks the catalogue anything, so neither
+         can be suppressed.
+
+         Sign out is last in the group and last in the dialog, which is the
+         same reason it used to be pushed to the far end of the footer. */
+      {
+        href: '/account',
+        name: 'My profile',
+        note: 'Your name, your password and how the school reaches you. Everybody has one, whatever their role.',
+      },
       {
         at: ['my_profile', 'leave_self_service'],
         note: 'Apply for your own leave and see where the application has got to.',
@@ -454,10 +520,16 @@ const LINK_GROUPS: LinkGroup[] = [
         at: ['profile', 'language'],
         note: 'Read the app in English or Telugu. Yours alone; it changes nothing anybody else sees.',
       },
+      {
+        href: '/logout',
+        name: 'Sign out',
+        note: 'End this session on this device. Nothing you have set up is lost.',
+      },
     ],
   },
   {
     id: 'security',
+    note: 'Who may sign in, what they may do, and what they did. Shared by everybody at the school.',
     label: 'Security',
     icon: ShieldCheck,
     blurb: 'Who can sign in, what they may do once they are in, and what they did.',
@@ -519,6 +591,13 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
     ]
 
     const resolve = (spec: LinkSpec): ResolvedLink | undefined => {
+      // A built-in row. No catalogue pair, so nothing to look up and nothing
+      // that can take it away.
+      if (!spec.at) {
+        return spec.href && spec.name
+          ? { href: spec.href, name: spec.name, note: spec.note }
+          : undefined
+      }
       const [sectionSlug, featureSlug] = spec.at
       for (const role of roles) {
         for (const section of role.sections) {
@@ -549,8 +628,10 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
         links.push(link)
       }
       // A group with nothing in it is not rendered as an empty group; it is
-      // not rendered at all, and its tab does not appear either.
-      if (links.length) out.push({ group, links })
+      // not rendered at all, and its tab does not appear either. The one
+      // exception carries rows that are not catalogue features, so it can
+      // never actually be empty -- the flag only says so out loud.
+      if (links.length || group.always) out.push({ group, links })
     }
     return out
   }, [catalog, active])
@@ -591,11 +672,15 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
   const Icon = group.icon
   return (
     <section>
-      <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
+      {/* Wide only. On a phone the panel header IS this heading -- the section
+          name at title size with its own line under it -- and printing the
+          name a second time nine pixels below itself is the kind of repetition
+          that makes a narrow screen feel full before it has said anything. */}
+      <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
         <Icon className="size-4" aria-hidden="true" />
         {group.label}
       </h3>
-      <p className={cn('mb-4 text-[12px]', INK)}>{group.blurb}</p>
+      <p className={cn('mb-4 hidden text-[12px] md:block', INK)}>{group.blurb}</p>
       <div className={cn(
         'divide-y overflow-hidden rounded-[10px] border', EDGE,
         'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
@@ -603,6 +688,162 @@ function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[]
         {links.map((l) => <LinkRow key={l.href} link={l} />)}
       </div>
     </section>
+  )
+}
+
+/* A PHONE DOES NOT GET A TAB STRIP.
+
+   Measured at 390px with a touch pointer, the strip was 502px of tabs in a
+   360px panel. Appearance, Colour, Dock and Dashboard fitted; School and
+   Account sat past the right edge behind a word cut in half, and on a fully
+   granted institution admin -- eight sections rather than six -- Messaging and
+   Security were out there with them. There was no arrow, no fade and no
+   scrollbar, so the panel did not merely hide those sections: it stated, as
+   plainly as a control can, that there were four. A principal who pressed the
+   cog looking for their school's setup was told it was not in Settings.
+
+   The strip was not a bad control chosen carelessly. It replaced tabs that
+   wrapped to three lines and pushed the content below the fold, and it fixed
+   that. But a tab's entire promise is that the alternatives are visible, and a
+   tab you have to go looking for has stopped being a tab; it is a hidden menu
+   drawn to look like a choice already offered. Scrolling sideways is also the
+   one gesture a phone user is least likely to try inside a vertically
+   scrolling panel, because almost nothing else on a phone answers to it.
+
+   So at narrow widths this stops being a tabbed window and becomes what every
+   settings app on every phone already is: a LIST you drill into. Every section
+   is on screen at once, in one column, at a size you can hit; a row opens a
+   page; the page says where you are and how to get back. Nothing is off the
+   edge because nothing is beside anything.
+
+   THIS IS NOT A REVERSAL OF WHY THE POPOVER BECAME ONE DIALOG.
+
+   It is worth being explicit, because it looks like one. The argument this
+   file makes twice over is that the settings cog used to open a small menu
+   whose every substantive row opened a SECOND window -- two surfaces where one
+   was wanted, the first of them a waiting room. The list below is not that. It
+   opens nothing: it is a page of this same dialog, and the section it drills
+   into is another page of this same dialog, on the same surface, under the
+   same header, one press away and one press back. The popover's sin was a
+   second WINDOW, not a second page; the window that dialog opened was modal,
+   covered the first, and could not be gone back from without dismissing
+   everything. Wide viewports keep the tab strip precisely because there the
+   sections genuinely do all fit, and where they fit, showing them all at once
+   is still better than making somebody choose from a list first.
+
+   The other argument is that appearance is changed while looking at the thing
+   it changes, and that stands untouched. The dialog still floats over the live
+   page, the dock is still lifted clear of it, and every axis still writes
+   through on the way to the page behind. Drilling into Colour on a phone puts
+   the wheel over the same page the wheel repaints; it does not send anybody to
+   a settings route to judge a palette on the wrong screen.
+
+   767px is the line because that is where it was measured to stop hurting: at
+   768 the six tabs this tenant renders occupy 724px in a 724px strip with
+   nothing clipped, and the panel has room for a page beside its own chrome. */
+function useNarrow() {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const on = () => setNarrow(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return narrow
+}
+
+/* The four pages this file draws itself, said the way the list has to say
+   them.
+
+   Each line has to survive being read on its own, with none of the controls
+   visible, which is a harder test than the headings inside the pages ever had
+   to pass. It names what is inside and then where the change lands, and for
+   these four the answer really is this device -- the old blanket subtitle was
+   only ever wrong about the sections it did not draw. */
+const DISPLAY_META = {
+  appearance: {
+    icon: Type,
+    note: 'Typeface, text size, density and the frame. Remembered on this device.',
+  },
+  colour: {
+    icon: Palette,
+    note: 'The palette everything here is painted in. Remembered on this device.',
+  },
+  dock: {
+    icon: LayoutGrid,
+    note: 'How big the dock is and what it carries. Remembered on this device.',
+  },
+  dashboard: {
+    icon: Sliders,
+    note: 'Which cards sit on this dashboard, and where. Remembered on this device.',
+  },
+} as const
+
+type ListItem = { id: string; label: string; icon: typeof Building2; note: string }
+
+/* THE LIST, AND WHY IT LOOKS LIKE NOTHING.
+
+   The instruction was alignment rather than colour, so there is no colour here
+   and nothing that is only pattern. Every row is the same height, every row
+   has the same three parts in the same three places, and the two lines of text
+   share ONE left edge -- the icon sits in a fixed gutter ahead of that edge
+   rather than in the text column, so the names form a single vertical line
+   down the list and the descriptions form a second one directly under them
+   rather than each name being indented by however wide its own icon drew.
+
+   The chevron is the only thing on the right, and it is the affordance: it is
+   the one mark in the row that says this is a door and not a heading. Rows are
+   separated by the hairline the rest of the dialog already uses rather than by
+   cards or shadows, because fourteen boxes stacked vertically is fourteen
+   boundaries to read on a screen that has room for six.
+
+   `min-h-[56px]` rather than the 44px floor: 44 is the smallest a target may
+   be, not the size a two-line row wants, and at 44 the description crowds the
+   name badly enough that the pair stops reading as one thing. `text-left` is
+   explicit because a <button> centres its text and every one of these is a
+   sentence. */
+function SectionList({ items, onOpen }: { items: ListItem[]; onOpen: (id: string) => void }) {
+  return (
+    <div
+      data-settings-list=""
+      className={cn(
+        'divide-y', 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+      )}
+    >
+      {items.map((item) => {
+        const Icon = item.icon
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onOpen(item.id)}
+            className={cn(
+              'flex min-h-[56px] w-full items-start gap-3 rounded-[8px] px-2 py-3 text-left',
+              'transition-colors', INK, WASH, RING,
+            )}
+          >
+            {/* Both marks sit on the NAME's line, not in the middle of the
+                row. Centred against a two-line block they float between the
+                two sentences and belong to neither, and the second line then
+                starts further left than the first thing above it. Pinned to
+                the top the whole row has one horizontal band -- icon, name,
+                chevron -- with the description hanging beneath it, so the
+                names read down the list as one column and the descriptions as
+                a second directly under them. The 2px is optical: a 16px glyph
+                against a 13.5px line sits a shade high without it. */}
+            <Icon className="mt-[2px] size-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13.5px] font-medium">{item.label}</span>
+              <span className="mt-0.5 block text-[12px]">{item.note}</span>
+            </span>
+            <ChevronRight className="mt-[2px] size-4 shrink-0" aria-hidden="true" />
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -641,11 +882,96 @@ export function AppearanceDialog({
      five tabs; on a fully granted institution admin it is eight. */
   type Tab = 'appearance' | 'colour' | 'dock' | 'dashboard' | LinkTab
   const sections = useSettingsLinks()
-  const [tab, setTab] = useState<Tab>(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
+  const narrow = useNarrow()
+
+  /* null is a page too, and on a phone it is the FIRST page.
+
+     `null` means the list of sections rather than any section. On a wide
+     viewport it never holds -- the strip is showing every section anyway, so
+     landing on a menu of things already on screen would be a press charged for
+     nothing -- and the effect below puts Appearance back if the window is
+     dragged wide while the list is up. */
+  const [tab, setTab] = useState<Tab | null>(null)
+
+  /* What the dialog opens on, which is not the same question at both widths.
+
+     `initialTab` is 'dock' or 'dashboard' only when somebody ASKED for that
+     page: the tab menu offering to add a widget to the board they
+     right-clicked. That is a request and it is honoured at every width. The
+     cog, which is how almost everybody arrives, always sends 'appearance' --
+     that is a default and not a request, and answering a default by dropping
+     somebody inside one of eight sections is exactly how the other seven came
+     to be invisible. So on a phone the plain cog opens the list. */
   useEffect(() => {
     if (!open) return
-    setTab(initialTab === 'dock' ? 'dock' : initialTab === 'dashboard' ? 'dashboard' : 'appearance')
-  }, [open, initialTab])
+    if (initialTab === 'dock') setTab('dock')
+    else if (initialTab === 'dashboard') setTab('dashboard')
+    else setTab(narrow ? null : 'appearance')
+  }, [open, initialTab, narrow])
+
+  useEffect(() => {
+    if (!narrow && tab === null) setTab('appearance')
+  }, [narrow, tab])
+
+  /* BACK IS ALSO THE PHONE'S OWN BACK, AND IT WAS CHEAP.
+
+     A drill-in that only a button in the corner can undo is a drill-in half
+     the people using it will try to leave with the system gesture, and on
+     Android that gesture would have closed the tab or left the app entirely --
+     from a settings dialog, having changed something, with no way to tell that
+     is what happened.
+
+     One `pushState` on the way in buys it. The entry is this dialog's own, it
+     carries no URL change so nothing about routing moves, and `popstate` puts
+     the list back. The in-dialog back button calls `history.back()` rather
+     than setting state directly, so there is exactly one path out of a section
+     and the history stack cannot drift out of step with what is drawn. Closing
+     the dialog from inside a section unwinds whatever it pushed, so the
+     gesture does not later walk backwards through pages of a window that is
+     no longer open.
+
+     `owned` counts what this dialog pushed rather than trusting the state
+     object, because another entry can arrive between ours and the pop. */
+  const owned = useRef(0)
+  const openSection = useCallback((id: string) => {
+    setTab(id as Tab)
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ bentoSettings: id }, '')
+      owned.current += 1
+    }
+  }, [])
+  const backToList = useCallback(() => {
+    if (owned.current > 0) window.history.back()
+    else setTab(null)
+  }, [])
+  useEffect(() => {
+    if (!open || !narrow) return
+    const onPop = () => {
+      owned.current = Math.max(0, owned.current - 1)
+      setTab(null)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [open, narrow])
+
+  /* The list, in the order the sections are asked for: what this window looks
+     like first, then what it is for. The catalogue decides which of the second
+     four exist, and a section with nothing reachable behind it contributes no
+     row at all -- the same rule the tab strip has always obeyed. */
+  const listItems = useMemo<ListItem[]>(() => [
+    { id: 'appearance', label: t('bento.appearance.title'), ...DISPLAY_META.appearance },
+    /* 'Colour' and not `bento.colour.title`, which is "Colour settings" --
+       inside a window called Settings, under a heading called Settings, the
+       second word is the one thing on the row that says nothing. */
+    { id: 'colour', label: 'Colour', ...DISPLAY_META.colour },
+    { id: 'dock', label: 'Dock', ...DISPLAY_META.dock },
+    { id: 'dashboard', label: 'Dashboard', ...DISPLAY_META.dashboard },
+    ...sections.map(({ group }) => ({
+      id: group.id, label: group.label, icon: group.icon, note: group.note,
+    })),
+  ], [t, sections])
+
+  const current = listItems.find((i) => i.id === tab)
 
   /* If a grant goes away while the dialog is open -- a role change, a
      catalogue refetch -- the tab that was selected can stop existing. Falling
@@ -653,12 +979,8 @@ export function AppearanceDialog({
      header that is still highlighted. */
   useEffect(() => {
     const isLink = LINK_GROUPS.some((g) => g.id === tab)
-    if (isLink && !sections.some((s) => s.group.id === tab)) setTab('appearance')
-  }, [sections, tab])
-
-  /* Whether the page on screen is one of the four this file draws itself.
-     The device promise in the header is only true of those. */
-  const display = tab === 'appearance' || tab === 'colour' || tab === 'dock' || tab === 'dashboard'
+    if (isLink && !sections.some((s) => s.group.id === tab)) setTab(narrow ? null : 'appearance')
+  }, [sections, tab, narrow])
 
   const dockRef = useRef<HTMLElement>(null)
   const dashRef = useRef<HTMLElement>(null)
@@ -701,6 +1023,15 @@ export function AppearanceDialog({
     if (typeof document !== 'undefined' && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
+    /* Hand back the history entries the drill-in borrowed. Without this the
+       phone's back gesture spends the next press or two walking through pages
+       of a dialog that has already gone, which reads to the person doing it
+       as a back button that does nothing. */
+    if (owned.current > 0 && typeof window !== 'undefined') {
+      const n = owned.current
+      owned.current = 0
+      window.history.go(-n)
+    }
     onClose()
   }
 
@@ -708,11 +1039,17 @@ export function AppearanceDialog({
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       // The crosshair swallows the first Escape; the dialog takes the second.
-      if (e.key === 'Escape' && !picking) handleClose()
+      if (e.key !== 'Escape' || picking) return
+      /* Escape unwinds the same way the back button does, one level at a
+         time. Inside a section on a phone, Escape means "out of here", and
+         out of here is the list -- closing the whole window instead would
+         throw away the one press that got you in. */
+      if (narrow && tab !== null) backToList()
+      else handleClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, picking])
+  }, [open, onClose, picking, narrow, tab, backToList])
 
   if (!open) return null
 
@@ -763,7 +1100,7 @@ export function AppearanceDialog({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className={cn('flex items-start justify-between gap-4 border-b px-7 py-5', SEAM)}>
+        <header className={cn('flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-7 sm:py-5', SEAM)}>
           {/* THE WINDOW IS CALLED SETTINGS AGAIN.
 
               It was headed Appearance, under a subtitle promising the choices
@@ -776,12 +1113,43 @@ export function AppearanceDialog({
               it changes the school. So the panel takes the name the cog has
               always had, and the device promise moves down to the pages it
               still describes. */}
-          <div>
-            <h2 className={cn('text-[21px] font-semibold', INK)}>{t('bento.settings.label')}</h2>
+          {/* WHERE YOU ARE, AND THE WAY BACK, IN THAT ORDER.
+
+              On a phone inside a section the header stops being the window's
+              title and becomes the page's: the back control first, then the
+              section's own name at the size the window's name used to be, then
+              that section's own line. The name of the window is not lost --
+              it is the label ON the back control, which is where a name you
+              are returning to belongs. Everywhere else the header is what it
+              was.
+
+              The subtitle is now the same sentence the list row carried, for
+              whichever page is open, rather than one blanket promise for all
+              of them. That promise said a change is "remembered on this
+              device", which was true of a typeface and false of who the school
+              may message -- a window telling somebody their change is local
+              while it changes the school for everyone. */}
+          <div className="min-w-0">
+            {narrow && tab !== null && (
+              <button
+                type="button"
+                onClick={backToList}
+                className={cn(
+                  'group -ml-2 mb-1 flex min-h-[44px] items-center gap-1 rounded-[8px] pl-1.5 pr-2.5',
+                  'text-[13px] transition-colors', INK, WASH, RING,
+                )}
+              >
+                <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
+                {t('bento.settings.label')}
+              </button>
+            )}
+            <h2 className={cn('text-[21px] font-semibold', INK)}>
+              {narrow && current ? current.label : t('bento.settings.label')}
+            </h2>
             <p className={cn('mt-0.5 text-[13px]', INK)}>
-              {display
-                ? t('bento.appearance.subtitle')
-                : 'The school, your account, and how this product is set up.'}
+              {current
+                ? current.note
+                : 'Everything you can change from here, and where each change lands.'}
             </p>
           </div>
           <button
@@ -815,20 +1183,23 @@ export function AppearanceDialog({
               so they keep their labels rather than compressing into ellipses
               when the row is wider than the panel. */}
           <nav
-            className={cn('scroll-x flex shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3', SEAM)}
+            /* Wide viewports only. Below 768px this is the control that was
+               the whole defect -- see useNarrow above -- and the list replaces
+               it rather than sitting beside it, because two navigations for
+               one set of pages is how the popover era went wrong. */
+            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3 md:flex', SEAM)}
             aria-label="Settings sections"
           >
-            {([
-              ['appearance', t('bento.appearance.title')],
-              ['colour', 'Colour'],
-              ['dock', 'Dock'],
-              ['dashboard', 'Dashboard'],
-              ...sections.map(({ group }) => [group.id, group.label] as [Tab, string]),
-            ] as [Tab, string][]).map(([id, label]) => (
+            {/* Driven by the same list the phone's rows are, so the two
+                navigations cannot come to disagree about which sections exist
+                or what they are called -- they were two hand-written lists,
+                which is how the strip's "Colour" and the panel's "Colour
+                settings" ended up being the same page under two names. */}
+            {listItems.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setTab(id)}
+                onClick={() => setTab(id as Tab)}
                 aria-current={tab === id}
                 className={cn(
                   'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
@@ -846,7 +1217,8 @@ export function AppearanceDialog({
             fade one in. A dialog with four pages behind its tabs — one of them
             fifteen typeface cards — has to say on its first paint that there is
             more below the fold. See index.css. */}
-        <div className="scroll-y min-h-0 flex-1 px-7 py-6">
+        <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
+          {tab === null && <SectionList items={listItems} onOpen={openSection} />}
           {tab === 'appearance' && (<div>
           {/* LAYOUT FIRST, ABOVE THE TYPEFACE CARDS.
 
@@ -965,6 +1337,8 @@ export function AppearanceDialog({
             />
           </div>
 
+          <AppearanceActions onClose={onClose} />
+
           {/* Colour, in the same dialog rather than behind a second door.
 
               Typeface, density and colour are three answers to one question —
@@ -972,8 +1346,8 @@ export function AppearanceDialog({
               somebody close one to reach the other. */}
           </div>)}
           {tab === 'colour' && (
-          <section className={cn('mt-8 border-t pt-6', SEAM)}>
-            <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
+          <section>
+            <h3 className="mb-3 hidden md:flex items-center gap-2 text-[13px] font-semibold">
               <Palette className="size-4" aria-hidden="true" />
               {t('bento.colour.title')}
             </h3>
@@ -981,8 +1355,8 @@ export function AppearanceDialog({
           </section>
           )}
           {tab === 'dock' && (
-          <section ref={dockRef} className={cn('mt-8 border-t pt-6', SEAM)}>
-            <h3 className="mb-4 flex items-center gap-2 text-[13px] font-semibold">
+          <section ref={dockRef}>
+            <h3 className="mb-4 hidden items-center gap-2 text-[13px] font-semibold md:flex">
               <LayoutGrid className="size-4" aria-hidden="true" />
               Dock
             </h3>
@@ -1009,8 +1383,8 @@ export function AppearanceDialog({
           </section>
           )}
           {tab === 'dashboard' && (
-          <section ref={dashRef} className={cn('mt-8 border-t pt-6', SEAM)}>
-            <h3 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
+          <section ref={dashRef}>
+            <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
               <Sliders className="size-4" aria-hidden="true" />
               Dashboard Widgets
             </h3>
@@ -1036,30 +1410,46 @@ export function AppearanceDialog({
           ))}
         </div>
 
-        <DialogActions onClose={onClose} />
       </div>
     </div>,
     document.body,
   )
 }
 
-/* The four things that were left in the settings menu.
+/* THE FOOTER IS GONE, AND ITS FOUR ACTIONS WENT WHERE THEY BELONG.
 
-   Pressing the cog used to open a popover, and every substantive row in it
-   opened this dialog. That made the menu a waiting room: two surfaces where
-   one was wanted, and the answer to "where do I change the font" was one press
-   further away than it looked.
+   When the settings popover collapsed into this window, the four rows it still
+   had -- full screen, reset appearance, my profile, sign out -- were put in a
+   strip along the bottom, and the reasoning given was that a footer is
+   reachable from every tab. That was true and it was still the wrong home for
+   them, because reachable from everywhere means repeated under everything: a
+   strip under the Colour wheel offering to sign you out, a strip under School
+   setup offering to reset your typeface. Four unrelated actions shown eight
+   times is not availability, it is noise with a fixed 44px of the panel's
+   height spent on it -- height a phone does not have to give.
 
-   The cog opens this window directly now, so these came with it. They sit in a
-   footer rather than becoming a fifth tab because they are not a category of
-   preference -- they are three one-way doors and a switch, and a tab implies a
-   page of settings behind it. In the footer they are reachable from every tab,
-   which is better than where they were.
+   So each one moved to the single place where it is the obvious next thing.
 
-   Full screen and Reset appearance are about the window and how it looks, so
-   they lead. My profile and Sign out are the account, so they are pushed to
-   the far end -- nobody signs out by accident from across a dialog. */
-function DialogActions({ onClose }: { onClose: () => void }) {
+   Full screen and Reset appearance are appearance. Reset appearance undoes
+   precisely the axes on this page and nothing else in the dialog, so offered
+   anywhere else it is a button whose scope you have to guess. Full screen is
+   less obvious, because a bigger window is not literally a preference stored
+   with the others -- but it is a change to how much of this product you are
+   looking at and it is remembered by nothing, which puts it with the display
+   choices and not with the school's settings. Both are at the FOOT of the
+   appearance page rather than the head of it: they are what you reach for
+   having tried the axes, and reset in particular is a door you want to have to
+   arrive at rather than one you can brush past.
+
+   My profile and Sign out are the account, and Account is a section of this
+   dialog. They are rows in it now, which is also what makes them honest -- as
+   footer buttons they were two words each, and as rows they say what they do
+   and what they cost. That section is marked `always` so that moving them
+   there cannot make them disappear on a school whose catalogue grants nothing:
+   neither row asks the catalogue anything.
+
+   What is left here is the pair that stayed with the page they act on. */
+function AppearanceActions({ onClose }: { onClose: () => void }) {
   const t = useT()
 
   /* Full screen, tracked rather than assumed.
@@ -1093,13 +1483,20 @@ function DialogActions({ onClose }: { onClose: () => void }) {
     }
   }
 
+  /* A border now, where the footer's buttons had none.
+
+     In the strip they were the only things on a bar of their own and read as
+     controls by position. On a page, below a stack of sliders and pills, an
+     unbordered label is just more text, so they take the same hairline edge
+     every other pressable thing in this dialog wears. `min-h-[44px]` because
+     they are on a phone page now rather than in desktop chrome. */
   const ACTION = cn(
-    'flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-[12.5px] transition-colors',
-    INK, WASH, RING,
+    'flex min-h-[44px] items-center gap-2 rounded-[10px] border px-3.5 py-2 text-[12.5px]',
+    'transition-colors', EDGE, INK, WASH, RING,
   )
 
   return (
-    <footer className={cn('flex shrink-0 flex-wrap items-center gap-1 border-t px-5 py-2.5', SEAM)}>
+    <div className={cn('mt-6 flex flex-wrap items-center gap-2 border-t pt-4', SEAM)}>
       <button type="button" onClick={toggleFull} className={ACTION}>
         {full
           ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
@@ -1114,21 +1511,7 @@ function DialogActions({ onClose }: { onClose: () => void }) {
         <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
         {t('bento.settings.reset')}
       </button>
-
-      <span className="flex-1" />
-
-      {/* /account sits outside the catalogue on purpose -- everybody has a
-          name, a password and contact details whatever their role -- which
-          once meant the only way in was to type the URL. */}
-      <a href="/account" className={ACTION}>
-        <UserCircle className="size-4 shrink-0" aria-hidden="true" />
-        {t('bento.settings.account')}
-      </a>
-      <a href="/logout" className={ACTION}>
-        <LogOut className="size-4 shrink-0" aria-hidden="true" />
-        {t('bento.settings.signout')}
-      </a>
-    </footer>
+    </div>
   )
 }
 
