@@ -397,7 +397,18 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.ExamsRead)).Get("/grading-scales", s.listGradingScales)
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/grading-scales", s.createGradingScale)
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Delete("/grading-scales/{id}", s.deleteGradingScale)
+			/* Renaming a scale, and choosing which is the school's. Not its
+			   bands: moving a boundary silently regrades every card the school
+			   has already given out. */
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).
+				Patch("/grading-scales/{id}", s.updateGradingScale)
 			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Post("/exams", s.createExam)
+			/* An exam could be created and never touched again: a name typed
+			   in a hurry before term printed on every report card for the
+			   year, with no way to correct it and no way to remove the one
+			   scheduled by mistake. */
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Patch("/exams/{id}", s.updateExam)
+			r.With(httpx.RequirePermission(rbac.ExamsWrite)).Delete("/exams/{id}", s.deleteExam)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads", s.listFeeHeads)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Patch("/fee-heads/{id}", s.updateFeeHead)
@@ -412,6 +423,13 @@ func (s *Server) Routes() http.Handler {
 			// one the office works around with a second, similar name.
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).
 				Delete("/fee-structures/{id}", s.deleteFeeStructure)
+			/* And correcting one. It could be created and deleted and never
+			   edited, so a name typed wrongly or a line priced at 3,500 that
+			   meant 35,000 had to be rebuilt from nothing -- and once an
+			   invoice existed, deleting was refused too, which left no way out
+			   at all. */
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).
+				Patch("/fee-structures/{id}", s.updateFeeStructure)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Post("/employees", s.createEmployee)
 			// A phone changes, a name changes, somebody is promoted, a salary
 			// account is keyed wrong once. No delete: leaving is a status.
