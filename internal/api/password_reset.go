@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -491,7 +492,7 @@ enabledChannels reports which messaging channels a school has switched on.
 */
 func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[string]bool {
 	out := map[string]bool{}
-	_ = p.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
+	err := p.DB.InTenant(r.Context(), database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT provider FROM integrations
 			 WHERE institution_id = $1 AND kind = 'messaging' AND enabled`, inst)
@@ -508,5 +509,19 @@ func (p *PasswordReset) enabledChannels(r *http.Request, inst uuid.UUID) map[str
 		}
 		return rows.Err()
 	})
+	/* Swallowing this is what cost the last two deploys. An empty map and a
+	   failed read look identical to the caller and lead to opposite conclusions:
+	   one means the school has configured nothing, the other means we could not
+	   find out. Both now say which they are. */
+	if err != nil {
+		slog.Warn("password reset: could not read channels", "institution", inst, "err", err)
+		return out
+	}
+	list := make([]string, 0, len(out))
+	for ch := range out {
+		list = append(list, ch)
+	}
+	sort.Strings(list)
+	slog.Info("password reset: channels the school has on", "institution", inst, "channels", list)
 	return out
 }
