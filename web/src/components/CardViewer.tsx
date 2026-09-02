@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* One child's report card, and nothing else on the screen.
 
@@ -28,6 +29,9 @@ export default function CardViewer({
   card: { html: string; css?: string; name?: string }
   onClose: () => void
 }) {
+  // Back closes the card, like Escape and the button, instead of leaving the
+  // report cards screen behind it.
+  const close = useOverlayHistory(true, onClose)
   const box = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -57,10 +61,10 @@ export default function CardViewer({
   // Escape closes it, which is what anybody who has opened a full-screen
   // anything expects before they look for a button.
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [onClose])
+  }, [close])
 
   return createPortal(
     <div
@@ -95,7 +99,7 @@ export default function CardViewer({
             <Printer className="h-3.5 w-3.5" aria-hidden />
             Print
           </Button>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="ghost" onClick={close}>Close</Button>
         </div>
       </div>
 

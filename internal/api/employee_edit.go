@@ -51,8 +51,24 @@ type employeePatch struct {
 	ExperienceYears *int    `json:"experience_years,omitempty"`
 	Address         *string `json:"address,omitempty"`
 
+	/* WHAT PAYROLL NEEDS TO PAY SOMEBODY.
+
+	   The columns have existed since the beginning and nothing wrote them.
+	   Salary was calculated and then paid from a list somebody kept elsewhere,
+	   which is the point at which an ERP stops being the record: the account a
+	   teacher is actually paid into lived in a spreadsheet, and a changed
+	   account was corrected in the spreadsheet and not here.
+
+	   PAN, UAN and ESI belong with it because they are the same job -- a
+	   payslip and a statutory return cannot be produced without them, and
+	   collecting them one screen away from the bank details means half a
+	   record gets filled in. */
 	BankAccount *string `json:"bank_account,omitempty"`
 	BankIFSC    *string `json:"bank_ifsc,omitempty"`
+	BankName    *string `json:"bank_name,omitempty"`
+	PAN         *string `json:"pan,omitempty"`
+	UAN         *string `json:"uan,omitempty"`
+	ESINumber   *string `json:"esi_number,omitempty"`
 
 	EmergencyContactName  *string `json:"emergency_contact_name,omitempty"`
 	EmergencyContactPhone *string `json:"emergency_contact_phone,omitempty"`
@@ -139,7 +155,13 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 			    experience_years = COALESCE($14, experience_years),
 			    address          = CASE WHEN $15::text IS NULL THEN address ELSE NULLIF($15,'') END,
 			    bank_account     = CASE WHEN $16::text IS NULL THEN bank_account ELSE NULLIF($16,'') END,
-			    bank_ifsc        = CASE WHEN $17::text IS NULL THEN bank_ifsc ELSE NULLIF($17,'') END,
+			    bank_ifsc        = CASE WHEN $17::text IS NULL THEN bank_ifsc ELSE upper(NULLIF($17,'')) END,
+			    -- Upper-cased on the way in, because an IFSC and a PAN are
+			    -- upper case: a bank file built from a mixture of the two is
+			    -- rejected by the bank, not by us.
+			    pan              = CASE WHEN $21::text IS NULL THEN pan ELSE upper(NULLIF($21,'')) END,
+			    uan              = CASE WHEN $22::text IS NULL THEN uan ELSE NULLIF($22,'') END,
+			    esi_number       = CASE WHEN $23::text IS NULL THEN esi_number ELSE NULLIF($23,'') END,
 			    emergency_contact_name  = CASE WHEN $18::text IS NULL THEN emergency_contact_name ELSE NULLIF($18,'') END,
 			    emergency_contact_phone = CASE WHEN $19::text IS NULL THEN emergency_contact_phone ELSE NULLIF($19,'') END,
 			    updated_at = now()
@@ -151,7 +173,7 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 			req.Qualification, req.ExperienceYears, req.Address,
 			req.BankAccount, req.BankIFSC,
 			req.EmergencyContactName, req.EmergencyContactPhone,
-			req.DeviceUserID).Scan(&name, &status)
+			req.DeviceUserID, req.PAN, req.UAN, req.ESINumber).Scan(&name, &status)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errEmployeeGone
 		}

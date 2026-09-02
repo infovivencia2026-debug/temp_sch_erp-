@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { formatDate, cn } from '@/lib/utils'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* One member of staff, and what they actually do here.
 
@@ -53,6 +54,14 @@ interface Detail {
   user_id?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
+  /* What payroll needs to actually pay somebody. The columns have existed
+     since the beginning and nothing wrote them, so salary was calculated here
+     and paid from a list kept somewhere else. */
+  bank_account?: string
+  bank_ifsc?: string
+  pan?: string
+  uan?: string
+  esi_number?: string
   teaching: {
     id: string; class: string; section: string; subject: string
     section_id: string; class_subject_id: string
@@ -86,6 +95,9 @@ export default function StaffRecord({ employeeID, onClose }: {
   employeeID: string
   onClose: () => void
 }) {
+  // Back closes the record and returns to the directory, rather than leaving
+  // the screen that opened it.
+  const close = useOverlayHistory(true, onClose)
   const qc = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [sectionID, setSectionID] = useState('')
@@ -224,7 +236,7 @@ export default function StaffRecord({ employeeID, onClose }: {
             </p>
           </div>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close"
+        <button type="button" onClick={close} aria-label="Close"
           className="rounded p-1 text-muted-foreground hover:bg-accent">
           <X className="h-5 w-5" />
         </button>
@@ -260,6 +272,11 @@ export default function StaffRecord({ employeeID, onClose }: {
                         ['emergency_contact_phone', 'Their phone'],
                         ['joined_on', 'Joined'],
                         ['confirmed_on', 'Confirmed'],
+                        ['bank_account', 'Bank account number'],
+                        ['bank_ifsc', 'IFSC'],
+                        ['pan', 'PAN'],
+                        ['uan', 'UAN'],
+                        ['esi_number', 'ESI number'],
                       ] as [string, string][]).map(([k, label]) => (
                         <FormField key={k} label={label}>
                           <Input
@@ -438,6 +455,53 @@ export default function StaffRecord({ employeeID, onClose }: {
                     )}
                   </div>
                 </div>
+              </Card>
+
+              {/* WHERE THE SALARY ACTUALLY GOES.
+
+                  Kept apart from the contact block rather than mixed into it:
+                  a phone number is looked up daily by anyone, and an account
+                  number is looked at rarely and by fewer people. Putting them
+                  in one list makes the sensitive half as casual as the rest.
+
+                  The account number is shown by its last four digits. That is
+                  what a person checks -- "is this the account ending 4471" --
+                  and it is all anyone needs to confirm the right one is on
+                  file. The whole number is in the edit form for the person
+                  who is entitled to change it. */}
+              <Card>
+                <CardHeader
+                  title="Bank & statutory"
+                  description="Used by payroll to pay this person and to file their returns."
+                />
+                <div className="grid gap-3 p-4 sm:grid-cols-2">
+                  {([
+                    ['Account', d.bank_account
+                      ? `\u2022\u2022\u2022\u2022 ${d.bank_account.slice(-4)}`
+                      : undefined],
+                    ['IFSC', d.bank_ifsc],
+                    ['PAN', d.pan],
+                    ['UAN', d.uan],
+                    ['ESI number', d.esi_number],
+                  ] as [string, string | undefined][]).map(([k, v]) => (
+                    <div key={k} className="rounded-lg border px-3 py-2">
+                      <p className="eyebrow text-muted-foreground">{k}</p>
+                      <p className={cn('mt-0.5 text-[14px]',
+                        k === 'Account' || k === 'IFSC' ? 'font-mono' : '',
+                        !v && 'font-sans text-muted-foreground')}>
+                        {v || 'Not recorded'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {/* Said once, where somebody is looking at the gap, rather
+                    than discovered on payday. */}
+                {(!d.bank_account || !d.bank_ifsc) && (
+                  <p className="border-t px-4 py-3 text-[13px] text-warning">
+                    Payroll cannot pay this person until the account number and
+                    IFSC are both here.
+                  </p>
+                )}
               </Card>
 
               {/* SERVICE BEFORE THIS SYSTEM.

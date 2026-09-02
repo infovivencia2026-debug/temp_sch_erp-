@@ -52,6 +52,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			experience                               *int
 			userID                                   *string
 			emgName, emgPhone, pan, bankAcct, bankIF *string
+			uan, esi                                 *string
 			customFields                             []byte
 		)
 		if err := tx.QueryRow(r.Context(), `
@@ -65,7 +66,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			       e.address, e.photo_file_id::text, e.experience_years,
 			       e.user_id::text,
 			       e.emergency_contact_name, e.emergency_contact_phone,
-			       e.pan, e.bank_account, e.bank_ifsc, e.custom_fields
+			       e.pan, e.bank_account, e.bank_ifsc, e.uan, e.esi_number, e.custom_fields
 			  FROM employees e
 			  LEFT JOIN departments d ON d.id = e.department_id
 			  LEFT JOIN designations dg ON dg.id = e.designation_id
@@ -73,7 +74,7 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 			Scan(&code, &first, &last, &phone, &email, &qualification,
 				&dept, &desig, &deptID, &desigID, &empType, &status, &joined,
 				&confirmed, &relieved, &address, &photo, &experience, &userID,
-				&emgName, &emgPhone, &pan, &bankAcct, &bankIF,
+				&emgName, &emgPhone, &pan, &bankAcct, &bankIF, &uan, &esi,
 				&customFields); err != nil {
 			return err
 		}
@@ -103,6 +104,9 @@ func (s *Server) getStaffDetail(w http.ResponseWriter, r *http.Request) {
 		out["pan"] = pan
 		out["bank_account"] = bankAcct
 		out["bank_ifsc"] = bankIF
+		// The two a payslip and a statutory return cannot be produced without.
+		out["uan"] = uan
+		out["esi_number"] = esi
 		if len(customFields) > 0 {
 			var cf map[string]string
 			if json.Unmarshal(customFields, &cf) == nil && len(cf) > 0 {
