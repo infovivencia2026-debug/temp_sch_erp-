@@ -70,8 +70,8 @@ export default function TrackerPairing() {
         description="The driver's own Android phone reports the bus's position while a run is open. There is no hardware to fit."
         actions={
           <Button
-            disabled={!vehicle || pair.isPending}
-            onClick={() => pair.mutate({ vehicle_id: vehicle })}
+            disabled={pair.isPending}
+            onClick={() => pair.mutate({ vehicle_id: vehicle || undefined })}
           >
             {pair.isPending ? 'Generating…' : 'Generate a pairing code'}
           </Button>
@@ -85,26 +85,29 @@ export default function TrackerPairing() {
 
         <Card>
           <CardHeader
-            title="Pair a phone to a bus"
-            description="Choose the bus here — the driver never types a registration number"
+            title="Register a phone"
+            description="The code registers the phone to a driver. A bus is optional — the driver scans one at the start of each run."
           />
           <div className="space-y-4 p-5">
             <FormNotice error={pair.error} />
             <FormGrid>
               <Field
-                label="Bus"
-                hint="The code binds to this vehicle. A driver entering a registration is a driver mistyping one, and the wrong bus on the map is worse than no bus."
+                label="Bus (optional)"
+                hint="Leave this as ‘No specific bus’ for a driver who drives different buses — they scan the bus code at the start of each run. Pick a bus only to tie this phone to one, as a fallback when nothing is scanned."
               >
                 <Select
                   value={vehicle}
                   onChange={setVehicle}
-                  placeholder="Choose a bus"
-                  options={rows.map((r) => ({
-                    value: r.vehicle_id,
-                    label: r.paired
-                      ? `${r.registration_no} — already paired (${r.tracker ?? 'a phone'})`
-                      : r.registration_no,
-                  }))}
+                  placeholder="No specific bus — driver scans at each run"
+                  options={[
+                    { value: '', label: 'No specific bus — driver scans at each run' },
+                    ...rows.map((r) => ({
+                      value: r.vehicle_id,
+                      label: r.paired
+                        ? `${r.registration_no} — already paired (${r.tracker ?? 'a phone'})`
+                        : r.registration_no,
+                    })),
+                  ]}
                 />
               </Field>
             </FormGrid>
@@ -190,7 +193,7 @@ export default function TrackerPairing() {
             <div className="p-5">
               <EmptyState
                 title="No phone is paired yet"
-                body="Choose a bus above and generate a code. The driver types it into the tracker app once; after that the phone reports on its own while a run is open."
+                body="Generate a code above and give it to the driver. They type it into the tracker app once; after that the phone reports on its own while a run is open."
               />
             </div>
           ) : (
@@ -349,7 +352,7 @@ function PairCodePanel({ code }: { code: PairCode }) {
   return (
     <Card>
       <CardHeader
-        title={`Pairing code for ${code.vehicle}`}
+        title={code.vehicle ? `Pairing code for ${code.vehicle}` : 'Pairing code'}
         description="Type this into the tracker app on the driver's phone"
         action={
           <Badge tone={expired ? 'danger' : left < 120 ? 'warning' : 'neutral'}>
@@ -374,9 +377,15 @@ function PairCodePanel({ code }: { code: PairCode }) {
         ) : (
           <p className="text-[13px] text-muted-foreground">
             Valid for {code.valid_minutes} minutes, until {when(code.expires_at)}. It works once, and
-            this is the only time it is shown. The app will display{' '}
-            <strong>{code.vehicle}</strong> back to the driver before it starts reporting; if it
-            shows another bus, stop and pair again.
+            this is the only time it is shown.{' '}
+            {code.vehicle ? (
+              <>
+                The app will display <strong>{code.vehicle}</strong> back to the driver before it
+                starts reporting; if it shows another bus, stop and pair again.
+              </>
+            ) : (
+              <>The driver scans the bus code at the start of each run to say which bus they are in.</>
+            )}
           </p>
         )}
       </div>

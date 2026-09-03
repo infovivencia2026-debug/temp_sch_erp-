@@ -109,7 +109,7 @@ function useTrackerWrite<TResult, TBody>(fn: (body: TBody) => Promise<TResult>, 
 }
 
 export function usePairTracker() {
-  return useTrackerWrite<PairCode, { vehicle_id: string }>(
+  return useTrackerWrite<PairCode, { vehicle_id?: string }>(
     (body) => api.post(`${BASE}/trackers/pair`, body),
     'transport-trackers',
   )
