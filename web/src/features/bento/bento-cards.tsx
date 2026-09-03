@@ -472,8 +472,12 @@ export function CardShell({
                is done by SIZE here: at 13px the figure is a supporting line, and
                the unit's own 0.7 is the only fade, which measures 4.53:1 or
                better on both themes on the real board. */
+            /* 22px, NOT 13. At 13 the zero read as a footnote and the card as
+               vacant — three short lines and 70% blank. 22 is a supporting
+               figure: below the 26-50px headline scale, clearly above the
+               sentence, and the card reads as calm rather than as empty. */
             value === '—' || quiet
-              ? 'leading-tight text-[length:var(--card-change,13px)]'
+              ? 'leading-tight text-[length:min(22px,var(--card-fig,30px))]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
           )}
         >
@@ -507,8 +511,16 @@ export function CardShell({
           widest gap this typeface offers, and it is what leaves the number the
           only bold thing on the card. */}
       {note && (
-        <p className="line-clamp-2 font-light leading-tight opacity-70
-                      text-[length:var(--card-change,11px)]">
+        /* ON A QUIET CARD THE SENTENCE CARRIES THE WEIGHT. "No register marked
+           today" is the card's actual content when there is no number worth
+           a headline, so it is set at 13px regular instead of 11px light —
+           the reading, not a caption under nothing. */
+        <p className={cn(
+          'line-clamp-2 leading-tight opacity-70',
+          quiet
+            ? 'font-normal text-[length:max(13px,var(--card-change,11px))]'
+            : 'font-light text-[length:var(--card-change,11px)]',
+        )}>
           {said}
         </p>
       )}

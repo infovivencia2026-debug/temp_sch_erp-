@@ -16,6 +16,16 @@
 [data-layout='bento'] {
   color-scheme: light;
 
+  /* HOW MUCH OF A CHOSEN CARD COLOUR REACHES THE CARD.
+
+     A picked tint is mixed over the card at this strength (see softTintBg).
+     55% is the loudest value at which black ink still clears 4.5:1 on every
+     text element against the WORST hue on the wheel at full saturation
+     (5.61:1 measured); 70% drops to 3.80. Dark redefines it below, because a
+     white ink on a dark card loses contrast to a mid-luminance hue much
+     sooner. The colour keeps real presence; the text keeps the floor. */
+  --tint-mix: 55%;
+
   --bento-bg: #f5f6f8;
   --bento-card: #ffffff;
   --bento-card-2: #eef0f4;
@@ -228,6 +238,18 @@
   opacity: 1;
 }
 
+/* TEXT ON A TINTED CARD IS FULL INK.
+
+   The card's fades (sub-label 0.6, sentence 0.7, unit 0.7, legends 0.6-0.8)
+   were each measured against the plain card. Over a tint at `--tint-mix` they
+   all fail: the 0.6 run is 4.62:1 at 28% and 4.05 at 40% on light, 3.66 and
+   2.76 on dark. The choice was a duller colour or a legible label, and the
+   colour stays. Text elements only — the art layer and the corner cue keep
+   their own opacity, which is what `:is(p, span, …)` excludes. */
+[data-layout='bento'] .bento-widget[data-tinted] [data-card] :is(p, span, b, dt, dd, li, ul) {
+  opacity: 1;
+}
+
 html.dark[data-layout='bento'] {
 
   /* On a dark ground a drop shadow does nothing — black on black. Depth there
@@ -299,6 +321,10 @@ html.dark[data-layout='bento'] {
   --dom-warning: #fb923c;     --dom-warning-soft: #5a3516;
   --dom-success: #6cc98a;       --dom-success-soft: #1d4e2d;
   color-scheme: dark;
+
+  /* 40%, not 55%: white on a tinted dark card measures 4.69:1 at 40% against
+     the worst full-saturation hue and 3.01 at 55%. The floor decides. */
+  --tint-mix: 40%;
 
   --bento-bg: #0d0f14;
   --bento-card: #1c1e26;

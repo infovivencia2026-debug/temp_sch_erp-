@@ -151,16 +151,22 @@ export function cssHsl({ h, s, l }: Hsl): string {
     panel is mostly the card, the card's OWN ink keeps its measured contrast on
     top of it: no per-tint ink calculation, no rainbow of coloured figures.
 
-    `pct` is small on purpose — 16% reads the hue's identity at a glance and is
-    far too little to shout. It is also the measured contrast floor: at 16% even
-    a fully-saturated user-picked hue keeps the card's opacity-0.6 sub-label at
-    4.92:1 on dark and 5.14:1 on light (worst case over the whole hue wheel),
-    both clear of 4.5; pushing the mix to 18% dropped dark to 4.67 and 22% to
-    4.23, under the floor. Old saved tints stored at full strength flow through
-    here too, so a board someone already coloured softens on its own without
-    touching their saved choice. */
-export function softTintBg(tint: Hsl, pct = 16): string {
-  return `color-mix(in srgb, ${cssHsl(tint)} ${pct}%, var(--bento-card))`
+    THE MIX IS A THEME TOKEN, NOT A NUMBER HERE. 16% was tried first and the
+    user's verdict was "too soft and dull" — it optimised for the contrast floor
+    and not for the colour still meaning something. The loudest mix at which the
+    card's FULL ink clears 4.5:1 on every text element, worst case over the
+    whole hue wheel at full saturation, is 55% on light (5.61:1) and 40% on dark
+    (4.69:1); 70% fails both (3.80 / 2.05). Those two values live in
+    bento-theme.css as `--tint-mix`, so one inline declaration paints the right
+    strength for whichever theme is active. Faded text (the 0.6 / 0.7 opacity
+    runs) fails above 28% at ANY mix, so a tinted card lifts every text fade to
+    full ink instead of giving up chroma — see `[data-tinted]` in the theme.
+
+    Old saved tints stored at full strength flow through here too, so a board
+    someone already coloured takes the same measured strength without touching
+    their saved choice. */
+export function softTintBg(tint: Hsl): string {
+  return `color-mix(in srgb, ${cssHsl(tint)} var(--tint-mix, 40%), var(--bento-card))`
 }
 
 /** The columns and rows a named default occupies. */
