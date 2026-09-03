@@ -575,7 +575,7 @@ var importSpecs = map[string]importSpec{
 	   same sheet twice. A class list from a school already has both columns
 	   next to each other. */
 	"class_subjects": {
-		Perm:     rbac.AcademicsWrite,
+		Perm: rbac.AcademicsWrite,
 		/* WHAT EACH CLASS STUDIES, AND WHO TEACHES IT, IN ONE SHEET.
 
 		   This needed the subjects to exist already, which meant a separate
@@ -590,11 +590,33 @@ var importSpecs = map[string]importSpec{
 		   which teacher takes a subject in a particular section rather than
 		   across the whole class. Left out, the subject teacher covers every
 		   section of the class, which is what a small school means. */
-		Columns: []string{"class", "subject", "section", "class_teacher_email",
-			"teacher_email", "max_marks", "periods_per_week"},
-		Required: []string{"class", "subject"},
-		Sample: []string{"Grade 6", "Mathematics", "A", "priya.rao@jsm.test",
-			"anand.k@jsm.test", "100", "6"},
+		/* ONE SHEET FOR ALL THREE, OR ANY ONE OF THEM.
+
+		   There were three boxes on this step: the subject list, what each
+		   class studies, and who teaches it where. They are three views of the
+		   same fact, and a school keeps them on one page -- so keeping them
+		   apart made the school do the splitting, and made the order matter,
+		   and rejected rows for subjects written on the very sheet being
+		   uploaded.
+
+		   This takes the union of all three. Which job a row does is decided
+		   by what it carries:
+
+		     subject alone            adds the subject
+		     class + subject          the class studies it
+		     + section                that section only, and its room
+		     + class_teacher_email    who takes the form class
+		     + teacher_email          who teaches the subject
+
+		   Only the subject is required, so a plain list of subject names is a
+		   valid file, and so is a full allocation grid, and so is anything
+		   between them. The separate sheets still work for a school that
+		   already has them split. */
+		Columns: []string{"subject", "class", "section", "room",
+			"class_teacher_email", "teacher_email", "max_marks", "periods_per_week"},
+		Required: []string{"subject"},
+		Sample: []string{"Mathematics", "Grade 6", "A", "6A",
+			"priya.rao@jsm.test", "anand.k@jsm.test", "100", "6"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
@@ -609,9 +631,20 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 		Write: func(c *importCtx, row map[string]string) error {
-			classID, err := c.classID(row["class"])
-			if err != nil {
-				return err
+			/* A row naming only a subject adds the subject and stops.
+
+			   That is the whole of the old subjects sheet, and it is a
+			   legitimate file on its own: a school listing what it teaches
+			   before deciding who studies it should not have to invent a
+			   class to say so. */
+			subjectOnly := strings.TrimSpace(row["class"]) == ""
+			var classID uuid.UUID
+			if !subjectOnly {
+				var cerr error
+				classID, cerr = c.classID(row["class"])
+				if cerr != nil {
+					return cerr
+				}
 			}
 			/* The code or the name, because a school writes both.
 
@@ -655,6 +688,10 @@ var importSpecs = map[string]importSpec{
 				}
 				c.noteCreated("subjects", subjectID, fresh)
 			}
+			if subjectOnly {
+				return nil
+			}
+
 			maxMarks := 100
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				maxMarks, _ = strconv.Atoi(v)
@@ -699,9 +736,46 @@ var importSpecs = map[string]importSpec{
 			   there is nothing of its own to remove. */
 			c.noteCreated("class_subjects", csID, csNew)
 
-			// The teacher column is optional, and naming one attaches them to
-			// every section of that class -- which is what "who teaches Grade 6
-			// maths" means in a school with two sections and one maths teacher.
+			/* The section, where the row names one: its room, and the
+			   teacher who takes it as a form class. This was a separate sheet,
+			   and a school filling in "who teaches 6-A maths" is thinking
+			   about 6-A's form teacher and its room at the same moment. */
+			var sectionID uuid.UUID
+			haveSection := strings.TrimSpace(row["section"]) != ""
+			if haveSection {
+				var err error
+				sectionID, err = c.sectionIDFor(row["class"], row["section"])
+				if err != nil {
+					return err
+				}
+				if room := strings.TrimSpace(row["room"]); room != "" {
+					if _, err := c.tx.Exec(c.r.Context(),
+						`UPDATE sections SET room = $2 WHERE id = $1`,
+						sectionID, room); err != nil {
+						return err
+					}
+				}
+				if ct := strings.TrimSpace(row["class_teacher_email"]); ct != "" {
+					var ctID uuid.UUID
+					if err := c.tx.QueryRow(c.r.Context(),
+						`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+						c.inst, ct).Scan(&ctID); err != nil {
+						if errors.Is(err, pgx.ErrNoRows) {
+							return fmt.Errorf("no member of staff with the email %q. Import the staff first", ct)
+						}
+						return err
+					}
+					if _, err := c.tx.Exec(c.r.Context(),
+						`UPDATE sections SET class_teacher_id = $2 WHERE id = $1`,
+						sectionID, ctID); err != nil {
+						return err
+					}
+				}
+			}
+
+			// Naming a teacher with no section attaches them to every section
+			// of that class -- which is what "who teaches Grade 6 maths" means
+			// in a school with two sections and one maths teacher.
 			email := strings.TrimSpace(row["teacher_email"])
 			if email == "" {
 				return nil
@@ -715,14 +789,28 @@ var importSpecs = map[string]importSpec{
 				}
 				return err
 			}
-			_, err = c.tx.Exec(c.r.Context(), `
+			/* One section where the row named one, every section where it did
+			   not. A school with two sections and one maths teacher writes the
+			   class; a school splitting 6-A and 6-B between two teachers
+			   writes the section, and both mean what they wrote. */
+			if haveSection {
+				_, aerr := c.tx.Exec(c.r.Context(), `
+					INSERT INTO section_subject_teachers (institution_id, section_id,
+					                                      class_subject_id, teacher_user_id)
+					VALUES ($1,$2,$3,$4)
+					ON CONFLICT (section_id, class_subject_id)
+					DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+					c.inst, sectionID, csID, teacher)
+				return aerr
+			}
+			_, aerr := c.tx.Exec(c.r.Context(), `
 				INSERT INTO section_subject_teachers (institution_id, section_id,
 				                                      class_subject_id, teacher_user_id)
 				SELECT $1, sec.id, $2, $3 FROM sections sec WHERE sec.class_id = $4
 				ON CONFLICT (section_id, class_subject_id)
 				DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
 				c.inst, csID, teacher, classID)
-			return err
+			return aerr
 		},
 	},
 	/* Who runs which room, and who teaches what in it.
