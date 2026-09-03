@@ -1050,9 +1050,9 @@ type trackerEnrolResponse struct {
 	Vehicle      string `json:"vehicle"`
 	Name         string `json:"name"`
 	PingSeconds  int    `json:"ping_seconds"`
-	// Approved is false until the principal lets it in. The app shows
-	// "waiting for the school to approve this phone" rather than a map with
-	// nothing on it, which is what it would otherwise look like.
+	// Approved is always true now: the PIN proved the person and HR chose
+	// the bus, the same as the driver sign-in. Kept in the shape because a
+	// shipped handset reads it and shows a waiting screen when it is false.
 	Approved bool `json:"approved"`
 }
 
