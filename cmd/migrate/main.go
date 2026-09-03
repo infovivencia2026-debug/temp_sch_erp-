@@ -5,6 +5,7 @@
 //	migrate status        show what is applied
 //	migrate seed          upsert permissions and system roles
 //	migrate create-admin  create the first institution admin
+//	migrate create-platform-admin  create a vendor (platform) login
 //
 // Migrations run as the owner role (POSTGRES_USER), not app_user: app_user is
 // deliberately stripped of CREATE on the public schema so a compromised web
@@ -51,6 +52,7 @@ func run() error {
 		password = flag.String("password", "", "create-admin: password")
 		name     = flag.String("name", "Administrator", "create-admin: full name")
 		csvOut   = flag.String("csv", "", "set-passwords: write the credentials to this file instead of stdout")
+		roleKey  = flag.String("role", "seller_admin", "create-platform-admin: which platform role to grant (seller_admin or super_admin)")
 		instName = flag.String("institution", "", "institution name or uuid. create-admin creates it if absent; demo-data and demo-users target it, defaulting to the oldest school when empty")
 	)
 	// The stdlib flag package stops parsing at the first non-flag argument, so
@@ -168,6 +170,19 @@ func run() error {
 		}
 		defer db.Close()
 		return createSeller(ctx, db, cfg.PasswordPepper, *email, *password, *name)
+	case "create-platform-admin":
+		/* The vendor's own login. Not a school's: platform staff are users with
+		   no institution at all, which create-admin cannot produce. */
+		if *email == "" || *password == "" {
+			return fmt.Errorf("create-platform-admin requires -email and -password")
+		}
+		db, err := database.Connect(ctx, dsn, 4)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		return createPlatformAdmin(ctx, db, cfg.PasswordPepper, *email, *password, *name, *roleKey)
+
 	case "create-admin":
 		if *email == "" || *password == "" {
 			return fmt.Errorf("create-admin requires -email and -password")
@@ -523,6 +538,78 @@ func createSeller(ctx context.Context, db *database.DB, pepper, email, password,
 		}
 
 		slog.Info("seller ready", "email", email, "username", username, "user_id", userID)
+		return nil
+	})
+}
+
+/* THE VENDOR'S OWN ACCOUNT, which nothing else could create.
+
+   `create-admin` makes a SCHOOL's first administrator: a user inside an
+   institution, holding every operational role in it. Platform staff are the
+   other thing entirely — a user with no institution at all, which is what
+   makes them platform staff (see internal/auth/session.go) — and there was no
+   way to make one. So a deployment could reach the point of having schools,
+   plans and a recharge queue with nobody able to open any of it, which is
+   exactly where this one was: zero holders of seller_admin or super_admin, and
+   EDU CLOUD's own email unreachable through the UI.
+
+   institution_id NULL on the user AND on the role grant. The grant matters as
+   much as the user: a user_roles row carrying the wrong institution is
+   invisible to RLS, so the account signs in, is platform staff, and holds no
+   permissions — which reads as a broken login rather than a missing grant.
+
+   The role is named rather than assumed. seller_admin runs the vendor's
+   business: tenants, plans, subscriptions, the recharge queue and the vendor's
+   own message channels. super_admin is wider and is not what most of this
+   needs, so it is asked for explicitly.
+*/
+func createPlatformAdmin(ctx context.Context, db *database.DB, pepper, email, password, name, roleKey string) error {
+	hasher := auth.NewHasher(pepper)
+	hash, err := hasher.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+	if roleKey == "" {
+		roleKey = "seller_admin"
+	}
+
+	return db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		var userID uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO users (institution_id, email, full_name, password_hash, status)
+			VALUES (NULL, $1, $2, $3, 'active')
+			ON CONFLICT (email) WHERE institution_id IS NULL
+			DO UPDATE SET password_hash = EXCLUDED.password_hash,
+			              full_name     = EXCLUDED.full_name,
+			              status        = 'active'
+			RETURNING id`, email, name, hash).Scan(&userID); err != nil {
+			return fmt.Errorf("create platform user: %w", err)
+		}
+
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO user_roles (institution_id, user_id, role_id)
+			SELECT NULL, $1, r.id FROM roles r
+			 WHERE r.institution_id IS NULL AND r.key = $2
+			ON CONFLICT (user_id, role_id) WHERE campus_id IS NULL DO NOTHING`,
+			userID, roleKey)
+		if err != nil {
+			return fmt.Errorf("grant %s: %w", roleKey, err)
+		}
+		/* A grant that matched no role is the failure worth shouting about: the
+		   account exists, signs in, and can do nothing, which looks like a bug
+		   in the product rather than a typo in a role name. */
+		var granted bool
+		if err := tx.QueryRow(ctx, `
+			SELECT count(*) > 0 FROM user_roles ur
+			  JOIN roles r ON r.id = ur.role_id
+			 WHERE ur.user_id = $1 AND r.key = $2`, userID, roleKey).Scan(&granted); err != nil {
+			return err
+		}
+		if !granted {
+			return fmt.Errorf("role %q does not exist; nothing was granted", roleKey)
+		}
+		slog.Info("platform admin ready", "email", email, "role", roleKey,
+			"new_grant", tag.RowsAffected() > 0)
 		return nil
 	})
 }
