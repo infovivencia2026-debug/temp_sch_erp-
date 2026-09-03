@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import { useAppearanceRequest } from '@/lib/appearance-request'
+import { usePhone } from '@/lib/viewport'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
 import { cn } from '@/lib/utils'
@@ -31,12 +33,33 @@ import { INK, EDGE, WASH } from './ColourDialog'
    What is left here is the trigger and the mount. The placement prop survives
    because the cog itself still looks different in a dock, a rail, a menu bar
    and a sidebar; it no longer has to position a floating panel, which is where
-   most of this file used to go. */
+   most of this file used to go.
+
+   AND ON A PHONE IT IS A LINK, NOT A TRIGGER.
+
+   The paragraph above is the argument for a window rather than a route, and it
+   is still right where it is true: on a desktop the dialog floats over the
+   live page, and the palette you are choosing repaints the thing behind it
+   while you choose. On a 390px phone none of that holds. The dialog's own
+   panel is `h-full ... rounded-none` there -- a full sheet covering every
+   pixel of the page it was supposed to float over -- so there is nothing
+   behind it to judge a palette against, and it was a full-screen settings
+   surface that merely had no URL.
+
+   What the missing URL cost: a history entry pushed by hand so the back
+   gesture would not close the tab, a dock item that could not be drawn as the
+   current tab because nothing in the location said it was current, and a
+   fourth tab in a four-tab bar that left the screen by a mechanism the other
+   three do not use. So below 768px this navigates to /settings and the dialog
+   is not mounted at all; at and above it, everything is exactly as it was. */
 
 export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
 export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
   const t = useT()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const phone = usePhone()
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
@@ -52,17 +75,37 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
     // stacked behind chrome nobody can see. The dock is the instance the Focus
     // layout always has.
     if (placement !== 'dock' || wanted.seq === 0) return
+    /* A request names a page, and on a phone a page is an address. Pushed
+       rather than replaced: this one IS a step -- somebody asked to go
+       somewhere from the board they were looking at, and back should return
+       them to that board. */
+    if (phone) {
+      navigate(`/settings/${wanted.page}`)
+      return
+    }
     setAppearanceTab(wanted.page)
     setShowAppearance(true)
-  }, [wanted.seq, wanted.page, placement])
+  }, [wanted.seq, wanted.page, placement, phone, navigate])
+
+  /* The dock draws this as the current tab the same way it draws Home and
+     Work: by asking the location, which is the thing a route made possible.
+     Both section pages count, so drilling into Colour does not un-highlight
+     the tab you are standing in. */
+  const here = location.pathname === '/settings' ||
+    location.pathname.startsWith('/settings/')
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => { setAppearanceTab('appearance'); setShowAppearance(true) }}
-        aria-haspopup="dialog"
-        aria-expanded={showAppearance}
+        onClick={() => {
+          if (phone) { navigate('/settings'); return }
+          setAppearanceTab('appearance')
+          setShowAppearance(true)
+        }}
+        aria-haspopup={phone ? undefined : 'dialog'}
+        aria-expanded={phone ? undefined : showAppearance}
+        aria-current={phone && here ? 'page' : undefined}
         data-tip={placement === 'dock' ? t('bento.settings.label') : undefined}
         aria-label={t('bento.settings.label')}
         title={t('bento.settings.label')}
@@ -78,6 +121,19 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         className={cn(
           'transition-colors focus-visible:outline-none focus-visible:ring-2',
           'focus-visible:ring-[var(--ink-here,var(--bento-ink))]',
+          /* THE CURRENT TAB IS FILLED, like the other destinations in the
+             bar. Mixed from `--ink-here` -- the dock's own ink -- rather than
+             from the card's, because the dock may have a face of its own and
+             a wash mixed from the wrong ground is the invisible-fill bug this
+             bar has already been fixed for twice. A 16% tint of an ink that
+             measures 21:1 on its ground leaves the glyph well above 4.5:1. */
+          /* `--ink-here` alone, with no `var(..., fallback)` inside it. The
+             nested form -- var(--ink-here,var(--bento-ink)) -- parses as a
+             Tailwind arbitrary value and compiles, but the inner comma ends
+             the color-mix argument early and the declaration is dropped: the
+             fill measured rgba(0, 0, 0, 0) on the live bar, which is to say
+             the current tab was not marked at all. Guarded on the dock, which
+             is the one placement that declares the token. */
           placement === 'dock'
             ? `grid size-10 place-items-center rounded-full border
                bg-[color-mix(in_srgb,var(--bento-card)_80%,transparent)]
@@ -95,11 +151,16 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
 
+      {/* Not mounted on a phone at all. The route renders the same sections
+          from the same components, and a dialog that can never open is a
+          dialog whose history machinery could still fire. */}
+      {!phone && (
       <AppearanceDialog
         open={showAppearance}
         onClose={() => setShowAppearance(false)}
         initialTab={appearanceTab}
       />
+      )}
     </div>
   )
 }

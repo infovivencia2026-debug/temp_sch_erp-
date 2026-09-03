@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider, useSession } from '@/lib/session'
 import ApplyForm from '@/features/public/ApplyForm'
 import AccountPage from '@/features/shared/Profile'
+import SettingsPage from '@/features/bento/SettingsPage'
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -349,6 +350,23 @@ export function AppRoutes({ location }: { location?: string }) {
           eight roles out of nine could not reach the screen that
           already existed to change their own password. */}
       <Route path="/account" element={<AccountPage />} />
+      {/* Settings, as a destination rather than an overlay.
+
+          The dock's four items read as a tab bar and three of them were
+          destinations; Settings was a modal wearing a tab's clothes, which is
+          why it had to push a history entry of its own to survive the phone's
+          back gesture and why the dock could never draw it as current. See
+          features/bento/SettingsPage.tsx for the whole argument, including why
+          the desktop keeps the floating dialog.
+
+          /settings, checked against the catalogue rather than assumed: none of
+          the thirteen role keys is "settings", so this takes no workspace
+          away, and a static segment outranks `/:roleKey` in React Router's
+          matcher whatever order they are declared in. Declared beside /account
+          because it is the same kind of route -- outside the catalogue,
+          reachable by every signed-in person whatever their role. */}
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings/:section" element={<SettingsPage />} />
       <Route path="/" element={<Home />} />
       {/* Role-agnostic links, for anything that is written down
           before anybody knows who will read it — a notification,

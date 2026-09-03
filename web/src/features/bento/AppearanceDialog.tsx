@@ -413,6 +413,20 @@ type LinkGroup = {
 
 type LinkTab = 'school' | 'messaging' | 'account' | 'security'
 
+/* THE NAME OF A PAGE, SAID ONCE FOR BOTH SURFACES.
+
+   This union used to be declared inside AppearanceDialog, which was fine while
+   the dialog was the only thing that drew these pages. It is not any more: on
+   a phone the same eight pages are a route, and a page name that two files
+   each spell for themselves is a page name the two will eventually spell
+   differently. So it lives at module scope and both surfaces import it.
+
+   The four display pages are a fixed union because this file implements them.
+   The link pages are not: they exist only when the signed-in user has
+   something usable behind them, which is why the nav and the list are built
+   from a list rather than written out. */
+export type SettingsTab = 'appearance' | 'colour' | 'dock' | 'dashboard' | LinkTab
+
 /* Grouped by what somebody came here to change, not by which workspace the
    catalogue happens to file the screen under. Sender identity lives under
    institution_admin and login audit under super_admin, and nobody deciding
@@ -782,7 +796,7 @@ const DISPLAY_META = {
   },
 } as const
 
-type ListItem = { id: string; label: string; icon: typeof Building2; note: string }
+export type ListItem = { id: string; label: string; icon: typeof Building2; note: string }
 
 /* THE LIST, AND WHY IT LOOKS LIKE NOTHING.
 
@@ -805,7 +819,7 @@ type ListItem = { id: string; label: string; icon: typeof Building2; note: strin
    name badly enough that the pair stops reading as one thing. `text-left` is
    explicit because a <button> centres its text and every one of these is a
    sentence. */
-function SectionList({ items, onOpen }: { items: ListItem[]; onOpen: (id: string) => void }) {
+export function SettingsSectionList({ items, onOpen }: { items: ListItem[]; onOpen: (id: string) => void }) {
   return (
     <div
       data-settings-list=""
@@ -847,6 +861,333 @@ function SectionList({ items, onOpen }: { items: ListItem[]; onOpen: (id: string
   )
 }
 
+/* THE LIST OF PAGES, OWNED BY NEITHER SURFACE.
+
+   It is the same list twice over already -- the phone's rows and the wide
+   strip's tabs are both built from it, precisely so the two cannot come to
+   disagree about which sections exist or what they are called. Now that the
+   phone's settings are a route rather than an overlay there is a third reader,
+   and the rule has to hold across files as well as within one: a second
+   hand-written copy of these eight rows is how "Colour" and "Colour settings"
+   became two names for one page the last time.
+
+   The catalogue decides which of the link sections exist. A group with nothing
+   reachable behind it contributes no row and no tab, on the page exactly as in
+   the dialog, because that gate lives in useSettingsLinks and both surfaces
+   ask it the same question.
+
+   In the order the sections are asked for: what this window looks like first,
+   then what it is for. */
+export function useSettingsItems(): ListItem[] {
+  const t = useT()
+  const sections = useSettingsLinks()
+  return useMemo<ListItem[]>(() => [
+    { id: 'appearance', label: t('bento.appearance.title'), ...DISPLAY_META.appearance },
+    /* 'Colour' and not `bento.colour.title`, which is "Colour settings" --
+       inside a window called Settings, under a heading called Settings, the
+       second word is the one thing on the row that says nothing. */
+    { id: 'colour', label: 'Colour', ...DISPLAY_META.colour },
+    { id: 'dock', label: 'Dock', ...DISPLAY_META.dock },
+    { id: 'dashboard', label: 'Dashboard', ...DISPLAY_META.dashboard },
+    ...sections.map(({ group }) => ({
+      id: group.id, label: group.label, icon: group.icon, note: group.note,
+    })),
+  ], [t, sections])
+}
+
+/* THE WIDE-VIEWPORT NAV, LIFTED OUT SO THE ROUTE CAN DRAW IT TOO.
+
+   Unchanged in every respect that shows: same tabs, same list behind them,
+   same 44px touch floor, same `shrink-0` so a tab keeps its label rather than
+   compressing to an ellipsis. It is a component rather than a block of JSX
+   inside the dialog only because there are two surfaces now, and the strip
+   above a settings PAGE has to be the same strip as the one above the settings
+   dialog or the product has two settings navigations that drift.
+
+   Still `md:flex`, so it is invisible below 768px. Below that width the list
+   replaces it rather than sitting beside it, because two navigations for one
+   set of pages is how the popover era went wrong. */
+export function SettingsNav({
+  items, tab, onPick,
+}: {
+  items: ListItem[]
+  tab: SettingsTab | null
+  onPick: (id: SettingsTab) => void
+}) {
+  return (
+          <nav
+            /* Wide viewports only. Below 768px this is the control that was
+               the whole defect -- see useNarrow above -- and the list replaces
+               it rather than sitting beside it, because two navigations for
+               one set of pages is how the popover era went wrong. */
+            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3 md:flex', SEAM)}
+            aria-label="Settings sections"
+          >
+            {/* Driven by the same list the phone's rows are, so the two
+                navigations cannot come to disagree about which sections exist
+                or what they are called -- they were two hand-written lists,
+                which is how the strip's "Colour" and the panel's "Colour
+                settings" ended up being the same page under two names. */}
+            {items.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onPick(id as SettingsTab)}
+                aria-current={tab === id}
+                className={cn(
+                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
+                  tab === id
+                    ? 'border-primary font-medium text-foreground'
+                    : cn('border-transparent', INK, WASH),
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+  )
+}
+
+/* THE PAGES THEMSELVES, WHICH ARE NOW RENDERED IN TWO PLACES.
+
+   WHAT WAS WRONG BEFORE. Settings was a dialog and only a dialog. On a phone
+   that dialog was a full-bleed fixed overlay with role="dialog" sitting at
+   z-70 over whatever screen you happened to be on, opened from a dock item
+   that reads, to anybody looking at it, as the fourth tab of a tab bar. Three
+   of those four items are destinations and the fourth was a modal wearing a
+   tab's clothes. Every consequence of that pretence had to be paid for by
+   hand: it needed its own pushState so the back gesture would not leave the
+   app, the dock could not draw it as the current tab because there was no
+   location saying it was current, and it left the screen by a mechanism
+   nothing else on the phone uses. A route gets all three from the router.
+
+   WHY THIS IS A COMPONENT AND NOT A SECOND COPY. Eight settings sections
+   copied into a page component is eight sections that drift: one of them
+   grows an axis, the other does not, and the difference is invisible until
+   somebody changes their font on a phone and cannot find the control they
+   used yesterday on a laptop. So the pages live here once, and the dialog and
+   the page are two frames around the same content. The dialog keeps its
+   header, its backdrop and its close button; the page keeps the shell's. What
+   is inside is the same component with the same props.
+
+   `onClose` is what the surface does when a page says it is finished --
+   Arrange, on the dashboard page, wants the settings surface out of the way
+   so somebody can see the board they are arranging. In the dialog that closes
+   the window. On the route it navigates back to where the person came from,
+   which is the same intent expressed in the idiom of a destination.
+
+   The refs are optional because only the dialog has anything to scroll: it
+   opens on a requested page and scrolls that page's heading to the top. The
+   route opens ON the page, so there is nothing to scroll to. */
+export function SettingsPane({
+  tab, onClose, onPickingChange, dockRef, dashRef,
+}: {
+  tab: SettingsTab | null
+  onClose: () => void
+  onPickingChange?: (v: boolean) => void
+  dockRef?: React.Ref<HTMLElement>
+  dashRef?: React.Ref<HTMLElement>
+}) {
+  const { appearance, set } = useAppearance()
+  const { skin, setSkin } = useSkin()
+  const { layout: frame, setLayout: setFrame } = useFrameLayout()
+  const sections = useSettingsLinks()
+  const t = useT()
+  return (
+    <>
+          {tab === 'appearance' && (<div>
+          {/* LAYOUT FIRST, ABOVE THE TYPEFACE CARDS.
+
+              It sat at the foot of the axis stack, below fifteen typeface
+              specimens and five scales -- past the fold on most windows, for
+              the one control here that changes the shape of the whole screen
+              rather than its finish. Everything else on this page is a matter
+              of degree; this is the frame they are all applied to, so it is
+              asked first and the rest follows. */}
+          <div className={cn('mb-6 border-b pb-2', SEAM)}>
+            <Choice<Layout>
+              label={t('bento.settings.layout')}
+              value={frame}
+              options={LAYOUTS}
+              onPick={setFrame}
+              name={(v) => t(`bento.settings.layout.${v}`)}
+            />
+          </div>
+
+          <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
+            <Type className="size-4" aria-hidden="true" />
+            {t('bento.settings.typeface')}
+          </h3>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {TYPEFACES.map((face) => {
+              const on = appearance.typeface === face.id
+              return (
+                <button
+                  key={face.id}
+                  type="button"
+                  onClick={() => set('typeface', face.id)}
+                  aria-pressed={on}
+                  /* CHOSEN IS AN OUTLINE HERE, NOT A FILL.
+
+                     The card's whole job is to show a face set in itself, so
+                     it cannot be inverted the way the other chosen states in
+                     these dialogs are — the specimen has to stay on the paper
+                     it will be read on. So the ink does the marking from the
+                     edge instead.
+
+                     It was `border-primary ring-primary`, which the stylesheet
+                     resolves to the mint accent: 1.29:1 against the card, so
+                     the one card in fifteen that is selected was marked with a
+                     boundary you cannot see. The ink is 21:1 in every palette,
+                     and the check beside the name says the same thing a second
+                     way for anybody who cannot use the outline. */
+                  className={cn(
+                    'rounded-[12px] border p-4 text-left transition-colors',
+                    RING, INK,
+                    on
+                      ? '!border-[var(--bento-ink)] ring-1 ring-[var(--bento-ink)]'
+                      : cn(EDGE, WASH),
+                  )}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium">{face.name}</span>
+                    {on && <Check className="size-4 shrink-0" aria-hidden="true" />}
+                  </span>
+                  {/* The specimen, set in the face it is offering. font-feature
+                      settings are left alone: a face's default figures are the
+                      ones somebody will actually get. */}
+                  <span
+                    className="mt-1 block text-[19px] leading-snug"
+                    style={{ fontFamily: face.stack }}
+                  >
+                    {SPECIMEN}
+                  </span>
+                  <span className={cn('mt-1.5 block text-[12px]', INK)}>
+                    {face.note}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <p className={cn('mt-5 text-[12px]', INK)}>
+            {t('bento.appearance.font_note', {
+              name: typefaceById(appearance.typeface).name,
+            })}
+          </p>
+
+          <div className={cn('mt-7 divide-y border-t pt-1', SEAM, 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
+            <Scale axis="text" label={t('bento.settings.text')} />
+            <Scale axis="density" label={t('bento.settings.density')} />
+            <Scale axis="corners" label={t('bento.settings.corners')} />
+            <Scale axis="borders" label={t('bento.settings.borders')} />
+            <Scale axis="shadow" label={t('bento.settings.shadow')} />
+            <Axis<Contrast>
+              label={t('bento.settings.contrast')}
+              value={appearance.contrast}
+              options={CONTRASTS}
+              onPick={(v) => set('contrast', v)}
+              name={(v) => t(`bento.settings.contrast.${v}`)}
+            />
+            {/* The frame, which used to be a pane of its own behind the
+                settings menu.
+
+                It was the only thing left in that pane once the theme rows
+                went, so the menu carried a row called Appearance that led to a
+                single choice — and a second row, also called Appearance, that
+                led here. Two identical labels going to different places is not
+                a hierarchy, it is a coin toss. Whether the screen is framed or
+                bare is an answer to the same question the axes above answer,
+                so it is asked in the same place. */}
+            {/* Frame is two states as well -- premium or focus -- so it takes
+                the toggle for the same reason layout did. Contrast above it
+                stays an axis: normal, medium, high is a scale, and "a bit
+                more" is exactly what somebody adjusting it means. */}
+            <Choice<Skin>
+              label={t('bento.settings.frame')}
+              value={skin}
+              options={SKINS}
+              onPick={setSkin}
+              name={(v) => t(`bento.settings.skin.${v}`)}
+            />
+          </div>
+
+          <AppearanceActions onClose={onClose} />
+
+          {/* Colour, in the same dialog rather than behind a second door.
+
+              Typeface, density and colour are three answers to one question —
+              how should this look — and splitting them across two windows made
+              somebody close one to reach the other. */}
+          </div>)}
+          {tab === 'colour' && (
+          <section>
+            <h3 className="mb-3 hidden md:flex items-center gap-2 text-[13px] font-semibold">
+              <Palette className="size-4" aria-hidden="true" />
+              {t('bento.colour.title')}
+            </h3>
+            <ColourPanel onPickingChange={onPickingChange} />
+          </section>
+          )}
+          {tab === 'dock' && (
+          <section ref={dockRef}>
+            <h3 className="mb-4 hidden items-center gap-2 text-[13px] font-semibold md:flex">
+              <LayoutGrid className="size-4" aria-hidden="true" />
+              Dock
+            </h3>
+            <div className={cn(
+              'divide-y border-t', SEAM,
+              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+            )}>
+              <Axis<DockSize>
+                label="Bar size"
+                value={appearance.dockSize}
+                options={DOCK_SIZES}
+                onPick={(v) => set('dockSize', v)}
+                name={(v) => ({ compact: 'Compact', default: 'Default', large: 'Large' }[v])}
+              />
+              <Axis<IconSize>
+                label="Icon size"
+                value={appearance.iconSize}
+                options={ICON_SIZES}
+                onPick={(v) => set('iconSize', v)}
+                name={(v) => ({ small: 'Small', default: 'Default', large: 'Large' }[v])}
+              />
+            </div>
+            <DockItemsToggle />
+          </section>
+          )}
+          {tab === 'dashboard' && (
+          <section ref={dashRef}>
+            <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
+              <Sliders className="size-4" aria-hidden="true" />
+              Dashboard Widgets
+            </h3>
+            <p className={cn('mb-4 text-[12px]', INK)}>
+              Add, remove, resize and reorder the cards on this dashboard.
+            </p>
+            <DashboardWidgets onArrange={onClose} />
+          </section>
+          )}
+
+          {/* The catalogue-driven pages.
+
+              One section per tab rather than all of them on one scroller: the
+              reason the display settings were split into pages in the first
+              place applies here too, and School is one row while Security is
+              four. Nothing renders for a group the user has no grant in, and
+              its tab was never drawn either, so there is no state in which
+              this pane is empty. */}
+          {sections.map(({ group, links }) => tab === group.id && (
+            <div key={group.id}>
+              <LinkSection group={group} links={links} />
+            </div>
+          ))}
+    </>
+  )
+}
+
 export function AppearanceDialog({
   open,
   onClose,
@@ -856,9 +1197,6 @@ export function AppearanceDialog({
   onClose: () => void
   initialTab?: 'appearance' | 'dock' | 'dashboard'
 }) {
-  const { appearance, set } = useAppearance()
-  const { skin, setSkin } = useSkin()
-  const { layout: frame, setLayout: setFrame } = useFrameLayout()
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()
@@ -880,7 +1218,7 @@ export function AppearanceDialog({
      usable behind them, so the type is the union of both and the nav is built
      from a list rather than written out. On a school still in setup the nav is
      five tabs; on a fully granted institution admin it is eight. */
-  type Tab = 'appearance' | 'colour' | 'dock' | 'dashboard' | LinkTab
+  type Tab = SettingsTab
   const sections = useSettingsLinks()
   const narrow = useNarrow()
 
@@ -954,22 +1292,7 @@ export function AppearanceDialog({
     return () => window.removeEventListener('popstate', onPop)
   }, [open, narrow])
 
-  /* The list, in the order the sections are asked for: what this window looks
-     like first, then what it is for. The catalogue decides which of the second
-     four exist, and a section with nothing reachable behind it contributes no
-     row at all -- the same rule the tab strip has always obeyed. */
-  const listItems = useMemo<ListItem[]>(() => [
-    { id: 'appearance', label: t('bento.appearance.title'), ...DISPLAY_META.appearance },
-    /* 'Colour' and not `bento.colour.title`, which is "Colour settings" --
-       inside a window called Settings, under a heading called Settings, the
-       second word is the one thing on the row that says nothing. */
-    { id: 'colour', label: 'Colour', ...DISPLAY_META.colour },
-    { id: 'dock', label: 'Dock', ...DISPLAY_META.dock },
-    { id: 'dashboard', label: 'Dashboard', ...DISPLAY_META.dashboard },
-    ...sections.map(({ group }) => ({
-      id: group.id, label: group.label, icon: group.icon, note: group.note,
-    })),
-  ], [t, sections])
+  const listItems = useSettingsItems()
 
   const current = listItems.find((i) => i.id === tab)
 
@@ -1197,232 +1520,21 @@ export function AppearanceDialog({
               Each tab is 44px tall, which is the touch floor, and `shrink-0`
               so they keep their labels rather than compressing into ellipses
               when the row is wider than the panel. */}
-          <nav
-            /* Wide viewports only. Below 768px this is the control that was
-               the whole defect -- see useNarrow above -- and the list replaces
-               it rather than sitting beside it, because two navigations for
-               one set of pages is how the popover era went wrong. */
-            className={cn('scroll-x hidden shrink-0 gap-1 overflow-x-auto border-b px-7 pt-3 md:flex', SEAM)}
-            aria-label="Settings sections"
-          >
-            {/* Driven by the same list the phone's rows are, so the two
-                navigations cannot come to disagree about which sections exist
-                or what they are called -- they were two hand-written lists,
-                which is how the strip's "Colour" and the panel's "Colour
-                settings" ended up being the same page under two names. */}
-            {listItems.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id as Tab)}
-                aria-current={tab === id}
-                className={cn(
-                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-t-[8px] border-b-2 px-3 py-2 text-[13px] transition-colors',
-                  tab === id
-                    ? 'border-primary font-medium text-foreground'
-                    : cn('border-transparent', INK, WASH),
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+          <SettingsNav items={listItems} tab={tab} onPick={(id) => setTab(id)} />
 
         {/* `.scroll-y` draws the bar rather than waiting for the platform to
             fade one in. A dialog with four pages behind its tabs — one of them
             fifteen typeface cards — has to say on its first paint that there is
             more below the fold. See index.css. */}
         <div className="scroll-y min-h-0 flex-1 px-5 py-5 sm:px-7 sm:py-6">
-          {tab === null && <SectionList items={listItems} onOpen={openSection} />}
-          {tab === 'appearance' && (<div>
-          {/* LAYOUT FIRST, ABOVE THE TYPEFACE CARDS.
-
-              It sat at the foot of the axis stack, below fifteen typeface
-              specimens and five scales -- past the fold on most windows, for
-              the one control here that changes the shape of the whole screen
-              rather than its finish. Everything else on this page is a matter
-              of degree; this is the frame they are all applied to, so it is
-              asked first and the rest follows. */}
-          <div className={cn('mb-6 border-b pb-2', SEAM)}>
-            <Choice<Layout>
-              label={t('bento.settings.layout')}
-              value={frame}
-              options={LAYOUTS}
-              onPick={setFrame}
-              name={(v) => t(`bento.settings.layout.${v}`)}
-            />
-          </div>
-
-          <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-            <Type className="size-4" aria-hidden="true" />
-            {t('bento.settings.typeface')}
-          </h3>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {TYPEFACES.map((face) => {
-              const on = appearance.typeface === face.id
-              return (
-                <button
-                  key={face.id}
-                  type="button"
-                  onClick={() => set('typeface', face.id)}
-                  aria-pressed={on}
-                  /* CHOSEN IS AN OUTLINE HERE, NOT A FILL.
-
-                     The card's whole job is to show a face set in itself, so
-                     it cannot be inverted the way the other chosen states in
-                     these dialogs are — the specimen has to stay on the paper
-                     it will be read on. So the ink does the marking from the
-                     edge instead.
-
-                     It was `border-primary ring-primary`, which the stylesheet
-                     resolves to the mint accent: 1.29:1 against the card, so
-                     the one card in fifteen that is selected was marked with a
-                     boundary you cannot see. The ink is 21:1 in every palette,
-                     and the check beside the name says the same thing a second
-                     way for anybody who cannot use the outline. */
-                  className={cn(
-                    'rounded-[12px] border p-4 text-left transition-colors',
-                    RING, INK,
-                    on
-                      ? '!border-[var(--bento-ink)] ring-1 ring-[var(--bento-ink)]'
-                      : cn(EDGE, WASH),
-                  )}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-medium">{face.name}</span>
-                    {on && <Check className="size-4 shrink-0" aria-hidden="true" />}
-                  </span>
-                  {/* The specimen, set in the face it is offering. font-feature
-                      settings are left alone: a face's default figures are the
-                      ones somebody will actually get. */}
-                  <span
-                    className="mt-1 block text-[19px] leading-snug"
-                    style={{ fontFamily: face.stack }}
-                  >
-                    {SPECIMEN}
-                  </span>
-                  <span className={cn('mt-1.5 block text-[12px]', INK)}>
-                    {face.note}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <p className={cn('mt-5 text-[12px]', INK)}>
-            {t('bento.appearance.font_note', {
-              name: typefaceById(appearance.typeface).name,
-            })}
-          </p>
-
-          <div className={cn('mt-7 divide-y border-t pt-1', SEAM, 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
-            <Scale axis="text" label={t('bento.settings.text')} />
-            <Scale axis="density" label={t('bento.settings.density')} />
-            <Scale axis="corners" label={t('bento.settings.corners')} />
-            <Scale axis="borders" label={t('bento.settings.borders')} />
-            <Scale axis="shadow" label={t('bento.settings.shadow')} />
-            <Axis<Contrast>
-              label={t('bento.settings.contrast')}
-              value={appearance.contrast}
-              options={CONTRASTS}
-              onPick={(v) => set('contrast', v)}
-              name={(v) => t(`bento.settings.contrast.${v}`)}
-            />
-            {/* The frame, which used to be a pane of its own behind the
-                settings menu.
-
-                It was the only thing left in that pane once the theme rows
-                went, so the menu carried a row called Appearance that led to a
-                single choice — and a second row, also called Appearance, that
-                led here. Two identical labels going to different places is not
-                a hierarchy, it is a coin toss. Whether the screen is framed or
-                bare is an answer to the same question the axes above answer,
-                so it is asked in the same place. */}
-            {/* Frame is two states as well -- premium or focus -- so it takes
-                the toggle for the same reason layout did. Contrast above it
-                stays an axis: normal, medium, high is a scale, and "a bit
-                more" is exactly what somebody adjusting it means. */}
-            <Choice<Skin>
-              label={t('bento.settings.frame')}
-              value={skin}
-              options={SKINS}
-              onPick={setSkin}
-              name={(v) => t(`bento.settings.skin.${v}`)}
-            />
-          </div>
-
-          <AppearanceActions onClose={onClose} />
-
-          {/* Colour, in the same dialog rather than behind a second door.
-
-              Typeface, density and colour are three answers to one question —
-              how should this look — and splitting them across two windows made
-              somebody close one to reach the other. */}
-          </div>)}
-          {tab === 'colour' && (
-          <section>
-            <h3 className="mb-3 hidden md:flex items-center gap-2 text-[13px] font-semibold">
-              <Palette className="size-4" aria-hidden="true" />
-              {t('bento.colour.title')}
-            </h3>
-            <ColourPanel onPickingChange={onPickingChange} />
-          </section>
-          )}
-          {tab === 'dock' && (
-          <section ref={dockRef}>
-            <h3 className="mb-4 hidden items-center gap-2 text-[13px] font-semibold md:flex">
-              <LayoutGrid className="size-4" aria-hidden="true" />
-              Dock
-            </h3>
-            <div className={cn(
-              'divide-y border-t', SEAM,
-              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
-            )}>
-              <Axis<DockSize>
-                label="Bar size"
-                value={appearance.dockSize}
-                options={DOCK_SIZES}
-                onPick={(v) => set('dockSize', v)}
-                name={(v) => ({ compact: 'Compact', default: 'Default', large: 'Large' }[v])}
-              />
-              <Axis<IconSize>
-                label="Icon size"
-                value={appearance.iconSize}
-                options={ICON_SIZES}
-                onPick={(v) => set('iconSize', v)}
-                name={(v) => ({ small: 'Small', default: 'Default', large: 'Large' }[v])}
-              />
-            </div>
-            <DockItemsToggle />
-          </section>
-          )}
-          {tab === 'dashboard' && (
-          <section ref={dashRef}>
-            <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
-              <Sliders className="size-4" aria-hidden="true" />
-              Dashboard Widgets
-            </h3>
-            <p className={cn('mb-4 text-[12px]', INK)}>
-              Add, remove, resize and reorder the cards on this dashboard.
-            </p>
-            <DashboardWidgets onArrange={onClose} />
-          </section>
-          )}
-
-          {/* The catalogue-driven pages.
-
-              One section per tab rather than all of them on one scroller: the
-              reason the display settings were split into pages in the first
-              place applies here too, and School is one row while Security is
-              four. Nothing renders for a group the user has no grant in, and
-              its tab was never drawn either, so there is no state in which
-              this pane is empty. */}
-          {sections.map(({ group, links }) => tab === group.id && (
-            <div key={group.id}>
-              <LinkSection group={group} links={links} />
-            </div>
-          ))}
+          {tab === null && <SettingsSectionList items={listItems} onOpen={openSection} />}
+          <SettingsPane
+            tab={tab}
+            onClose={onClose}
+            onPickingChange={onPickingChange}
+            dockRef={dockRef}
+            dashRef={dashRef}
+          />
         </div>
 
       </div>

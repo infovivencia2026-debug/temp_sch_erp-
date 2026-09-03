@@ -210,6 +210,32 @@ export function BentoDock() {
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
   const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }
 
+  /* WHICH TAB YOU ARE STANDING IN.
+
+     The phone bar is four items that read as a tab bar -- Home, Browse,
+     Alerts, Settings -- and not one of them said which was current. A tab bar
+     whose current tab is never marked is a row of buttons: the one piece of
+     information a tab bar exists to carry was the one piece it did not carry.
+
+     Settings was the reason it could not be fixed before. It was an overlay
+     rather than a destination, so there was no location to compare against and
+     no honest way to draw it as current; marking the other three and leaving
+     the fourth permanently dark would have said, wrongly, that you were never
+     in Settings. Now that it has a route, the same test answers for all of
+     them, and the answer comes from one place.
+
+     The test is exact for these two, because their hrefs are exact feature
+     paths and a prefix would light Home up for every screen in the home
+     workspace. Settings answers the same question for itself in
+     BentoSettings, where a prefix IS right: /settings/colour is still
+     Settings.
+
+     Only the attribute is set here. The fill is painted from bento-theme.css,
+     on `[aria-current='page']`, because the phone rules flatten these buttons
+     with `background: transparent !important` at a specificity no utility
+     class can reach -- written as a class it compiled, shipped and lost. */
+  const at = (href?: string) => Boolean(href) && location.pathname === href
+
   /* ON A PHONE THE ICONS CARRY THEIR NAMES.
 
      The bar was five unlabelled glyphs, and the only thing telling a person
@@ -340,6 +366,7 @@ export function BentoDock() {
             style={phone ? undefined : btnStyle}
             data-tip={phone ? undefined : t('bento.dock.home')}
             aria-label={t('bento.dock.home')}
+            aria-current={at(homeHref) ? 'page' : undefined}
           >
             <House className="size-[17px]" aria-hidden="true" />
             {tabLabel(t('bento.dock.home'))}
@@ -358,6 +385,7 @@ export function BentoDock() {
             style={phone ? undefined : btnStyle}
             data-tip={phone ? undefined : t('bento.dock.work')}
             aria-label={t('bento.dock.work')}
+            aria-current={at(workHref) ? 'page' : undefined}
           >
             <Inbox className="size-[17px]" aria-hidden="true" />
             {tabLabel(t('bento.dock.work'))}

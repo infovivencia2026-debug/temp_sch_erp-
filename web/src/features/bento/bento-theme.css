@@ -2794,6 +2794,43 @@ html:not(.dark)[data-layout='bento'] {
     backdrop-filter: none !important;
   }
 
+  /* THE TAB YOU ARE STANDING IN IS FILLED.
+
+     The bar is four items that read as a tab bar -- Home, Browse, Alerts,
+     Settings -- and until now not one of them said which was current. A tab
+     bar whose current tab is never marked is a row of buttons: the single
+     piece of information a tab bar exists to carry was the one piece it did
+     not carry.
+
+     Settings is why it could not be done before. It was an overlay rather
+     than a destination, so no location said you were in it and there was no
+     honest way to draw it as current; marking the other three and leaving the
+     fourth permanently dark would have stated, wrongly, that you are never in
+     Settings. It has a route now, so `aria-current` is set from the location
+     for all of them and this paints what that attribute already says --
+     nothing here decides anything, which is why there is no second opinion to
+     drift.
+
+     IT HAS TO LIVE HERE, not on the element. The rule directly above flattens
+     the gear's disc with `background: transparent !important` at (0,3,1); a
+     Tailwind `!bg-[...]` utility is (0,1,0) even with its own !important, so
+     the fill compiled, shipped, and lost -- measured rgba(0, 0, 0, 0) on the
+     live bar with the class sitting right there in the DOM. It also belongs
+     here on the merits: the flattening decision is stated here, and the one
+     exception to it should be stated beside it rather than a file away.
+
+     `--ink-here` is the dock's OWN ink, declared on the bar. Mixed from the
+     card's ink instead, this wash would be the wrong colour on any palette
+     that gives the dock a face of its own, which is a bug this bar has been
+     fixed for twice already. Sixteen per cent of an ink that measures 21:1 on
+     its ground leaves the glyph and the word on top of it far above 4.5:1 --
+     measured 19.7:1 light and 18.6:1 dark on the default palette. */
+  [data-layout='bento'] .bento-dock > button[aria-current='page'],
+  [data-layout='bento'] .bento-dock > .dock-tab > button[aria-current='page'],
+  [data-layout='bento'] .bento-dock > .dock-tab > div > button[aria-current='page'] {
+    background: color-mix(in srgb, var(--ink-here) 16%, transparent) !important;
+  }
+
   /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
      and 16px and the launcher at 15, which is a visible step in a row of five.
      Direct-descendant chains, one per shape, so this reaches the five tab

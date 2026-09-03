@@ -260,7 +260,21 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           One reserve, in the scroller, because that is the element that
           scrolls and the one the dock actually overlaps. What is left here is
           ordinary bottom padding, matching the top. */}
-      <div className="flex-1 w-full pt-6 pb-6 px-3 sm:px-4 lg:px-5 flex flex-col">
+      {/* THE GUTTER IS IN PIXELS, AND IT WAS NOT.
+
+          px-3 is 0.75rem, and index.css pins the root font to 14px for the
+          dense desktop baseline, so it resolved to 10.5px rather than the 12
+          the number says. Measured on a phone: cards sat 10.5px from each
+          edge, which is not a gutter so much as a hairline, and every screen
+          in this layout inherited it. sm and lg were short by the same eighth.
+
+          This is the fourth thing in this product to be caught by that root:
+          a 44px touch minimum written in rem came out 38.5, h-11 the same, and
+          a drawer meant to reach the screen edge stopped 26px short. The rule
+          that came out of those applies here too, so the gutter says what it
+          means: 16 on a phone, which is the width every platform's own home
+          screen leaves beside a tile, then 20 and 24 as the window earns them. */}
+      <div className="flex-1 w-full pt-6 pb-6 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
         {inner}
       </div>
     </div>
