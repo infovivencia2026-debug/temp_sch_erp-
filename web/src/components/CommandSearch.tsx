@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import { shortcutLabel } from '@/lib/platform'
+import { useOverlayHistory } from '@/lib/overlay-history'
 import { useNavigate } from 'react-router-dom'
 import { Search, CornerDownLeft, GraduationCap, UserRound } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
@@ -42,6 +43,12 @@ export function CommandSearch() {
   const catalog = useCatalog()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+
+  /* Back closes the panel rather than the app. See useOverlayHistory: this is
+     state, not a route, so nothing was on the history stack for the phone's
+     back gesture to land on. */
+  const close = useCallback(() => setOpen(false), [])
+  useOverlayHistory(open, close)
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)

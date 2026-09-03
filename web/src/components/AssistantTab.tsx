@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Mic, Square, X } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
+import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -73,6 +74,10 @@ interface Turn {
 export function AssistantTab() {
   const session = useSession()
   const [open, setOpen] = useState(false)
+
+  /* Back closes the assistant rather than the app. See useOverlayHistory. */
+  const closeAssistant = useCallback(() => setOpen(false), [])
+  useOverlayHistory(open, closeAssistant)
   const [hover, setHover] = useState(false)
   const [state, setState] = useState<OrbState>('idle')
   const [turns, setTurns] = useState<Turn[]>([])

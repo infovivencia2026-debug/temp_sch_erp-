@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useOverlayHistory } from '@/lib/overlay-history'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -110,11 +111,15 @@ export default function Notifications() {
 
   const navigate = useNavigate()
 
-  const dismiss = () => {
-    if (!open) return
+  const dismiss = useCallback(() => {
     setClosing(true)
     setOpen(false)
-  }
+  }, [])
+
+  /* The phone's back gesture closes the drawer rather than the app. Routed
+     through `dismiss` so a back press plays the same exit the close button
+     does, instead of the panel vanishing in a frame. */
+  useOverlayHistory(open, dismiss)
 
   useEffect(() => {
     if (!open) return
