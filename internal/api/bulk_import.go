@@ -122,6 +122,19 @@ type importCtx struct {
 	// of values that cannot change during one import.
 	sections map[string]uuid.UUID
 	teachers map[string]uuid.UUID
+	/* The biometric reader a punch file names, by serial, and the punches
+	   this file has already accounted for.
+
+	   Both are per import rather than per row for the usual reason -- a nine
+	   hundred row export should not be nine hundred lookups of one serial --
+	   and punchSeen answers a question no database query can answer during a
+	   dry run: whether the file repeats itself. A vendor export pasted twice
+	   into one sheet is a real thing clerks produce, and without this the two
+	   copies both pass verification and the second is quietly swallowed by
+	   the unique index at commit time, leaving the report claiming it wrote a
+	   row it did not. */
+	devices   map[string]uuid.UUID
+	punchSeen map[string]bool
 	// Years and exams the import itself brought into being, so a file with
 	// nine terms across three years creates each of them once.
 	pastYears map[string]uuid.UUID
@@ -140,6 +153,111 @@ type importCtx struct {
 	   delete a class the school created by hand in March. */
 	created []createdRow
 	server  *Server
+}
+
+/*
+deviceBySerial finds the reader a punch file names.
+
+	The serial is the natural key for a device and the only thing about it a
+	clerk can see: it is printed on the back of the machine, it is what the
+	push path authenticates on, and biometric_devices already carries it under
+	a unique constraint. Asking a file for our internal uuid instead would be
+	asking a school for a number it has no way to know.
+
+	An unregistered serial fails the row with what to do about it. "No such
+	device" is not an instruction; a school that has just exported a file from
+	a reader nobody added to Settings needs to be told that is what happened,
+	because otherwise the obvious reading is that the file is wrong.
+
+	The institution is named in the SQL and not left to row level security,
+	for the reason at the top of this file: an operator acting inside a school
+	is a platform session, RLS is bypassed for it, and "the reader with this
+	serial" would then mean "the first one on the installation".
+*/
+func (c *importCtx) deviceBySerial(serial string) (uuid.UUID, error) {
+	key := strings.ToLower(strings.TrimSpace(serial))
+	if key == "" {
+		return uuid.Nil, errors.New("device_serial is required: it is the serial number printed on the reader")
+	}
+	if c.devices == nil {
+		c.devices = map[string]uuid.UUID{}
+	}
+	if id, ok := c.devices[key]; ok {
+		return id, nil
+	}
+	var id uuid.UUID
+	err := c.tx.QueryRow(c.r.Context(),
+		`SELECT id FROM biometric_devices WHERE institution_id = $1 AND lower(serial) = $2`,
+		c.inst, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("no biometric reader is registered with serial %q. "+
+			"Add it under Settings, Biometric devices, using the serial printed on the "+
+			"machine, then upload this file again", strings.TrimSpace(serial))
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.devices[key] = id
+	return id, nil
+}
+
+/*
+rollUpImportedDay turns one imported punch into the day it belongs to.
+
+	Punches are the primitive and the day is derived from them. That is already
+	true of the push path, and it has to stay true of this one, or a school
+	that loads a file sees rows in the biometric log and an empty staff
+	register and concludes the import did nothing.
+
+	The rule is deliberately the push path's rule, word for word: first punch
+	of the day is the arrival, last is the departure. A reader by one door
+	records a teacher stepping out for lunch as two more punches, and anything
+	cleverer turns that into a half day.
+
+	It is not a call to rollUpPunches, and the difference matters twice. That
+	one recomputes the last seven days in a transaction of its own, which is
+	right for a device pushing today's punch and wrong here in both halves: an
+	import is usually a backfill of last month, which the window would miss
+	entirely, and a separate transaction would leave a register standing after
+	the row that produced it had been rolled back. This writes the one employee
+	and the one date the row is about, inside the import's own savepoint.
+
+	Only rows a device wrote are touched, matching the push path. A day HR
+	corrected by hand keeps the correction: a file must not overwrite a
+	person's judgement about a person. source is 'device' and device_ref is the
+	serial for the same reason the push path chose them -- a second word for
+	the same fact would split one register in two and this guard would then
+	skip every row the other path wrote.
+*/
+func (c *importCtx) rollUpImportedDay(empID uuid.UUID, at time.Time, serial string) error {
+	// The date is computed here, in school time, rather than left to the
+	// database, so that "which day was this" has exactly one answer across the
+	// parser, the register and this. A punch at 00:20 belongs to that date and
+	// not to the one UTC would name.
+	onDate := at.In(indiaTZ()).Format(time.DateOnly)
+	_, err := c.tx.Exec(c.r.Context(), `
+		INSERT INTO staff_attendance
+		    (institution_id, user_id, on_date, status, check_in, check_out, source, device_ref)
+		SELECT $1, e.user_id, $4::date, 'present', d.first_seen,
+		       -- One punch is an arrival, not a nought-hour day. A null
+		       -- check_out says "still in, or never punched out", which is
+		       -- true; stamping it equal to check_in says they left the
+		       -- moment they arrived, which is not.
+		       CASE WHEN d.last_seen > d.first_seen THEN d.last_seen END,
+		       'device', $3
+		  FROM (SELECT min(p.punched_at) AS first_seen, max(p.punched_at) AS last_seen
+		          FROM biometric_punches p
+		         WHERE p.institution_id = $1 AND p.employee_id = $2
+		           AND (p.punched_at AT TIME ZONE 'Asia/Kolkata')::date = $4::date) d
+		  JOIN employees e ON e.id = $2 AND e.user_id IS NOT NULL
+		 WHERE d.first_seen IS NOT NULL
+		ON CONFLICT (user_id, on_date) DO UPDATE
+		   SET check_in  = LEAST(staff_attendance.check_in, EXCLUDED.check_in),
+		       check_out = GREATEST(staff_attendance.check_out, EXCLUDED.check_out),
+		       status    = 'present'
+		 WHERE staff_attendance.source = 'device'`,
+		c.inst, empID, serial, onDate)
+	return err
 }
 
 func (c *importCtx) classID(name string) (uuid.UUID, error) {
@@ -1527,6 +1645,219 @@ var importSpecs = map[string]importSpec{
 				}
 			}
 			return nil
+		},
+	},
+
+	/* The register that arrives as a file, because the reader is on a LAN we
+	   cannot reach.
+
+	   The push path in iclock.go is the good case: the machine posts its
+	   punches to us and the register is right within the minute. Most schools
+	   are not that case. The reader sits on the office LAN behind a router
+	   nobody will forward a port on, and what the school actually has is the
+	   vendor software's export -- an eSSL/ZKTeco sheet of id, name and
+	   timestamp -- with nowhere in this product to put it. Until now the
+	   answer was to key a hundred rows into the staff register by hand, which
+	   means the answer was that nobody did.
+
+	   So this importer accepts the vendor export as it comes, and writes the
+	   same rows down the same pipe the device would have written them. Punches
+	   are the primitive; the day is derived from them below, exactly as the
+	   push path derives it. Importing days directly was rejected: two writers
+	   for one register disagree the first time somebody uploads both, and a
+	   day is an opinion about punches ("first in, last out") that we already
+	   hold in one place. */
+	"punches": {
+		// A punch becomes a line in the staff register, so importing a file of
+		// them must cost what marking staff attendance by hand costs, which is
+		// hr.attendance.write. Nothing looser: this writes the record a
+		// school's payroll is argued from.
+		Perm: rbac.StaffAttend,
+		/* The columns a vendor export actually has, plus the one it does not.
+
+		   id, name and timestamp are what eSSL prints; the machine knows which
+		   machine it is and so never says. We need to know, because a punch
+		   without a device is not a fact about anywhere: biometric_punches
+		   requires a device and the uniqueness that stops a double count is
+		   per device. The serial is the natural key -- biometric_devices
+		   already stores it, the push path already authenticates on it, and it
+		   is printed on the back of the reader -- so the clerk fills one
+		   column down with one value, which Excel does in a drag.
+
+		   name is read and not stored as a column, because employees are
+		   matched on the enrolled id and never on a name that arrives as
+		   "CH,ASHOK". It is kept in raw with the rest of the row, so anyone
+		   looking at an unclaimed punch can see who the machine thought it
+		   was. Dropping it would throw away the only human-readable thing in
+		   the file. */
+		Columns:  []string{"device_serial", "device_user_id", "name", "punched_at"},
+		Required: []string{"device_serial", "device_user_id", "punched_at"},
+		Sample:   []string{"OGJ3220160104", "T001", "RAMYASRI.R", "2026-09-02 08:40:55"},
+		Check: func(row map[string]string) error {
+			/* THE ID IS A STRING. It is T001 and N039 on the reader this was
+			   written against, and treating it as a number is the bug that
+			   silently threw away a day of pushes before the column was
+			   migrated to text. Length is bounded to match the push path's
+			   bound, so the two agree about what an id can be. */
+			uid := strings.ToUpper(strings.TrimSpace(row["device_user_id"]))
+			if uid == "" {
+				return errors.New("device_user_id is required: it is the id enrolled on the reader, such as T001")
+			}
+			if len(uid) > 64 {
+				return errors.New("device_user_id is longer than any reader issues; check the columns are lined up")
+			}
+			/* Parsed with the push path's own parser, and this is the whole
+			   reason it is that function and not a local time.Parse.
+
+			   A vendor export writes local school time with no zone on it. If
+			   this read it as UTC while iclock read it as Asia/Kolkata, the
+			   same 08:40 punch would land five and a half hours apart
+			   depending on how it reached us, and a teacher would be marked
+			   late by a file and on time by the machine. One parser, one
+			   answer, and it accepts the three shapes ZK firmware writes so a
+			   file exported without seconds is not a hundred rejected rows. */
+			at, err := parsePunchTime(strings.TrimSpace(row["punched_at"]))
+			if err != nil {
+				return errors.New("punched_at must be a date and time as the reader writes it, " +
+					"such as 2026-09-02 08:40:55")
+			}
+			// A punch cannot have happened tomorrow. This catches the mistyped
+			// year and the column read from the wrong place, while a day of
+			// slack allows for a reader whose clock is a little ahead and for
+			// a school in a timezone we guessed wrong about.
+			if at.After(time.Now().Add(24 * time.Hour)) {
+				return fmt.Errorf("punched_at is in the future (%s); check the date column",
+					at.In(indiaTZ()).Format("2006-01-02 15:04"))
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			// The device has to exist before its punches can. Named here
+			// rather than at the commit, and told what to do about it, because
+			// "device not found" against a serial the clerk copied off the
+			// machine is not an instruction.
+			devID, err := c.deviceBySerial(strings.TrimSpace(row["device_serial"]))
+			if err != nil {
+				return err
+			}
+			/* A repeat is skipped and said so, not written and not failed.
+
+			   Somebody will upload the same export twice -- the second time
+			   because they are not sure the first one worked, which is the
+			   commonest reason anybody re-uploads anything. biometric_punches
+			   has a unique index on (device_id, device_user_id, punched_at)
+			   precisely so a punch cannot be counted twice, and the writer
+			   leans on it.
+
+			   Failing the upload was rejected: a file that is nine tenths
+			   already loaded and one tenth new is exactly the file a school
+			   sends after a partial import, and refusing it leaves the new
+			   tenth unloadable. Silently writing nothing was rejected too,
+			   because then the report says "300 imported" when the answer is
+			   zero and nobody can tell the two runs apart.
+
+			   So the row is reported by number with the reason, in the dry run
+			   and before anything is written, and left out of the commit. The
+			   count of skipped rows is the count of rows the school already
+			   had. */
+			uid := strings.ToUpper(strings.TrimSpace(row["device_user_id"]))
+			at, err := parsePunchTime(strings.TrimSpace(row["punched_at"]))
+			if err != nil {
+				return err
+			}
+			key := devID.String() + "\x00" + uid + "\x00" + at.UTC().Format(time.RFC3339Nano)
+			if c.punchSeen == nil {
+				c.punchSeen = map[string]bool{}
+			}
+			if c.punchSeen[key] {
+				return fmt.Errorf("this file already has a punch for %s at %s on this reader; "+
+					"the repeat is skipped so the day is not counted twice",
+					uid, at.In(indiaTZ()).Format("2006-01-02 15:04:05"))
+			}
+			c.punchSeen[key] = true
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT EXISTS (SELECT 1 FROM biometric_punches
+				                WHERE institution_id = $1 AND device_id = $2
+				                  AND device_user_id = $3 AND punched_at = $4)`,
+				c.inst, devID, uid, at).Scan(&exists); err != nil {
+				return err
+			}
+			if exists {
+				return fmt.Errorf("%s already has a punch at %s on this reader, so this row was "+
+					"loaded before; it is skipped rather than counted twice",
+					uid, at.In(indiaTZ()).Format("2006-01-02 15:04:05"))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			devID, err := c.deviceBySerial(strings.TrimSpace(row["device_serial"]))
+			if err != nil {
+				return err
+			}
+			uid := strings.ToUpper(strings.TrimSpace(row["device_user_id"]))
+			at, err := parsePunchTime(strings.TrimSpace(row["punched_at"]))
+			if err != nil {
+				return err
+			}
+			/* Resolved to an employee here, and kept when it resolves to
+			   nobody -- the same decision the push path makes, for the same
+			   reason.
+
+			   A punch from an id no employee claims is not a bad row. It is
+			   how a school finds out that somebody enrolled a finger at the
+			   machine without telling the office, and the unresolved list
+			   exists to show them. Rejecting the row would hide exactly the
+			   thing worth seeing, and would also reject the ordinary case of a
+			   file uploaded before the staff sheet, which is the order a
+			   school does things in.
+
+			   raw carries the line as the export wrote it, name included, so
+			   an unclaimed id can be traced back to whoever the vendor
+			   software believed it was. */
+			raw := strings.Join([]string{
+				strings.TrimSpace(row["device_serial"]), uid,
+				strings.TrimSpace(row["name"]), strings.TrimSpace(row["punched_at"]),
+			}, "\t")
+			var empID *uuid.UUID
+			var id uuid.UUID
+			err = c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO biometric_punches
+				    (institution_id, device_id, device_user_id, employee_id, punched_at, raw)
+				VALUES ($1, $2, $3,
+				        (SELECT id FROM employees
+				          WHERE institution_id = $1 AND upper(device_user_id) = $3),
+				        $4, $5)
+				ON CONFLICT (device_id, device_user_id, punched_at) DO NOTHING
+				RETURNING id, employee_id`,
+				c.inst, devID, uid, at, raw).Scan(&id, &empID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				// Verify already reported and removed the repeats it could
+				// see, so reaching here means a punch arrived from the device
+				// itself between the dry run and the commit. Nothing to write
+				// and nothing to complain about: the punch is on file, which
+				// is what the row was asking for.
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			/* Not recorded as undoable, and that is deliberate rather than an
+			   omission.
+
+			   Undo deletes the rows an import created, and these rows are half
+			   of a fact: the staff attendance day below is derived from them
+			   and would be left standing, so an undone punch file would leave
+			   a register nobody could reconcile against any punch. A punch is
+			   also the one thing here that is a machine's observation rather
+			   than a school's statement, and deleting observations by the
+			   hundred is not a button this product should grow casually. The
+			   repair path is the uniqueness index: correct the export, upload
+			   it again, and the rows that were already right are skipped. */
+			if empID == nil {
+				return nil
+			}
+			return c.rollUpImportedDay(*empID, at, strings.TrimSpace(row["device_serial"]))
 		},
 	},
 }

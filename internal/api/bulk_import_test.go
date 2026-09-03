@@ -158,11 +158,22 @@ func TestDryRunCatchesWhatTheWriterWouldReject(t *testing.T) {
 
 	// The template's example row is the file most schools upload first, so it
 	// has to pass its own importer.
-	if sample := importSpecs["classes"].Sample; len(sample) == 3 {
-		if err := classes.Check(map[string]string{
-			"name": sample[0], "level": sample[1], "stream": sample[2],
-		}); err != nil {
-			t.Errorf("the classes template's own example row fails the dry run: %v", err)
+	/* Built by pairing the example row with the template's own column names
+	   rather than by position. It was positional, and when the classes
+	   template gained a sections column the third cell started being read as
+	   the level: the test failed on a template that was fine, which teaches
+	   people to ignore it. Every spec's example is checked, so a template that
+	   ships a row its own importer rejects is caught wherever it appears. */
+	for name, spec := range importSpecs {
+		if spec.Check == nil || len(spec.Sample) != len(spec.Columns) {
+			continue
+		}
+		sample := map[string]string{}
+		for i, col := range spec.Columns {
+			sample[col] = spec.Sample[i]
+		}
+		if err := spec.Check(sample); err != nil {
+			t.Errorf("the %s template's own example row fails the dry run: %v", name, err)
 		}
 	}
 
@@ -198,5 +209,108 @@ func TestImportSpecsRequireRealValues(t *testing.T) {
 				t.Errorf("%s: required column %q has whitespace in its name", name, req)
 			}
 		}
+	}
+}
+
+/*
+The punch importer, which exists because the reader is on a LAN we cannot
+
+	reach and the only thing the school can give us is the vendor's export.
+
+	Every assertion here is about a row a real eSSL export contains. The ids in
+	it are T001 and N039, and the last time this system assumed an id was a
+	number it dropped an entire day of punches without a word, so the string id
+	is tested first and by name.
+*/
+func TestPunchImportAcceptsAVendorExport(t *testing.T) {
+	spec, ok := importSpecs["punches"]
+	if !ok {
+		t.Fatal("there is nowhere to put a biometric export")
+	}
+	// A file of punches becomes lines in the staff register, so it must cost
+	// what marking staff attendance costs and not what loading a class list
+	// costs.
+	if spec.Perm != rbac.StaffAttend {
+		t.Errorf("punches import requires %q, want %q", spec.Perm, rbac.StaffAttend)
+	}
+	if spec.Check == nil || spec.Verify == nil {
+		t.Fatal("punches needs both halves: Check for what a file can be wrong about on its own, " +
+			"Verify for the device that is not registered")
+	}
+
+	row := func(id, at string) map[string]string {
+		return map[string]string{
+			"device_serial": "OGJ3220160104", "device_user_id": id,
+			"name": "RAMYASRI.R", "punched_at": at,
+		}
+	}
+	/* Straight out of the reader on the office LAN. Alphanumeric ids, a
+	   comma inside a name, an evening punch: if any of these is rejected the
+	   clerk is back to typing the register by hand. */
+	for _, good := range []map[string]string{
+		row("T001", "2026-09-02 08:40:55"),
+		row("N039", "2026-09-02 07:03:00"),
+		row("T045", "2026-09-02 18:16:22"),
+		// Some exports drop the seconds, and a hundred rejected rows over a
+		// missing ":00" would be our fault, not the file's.
+		row("T001", "2026-09-02 08:40"),
+	} {
+		if err := spec.Check(good); err != nil {
+			t.Errorf("a real export line was rejected: %v (%v)", err, good)
+		}
+	}
+	for what, bad := range map[string]map[string]string{
+		"an empty id":            row("", "2026-09-02 08:40:55"),
+		"a timestamp that isn't": row("T001", "02/09/2026 8.40 AM"),
+		"an empty timestamp":     row("T001", ""),
+		// A punch cannot have happened next year. This is the mistyped year
+		// and the column read from the wrong place.
+		"a punch in the future": row("T001", "2099-01-01 08:00:00"),
+	} {
+		if err := spec.Check(bad); err == nil {
+			t.Errorf("%s passed the dry run", what)
+		}
+	}
+
+	/* The template is the only documentation most people read, so its own
+	   example row has to be a file this importer accepts. */
+	if len(spec.Sample) != len(spec.Columns) {
+		t.Fatalf("the punches template has %d cells against %d columns", len(spec.Sample), len(spec.Columns))
+	}
+	sample := map[string]string{}
+	for i, c := range spec.Columns {
+		sample[c] = spec.Sample[i]
+	}
+	if err := spec.Check(sample); err != nil {
+		t.Errorf("the punches template's own example row fails the dry run: %v", err)
+	}
+	// The serial has to be one of the columns: a punch without a device is not
+	// a fact about anywhere, and the uniqueness that stops a double count is
+	// per device.
+	if sample["device_serial"] == "" {
+		t.Error("the template does not ask which reader the file came from")
+	}
+}
+
+/*
+Both paths must put the same punch at the same moment.
+
+	A vendor export carries local school time with no zone on it. The importer
+	reads it with the push path's own parser precisely so that a file and a
+	device cannot disagree: if one read 08:40 as UTC and the other as
+	Asia/Kolkata, the same punch would land five and a half hours apart
+	depending on how it reached us, and a teacher would be late by file and on
+	time by machine.
+*/
+func TestImportedPunchTimeMatchesThePushedOne(t *testing.T) {
+	at, err := parsePunchTime("2026-09-02 08:40:55")
+	if err != nil {
+		t.Fatalf("the export's own timestamp shape does not parse: %v", err)
+	}
+	if got := at.In(indiaTZ()).Format("2006-01-02 15:04:05"); got != "2026-09-02 08:40:55" {
+		t.Errorf("08:40:55 on the reader became %s in school time", got)
+	}
+	if _, off := at.Zone(); off != 19800 {
+		t.Errorf("an unzoned export time was read at offset %d, not school time", off)
 	}
 }
