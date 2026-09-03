@@ -5,6 +5,7 @@ import {
   REGIONS, CHANNELS, BUILT_IN_PALETTES, currentPalette,
   type Region, type Channel, type Hsl,
 } from '@/lib/paint'
+import { applyPersonality } from '@/lib/personality'
 import { useT } from '@/lib/i18n'
 import { useLayout } from '@/lib/layout'
 import { cn } from '@/lib/utils'
@@ -675,7 +676,7 @@ export function ColourPanel({
                       key={p.name}
                       type="button"
                       aria-pressed={on}
-                      onClick={() => applyPalette(p.name)}
+                      onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
                       className={cn(
                         'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
                         RING,
@@ -714,7 +715,7 @@ export function ColourPanel({
                 <span key={p.name} className={cn('flex items-center rounded-full border text-[12.5px]', EDGE)}>
                   <button
                     type="button"
-                    onClick={() => applyPalette(p.name)}
+                    onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
                     className={cn('rounded-l-full px-3 py-1.5 transition-colors', WASH, RING, INK)}
                   >
                     {p.name}

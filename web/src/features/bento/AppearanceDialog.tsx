@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
+import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
 import { useFullScreen } from '@/lib/fullscreen'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
@@ -1020,6 +1021,7 @@ export function SettingsPane({
 }) {
   const { appearance, set } = useAppearance()
   const { skin, setSkin } = useSkin()
+  const { personality, setPersonality } = usePersonality()
   const { layout: frame, setLayout: setFrame } = useFrameLayout()
   const sections = useSettingsLinks()
   const t = useT()
@@ -1134,6 +1136,17 @@ export function SettingsPane({
                 the toggle for the same reason layout did. Contrast above it
                 stays an axis: normal, medium, high is a scale, and "a bit
                 more" is exactly what somebody adjusting it means. */}
+            {/* The personality: one decision that moves both layouts and both
+                polarities at once. Ordered as the brief listed them, trust to
+                machine, so the arrows walk a gradient of mood rather than an
+                alphabet. */}
+            <Axis<Personality>
+              label={t('bento.settings.personality')}
+              value={personality}
+              options={PERSONALITIES}
+              onPick={setPersonality}
+              name={(v) => t(`bento.settings.personality.${v}`)}
+            />
             <Choice<Skin>
               label={t('bento.settings.frame')}
               value={skin}
@@ -1197,6 +1210,12 @@ export function SettingsPane({
             <p className={cn('mb-4 text-[12px]', INK)}>
               Add, remove, resize and reorder the cards on this dashboard.
             </p>
+            {/* The board's type size lives with the board, not with the app's
+                text size on the Appearance tab. They are two settings. */}
+            <div className={cn('mb-4 divide-y border-y', SEAM,
+              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
+              <Scale axis="boardText" label={t('bento.settings.board_text')} />
+            </div>
             <DashboardWidgets onArrange={onClose} />
           </section>
           )}

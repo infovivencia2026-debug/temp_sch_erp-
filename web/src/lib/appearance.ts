@@ -84,6 +84,10 @@ export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
    is capped to a step. */
 export interface Scales {
   text: number
+  /* The board's own type size. It followed --font-scale, so a person who
+     wanted larger tables in the app got larger tiles with them and could not
+     have one without the other. Two controls, two preferences. */
+  boardText: number
   density: number
   corners: number
   borders: number
@@ -99,6 +103,7 @@ export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step:
      of this axis rather than the bottom of it — and the top of the axis is
      genuinely large rather than merely legible. */
   text: { min: 0.5, max: 2.0, step: 0.01 },
+  boardText: { min: 0.5, max: 2.0, step: 0.01 },
   /* 0 to 20, not 0 to 3.
 
      This slider multiplies --bento-density, and that variable's unit changed
@@ -115,7 +120,7 @@ export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step:
 }
 
 export const SCALE_DEFAULTS: Scales = {
-  text: 1, density: 1, corners: 1, borders: 1, shadow: 1,
+  text: 1, boardText: 1, density: 1, corners: 1, borders: 1, shadow: 1,
 }
 
 export interface Appearance {
@@ -298,6 +303,7 @@ export function applyAppearance(next: Appearance) {
     else root.style.setProperty(prop, String(n))
   }
   scaleVar('--font-scale', next.scales.text)
+  scaleVar('--board-text', next.scales.boardText)
   scaleVar('--bento-density', next.scales.density)
   scaleVar('--radius-scale', next.scales.corners)
   scaleVar('--border-scale', next.scales.borders)

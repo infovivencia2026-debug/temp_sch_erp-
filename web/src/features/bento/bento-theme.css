@@ -1192,8 +1192,11 @@ html[data-shadow='deep'] {
    Focus sets its type in px through Tailwind arbitrary values, which do NOT
    respond to the root font-size the classic layout scales. So the scale is
    applied here, to the tokens Focus actually reads. */
+/* Its own axis, deliberately NOT --font-scale: the dashboard's type size and
+   the app's are two settings. --board-text is written by appearance.ts from
+   the Dashboard text slider and is absent until somebody moves it. */
 :root {
-  --bento-text: var(--font-scale, 1);
+  --bento-text: var(--board-text, 1);
 }
 .bento-widget { font-size: calc(1em * var(--bento-text)); }
 

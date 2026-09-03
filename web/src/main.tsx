@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 import './features/bento/bento-theme.css'
+// Stamps html[data-personality] and writes the personalities stylesheet.
+import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
 

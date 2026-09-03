@@ -29,6 +29,8 @@
         if (JSON.parse(t) === 'dark') document.documentElement.classList.add('dark')
         var d = localStorage.getItem('erp.density') || '"comfortable"'
         document.documentElement.dataset.density = JSON.parse(d)
+        var p = localStorage.getItem('erp.personality')
+        if (p && p !== 'classic') document.documentElement.dataset.personality = p
       } catch (e) {}
     </script>
   </head>

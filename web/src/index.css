@@ -1276,15 +1276,15 @@
   }
 }
 
-.bento-widget[data-w='1'] { --bento-fig: min(calc(clamp(20px, 2.6vh, 28px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
-.bento-widget[data-w='2'] { --bento-fig: min(calc(clamp(26px, 3.6vh, 40px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
-.bento-widget[data-w='3'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
-.bento-widget[data-w='4'] { --bento-fig: min(calc(clamp(34px, 4.8vh, 56px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
-.bento-widget[data-w='5'] { --bento-fig: min(calc(clamp(38px, 5.4vh, 64px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='1'] { --bento-fig: min(calc(clamp(20px, 2.6vh, 28px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='2'] { --bento-fig: min(calc(clamp(26px, 3.6vh, 40px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='3'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='4'] { --bento-fig: min(calc(clamp(34px, 4.8vh, 56px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-w='5'] { --bento-fig: min(calc(clamp(38px, 5.4vh, 64px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
 
 /* Two rows of height buys back a step, since the constraint there is vertical. */
 .bento-widget[data-h='1'][data-w='4'],
-.bento-widget[data-h='1'][data-w='5'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--font-scale, 1)), var(--fig-cap, 26cqw)); }
+.bento-widget[data-h='1'][data-w='5'] { --bento-fig: min(calc(clamp(30px, 4.2vh, 48px) * var(--bento-text, 1)), var(--fig-cap, 26cqw)); }
 
 /* One column: the supporting sentence goes. It is the longest thing in the
    card and the first to wrap into an unreadable ladder. */
