@@ -361,6 +361,92 @@ export function WidgetLayer({
     return () => board.removeAttribute('data-pager')
   }, [paged])
 
+  /* HOLD A CARD TO ARRANGE THE BOARD.
+
+     Arrange mode is entered from Settings, for the reason set out at the top
+     of this file: a permanent Edit button is chrome that every reader pays for
+     so that the few who rearrange can find it. That argument is about chrome,
+     and a gesture is not chrome. It costs nothing to anybody who does not make
+     it, and it is the gesture every phone home screen has trained people to
+     try on a grid of tiles. The settings door stays exactly where it was.
+
+     Touch only. A mouse has no long press worth the name, and holding the
+     button down on a desktop is how somebody selects text.
+
+     It has to refuse more often than it fires, because the board it sits on is
+     a horizontal pager and the page under it scrolls vertically. So: one
+     finger, cancelled by any movement past the slop, by a second finger, by
+     the pointer leaving, and by any scroll. Half a second, which is the
+     platform's own long-press timeout.
+
+     The click that follows a long press is suppressed once, in the capture
+     phase, because every cell is wrapped in a link and opening a screen is the
+     opposite of what the reader just asked for. */
+  useEffect(() => {
+    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
+    if (!board || arranging) return
+
+    let timer: number | undefined
+    let from: { x: number; y: number } | null = null
+    const SLOP = 10
+    const HOLD = 500
+
+    const cancel = () => {
+      window.clearTimeout(timer)
+      timer = undefined
+      from = null
+    }
+    const swallowNextClick = () => {
+      const once = (e: MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      window.addEventListener('click', once, { capture: true, once: true })
+      // If no click follows -- a hold that ends outside any link -- the
+      // listener would sit there and eat the reader's NEXT tap instead.
+      window.setTimeout(
+        () => window.removeEventListener('click', once, { capture: true }),
+        400,
+      )
+    }
+
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' || !e.isPrimary) return cancel()
+      from = { x: e.clientX, y: e.clientY }
+      timer = window.setTimeout(() => {
+        from = null
+        // A short buzz, where the platform offers one. Entering a mode with no
+        // physical acknowledgement is how a long press feels like a bug.
+        navigator.vibrate?.(10)
+        swallowNextClick()
+        setArranging(true)
+      }, HOLD)
+    }
+    const move = (e: PointerEvent) => {
+      if (!from) return
+      if (Math.abs(e.clientX - from.x) > SLOP || Math.abs(e.clientY - from.y) > SLOP) cancel()
+    }
+
+    board.addEventListener('pointerdown', down)
+    board.addEventListener('pointermove', move)
+    board.addEventListener('pointerup', cancel)
+    board.addEventListener('pointercancel', cancel)
+    board.addEventListener('pointerleave', cancel)
+    // Capture, because the scroller that moves is the page or the pager, not
+    // the board, and a scroll that starts on a card must not become a hold.
+    window.addEventListener('scroll', cancel, true)
+
+    return () => {
+      cancel()
+      board.removeEventListener('pointerdown', down)
+      board.removeEventListener('pointermove', move)
+      board.removeEventListener('pointerup', cancel)
+      board.removeEventListener('pointercancel', cancel)
+      board.removeEventListener('pointerleave', cancel)
+      window.removeEventListener('scroll', cancel, true)
+    }
+  }, [arranging, setArranging, paged])
+
   const value = useMemo<LayerValue>(
     () => ({ dashboard, editing: arranging, declare, visible, fitted, maxRows, phone, spots: spotMap }),
     [
