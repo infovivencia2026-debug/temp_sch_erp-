@@ -235,8 +235,19 @@ func (s *Server) devicePush(w http.ResponseWriter, r *http.Request) {
 			if len(cols) < 2 {
 				continue
 			}
-			uid, err := strconv.Atoi(strings.TrimSpace(cols[0]))
-			if err != nil || uid <= 0 {
+			/* THE ID IS A STRING, AND ASSUMING OTHERWISE THREW THE DAY AWAY.
+
+			   This was strconv.Atoi with a `continue` on failure. The reader
+			   this was written against enrols staff as T001 and N039, so every
+			   line failed to parse and every punch was dropped without a word:
+			   the device uploaded, we answered 200, and the register stayed
+			   empty. An id that cannot be read is worth keeping as text and
+			   showing to somebody, which is what the unresolved list is for.
+
+			   Upper-cased and trimmed so that t001 typed into a staff record
+			   and T001 sent by the machine are the same person. */
+			uid := strings.ToUpper(strings.TrimSpace(cols[0]))
+			if uid == "" || len(uid) > 64 {
 				continue
 			}
 			at, err := parsePunchTime(strings.TrimSpace(cols[1]))

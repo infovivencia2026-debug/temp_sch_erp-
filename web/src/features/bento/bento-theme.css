@@ -1392,6 +1392,24 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
     grid-auto-rows: 148px !important;
   }
 
+  /* AND THE GROUND STOPS WITH IT.
+
+     The board giving up its height is only half the change. The ground it sits
+     on carries `min-height: 100%` so that a short page still paints to the
+     foot of the window, and with a collapsed board that left a slab of
+     card-coloured grey below the last row: measured at 1440x709, a 456px board
+     inside a 613px ground, so 136 pixels of empty sheet, with the dock's 96px
+     reserve under that again. A third of the window, and it read as more empty
+     board rather than as background, because it is the same colour as the gaps
+     between the cards.
+
+     Only while the board is collapsed. Everywhere else the full-height ground
+     is what stops a two-card page ending in a hard edge halfway down the
+     screen. */
+  [data-layout='bento'] .bento-ground:has([data-card]):not(:has([data-card]:not([data-quiet]))) {
+    min-height: 0;
+  }
+
   /* AND A QUIET CARD TAKES ONE ROW, WHATEVER HEIGHT ITS OWNER GAVE IT.
 
      Row spans are the reader's own arrangement and are honoured everywhere
