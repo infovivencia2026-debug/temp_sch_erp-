@@ -145,7 +145,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.home.dashboard': screen(() => import('./seller/SellerDashboard')),
   // The seller's own mail server and SMS channel, which carry every school's
   // password-reset links. The school's Email Server screen, told who it is for.
-  'seller_admin.delivery.password_reset_delivery': screen(() => import('./seller/ResetDelivery')),
+  'seller_admin.delivery.password_reset_delivery': screen(() => import('./seller/EduCloudChannels')),
+  'seller_admin.delivery.educloud_channels': screen(() => import('./seller/EduCloudChannels')),
   'seller_admin.schools.schools': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.add_school': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.access': screen(() => import('./seller/Tenants')),
