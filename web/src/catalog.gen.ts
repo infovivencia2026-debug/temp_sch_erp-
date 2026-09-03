@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 334 features. */
+/** 13 roles, 335 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -74,6 +74,7 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.subscriptions_billing.plans_pricing', slug: 'plans_pricing', name: 'Plans & Pricing', scope: 'platform', tier: 'core', summary: 'Define plans with a student cap, included modules and an annual or per-student price.' },
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
           { key: 'seller_admin.subscriptions_billing.license_capacity', slug: 'license_capacity', name: 'License & Capacity', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
+          { key: 'seller_admin.subscriptions_billing.message_credits', slug: 'message_credits', name: 'Message Credits', scope: 'platform', tier: 'core', summary: 'Every school\'s request for more SMS or WhatsApp messages, oldest first, with what was asked and by whom. Grant it in full or in part and the credits land the same moment; decline it with a reason the school reads. Nothing here moves money — the unit is messages, and what a bundle cost lives in whatever you invoice with.' },
         ],
       },
       {

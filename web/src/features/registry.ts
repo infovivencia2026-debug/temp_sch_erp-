@@ -153,6 +153,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.plans_pricing': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
+  'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
 
   'institution_admin.home.dashboard': screen(() => import('./principal/Dashboard')),
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),

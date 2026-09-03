@@ -402,3 +402,28 @@ export function useCancelRecharge() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['messaging'] }),
   })
 }
+
+/* ── THE SELLER'S SIDE OF RECHARGE ──────────────────────────────────────────
+   The queue every school's requests land in, and the one action that empties
+   it. Under /seller rather than /admin/messaging because it spans every
+   tenant, which is the vendor's reach and nobody else's. */
+
+export function useSellerRecharges() {
+  return useQuery({
+    queryKey: ['seller', 'recharges'],
+    queryFn: () => api.get<Listed<Recharge>>('/api/v1/seller/recharges'),
+  })
+}
+
+export function useDecideRecharge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: {
+      id: string
+      decision: 'grant' | 'decline'
+      messages?: number
+      response?: string
+    }) => api.post<{ ok: boolean }>(`/api/v1/seller/recharges/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['seller', 'recharges'] }),
+  })
+}
