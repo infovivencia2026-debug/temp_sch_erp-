@@ -317,14 +317,19 @@ class RunViewModel @Inject constructor(
                 is EndOutcome.Ended -> {
                     TrackerServiceLauncher.stop(context)
                     if (!outcome.reportedToServer) {
+                        // The end is owed. The worker settles it when there is
+                        // signal, and is asked for now rather than at its next
+                        // quarter-hour tick.
+                        com.schoolerp.bustracker.service.TripFlushWorker.enqueueOnce(context)
                         _alert.value = DriverAlert(
-                            "Run ended, but the school was not told",
-                            "There was no signal. The school will close the run itself shortly. " +
-                                if (outcome.discardedFixes > 0) {
-                                    "${outcome.discardedFixes} unsent positions from the end of " +
-                                        "the route could not be delivered."
+                            "Run ended, but the school was not told yet",
+                            "There was no signal. This phone will tell the school as soon as it " +
+                                "has one, and will send " +
+                                if (outcome.keptFixes > 0) {
+                                    "the ${outcome.keptFixes} positions from the end of the route " +
+                                        "with it. Leave the app installed and the phone switched on."
                                 } else {
-                                    ""
+                                    "the end of the run. Leave the app installed and the phone switched on."
                                 },
                         )
                     }
@@ -338,20 +343,13 @@ class RunViewModel @Inject constructor(
         }
     }
 
-    /**
-     * The route book exists because the wire contract has no device-facing
-     * endpoint that lists routes — see [SavedRoute]. Adding one is a setup
-     * task, done once with the office, not something a driver does at 6:40am.
-     */
-    fun addRoute(routeId: String, label: String) {
-        val id = routeId.trim()
-        val name = label.trim().ifBlank { "Route" }
-        if (id.isBlank()) return
-        viewModelScope.launch {
-            val existing = settingsStore.settings.first().routeBook.filterNot { it.routeId == id }
-            settingsStore.saveRouteBook(existing + SavedRoute(id, name))
-        }
-    }
+    /* No hand-typed route any more.
+
+       The server sends this bus's routes with every sign-in and every scan,
+       and the box that took a route id "from the transport screen" was the
+       one place in the app a driver could type a uuid at twenty to seven.
+       What it produced was a run filed against a route from a piece of
+       paper, which the server then refused as another bus's. */
 
     fun removeRoute(routeId: String) {
         viewModelScope.launch {

@@ -208,7 +208,8 @@ class TrackerRepository @Inject constructor(
 
     private fun driverSignInMessage(failure: ApiFailure): String = when (failure) {
         is ApiFailure.Unauthorized ->
-            "That number and password did not match. Ask the office to check the number they have for you."
+            "That login and password did not match. Type the login exactly as the office " +
+            "wrote it, which may be an email, a username or a mobile number."
         is ApiFailure.Rejected -> when (failure.status) {
             409 -> failure.detail
                 ?: "No bus is assigned to you yet. Ask the office to put you against a vehicle."
@@ -376,7 +377,8 @@ class TrackerRepository @Inject constructor(
 
     private fun signInMessage(failure: ApiFailure): String = when (failure) {
         is ApiFailure.Unauthorized ->
-            "That number and password did not match. Ask the office to check the number they have for you."
+            "That login and password did not match. Type the login exactly as the office " +
+            "wrote it, which may be an email, a username or a mobile number."
         /* 429 pin_locked: the server counts failed PINs and locks the number
            for a while. Rejected carries the status, so this reads it rather
            than inventing a case ApiFailure does not have. */
@@ -484,38 +486,106 @@ class TrackerRepository @Inject constructor(
         val settings = settingsStore.settings.first()
         val trip = settings.activeTrip ?: return EndOutcome.NoTrip
         val ctx = requireContext()
+        val endedAt = time.nowMillis()
 
         if (ctx != null) {
             runCatching { flushBuffer(trip.tripId) }
         }
 
+        /* The end is reported, or it is owed.
+
+           This discarded the unsent buffer whenever the end call failed, on
+           the grounds that the server refuses fixes for a closed run. But a
+           run the server has not been told about is not closed: it stays open
+           until the school's timeout sweep, and every fix from the tunnel at
+           the end of the route would still be taken. So nothing is thrown
+           away here. The fixes stay under the trip id, the end is written
+           down as owed, and the flush worker settles both when there is
+           signal. Only a server that says the run is gone ends it for good. */
         var reported = false
+        var settled = ctx == null
         if (ctx != null) {
-            reported = try {
-                api.endTrip(
+            try {
+                reported = api.endTrip(
                     ctx.baseUrl,
                     ctx.token,
                     tokenStore.session().orEmpty(),
                     trip.tripId,
-                    EndTripRequest(endedAt = Rfc3339.format(time.nowMillis())),
+                    EndTripRequest(endedAt = Rfc3339.format(endedAt)),
                 ).ended
+                settled = true
             } catch (failure: ApiFailure) {
-                // A run the server never heard end is closed by its own timeout
-                // sweeper with reason 'timeout'. That is a worse record than
-                // 'driver' but it is not a reason to keep the phone reporting.
                 BtLog.w("trip", "could not report end of ${trip.tripId}: ${failure.reason}")
-                false
+                settled = failure.isFinalForTrip()
             }
         }
 
-        val abandoned = fixes.discardTrip(trip.tripId)
         stops.clear()
         settingsStore.closeTrip()
-        if (abandoned > 0) {
-            BtLog.w("trip", "discarded $abandoned fixes the server would refuse after close")
+        val kept: Int
+        if (settled) {
+            val abandoned = fixes.discardTrip(trip.tripId)
+            if (abandoned > 0) BtLog.w("trip", "discarded $abandoned fixes the server would refuse after close")
+            settingsStore.clearPendingEnd()
+            kept = 0
+        } else {
+            settingsStore.recordPendingEnd(trip.tripId, endedAt)
+            kept = fixes.countFor(trip.tripId)
+            BtLog.i("trip", "end of ${trip.tripId} owed; $kept fixes kept for the flush worker")
         }
-        return EndOutcome.Ended(reportedToServer = reported, discardedFixes = abandoned)
+        return EndOutcome.Ended(reportedToServer = reported, keptFixes = kept)
     }
+
+    /**
+     * Settles a run the driver ended without signal: the last fixes go up,
+     * then the end. True when nothing is owed any more.
+     */
+    suspend fun finishPendingEnd(): Boolean {
+        val pending = settingsStore.settings.first().pendingEnd ?: return true
+        val ctx = requireContext()
+        if (ctx == null) {
+            fixes.discardTrip(pending.tripId)
+            settingsStore.clearPendingEnd()
+            return true
+        }
+        when (val flushed = runCatching { flushBuffer(pending.tripId) }.getOrNull()) {
+            is PushOutcome.TripClosed, PushOutcome.NotPaired -> {
+                // The server has closed it, or will never hear from this
+                // token again. Either way the fixes have nowhere to go.
+                fixes.discardTrip(pending.tripId)
+                settingsStore.clearPendingEnd()
+                return true
+            }
+            is PushOutcome.Deferred, null -> return false
+            else -> Unit
+        }
+        val settled = try {
+            api.endTrip(
+                ctx.baseUrl,
+                ctx.token,
+                tokenStore.session().orEmpty(),
+                pending.tripId,
+                EndTripRequest(endedAt = Rfc3339.format(pending.endedAtMillis)),
+            )
+            true
+        } catch (failure: ApiFailure) {
+            BtLog.w("trip", "owed end of ${pending.tripId} still not reported: ${failure.reason}")
+            failure.isFinalForTrip()
+        }
+        if (settled) {
+            fixes.discardTrip(pending.tripId)
+            settingsStore.clearPendingEnd()
+        }
+        return settled
+    }
+
+    /* A refusal that no retry will change: the run is not there to end, or
+       this phone is no longer allowed to say anything about it. A session
+       that lapsed answers 401 too, and so counts as final here — the school's
+       sweep closes the run on the same last-heard rule the driver's end
+       would have used, and the fixes were already pushed above. */
+    private fun ApiFailure.isFinalForTrip(): Boolean =
+        this is ApiFailure.NoSuchTrip || this is ApiFailure.Unauthorized
 
     /**
      * The server no longer accepts this phone's token: the office retired the
@@ -536,7 +606,10 @@ class TrackerRepository @Inject constructor(
      */
     suspend fun credentialRejected(reason: String) {
         BtLog.w("auth", "server rejected this device's token; clearing the pairing")
-        settingsStore.settings.first().activeTrip?.let { fixes.discardTrip(it.tripId) }
+        val current = settingsStore.settings.first()
+        current.activeTrip?.let { fixes.discardTrip(it.tripId) }
+        current.pendingEnd?.let { fixes.discardTrip(it.tripId) }
+        settingsStore.clearPendingEnd()
         stops.clear()
         settingsStore.clearPairing()
         settingsStore.recordSignedOut(reason)
@@ -732,7 +805,8 @@ sealed interface SignInOutcome {
 }
 
 sealed interface EndOutcome {
-    data class Ended(val reportedToServer: Boolean, val discardedFixes: Int) : EndOutcome
+    /** keptFixes is what waits on disk for the flush worker when the end could not be reported. */
+    data class Ended(val reportedToServer: Boolean, val keptFixes: Int) : EndOutcome
     data object NoTrip : EndOutcome
 }
 

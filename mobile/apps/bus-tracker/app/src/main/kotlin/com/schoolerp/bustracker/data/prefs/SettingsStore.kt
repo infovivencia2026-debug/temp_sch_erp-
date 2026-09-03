@@ -54,6 +54,9 @@ class SettingsStore @Inject constructor(
             lastHeartbeatAt = prefs[KEY_LAST_HEARTBEAT_AT] ?: 0L,
             lastServerError = prefs[KEY_LAST_SERVER_ERROR],
             activeTrip = readTrip(prefs),
+            pendingEnd = prefs[KEY_PENDING_END_TRIP]?.let { id ->
+                PendingEnd(id, prefs[KEY_PENDING_END_AT] ?: 0L)
+            },
             routeBook = readRouteBook(prefs),
             signedOutReason = prefs[KEY_SIGNED_OUT_REASON],
         )
@@ -133,6 +136,23 @@ class SettingsStore @Inject constructor(
         it[KEY_TRIP_STARTED_AT] = trip.startedAtMillis
     }
 
+    /* A run the driver ended while the school could not be told.
+
+       The fixes from the end of the route stay on disk under the trip id and
+       the end itself is owed; the flush worker settles both when the network
+       comes back, and the map gets the last mile instead of a bus that
+       vanished. Cleared when the server has been told, or has closed the run
+       itself. */
+    suspend fun recordPendingEnd(tripId: String, endedAtMillis: Long) = edit {
+        it[KEY_PENDING_END_TRIP] = tripId
+        it[KEY_PENDING_END_AT] = endedAtMillis
+    }
+
+    suspend fun clearPendingEnd() = edit {
+        it.remove(KEY_PENDING_END_TRIP)
+        it.remove(KEY_PENDING_END_AT)
+    }
+
     suspend fun closeTrip() = edit {
         it.remove(KEY_TRIP_ID)
         it.remove(KEY_TRIP_ROUTE_ID)
@@ -205,6 +225,8 @@ class SettingsStore @Inject constructor(
         val KEY_TRIP_STARTED_AT = longPreferencesKey("trip_started_at")
         val KEY_ROUTE_BOOK = stringPreferencesKey("route_book")
         val KEY_SIGNED_OUT_REASON = stringPreferencesKey("signed_out_reason")
+        val KEY_PENDING_END_TRIP = stringPreferencesKey("pending_end_trip")
+        val KEY_PENDING_END_AT = longPreferencesKey("pending_end_at")
     }
 }
 
@@ -236,6 +258,9 @@ data class ActiveTrip(
     val startedAtMillis: Long,
 )
 
+/** A run the driver ended offline; the end and its last fixes are still owed. */
+data class PendingEnd(val tripId: String, val endedAtMillis: Long)
+
 data class TrackerSettings(
     val baseUrl: String,
     val institution: String?,
@@ -250,6 +275,8 @@ data class TrackerSettings(
     val lastServerError: String?,
     val activeTrip: ActiveTrip?,
     val routeBook: List<SavedRoute>,
+    /** A run ended on the phone that the server has not yet been told about. */
+    val pendingEnd: PendingEnd? = null,
     /** Set when the server rejected this phone's token; shown on the sign-in screen. */
     val signedOutReason: String? = null,
 ) {

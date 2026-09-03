@@ -55,8 +55,16 @@ class TripFlushWorker @AssistedInject constructor(
             // No run open: the service is supposed to be stopped, so do not
             // start it. Starting a location service with no trip would be
             // tracking a driver's own evening, which this app must never do.
+            // A run ended without signal is settled here instead: its last
+            // fixes and then its end, none of which needs location.
+            val settled = try {
+                repository.finishPendingEnd()
+            } catch (error: Exception) {
+                BtLog.w("worker", "owed end failed", error)
+                false
+            }
             repository.heartbeat()
-            return Result.success()
+            return if (settled) Result.success() else Result.retry()
         }
 
         // Cheap and idempotent: starting an already-running service just
