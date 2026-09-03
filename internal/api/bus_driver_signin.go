@@ -400,6 +400,7 @@ func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret 
 
 	var out staffIdentity
 	var hash *string
+	var hasPIN bool
 	// Same rule the website's sign-in uses: an identifier that matches a user
 	// in two tenants is refused rather than guessed at, because authenticating
 	// whichever row sorted first signs the driver into the wrong school -- and
@@ -425,17 +426,25 @@ func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret 
 			return pgx.ErrNoRows
 		}
 		return tx.QueryRow(ctx, `
-			SELECT u.id, u.institution_id, COALESCE(u.full_name,''), u.password_hash
+			SELECT u.id, u.institution_id, COALESCE(u.full_name,''), u.password_hash,
+			       u.pin_hash IS NOT NULL
 			  FROM users u
 			  LEFT JOIN institutions i ON i.id = u.institution_id
 			 WHERE u.status = 'active'
 			   AND (u.institution_id IS NULL OR i.status = 'active')
 			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext
 			        OR right(regexp_replace(u.phone, '\D', '', 'g'), 10) = $1)`,
-			identifier).Scan(&out.UserID, &out.Institution, &out.Name, &hash)
+			identifier).Scan(&out.UserID, &out.Institution, &out.Name, &hash, &hasPIN)
 	})
 	if err == nil && hash != nil && s.Hasher.Verify(*hash, secret) == nil {
 		return out, nil
+	}
+	/* The number is known and nothing has ever been issued for it. "Do not
+	   match" sends the driver to retype a PIN that does not exist; the office
+	   is who can fix it, so say so. Only for a matched, active account: an
+	   unknown number is still told nothing about whether it exists. */
+	if err == nil && hash == nil && !hasPIN {
+		return staffIdentity{}, errNoLoginYet
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return staffIdentity{}, err
@@ -486,7 +495,16 @@ func requireTransportDriver(ctx context.Context, tx pgx.Tx, who staffIdentity) e
 		    SELECT 1 FROM user_roles ur
 		      JOIN role_permissions rp ON rp.role_id = ur.role_id
 		      JOIN permissions p ON p.id = rp.permission_id
-		     WHERE ur.user_id = $1 AND p.key = 'transport.write')`,
+		     WHERE ur.user_id = $1 AND p.key = 'transport.write')
+		    OR EXISTS (
+		    /* The Driver role itself. It was the one way of saying "this
+		       person drives" that this check did not count: the role holds
+		       transport.read, not write, so a driver issued a login from the
+		       Roles screen but not yet put against a bus was told they were
+		       not a driver. */
+		    SELECT 1 FROM user_roles ur
+		      JOIN roles r ON r.id = ur.role_id
+		     WHERE ur.user_id = $1 AND r.key = 'driver')`,
 		who.UserID, who.Institution).Scan(&ok); err != nil {
 		return err
 	}

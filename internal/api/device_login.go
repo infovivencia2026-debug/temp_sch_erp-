@@ -175,6 +175,7 @@ authenticatePIN turns a phone number and a PIN into a person, or into nothing.
 */
 var errBadPIN = errors.New("bad phone or pin")
 var errPINLocked = errors.New("pin locked")
+var errNoLoginYet = errors.New("no pin or password issued")
 
 func (s *Server) authenticatePIN(ctx context.Context, phone, pin string) (staffIdentity, error) {
 	var out staffIdentity
@@ -468,6 +469,11 @@ func deviceLoginRejected(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, errPINLocked) {
 		httpx.Error(w, r, http.StatusTooManyRequests, "pin_locked",
 			"too many wrong PINs. Wait fifteen minutes, or ask the office to reset it.")
+		return
+	}
+	if errors.Is(err, errNoLoginYet) {
+		httpx.Error(w, r, http.StatusUnauthorized, "no_login_yet",
+			"no PIN or password has been issued for this number yet. Ask the office to issue one.")
 		return
 	}
 	httpx.Error(w, r, http.StatusUnauthorized, "bad_pin",
@@ -988,7 +994,13 @@ func (s *Server) issueStaffPIN(w http.ResponseWriter, r *http.Request) {
 		_, err := tx.Exec(r.Context(), `
 			UPDATE users
 			   SET pin_hash = $2, pin_set_at = now(), pin_set_by = $3,
-			       pin_failed = 0, pin_locked_until = NULL, updated_at = now()
+			       pin_failed = 0, pin_locked_until = NULL, updated_at = now(),
+			       /* A PIN is a login. An account the office created and never
+			          gave a password to sits at 'invited', and sign-in only
+			          admits 'active' — so the PIN the office had just issued was
+			          refused as "do not match" until somebody also reset a
+			          password nobody would use. Issuing the PIN opens the door. */
+			       status = CASE WHEN status = 'invited' THEN 'active' ELSE status END
 			 WHERE id = $1`, *userID, hash, id.UserID)
 		if isUniqueViolation(err) {
 			// users_pin_phone_unique. Two members of staff share a number and
