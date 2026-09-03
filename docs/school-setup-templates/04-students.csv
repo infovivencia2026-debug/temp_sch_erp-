@@ -1,3 +1,2 @@
-full_name,admission_no,date_of_birth,gender,blood_group,medium,mother_tongue,section,roll_no,address,city,state,pincode,prior_school,admission_date,previous_class,previous_year,guardian_name,guardian_relation,guardian_phone,guardian_email
-Ravi Teja Bandaru,ADM0001,14/06/2015,male,,english,Telugu,Class 6-A,1,12 Green Park,Hyderabad,Telangana,500001,,12/06/2021,Class 5,2025-26,Suresh Bandaru,father,9845012345,
-Sana Fatima,ADM0002,02/03/2015,female,,english,Urdu,Class 6-A,2,,,,,,12/06/2021,Class 5,2025-26,Abdul Rahman,father,9845012346,
+Enrollment Code,Full Name,Class,Section,Date Of Birth,Gender,Date Of Admission,Father Name,Father Mobile No,Father EmailID,Mother Name,Mother Mobile No,Mother EmailID,Address,Student Aadhaar Number,Using Transport,Category,Status
+26YPS0016,ALANKRITA PABBA,Nursery,A,9-Dec-22,Girl,23-Mar-26,PABBA SANDEEP KUMAR,9652421945,yajurac@gmail.com,PABBA MOUNIKA,8374799642,,"FLAT NO. 324, HANAMKONDA, Warangal, Telangana",,No,Day Scholar,Active

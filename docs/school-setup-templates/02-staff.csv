@@ -1,5 +1,3 @@
-employee_code,first_name,last_name,email,phone,designation,role,joined_on,subjects
-T-014,Priya,Rao,priya@school.in,9876543210,Teacher,faculty,2026-06-01,MATH; SCI
-T-001,Priya,Rao,priya@yajur.test,9876543210,Teacher,faculty,2026-06-01,MATH; SCI
-T-002,Anand,Kumar,anand@yajur.test,9876543211,Teacher,faculty,2026-06-01,ENG
-A-001,Meera,Iyer,meera@yajur.test,9876543212,Accountant,accounts,2026-06-01,
+Staff Code,Staff Name,Mobile No,Email,Role / Designation,Department,Employment Status,Date of Joining,Date of Inactive,Subjects
+YPS59100001,RAMYA SRI RACHERLA,7815853819,ramyasri.racherla@yajur.org,Teacher,Teaching staff,Permanent,01 Jan 2024,,MATH; SCI
+YPS59100002,BOORA CHAITANYA,8096978711,chaitanyaboora98@gmail.com,Accountant,Administration,Permanent,01 Jan 2024,,

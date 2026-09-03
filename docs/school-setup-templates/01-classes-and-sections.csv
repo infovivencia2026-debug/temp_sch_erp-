@@ -1,15 +1,7 @@
-name,sections,capacity
-Grade 6,"A, B",40
+Class,Sections,Capacity
+Pre Nursery,(none),30
 Nursery,A,30
-LKG,A,30
-UKG,A,30
+Jr KG,A,30
+Sr KG,A,30
 Class 1,"A, B",40
 Class 2,"A, B",40
-Class 3,A,40
-Class 4,A,40
-Class 5,A,40
-Class 6,"A, B",40
-Class 7,"A, B",40
-Class 8,A,40
-Class 9,A,40
-Class 10,A,40

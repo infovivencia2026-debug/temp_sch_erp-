@@ -245,8 +245,9 @@
     <p class="eyebrow">Setting up a school</p>
     <h1>The seven sheets, and what goes in them</h1>
     <p class="standfirst">
-      Fill these in Excel or Google Sheets, export as CSV, and upload them in
-      order. Every heading below was taken from the server that reads it.
+      Written with the column names a school's own export already uses, so the
+      sheet you have is the sheet you upload. Every one was run through the
+      live importer before it was put here.
     </p>
   </header>
 
@@ -259,12 +260,13 @@
     <div class="assurance">
       <h3>Your column names are fine</h3>
       <p>Do not rename anything. Upload the sheet you already have and the screen
-         asks which of your columns is which.</p>
+         asks which of your columns is which. A column we have no field for
+         is kept under your own label.</p>
     </div>
     <div class="assurance">
       <h3>An upload can be undone</h3>
       <p>Each upload is listed with who did it and when, and removes only what it
-         created — never a record somebody typed by hand.</p>
+         created &mdash; never a record somebody typed by hand.</p>
     </div>
   </section>
 
@@ -289,19 +291,22 @@
       </div>
       <p class="lede">One row per class, with its sections written beside it. This
         used to be two sheets and the second only worked after the first had
-        landed — so doing them the wrong way round rejected everything.</p>
-      <div class="header-strip"><pre><span class="req">name</span>,sections,capacity
-<span class="ex">Class 6,"A, B",40
-Nursery,A,30</span></pre></div>
+        landed &mdash; so doing them the wrong way round rejected everything.</p>
+      <div class="header-strip"><pre><span class="req">Class</span>,Sections,Capacity
+<span class="ex">Pre Nursery,(none),30
+Nursery,A,30
+Class 1,"A, B",40</span></pre></div>
       <dl class="cols">
-        <dt>name</dt>
+        <dt>Class</dt>
         <dd>The class as the school says it. The year is read from it, so
             <em>Class 10</em> sorts below <em>Class 9</em> with nothing to fill in.
             <em>Nursery</em>, <em>LKG</em> and <em>UKG</em> are understood.</dd>
-        <dt>sections</dt>
-        <dd>As you say them — <em>A, B</em> or <em>Rose, Newton</em>. Leave empty
-            for a class whose sections are not decided yet.</dd>
-        <dt>capacity</dt>
+        <dt>Sections</dt>
+        <dd>As you say them &mdash; <em>A, B</em> or <em>Rose, Newton</em>. Leave empty
+            for a class whose sections are not decided yet. <em>(none)</em> is
+            read as empty, because that is what an export writes for a class
+            that has none.</dd>
+        <dt>Capacity</dt>
         <dd>Seats per section. Defaults to 40. A section with no capacity can
             never be full, so admissions can never warn you.</dd>
       </dl>
@@ -313,20 +318,22 @@ Nursery,A,30</span></pre></div>
         <h2 class="name">Staff</h2>
         <span class="file">02-staff.csv</span>
       </div>
-      <p class="lede">Everyone on the roll — teaching and not.</p>
-      <div class="header-strip"><pre><span class="req">employee_code</span>,<span class="req">first_name</span>,last_name,email,phone,designation,role,joined_on,subjects
-<span class="ex">T-001,Priya,Rao,priya@school.in,9876543210,Teacher,faculty,2026-06-01,MATH; SCI</span></pre></div>
+      <p class="lede">Everyone on the roll &mdash; teaching and not.</p>
+      <div class="header-strip"><pre><span class="req">Staff Code</span>,<span class="req">Staff Name</span>,Mobile No,Email,Role / Designation,
+Department,Employment Status,Date of Joining,Date of Inactive,Subjects
+<span class="ex">YPS59100001,RAMYA SRI RACHERLA,7815853819,ramyasri.racherla@yajur.org,Teacher,
+Teaching staff,Permanent,01 Jan 2024,,MATH; SCI</span></pre></div>
       <dl class="cols">
-        <dt>email</dt>
-        <dd>This is what creates their login. No email means a personnel record
-            and no account — a real choice for a school that does not give
-            everyone one.</dd>
-        <dt>subjects</dt>
+        <dt>Email</dt>
+        <dd>This is what creates their login. No email means a personnel record and
+            no account &mdash; a real choice for a school that does not give
+            everyone one, and it means nothing can be assigned to them.</dd>
+        <dt>Subjects</dt>
         <dd>Semicolon list of what they teach: <em>MATH; SCI</em>. Matched on the
             subject code or its name.</dd>
-        <dt>joined_on</dt>
-        <dd>The day they actually joined. It decides seniority and prints on an
-            experience certificate.</dd>
+        <dt>Date of Joining</dt>
+        <dd><em>01 Jan 2024</em>, <em>2024-01-01</em> or <em>01/01/2024</em> &mdash; all
+            read. It decides seniority and prints on an experience certificate.</dd>
       </dl>
     </article>
 
@@ -337,7 +344,7 @@ Nursery,A,30</span></pre></div>
         <span class="file">03-subjects-classes-teachers.csv</span>
       </div>
       <p class="lede">One sheet doing three jobs. What a row does depends on what
-        it carries — so a plain list of subject names is a valid file, a full
+        it carries &mdash; so a plain list of subject names is a valid file, a full
         allocation grid is a valid file, and so is anything between.</p>
       <div class="header-strip"><pre><span class="req">subject</span>,class,section,room,class_teacher_email,teacher_email,max_marks,periods_per_week
 <span class="ex">Sanskrit,,,,,,,
@@ -346,7 +353,7 @@ Mathematics,Class 6,A,6A,priya@school.in,anand@school.in,100,6</span></pre></div
       <dl class="cols">
         <dt>subject alone</dt>
         <dd>Adds the subject. A subject the school has not created yet is created
-            from this sheet — there is no separate subject list to do first.</dd>
+            from this sheet &mdash; there is no separate subject list to do first.</dd>
         <dt>+ class</dt>
         <dd>That class studies it.</dd>
         <dt>+ section</dt>
@@ -369,30 +376,35 @@ Mathematics,Class 6,A,6A,priya@school.in,anand@school.in,100,6</span></pre></div
         <span class="file">04-students.csv</span>
       </div>
       <p class="lede">Only the name is required. A sheet with six columns imports
-        exactly as well as one with twenty-one — a school that keeps no blood
+        exactly as well as one with twenty-one &mdash; a school that keeps no blood
         groups does not have to invent an empty column.</p>
-      <div class="header-strip"><pre><span class="req">full_name</span>,admission_no,date_of_birth,gender,blood_group,medium,mother_tongue,
-section,roll_no,address,city,state,pincode,prior_school,
-admission_date,previous_class,previous_year,
-guardian_name,guardian_relation,guardian_phone,guardian_email
-<span class="ex">Ravi Teja Bandaru,ADM0001,14/06/2015,male,,english,Telugu,
-Class 6-A,1,12 Green Park,Hyderabad,Telangana,500001,,
-12/06/2021,Class 5,2025-26,Suresh Bandaru,father,9845012345,</span></pre></div>
+      <div class="header-strip"><pre><span class="req">Enrollment Code</span>,<span class="req">Full Name</span>,Class,Section,Date Of Birth,Gender,Date Of Admission,
+Father Name,Father Mobile No,Father EmailID,
+Mother Name,Mother Mobile No,Mother EmailID,
+Address,Student Aadhaar Number,Using Transport,Category,Status
+<span class="ex">26YPS0016,ALANKRITA PABBA,Nursery,A,9-Dec-22,Girl,23-Mar-26,
+PABBA SANDEEP KUMAR,9652421945,yajurac@gmail.com,
+PABBA MOUNIKA,8374799642,,
+"FLAT NO. 324, HANAMKONDA, Warangal",,No,Day Scholar,Active</span></pre></div>
       <dl class="cols">
-        <dt>guardian_phone</dt>
-        <dd><strong>The one that matters most.</strong> It is the parent's login,
-            the fee reminder and the absence alert. A child imported without one
-            is invisible to their own family.</dd>
-        <dt>admission_date</dt>
-        <dd>The day they actually joined, not today. Without it every child
-            appears to have joined on the morning of the import — which decides
-            seniority and prints on every transfer certificate.</dd>
-        <dt>previous_class<br>previous_year</dt>
-        <dd>Gives a child who did not start here a history, so <em>which class was
-            she in last year</em> has an answer on their transfer certificate.</dd>
-        <dt>section</dt>
-        <dd>Written as <em>Class 6-A</em>. Matched by name, so it must already
-            exist from sheet 01.</dd>
+        <dt>Father Mobile No<br>Mother Mobile No</dt>
+        <dd><strong>The one that matters most.</strong> It is the parent's login, the
+            fee reminder and the absence alert. A child imported without one is
+            invisible to their own family. Both parents are kept, and either can
+            be reached &mdash; the mother becomes the first contact where a row
+            carries no father.</dd>
+        <dt>Date Of Admission</dt>
+        <dd>The day they actually joined, not today. <em>23-Mar-26</em> and
+            <em>23/03/2026</em> both read. Without it every child appears to have
+            joined on the morning of the import &mdash; which decides seniority and
+            prints on every transfer certificate.</dd>
+        <dt>Class<br>Section</dt>
+        <dd>Two columns, as every export writes them. <em>Nursery</em> and <em>A</em>,
+            not <em>Nursery-A</em> &mdash; though the joined form is read too. The
+            section must already exist from sheet 01.</dd>
+        <dt>Gender</dt>
+        <dd><em>Boy</em> and <em>Girl</em> are read, as well as male and female.
+            That is how a register writes it.</dd>
       </dl>
     </article>
 
@@ -404,14 +416,14 @@ Class 6-A,1,12 Green Park,Hyderabad,Telangana,500001,,
         <span class="later">only if the school ran before</span>
       </div>
       <p class="lede">One row per child per year. Attendance as a total, fees as a
-        figure — which is what a school actually hands over, rather than four
+        figure &mdash; which is what a school actually hands over, rather than four
         years of registers and receipts.</p>
       <div class="header-strip"><pre><span class="req">admission_no</span>,<span class="req">year</span>,class,days_present,days_total,fee_billed,fee_paid,fee_waived,notes
 <span class="ex">ADM0001,2025-26,Class 5,187,210,35500,32500,3000,Promoted with distinction</span></pre></div>
       <dl class="cols">
         <dt>days_present<br>days_total</dt>
         <dd>Out of the days the school actually ran. Present above total is
-            refused — it prints as attendance over 100%.</dd>
+            refused &mdash; it prints as attendance over 100%.</dd>
         <dt>fee_billed<br>fee_paid</dt>
         <dd>Rupees as you write them; <em>28,000</em> is fine. Held apart from
             this year's collection, so a closed year is never counted as today's
@@ -426,7 +438,7 @@ Class 6-A,1,12 Green Park,Hyderabad,Telangana,500001,,
         <span class="file">06-past-results-grid.csv</span>
         <span class="later">only if the school ran before</span>
       </div>
-      <p class="lede">The mark sheet as a staff room keeps it — children down,
+      <p class="lede">The mark sheet as a staff room keeps it &mdash; children down,
         subjects across, one mark in a cell. Not one row per subject: forty
         children across six subjects is 240 rows, and nobody keeps marks that
         way.</p>
@@ -436,11 +448,11 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
       <dl class="cols">
         <dt>the columns</dt>
         <dd>Name the subject each marks column holds when you upload. Leave
-            <em>Total</em> and <em>Rank</em> unmapped — they are worked out from
+            <em>Total</em> and <em>Rank</em> unmapped &mdash; they are worked out from
             the marks, not read from the sheet.</dd>
         <dt>AB</dt>
         <dd>Absent, which is a result. A blank cell is a subject that child does
-            not take — not a zero.</dd>
+            not take &mdash; not a zero.</dd>
         <dt>asked once</dt>
         <dd>The year, the exam, the class and what the papers are out of are
             asked above the file, not repeated on every row.</dd>
@@ -467,7 +479,7 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
   </div>
 
   <section class="typed">
-    <h2>Not a sheet — typed in once</h2>
+    <h2>Not a sheet &mdash; typed in once</h2>
     <dl>
       <dt>The school day</dt>
       <dd>Period names and times. Name a second day if the little ones run
