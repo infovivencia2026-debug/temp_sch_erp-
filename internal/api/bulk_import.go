@@ -2546,6 +2546,25 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				// Anything the failed row claimed to have created went back
 				// with it, so the undo record must not still name those rows.
 				ctx.created = ctx.created[:madeSoFar]
+				/* AND NEITHER MAY THE LOOKUP CACHES.
+				
+				   A row that creates something and then fails takes the thing
+				   it created back with it, but the id stayed cached -- so
+				   every later row pointed at a class, a year, a schedule or an
+				   exam that no longer existed, and failed on a foreign key
+				   naming a constraint rather than anything a school could act
+				   on.
+				
+				   Found by committing a file rather than dry-running it: one
+				   row named a class this school does not have, and the six
+				   rows after it failed on a bell schedule that had been rolled
+				   back underneath them. Cheap to clear and re-read; the cache
+				   exists to save lookups, not correctness. */
+				ctx.classes = nil
+				ctx.sections = nil
+				ctx.teachers = nil
+				ctx.pastYears = nil
+				ctx.pastExams = nil
 				out.Rejected++
 				out.Problems = append(out.Problems,
 					importRow{Row: p.row, Data: p.data, Problem: werr.Error()})
