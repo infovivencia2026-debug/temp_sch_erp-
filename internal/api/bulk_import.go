@@ -1530,9 +1530,19 @@ var importSpecs = map[string]importSpec{
 		Sample: []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210",
 			"Teacher", "faculty", "2026-06-01", "MATH; SCI"},
 		Check: func(row map[string]string) error {
+			/* The same date reader the student sheet uses.
+
+			   This one parsed YYYY-MM-DD and nothing else, so a staff export
+			   reading "01 Jan 2024" -- which is what a real one does -- was
+			   rejected row by row for a date any person can read. Two
+			   importers in one product disagreeing about what a date looks
+			   like is a difference nobody can be expected to know about. */
 			if v := strings.TrimSpace(row["joined_on"]); v != "" {
-				if _, err := time.Parse(time.DateOnly, v); err != nil {
-					return errors.New("joined_on must be a date written as YYYY-MM-DD")
+				if normaliseDate(v) == v {
+					if _, err := time.Parse(time.DateOnly, v); err != nil {
+						return errors.New("joined_on is not a date this can read. " +
+							"Write it as 2026-06-01, 01/06/2026 or 01 Jun 2026")
+					}
 				}
 			}
 			return nil
@@ -1564,7 +1574,7 @@ var importSpecs = map[string]importSpec{
 				LastName:     strings.TrimSpace(row["last_name"]),
 				Email:        strings.TrimSpace(row["email"]),
 				Phone:        strings.TrimSpace(row["phone"]),
-				JoinedOn:     strings.TrimSpace(row["joined_on"]),
+				JoinedOn:     normaliseDate(row["joined_on"]),
 				RoleKey:      strings.ToLower(strings.TrimSpace(row["role"])),
 			}
 			// A login is minted only where there is an address to send it to.
