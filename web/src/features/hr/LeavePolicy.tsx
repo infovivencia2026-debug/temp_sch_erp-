@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Loading, ErrorState, EmptyState,
+  Input, Select, Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The rules a payslip already assumed.
@@ -113,7 +113,7 @@ export default function LeavePolicy() {
      into the form. */
   if (policy.isLoading) return <Loading label="Reading the leave policy…" />
   if (policy.error) return <ErrorState error={policy.error} />
-  if (!draft) return <Loading label="Reading the leave policy…" />
+  if (!draft) return <SkeletonTiles count={4} label="Reading the leave policy…" />
 
   const set = <K extends keyof Policy>(k: K, v: Policy[K]) => setDraft({ ...draft, [k]: v })
   const setType = (id: string, patch: Partial<TypeRule>) =>
@@ -342,7 +342,7 @@ function RegisterTab() {
         }
       />
       {reg.isLoading ? (
-        <Loading label="Working out the month…" />
+        <SkeletonTable columns={6} label="Working out the month…" />
       ) : rows.length === 0 ? (
         <EmptyState title="Nobody lost a day"
           body="Every member of staff was present, on paid leave, or inside the grace period." />

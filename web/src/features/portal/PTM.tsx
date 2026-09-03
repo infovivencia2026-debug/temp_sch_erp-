@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Select, Input,
-  Loading, EmptyState,
+  SkeletonTable, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -104,7 +104,7 @@ export default function PTM() {
     onSuccess: refresh,
   })
 
-  if (slots.isLoading) return <Loading label={t('portal.ptm.loading')} />
+  if (slots.isLoading) return <SkeletonTable columns={7} label={t('portal.ptm.loading')} />
   if (slots.error) return <ScreenError error={slots.error} />
 
   const rows = slots.data?.items ?? []

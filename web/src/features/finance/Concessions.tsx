@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, ConfirmButton, Select, Input, Loading, ErrorState, FormNotice,
+  Button, ConfirmButton, Select, Input, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -149,7 +149,7 @@ export default function Concessions() {
             }
           />
           {concessions.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : concessions.error ? (
             <ErrorState error={concessions.error} />
           ) : (
@@ -238,7 +238,7 @@ export default function Concessions() {
         <Card>
           <CardHeader title="Refunds" description="Money returned, and what it was against" />
           {refunds.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : refunds.error ? (
             <ErrorState error={refunds.error} />
           ) : (

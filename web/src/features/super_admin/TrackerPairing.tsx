@@ -3,7 +3,7 @@ import { AlertTriangle, BusFront, MapPinOff, Radio, Smartphone } from 'lucide-re
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Checkbox, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState, EmptyState, Table, Td,
+  Loading, SkeletonTiles, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import {
   useTrackers, useTrackingPolicy, usePairTracker, useUpdateTracker,
@@ -44,7 +44,7 @@ export default function TrackerPairing() {
 
   const [vehicle, setVehicle] = useState('')
 
-  if (trackers.isLoading) return <Loading />
+  if (trackers.isLoading) return <SkeletonTiles count={2} />
   // A failed query never renders as "no buses paired". That reads as a school
   // with no trackers, which is a calmer fact than "this screen could not find
   // out" and would be acted on the same way — by pairing a phone that is

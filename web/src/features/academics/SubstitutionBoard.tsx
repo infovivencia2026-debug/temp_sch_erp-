@@ -4,7 +4,7 @@ import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
-  FormNotice, Input, Select, Loading, ErrorState, EmptyState,
+  FormNotice, Input, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 
@@ -116,7 +116,7 @@ export default function SubstitutionBoard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['substitution-board'] }),
   })
 
-  if (board.isLoading) return <Loading label="Reading this morning’s register…" />
+  if (board.isLoading) return <SkeletonTiles count={4} label="Reading this morning’s register…" />
   if (board.error) return <ErrorState error={board.error} />
 
   const rows = board.data?.items ?? []

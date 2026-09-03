@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Field, FormGrid, FormNotice, Input, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -136,7 +136,7 @@ export default function LostFoundClaims() {
     onSuccess: refresh,
   })
 
-  if (board.isLoading && ready) return <Loading label="Reading the board…" />
+  if (board.isLoading && ready) return <SkeletonTiles count={3} label="Reading the board…" />
   if (board.error) return <ErrorState error={board.error} />
 
   const items = board.data?.items ?? []

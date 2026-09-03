@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Loading, ErrorState, EmptyState,
+  Button, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useSession } from '@/lib/session'
@@ -118,7 +118,7 @@ export default function Transport() {
         <Card>
           <CardHeader title="Routes" description="Select a route to see its run" />
           {routes.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : routes.error ? (
             <ErrorState error={routes.error} />
           ) : (
@@ -160,7 +160,7 @@ export default function Transport() {
               action={<Button variant="ghost" onClick={() => setOpenRoute(null)}>Close</Button>}
             />
             {stops.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : !stops.data?.items.length ? (
               <div className="p-6">
                 <EmptyState title="No stops on this route" body="Add stops to allocate children to it." />
@@ -190,7 +190,7 @@ export default function Transport() {
             description="Insurance, fitness, permit and PUC — anything inside 45 days is flagged"
           />
           {vehicles.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={5} />
           ) : vehicles.error ? (
             <ErrorState error={vehicles.error} />
           ) : (
@@ -335,7 +335,7 @@ function BusTrackers() {
       )}
 
       {trackers.isLoading ? (
-        <Loading />
+        <SkeletonTable columns={5} />
       ) : trackers.error ? (
         <ErrorState error={trackers.error} />
       ) : (

@@ -4,7 +4,7 @@ import { Building2, TriangleAlert, Users, UserCog } from 'lucide-react'
 import { api, type List, type Klass } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Input, Select, Loading, ErrorState, EmptyState, useSort,
+  Input, Select, SkeletonTable, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -72,7 +72,7 @@ export default function DepartmentStudents() {
     { key: 'full_name' },
   )
 
-  if (roll.isLoading) return <Loading label="Working out who each department teaches…" />
+  if (roll.isLoading) return <SkeletonTable columns={5} label="Working out who each department teaches…" />
   if (roll.error) return <ErrorState error={roll.error} />
 
   const depts = roll.data?.departments ?? []

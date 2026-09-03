@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Button, Input, Loading, ErrorState, ExportButton, FormNotice } from '@/components/ui'
+  Table, Td, Button, Input, SkeletonTable, ErrorState, ExportButton, FormNotice } from '@/components/ui'
 
 interface UDISERow {
   admission_no: string; name: string; apaar_id?: string
@@ -67,7 +67,7 @@ export default function UDISE() {
             title={onlyIssues ? 'Records with problems' : 'All records'}
             description={`${rows.length} rows`}
           />
-          {isLoading ? <Loading /> : error ? <ErrorState error={error} /> : (
+          {isLoading ? <SkeletonTable columns={7} /> : error ? <ErrorState error={error} /> : (
             <Table head={['Admission no.', 'Student', 'Class', 'APAAR ID', 'Aadhaar', 'Problems', '']}
               empty={!rows.length} emptyLabel="Every record passes validation.">
               {rows.map((r) => (

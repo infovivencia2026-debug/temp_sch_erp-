@@ -5,7 +5,7 @@ import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The nurse's day: who came in, and what they were given.
@@ -639,7 +639,7 @@ function MedicationRegister({ date }: { date: string }) {
         </div>
       )}
       {list.isLoading ? (
-        <Loading label="Loading the register…" />
+        <SkeletonTable columns={6} label="Loading the register…" />
       ) : rows.length === 0 ? (
         <EmptyState
           title={incidents ? 'No refusals or reactions' : 'Nothing given'}

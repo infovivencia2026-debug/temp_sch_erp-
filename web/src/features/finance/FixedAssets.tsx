@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState,
+  SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import {
   inr, rupees, toPaise, fyOptions, currentFY, useAccounts, accountOptions,
@@ -33,7 +33,7 @@ export default function FixedAssets() {
     queryFn: () => api.get<List<FixedAsset>>(`${ledgerBase}/assets`),
   })
 
-  if (assets.isLoading) return <Loading label="Reading the register…" />
+  if (assets.isLoading) return <SkeletonTiles count={4} label="Reading the register…" />
   if (assets.error) return <ErrorState error={assets.error} />
 
   const rows = assets.data?.items ?? []

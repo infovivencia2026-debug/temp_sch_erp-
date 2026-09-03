@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Button, Select, Input, Loading, ErrorState, EmptyState, FormNotice,
+  Table, Td, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -162,7 +162,7 @@ export default function Corrections() {
               </div>
 
               {!sectionId ? null : register.isLoading ? (
-                <Loading />
+                <SkeletonTable columns={5} />
               ) : (register.data?.items ?? []).length === 0 ? (
                 <EmptyState
                   title="Nothing marked that day"
@@ -245,7 +245,7 @@ export default function Corrections() {
           />
           <FormNotice error={decide.error} ok={done} />
           {q.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

@@ -6,7 +6,7 @@ import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Loading, ErrorState, EmptyState, useSort,
+  Input, Select, SkeletonTable, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate, formatPaise } from '@/lib/utils'
 
@@ -176,7 +176,7 @@ export default function Tenants() {
     { key: 'setup_percent' },
   )
 
-  if (tenants.isLoading) return <Loading />
+  if (tenants.isLoading) return <SkeletonTable columns={4} />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
   return (

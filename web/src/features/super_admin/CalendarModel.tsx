@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Button, Input, Select, Field, FormGrid, FormNotice, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, MONTHS, WEEKDAYS, type CalendarModel as Model,
@@ -32,7 +32,7 @@ export default function CalendarModel() {
   const [saturday, setSaturday] = useState<string | null>(null)
   const [required, setRequired] = useState<string | null>(null)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

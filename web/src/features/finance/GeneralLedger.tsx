@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   inr, side, rupees, toPaise, fyOptions, currentFY, useAccounts, accountOptions,
@@ -235,7 +235,7 @@ function VoucherRegister({ fy }: { fy: string }) {
     enabled: !!open,
   })
 
-  if (vouchers.isLoading) return <Loading label="Reading the register…" />
+  if (vouchers.isLoading) return <SkeletonTable columns={7} label="Reading the register…" />
   const rows = vouchers.data?.items ?? []
 
   return (
@@ -273,7 +273,7 @@ function VoucherRegister({ fy }: { fy: string }) {
         <Card>
           <CardHeader title={`Voucher ${detail.data?.voucher.voucher_no ?? ''}`}
             description={detail.data?.voucher.narration} />
-          {detail.isLoading ? <Loading /> : (
+          {detail.isLoading ? <SkeletonTable columns={5} /> : (
             <Table head={['Code', 'Account', 'Note', { label: 'Debit', align: 'right' }, { label: 'Credit', align: 'right' }]}
               empty={(detail.data?.lines ?? []).length === 0}>
               {(detail.data?.lines ?? []).map((l, i) => (
@@ -294,7 +294,7 @@ function VoucherRegister({ fy }: { fy: string }) {
 }
 
 function TrialBalanceTab({ query }: { query: ReturnType<typeof useQuery<TrialBalance>> }) {
-  if (query.isLoading) return <Loading label="Adding up the books…" />
+  if (query.isLoading) return <SkeletonTable columns={8} label="Adding up the books…" />
   if (query.error) return <ErrorState error={query.error} />
   const t = query.data
   if (!t) return null
@@ -348,7 +348,7 @@ function StatementsTab({ fy }: { fy: string }) {
     queryKey: ['ledgers', 'statements', fy],
     queryFn: () => api.get<Statements>(`${ledgerBase}/statements?fy=${fy}`),
   })
-  if (q.isLoading) return <Loading label="Drawing up the statements…" />
+  if (q.isLoading) return <SkeletonTable columns={4} label="Drawing up the statements…" />
   if (q.error) return <ErrorState error={q.error} />
   const s = q.data
   if (!s) return null

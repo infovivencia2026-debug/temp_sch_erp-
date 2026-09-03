@@ -76,6 +76,34 @@ function Bar({ className, style }: { className?: string; style?: React.CSSProper
   return <div className={cn('animate-pulse rounded-sm bg-muted', className)} style={style} aria-hidden />
 }
 
+/* WHAT SOMEBODY NOT LOOKING AT THE SCREEN IS TOLD.
+ *
+ * Every shape below is `aria-hidden`, and correctly so: a screen reader
+ * walking eleven grey bars announces nothing anybody can use, and the
+ * decorative markup would be read as though it were the table itself. But the
+ * thing these replace was not silent. `Loading` is a `role="status"` live
+ * region that says its sentence once, and that is the only signal a blind
+ * user gets between pressing something and the page changing under them.
+ * Swapping in a hidden shape would take that away and call it an improvement.
+ *
+ * So the shape is hidden and the sentence is not. `sr-only` keeps it out of
+ * the layout, because the placeholder is already doing the visual work and a
+ * second visible "Loading…" underneath a skeleton is the belt-and-braces that
+ * made these screens read as unfinished.
+ *
+ * The label is carried rather than generated. Screens here do not say
+ * "Loading…"; they say "Working out how far each class has got…", which tells
+ * somebody what the wait is FOR. Each of those was written by whoever knew
+ * what the screen did, and it costs nothing to keep them.
+ */
+function Says({ label }: { label?: string }) {
+  return (
+    <p role="status" aria-live="polite" className="sr-only">
+      {label ?? 'Loading…'}
+    </p>
+  )
+}
+
 /**
  * The original: n rows of one bar each.
  *
@@ -84,20 +112,23 @@ function Bar({ className, style }: { className?: string; style?: React.CSSProper
  * bug this file exists to fix. What it gains is the delay, so the screens
  * whose data is already cached no longer blink grey on the way in.
  */
-export function Skeleton({ rows = 5, delay }: { rows?: number; delay?: number }) {
+export function Skeleton({ rows = 5, delay, label }: { rows?: number; delay?: number; label?: string }) {
   const show = useDelayed(true, delay)
   if (!show) return null
   return (
-    <div className="space-y-2 p-5" aria-hidden>
-      {Array.from({ length: rows }, (_, i) => (
-        <Bar
-          key={i}
-          className="h-9"
-          // Staggered widths so it reads as content rather than as a bar chart.
-          style={{ width: `${92 - (i % 3) * 9}%`, animationDelay: `${i * 60}ms` }}
-        />
-      ))}
-    </div>
+    <>
+      <Says label={label} />
+      <div className="space-y-2 p-5" aria-hidden>
+        {Array.from({ length: rows }, (_, i) => (
+          <Bar
+            key={i}
+            className="h-9"
+            // Staggered widths so it reads as content rather than as a bar chart.
+            style={{ width: `${92 - (i % 3) * 9}%`, animationDelay: `${i * 60}ms` }}
+          />
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -121,10 +152,12 @@ export function SkeletonTable({
   rows = 6,
   columns = 4,
   delay,
+  label,
 }: {
   rows?: number
   columns?: number
   delay?: number
+  label?: string
 }) {
   const show = useDelayed(true, delay)
   if (!show) return null
@@ -132,30 +165,33 @@ export function SkeletonTable({
   // holding a name, then narrower ones holding a class, a date, a number.
   const widths = ['34%', '20%', '18%', '14%', '16%', '12%']
   return (
-    <div className="overflow-hidden rounded-[10px] border bg-card" aria-hidden>
-      <div className="flex h-[41px] items-center gap-4 border-b px-4">
-        {Array.from({ length: columns }, (_, c) => (
-          <Bar key={c} className="h-2.5" style={{ width: widths[c % widths.length] }} />
-        ))}
-      </div>
-      {Array.from({ length: rows }, (_, r) => (
-        <div key={r} className="flex h-[45px] items-center gap-4 border-b px-4 last:border-b-0">
+    <>
+      <Says label={label} />
+      <div className="overflow-hidden rounded-[10px] border bg-card" aria-hidden>
+        <div className="flex h-[41px] items-center gap-4 border-b px-4">
           {Array.from({ length: columns }, (_, c) => (
-            <Bar
-              key={c}
-              className="h-3"
-              style={{
-                width: widths[c % widths.length],
-                // A whole grid breathing in unison reads as one flashing
-                // object. Offsetting each row by a frame or two makes it read
-                // as many things, which is what it is standing in for.
-                animationDelay: `${(r * columns + c) * 40}ms`,
-              }}
-            />
+            <Bar key={c} className="h-2.5" style={{ width: widths[c % widths.length] }} />
           ))}
         </div>
-      ))}
-    </div>
+        {Array.from({ length: rows }, (_, r) => (
+          <div key={r} className="flex h-[45px] items-center gap-4 border-b px-4 last:border-b-0">
+            {Array.from({ length: columns }, (_, c) => (
+              <Bar
+                key={c}
+                className="h-3"
+                style={{
+                  width: widths[c % widths.length],
+                  // A whole grid breathing in unison reads as one flashing
+                  // object. Offsetting each row by a frame or two makes it read
+                  // as many things, which is what it is standing in for.
+                  animationDelay: `${(r * columns + c) * 40}ms`,
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -167,21 +203,24 @@ export function SkeletonTable({
  * every other tile sideways. Holding the grid with the same column rules the
  * real one uses keeps every tile where it is going to be.
  */
-export function SkeletonTiles({ count = 4, delay }: { count?: number; delay?: number }) {
+export function SkeletonTiles({ count = 4, delay, label }: { count?: number; delay?: number; label?: string }) {
   const show = useDelayed(true, delay)
   if (!show) return null
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="rounded-[10px] border bg-card p-5">
-          {/* The eyebrow, the number, the qualifier under it: the three lines
-              every metric tile in this product actually has. */}
-          <Bar className="h-2.5 w-20" style={{ animationDelay: `${i * 70}ms` }} />
-          <Bar className="mt-3 h-6 w-24" style={{ animationDelay: `${i * 70 + 30}ms` }} />
-          <Bar className="mt-3 h-2.5 w-28" style={{ animationDelay: `${i * 70 + 60}ms` }} />
-        </div>
-      ))}
-    </div>
+    <>
+      <Says label={label} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i} className="rounded-[10px] border bg-card p-5">
+            {/* The eyebrow, the number, the qualifier under it: the three lines
+                every metric tile in this product actually has. */}
+            <Bar className="h-2.5 w-20" style={{ animationDelay: `${i * 70}ms` }} />
+            <Bar className="mt-3 h-6 w-24" style={{ animationDelay: `${i * 70 + 30}ms` }} />
+            <Bar className="mt-3 h-2.5 w-28" style={{ animationDelay: `${i * 70 + 60}ms` }} />
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -194,18 +233,21 @@ export function SkeletonTiles({ count = 4, delay }: { count?: number; delay?: nu
  * short bar above each tall one is the field label; without it the whole
  * thing reads as a stack of buttons.
  */
-export function SkeletonForm({ fields = 6, delay }: { fields?: number; delay?: number }) {
+export function SkeletonForm({ fields = 6, delay, label }: { fields?: number; delay?: number; label?: string }) {
   const show = useDelayed(true, delay)
   if (!show) return null
   return (
-    <div className="grid gap-5 p-5 sm:grid-cols-2" aria-hidden>
-      {Array.from({ length: fields }, (_, i) => (
-        <div key={i}>
-          <Bar className="mb-1.5 h-2.5 w-24" style={{ animationDelay: `${i * 60}ms` }} />
-          <Bar className="h-9 w-full" style={{ animationDelay: `${i * 60 + 30}ms` }} />
-        </div>
-      ))}
-    </div>
+    <>
+      <Says label={label} />
+      <div className="grid gap-5 p-5 sm:grid-cols-2" aria-hidden>
+        {Array.from({ length: fields }, (_, i) => (
+          <div key={i}>
+            <Bar className="mb-1.5 h-2.5 w-24" style={{ animationDelay: `${i * 60}ms` }} />
+            <Bar className="h-9 w-full" style={{ animationDelay: `${i * 60 + 30}ms` }} />
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -226,34 +268,37 @@ export function SkeletonForm({ fields = 6, delay }: { fields?: number; delay?: n
  * -- so when the real header arrives it arrives where its stand-in already
  * was, and only the card beneath it changes size.
  */
-export function SkeletonPage({ delay }: { delay?: number }) {
+export function SkeletonPage({ delay, label }: { delay?: number; label?: string }) {
   const show = useDelayed(true, delay)
   if (!show) return null
   return (
-    <div aria-hidden>
-      {/* ONE LINE, NOT TWO.
-       *
-       * The obvious skeleton for a page header is a small bar for the section
-       * and a big one for the title beneath it. That is wrong here, and
-       * measuring it is what showed why: this product's `PageHead` renders
-       * the title INSIDE the breadcrumb -- "Students / Student 360" on a
-       * single 23px line -- and keeps the h1 as sr-only, because the visible
-       * duplicate heading was deleted from every screen. A two-line stand-in
-       * would be 23px too tall and would push the first card down by that
-       * much at the moment the real header replaced it.
-       *
-       * So: one row, 23px, holding two bars on the same line. Measured
-       * against the live header on a 390px viewport, that puts the first card
-       * at y=86, which is exactly where the real one lands. */}
-      <div className="mx-auto w-full max-w-[1360px] px-5 pb-6 pt-5 sm:px-7">
-        <div className="flex h-[23px] items-center gap-2">
-          <Bar className="h-2.5 w-16" />
-          <Bar className="h-2.5 w-28" style={{ animationDelay: '60ms' }} />
+    <>
+      <Says label={label} />
+      <div aria-hidden>
+        {/* ONE LINE, NOT TWO.
+         *
+         * The obvious skeleton for a page header is a small bar for the section
+         * and a big one for the title beneath it. That is wrong here, and
+         * measuring it is what showed why: this product's `PageHead` renders
+         * the title INSIDE the breadcrumb -- "Students / Student 360" on a
+         * single 23px line -- and keeps the h1 as sr-only, because the visible
+         * duplicate heading was deleted from every screen. A two-line stand-in
+         * would be 23px too tall and would push the first card down by that
+         * much at the moment the real header replaced it.
+         *
+         * So: one row, 23px, holding two bars on the same line. Measured
+         * against the live header on a 390px viewport, that puts the first card
+         * at y=86, which is exactly where the real one lands. */}
+        <div className="mx-auto w-full max-w-[1360px] px-5 pb-6 pt-5 sm:px-7">
+          <div className="flex h-[23px] items-center gap-2">
+            <Bar className="h-2.5 w-16" />
+            <Bar className="h-2.5 w-28" style={{ animationDelay: '60ms' }} />
+          </div>
+        </div>
+        <div className="mx-auto w-full max-w-[1360px] space-y-7 px-5 pb-10 sm:px-7">
+          <SkeletonTable rows={5} columns={4} delay={0} />
         </div>
       </div>
-      <div className="mx-auto w-full max-w-[1360px] space-y-7 px-5 pb-10 sm:px-7">
-        <SkeletonTable rows={5} columns={4} delay={0} />
-      </div>
-    </div>
+    </>
   )
 }

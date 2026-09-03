@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Checkbox, Textarea, Loading, ErrorState, FormNotice,
+  Button, Input, Select, Checkbox, Textarea, SkeletonTable, ErrorState, FormNotice,
   FormGrid, Field, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
@@ -205,7 +205,7 @@ export default function MDMRegister() {
         )}
 
         {days.isLoading ? (
-          <Loading />
+          <SkeletonTable columns={2} />
         ) : days.error ? (
           /* A failed query is never drawn as an empty register. "Nothing
              recorded this month" and "we could not read the register" are
@@ -302,7 +302,7 @@ export default function MDMRegister() {
             </Card>
 
             {openDay && (
-              detail.isLoading ? <Loading /> :
+              detail.isLoading ? <SkeletonTable columns={4} /> :
               detail.error ? <ErrorState error={detail.error} /> :
               detail.data ? (
                 <DayDetail

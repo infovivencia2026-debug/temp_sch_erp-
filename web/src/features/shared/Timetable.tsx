@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Period, type TimetableEntry, type Teacher } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Select, Loading, ErrorState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Select, Loading, SkeletonTable, ErrorState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import WeekGrid from '@/components/WeekGrid'
 
@@ -168,7 +168,7 @@ function Workload() {
     queryKey: ['teachers'],
     queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={4} />
   if (error) return <ErrorState error={error} />
   const rows = data?.items ?? []
   return (

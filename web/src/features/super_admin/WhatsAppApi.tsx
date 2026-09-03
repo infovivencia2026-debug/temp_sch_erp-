@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  Loading, ErrorState, Table, Td,
+  SkeletonTable, SkeletonTiles, ErrorState, Table, Td,
 } from '@/components/ui'
 import {
   useWhatsAppSettings, useSaveWhatsApp, useForgetWhatsApp, useTestWhatsApp,
@@ -41,7 +41,7 @@ export default function WhatsAppApi() {
   // A failed query is never an empty state. "No recipients are allowed" and
   // "the server did not answer" are opposite facts, and showing the first for
   // the second is how somebody concludes the guard is off.
-  if (settings.isLoading || policy.isLoading) return <Loading />
+  if (settings.isLoading || policy.isLoading) return <SkeletonTiles count={4} />
   if (settings.error) return <ErrorState error={settings.error} />
   if (policy.error) return <ErrorState error={policy.error} />
 
@@ -457,7 +457,7 @@ function TemplateMapping() {
   const templates = useWhatsAppTemplates()
   const [code, setCode] = useState('')
 
-  if (templates.isLoading) return <Loading />
+  if (templates.isLoading) return <SkeletonTable columns={5} />
   if (templates.error) return <ErrorState error={templates.error} />
 
   const items = templates.data?.items ?? []
@@ -593,7 +593,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
 function DispatchLog() {
   const log = useWhatsAppLog()
 
-  if (log.isLoading) return <Loading />
+  if (log.isLoading) return <SkeletonTable columns={5} />
   if (log.error) return <ErrorState error={log.error} />
 
   const items = log.data?.items ?? []

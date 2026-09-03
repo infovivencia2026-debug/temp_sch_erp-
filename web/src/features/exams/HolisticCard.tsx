@@ -4,7 +4,7 @@ import { Brain, HeartHandshake, Activity, Info, MessageSquare } from 'lucide-rea
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Select, Loading, ErrorState, EmptyState, FormNotice, PrintButton,
+  Badge, Button, Select, Loading, SkeletonTiles, ErrorState, EmptyState, FormNotice, PrintButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -178,7 +178,7 @@ export default function HolisticCard() {
         </PageBody>
       </>
     )
-  if (isLoading) return <Loading label="Assembling the card…" />
+  if (isLoading) return <SkeletonTiles count={6} label="Assembling the card…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const observed = d.domains.reduce(

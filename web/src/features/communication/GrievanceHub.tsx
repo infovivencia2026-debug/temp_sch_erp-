@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -240,7 +240,7 @@ export default function GrievanceHub() {
             description="The queue tells you what is open today. This is the half a governing body asks about."
           />
           {summary.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={9} />
           ) : summary.error ? (
             <ErrorState error={summary.error} />
           ) : (
@@ -308,7 +308,7 @@ export default function GrievanceHub() {
             }
           />
           {list.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : list.error ? (
             <ErrorState error={list.error} />
           ) : (
@@ -522,7 +522,7 @@ export default function GrievanceHub() {
             description="The deadline stamped onto a case at triage. Changing it here does not move deadlines already given."
           />
           {slas.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : (
             <Table
               head={['Category', 'First response', 'Resolution', 'Owner', 'Department', 'Active']}

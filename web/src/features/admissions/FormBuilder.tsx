@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import {
@@ -198,7 +198,7 @@ export default function FormBuilder() {
     onError: (e) => toast.error(errText(e)),
   })
 
-  if (forms.isLoading) return <Loading />
+  if (forms.isLoading) return <SkeletonTable columns={7} />
   if (forms.error) return <ErrorState error={forms.error} />
 
   const rows = forms.data?.items ?? []
@@ -305,7 +305,7 @@ export default function FormBuilder() {
           />
         )}
 
-        {versionID && def.isLoading && <Loading />}
+        {versionID && def.isLoading && <SkeletonTable columns={4} />}
         {versionID && def.error && <ErrorState error={def.error} />}
 
         {d && (
@@ -639,7 +639,7 @@ function VersionsCard({
 }) {
   // A failed query is never rendered as "no versions yet": the two look
   // identical and only one of them is the school's fault.
-  if (versions.isLoading) return <Loading />
+  if (versions.isLoading) return <SkeletonTable columns={6} />
   if (versions.error) return <ErrorState error={versions.error} />
   const items = versions.data?.items ?? []
 

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  Loading, ErrorState, Table, Td,
+  SkeletonTable, ErrorState, Table, Td,
 } from '@/components/ui'
 import {
   useProviders, useSaveProvider, useForgetProvider, useTestProvider,
@@ -119,7 +119,7 @@ export default function EmailServer({ platform = false }: { platform?: boolean }
   const log = useMessageLog('?channel=email&limit=50')
   const dispatch = useDispatch()
 
-  if (providers.isLoading) return <Loading />
+  if (providers.isLoading) return <SkeletonTable columns={5} />
   if (providers.error) return <ErrorState error={providers.error} />
 
   const items = providers.data?.items ?? []

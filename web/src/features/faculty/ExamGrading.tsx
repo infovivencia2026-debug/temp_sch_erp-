@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState, EmptyState, Panel,
+  SkeletonTable, SkeletonTiles, ErrorState, EmptyState, Panel,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { type GradableTest, type GradingKey, type ItemAnalysisRow } from './classroom'
@@ -108,7 +108,7 @@ export default function ExamGrading() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not regrade'),
   })
 
-  if (tests.isLoading) return <Loading />
+  if (tests.isLoading) return <SkeletonTiles count={4} />
   if (tests.error) return <ErrorState error={tests.error} />
 
   const rows = analysis.data?.items ?? []
@@ -167,7 +167,7 @@ export default function ExamGrading() {
           </div>
         </Card>
 
-        {testID && key.isLoading && <Loading />}
+        {testID && key.isLoading && <SkeletonTable columns={5} />}
         {key.error && <ErrorState error={key.error} />}
 
         {key.data && (

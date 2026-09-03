@@ -4,7 +4,7 @@ import { BookOpen, ExternalLink } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Button, Select, Loading, ErrorState, EmptyState,
+  Badge, Button, Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -37,7 +37,7 @@ export default function StudyMaterials() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not update'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTable columns={7} />
   if (list.error) return <ErrorState error={list.error} />
   const all = list.data?.items ?? []
   const subjects = [...new Set(all.map((m) => m.subject).filter(Boolean))] as string[]

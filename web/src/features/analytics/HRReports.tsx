@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState, PrintButton,
+  Table, Td, Badge, Loading, SkeletonTable, ErrorState, PrintButton,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct } from './shared'
@@ -154,7 +154,7 @@ export default function HRReports() {
               action={<CsvButton href={`${MOVEMENT}?${q}`} />}
             />
             {movement.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={4} />
             ) : movement.error ? (
               <ErrorState error={movement.error} />
             ) : (
@@ -185,7 +185,7 @@ export default function HRReports() {
               action={<CsvButton href={WORKLOAD} />}
             />
             {workload.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={3} />
             ) : workload.error ? (
               <ErrorState error={workload.error} />
             ) : (
@@ -254,7 +254,7 @@ export default function HRReports() {
             action={<CsvButton href={EXPIRIES} />}
           />
           {expiries.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : expiries.error ? (
             <ErrorState error={expiries.error} />
           ) : (

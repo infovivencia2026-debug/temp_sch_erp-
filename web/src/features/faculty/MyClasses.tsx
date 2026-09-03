@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState, useSort,
+  Loading, SkeletonTiles, ErrorState, EmptyState, useSort,
   RangePicker, rangeQuery, useRange, type RangeOption,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
@@ -127,7 +127,7 @@ export default function MyClasses() {
     { key: 'full_name' },
   )
 
-  if (progress.isLoading) return <Loading label="Working out how each child is doing…" />
+  if (progress.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
 
   const attention = rows.filter((r) => r.risk_band !== 'none')

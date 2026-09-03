@@ -3,7 +3,7 @@ import { AlertTriangle, Ban, Eye, Play, ShieldAlert } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  Loading, ErrorState, EmptyState, Table, Td,
+  SkeletonTiles, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import {
@@ -126,7 +126,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
 
   // A failed query is a failure, never an empty state. "No reminders set up"
   // rendered over a 500 is how a school concludes its plans were deleted.
-  if (plans.isLoading) return <Loading />
+  if (plans.isLoading) return <SkeletonTiles count={4} />
   if (plans.error) return <ErrorState error={plans.error} />
 
   const items = plans.data?.items ?? []

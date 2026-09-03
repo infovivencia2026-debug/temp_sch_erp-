@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
@@ -146,7 +146,7 @@ export default function Lifecycle() {
     queryFn: () => api.get<List<Exit>>('/api/v1/hr/exits'),
   })
 
-  if (onboarding.isLoading) return <Loading label="Reading the joining files…" />
+  if (onboarding.isLoading) return <SkeletonTiles count={4} label="Reading the joining files…" />
   if (onboarding.error) return <ErrorState error={onboarding.error} />
 
   const files = onboarding.data?.items ?? []
@@ -482,7 +482,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
         <CardHeader title="Departmental clearance"
           description="Each department states what is outstanding before the money moves. Dues recorded here are deducted from the settlement, and the settlement is refused while any department is unsigned." />
         {clearances.isLoading ? (
-          <Loading label="Reading the checklist…" />
+          <SkeletonTable columns={6} label="Reading the checklist…" />
         ) : (
           <Table head={['Department', 'Status', 'Dues', 'Note', 'Signed', '']}
             empty={(clearances.data?.items ?? []).length === 0}>
@@ -684,7 +684,7 @@ function LettersTab() {
       <CardHeader title="Letters issued"
         description="From the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
       {letters.isLoading ? (
-        <Loading />
+        <SkeletonTable columns={6} />
       ) : (
         <Table head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
           emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is relieved.">

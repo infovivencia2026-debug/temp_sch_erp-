@@ -4,7 +4,7 @@ import { Search } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Loading, ErrorState, FormNotice, EmptyState, ExportButton,
+  Button, Input, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -164,7 +164,7 @@ export default function Library() {
               }
             />
             {titles.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : titles.error ? (
               <ErrorState error={titles.error} />
             ) : (
@@ -211,7 +211,7 @@ export default function Library() {
               action={<Button variant="ghost" onClick={() => setOpenTitle(null)}>Close</Button>}
             />
             {copies.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={5} />
             ) : (
               <Table
                 head={['Accession no.', 'Barcode', 'Rack', 'Status', 'Due']}
@@ -249,7 +249,7 @@ export default function Library() {
               }
             />
             {loans.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : loans.error ? (
               <ErrorState error={loans.error} />
             ) : (tab === 'overdue' ? overdue : open).length === 0 ? (

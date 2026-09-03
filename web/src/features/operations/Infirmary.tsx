@@ -4,7 +4,7 @@ import { AlertTriangle, Phone, Search } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Input, Button, Loading, ErrorState,
+  Input, Button, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -92,7 +92,7 @@ export default function Infirmary() {
             }
           />
           {q.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

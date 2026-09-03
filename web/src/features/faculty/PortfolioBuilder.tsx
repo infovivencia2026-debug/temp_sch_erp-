@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { type PortfolioPiece } from './classroom'
@@ -86,7 +86,7 @@ export default function PortfolioBuilder() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
-  if (roster.isLoading) return <Loading />
+  if (roster.isLoading) return <SkeletonTiles count={4} />
   if (roster.error) return <ErrorState error={roster.error} />
 
   const items = pieces.data?.items ?? []
@@ -137,7 +137,7 @@ export default function PortfolioBuilder() {
           </div>
         </Card>
 
-        {studentID && pieces.isLoading && <Loading />}
+        {studentID && pieces.isLoading && <SkeletonTable columns={6} />}
         {pieces.error && <ErrorState error={pieces.error} />}
 
         {studentID && !pieces.isLoading && (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -95,7 +95,7 @@ export default function BankReconciliation() {
                 }
               />
               {periods.isLoading ? (
-                <Loading />
+                <SkeletonTable columns={7} />
               ) : periods.error ? (
                 <ErrorState error={periods.error} />
               ) : (
@@ -216,7 +216,7 @@ function StatementView({
     },
   })
 
-  if (q.isLoading) return <Loading label="Building the statement…" />
+  if (q.isLoading) return <SkeletonTiles count={4} label="Building the statement…" />
   if (q.error) return <ErrorState error={q.error} />
   const st = q.data
   if (!st) return null

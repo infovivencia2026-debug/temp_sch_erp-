@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
-  Select, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { usePlatform, usePlatformSave, type BrandingResponse, type BrandingProfile } from './platform-lib'
 
@@ -28,7 +28,7 @@ export default function Branding() {
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
   const [touched, setTouched] = useState(false)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={5} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

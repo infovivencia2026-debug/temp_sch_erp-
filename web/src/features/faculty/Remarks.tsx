@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -53,7 +53,7 @@ export function RemarkBoard({
     queryFn: () => api.get<List<Remark>>(`/api/v1/teaching/remarks${query}`),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
 
   // The general board deliberately shows anecdotal rows too. A teacher reading

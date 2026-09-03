@@ -4,7 +4,7 @@ import { MessageSquareWarning } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
-  FormGrid, FormNotice, Input, Select, Textarea, Loading, EmptyState,
+  FormGrid, FormNotice, Input, Select, Textarea, SkeletonTiles, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -86,7 +86,7 @@ export default function Concerns() {
     },
   })
 
-  if (concerns.isLoading) return <Loading label={t('portal.concerns.loading')} />
+  if (concerns.isLoading) return <SkeletonTiles count={3} label={t('portal.concerns.loading')} />
   if (concerns.error) return <ScreenError error={concerns.error} />
 
   const rows = concerns.data?.items ?? []

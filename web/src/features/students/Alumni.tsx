@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 
@@ -104,7 +104,7 @@ export default function Alumni() {
     queryFn: () => api.get<List<AlumniEvent>>('/api/v1/academics/admin/alumni/events'),
   })
 
-  if (directory.isLoading) return <Loading label="Reading the alumni register…" />
+  if (directory.isLoading) return <SkeletonTable columns={5} label="Reading the alumni register…" />
   if (directory.error) return <ErrorState error={directory.error} />
 
   const rows = directory.data?.items ?? []

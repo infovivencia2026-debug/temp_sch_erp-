@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
+  Button, Input, Select, Loading, SkeletonTable, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate, cn } from '@/lib/utils'
@@ -186,7 +186,7 @@ export default function Hostel() {
               action={<Button variant="ghost" onClick={() => setOpenRoom(null)}>Close</Button>}
             />
             {boarders.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={5} />
             ) : (
               <Table
                 head={['Bed', 'Student', 'Admission no.', 'Class', 'Since']}

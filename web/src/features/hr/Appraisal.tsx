@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 
@@ -106,7 +106,7 @@ export default function Appraisal() {
     queryFn: () => api.get<List<Cycle>>('/api/v1/hr-growth/appraisal/cycles'),
   })
 
-  if (cycles.isLoading) return <Loading label="Reading the appraisal cycles…" />
+  if (cycles.isLoading) return <SkeletonTiles count={4} label="Reading the appraisal cycles…" />
   if (cycles.error) return <ErrorState error={cycles.error} />
 
   const all = cycles.data?.items ?? []
@@ -545,7 +545,7 @@ function ReviewCard({ appraisal, onSaved }: { appraisal: Appraisal; onSaved: () 
     queryFn: () => api.get<AppraisalDetail>(`/api/v1/hr-growth/appraisal/records/${appraisal.id}`),
   })
 
-  if (detail.isLoading) return <Card><Loading label="Reading the ratings…" /></Card>
+  if (detail.isLoading) return <Card><SkeletonTable columns={6} label="Reading the ratings…" /></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
   if (!detail.data) return null
 

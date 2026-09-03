@@ -4,7 +4,7 @@ import { Fingerprint, Plus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
-  Field, FormGrid, FormNotice, Reload, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Reload, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The fingerprint readers this school runs.
@@ -132,7 +132,7 @@ export default function BiometricReaders() {
           )}
 
           {devices.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : devices.error ? (
             <ErrorState error={devices.error} />
           ) : rows.length === 0 ? (

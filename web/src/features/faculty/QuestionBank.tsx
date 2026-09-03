@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -59,7 +59,7 @@ export default function QuestionBank() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not retire'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTable columns={9} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   /* A bank exists to be reused, and one that cannot be searched is one where

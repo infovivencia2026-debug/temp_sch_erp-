@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Textarea, Loading, ErrorState, FormNotice, EmptyState, PrintButton,
+  Button, Input, Select, Textarea, SkeletonTable, ErrorState, FormNotice, EmptyState, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -114,7 +114,7 @@ export default function FeeFiling() {
               </Button>
             ) : undefined}
           />
-          {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
+          {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
             <Table
               head={['No.', 'Committee', 'Year', 'Filed on', 'Proposed', 'Approved', 'Status', '']}
               empty={!items.length}
@@ -336,7 +336,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
     onSuccess: () => onDone("Decision recorded. The variance check now has something to compare against."),
   })
 
-  if (detail.isLoading) return <Card><Loading /></Card>
+  if (detail.isLoading) return <Card><SkeletonTable columns={6} /></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
 
   const f = detail.data!.filing
@@ -527,7 +527,7 @@ function VariancePanel({ id }: { id: string }) {
     }>(`${adminOpsBase}/fee-filings/${id}/variance`),
   })
 
-  if (v.isLoading) return <Card><Loading /></Card>
+  if (v.isLoading) return <Card><SkeletonTable columns={9} /></Card>
   if (v.error) return <Card><ErrorState error={v.error} /></Card>
 
   const d = v.data!

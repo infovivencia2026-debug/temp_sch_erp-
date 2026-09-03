@@ -4,7 +4,7 @@ import { Download, FileWarning, History, CheckCircle2, AlertTriangle } from 'luc
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, ErrorState,
+  Field, FormGrid, Button, ConfirmButton, Checkbox, FormNotice, Loading, SkeletonTable, SkeletonTiles, ErrorState,
   EmptyState, UnavailableState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
@@ -97,7 +97,7 @@ export default function TallyExport() {
     () => toast.ok('Recorded as imported into Tally.'),
   )
 
-  if (settings.isLoading) return <Loading label="Reading the connector…" />
+  if (settings.isLoading) return <SkeletonTiles count={3} label="Reading the connector…" />
   if (settings.error) return <ErrorState error={settings.error} />
 
   const s = settings.data
@@ -389,7 +389,7 @@ function Runs({
   mayExport: boolean
   onConfirm: (id: string) => void
 }) {
-  if (loading) return <Loading label="Reading the export history…" />
+  if (loading) return <SkeletonTable columns={8} label="Reading the export history…" />
   if (error) return <ErrorState error={error} />
 
   return (

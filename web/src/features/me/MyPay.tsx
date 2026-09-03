@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Loading, ErrorState, EmptyState,
+  Badge, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatPaise } from '@/lib/utils'
@@ -89,7 +89,7 @@ export default function MyPay() {
   const nav = useRouteFeature()
   const q = useQuery({ queryKey: ['my-pay'], queryFn: () => api.get<MyPay>('/api/v1/me/pay') })
 
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTiles count={6} />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

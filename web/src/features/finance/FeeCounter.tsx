@@ -4,7 +4,7 @@ import { Printer, Banknote } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Loading, ErrorState, EmptyState, FormNotice,
+  Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -169,7 +169,7 @@ export default function FeeCounter() {
             }
           />
           {search.trim().length >= 2 && (
-            results.isLoading ? <Loading /> : (
+            results.isLoading ? <SkeletonTable columns={4} /> : (
               <Table head={['Admission no.', 'Name', 'Class', '']} empty={!results.data?.items.length}
                 emptyLabel="No student matches that search.">
                 {(results.data?.items ?? []).map((s) => (
@@ -193,7 +193,7 @@ export default function FeeCounter() {
         {!studentId ? (
           <EmptyState title="No student selected" body="Search above to open a student's fee account." />
         ) : ledger.isLoading ? (
-          <Loading />
+          <SkeletonTable columns={8} />
         ) : ledger.error ? (
           <ErrorState error={ledger.error} />
         ) : l ? (

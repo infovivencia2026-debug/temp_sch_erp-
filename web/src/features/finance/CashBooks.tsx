@@ -4,7 +4,7 @@ import { BookOpen, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Field, FormGrid, Input, PrintButton, Loading, ErrorState, EmptyState,
+  Field, FormGrid, Input, PrintButton, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { inr, rupees, side, ledgerBase, type Voucher, type CashbookAccount } from './ledger-lib'
 
@@ -58,7 +58,7 @@ export default function CashBooks() {
     queryFn: () => api.get<Cashbook>(`${ledgerBase}/cashbook?from=${from}&to=${to}`),
   })
 
-  if (cashbook.isLoading) return <Loading label="Adding up the drawers…" />
+  if (cashbook.isLoading) return <SkeletonTable columns={7} label="Adding up the drawers…" />
   if (cashbook.error) return <ErrorState error={cashbook.error} />
 
   const c = cashbook.data
@@ -142,7 +142,7 @@ export default function CashBooks() {
             action={<div className="w-44"><Input type="date" value={on} onChange={setOn} /></div>}
           />
           {daybook.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : daybook.error ? (
             /* A failed query is not an empty day.
           

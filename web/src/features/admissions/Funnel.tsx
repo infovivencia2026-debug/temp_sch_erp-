@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -169,7 +169,7 @@ export default function Funnel() {
       }>('/api/v1/admissions/register'),
   })
 
-  if (leads.isLoading) return <Loading label="Opening the funnel…" />
+  if (leads.isLoading) return <SkeletonTiles count={4} label="Opening the funnel…" />
   if (leads.error) return <ErrorState error={leads.error} />
 
   const rows = leads.data?.items ?? []
@@ -411,7 +411,7 @@ function Sources() {
         description="All four numbers come from the same rows, so they always add up — which a dashboard assembled from separate queries famously does not. A conversion rate is withheld below five enquiries: one lead from a newspaper is not a 0% rate, it is not yet a rate."
       />
       {q.isLoading ? (
-        <Loading label="Counting…" />
+        <SkeletonTable columns={7} label="Counting…" />
       ) : rows.length === 0 ? (
         <EmptyState title="No enquiries this year" body="Sources appear once enquiries are recorded." />
       ) : (

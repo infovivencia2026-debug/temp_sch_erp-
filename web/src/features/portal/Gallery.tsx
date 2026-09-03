@@ -4,7 +4,7 @@ import { Images, Film, ArrowLeft } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, Loading, ErrorState, EmptyState,
+  Field, Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -99,7 +99,7 @@ export default function Gallery() {
         />
         <PageBody>
           {album.isLoading ? (
-            <Loading label={t('portal.gallery.album_loading')} />
+            <SkeletonTiles count={3} label={t('portal.gallery.album_loading')} />
           ) : album.error ? (
             <ErrorState error={album.error} />
           ) : items.length === 0 ? (

@@ -3,7 +3,7 @@ import { CircleCheck, CircleDashed, CircleDot } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge,
-  Loading, EmptyState,
+  SkeletonTable, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -114,7 +114,7 @@ export default function AdmissionStatus() {
     queryFn: () => api.get<List<Admission>>('/api/v1/portal/admission'),
   })
 
-  if (q.isLoading) return <Loading label={t('portal.admission.loading')} />
+  if (q.isLoading) return <SkeletonTable columns={4} label={t('portal.admission.loading')} />
   if (q.error) return <ScreenError error={q.error} />
 
   const rows = q.data?.items ?? []

@@ -4,7 +4,7 @@ import { MessagesSquare, Pin, Lock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Loading,
+  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, SkeletonTable,
   EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
@@ -125,7 +125,7 @@ export default function Forum() {
     enabled: all.length > 0,
   })
 
-  if (boards.isLoading) return <Loading label={t('portal.forum.loading')} />
+  if (boards.isLoading) return <SkeletonTable columns={6} label={t('portal.forum.loading')} />
   // Never an empty state for a failed query: "your class has said nothing" and
   // "we could not ask" are different facts and only one of them is reassuring.
   if (boards.error) return <ScreenError error={boards.error} />

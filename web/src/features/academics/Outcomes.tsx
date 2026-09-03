@@ -4,7 +4,7 @@ import { Target, ListChecks, HelpCircle } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -122,7 +122,7 @@ export default function Outcomes() {
     },
   })
 
-  if (frame.isLoading) return <Loading label="Reading the outcome framework…" />
+  if (frame.isLoading) return <SkeletonTable columns={8} label="Reading the outcome framework…" />
   if (frame.error) return <ErrorState error={frame.error} />
 
   const pos = frame.data?.programme_outcomes ?? []

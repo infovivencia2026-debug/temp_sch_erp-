@@ -4,7 +4,7 @@ import { ShieldCheck, ShieldAlert, Receipt, Landmark } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Select, PrintButton, Loading, ErrorState, EmptyState,
+  Select, PrintButton, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   inr, rupees, fyOptions, currentFY, ledgerBase,
@@ -37,7 +37,7 @@ export default function TaxAudit() {
     queryFn: () => api.get<AuditReport>(`${ledgerBase}/audit-report?fy=${fy}`),
   })
 
-  if (tax.isLoading || audit.isLoading) return <Loading label="Running the checks…" />
+  if (tax.isLoading || audit.isLoading) return <SkeletonTable columns={5} label="Running the checks…" />
   if (tax.error) return <ErrorState error={tax.error} />
   if (audit.error) return <ErrorState error={audit.error} />
 

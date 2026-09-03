@@ -3,7 +3,7 @@ import { FolderCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Loading, } from '@/components/ui'
+  SkeletonTable, } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -45,7 +45,7 @@ export default function Documents() {
     queryFn: () => api.get<List<DocumentRow>>('/api/v1/portal/documents'),
   })
 
-  if (docs.isLoading) return <Loading label={t('portal.documents.loading')} />
+  if (docs.isLoading) return <SkeletonTable columns={6} label={t('portal.documents.loading')} />
   if (docs.error) return <ScreenError error={docs.error} />
 
   const rows = docs.data?.items ?? []

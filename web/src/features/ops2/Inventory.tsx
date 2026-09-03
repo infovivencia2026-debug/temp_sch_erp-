@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, ErrorState,
 } from '@/components/ui'
 
 interface Item {
@@ -36,7 +36,7 @@ export default function Inventory() {
         </CellGrid>
         <Card>
           <CardHeader title="Items" />
-          {isLoading ? <Loading /> : error ? <ErrorState error={error} /> : (
+          {isLoading ? <SkeletonTable columns={7} /> : error ? <ErrorState error={error} /> : (
             <Table head={['Code', 'Item', 'Category', 'Unit', 'On hand', 'Reorder at', 'State']}
               empty={!rows.length} emptyLabel="No stock items configured.">
               {rows.map((i) => (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -34,7 +34,7 @@ export default function PTMNotes() {
       api.get<List<PTMNote>>(`/api/v1/teaching/ptm-notes${pendingOnly ? '?pending=1' : ''}`),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

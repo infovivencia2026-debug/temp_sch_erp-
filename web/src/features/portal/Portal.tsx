@@ -5,7 +5,7 @@ import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-   Button, Loading, ErrorState, EmptyState,
+   Button, Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatPaise, cn } from '@/lib/utils'
@@ -375,7 +375,7 @@ export default function Portal() {
             one screen — the second copy reading as a different list until you
             compared them line by line. */}
         {summary.isLoading ? (
-          <Loading />
+          <SkeletonTiles count={5} />
         ) : summary.error ? (
           /* `!s` used to fall through to the spinner, so a summary that came
              back 403 or 500 left a parent watching "Loading…" for the rest of

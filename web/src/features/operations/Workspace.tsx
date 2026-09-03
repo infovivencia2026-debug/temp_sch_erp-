@@ -3,7 +3,7 @@ import { BookOpen, Bus, AlertTriangle, Clock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 
@@ -42,7 +42,7 @@ export default function OperationsWorkspace() {
     retry: false,
   })
 
-  if (kpis.isLoading) return <Loading />
+  if (kpis.isLoading) return <SkeletonTiles count={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
 
@@ -76,7 +76,7 @@ export default function OperationsWorkspace() {
           <Card>
             <CardHeader title="Books on loan" description="Currently issued and not returned" />
             {loans.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : (
               <Table
                 head={['Title', 'Borrower', 'Issued', 'Due', 'Fine', 'State']}
@@ -106,7 +106,7 @@ export default function OperationsWorkspace() {
           <Card>
             <CardHeader title="Vehicle registry" description="Buses, routes and statutory document expiry" />
             {vehicles.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={7} />
             ) : (
               <Table
                 head={['Registration', 'Model', 'Capacity', 'Route', 'Driver', 'Next expiry', 'Status']}

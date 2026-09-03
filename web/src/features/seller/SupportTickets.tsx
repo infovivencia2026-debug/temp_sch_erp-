@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Select, FormNotice, Loading, ErrorState,
+  Button, Select, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { usePlatformAction, type VendorTicket } from '../super_admin/platform-lib'
 
@@ -29,7 +29,7 @@ export default function SupportTickets() {
   })
   const update = usePlatformAction('tickets')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
 
   const items = data?.items ?? []

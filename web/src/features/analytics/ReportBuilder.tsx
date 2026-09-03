@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Loading, ErrorState, EmptyState,
+  Input, Select, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
@@ -149,7 +149,7 @@ export default function ReportBuilder() {
     queryFn: () => api.get<List<Definition>>('/api/v1/report-builder/definitions'),
   })
 
-  if (schema.isLoading || defs.isLoading) return <Loading label="Opening the builder…" />
+  if (schema.isLoading || defs.isLoading) return <SkeletonTiles count={4} label="Opening the builder…" />
   /* A failed query is an error, never an empty state. "No reports yet" over a
      500 sends a principal off to rebuild something that already exists. */
   if (schema.error) return <ErrorState error={schema.error} />
@@ -474,7 +474,7 @@ function RunPanel({ report, onClose }: { report: Definition; onClose: () => void
         />
         {run.isLoading ? (
           <div className="p-5">
-            <Loading label="Running…" />
+            <SkeletonTable columns={5} label="Running…" />
           </div>
         ) : run.error ? (
           <div className="p-5">

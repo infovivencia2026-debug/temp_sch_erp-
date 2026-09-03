@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -109,7 +109,7 @@ export default function StudentWall() {
     },
   })
 
-  if (wall.isLoading && ready) return <Loading label="Reading the wall…" />
+  if (wall.isLoading && ready) return <SkeletonTiles count={3} label="Reading the wall…" />
   if (wall.error) return <ErrorState error={wall.error} />
 
   const posts = wall.data?.items ?? []

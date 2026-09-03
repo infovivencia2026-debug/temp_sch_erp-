@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import {
   usePlatformSave, usePlatformDelete, bp, type SQAAResponse, type SQAAStandard,
@@ -48,7 +48,7 @@ export default function SQAAFramework() {
   const [sWeight, setSWeight] = useState('0')
   const [sEvidence, setSEvidence] = useState(false)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={7} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

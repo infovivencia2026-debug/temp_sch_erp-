@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { formatDate } from '@/lib/utils'
@@ -194,7 +194,7 @@ export default function FrontDesk() {
     queryFn: () => api.get<List<Post>>('/api/v1/office/courier?period=this_month'),
   })
 
-  if (visitors.isLoading) return <Loading label="Opening the desk…" />
+  if (visitors.isLoading) return <SkeletonTiles count={4} label="Opening the desk…" />
   if (visitors.error) return <ErrorState error={visitors.error} />
 
   const inside = (visitors.data?.items ?? []).filter((v) => v.inside)

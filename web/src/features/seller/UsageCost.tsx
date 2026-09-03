@@ -4,7 +4,7 @@ import { Database, HardDrive, MessageSquare, Server } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Button, Input, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Badge, Button, Input, Field, FormGrid, FormNotice, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
@@ -120,7 +120,7 @@ export default function UsageCost() {
     },
   })
 
-  if (isLoading) return <Loading label="Adding up what everybody uses…" />
+  if (isLoading) return <SkeletonTiles count={4} label="Adding up what everybody uses…" />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

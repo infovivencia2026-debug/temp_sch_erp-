@@ -3,7 +3,7 @@ import { Ticket, CalendarDays, DoorOpen } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
-  ConfirmButton, FormNotice, Loading, ErrorState, EmptyState,
+  ConfirmButton, FormNotice, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -80,7 +80,7 @@ export default function ClubEvents() {
     onSuccess: refresh,
   })
 
-  if (events.isLoading && ready) return <Loading label="Looking up what is on…" />
+  if (events.isLoading && ready) return <SkeletonTiles count={3} label="Looking up what is on…" />
   if (events.error) return <ErrorState error={events.error} />
 
   const rows = events.data?.items ?? []

@@ -5,7 +5,7 @@ import { Search, Phone, Mail, Printer } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Loading, ErrorState,
+  Button, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import IDCards from './IDCards'
 import StaffRecord from './StaffRecord'
@@ -295,7 +295,7 @@ export default function Employees() {
             }
           />
           {docs.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={4} />
           ) : docs.error ? (
             <ErrorState error={docs.error} />
           ) : (
@@ -361,7 +361,7 @@ export default function Employees() {
             }
           />
           {staff.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : staff.error ? (
             <ErrorState error={staff.error} />
           ) : (

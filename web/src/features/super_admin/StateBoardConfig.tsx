@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
   ConfirmButton, Input, Select, Checkbox, Field, FormGrid, FormNotice,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, usePlatformDelete, type BoardConfigResponse,
@@ -34,7 +34,7 @@ export default function StateBoardConfig() {
   const [medium, setMedium] = useState('')
   const [isDefault, setIsDefault] = useState(false)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

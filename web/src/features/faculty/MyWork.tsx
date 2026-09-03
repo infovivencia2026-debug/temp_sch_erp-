@@ -5,7 +5,7 @@ import {
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Loading, ErrorState, EmptyState,
+  Badge, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 
@@ -51,7 +51,7 @@ export default function MyWork() {
     queryFn: () => api.get<MyWorkView>('/api/v1/teaching/my-work'),
   })
 
-  if (isLoading) return <Loading label="Checking what is outstanding…" />
+  if (isLoading) return <SkeletonTiles count={4} label="Checking what is outstanding…" />
   if (error) return <ErrorState error={error} />
   const d = data!
 

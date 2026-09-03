@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { api, type List, type Section, type AcademicYear } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Button,
-  Select, Loading, ErrorState, FormNotice, EmptyState, Checkbox,
+  Select, SkeletonTable, ErrorState, FormNotice, EmptyState, Checkbox,
 } from '@/components/ui'
 
 /* Class and section promotion — the one job a school does once a year and
@@ -136,7 +136,7 @@ export default function Promotion() {
             </div>
           </Card>
         ) : roster.isLoading ? (
-          <Loading />
+          <SkeletonTable columns={4} />
         ) : roster.error ? (
           <ErrorState error={roster.error} />
         ) : (

@@ -5,7 +5,7 @@ import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -56,7 +56,7 @@ export default function LoanAssistance() {
     },
   })
 
-  if (apps.isLoading) return <Loading label="Opening the tracker…" />
+  if (apps.isLoading) return <SkeletonTable columns={8} label="Opening the tracker…" />
   if (apps.error) return <ErrorState error={apps.error} />
 
   const rows = apps.data?.items ?? []
@@ -206,7 +206,7 @@ function ApplicationDetail({
     queryFn: () => api.get<LoanDetail>(`${concessionsBase}/loans/applications/${applicationId}`),
   })
 
-  if (q.isLoading) return <Loading label="Opening the application…" />
+  if (q.isLoading) return <SkeletonTable columns={5} label="Opening the application…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

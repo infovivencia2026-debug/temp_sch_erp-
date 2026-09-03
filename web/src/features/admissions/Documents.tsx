@@ -14,7 +14,7 @@ import { Check, FileText, X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
-  Badge, Button, Input, Loading, ErrorState, FormNotice, Table, Td,
+  Badge, Button, Input, SkeletonTable, ErrorState, FormNotice, Table, Td,
 } from '@/components/ui'
 
 export interface ApplicationDocument {
@@ -77,7 +77,7 @@ export default function Documents({
     },
   })
 
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={5} />
   if (q.error) return <ErrorState error={q.error} />
 
   const items = q.data?.items ?? []

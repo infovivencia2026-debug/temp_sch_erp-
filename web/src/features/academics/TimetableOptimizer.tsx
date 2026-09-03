@@ -4,7 +4,7 @@ import { AlertTriangle, CalendarCheck2, CircleSlash, Grid3x3, Users } from 'luci
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, ConfirmButton,
-  Table, Td, Select, Input, Loading, Skeleton, ErrorState, EmptyState, FormNotice,
+  Table, Td, Select, Input, Loading, SkeletonTable, Skeleton, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { WEEKDAYS, cn } from '@/lib/utils'
@@ -113,7 +113,7 @@ export default function TimetableOptimizer() {
     },
   })
 
-  if (inputs.isLoading) return <Loading label="Reading the year's requirements…" />
+  if (inputs.isLoading) return <SkeletonTable columns={6} label="Reading the year's requirements…" />
   if (inputs.error) return <ErrorState error={inputs.error} />
 
   const s = inputs.data?.summary

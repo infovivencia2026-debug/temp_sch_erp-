@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Checkbox, Loading, } from '@/components/ui'
+  Checkbox, SkeletonTable, } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -73,7 +73,7 @@ export default function LeaveRequests() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-leave'] }),
   })
 
-  if (leave.isLoading) return <Loading label={t('portal.leave_requests.loading')} />
+  if (leave.isLoading) return <SkeletonTable columns={6} label={t('portal.leave_requests.loading')} />
   if (leave.error) return <ScreenError error={leave.error} />
 
   const rows = leave.data?.items ?? []

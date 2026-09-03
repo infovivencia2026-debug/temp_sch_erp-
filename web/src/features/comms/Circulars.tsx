@@ -4,7 +4,7 @@ import { ChevronDown, Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
@@ -428,7 +428,7 @@ export default function Circulars() {
 
         <Card>
           <CardHeader title="Published" description="Most recent first" />
-          {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
+          {list.isLoading ? <SkeletonTable columns={7} /> : list.error ? <ErrorState error={list.error} /> : (
             /* Seven columns: without `wide` they were divided equally and
                crushed, and scrolling sideways carried the title out of view —
                leaving a column of identical "Who got it" buttons with nothing
@@ -497,7 +497,7 @@ function Delivery({ id }: { id: string }) {
       }>(`/api/v1/communication/circulars/${id}/delivery`),
   })
 
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={4} />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data!
 

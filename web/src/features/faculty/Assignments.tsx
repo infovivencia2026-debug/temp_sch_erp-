@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -31,7 +31,7 @@ export default function Assignments() {
     queryFn: () => api.get<List<Assignment>>('/api/v1/teaching/assignments'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTable columns={7} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   /* A term's assignments across four subjects is a long list, and the question
@@ -272,7 +272,7 @@ function Marking({ assignment }: { assignment: Assignment }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTable columns={6} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

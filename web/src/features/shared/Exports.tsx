@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Button, Loading, ErrorState,
+  PageHead, PageBody, Card, CardHeader, Table, Td, Button, SkeletonTable, ErrorState,
 } from '@/components/ui'
 
 /* Everything this account may take out of the system, in one place.
@@ -55,7 +55,7 @@ export default function Exports() {
             description={items.length ? `${items.length} datasets` : undefined}
           />
           {q.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={3} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

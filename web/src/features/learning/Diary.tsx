@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button,
   ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -133,7 +133,7 @@ export default function Diary() {
     onSuccess: refresh,
   })
 
-  if (diary.isLoading && ready) return <Loading label="Reading your week…" />
+  if (diary.isLoading && ready) return <SkeletonTiles count={3} label="Reading your week…" />
   if (diary.error) return <ErrorState error={diary.error} />
 
   const items = diary.data?.items ?? []

@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
-  Input, Select, Loading, ErrorState,
+  Input, Select, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 
@@ -82,7 +82,7 @@ export default function Training() {
     queryFn: () => api.get<List<Programme>>('/api/v1/hr-growth/training/programmes'),
   })
 
-  if (compliance.isLoading) return <Loading label="Counting training hours…" />
+  if (compliance.isLoading) return <SkeletonTiles count={4} label="Counting training hours…" />
   if (compliance.error) return <ErrorState error={compliance.error} />
 
   const rows = compliance.data?.items ?? []

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Checkbox, Field, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
@@ -29,7 +29,7 @@ export default function Broadcasts() {
     queryFn: () => api.get<List<Broadcast>>('/api/v1/teaching/broadcasts'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTiles count={3} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
 

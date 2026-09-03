@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
   FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
@@ -139,7 +139,7 @@ export default function AlumniNetwork() {
     },
   })
 
-  if (mine.isLoading && ready) return <Loading label="Looking up your registration…" />
+  if (mine.isLoading && ready) return <SkeletonTiles count={3} label="Looking up your registration…" />
   if (mine.error) return <ErrorState error={mine.error} />
 
   const rows = directory.data?.items ?? []

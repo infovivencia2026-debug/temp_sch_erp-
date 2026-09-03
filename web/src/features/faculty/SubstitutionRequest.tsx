@@ -4,7 +4,7 @@ import { CalendarOff, CheckCircle2, Clock, UserPlus } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Table, Td,
-  Input, Textarea, Field, FormGrid, FormNotice, Checkbox, Loading, ErrorState, EmptyState,
+  Input, Textarea, Field, FormGrid, FormNotice, Checkbox, Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
@@ -147,7 +147,7 @@ export default function SubstitutionRequest() {
     },
   })
 
-  if (periods.isLoading || requests.isLoading) return <Loading label="Reading your week…" />
+  if (periods.isLoading || requests.isLoading) return <SkeletonTable columns={4} label="Reading your week…" />
   if (periods.error) return <ErrorState error={periods.error} />
   /* The requests list failing is not the same as having no requests. Without
      this, a failed call left can_decide false and both lists empty, so an

@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Input, Select, Textarea, Field, FormGrid, FormNotice,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import {
   usePlatformSave, usePlatformDelete, rupees, bp, type FranchiseResponse,
@@ -49,7 +49,7 @@ export default function Franchises() {
   const [compliance, setCompliance] = useState('')
   const [audited, setAudited] = useState('')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={7} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

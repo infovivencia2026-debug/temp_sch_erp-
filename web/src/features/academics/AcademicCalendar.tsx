@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { MonthGrid, type CalendarEntry } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Select, Textarea, Reload, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, Reload, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import CalendarDay from './CalendarDay'
@@ -84,7 +84,7 @@ export default function AcademicCalendar() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-calendar'] }),
   })
 
-  if (cal.isLoading) return <Loading label="Reading the year…" />
+  if (cal.isLoading) return <SkeletonTable columns={6} label="Reading the year…" />
   if (cal.error) return <ErrorState error={cal.error} />
 
   const rows = cal.data?.items ?? []

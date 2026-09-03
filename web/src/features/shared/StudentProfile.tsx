@@ -6,7 +6,7 @@ import { Phone, Mail } from 'lucide-react'
 import { api, type List, type Page, type Student, type Klass, type Section } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
-  Table, Td, Badge, Button, Input, Loading, ErrorState, EmptyState,
+  Table, Td, Badge, Button, Input, Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
   RecordShell, Field, type RecordTab, type RecordAction,
@@ -618,7 +618,7 @@ export default function StudentProfile() {
               title="Pick a class, or search for a student"
               body="Choose a class and section to see who is in it, or type at least two characters of a name or admission number." />
           ) : results.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : (
             <Card>
               {/* What the list is, said plainly: a roll read as complete when
@@ -1561,7 +1561,7 @@ export default function StudentProfile() {
             </div>
           )}
           {remarks.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : remarkRows.length === 0 ? (
             <EmptyState
               title="Nothing written yet"

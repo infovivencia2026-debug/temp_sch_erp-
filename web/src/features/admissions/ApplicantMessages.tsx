@@ -15,7 +15,7 @@ import { Send } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Checkbox, Input, Select, Loading, ErrorState, EmptyState, FormNotice,
+  Button, Checkbox, Input, Select, SkeletonTiles, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useCan } from '@/lib/session'
@@ -115,7 +115,7 @@ export default function ApplicantMessages() {
     },
   })
 
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTiles count={4} />
   if (q.error) return <ErrorState error={q.error} />
 
   const suggested = shown.filter(note.suggests)

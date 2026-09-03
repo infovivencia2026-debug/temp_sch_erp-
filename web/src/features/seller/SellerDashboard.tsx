@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Input, Textarea, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState, EmptyState, ConfirmButton,
+  SkeletonTiles, ErrorState, EmptyState, ConfirmButton,
 } from '@/components/ui'
 import { formatPaise, formatDate } from '@/lib/utils'
 
@@ -111,7 +111,7 @@ export default function SellerDashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['platform-broadcasts'] }),
   })
 
-  if (tenants.isLoading) return <Loading label="Reading the book…" />
+  if (tenants.isLoading) return <SkeletonTiles count={2} label="Reading the book…" />
   if (tenants.error) return <ErrorState error={tenants.error} />
 
   const rows = tenants.data?.items ?? []

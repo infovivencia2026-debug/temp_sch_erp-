@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -50,7 +50,7 @@ export default function BankingPayouts() {
       api.get<List<PayoutBatch>>(`${bankingBase}/payouts${status ? `?status=${status}` : ''}`),
   })
 
-  if (q.isLoading) return <Loading label="Reading the payout queue…" />
+  if (q.isLoading) return <SkeletonTiles count={4} label="Reading the payout queue…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []
@@ -448,7 +448,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
         }
       />
       {q.isLoading ? (
-        <Loading />
+        <SkeletonTable columns={6} />
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (

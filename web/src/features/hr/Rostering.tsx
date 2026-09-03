@@ -6,7 +6,7 @@ import { formatDate, WEEKDAYS } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 
@@ -154,7 +154,7 @@ export default function Rostering() {
     retry: false,
   })
 
-  if (shifts.isLoading) return <Loading label="Reading the duty shifts…" />
+  if (shifts.isLoading) return <SkeletonTiles count={4} label="Reading the duty shifts…" />
   if (shifts.error) return <ErrorState error={shifts.error} />
 
   const duties = roster.data?.items ?? []

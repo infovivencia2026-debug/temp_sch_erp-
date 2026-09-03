@@ -4,7 +4,7 @@ import { Award, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, EmptyState,
+  Table, Td, Badge, Button, Select, Loading, SkeletonTiles, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -95,7 +95,7 @@ export default function PortalResults() {
         </PageBody>
       </>
     )
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ScreenError error={error} />
   if (!data)
     return (

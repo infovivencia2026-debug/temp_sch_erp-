@@ -3,7 +3,7 @@ import { Utensils, Flame, Wallet } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  Loading, EmptyState,
+  SkeletonTiles, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate, formatPaise } from '@/lib/utils'
@@ -68,7 +68,7 @@ export default function Cafeteria() {
       }>(`/api/v1/portal/cafeteria/purchases${studentId ? `?student_id=${studentId}` : ''}`),
   })
 
-  if (query.isLoading) return <Loading label={t('portal.cafeteria.loading')} />
+  if (query.isLoading) return <SkeletonTiles count={3} label={t('portal.cafeteria.loading')} />
   if (query.error) return <ScreenError error={query.error} />
 
   const purchases = query.data?.items ?? []

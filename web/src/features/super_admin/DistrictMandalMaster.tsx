@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button,
-  ConfirmButton, Input, Select, Field, FormGrid, FormNotice, Loading, ErrorState,
+  ConfirmButton, Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { usePlatformSave, usePlatformDelete, type LocationCode } from './platform-lib'
 
@@ -45,7 +45,7 @@ export default function DistrictMandalMaster() {
   const [name, setName] = useState('')
   const [showRetired, setShowRetired] = useState('active')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
 
   const all = data?.items ?? []

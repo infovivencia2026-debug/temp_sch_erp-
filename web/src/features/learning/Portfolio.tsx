@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -112,7 +112,7 @@ export default function Portfolio() {
     onSuccess: refresh,
   })
 
-  if (portfolio.isLoading && ready) return <Loading label="Opening your portfolio…" />
+  if (portfolio.isLoading && ready) return <SkeletonTiles count={3} label="Opening your portfolio…" />
   if (portfolio.error) return <ErrorState error={portfolio.error} />
 
   const items = portfolio.data?.items ?? []

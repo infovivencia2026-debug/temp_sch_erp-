@@ -5,7 +5,7 @@ import { Plus, Trash2, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Input, Select, Table, Td,
-  Badge, EmptyState, ErrorState, Loading, FormNotice, FormGrid, Field,
+  Badge, EmptyState, ErrorState, SkeletonTable, FormNotice, FormGrid, Field,
 } from '@/components/ui'
 
 /* The school's own groupings.
@@ -270,7 +270,7 @@ export default function PeopleGroups() {
 
         <Card>
           {groups.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={5} />
           ) : groups.error ? (
             <ErrorState error={groups.error} />
           ) : rows.length === 0 ? (
@@ -355,7 +355,7 @@ export default function PeopleGroups() {
               }
             />
             {members.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={4} />
             ) : members.error ? (
               <ErrorState error={members.error} />
             ) : (members.data?.items.length ?? 0) === 0 ? (

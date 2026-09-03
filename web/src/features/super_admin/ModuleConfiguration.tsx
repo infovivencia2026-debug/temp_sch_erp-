@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Loading, ErrorState,
+  Table, Td, Badge, Button, SkeletonTable, ErrorState,
 } from '@/components/ui'
 
 interface ModuleSetting {
@@ -53,7 +53,7 @@ export default function ModuleConfiguration() {
         <Card>
           <CardHeader title="Modules" description="Changes take effect on the next page load for every user" />
           {isLoading ? (
-            <Loading />
+            <SkeletonTable columns={3} />
           ) : error ? (
             <ErrorState error={error} />
           ) : (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -127,7 +127,7 @@ export default function HomeworkForum() {
     onSuccess: refresh,
   })
 
-  if (threads.isLoading && ready) return <Loading label="Reading the forum…" />
+  if (threads.isLoading && ready) return <SkeletonTiles count={3} label="Reading the forum…" />
   if (threads.error) return <ErrorState error={threads.error} />
 
   const rows = threads.data?.items ?? []

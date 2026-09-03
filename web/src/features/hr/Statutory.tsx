@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* What the government takes, and what the school owes.
@@ -146,7 +146,7 @@ export default function Statutory() {
       ),
   })
 
-  if (reg.isLoading) return <Loading label="Working out the month's contributions…" />
+  if (reg.isLoading) return <SkeletonTiles count={4} label="Working out the month's contributions…" />
   if (reg.error) return <ErrorState error={reg.error} />
 
   const t = reg.data?.totals ?? {}
@@ -383,7 +383,7 @@ function IncomeTax() {
         {!employeeId ? (
           <EmptyState title="Choose an employee" body="Their TDS working and Form 16 basis appear here." />
         ) : tax.isLoading ? (
-          <Loading label="Computing…" />
+          <SkeletonTable columns={2} label="Computing…" />
         ) : t ? (
           <div className="p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -685,7 +685,7 @@ function GratuityTab() {
       }>('/api/v1/payroll/gratuity'),
   })
 
-  if (g.isLoading) return <Loading label="Working out the exposure…" />
+  if (g.isLoading) return <SkeletonTable columns={7} label="Working out the exposure…" />
   const d = g.data
 
   return (

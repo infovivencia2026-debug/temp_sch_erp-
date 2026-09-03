@@ -4,7 +4,7 @@ import { Pencil } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Klass, type Subject, type AcademicYear } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, Loading, ErrorState,
+  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, cn } from '@/lib/utils'
@@ -81,7 +81,7 @@ function Sections() {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={7} />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -135,7 +135,7 @@ function Classes() {
     queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={4} />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -177,7 +177,7 @@ function Subjects() {
     queryFn: () => api.get<List<Subject>>('/api/v1/academics/subjects'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={4} />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (
@@ -222,7 +222,7 @@ function Years() {
     queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
   })
   const [editing, setEditing] = useState<string | null>(null)
-  if (q.isLoading) return <Loading />
+  if (q.isLoading) return <SkeletonTable columns={5} />
   if (q.error) return <ErrorState error={q.error} />
   const rows = q.data?.items ?? []
   return (

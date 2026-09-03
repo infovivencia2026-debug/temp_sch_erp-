@@ -5,7 +5,7 @@ import { Phone, Plus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, ErrorState, FormNotice,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -314,7 +314,7 @@ export default function Enquiries() {
           />
           <FormNotice error={update.error} ok={note} />
           {q.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

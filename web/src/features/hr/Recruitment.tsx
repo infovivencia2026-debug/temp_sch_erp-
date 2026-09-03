@@ -7,7 +7,7 @@ import { formatPaise } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Recruitment: the post, the people, and the day one of them becomes staff.
@@ -139,7 +139,7 @@ export default function Recruitment() {
     queryFn: () => api.get<List<FunnelStage>>('/api/v1/hr-growth/recruitment/funnel'),
   })
 
-  if (vacancies.isLoading) return <Loading label="Reading the open posts…" />
+  if (vacancies.isLoading) return <SkeletonTiles count={4} label="Reading the open posts…" />
   if (vacancies.error) return <ErrorState error={vacancies.error} />
 
   const posts = vacancies.data?.items ?? []

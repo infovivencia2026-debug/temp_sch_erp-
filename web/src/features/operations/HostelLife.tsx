@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -104,7 +104,7 @@ export default function HostelLife() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['outpasses'] }),
   })
 
-  if (passes.isLoading) return <Loading label="Checking who is out…" />
+  if (passes.isLoading) return <SkeletonTiles count={4} label="Checking who is out…" />
   if (passes.error) return <ErrorState error={passes.error} />
 
   const rows = passes.data?.items ?? []
@@ -382,7 +382,7 @@ function Complaints() {
         }
       />
       {list.isLoading ? (
-        <Loading label="Loading complaints…" />
+        <SkeletonTable columns={7} label="Loading complaints…" />
       ) : rows.length === 0 ? (
         <EmptyState title="Nothing open" body="Complaints raised by boarders appear here." />
       ) : (

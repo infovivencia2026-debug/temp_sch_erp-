@@ -15,7 +15,7 @@ import { ThumbsDown, ThumbsUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Checkbox, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Button, Checkbox, Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState,
   FormNotice,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -91,7 +91,7 @@ export default function Behaviour() {
   const { q: term, setQ: setTerm, shown } = useSearch(items,
     (n) => [n.student_name, n.category, n.description, n.action_taken])
 
-  if (notes.isLoading) return <Loading />
+  if (notes.isLoading) return <SkeletonTiles count={3} />
   if (notes.error) return <ErrorState error={notes.error} />
 
   const praise = items.filter((n) => n.is_positive).length

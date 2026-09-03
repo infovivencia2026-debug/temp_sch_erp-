@@ -4,7 +4,7 @@ import { BriefcaseBusiness, MapPin, CalendarClock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
-  FormNotice, Select, Loading, ErrorState, EmptyState,
+  FormNotice, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -82,7 +82,7 @@ export default function AlumniJobs() {
     onSuccess: refresh,
   })
 
-  if (jobs.isLoading && ready) return <Loading label="Reading the board…" />
+  if (jobs.isLoading && ready) return <SkeletonTiles count={3} label="Reading the board…" />
   if (jobs.error) return <ErrorState error={jobs.error} />
 
   const rows = jobs.data?.items ?? []

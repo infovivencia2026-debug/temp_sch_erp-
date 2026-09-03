@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import {
@@ -87,7 +87,7 @@ export default function MontessoriTracking() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not record'),
   })
 
-  if (sections.isLoading) return <Loading />
+  if (sections.isLoading) return <SkeletonTable columns={7} />
   if (sections.error) return <ErrorState error={sections.error} />
 
   const positions = (child.data?.items ?? []).filter((p) => !area || p.area === area)

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Select, Textarea,
-  Loading, ErrorState, EmptyState, RangePicker, rangeQuery, useRange,
+  SkeletonTiles, ErrorState, EmptyState, RangePicker, rangeQuery, useRange,
   type RangeOption,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -117,7 +117,7 @@ export default function LostLeads() {
     (r) => [r.student_name, r.parent_name, r.class_sought, r.source, r.counsellor,
             r.reason_label, r.note])
 
-  if (reasons.isLoading || leads.isLoading) return <Loading />
+  if (reasons.isLoading || leads.isLoading) return <SkeletonTiles count={4} />
   if (reasons.error) return <ErrorState error={reasons.error} />
   if (leads.error) return <ErrorState error={leads.error} />
 

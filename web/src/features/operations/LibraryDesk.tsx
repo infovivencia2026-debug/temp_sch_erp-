@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState, PrintButton,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -98,7 +98,7 @@ export default function LibraryDesk() {
     queryFn: () => api.get<List<Audit>>('/api/v1/ops/library/audits'),
   })
 
-  if (holds.isLoading) return <Loading label="Opening the desk…" />
+  if (holds.isLoading) return <SkeletonTiles count={4} label="Opening the desk…" />
   if (holds.error) return <ErrorState error={holds.error} />
 
   const rows = holds.data?.items ?? []
@@ -428,7 +428,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       <Card>
         <CardHeader title="Not found yet" description="Everything the register expects on the shelf that nobody has scanned." />
         {missing.isLoading ? (
-          <Loading label="Counting…" />
+          <SkeletonTable columns={3} label="Counting…" />
         ) : (missing.data?.items ?? []).length === 0 ? (
           <EmptyState title="Everything accounted for" body="Every book the register expects has been seen." />
         ) : (

@@ -3,7 +3,7 @@ import { BookOpen, GraduationCap, FolderOpen, ClipboardList } from 'lucide-react
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -49,7 +49,7 @@ export default function Courses() {
     enabled: ready,
   })
 
-  if (courses.isLoading && ready) return <Loading label="Looking up your subjects…" />
+  if (courses.isLoading && ready) return <SkeletonTable columns={8} label="Looking up your subjects…" />
   if (courses.error) return <ErrorState error={courses.error} />
 
   const rows = courses.data?.items ?? []

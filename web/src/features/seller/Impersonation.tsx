@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Input, Select, Field, FormGrid, FormNotice, Loading,
+  Button, ConfirmButton, Input, Select, Field, FormGrid, FormNotice, SkeletonTable,
   ErrorState,
 } from '@/components/ui'
 import {
@@ -53,7 +53,7 @@ export default function Impersonation() {
     enabled: !!inspecting,
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
 
   const items = data?.items ?? []
@@ -178,7 +178,7 @@ export default function Impersonation() {
               </div>
             )}
             {activity.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={5} />
             ) : activity.error ? (
               <ErrorState error={activity.error} />
             ) : (

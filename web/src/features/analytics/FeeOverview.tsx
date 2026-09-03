@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState, PrintButton,
+  Table, Td, Badge, SkeletonTable, ErrorState, PrintButton,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton, pct, goodPct } from './shared'
@@ -60,7 +60,7 @@ export default function FeeOverview() {
     queryFn: () => api.get<List<ConcessionRow>>(CONCESSIONS),
   })
 
-  if (overview.isLoading) return <Loading />
+  if (overview.isLoading) return <SkeletonTable columns={8} />
   if (overview.error) return <ErrorState error={overview.error} />
   const d = overview.data
   if (!d) return null
@@ -160,7 +160,7 @@ export default function FeeOverview() {
               action={<CsvButton href={AGEING} />}
             />
             {ageing.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={4} />
             ) : ageing.error ? (
               <ErrorState error={ageing.error} />
             ) : (
@@ -189,7 +189,7 @@ export default function FeeOverview() {
               action={<CsvButton href={CONCESSIONS} />}
             />
             {concessions.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : concessions.error ? (
               <ErrorState error={concessions.error} />
             ) : (

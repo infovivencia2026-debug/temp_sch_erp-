@@ -5,7 +5,7 @@ import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Relatives visiting a boarder.
@@ -101,7 +101,7 @@ export default function HostelVisitors() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hostel-visits'] }),
   })
 
-  if (list.isLoading) return <Loading label="Loading the visitor log…" />
+  if (list.isLoading) return <SkeletonTiles count={4} label="Loading the visitor log…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

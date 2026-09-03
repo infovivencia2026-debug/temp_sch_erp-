@@ -5,7 +5,7 @@ import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Textarea, Loading, ErrorState, EmptyState,
+  Input, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -238,7 +238,7 @@ function MyAppraisalsPanel({
           description="Yours alone. The score shown is the final one once published — never a draft somebody is still calibrating."
         />
         {query.isLoading ? (
-          <Loading label="Reading your appraisals…" />
+          <SkeletonTable columns={5} label="Reading your appraisals…" />
         ) : query.error ? (
           <ErrorState error={query.error} />
         ) : (
@@ -306,7 +306,7 @@ function MyAppraisalCard({ id, onClose }: { id: string; onClose: () => void }) {
     queryFn: () => api.get<MyAppraisalDetail>(`/api/v1/hr-growth/me/appraisals/${id}`),
   })
 
-  if (detail.isLoading) return <Card><Loading label="Reading the appraisal…" /></Card>
+  if (detail.isLoading) return <Card><SkeletonTable columns={2} label="Reading the appraisal…" /></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
   if (!detail.data) return null
 
@@ -617,7 +617,7 @@ function MyTrainingPanel() {
         }
       />
       {q.isLoading ? (
-        <Loading label="Reading your training record…" />
+        <SkeletonTable columns={8} label="Reading your training record…" />
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (
@@ -714,7 +714,7 @@ function MyDutiesPanel() {
         </CellGrid>
       </div>
       {q.isLoading ? (
-        <Loading label="Reading your duty roster…" />
+        <SkeletonTable columns={6} label="Reading your duty roster…" />
       ) : q.error ? (
         <ErrorState error={q.error} />
       ) : (

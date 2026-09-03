@@ -5,7 +5,7 @@ import {
 import { GraduationCap, Users, Wallet, ClipboardCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Loading, ErrorState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Loading, SkeletonTiles, ErrorState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
@@ -49,7 +49,7 @@ export default function PrincipalDashboard() {
     queryFn: () => api.get<List<TrendPoint>>('/api/v1/principal/attendance-trend'),
   })
 
-  if (kpis.isLoading) return <Loading />
+  if (kpis.isLoading) return <SkeletonTiles count={3} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   // Levels are true now whatever the range; saying so on the card stops a

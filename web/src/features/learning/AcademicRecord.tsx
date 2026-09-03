@@ -3,7 +3,7 @@ import { ScrollText, CalendarCheck, Percent } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  PrintButton, Loading, ErrorState, EmptyState,
+  PrintButton, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -62,7 +62,7 @@ export default function AcademicRecord() {
     enabled: ready,
   })
 
-  if (record.isLoading && ready) return <Loading label="Opening your record…" />
+  if (record.isLoading && ready) return <SkeletonTable columns={9} label="Opening your record…" />
   if (record.error) return <ErrorState error={record.error} />
 
   const r = record.data

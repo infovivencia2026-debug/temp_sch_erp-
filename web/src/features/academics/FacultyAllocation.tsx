@@ -5,7 +5,7 @@ import { AlertTriangle, GraduationCap, UserCheck, UserX } from 'lucide-react'
 import { api, type List, type Klass, type Teacher } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Checkbox, FormNotice, Select, Loading, ErrorState, EmptyState,
+  Checkbox, FormNotice, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Who teaches what, and what nobody teaches.
@@ -106,7 +106,7 @@ export default function FacultyAllocation() {
     },
   })
 
-  if (alloc.isLoading) return <Loading label="Working out who teaches what…" />
+  if (alloc.isLoading) return <SkeletonTiles count={4} label="Working out who teaches what…" />
   if (alloc.error) return <ErrorState error={alloc.error} />
 
   const s = alloc.data?.summary

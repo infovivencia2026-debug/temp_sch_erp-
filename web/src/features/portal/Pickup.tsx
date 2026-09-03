@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, } from '@/components/ui'
+  SkeletonTable, } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -62,7 +62,7 @@ export default function Pickup() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-pickup'] }),
   })
 
-  if (passes.isLoading) return <Loading label={t('portal.pickup.loading')} />
+  if (passes.isLoading) return <SkeletonTable columns={6} label={t('portal.pickup.loading')} />
   if (passes.error) return <ScreenError error={passes.error} />
 
   const rows = passes.data?.items ?? []

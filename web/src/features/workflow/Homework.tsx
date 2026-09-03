@@ -6,7 +6,7 @@ import { api, type List, type Section, type Subject } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState, Table, Td,
+  SkeletonTable, SkeletonTiles, ErrorState, EmptyState, Table, Td,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
@@ -164,7 +164,7 @@ export default function Homework() {
     },
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   const items = data?.items ?? []
 
@@ -1039,7 +1039,7 @@ function Register({ homeworkId }: { homeworkId: string }) {
       api.get<List<Submitter>>(`/api/v1/homework/${homeworkId}/submissions`),
   })
 
-  if (isLoading) return <div className="pt-3"><Loading /></div>
+  if (isLoading) return <div className="pt-3"><SkeletonTable columns={5} /></div>
   if (error) return <div className="pt-3"><ErrorState error={error} /></div>
 
   const rows = data?.items ?? []

@@ -4,7 +4,7 @@ import { Users, GraduationCap, UserPlus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
-  FormGrid, FormNotice, Input, Textarea, Checkbox, Loading, ErrorState, EmptyState,
+  FormGrid, FormNotice, Input, Textarea, Checkbox, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
@@ -109,7 +109,7 @@ export default function StudyGroups() {
     },
   })
 
-  if (groups.isLoading && ready) return <Loading label="Looking up your class's groups…" />
+  if (groups.isLoading && ready) return <SkeletonTiles count={3} label="Looking up your class's groups…" />
   if (groups.error) return <ErrorState error={groups.error} />
 
   const rows = groups.data?.items ?? []

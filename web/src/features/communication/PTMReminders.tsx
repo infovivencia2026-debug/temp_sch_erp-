@@ -3,7 +3,7 @@ import { Bell, CalendarClock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { commsQueryKeys } from './comms-keys'
@@ -85,7 +85,7 @@ export default function PTMReminders() {
             description="Booked through School life › Parent-teacher meetings. Cancelling there also withdraws the reminder."
           />
           {bookings.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : bookings.error ? (
             <ErrorState error={bookings.error} />
           ) : (

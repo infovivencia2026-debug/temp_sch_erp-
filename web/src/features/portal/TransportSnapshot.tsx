@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { BusFront, Clock, MapPin } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState, CellGrid, Stat,
+  PageHead, PageBody, Card, CardHeader, Badge, SkeletonTiles, EmptyState, CellGrid, Stat,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import {
@@ -40,7 +40,7 @@ export default function TransportSnapshot() {
   const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   const every = usePoll(rows, visible, () => void feed.refetch())
 
-  if (feed.isLoading) return <Loading label="Reading today's transport…" />
+  if (feed.isLoading) return <SkeletonTiles count={3} label="Reading today's transport…" />
   if (feed.error) return <ScreenError error={feed.error} />
 
   /* Stale is not counted as running. A tile that says "1 on a run now" over a

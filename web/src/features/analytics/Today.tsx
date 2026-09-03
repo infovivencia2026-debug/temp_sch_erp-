@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState, EmptyState, PrintButton,
+  Table, Td, Badge, SkeletonTable, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
@@ -54,7 +54,7 @@ export default function Today() {
     queryFn: () => api.get<TodayView>(URL),
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={5} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

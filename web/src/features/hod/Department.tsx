@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 
 interface DeptKPIs {
@@ -29,7 +29,7 @@ export default function Department() {
     queryFn: () => api.get<List<DeptFaculty>>('/api/v1/department/faculty'),
   })
 
-  if (kpis.isLoading) return <Loading />
+  if (kpis.isLoading) return <SkeletonTiles count={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
 
@@ -54,7 +54,7 @@ export default function Department() {
             description={`${faculty.data?.items.length ?? 0} in your departments`}
           />
           {faculty.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : faculty.error ? (
             <ErrorState error={faculty.error} />
           ) : (

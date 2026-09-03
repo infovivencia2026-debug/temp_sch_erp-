@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Loading, ErrorState, FormNotice, ExportButton, PrintButton,
+  Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -127,7 +127,7 @@ export default function StaffAttendance() {
             }
           />
           {q.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={4} />
           ) : q.error ? (
             <ErrorState error={q.error} />
           ) : (

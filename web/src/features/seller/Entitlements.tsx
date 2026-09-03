@@ -1,6 +1,6 @@
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, FormNotice, Loading, ErrorState,
+  Button, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, rupees, type EntitlementResponse,
@@ -23,7 +23,7 @@ export default function Entitlements() {
   const { data, isLoading, error } = usePlatform<EntitlementResponse>('entitlements', '/entitlements')
   const set = usePlatformSave('entitlements', '/entitlements')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={5} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

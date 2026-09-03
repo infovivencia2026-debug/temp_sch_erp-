@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Button, Input, Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { usePlatform, usePlatformSave, type CampusClassResponse } from './platform-lib'
 
@@ -30,7 +30,7 @@ export default function ManagementType() {
 
   const save = usePlatformSave('campus-classification', editing ? `/campus-classification/${editing}` : '')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={6} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

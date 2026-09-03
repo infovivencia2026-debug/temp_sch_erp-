@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -230,7 +230,7 @@ export default function SQAACompliance() {
       />
       <PageBody width="wide">
         {frameworks.isLoading || list.isLoading ? (
-          <Loading />
+          <SkeletonTable columns={8} />
         ) : frameworks.error ? (
           <ErrorState error={frameworks.error} />
         ) : list.error ? (
@@ -348,7 +348,7 @@ export default function SQAACompliance() {
             )}
 
             {detail.isLoading && current ? (
-              <Loading />
+              <SkeletonTable columns={7} />
             ) : detail.error ? (
               <ErrorState error={detail.error} />
             ) : d ? (

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, FormNotice, Loading, ErrorState, ExportButton, PrintButton,
+  Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton, PrintButton,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
 
@@ -265,7 +265,7 @@ export default function Payroll() {
                 : 'Breakup is frozen at run time so an issued payslip keeps its numbers'
             }
           />
-          {slips.isLoading ? <Loading /> : slips.error ? <ErrorState error={slips.error} /> : (
+          {slips.isLoading ? <SkeletonTable columns={8} /> : slips.error ? <ErrorState error={slips.error} /> : (
             <Table
               head={['Code', 'Employee', 'Paid days', 'LOP', ...components, 'Gross', 'Deductions', 'Net']}
               empty={!rows.length}

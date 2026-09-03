@@ -4,7 +4,7 @@ import { CheckCircle2, FileWarning, Send, Users } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select, Loading,
+  ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select, SkeletonTable,
   ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
@@ -191,7 +191,7 @@ export function BoardRoll(props: RollProps) {
     onSuccess: refresh,
   })
 
-  if (roll.isLoading) return <Loading label="Reading the roll…" />
+  if (roll.isLoading) return <SkeletonTable columns={3} label="Reading the roll…" />
   if (roll.error) return <ErrorState error={roll.error} />
 
   const rows = roll.data?.items ?? []

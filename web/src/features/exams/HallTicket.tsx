@@ -5,7 +5,7 @@ import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, ErrorState, EmptyState, PrintButton, useSort,
+  Loading, SkeletonTiles, ErrorState, EmptyState, PrintButton, useSort,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -85,7 +85,7 @@ export default function HallTicket() {
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''
 
-  if (exams.isLoading) return <Loading />
+  if (exams.isLoading) return <SkeletonTiles count={4} />
   if (exams.error) return <ErrorState error={exams.error} />
   if (!exam) {
     return (

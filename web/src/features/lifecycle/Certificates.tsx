@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, Loading, ErrorState,
+  Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
@@ -252,7 +252,7 @@ export default function Certificates() {
 
         <Card>
           <CardHeader title="Register" description="Every certificate issued, with its frozen snapshot" />
-          {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
+          {list.isLoading ? <SkeletonTable columns={7} /> : list.error ? <ErrorState error={list.error} /> : (
             <Table head={['Serial', 'Type', 'Student', 'Class at issue', 'Dues at issue', 'Issued', 'Status']}
               empty={!rows.length} emptyLabel="No certificates issued yet.">
               {rows.map((c) => (

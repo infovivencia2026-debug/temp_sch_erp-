@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The three things a school does for its staff that cost nothing.
@@ -92,7 +92,7 @@ export default function Welfare() {
     queryFn: () => api.get<List<Grievance>>('/api/v1/hr/grievances'),
   })
 
-  if (diary.isLoading) return <Loading label="Reading the diary…" />
+  if (diary.isLoading) return <SkeletonTable columns={6} label="Reading the diary…" />
   if (diary.error) return <ErrorState error={diary.error} />
 
   const days = diary.data?.items ?? []

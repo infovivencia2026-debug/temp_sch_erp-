@@ -4,7 +4,7 @@ import { AlertTriangle, CalendarCheck, ClipboardCheck, Users } from 'lucide-reac
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Badge, Button, Loading, ErrorState, EmptyState,
+  Badge, Button, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* The head of department's morning.
@@ -58,7 +58,7 @@ export default function HodDashboard() {
     queryFn: () => api.get<Dash>('/api/v1/teaching/hod-dashboard'),
   })
 
-  if (isLoading) return <Loading label="Reading your department…" />
+  if (isLoading) return <SkeletonTiles count={4} label="Reading your department…" />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

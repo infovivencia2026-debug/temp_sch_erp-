@@ -5,7 +5,7 @@ import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -703,7 +703,7 @@ function CampAttendance({ campId }: { campId: string }) {
         <FormNotice error={save.error} />
       </div>
       {list.isLoading ? (
-        <Loading />
+        <SkeletonTable columns={6} />
       ) : rows.length === 0 ? (
         <EmptyState title="Nobody recorded yet" body="Add the children the team saw." />
       ) : (

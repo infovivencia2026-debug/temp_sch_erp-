@@ -5,7 +5,7 @@ import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 
@@ -111,7 +111,7 @@ export default function HostelLaundry() {
     },
   })
 
-  if (list.isLoading) return <Loading label="Loading the laundry book…" />
+  if (list.isLoading) return <SkeletonTiles count={4} label="Loading the laundry book…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

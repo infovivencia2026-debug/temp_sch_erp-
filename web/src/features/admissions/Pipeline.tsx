@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, ExportButton,
+  Table, Td, Badge, Button, Select, SkeletonTable, ErrorState, ExportButton,
 } from '@/components/ui'
 import EnrolPanel from './EnrolPanel'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -136,7 +136,7 @@ export default function Pipeline() {
   const seatsCard = (
           <Card>
             <CardHeader title="Seat matrix" description="RTE reservation is 25% of sanctioned intake" />
-            {seats.isLoading ? <Loading /> : (
+            {seats.isLoading ? <SkeletonTable columns={7} /> : (
               <Table head={['Class', 'Capacity', 'Enrolled', 'Offered', 'Available', 'RTE quota', 'RTE filled']}
                 empty={!seats.data?.items.length}>
                 {(seats.data?.items ?? []).map((s) => (
@@ -191,7 +191,7 @@ export default function Pipeline() {
                 </span>
               }
             />
-            {merit.isLoading ? <Loading /> : merit.error ? <ErrorState error={merit.error} /> : (
+            {merit.isLoading ? <SkeletonTable columns={9} /> : merit.error ? <ErrorState error={merit.error} /> : (
               <Table head={['Rank', 'Application', 'Applicant', 'Class', 'Entrance', 'Interview', 'Merit', 'Status', '']}
                 empty={!shown.length}
                 emptyLabel={term

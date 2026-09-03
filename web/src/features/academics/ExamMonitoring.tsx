@@ -4,7 +4,7 @@ import { CheckCircle2, ClipboardList, TriangleAlert, Users } from 'lucide-react'
 import { api, type List, type Klass } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  FormNotice, Select, Loading, ErrorState, EmptyState, useSort,
+  FormNotice, Select, SkeletonTiles, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 
@@ -85,7 +85,7 @@ export default function ExamMonitoring() {
     { key: 'entry_percent' },
   )
 
-  if (monitor.isLoading) return <Loading label="Counting what has been entered…" />
+  if (monitor.isLoading) return <SkeletonTiles count={4} label="Counting what has been entered…" />
   if (monitor.error) return <ErrorState error={monitor.error} />
 
   const s = monitor.data?.summary

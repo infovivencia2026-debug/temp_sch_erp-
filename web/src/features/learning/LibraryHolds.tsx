@@ -4,7 +4,7 @@ import { Library, BookMarked, Hourglass } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormNotice, Input, Loading, ErrorState, EmptyState,
+  Button, ConfirmButton, Field, FormNotice, Input, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -109,7 +109,7 @@ export default function LibraryHolds() {
      keystroke; isPending with keepPreviousData is true only when there is
      nothing to show at all. */
   if (catalogue.isPending && ready && !catalogue.data) {
-    return <Loading label="Opening the catalogue…" />
+    return <SkeletonTable columns={5} label="Opening the catalogue…" />
   }
   if (catalogue.error) return <ErrorState error={catalogue.error} />
 

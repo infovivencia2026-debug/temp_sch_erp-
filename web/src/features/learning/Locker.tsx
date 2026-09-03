@@ -4,7 +4,7 @@ import { Lock, KeyRound, History } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, FormNotice, Loading, ErrorState, EmptyState,
+  Button, FormNotice, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
@@ -89,7 +89,7 @@ export default function Locker() {
     onSuccess: refresh,
   })
 
-  if (locker.isLoading && ready) return <Loading label="Looking up your locker…" />
+  if (locker.isLoading && ready) return <SkeletonTiles count={3} label="Looking up your locker…" />
   if (locker.error) return <ErrorState error={locker.error} />
 
   const l = locker.data

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Button, Input, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 
@@ -105,7 +105,7 @@ export default function SalarySetup() {
     },
   })
 
-  if (comps.isLoading || structures.isLoading) return <Loading />
+  if (comps.isLoading || structures.isLoading) return <SkeletonTable columns={3} />
   if (comps.error) return <ErrorState error={comps.error} />
   if (structures.error) return <ErrorState error={structures.error} />
 

@@ -8,7 +8,7 @@ import {
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button,
   Checkbox, Field, FormGrid, FormNotice, Select,
-  Loading, ErrorState,
+  SkeletonTiles, ErrorState,
 } from '@/components/ui'
 
 interface Preference {
@@ -118,7 +118,7 @@ export default function ThemeSelection() {
     },
   })
 
-  if (prefs.isLoading) return <Loading label="Reading your settings…" />
+  if (prefs.isLoading) return <SkeletonTiles count={3} label="Reading your settings…" />
   if (prefs.error) return <ErrorState error={prefs.error} />
 
   const themeChoices = prefs.data?.theme_choices ?? ['system', 'light', 'dark']

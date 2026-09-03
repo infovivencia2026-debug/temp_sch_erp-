@@ -4,7 +4,7 @@ import { Upload } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
+  Table, Td, Badge, Button, Select, SkeletonTiles, ErrorState, EmptyState, PrintButton, FormNotice, FormGrid, Field, Input,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -400,7 +400,7 @@ export default function Gradebook() {
             }
           />
         ) : book.isLoading ? (
-          <Loading />
+          <SkeletonTiles count={4} />
         ) : book.error ? (
           <ErrorState error={book.error} />
         ) : (

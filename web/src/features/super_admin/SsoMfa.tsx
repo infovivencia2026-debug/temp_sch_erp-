@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Input,
-  Select, Checkbox, Field, FormGrid, FormNotice, Loading, ErrorState,
+  Select, Checkbox, Field, FormGrid, FormNotice, SkeletonTiles, ErrorState,
   UnavailableState,
 } from '@/components/ui'
 import { usePlatform, usePlatformSave, type AuthPolicy } from './platform-lib'
@@ -27,7 +27,7 @@ export default function SsoMfa() {
 
   const [draft, setDraft] = useState<Partial<AuthPolicy> | null>(null)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

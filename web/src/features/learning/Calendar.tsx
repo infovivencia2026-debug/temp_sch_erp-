@@ -4,7 +4,7 @@ import { CalendarDays, GraduationCap, Palmtree } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Field, Input,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -76,7 +76,7 @@ export default function Calendar() {
     enabled: ready,
   })
 
-  if (calendar.isLoading && ready) return <Loading label="Building your calendar…" />
+  if (calendar.isLoading && ready) return <SkeletonTiles count={3} label="Building your calendar…" />
   if (calendar.error) return <ErrorState error={calendar.error} />
 
   const rows = calendar.data?.items ?? []

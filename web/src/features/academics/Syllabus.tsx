@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState, useSort,
+  SkeletonTable, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
@@ -134,7 +134,7 @@ export default function Syllabus() {
     { key: 'percent' },
   )
 
-  if (coverage.isLoading) return <Loading label="Working out how far each class has got…" />
+  if (coverage.isLoading) return <SkeletonTable columns={6} label="Working out how far each class has got…" />
   if (coverage.error) return <ErrorState error={coverage.error} />
 
   const behind = rows.filter((r) => r.behind).length

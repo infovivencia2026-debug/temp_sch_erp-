@@ -4,7 +4,7 @@ import { Lock, Plus, Check, Download, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button, Input,
-  Table, Td, Badge, Loading, ErrorState, EmptyState, FormNotice,
+  Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -230,7 +230,7 @@ export default function RolesPermissions() {
                 </div>
               )}
               {roles.isLoading ? (
-                <Loading />
+                <SkeletonTable columns={3} />
               ) : roles.error ? (
                 <ErrorState error={roles.error} />
               ) : (

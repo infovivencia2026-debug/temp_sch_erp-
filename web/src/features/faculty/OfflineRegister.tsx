@@ -6,7 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState, Panel,
+  SkeletonTiles, ErrorState, EmptyState, Panel,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import {
@@ -112,7 +112,7 @@ export default function OfflineRegister() {
     qc.invalidateQueries({ queryKey: ['classroom-diary'] })
   }
 
-  if (sections.isLoading) return <Loading />
+  if (sections.isLoading) return <SkeletonTiles count={4} />
   if (sections.error) return <ErrorState error={sections.error} />
 
   const openConflicts = conflicts.data?.items ?? []

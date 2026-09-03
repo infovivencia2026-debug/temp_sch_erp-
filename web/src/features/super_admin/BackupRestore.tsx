@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, Checkbox, Field, FormGrid, FormNotice, Loading,
+  Button, Input, Select, Checkbox, Field, FormGrid, FormNotice, SkeletonTiles,
   ErrorState, UnavailableState,
 } from '@/components/ui'
 import { usePlatform, usePlatformSave, bytes, type BackupPosture } from './platform-lib'
@@ -25,7 +25,7 @@ export default function BackupRestore() {
 
   const [draft, setDraft] = useState<Partial<BackupPosture> | null>(null)
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

@@ -7,7 +7,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, Loading, ErrorState, UnavailableState,
+  Input, Select, Textarea, Loading, SkeletonTable, SkeletonTiles, ErrorState, UnavailableState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 
@@ -116,7 +116,7 @@ export default function DigitalLibrary() {
       api.get<List<Holding>>(`/api/v1/ops/digital-library/catalogue?${params.toString()}`),
   })
 
-  if (holdings.isLoading) return <Loading label="Opening the digital shelves…" />
+  if (holdings.isLoading) return <SkeletonTiles count={4} label="Opening the digital shelves…" />
   /* A failed query is an error, never "nothing here". Telling a librarian the
      catalogue is empty when the server refused is how titles get entered
      twice. */
@@ -731,7 +731,7 @@ function Providers({ librarian }: { librarian: boolean }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['digital-library'] }),
   })
 
-  if (providers.isLoading) return <Loading label="Loading subscriptions…" />
+  if (providers.isLoading) return <SkeletonTable columns={6} label="Loading subscriptions…" />
   if (providers.error) return <ErrorState error={providers.error} />
   const items = providers.data?.items ?? []
 

@@ -4,7 +4,7 @@ import { Check } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Field, Select, Loading, ErrorState, EmptyState,
+  Badge, Button, Field, Select, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { useMyClasses, useTerms, type ReportRemark } from './comms'
@@ -96,7 +96,7 @@ export default function ClassTeacherRemarks() {
         ) : !sectionID || !termID ? (
           <EmptyState title="Choose a class and a term" />
         ) : list.isLoading ? (
-          <Loading />
+          <SkeletonTiles count={3} />
         ) : list.error ? (
           <ErrorState error={list.error} />
         ) : (

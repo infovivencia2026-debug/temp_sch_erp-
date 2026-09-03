@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState, PrintButton,
+  Table, Td, Badge, SkeletonTable, ErrorState, PrintButton,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct, impossiblePct, RefusedPctNotice } from './shared'
 
@@ -107,7 +107,7 @@ export default function PerformanceAnalytics() {
             action={<CsvButton href={TREND} />}
           />
           {trend.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={6} />
           ) : trend.error ? (
             <ErrorState error={trend.error} />
           ) : (
@@ -139,7 +139,7 @@ export default function PerformanceAnalytics() {
               action={<CsvButton href={SUBJECTS} />}
             />
             {subjects.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={5} />
             ) : subjects.error ? (
               <ErrorState error={subjects.error} />
             ) : (
@@ -169,7 +169,7 @@ export default function PerformanceAnalytics() {
               action={<CsvButton href={DISTRIBUTION} />}
             />
             {bands.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={4} />
             ) : bands.error ? (
               <ErrorState error={bands.error} />
             ) : (
@@ -197,7 +197,7 @@ export default function PerformanceAnalytics() {
             action={<CsvButton href={AT_RISK} />}
           />
           {atRisk.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : atRisk.error ? (
             <ErrorState error={atRisk.error} />
           ) : (

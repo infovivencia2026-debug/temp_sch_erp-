@@ -4,7 +4,7 @@ import { Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Button,
-  PrintButton, Loading, } from '@/components/ui'
+  PrintButton, Loading, SkeletonTable, } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -63,7 +63,7 @@ export default function Receipts() {
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),
   })
 
-  if (receipts.isLoading) return <Loading label={t('portal.receipts.loading')} />
+  if (receipts.isLoading) return <SkeletonTable columns={6} label={t('portal.receipts.loading')} />
   if (receipts.error) return <ScreenError error={receipts.error} />
 
   const rows = receipts.data?.items ?? []

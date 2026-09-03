@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField,
-  Select, FormNotice, Table, Td, Badge, Button, Input, Loading, ErrorState,
+  Select, FormNotice, Table, Td, Badge, Button, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatPaise } from '@/lib/utils'
@@ -100,7 +100,7 @@ export default function ActivitiesSetup() {
           </Card>
         )}
 
-        {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
+        {list.isLoading ? <SkeletonTable columns={6} /> : list.error ? <ErrorState error={list.error} /> : (
           <Card>
             <CardHeader
               title={running.length

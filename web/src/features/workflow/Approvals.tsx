@@ -4,7 +4,7 @@ import { CalendarDays, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus } fr
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Input, Loading, ErrorState, EmptyState,
+  Badge, Button, Input, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -67,7 +67,7 @@ export default function Approvals() {
     },
   })
 
-  if (isLoading) return <Loading label="Checking what is waiting on you…" />
+  if (isLoading) return <SkeletonTiles count={2} label="Checking what is waiting on you…" />
   if (error) return <ErrorState error={error} />
   const d = data!
   const items = filter ? d.items.filter((i) => i.kind === filter) : d.items

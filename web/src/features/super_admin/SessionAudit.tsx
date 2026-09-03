@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, ConfirmButton, FormNotice, Loading, ErrorState,
+  Table, Td, Badge, Button, ConfirmButton, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 
 interface SessionRow {
@@ -100,7 +100,7 @@ export default function SessionAudit() {
             description="Refreshes every 30 seconds"
           />
           {isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : error ? (
             <ErrorState error={error} />
           ) : (

@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
   Field, FormNotice, Input,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
@@ -99,7 +99,7 @@ export default function HandRaise() {
     onSuccess: refresh,
   })
 
-  if (classes.isLoading && ready) return <Loading label="Reading your classes…" />
+  if (classes.isLoading && ready) return <SkeletonTiles count={3} label="Reading your classes…" />
   if (classes.error) return <ErrorState error={classes.error} />
 
   const rows = classes.data?.items ?? []

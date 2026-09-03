@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Select, Button, Loading, ErrorState, FormNotice, Badge,
+  Card, CardHeader, Table, Td, Select, Button, SkeletonTable, ErrorState, FormNotice, Badge,
 } from '@/components/ui'
 
 /* Who owns each section.
@@ -70,7 +70,7 @@ export default function ClassTeachers() {
     },
   })
 
-  if (sections.isLoading) return <Loading />
+  if (sections.isLoading) return <SkeletonTable columns={5} />
   if (sections.error) return <ErrorState error={sections.error} />
 
   const rows = sections.data?.items ?? []

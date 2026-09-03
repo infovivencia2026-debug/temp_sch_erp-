@@ -4,7 +4,7 @@ import { FileWarning, Gavel, MessagesSquare, ShieldAlert } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -88,7 +88,7 @@ export default function DisciplineLog() {
     },
   })
 
-  if (log.isLoading) return <Loading label="Reading the conduct file…" />
+  if (log.isLoading) return <SkeletonTable columns={8} label="Reading the conduct file…" />
   if (log.error) return <ErrorState error={log.error} />
 
   const rows = log.data?.items ?? []

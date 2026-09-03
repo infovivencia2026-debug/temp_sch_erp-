@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   Card, CardHeader, FormGrid, Field as FormField, Select, FormNotice,
-  Table, Td, Badge, Button, Input, Loading, EmptyState,
+  Table, Td, Badge, Button, Input, SkeletonTable, EmptyState,
 } from '@/components/ui'
 import { Field } from '@/components/RecordShell'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
@@ -57,7 +57,7 @@ export function SubjectMarks({ rows, loading }: {
     list.push(r)
     byExam.set(r.exam, list)
   }
-  if (loading) return <Card><Loading /></Card>
+  if (loading) return <Card><SkeletonTable columns={5} /></Card>
   if (rows.length === 0) {
     return (
       <Card>

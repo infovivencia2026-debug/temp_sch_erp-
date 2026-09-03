@@ -3,7 +3,7 @@ import { Bell, BookOpen, CalendarX2, Megaphone, Receipt } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, Loading, EmptyState,
+  Field, SkeletonTiles, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { useT, type MessageKey } from '@/lib/i18n'
@@ -94,7 +94,7 @@ export default function Alerts() {
     onSuccess: invalidate,
   })
 
-  if (query.isLoading) return <Loading label={t('portal.alerts.loading')} />
+  if (query.isLoading) return <SkeletonTiles count={3} label={t('portal.alerts.loading')} />
   if (query.error) return <ScreenError error={query.error} />
 
   const items = query.data?.items ?? []

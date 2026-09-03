@@ -7,7 +7,7 @@ import { ApiError, api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSession } from '@/lib/session'
@@ -187,7 +187,7 @@ export default function TransportOffice() {
     queryFn: () => api.get<List<Incident>>('/api/v1/ops/transport/incidents?period=this_month'),
   })
 
-  if (staff.isLoading) return <Loading label="Opening the transport office…" />
+  if (staff.isLoading) return <SkeletonTiles count={4} label="Opening the transport office…" />
   if (staff.error) return <ErrorState error={staff.error} />
 
   const lapsing = (staff.data?.items ?? []).filter(
@@ -326,7 +326,7 @@ function BusRegister() {
           </div>
         )}
         {reg.isLoading ? (
-          <Loading label="Loading the register…" />
+          <SkeletonTable columns={7} label="Loading the register…" />
         ) : rows.length === 0 ? (
           <EmptyState
             title="Nobody allocated to this route"
@@ -1620,7 +1620,7 @@ function Routes() {
       )}
 
       {list.isLoading ? (
-        <Loading label="Loading the routes…" />
+        <SkeletonTable columns={8} label="Loading the routes…" />
       ) : list.error ? (
         <ErrorState error={list.error} />
       ) : rows.length === 0 ? (
@@ -1904,7 +1904,7 @@ function Buses() {
         )}
 
         {list.isLoading ? (
-          <Loading label="Loading the fleet…" />
+          <SkeletonTable columns={9} label="Loading the fleet…" />
         ) : list.error ? (
           <ErrorState error={list.error} />
         ) : rows.length === 0 ? (

@@ -4,7 +4,7 @@ import { AlarmClock, ChevronRight, EyeOff, MessageSquare, Send, ClipboardList } 
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Loading, ErrorState, EmptyState,
+  Badge, Button, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import type { CommsSummary, PTMNote, Remark } from './comms'
@@ -51,7 +51,7 @@ export default function Communication() {
     queryFn: () => api.get<List<Remark>>('/api/v1/teaching/remarks'),
   })
 
-  if (summary.isLoading) return <Loading />
+  if (summary.isLoading) return <SkeletonTiles count={7} />
   if (summary.error) return <ErrorState error={summary.error} />
 
   const s = summary.data

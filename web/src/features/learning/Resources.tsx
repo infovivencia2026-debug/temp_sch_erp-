@@ -4,7 +4,7 @@ import { FolderOpen, Link2, FileText } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  Loading, ErrorState, EmptyState,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -61,7 +61,7 @@ export default function Resources() {
     enabled: ready,
   })
 
-  if (resources.isLoading && ready) return <Loading label="Fetching your resources…" />
+  if (resources.isLoading && ready) return <SkeletonTiles count={3} label="Fetching your resources…" />
   if (resources.error) return <ErrorState error={resources.error} />
 
   const rows = resources.data?.items ?? []

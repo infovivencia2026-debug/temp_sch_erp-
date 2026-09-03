@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -26,7 +26,7 @@ export default function AdmissionsDashboard() {
     queryFn: () => api.get<List<EnquiryRow>>('/api/v1/admissions/enquiries'),
   })
 
-  if (kpis.isLoading) return <Loading />
+  if (kpis.isLoading) return <SkeletonTiles count={4} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   // Funnel conversion is the number the admissions team is actually measured on.
@@ -54,7 +54,7 @@ export default function AdmissionsDashboard() {
         <Card>
           <CardHeader title="Follow-ups due" description={`${k.follow_ups_due} enquiries need contact today`} />
           {enquiries.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : enquiries.error ? (
             <ErrorState error={enquiries.error} />
           ) : (

@@ -3,7 +3,7 @@ import { Landmark, BadgeCheck, Fingerprint } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -58,7 +58,7 @@ export default function CreditBank() {
     enabled: ready,
   })
 
-  if (abc.isLoading && ready) return <Loading label="Opening your credit statement…" />
+  if (abc.isLoading && ready) return <SkeletonTable columns={9} label="Opening your credit statement…" />
   if (abc.error) return <ErrorState error={abc.error} />
 
   const a = abc.data

@@ -5,7 +5,7 @@ import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Textarea, Loading, ErrorState,
+  Textarea, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { SchemeEditor } from './GovernmentClaims'
@@ -87,7 +87,7 @@ export default function ScholarshipReconciliation() {
   })
   const schemes = useSchemes('student')
 
-  if (awards.isLoading) return <Loading label="Opening the scholarship register…" />
+  if (awards.isLoading) return <SkeletonTable columns={5} label="Opening the scholarship register…" />
   if (awards.error) return <ErrorState error={awards.error} />
 
   const rows = awards.data?.items ?? []
@@ -548,7 +548,7 @@ function ImportDetail({ importId, mayWrite }: { importId: string; mayWrite: bool
       }>(`${concessionsBase}/scholarships/imports/${importId}`),
   })
 
-  if (q.isLoading) return <Loading label="Opening the file…" />
+  if (q.isLoading) return <SkeletonTable columns={8} label="Opening the file…" />
   if (q.error) return <ErrorState error={q.error} />
   const d = q.data
   if (!d) return null

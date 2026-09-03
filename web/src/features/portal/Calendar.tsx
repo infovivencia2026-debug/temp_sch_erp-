@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { MonthGrid } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  Loading, EmptyState,
+  SkeletonTiles, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatDate } from '@/lib/utils'
@@ -107,7 +107,7 @@ export default function Calendar() {
 
   // Only the very first load blanks the page; a month change is drawn by the
   // grid's own dimming, so the screen does not flash on every arrow press.
-  if (query.isLoading && !query.data) return <Loading label={t('portal.calendar.loading')} />
+  if (query.isLoading && !query.data) return <SkeletonTiles count={3} label={t('portal.calendar.loading')} />
   if (query.error) return <ScreenError error={query.error} />
 
   const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))

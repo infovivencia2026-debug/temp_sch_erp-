@@ -4,7 +4,7 @@ import { BookOpen, UserX } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Select, FormNotice, Loading, ErrorState, EmptyState,
+  Button, Input, Select, FormNotice, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 
 /* Night prep.
@@ -89,7 +89,7 @@ export default function HostelNightStudy() {
     },
   })
 
-  if (list.isLoading) return <Loading label="Loading the prep register…" />
+  if (list.isLoading) return <SkeletonTiles count={4} label="Loading the prep register…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

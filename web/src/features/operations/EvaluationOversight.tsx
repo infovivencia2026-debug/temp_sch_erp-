@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Loading, ErrorState, FormNotice, EmptyState,
+  Button, SkeletonTable, ErrorState, FormNotice, EmptyState,
   Field, FormGrid, Input, Select, Checkbox,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
@@ -214,7 +214,7 @@ export default function EvaluationOversight() {
               </div>
             </div>
           )}
-          {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} /> : (
+          {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
             <Table
               head={['Cycle', 'Window', 'Directions', 'Staff', 'Responses', 'Floor', 'Status', '']}
               empty={!items.length}
@@ -315,7 +315,7 @@ function CycleDetail({ id, mayRun, onDone }: {
     onSuccess: () => onDone('Released to that member of staff.'),
   })
 
-  if (detail.isLoading) return <Card><Loading /></Card>
+  if (detail.isLoading) return <Card><SkeletonTable columns={6} /></Card>
   if (detail.error) return <Card><ErrorState error={detail.error} /></Card>
 
   const c = detail.data!.cycle
@@ -433,7 +433,7 @@ function RevieweeResults({ id, minResponses }: { id: string; minResponses: numbe
     }>(`${adminOpsBase}/evaluation/reviewees/${id}/results`),
   })
 
-  if (res.isLoading) return <Card><Loading /></Card>
+  if (res.isLoading) return <Card><SkeletonTable columns={4} /></Card>
   if (res.error) return <Card><ErrorState error={res.error} /></Card>
 
   const d = res.data!

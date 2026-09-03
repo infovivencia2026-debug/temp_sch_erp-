@@ -5,7 +5,7 @@ import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -372,7 +372,7 @@ export default function AchievementsShowcase() {
             }
           />
           {list.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : list.error ? (
             <ErrorState error={list.error} />
           ) : (

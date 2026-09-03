@@ -6,7 +6,7 @@ import {
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, Loading, ErrorState,
+  Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
@@ -245,7 +245,7 @@ export default function Logins() {
             }
           />
           {isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : error ? (
             <ErrorState error={error} />
           ) : (
@@ -386,7 +386,7 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
         }
       />
       {isLoading ? (
-        <Loading />
+        <SkeletonTable columns={5} />
       ) : error ? (
         <ErrorState error={error} />
       ) : (

@@ -3,7 +3,7 @@ import { Wallet, AlertTriangle, Receipt, RefreshCcw } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { formatPaise, formatDate } from '@/lib/utils'
@@ -42,7 +42,7 @@ export default function FinanceDashboard() {
     queryFn: () => api.get<List<InvoiceRow>>('/api/v1/finance/invoices?overdue=true'),
   })
 
-  if (kpis.isLoading) return <Loading />
+  if (kpis.isLoading) return <SkeletonTiles count={7} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
   // Balances and open-item counts are true now, not for the chosen period.
@@ -94,7 +94,7 @@ export default function FinanceDashboard() {
         <Card>
           <CardHeader title="Overdue invoices" description="Past the due date and not settled" />
           {overdue.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : overdue.error ? (
             <ErrorState error={overdue.error} />
           ) : (

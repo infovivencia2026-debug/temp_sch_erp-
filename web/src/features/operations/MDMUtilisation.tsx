@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Input, Textarea, Loading, ErrorState, EmptyState, FormNotice, PrintButton,
+  Button, Input, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice, PrintButton,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -111,7 +111,7 @@ export default function MDMUtilisation() {
 
         <FormNotice error={finalise.error ?? reopen.error} ok={note} />
 
-        {util.isLoading ? <Loading /> : util.error ? <ErrorState error={util.error} /> : d && (
+        {util.isLoading ? <SkeletonTable columns={3} /> : util.error ? <ErrorState error={util.error} /> : d && (
           <>
             {editing && mayFile && (
               <BalancesForm

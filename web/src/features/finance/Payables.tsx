@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState,
+  SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import {
   inr, rupees, toPaise, useAccounts, accountOptions, ledgerBase,
@@ -39,7 +39,7 @@ export default function Payables() {
     queryFn: () => api.get<List<VendorBill>>(`${ledgerBase}/bills`),
   })
 
-  if (vendors.isLoading) return <Loading label="Reading the creditor ledger…" />
+  if (vendors.isLoading) return <SkeletonTiles count={4} label="Reading the creditor ledger…" />
   if (vendors.error) return <ErrorState error={vendors.error} />
 
   const vs = vendors.data?.items ?? []

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Loading, ErrorState, PrintButton, Select,
+  Table, Td, SkeletonTable, SkeletonTiles, ErrorState, PrintButton, Select,
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
@@ -109,7 +109,7 @@ export default function CollectionSummaries() {
         <Card>
           <CardHeader title="Day book" description="Split by the columns a cash book carries. Write-offs are shown apart and excluded from the total." />
           {daily.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={9} />
           ) : daily.error ? (
             <ErrorState error={daily.error} />
           ) : (
@@ -151,7 +151,7 @@ export default function CollectionSummaries() {
               action={<CsvButton href={`${BASE}/by-head?${q}`} />}
             />
             {heads.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={2} />
             ) : heads.error ? (
               <ErrorState error={heads.error} />
             ) : (
@@ -176,7 +176,7 @@ export default function CollectionSummaries() {
               action={<CsvButton href={`${BASE}/by-collector?${q}`} />}
             />
             {collectors.isLoading ? (
-              <Loading />
+              <SkeletonTable columns={6} />
             ) : collectors.error ? (
               <ErrorState error={collectors.error} />
             ) : (
@@ -208,7 +208,7 @@ export default function CollectionSummaries() {
         <Card>
           <CardHeader title="Control totals" description="What an auditor checks the day book against." />
           {tie.isLoading ? (
-            <Loading />
+            <SkeletonTiles count={8} />
           ) : tie.error ? (
             <ErrorState error={tie.error} />
           ) : tie.data ? (

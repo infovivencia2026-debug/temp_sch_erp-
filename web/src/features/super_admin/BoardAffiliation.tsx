@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Input, Select, Field, FormGrid, FormNotice,
-  Loading, ErrorState,
+  SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import {
   usePlatform, usePlatformSave, usePlatformDelete, type Affiliation,
@@ -39,7 +39,7 @@ export default function BoardAffiliation() {
   const [expires, setExpires] = useState('')
   const [url, setUrl] = useState('')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={4} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

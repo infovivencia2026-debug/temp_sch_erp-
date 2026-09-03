@@ -4,7 +4,7 @@ import { Download, Info, KeyRound } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, ConfirmButton,
-  Field, FormGrid, FormNotice, Input, Select, Checkbox, Loading, ErrorState,
+  Field, FormGrid, FormNotice, Input, Select, Checkbox, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
@@ -299,7 +299,7 @@ export default function ChildInfoPortal() {
         <Card>
           <CardHeader title="Connectors" />
           {connectors.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : connectors.error ? (
             <ErrorState error={connectors.error} />
           ) : (

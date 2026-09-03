@@ -5,7 +5,7 @@ import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  Textarea, Loading, ErrorState,
+  Textarea, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import {
@@ -57,7 +57,7 @@ export default function StudentBankAccounts() {
     placeholderData: keepPreviousData,
   })
 
-  if (q.isLoading) return <Loading label="Opening the register…" />
+  if (q.isLoading) return <SkeletonTable columns={8} label="Opening the register…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const rows = q.data?.items ?? []

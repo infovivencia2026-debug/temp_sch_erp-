@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Button, Select,
-  Input, Table, Td, Loading, ErrorState, FormNotice,
+  Input, Table, Td, Loading, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
@@ -465,7 +465,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
     onSuccess: () => onPublished('Suggestion thrown away. The timetable in use is unchanged.'),
   })
 
-  if (draft.isLoading || preview.isLoading) return <Loading label="Reading the draft…" />
+  if (draft.isLoading || preview.isLoading) return <SkeletonTable columns={6} label="Reading the draft…" />
   if (draft.error) return <ErrorState error={draft.error} />
   if (preview.error) return <ErrorState error={preview.error} />
 

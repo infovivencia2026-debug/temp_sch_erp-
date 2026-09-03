@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useToast } from '@/components/Toast'
@@ -33,7 +33,7 @@ export default function OnlineTests() {
     queryFn: () => api.get<List<OnlineTest>>('/api/v1/teaching/online-tests'),
   })
 
-  if (list.isLoading) return <Loading />
+  if (list.isLoading) return <SkeletonTable columns={8} />
   if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
@@ -285,7 +285,7 @@ function Builder({ testID }: { testID: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not publish'),
   })
 
-  if (test.isLoading) return <Loading />
+  if (test.isLoading) return <SkeletonTable columns={6} />
   if (test.error) return <ErrorState error={test.error} />
   const detail = test.data!
   const onPaper = detail.paper.map((p) => p.question_id)

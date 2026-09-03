@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Checkbox, Loading, ErrorState, EmptyState,
+  Checkbox, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
@@ -130,7 +130,7 @@ export default function Universities() {
     onSuccess: refresh,
   })
 
-  if (list.isLoading && ready) return <Loading label="Opening your shortlist…" />
+  if (list.isLoading && ready) return <SkeletonTiles count={3} label="Opening your shortlist…" />
   if (list.error) return <ErrorState error={list.error} />
 
   const rows = list.data?.items ?? []

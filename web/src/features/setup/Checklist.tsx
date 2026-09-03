@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Circle, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
-import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Loading, ErrorState } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 interface Step {
@@ -27,7 +27,7 @@ export default function Checklist() {
     refetchInterval: 30_000,
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTiles count={3} />
   if (error) return <ErrorState error={error} />
   const d = data!
 

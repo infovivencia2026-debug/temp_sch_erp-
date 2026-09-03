@@ -5,7 +5,7 @@ import { Building2, IndianRupee, Users, X } from 'lucide-react'
 import { api, setActingInstitution } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Button, Loading, ErrorState, EmptyState,
+  Badge, Button, SkeletonTiles, ErrorState, EmptyState,
   RangePicker, rangeQuery, useRange, type RangeOption, type ActiveRange,
 } from '@/components/ui'
 import { cn, formatPaise } from '@/lib/utils'
@@ -71,7 +71,7 @@ export default function PlatformDashboard() {
     queryFn: () => api.get<Dashboard>(`/api/v1/admin/platform-dashboard?${rangeQuery(range)}`),
   })
 
-  if (isLoading) return <Loading label="Adding up every campus…" />
+  if (isLoading) return <SkeletonTiles count={4} label="Adding up every campus…" />
   if (error) return <ErrorState error={error} />
   const d = data!
 

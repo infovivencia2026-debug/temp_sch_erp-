@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 
@@ -49,7 +49,7 @@ export default function StaffWorkload() {
         <Card>
           <CardHeader title="Workload by teacher" description="Sorted by weekly period count" />
           {isLoading ? (
-            <Loading />
+            <SkeletonTable columns={7} />
           ) : error ? (
             <ErrorState error={error} />
           ) : (

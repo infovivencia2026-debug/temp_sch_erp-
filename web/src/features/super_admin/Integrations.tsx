@@ -8,7 +8,7 @@ import {
   CellGrid,
   ErrorState,
   Input,
-  Loading,
+  SkeletonTable,
   PageBody,
   PageHead,
   Stat,
@@ -77,7 +77,7 @@ export default function Integrations() {
         {error ? (
           <ErrorState error={error} />
         ) : isLoading ? (
-          <Loading label="Asking every connector" />
+          <SkeletonTable columns={6} label="Asking every connector" />
         ) : (
           <>
             <CellGrid cols={4}>

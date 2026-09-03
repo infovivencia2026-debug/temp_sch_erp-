@@ -4,7 +4,7 @@ import { Phone, Mail, MapPin, Users, CalendarClock, AlertTriangle, UserX } from 
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
-  Field, FormGrid, FormNotice, Input, Loading, ErrorState, EmptyState,
+  Field, FormGrid, FormNotice, Input, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 
@@ -131,7 +131,7 @@ export default function Leads() {
     queryFn: () => api.get<Pipeline>(`${BASE}/pipeline`),
   })
 
-  if (leads.isLoading) return <Loading />
+  if (leads.isLoading) return <SkeletonTiles count={4} />
   if (leads.error) return <ErrorState error={leads.error} />
 
   const items = leads.data?.items ?? []

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Loading, ErrorState, UnavailableState,
+  SkeletonTable, ErrorState, UnavailableState,
 } from '@/components/ui'
 import {
   usePlatform, queueWaiting, type HealthResponse, type QueueStat,
@@ -45,7 +45,7 @@ function ProvisioningLog() {
         }
       />
       {isLoading ? (
-        <Loading label="Reading the log…" />
+        <SkeletonTable columns={6} label="Reading the log…" />
       ) : (
         <Table
           head={['', 'What', 'School', 'Detail', 'By', 'When']}
@@ -85,7 +85,7 @@ function ProvisioningLog() {
 export default function InstanceHealth() {
   const { data, isLoading, error } = usePlatform<HealthResponse>('health', '/health')
 
-  if (isLoading) return <Loading />
+  if (isLoading) return <SkeletonTable columns={8} />
   if (error) return <ErrorState error={error} />
   if (!data) return null
 

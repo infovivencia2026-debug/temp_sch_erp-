@@ -5,7 +5,7 @@ import { api, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
@@ -80,7 +80,7 @@ export default function StudentCouncil() {
       }>('/api/v1/academics/admin/council'),
   })
 
-  if (council.isLoading) return <Loading label="Reading this year’s council…" />
+  if (council.isLoading) return <SkeletonTable columns={6} label="Reading this year’s council…" />
   if (council.error) return <ErrorState error={council.error} />
 
   const positions = council.data?.positions ?? []

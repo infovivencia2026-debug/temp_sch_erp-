@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, ErrorState, FormNotice, Checkbox, Badge,
+  Button, Input, Select, SkeletonTable, ErrorState, FormNotice, Checkbox, Badge,
 } from '@/components/ui'
 import { Plus } from 'lucide-react'
 import Documents from './Documents'
@@ -552,7 +552,7 @@ export default function Applications() {
             }
           />
           {apps.isLoading ? (
-            <Loading />
+            <SkeletonTable columns={8} />
           ) : apps.error ? (
             <ErrorState error={apps.error} />
           ) : (

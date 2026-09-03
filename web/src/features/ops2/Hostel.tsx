@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Loading, ErrorState,
+  Table, Td, Badge, SkeletonTable, ErrorState,
 } from '@/components/ui'
 
 interface Room {
@@ -36,7 +36,7 @@ export default function Hostel() {
         </CellGrid>
         <Card>
           <CardHeader title="Rooms" />
-          {isLoading ? <Loading /> : error ? <ErrorState error={error} /> : (
+          {isLoading ? <SkeletonTable columns={6} /> : error ? <ErrorState error={error} /> : (
             <Table head={['Block', 'Room', 'Gender', 'Beds', 'Occupied', 'Free']} empty={!rows.length}
               emptyLabel="No hostel rooms configured.">
               {rows.map((r) => (

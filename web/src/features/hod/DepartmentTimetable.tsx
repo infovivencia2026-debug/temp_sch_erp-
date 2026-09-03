@@ -4,7 +4,7 @@ import { CalendarRange, Gauge, TriangleAlert, UserCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Table, Td,
-  Select, Loading, ErrorState, EmptyState,
+  Select, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
@@ -90,7 +90,7 @@ export default function DepartmentTimetable() {
       ),
   })
 
-  if (q.isLoading) return <Loading label="Reading the department's week…" />
+  if (q.isLoading) return <SkeletonTable columns={6} label="Reading the department's week…" />
   if (q.error) return <ErrorState error={q.error} />
 
   const d = q.data!
