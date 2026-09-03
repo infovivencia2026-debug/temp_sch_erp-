@@ -347,10 +347,28 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
     if (!open) return
     setQ('')
     setCursor(0)
-    // Focused on open: the fastest path through a launcher is to start typing,
-    // and a search box you must click first is a search box that gets clicked.
-    const id = requestAnimationFrame(() => inputRef.current?.focus())
-    return () => cancelAnimationFrame(id)
+    /* Focused on open WHERE THERE IS A KEYBOARD ALREADY ON THE DESK.
+
+       The argument for autofocus is a good one at a desk: the fastest path
+       through a launcher is to start typing, and a search box you must click
+       first is a search box that gets clicked. It inverts on a phone. Focusing
+       an input there summons the on-screen keyboard, which takes half the
+       screen and covers the list somebody opened the launcher to READ. They
+       asked to see what the product has; they were shown a text field and
+       three rows.
+
+       So the phone gets the list and the desk gets the cursor, and anybody on
+       a phone who does want to search taps the field, which is one tap and the
+       thing they were already looking at.
+
+       Keyed on the pointer rather than on the width: what decides this is
+       whether focusing costs a keyboard, and that is a property of the input
+       device. A tablet with a keyboard attached reports a fine pointer and is
+       right to get the cursor. */
+    if (window.matchMedia?.('(pointer: fine)').matches !== false) {
+      const id = requestAnimationFrame(() => inputRef.current?.focus())
+      return () => cancelAnimationFrame(id)
+    }
   }, [open])
 
   useEffect(() => setCursor(0), [needle])
