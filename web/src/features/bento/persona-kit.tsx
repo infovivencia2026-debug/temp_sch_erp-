@@ -98,12 +98,21 @@ export function PersonaPage({
 
      DO NOT REMOVE. */
   const boardRef = useBoardHeight()
+  /* The layer goes INSIDE the board, not around it.
+
+     WidgetLayer turns the board it sits in into the phone's sideways pager,
+     and it finds that board by looking up from its own marker. Wrapped around
+     the grid it found nothing, so the parent, student and faculty homes were
+     the only boards on a phone that still stacked and scrolled while every
+     other home paged. Its toolbar renders as a sibling of its children, so
+     inside the grid it is laid out as a grid child; the stylesheet already
+     accounts for that on the boards that were built this way. */
   const grid = (
     <div
       ref={boardRef}
       className="bento-board mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5"
     >
-      {children}
+      {dashboard ? <WidgetLayer dashboard={dashboard}>{children}</WidgetLayer> : children}
     </div>
   )
   return (
@@ -118,7 +127,7 @@ export function PersonaPage({
         </div>
         {actions}
       </div>
-      {dashboard ? <WidgetLayer dashboard={dashboard}>{grid}</WidgetLayer> : grid}
+      {grid}
     </div>
   )
 }
