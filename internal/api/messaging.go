@@ -379,6 +379,18 @@ type gatewaySettings struct {
 	Method     string            `json:"method"`
 	SenderID   string            `json:"sender_id"`
 	AuthHeader string            `json:"auth_header"`
+	/* WHICH HEADER CARRIES THE KEY.
+
+	   The value was configurable and the header's name was not -- it was
+	   always Authorization. Half the SMS providers in India want the key under
+	   a header of their own: apikey, X-API-KEY, authkey. A school on one of
+	   those could fill in every field on the setup screen correctly and get a
+	   401 from a gateway that never saw its key, with nothing on the screen
+	   able to say why.
+
+	   Empty still means Authorization, so every channel configured before this
+	   behaves exactly as it did. */
+	AuthHeaderName string `json:"auth_header_name,omitempty"`
 	Params     map[string]string `json:"params"`
 	// form | json. How Params is carried.
 	Encoding string `json:"encoding"`
@@ -463,7 +475,11 @@ func (p gatewayProvider) Send(ctx context.Context, m OutboundMessage) (string, e
 		return "", err
 	}
 	if h := strings.TrimSpace(p.cfg.AuthHeader); h != "" {
-		req.Header.Set("Authorization", sub.Replace(h))
+		name := strings.TrimSpace(p.cfg.AuthHeaderName)
+		if name == "" {
+			name = "Authorization"
+		}
+		req.Header.Set(name, sub.Replace(h))
 	}
 
 	res, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
