@@ -1060,7 +1060,9 @@ export function AppearanceDialog({
          rather than closing: closing would lose the channel and colour already
          chosen, and the point of aiming is to come back and keep working. */
       className={cn(
-        'appearance-overlay fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-4 sm:p-6',
+        /* NO PADDING ON A PHONE: the panel is the screen there. See the note
+           on the panel's own height. */
+        'appearance-overlay fixed inset-0 z-[70] grid place-items-center overflow-y-auto p-0 sm:p-6',
         picking ? 'pointer-events-none bg-transparent' : 'bg-black/40',
       )}
       onClick={picking ? undefined : handleClose}
@@ -1091,8 +1093,21 @@ export function AppearanceDialog({
              Fixed height fixes the first. `max-h-full` fixes the second by
              letting the panel give way to the clearance, which the overlay now
              carries as padding rather than the panel as a margin. */
-          `appearance-panel pop-down flex h-[min(88vh,760px)] max-h-full w-full max-w-[980px]
-           flex-col overflow-hidden rounded-[16px] border
+          /* AND A FULL SHEET ON A PHONE, WHICH IS WHAT ITS SIBLING IS.
+
+             88vh centred in an 844px window is a 743px card with fifty pixels
+             of dashboard above and below it and the dock showing through
+             underneath, and the last row of the section list cut through the
+             middle at the bottom edge. Its sibling surface, the notification
+             drawer, is a full sheet on a phone. Two panels the same dock opens,
+             two different shapes, is the thing that reads as unfinished rather
+             than either shape on its own.
+
+             The centred dialog is kept from the small breakpoint up, where a
+             window has room to show what is behind it and the panel reads as
+             floating over the work rather than replacing it. */
+          `appearance-panel pop-down flex h-full sm:h-[min(88vh,760px)] max-h-full w-full max-w-[980px]
+           flex-col overflow-hidden rounded-none sm:rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,
           // Still clickable while aiming, so the dialog can be used to cancel.
