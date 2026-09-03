@@ -158,6 +158,18 @@ type State struct {
 	Status      string
 	TrialEndsOn *time.Time
 
+	/* Whether this pack may link the school's OWN messaging vendor.
+	 *
+	 * The two arrangements are commercially opposite. Without it the school
+	 * sends through the seller's account and buys credits to do so, and the
+	 * meter is what makes that safe. With it the school pays its own vendor
+	 * and the seller is not in the middle.
+	 *
+	 * Not a module, deliberately: every value in that array is a catalogue
+	 * section somebody can navigate to, and a capability hiding among them
+	 * would show up as a module nobody can open. */
+	CustomIntegration bool
+
 	// modules is what the plan includes. Empty means every module — the top
 	// tier stores an empty array rather than listing all eleven, so that
 	// adding a twelfth module does not silently exclude it from the plan that
@@ -195,7 +207,8 @@ func (s State) Modules() []string {
 // Platform is the standing of a user who belongs to no school. The vendor's
 // own staff are not customers and have nothing to buy.
 func Platform() State {
-	return State{Active: true, all: true, PlanCode: "platform", Status: "platform"}
+	return State{Active: true, all: true, PlanCode: "platform", Status: "platform",
+		CustomIntegration: true}
 }
 
 // Resolve reads the school's subscription and the plan behind it.
@@ -211,14 +224,16 @@ func Resolve(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (State, error) {
 		status    *string
 		trialEnds *time.Time
 		mods      []string
+		custom    *bool
 	)
 	err := tx.QueryRow(ctx, `
-		SELECT s.plan_code, p.name, s.status, s.trial_ends_on, p.modules
+		SELECT s.plan_code, p.name, s.status, s.trial_ends_on, p.modules,
+		       p.custom_integration
 		  FROM subscriptions s
 		  LEFT JOIN plans p ON p.code = s.plan_code
 		 WHERE s.institution_id = $1
 		 ORDER BY s.started_on DESC NULLS LAST
-		 LIMIT 1`, inst).Scan(&planCode, &planName, &status, &trialEnds, &mods)
+		 LIMIT 1`, inst).Scan(&planCode, &planName, &status, &trialEnds, &mods, &custom)
 	if err != nil && err != pgx.ErrNoRows {
 		return st, err
 	}
@@ -239,6 +254,7 @@ func Resolve(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (State, error) {
 		st.PlanName = *planName
 	}
 	st.TrialEndsOn = trialEnds
+	st.CustomIntegration = custom != nil && *custom
 
 	st.modules = make(map[string]bool, len(mods))
 	for _, m := range mods {

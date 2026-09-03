@@ -55,6 +55,12 @@ type subscriptionState struct {
 	Status      string   `json:"status,omitempty"`
 	TrialEndsOn string   `json:"trial_ends_on,omitempty"`
 	Modules     []string `json:"modules"`
+	/* Whether this pack may link the school's own messaging vendor.
+	 *
+	 * Published so the messaging screen can show the arrangement the school
+	 * actually has rather than a form it cannot submit. The gate itself is on
+	 * the server — this only decides what is offered. */
+	CustomIntegration bool `json:"custom_integration"`
 }
 
 type moduleState struct {
@@ -216,6 +222,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 		ss := &subscriptionState{
 			Active: st.Active, Code: st.Code, Reason: st.Reason,
 			PlanCode: st.PlanCode, PlanName: st.PlanName,
+			CustomIntegration: st.CustomIntegration,
 			Status: st.Status, Modules: st.Modules(),
 		}
 		if st.TrialEndsOn != nil {

@@ -2466,9 +2466,16 @@ func (s *Server) mountMessaging(r chi.Router) {
 
 	// Email Server (SMTP) Integration, and the provider registry behind it.
 	r.With(read).Get("/messaging/providers", s.listMessagingProviders)
-	r.With(creds).Put("/messaging/providers/{channel}", s.saveMessagingProvider)
-	r.With(creds).Delete("/messaging/providers/{channel}", s.forgetMessagingProvider)
-	r.With(creds).Post("/messaging/providers/{channel}/test", s.testMessagingProvider)
+	/* Writing a provider is linking a vendor account, which is the top pack's
+	   and is gated here rather than by hiding a tab: what is behind it is the
+	   ability to route a school's messages away from the account the seller
+	   meters, and a hidden tab stops nobody who can type a URL. Reading stays
+	   open — a school on any pack must be able to see how its own messages
+	   leave. */
+	custom := s.RequireCustomIntegration
+	r.With(creds, custom).Put("/messaging/providers/{channel}", s.saveMessagingProvider)
+	r.With(creds, custom).Delete("/messaging/providers/{channel}", s.forgetMessagingProvider)
+	r.With(creds, custom).Post("/messaging/providers/{channel}/test", s.testMessagingProvider)
 	/* Read with `read`, not `creds`: these are public shapes with no secret in
 	   them, and the screen that shows the choice is the one somebody opens
 	   before they have any credentials to write. */

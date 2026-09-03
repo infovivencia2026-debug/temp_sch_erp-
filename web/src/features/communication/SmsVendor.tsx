@@ -3,6 +3,7 @@ import {
   Card, CardHeader, Button, Input, Field, FormGrid, FormNotice, Badge,
   SkeletonForm, ErrorState,
 } from '@/components/ui'
+import { useSession } from '@/lib/session'
 import {
   useProviders, useSaveProvider, useTestProvider, useSmsPresets,
   type SmsPreset,
@@ -28,6 +29,7 @@ import {
    like the gateway being broken — so the field is here, named, rather than
    buried in an advanced section. */
 export default function SmsVendor() {
+  const session = useSession()
   const providers = useProviders()
   const presets = useSmsPresets()
   const save = useSaveProvider('sms')
@@ -45,6 +47,34 @@ export default function SmsVendor() {
 
   if (providers.isLoading) return <SkeletonForm fields={4} label="Reading the channel…" />
   if (providers.error) return <ErrorState error={providers.error} />
+
+  /* THE ARRANGEMENT THIS SCHOOL ACTUALLY HAS, rather than a form it cannot
+     submit.
+
+     On the lower packs the messages leave through our account and are paid for
+     with credits, so there is no vendor to link and the honest screen says
+     which arrangement is in force and what the other one would change. The
+     server refuses the write either way — this only decides what is offered,
+     because a hidden tab stops nobody who can type a URL. */
+  if (!session.subscription?.custom_integration) {
+    return (
+      <Card>
+        <CardHeader title="SMS vendor" action={<Badge tone="neutral">Included</Badge>} />
+        <div className="px-5 pb-5">
+          <p className="text-[13px] text-muted-foreground">
+            On this pack your messages send through our account, so there is nothing to link
+            and no vendor contract to hold. What a message costs comes out of your credits —
+            see the Credits tab for what is left and how to top it up.
+          </p>
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            The Complete pack lets a school link its <strong>own</strong> SMS or WhatsApp
+            account instead: you hold the vendor relationship and the DLT registration, you
+            pay that vendor directly, and nothing here meters it.
+          </p>
+        </div>
+      </Card>
+    )
+  }
 
   const chosen = preset
   const params = { ...(chosen?.params ?? (cfg.params as Record<string, string>) ?? {}) }

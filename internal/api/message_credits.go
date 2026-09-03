@@ -56,7 +56,22 @@ func creditBalance(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel strin
 		`SELECT balance FROM message_credits WHERE institution_id = $1 AND channel = $2`,
 		inst, channel).Scan(&balance)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, false, nil
+		/* WHAT AN ABSENT ROW MEANS DEPENDS ON WHOSE ACCOUNT IS PAYING.
+		 *
+		 * On the top pack the school has linked its own vendor and pays that
+		 * vendor directly, so nobody here needs a ceiling: no row means no
+		 * meter, exactly as before.
+		 *
+		 * On the lower packs the school sends through the SELLER's account,
+		 * and an absent row meaning "unmetered" would be a school sending on
+		 * somebody else's bill with nothing counting it. There it means zero:
+		 * recharge to send. Messages are held rather than lost, so a school
+		 * that recharges gets the backlog it queued while empty. */
+		custom, cErr := planAllowsCustomIntegration(ctx, tx, inst)
+		if cErr != nil {
+			return 0, false, cErr
+		}
+		return 0, !custom, nil
 	}
 	if err != nil {
 		return 0, false, err
@@ -392,4 +407,63 @@ func (s *Server) stopMeteringChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"channel": channel, "metered": false})
+}
+
+/* Whether this school's pack lets it send on its own vendor account.
+ *
+ * Read here rather than taken from the request's entitlement because the
+ * dispatcher has no request: it runs from the queue, on a schedule, for a
+ * school nobody is signed in as.
+ *
+ * A school with no subscription at all reads as false — the safe direction.
+ * It is not on the pack that permits its own vendor, so it is metered, and a
+ * meter with no credits holds messages rather than spending anything.
+ */
+func planAllowsCustomIntegration(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (bool, error) {
+	var allowed *bool
+	err := tx.QueryRow(ctx, `
+		SELECT p.custom_integration
+		  FROM subscriptions s
+		  LEFT JOIN plans p ON p.code = s.plan_code
+		 WHERE s.institution_id = $1
+		 ORDER BY s.started_on DESC NULLS LAST
+		 LIMIT 1`, inst).Scan(&allowed)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return allowed != nil && *allowed, nil
+}
+
+/* THE LINKING SCREEN IS THE TOP PACK'S, AND THE GATE IS HERE.
+
+   Enforced on the server, not by hiding a tab. The screen is hidden too,
+   because offering a form somebody cannot submit is its own kind of rude —
+   but a hidden tab stops nobody who can type a URL or a curl command, and what
+   is behind this gate is the ability to route a school's messages away from
+   the account the seller is metering. A client-side check would make the meter
+   optional for anybody willing to read the bundle.
+
+   402 rather than 403: the request is well formed and the caller has every
+   permission for it. What is missing is the pack, which is a commercial fact
+   and has a status code of its own. The client already branches on 402 to show
+   the plan notice.
+*/
+func (s *Server) RequireCustomIntegration(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		st, err := s.entitlementFor(r)
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if !st.CustomIntegration {
+			httpx.Error(w, r, http.StatusPaymentRequired, "plan_required",
+				"Linking your own SMS or WhatsApp account is part of the Complete pack. "+
+					"On this pack messages send through us and are paid for with credits.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

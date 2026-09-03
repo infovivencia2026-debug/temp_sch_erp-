@@ -196,6 +196,9 @@ export interface Subscription {
   status?: string
   trial_ends_on?: string
   modules: string[]
+  /** Whether this pack may link the school's own SMS/WhatsApp vendor account.
+   *  Decides what the messaging screen offers; the gate is on the server. */
+  custom_integration?: boolean
 }
 
 export interface Student {

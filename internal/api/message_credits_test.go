@@ -29,22 +29,29 @@ func balanceOf(t *testing.T, sc *classroomSchool, channel string) (int, bool) {
 }
 
 /*
-A school nobody has metered sends exactly as it always did.
+A school on the top pack, with no balance set, sends exactly as it always did.
 
-	This is the property that makes the feature deployable. If an absent row
-	read as a zero balance, the migration would have stopped every message for
-	every school already configured — reminders, absence alerts, the lot — with
-	nothing on any screen to say why. Metering has to begin as a deliberate act.
+	This is the property that made the meter deployable, and the pack ladder
+	narrowed it rather than removing it. If an absent row read as a zero balance
+	everywhere, deploying this would have stopped every message for every school
+	already configured, with nothing on any screen to say why.
+
+	It still holds where it matters — the schools that link their own vendor and
+	pay their own bill. On the lower packs an absent row now means zero, because
+	there the messages leave on the SELLER's account and "unlimited by default"
+	would be a school spending money nobody is counting. That is asserted
+	separately, below.
 */
-func TestWithoutABalanceNothingIsMetered(t *testing.T) {
+func TestTheTopPackWithoutABalanceIsNotMetered(t *testing.T) {
 	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
 	sc.tx(t, func(tx pgx.Tx) error {
 		bal, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
 		if err != nil {
 			return err
 		}
 		if isMetered {
-			t.Errorf("a school with no row is metered at %d; every message would stop", bal)
+			t.Errorf("metered at %d; a school paying its own vendor should have no ceiling here", bal)
 		}
 		// And spending against it must be a no-op rather than an error.
 		return spendCredit(t.Context(), tx, sc.inst, "sms", uuid.New())
@@ -168,6 +175,101 @@ func TestACorrectionClampsAtZero(t *testing.T) {
 		}
 		if got != 0 {
 			t.Fatalf("balance %d after over-correction, want 0", got)
+		}
+		return nil
+	})
+}
+
+func setPlan(t *testing.T, sc *classroomSchool, code string) {
+	t.Helper()
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `
+			INSERT INTO subscriptions (institution_id, plan_code, status, started_on)
+			VALUES ($1, $2, 'active', now())`, sc.inst, code)
+		return err
+	})
+}
+
+/*
+A lower pack sends on the SELLER's account, so an absent meter means zero.
+
+	This is the opposite of the rule for an unmetered school, and it has to be:
+	on Starter or Standard the messages leave through the seller's vendor
+	account and land on the seller's bill. "No row" meaning "unlimited" there
+	would be a school spending somebody else's money with nothing counting it.
+	Recharge to send.
+*/
+func TestALowerPackIsMeteredEvenWithNoRow(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "starter")
+	sc.tx(t, func(tx pgx.Tx) error {
+		bal, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if !isMetered || bal != 0 {
+			t.Errorf("starter: metered=%v balance=%d; want metered at 0 so it must recharge",
+				isMetered, bal)
+		}
+		return nil
+	})
+}
+
+/*
+The top pack pays its own vendor, so an absent meter means no meter.
+
+	On Complete the school has linked its own account and the seller is not in
+	the middle of it. Metering it by default would cap a bill the seller does
+	not pay and cannot see.
+*/
+func TestTheTopPackIsUnmeteredByDefault(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if isMetered {
+			t.Error("complete is metered by default; its vendor bill is not the seller's to cap")
+		}
+		return nil
+	})
+}
+
+// A school with no subscription at all is metered, which is the safe
+// direction: it is not on the pack that permits its own vendor, and a meter
+// with no credits holds messages rather than spending anything.
+func TestNoSubscriptionIsTreatedAsALowerPack(t *testing.T) {
+	sc := newClassroomSchool(t)
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if !isMetered {
+			t.Error("a school with no subscription is unmetered")
+		}
+		return nil
+	})
+}
+
+// An explicit balance still wins on any pack: the meter is a cap the seller
+// may put on a school that has its own vendor, not only a prepayment.
+func TestAnExplicitBalanceAppliesOnTheTopPackToo(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, err := addCredits(t.Context(), tx, sc.inst, "sms", 40, "topup", "", uuid.Nil)
+		return err
+	})
+	sc.tx(t, func(tx pgx.Tx) error {
+		bal, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if !isMetered || bal != 40 {
+			t.Errorf("metered=%v balance=%d, want metered at 40", isMetered, bal)
 		}
 		return nil
 	})
