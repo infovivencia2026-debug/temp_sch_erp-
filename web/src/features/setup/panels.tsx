@@ -1339,19 +1339,57 @@ function PeriodsPanel({ onDone }: PanelProps) {
             <p className="eyebrow mb-1.5 text-muted-foreground">
               Which classes run to it
             </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {(classes.data?.items ?? []).map((c) => (
-                <label key={c.id} className="flex items-center gap-1.5 text-[13px]">
-                  <input
-                    type="checkbox"
-                    className={CHECKBOX}
-                    checked={!!forClasses[c.id]}
-                    onChange={(e) =>
-                      setForClasses({ ...forClasses, [c.id]: e.target.checked })}
-                  />
-                  {c.name}
-                </label>
-              ))}
+            {/* BOXES, NOT A COLUMN OF TICKS.
+
+                A school picking the primary timings is choosing a run of
+                classes -- Nursery through Class 5 -- and a list of fourteen
+                checkboxes makes that fourteen separate decisions read one at a
+                time. As boxes they are one shape the eye can sweep, and the
+                ones already chosen are visible without reading a word.
+
+                "All" earns its place for the school that runs a single
+                afternoon shift: without it, choosing every class is fourteen
+                clicks to say one thing. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(() => {
+                const all = classes.data?.items ?? []
+                const chosen = all.filter((c) => forClasses[c.id]).length
+                const every = chosen === all.length && all.length > 0
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setForClasses(
+                      every ? {} : Object.fromEntries(all.map((c) => [c.id, true])))}
+                    className={cn(
+                      'rounded-sm border px-2 py-1 text-[13px] font-medium',
+                      every
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-accent',
+                    )}
+                  >
+                    {every ? 'None' : 'All'}
+                  </button>
+                )
+              })()}
+              {(classes.data?.items ?? []).map((c) => {
+                const on = !!forClasses[c.id]
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setForClasses({ ...forClasses, [c.id]: !on })}
+                    className={cn(
+                      'rounded-sm border px-2 py-1 text-[13px]',
+                      on
+                        ? 'border-primary bg-primary/10 font-medium text-primary'
+                        : 'hover:bg-accent',
+                    )}
+                  >
+                    {c.name}
+                  </button>
+                )
+              })}
             </div>
             {/* A day nobody runs to looks like it is in use and is not. */}
             {!Object.values(forClasses).some(Boolean) && (
