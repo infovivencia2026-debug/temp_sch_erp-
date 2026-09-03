@@ -356,9 +356,33 @@ export function Cell({
         borderColor: 'transparent',
       }
     : { ...baseStyle, ...artStyle }
-  
+
+  /* THE WHOLE CARD OPENS THE SCREEN.
+
+     The corner mark is the only link a card carries, and it is 40px in one
+     corner of a tile a third of a phone wide. Every person who tried the
+     board tapped the middle of the card -- the number, the sentence, the
+     drawing -- and nothing happened, which reads as broken rather than as
+     "aim for the arrow". A home screen's tiles open on a tap anywhere.
+
+     The link stays exactly what it is, so the keyboard, the screen reader
+     and the tab strip keep the one control they had. A press anywhere else on
+     the card that did not land on some other control simply presses it. A
+     drag that selected text is left alone: that was reading, not opening. */
+  const openFromAnywhere = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    if (target.closest('a, button, input, select, textarea, label, summary, [role="button"], [role="tab"]')) return
+    if (window.getSelection()?.toString()) return
+    const cell = e.currentTarget
+    const link =
+      cell.querySelector<HTMLAnchorElement>('a:has(> .bento-cue)') ??
+      cell.querySelector<HTMLAnchorElement>('a[href]')
+    link?.click()
+  }, [])
+
   return (
     <div
+      onClick={openFromAnywhere}
       className={cn(
         /* `relative isolate` is what makes the art layer possible without
            touching anything else: the cell becomes its own stacking context,
@@ -368,7 +392,7 @@ export function Cell({
            which would break the `mt-auto` the cue uses to reach the bottom
            edge — and simply sit on top. */
         `bento-cell relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden
-         rounded-[var(--bento-radius)] border p-4 lg:p-3`,
+         rounded-[var(--bento-radius)] border p-4 lg:p-3 [&:has(a[href])]:cursor-pointer`,
         SPAN[span],
         TONE[t],
         className,
