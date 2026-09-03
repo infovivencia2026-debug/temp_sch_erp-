@@ -275,6 +275,9 @@ func (c *importCtx) classID(name string) (uuid.UUID, error) {
 	if err != nil {
 		return uuid.Nil, err
 	}
+	if c.classes == nil {
+		c.classes = map[string]uuid.UUID{}
+	}
 	c.classes[key] = id
 	return id, nil
 }
@@ -2560,6 +2563,12 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				   rows after it failed on a bell schedule that had been rolled
 				   back underneath them. Cheap to clear and re-read; the cache
 				   exists to save lookups, not correctness. */
+				/* Cleared, not emptied -- and every reader creates the
+				   map it needs, because a nil map reads fine and panics on
+				   write. That distinction cost a 500 on the first commit
+				   after this was added: the classes cache was cleared
+				   correctly and the next lookup that found a class tried to
+				   remember it. */
 				ctx.classes = nil
 				ctx.sections = nil
 				ctx.teachers = nil
@@ -2811,6 +2820,9 @@ func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, erro
 	}
 	if err != nil {
 		return uuid.Nil, err
+	}
+	if c.sections == nil {
+		c.sections = map[string]uuid.UUID{}
 	}
 	c.sections[key] = id
 	return id, nil
