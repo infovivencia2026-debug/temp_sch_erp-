@@ -730,11 +730,17 @@ var importSpecs = map[string]importSpec{
 		   valid file, and so is a full allocation grid, and so is anything
 		   between them. The separate sheets still work for a school that
 		   already has them split. */
+		/* The teacher columns are no longer email-only, so they are no longer
+		   called email. A school's sheet has the teacher's name in it, or the
+		   staff code the office files them under; requiring an address meant
+		   looking up forty of them before a timetable could be uploaded, and
+		   the mapping screen offered nothing else to point a name column at.
+		   Either name still works, so older sheets load unchanged. */
 		Columns: []string{"subject", "class", "section", "room",
-			"class_teacher_email", "teacher_email", "max_marks", "periods_per_week"},
+			"class_teacher", "teacher", "max_marks", "periods_per_week"},
 		Required: []string{"subject"},
 		Sample: []string{"Mathematics", "Grade 6", "A", "6A",
-			"priya.rao@jsm.test", "anand.k@jsm.test", "100", "6"},
+			"Priya Rao", "T-014", "100", "6"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
@@ -873,14 +879,9 @@ var importSpecs = map[string]importSpec{
 						return err
 					}
 				}
-				if ct := strings.TrimSpace(row["class_teacher_email"]); ct != "" {
-					var ctID uuid.UUID
-					if err := c.tx.QueryRow(c.r.Context(),
-						`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
-						c.inst, ct).Scan(&ctID); err != nil {
-						if errors.Is(err, pgx.ErrNoRows) {
-							return fmt.Errorf("no member of staff with the email %q. Import the staff first", ct)
-						}
+				if ct := firstOf(row, "class_teacher", "class_teacher_email"); ct != "" {
+					ctID, err := c.teacherByEmail(ct)
+					if err != nil {
 						return err
 					}
 					if _, err := c.tx.Exec(c.r.Context(),
@@ -894,18 +895,13 @@ var importSpecs = map[string]importSpec{
 			// Naming a teacher with no section attaches them to every section
 			// of that class -- which is what "who teaches Grade 6 maths" means
 			// in a school with two sections and one maths teacher.
-			email := strings.TrimSpace(row["teacher_email"])
+			email := firstOf(row, "teacher", "teacher_email")
 			if email == "" {
 				return nil
 			}
-			var teacher uuid.UUID
-			if err := c.tx.QueryRow(c.r.Context(),
-				`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
-				c.inst, email).Scan(&teacher); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("no member of staff with the email %q. Import the staff first", email)
-				}
-				return err
+			teacher, terr := c.teacherByEmail(email)
+			if terr != nil {
+				return terr
 			}
 			/* One section where the row named one, every section where it did
 			   not. A school with two sections and one maths teacher writes the
@@ -947,9 +943,11 @@ var importSpecs = map[string]importSpec{
 	*/
 	"allocations": {
 		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"class", "section", "room", "class_teacher_email", "subject_code", "teacher_email"},
+		// Teachers by name or staff code as well as by email, like the sheet
+		// above. Both column spellings are read, so older files still load.
+		Columns:  []string{"class", "section", "room", "class_teacher", "subject", "teacher"},
 		Required: []string{"class", "section"},
-		Sample:   []string{"Grade 6", "A", "6A", "priya.rao@jsm.test", "MATH", "anand.k@jsm.test"},
+		Sample:   []string{"Grade 6", "A", "6A", "Priya Rao", "MATH", "T-014"},
 		Write: func(c *importCtx, row map[string]string) error {
 			sectionID, err := c.sectionIDFor(row["class"], row["section"])
 			if err != nil {
@@ -963,7 +961,7 @@ var importSpecs = map[string]importSpec{
 				}
 			}
 
-			if email := strings.TrimSpace(row["class_teacher_email"]); email != "" {
+			if email := firstOf(row, "class_teacher", "class_teacher_email"); email != "" {
 				teacher, err := c.teacherByEmail(email)
 				if err != nil {
 					return err
@@ -975,8 +973,8 @@ var importSpecs = map[string]importSpec{
 				}
 			}
 
-			code := strings.TrimSpace(row["subject_code"])
-			email := strings.TrimSpace(row["teacher_email"])
+			code := firstOf(row, "subject", "subject_code")
+			email := firstOf(row, "teacher", "teacher_email")
 			if code == "" || email == "" {
 				// A row that only names the class teacher is complete. Treating
 				// a blank subject as an error would mean two files for what a
@@ -2685,22 +2683,96 @@ func (c *importCtx) sectionIDFor(className, sectionName string) (uuid.UUID, erro
 	return id, nil
 }
 
-// teacherByEmail turns the address a school writes in a spreadsheet into the
-// account behind it, and says which address failed rather than that one did.
-func (c *importCtx) teacherByEmail(email string) (uuid.UUID, error) {
+// firstOf returns the first of several column names the file actually carries.
+// Columns get renamed as they learn to accept more than they did; a sheet
+// written against the older name has to go on working.
+func firstOf(row map[string]string, names ...string) string {
+	for _, n := range names {
+		if v := strings.TrimSpace(row[n]); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+/*
+teacherByEmail finds the member of staff a spreadsheet names.
+
+	Named for the address because that is all it once accepted, and that was
+	the problem: the sheet a school keeps has the teacher's NAME in it, or the
+	staff code the office uses -- not an email address. Requiring the address
+	meant looking up forty of them by hand before a timetable could be
+	uploaded, and the mapping screen offered "teacher email" and nothing else
+	to point a column at.
+
+	So it takes whichever of the three the school wrote, tried in order of how
+	certainly they identify one person:
+
+	  the email      exact, and unique by construction
+	  the staff code exact, and unique within the school
+	  the full name  matched case-insensitively, and refused when two people
+	                 share it -- naming which two, because the school knows
+	                 which one they meant and we cannot
+
+	A name that matches two people is the one case worth failing on. Picking
+	either would put a class on the wrong teacher's timetable, and nothing
+	afterwards would look wrong.
+*/
+func (c *importCtx) teacherByEmail(who string) (uuid.UUID, error) {
 	if c.teachers == nil {
 		c.teachers = map[string]uuid.UUID{}
 	}
-	key := strings.ToLower(strings.TrimSpace(email))
+	key := strings.ToLower(strings.TrimSpace(who))
+	if key == "" {
+		return uuid.Nil, errors.New("no teacher named")
+	}
 	if id, ok := c.teachers[key]; ok {
 		return id, nil
 	}
+
 	var id uuid.UUID
-	err := c.tx.QueryRow(c.r.Context(),
-		`SELECT id FROM users WHERE institution_id = $1 AND email = $2::citext`,
+	err := c.tx.QueryRow(c.r.Context(), `
+		SELECT u.id FROM users u
+		 WHERE u.institution_id = $1 AND u.email = $2::citext`,
 		c.inst, key).Scan(&id)
+
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, fmt.Errorf("no member of staff with the email %q. Import the staff first", email)
+		// The staff code, which is what the office actually files people under.
+		err = c.tx.QueryRow(c.r.Context(), `
+			SELECT e.user_id FROM employees e
+			 WHERE e.institution_id = $1 AND lower(e.employee_code) = $2
+			   AND e.user_id IS NOT NULL`,
+			c.inst, key).Scan(&id)
+	}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		// The name, refused where it is ambiguous rather than guessed at.
+		var n int
+		if cerr := c.tx.QueryRow(c.r.Context(), `
+			SELECT count(*)::int FROM employees e
+			 WHERE e.institution_id = $1 AND e.user_id IS NOT NULL
+			   AND lower(btrim(concat_ws(' ', e.first_name, e.last_name))) = $2`,
+			c.inst, key).Scan(&n); cerr != nil {
+			return uuid.Nil, cerr
+		}
+		if n > 1 {
+			return uuid.Nil, fmt.Errorf(
+				"%d members of staff are called %q, so this row could mean either. "+
+					"Use their staff code or their email instead", n, who)
+		}
+		err = c.tx.QueryRow(c.r.Context(), `
+			SELECT e.user_id FROM employees e
+			 WHERE e.institution_id = $1 AND e.user_id IS NOT NULL
+			   AND lower(btrim(concat_ws(' ', e.first_name, e.last_name))) = $2`,
+			c.inst, key).Scan(&id)
+	}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf(
+			"no member of staff called %q, by email, staff code or name. "+
+				"Import the staff first â and note that somebody with no email "+
+				"has a record but no account, so nothing can be assigned to them",
+			who)
 	}
 	if err != nil {
 		return uuid.Nil, err
