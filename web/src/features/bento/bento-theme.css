@@ -2274,6 +2274,21 @@ html[data-layout='bento'] body {
   [data-layout='bento'] .bento-ground:has(.bento-board[data-pager]) {
     height: 100%;
     overflow: hidden;
+
+    /* ROOM FOR THE ASSISTANT, AND ONLY THE ROOM IT NEEDS.
+
+       The orb is fixed, 56px across, and sits a fifth of a rem above the dock.
+       Everywhere else in the product the page scrolls, so it behaves like any
+       floating action button and the reader moves what is under it. A paged
+       board does not scroll: whatever it covers is covered for good, and
+       measured on a 390x844 phone that was the last 28px of the bottom card,
+       which is where its sentence sits.
+
+       Expressed as the overhang rather than as the orb's height, because the
+       gap between the board and the dock already takes most of it. Reserving
+       the whole orb would give back the same emptiness that was just removed
+       from this page for the opposite reason. */
+    padding-bottom: 28px;
   }
 }
 
