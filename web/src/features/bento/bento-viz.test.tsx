@@ -424,11 +424,21 @@ describe('below the room it needs, a drawing is not there', () => {
     ['HeatStrip below 2 columns', <HeatStrip cells={[1, 2, 3]} srLabel="h" />, { w: 1, h: 4 }],
     ['Timeline below 2 columns', <Timeline events={[{ label: 'e', date: '2026-01-05' }]} from="2026-01-01" to="2026-02-01" srLabel="t" />, { w: 1, h: 4 }],
     ['Quadrant below 2 columns', <Quadrant points={points} xLabel="x" yLabel="y" srLabel="q" />, { w: 1, h: 4 }],
-    ['Quadrant below 2 rows', <Quadrant points={points} xLabel="x" yLabel="y" srLabel="q" />, { w: 4, h: 1 }],
   ]
   for (const [name, node, size] of gated) {
     it(`${name} draws nothing`, () => expect(drewNothing(node, size)).toBe(true))
   }
+
+  it('Quadrant below 2 rows degrades to a labelled list, not to nothing', () => {
+    /* A field needs 120px of height; a 2x1 cannot give it. The rows are still
+       a finding, so each point is listed with its two values and the label
+       still states every quadrant — nothing is plotted, nothing is lost. */
+    const host = draw(<Quadrant points={points} xLabel="x" yLabel="y" srLabel="q" />, { w: 4, h: 1 })
+    expect(host.querySelectorAll('span[title]')).toHaveLength(0)
+    expect(host.querySelectorAll('li')).toHaveLength(2)
+    expect(host.textContent).toContain('a')
+    expect(host.querySelector('[role="img"]')!.getAttribute('aria-label')).toContain('b: high y, high x')
+  })
 
   const fitsSmall: [string, ReactElement][] = [
     ['Ring', <Ring value={1} total={4} srLabel="r" />],
