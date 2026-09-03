@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { cancelLauncher, dragLauncher } from './launcher-open'
 
 /* SWIPE UP ON THE HOME BOARD TO OPEN EVERYTHING.
 
@@ -39,11 +40,18 @@ import { useEffect } from 'react'
 
 const SLOP = 10
 const TRAVEL = 64
+/* How far the thumb travels for the sheet to be fully up. Under half the
+   screen: a drawer that needs the whole height is one nobody finishes
+   opening, and the flick below covers the rest of the distance anyway. */
+const SPAN_FRACTION = 0.42
+/* px per ms. An upward flick faster than this opens even from a short drag,
+   the way a home screen's drawer does; slower than it, distance decides. */
+const FLICK = 0.5
 
 export function useSwipeUpForAll(enabled: boolean, open: () => void) {
   useEffect(() => {
     if (!enabled) return
-    /* The ground rather than the board, so the strip beside the dots and the
+    /* Bound to the ground rather than the board, so a swipe that starts in the
        margins around the cards count as "anywhere" too. The board is the
        fallback for the screens that render without a ground. */
     const el =
@@ -54,58 +62,92 @@ export function useSwipeUpForAll(enabled: boolean, open: () => void) {
     let x = 0
     let y = 0
     let live = false
+    let dragging = false
+    let lastY = 0
+    let lastT = 0
+    let velocity = 0
+
+    const span = () => Math.max(160, window.innerHeight * SPAN_FRACTION)
+
+    const drop = () => {
+      live = false
+      if (dragging) {
+        dragging = false
+        cancelLauncher()
+      }
+    }
 
     const start = (e: TouchEvent) => {
       if (e.touches.length !== 1) {
+        drop()
+        return
+      }
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) {
         live = false
         return
       }
       x = e.touches[0].clientX
       y = e.touches[0].clientY
+      lastY = y
+      lastT = e.timeStamp
+      velocity = 0
       live = true
+      dragging = false
     }
 
     const move = (e: TouchEvent) => {
       if (!live) return
       if (e.touches.length !== 1) {
-        live = false
+        drop()
         return
       }
-      const dy = e.touches[0].clientY - y
+      const cy = e.touches[0].clientY
+      const dy = cy - y
       const dx = Math.abs(e.touches[0].clientX - x)
-
-      // Sideways past the slop settles it for the rest of the gesture: that
-      // was a page turn, and it stays one however it ends.
-      if (dx > SLOP && dx > Math.abs(dy)) {
-        live = false
-        return
+      // A page flick, or a drag that turned downward before it became a
+      // drawer: not ours. Once the sheet is moving, a downward wobble is just
+      // the sheet coming back down under the thumb, so only the pre-drag
+      // checks refuse.
+      if (!dragging) {
+        if (dx > SLOP && dx > Math.abs(dy)) {
+          live = false
+          return
+        }
+        if (dy > SLOP) {
+          live = false
+          return
+        }
+        if (-dy < SLOP) return
+        dragging = true
       }
-      if (dy > SLOP) {
-        // Downward. Not this gesture, and at the top of the app shell it may
-        // be the pull to refresh.
-        live = false
-        return
-      }
-      if (-dy >= TRAVEL) {
-        live = false
-        if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return
-        open()
-      }
+      const dt = e.timeStamp - lastT
+      if (dt > 0) velocity = (lastY - cy) / dt
+      lastY = cy
+      lastT = e.timeStamp
+      dragLauncher(-dy / span())
     }
 
-    const end = () => {
+    const end = (e: TouchEvent) => {
+      if (!live) return
       live = false
+      if (!dragging) return
+      dragging = false
+      const dy = lastY - y
+      const travelled = -dy
+      if (travelled >= TRAVEL || velocity >= FLICK) open()
+      else cancelLauncher()
+      void e
     }
 
     el.addEventListener('touchstart', start, { passive: true })
     el.addEventListener('touchmove', move, { passive: true })
     el.addEventListener('touchend', end, { passive: true })
-    el.addEventListener('touchcancel', end, { passive: true })
+    el.addEventListener('touchcancel', drop, { passive: true })
     return () => {
       el.removeEventListener('touchstart', start)
       el.removeEventListener('touchmove', move)
       el.removeEventListener('touchend', end)
-      el.removeEventListener('touchcancel', end)
+      el.removeEventListener('touchcancel', drop)
     }
   }, [enabled, open])
 }

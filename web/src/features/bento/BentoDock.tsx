@@ -66,7 +66,17 @@ export function BentoDock() {
   const [all, setAll] = useState(false)
   /* The board's swipe-up asks for the launcher from a sibling subtree. See
      launcher-open.ts for why this is an emitter rather than a context. */
-  useEffect(() => onOpenLauncher(() => setAll(true)), [])
+  /* Where the thumb has the drawer, 0..1, while a swipe is in progress;
+     null the rest of the time. Kept apart from `all` because the sheet is
+     visible and moving before anybody has opened it. */
+  const [drag, setDrag] = useState<number | null>(null)
+  useEffect(() => onOpenLauncher((sig) => {
+    if (sig.kind === 'drag') setDrag(sig.progress)
+    else {
+      setDrag(null)
+      if (sig.kind === 'open') setAll(true)
+    }
+  }), [])
 
   /* Where "Work" goes, per role.
 
@@ -589,7 +599,7 @@ export function BentoDock() {
       {/* Outside the pill on purpose. backdrop-filter establishes a containing
           block, so a fixed-position child anchors to the blurred element instead
           of the viewport and the overlay opens inside the dock. */}
-      <BentoLauncher open={all} onClose={() => setAll(false)} />
+      <BentoLauncher open={all} drag={drag} onClose={() => setAll(false)} />
     </>
   )
 }

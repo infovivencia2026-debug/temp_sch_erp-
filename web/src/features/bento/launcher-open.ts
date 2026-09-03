@@ -10,11 +10,37 @@
    every consumer under it when this changes, and what is being expressed is an
    event that happened once, not a value anybody needs to read. */
 
-type Listener = () => void
+/* THE DRAWER COMES WITH THE FINGER.
+
+   The first version of this fired once, at 64px of travel, and the launcher
+   appeared. That is a switch, and a phone's app drawer is not a switch: it
+   is a sheet that is already moving under the thumb before anybody has
+   decided to open it, and settles one way or the other on release. So the
+   gesture now reports where it is, and the drawer draws itself there. */
+export type LauncherSignal =
+  | { kind: 'drag'; progress: number }
+  | { kind: 'open' }
+  | { kind: 'cancel' }
+
+type Listener = (s: LauncherSignal) => void
 const listeners = new Set<Listener>()
 
+function emit(s: LauncherSignal) {
+  listeners.forEach((fn) => fn(s))
+}
+
 export function openLauncher() {
-  listeners.forEach((fn) => fn())
+  emit({ kind: 'open' })
+}
+
+/** 0 is closed, 1 is fully up. Sent on every move of a live upward drag. */
+export function dragLauncher(progress: number) {
+  emit({ kind: 'drag', progress: Math.max(0, Math.min(1, progress)) })
+}
+
+/** The finger let go short of the mark, or the drag stopped being a swipe up. */
+export function cancelLauncher() {
+  emit({ kind: 'cancel' })
 }
 
 export function onOpenLauncher(fn: Listener) {

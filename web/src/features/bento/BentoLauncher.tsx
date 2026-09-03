@@ -15,6 +15,10 @@ import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
 import { cn } from '@/lib/utils'
 
+/* The slide, in and out. 340ms is what the phone shell already uses for a
+   pushed screen, so the drawer and the screens behind it move at one speed. */
+const SHEET_MS = 340
+
 /* Everything the role can open, on one surface, reachable by pointing at it.
 
    The palette answers "I know what I want"; it shows eight items until you
@@ -239,7 +243,16 @@ function score(row: Row, needle: string): number {
   return -1
 }
 
-export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function BentoLauncher({
+  open,
+  drag = null,
+  onClose,
+}: {
+  open: boolean
+  /** Where a swipe has the sheet, 0..1, while the finger is still down. */
+  drag?: number | null
+  onClose: () => void
+}) {
   const role = useActiveRole()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -406,7 +419,58 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       ?.scrollIntoView({ block: 'nearest' })
   }, [cursor, needle])
 
-  if (!open || !role) return null
+  /* A SHEET, NOT A SWITCH.
+
+     This faded in over 200ms and the phone read it as a pop: the drawer was
+     simply there. A phone's drawer slides up from the bottom edge, is already
+     under the thumb while the swipe is still going, and either finishes the
+     journey or slides back down when the finger lets go short. So the panel
+     is positioned by a transform: exactly where the drag has it while the
+     finger is down, with no transition at all -- a transition during a drag
+     is lag -- and eased the rest of the way once the decision is made. The
+     same slide, downward, is how it leaves.
+
+     Mounted from the first pixel of a drag and kept mounted until the exit
+     slide has finished, which is why `open` alone no longer decides whether
+     it renders. */
+  const dragging = drag !== null && !open
+  const [mounted, setMounted] = useState(open)
+  const [shown, setShown] = useState(false)
+  const reduce =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      // Two frames: one for the mount to paint at the bottom, one for the
+      // transition to have somewhere to start from.
+      let inner = 0
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setShown(true))
+      })
+      return () => {
+        cancelAnimationFrame(outer)
+        cancelAnimationFrame(inner)
+      }
+    }
+    setShown(false)
+    if (dragging) {
+      setMounted(true)
+      return
+    }
+    const t = window.setTimeout(() => setMounted(false), reduce ? 0 : SHEET_MS)
+    return () => window.clearTimeout(t)
+  }, [open, dragging, reduce])
+
+  if (!mounted || !role) return null
+  const y = dragging ? (1 - (drag ?? 0)) * 100 : shown ? 0 : 100
+  const sheet: CSSProperties = {
+    transform: `translate3d(0, ${y}%, 0)`,
+    transition: dragging || reduce
+      ? 'none'
+      : `transform ${SHEET_MS}ms var(--ease-phone, cubic-bezier(0.32, 0.72, 0, 1))`,
+    willChange: 'transform',
+  }
 
   const Tile = ({ r, i, context, step }: { r: Row; i?: number; context?: boolean; step?: number }) => {
     const href = featurePath(role.key, r.sectionSlug, r.slug)
@@ -548,7 +612,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
       /* Frosted glass over the board, the way an iPhone's App Library sits
          over the wallpaper — see .bento-frost in bento-theme.css for why the
          saturation matters as much as the blur. */
-      className="fade-in bento-frost fixed inset-0 z-[60] overflow-y-auto"
+      className="bento-frost fixed inset-0 z-[60] overflow-y-auto"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
          This panel is the one place in the layout whose ground is the PAGE and
@@ -566,6 +630,7 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
          named and no palette has anything new to set. */
       style={
         {
+          ...sheet,
           '--ink-here': 'hsl(from var(--bento-bg) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
           color: 'var(--ink-here)',
         } as CSSProperties
