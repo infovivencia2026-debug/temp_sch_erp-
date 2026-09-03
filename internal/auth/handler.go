@@ -147,6 +147,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, errNoAccount):
 			msg = "No account here uses that username, email or phone. " +
 				"Check it with the school office."
+		case errors.Is(err, errSchoolPaused):
+			msg = "Your password is right, but this school's access is paused at the " +
+				"moment. Nothing has been lost. Ask the school office, or whoever " +
+				"runs EDU CLOUD for the school, to switch it back on."
 		case errors.Is(err, errAmbiguousIdentifier):
 			msg = "That number or address is registered at more than one school, " +
 				"so we cannot tell which account you mean. Sign in with your email " +
@@ -200,6 +204,11 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		userID uuid.UUID
 		instID *uuid.UUID
 		hash   *string
+		// The school is suspended. Carried rather than filtered out in SQL,
+		// because the difference between "no such account" and "your school
+		// is paused" is the difference between a parent concluding they were
+		// never enrolled and a parent ringing the office.
+		paused bool
 	}
 	const maxCandidates = 5
 
@@ -223,12 +232,21 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		   institution_id IS NULL is the platform staff — the vendor's own
 		   accounts belong to no school and must not be filtered out by a join
 		   to one. */
+		/* A suspended school's people are still found, and told so.
+
+		   This used to filter `i.status = 'active'` here, so every user of a
+		   paused school fell through to "No account here uses that username,
+		   email or phone" — the sentence for a stranger, shown to a principal
+		   whose school was switched off that morning. It cost an afternoon on
+		   this deployment: the school was suspended by a stray click, and two
+		   people concluded the credentials were wrong. The status comes back
+		   as a column instead and is judged after the password is. */
 		rows, err := tx.Query(ctx, `
-			SELECT u.id, u.institution_id, u.password_hash
+			SELECT u.id, u.institution_id, u.password_hash,
+			       (u.institution_id IS NOT NULL AND i.status <> 'active') AS paused
 			  FROM users u
 			  LEFT JOIN institutions i ON i.id = u.institution_id
 			 WHERE u.status = 'active'
-			   AND (u.institution_id IS NULL OR i.status = 'active')
 			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext)
 			 ORDER BY u.created_at
 			 LIMIT $2`, identifier, maxCandidates)
@@ -238,7 +256,7 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		defer rows.Close()
 		for rows.Next() {
 			var c candidate
-			if err := rows.Scan(&c.userID, &c.instID, &c.hash); err != nil {
+			if err := rows.Scan(&c.userID, &c.instID, &c.hash, &c.paused); err != nil {
 				return err
 			}
 			candidates = append(candidates, c)
@@ -297,6 +315,12 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 	}
 
 	won := matched[0]
+	if won.paused {
+		/* Right password, paused school. Only reachable past Verify, so a
+		   stranger enumerating addresses is still told "wrong password" and
+		   learns nothing about which schools exist or their standing. */
+		return uuid.Nil, uuid.Nil, errSchoolPaused
+	}
 	_ = h.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE users SET last_login_at = now() WHERE id = $1`, won.userID)
 		return err

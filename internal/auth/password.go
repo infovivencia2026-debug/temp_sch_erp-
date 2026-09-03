@@ -80,7 +80,11 @@ The two failures that are not a wrong password.
 	rather than an error to switch on.
 */
 var (
-	errNoAccount           = errors.New("no account matches that identifier")
+	errNoAccount = errors.New("no account matches that identifier")
+	/* The password was right and the school is paused. Said only AFTER the
+	   password verifies, so it reveals nothing to a stranger typing addresses:
+	   a wrong password on a paused school is still "wrong password". */
+	errSchoolPaused        = errors.New("the school this account belongs to is suspended")
 	errAmbiguousIdentifier = errors.New("identifier matches accounts in more than one tenant")
 )
 
