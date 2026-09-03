@@ -1606,11 +1606,13 @@ var importSpecs = map[string]importSpec{
 
 	"staff": {
 		Perm: rbac.EmployeesWrite,
+		// status is here so a sheet carrying one can be mapped to it -- which
+		// is also what lets the crossed-column swap below see both values.
 		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
-			"designation", "role", "joined_on", "subjects"},
+			"designation", "status", "role", "joined_on", "subjects"},
 		Required: []string{"employee_code", "first_name"},
-		Sample: []string{"T-014", "Priya", "Rao", "priya@school.in", "9876543210",
-			"Teacher", "faculty", "2026-06-01", "MATH; SCI"},
+		Sample: []string{"YPS001", "Priya", "Rao", "priya@school.in", "9876543210",
+			"Teacher", "Active", "faculty", "01 Jan 2024", "MATH; SCI"},
 		Check: func(row map[string]string) error {
 			/* The same date reader the student sheet uses.
 
@@ -1650,6 +1652,22 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 		Write: func(c *importCtx, row map[string]string) error {
+			/* A KNOWN EXPORT WRITES THESE TWO COLUMNS THE WRONG WAY ROUND.
+
+			   One school's staff export has "Teacher" under Status and
+			   "Active" under Role / Designation. Mapping them crossed on the
+			   screen works, and asks the clerk to notice and remember it every
+			   time -- which they will not, and then every member of staff is
+			   appointed to the post of Active.
+
+			   Swapped only when the evidence is unambiguous: the designation
+			   column holds a word that is plainly a status, and the status
+			   column does not. A school whose designation really is "Active"
+			   does not exist; a school whose designation is "Teacher" is every
+			   school. */
+			if isStaffStatusWord(row["designation"]) && !isStaffStatusWord(row["status"]) {
+				row["designation"], row["status"] = row["status"], row["designation"]
+			}
 			req := employeeRequest{
 				EmployeeCode: strings.TrimSpace(row["employee_code"]),
 				FirstName:    strings.TrimSpace(row["first_name"]),
@@ -2113,6 +2131,18 @@ func (c *importCtx) bellScheduleID(name string) (uuid.UUID, error) {
 	}
 	c.pastYears["bell:"+key] = id
 	return id, nil
+}
+
+// isStaffStatusWord says whether a cell holds an employment status rather
+// than a post. Deliberately a short, closed list: the point is to be certain,
+// not clever, and a word that is not on it is treated as a designation.
+func isStaffStatusWord(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "active", "inactive", "left", "resigned", "retired",
+		"terminated", "on leave", "suspended":
+		return true
+	}
+	return false
 }
 
 // intOrNil turns a blank column into NULL rather than into zero. A school that

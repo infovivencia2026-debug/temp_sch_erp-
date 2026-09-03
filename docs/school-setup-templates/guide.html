@@ -377,15 +377,18 @@ Mathematics,Class 6,A,6A,priya@school.in,anand@school.in,100,6</span></pre></div
         <span class="file">04-students.csv</span>
       </div>
       <p class="lede">Only the name is required. A sheet with six columns imports
-        exactly as well as one with twenty-one &mdash; a school that keeps no blood
+        exactly as well as one with twenty-seven &mdash; a school that keeps no blood
         groups does not have to invent an empty column.</p>
       <div class="header-strip"><pre><span class="req">Enrollment Code</span>,<span class="req">Full Name</span>,Class,Section,Date Of Birth,Gender,Date Of Admission,
 Father Name,Father Mobile No,Father EmailID,
 Mother Name,Mother Mobile No,Mother EmailID,
+Guardian Name,Guardian Mobile No,Guardian EmailID,Guardian Relation,
+Concession,Concession Percent,Concession Amount,Concession Reason,
 Address,Student Aadhaar Number,Using Transport,Category,Status
 <span class="ex">26YPS0016,ALANKRITA PABBA,Nursery,A,9-Dec-22,Girl,23-Mar-26,
 PABBA SANDEEP KUMAR,9652421945,yajurac@gmail.com,
 PABBA MOUNIKA,8374799642,,
+,,,,,,,,
 "FLAT NO. 324, HANAMKONDA, Warangal",,No,Day Scholar,Active</span></pre></div>
       <dl class="cols">
         <dt>Father Mobile No<br>Mother Mobile No</dt>
@@ -394,6 +397,22 @@ PABBA MOUNIKA,8374799642,,
             invisible to their own family. Both parents are kept, and either can
             be reached &mdash; the mother becomes the first contact where a row
             carries no father.</dd>
+        <dt>Guardian Name<br>Guardian Mobile No<br>Guardian Relation</dt>
+        <dd>For the child neither parent&rsquo;s row can carry &mdash; a grandmother,
+            an uncle, an elder brother. Fill them and that person is linked to the
+            child as well; where the row has no father and no mother, they become
+            the first contact. Write the relation as you say it &mdash;
+            <em>grandmother</em>, <em>uncle</em> &mdash; anything outside father or
+            mother is filed as guardian.</dd>
+        <dt>Concession<br>Concession Percent<br>Concession Amount<br>Concession Reason</dt>
+        <dd>A discount the family already has, so the first fee run does not bill
+            them in full. One of <em>scholarship</em>, <em>sibling</em>,
+            <em>staff_ward</em>, <em>rte</em>, <em>merit</em>, <em>full_payment</em>
+            or <em>other</em>; <em>No</em>, <em>None</em>, <em>-</em> and
+            <em>Regular</em> all read as none. Give a percentage (1&ndash;100) or an
+            amount in rupees, and a reason in your own words. It is imported as
+            already approved &mdash; it is a fact the school is stating, not a
+            request anyone is making.</dd>
         <dt>Date Of Admission</dt>
         <dd>The day they actually joined, not today. <em>23-Mar-26</em> and
             <em>23/03/2026</em> both read. Without it every child appears to have

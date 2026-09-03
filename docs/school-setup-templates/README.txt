@@ -62,6 +62,10 @@ THE SHEETS
 04-students.csv                    Enrollment Code, Full Name, Class, Section,
                                    Date Of Birth, Gender, Date Of Admission,
                                    Father/Mother Name, Mobile No, EmailID,
+                                   Guardian Name, Guardian Mobile No,
+                                   Guardian EmailID, Guardian Relation,
+                                   Concession, Concession Percent,
+                                   Concession Amount, Concession Reason,
                                    Address, Aadhaar, Using Transport,
                                    Category, Status
     Only the name is required; every other column is optional.
@@ -73,6 +77,21 @@ THE SHEETS
     Both parents are kept. The mother is not a spare: she is frequently the
     number that answers, and she becomes the first contact where a row carries
     no father.
+
+    The guardian columns are for the child neither parent's row can carry --
+    a grandmother, an uncle, an elder brother. Fill them and that person is
+    linked to the child as well; where the row has no father and no mother,
+    they become the first contact. Guardian Relation is written as you say it
+    -- grandmother, uncle, aunt, brother -- and anything outside father or
+    mother is filed as guardian.
+
+    The concession columns carry a discount the family already has, so the
+    first fee run does not bill them in full. Concession is one of
+    scholarship, sibling, staff_ward, rte, merit, full_payment or other; No,
+    None, "-" and Regular all read as no concession. Give a percentage or an
+    amount -- percent between 1 and 100, amount in rupees -- and a reason in
+    your own words. It is imported as already approved, because it is a fact
+    the school is stating, not a request anyone is making.
 
     Enrollment Code is the admission number -- the stable one. Category here
     means whatever your school means by it; Day Scholar and Hosteller are kept
