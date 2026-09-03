@@ -1343,9 +1343,11 @@ var (
 )
 
 // defaultLayout is the layout an account that has never touched the switch
-// gets, and the one anything unrecognised falls through to. Classic is the
-// product as it ships; see docs/BENTO_UI_CONTRACT.md.
-const defaultLayout = "classic"
+// gets, and the one anything unrecognised falls through to. Bento, the same
+// default web/src/lib/layout.tsx stamps on a fresh device: the two used to
+// disagree and which one a person saw came down to timing. Migration 00219
+// moved the column default with it; see docs/BENTO_UI_CONTRACT.md.
+const defaultLayout = "bento"
 
 func isAllowedChoice(v string, allowed []string) bool {
 	for _, a := range allowed {

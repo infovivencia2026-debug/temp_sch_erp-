@@ -15,7 +15,7 @@ the experiment has cost us the thing we were protecting.
 
 ## The switch
 
-`user_display_preferences.layout` — `'classic' | 'bento'`, default `'classic'`.
+`user_display_preferences.layout` — `'classic' | 'bento'`, default `'bento'` (since migration 00219; it was `'classic'` and disagreed with the client's default).
 It joins theme, density, locale, high_contrast and reduce_motion on the row that
 already exists, and rides the same `GET/PUT /api/v1/portal/preferences/display`
 endpoint. One row, one save.
