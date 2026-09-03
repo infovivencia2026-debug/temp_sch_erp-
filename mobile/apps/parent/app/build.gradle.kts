@@ -47,6 +47,17 @@ android {
         val portal = (project.findProperty("portalUrl") as String?)
             ?: "https://temperp.187-127-178-100.sslip.io"
         buildConfigField("String", "PORTAL_URL", "\"$portal\"")
+
+        /* THE SAME HOST, FOR THE DEEP LINK FILTER.
+
+           AndroidManifest declares android:host="${portalHost}" so an app link
+           cannot drift from the address the WebView actually loads. The
+           manifest merger refuses a placeholder nobody supplies, which is the
+           right failure: it stopped the build rather than shipping an app
+           whose link filter matched a host we no longer serve. Derived from
+           the same portalUrl above, so the two cannot disagree. */
+        manifestPlaceholders["portalHost"] =
+            portal.substringAfter("://").substringBefore("/").substringBefore(":")
     }
 
     signingConfigs {
