@@ -1668,12 +1668,29 @@ var importSpecs = map[string]importSpec{
 			if isStaffStatusWord(row["designation"]) && !isStaffStatusWord(row["status"]) {
 				row["designation"], row["status"] = row["status"], row["designation"]
 			}
+			/* The post, resolved from the word the sheet uses.
+
+			   The designation column has been in this importer's template
+			   since it was written, was read into the row, and was then never
+			   put anywhere: employeeRequest.Designation is a designation_id,
+			   and nothing assigned it. So every school that filled in that
+			   column got a roll of staff with no posts, and the import
+			   reported success.
+
+			   Created where the school has not set it up, like subjects. A
+			   staff sheet naming a post is the school declaring that post, and
+			   there is no earlier moment to declare it in. */
+			designationID, derr := c.designationID(row["designation"])
+			if derr != nil {
+				return derr
+			}
 			req := employeeRequest{
 				EmployeeCode: strings.TrimSpace(row["employee_code"]),
 				FirstName:    strings.TrimSpace(row["first_name"]),
 				LastName:     strings.TrimSpace(row["last_name"]),
 				Email:        strings.TrimSpace(row["email"]),
 				Phone:        strings.TrimSpace(row["phone"]),
+				Designation:  designationID,
 				JoinedOn:     normaliseDate(row["joined_on"]),
 				RoleKey:      strings.ToLower(strings.TrimSpace(row["role"])),
 			}
@@ -2136,6 +2153,33 @@ func (c *importCtx) bellScheduleID(name string) (uuid.UUID, error) {
 // isStaffStatusWord says whether a cell holds an employment status rather
 // than a post. Deliberately a short, closed list: the point is to be certain,
 // not clever, and a word that is not on it is treated as a designation.
+/*
+designationID finds a post by name, creating it where the sheet names a new one.
+
+	Matched case-insensitively, so Teacher, teacher and TEACHER are one post
+	rather than three -- which is what a column of hand-typed job titles would
+	otherwise produce, and what makes a designation dropdown useless.
+*/
+func (c *importCtx) designationID(name string) (string, error) {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return "", nil
+	}
+	var id string
+	err := c.tx.QueryRow(c.r.Context(), `
+		SELECT id::text FROM designations
+		 WHERE institution_id = $1 AND lower(name) = lower($2)`, c.inst, n).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = c.tx.QueryRow(c.r.Context(), `
+			INSERT INTO designations (institution_id, name)
+			VALUES ($1,$2) RETURNING id::text`, c.inst, n).Scan(&id)
+	}
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 func isStaffStatusWord(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "active", "inactive", "left", "resigned", "retired",
