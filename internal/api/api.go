@@ -74,6 +74,14 @@ func (s *Server) Routes() http.Handler {
 		// their own absence of one.
 		r.Use(s.RequireSubscription)
 
+		/* A write the client could not send is held on the device and sent
+		   again when the signal returns, and a retry must not do the work
+		   twice. Sits last of the four so that a replayed answer is only ever
+		   served to a caller who is authenticated, past the password gate,
+		   scoped to a school and entitled to the module -- the receipt is
+		   stored per institution and must not outlive any of those. */
+		r.Use(s.Idempotent)
+
 		r.Get("/ref-data", s.getRefData)
 		// The period presets every metric picker offers. Published so the
 		// client does not keep a second copy that drifts from the resolver.

@@ -8,6 +8,7 @@ import {
   useCatalog, useActiveRole, featurePath, allRolesOn, setAllRoles, type ApiSection,
 } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
+import Outbox from '@/components/Outbox'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
@@ -1042,6 +1043,10 @@ export function Shell({
               somebody leave the thing they wanted to ask about. Mounted outside
               <main> so it stays put while a long register scrolls. */}
           <AssistantTab />
+          {/* Mounted here for the same reason as the tab: what is queued was
+              queued on a screen the person has usually already left, so it
+              cannot live on that screen. */}
+          <Outbox />
         </div>
       </div>
     </div>

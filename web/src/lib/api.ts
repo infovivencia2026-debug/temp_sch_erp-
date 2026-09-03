@@ -5,6 +5,8 @@
 // automatically. The one thing worth centralising is the error envelope, which
 // the server guarantees is always {error:{code,message,request_id}}.
 
+import { takeOffline } from './outbox'
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -57,16 +59,49 @@ export function setActingInstitution(id: string | null) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const acting = actingInstitution()
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'same-origin',
-    headers: {
-      Accept: 'application/json',
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(acting ? { 'X-Acting-Institution': acting } : {}),
-      ...init?.headers,
-    },
-  })
+  const method = (init?.method ?? 'GET').toUpperCase()
+
+  /* THE KEY IS MINTED HERE, ONCE PER PRESS.
+   *
+   * Not inside the retry, which is the mistake that makes an idempotency key
+   * decorative: a key regenerated on each attempt names the attempt rather
+   * than the intent, and the server has nothing to recognise. Minted before
+   * the first send and reused by the outbox for every later one, it names
+   * what the person asked for, which is the thing that must happen once. */
+  const idem = method === 'GET' || method === 'HEAD' ? undefined : crypto.randomUUID()
+
+  let res: Response
+  try {
+    res = await fetch(path, {
+      ...init,
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(acting ? { 'X-Acting-Institution': acting } : {}),
+        ...(idem ? { 'Idempotency-Key': idem } : {}),
+        ...init?.headers,
+      },
+    })
+  } catch (e) {
+    /* fetch rejects only when nothing came back at all: no route to the host,
+       DNS gone, the radio off, the tab killed mid-flight. Every answered
+       request, including every error status, resolves. So this branch is
+       exactly "there is no connection" and nothing else — which is why it is
+       safe to treat it as one.
+     *
+     * A write is kept and sent later. A read is not: nobody typed it, there is
+     * nothing to preserve, and replaying it after the fact would repaint a
+     * screen with the answer to a question the person has stopped asking. */
+    if (idem && takeOffline(method, path, init?.body as string | undefined, idem)) {
+      throw new ApiError(
+        0,
+        'queued_offline',
+        'Saved on this device. It will be sent as soon as there is a connection.',
+      )
+    }
+    throw new ApiError(0, 'offline', 'No connection. This screen needs the network to load.')
+  }
 
   if (res.status === 204) return undefined as T
 

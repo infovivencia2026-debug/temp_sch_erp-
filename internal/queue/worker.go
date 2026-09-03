@@ -458,6 +458,25 @@ func (h *Handlers) sessionPrune(ctx context.Context, _ *asynq.Task) error {
 			return err
 		}
 		slog.Info("pruned sessions", "rows", tag.RowsAffected())
+
+		/* The receipts the offline outbox retries against.
+		 *
+		 * Each one is a stored copy of a response, kept so a client that
+		 * resent a write is answered rather than made to do it twice. They
+		 * are only useful while a client might still retry, and the client
+		 * gives up after seven days -- so a receipt older than that can
+		 * answer nobody and is just a copy of a response body sitting in the
+		 * table that sees every write in the product.
+		 *
+		 * Fourteen rather than seven: the two clocks are not the same clock,
+		 * and expiring the receipt while a client still believes it may retry
+		 * is the one ordering that reintroduces the double write. */
+		tag, err = tx.Exec(ctx,
+			`DELETE FROM idempotency_keys WHERE created_at < now() - interval '14 days'`)
+		if err != nil {
+			return err
+		}
+		slog.Info("pruned idempotency receipts", "rows", tag.RowsAffected())
 		return nil
 	})
 }
