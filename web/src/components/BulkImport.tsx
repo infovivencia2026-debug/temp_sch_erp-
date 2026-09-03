@@ -1176,7 +1176,17 @@ function IssueLogins({ entity }: { entity: string }) {
  * panel and a preview that fills the window should not be two pieces of code
  * that slowly stop agreeing about what the file said.
  */
-function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
+function SheetTable({ rows, limit, firstRowNumber }: {
+  rows: string[][]
+  limit?: number
+  /* The number to print against the first body row.
+   *
+   * A rejection says "row 84". Somebody then opens the file to look at row 84,
+   * and a table that renumbers from one on every page cannot answer that --
+   * which is the single thing this window is opened for. Undefined while a
+   * search is filtering, because the rows on screen are then not a run. */
+  firstRowNumber?: number
+}) {
   const body = limit ? rows.slice(1, limit + 1) : rows.slice(1)
   return (
     <table className="w-full text-[12.5px]">
@@ -1199,7 +1209,7 @@ function SheetTable({ rows, limit }: { rows: string[][]; limit?: number }) {
         {body.map((r, ri) => (
           <tr key={ri} className="border-t">
             <td className="w-10 whitespace-nowrap px-2 py-1 text-right tabular-nums text-muted-foreground">
-              {ri + 2}
+              {firstRowNumber == null ? ri + 2 : firstRowNumber + ri + 1}
             </td>
             {rows[0].map((_, ci) => (
               <td key={ci} className="whitespace-nowrap px-2 py-1">{r[ci] ?? ''}</td>
@@ -1245,6 +1255,29 @@ export function SheetViewer({
    * against the form behind it is better with the page still visible around
    * it. It opens large and goes to the full window on request. */
   const [full, setFull] = useState(false)
+  /* A HUNDRED AND SEVENTY ROWS IN A SCROLLER IS WHERE PEOPLE GIVE UP.
+
+     This window opened on the whole file and nothing else: no way to find one
+     teacher's rows among a hundred and seventy, no way to tell how far down
+     you were, and the header scrolled away so by row forty you were reading
+     unlabelled columns.
+
+     A search and a page fix all three, and cost nothing on a file of six. */
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
+  const [perPage, setPerPage] = useState(25)
+
+  const header = rows[0] ?? []
+  const body = rows.slice(1)
+
+  const found = query.trim()
+    ? body.filter((r) =>
+        r.some((cell) => cell.toLowerCase().includes(query.trim().toLowerCase())))
+    : body
+
+  const pages = Math.max(1, Math.ceil(found.length / perPage))
+  const current = Math.min(page, pages - 1)
+  const shown = found.slice(current * perPage, current * perPage + perPage)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
@@ -1297,7 +1330,11 @@ export function SheetViewer({
         <div className="flex select-none flex-wrap items-center gap-3 border-b px-4 py-3">
           <p className="text-[14px] font-medium">{title}</p>
           <span className="text-[12.5px] text-muted-foreground">
-            {rows.length - 1} rows · {rows[0]?.length ?? 0} columns
+            {query.trim()
+              ? `${found.length} of ${body.length} rows`
+              : `${body.length} rows`}
+            {' · '}
+            {header.length} columns
           </span>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setFull((v) => !v)}>
             {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -1307,9 +1344,59 @@ export function SheetViewer({
             Close
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          <SheetTable rows={rows} />
+        <div className="select-none border-b px-4 py-2">
+          <Input
+            value={query}
+            onChange={(v) => { setQuery(v); setPage(0) }}
+            placeholder="Find a name, a class, an email…"
+          />
         </div>
+
+        <div className="min-h-0 flex-1 overflow-auto">
+          {/* The row numbers are the file's own, not the page's. Somebody
+              reading a rejection that says "row 84" has to find row 84, and a
+              table that renumbers from one on every page cannot be used for
+              that -- which is the single thing this window is opened for. */}
+          <SheetTable
+            rows={[header, ...shown]}
+            firstRowNumber={
+              found === body ? current * perPage + 1 : undefined
+            }
+          />
+          {shown.length === 0 && (
+            <p className="p-6 text-center text-[13px] text-muted-foreground">
+              Nothing in this file matches “{query}”.
+            </p>
+          )}
+        </div>
+
+        {pages > 1 && (
+          <div className="flex select-none flex-wrap items-center gap-3 border-t px-4 py-2 text-[12.5px]">
+            <span className="text-muted-foreground">
+              Showing {current * perPage + 1}–
+              {Math.min((current + 1) * perPage, found.length)} of {found.length}
+            </span>
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              Rows
+              <select
+                className="h-7 rounded-md border bg-surface px-1.5"
+                value={perPage}
+                onChange={(e) => { setPerPage(Number(e.target.value)); setPage(0) }}
+              >
+                {[25, 50, 100, 250].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <span className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="ghost" disabled={current === 0}
+                onClick={() => setPage(current - 1)}>Previous</Button>
+              <span className="tabular-nums text-muted-foreground">
+                {current + 1} of {pages}
+              </span>
+              <Button size="sm" variant="ghost" disabled={current >= pages - 1}
+                onClick={() => setPage(current + 1)}>Next</Button>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
