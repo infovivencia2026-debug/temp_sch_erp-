@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -120,10 +121,42 @@ type studentWriteRequest struct {
 
 	   A second guardian, not a replacement: both are linked to the child, the
 	   first is primary, and either can be reached. */
-	Guardian2Name      string `json:"guardian2_name,omitempty"`
-	Guardian2Phone     string `json:"guardian2_phone,omitempty"`
-	Guardian2Email     string `json:"guardian2_email,omitempty"`
-	Guardian2Relation  string `json:"guardian2_relation,omitempty"`
+	Guardian2Name     string `json:"guardian2_name,omitempty"`
+	Guardian2Phone    string `json:"guardian2_phone,omitempty"`
+	Guardian2Email    string `json:"guardian2_email,omitempty"`
+	Guardian2Relation string `json:"guardian2_relation,omitempty"`
+	/* AND WHOEVER ACTUALLY HAS THE CHILD.
+
+	   A school's roll carries the father and the mother, and separately a
+	   guardian -- a grandmother, an uncle, an elder brother -- for the
+	   children who do not live with either parent. That is not a spare
+	   contact. It is the person the school rings when a child is ill, and
+	   collapsing it into "the mother" loses the fact that there is no mother
+	   to ring.
+
+	   All three are kept, all three can be reached, and the first one present
+	   is the primary. */
+	Guardian3Name     string `json:"guardian3_name,omitempty"`
+	Guardian3Phone    string `json:"guardian3_phone,omitempty"`
+	Guardian3Email    string `json:"guardian3_email,omitempty"`
+	Guardian3Relation string `json:"guardian3_relation,omitempty"`
+
+	/* A CONCESSION THE CHILD ALREADY HAS.
+
+	   A school moving its roll across has families paying a reduced fee that
+	   was agreed years ago -- a staff ward, a sibling, an RTE seat. Importing
+	   the child without it bills the family in full on the first run, and the
+	   only remedy after that is a credit note per family.
+
+	   Imported as approved rather than as a request, because it is not one: a
+	   request is a thing somebody is asking for, and this is a fact the school
+	   is stating about a fee it has been charging for years. The reason
+	   records that it came from the import, so nobody later reads it as a
+	   decision this system made. */
+	ConcessionKind     string `json:"concession_kind,omitempty"`
+	ConcessionPercent  string `json:"concession_percent,omitempty"`
+	ConcessionAmount   string `json:"concession_amount,omitempty"`
+	ConcessionReason   string `json:"concession_reason,omitempty"`
 	GuardianOccupation string `json:"guardian_occupation,omitempty"`
 }
 
@@ -464,13 +497,28 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		req.GuardianRelation, "father", true); err != nil {
 		return "", "", err
 	}
+	haveFirst := strings.TrimSpace(req.GuardianName) != "" &&
+		strings.TrimSpace(req.GuardianPhone) != ""
+	haveSecond := strings.TrimSpace(req.Guardian2Name) != "" &&
+		strings.TrimSpace(req.Guardian2Phone) != ""
+
 	if err := link(req.Guardian2Name, req.Guardian2Phone, req.Guardian2Email,
 		req.Guardian2Relation, "mother",
-		// Primary only when there is no first guardian -- a child whose sheet
-		// carries the mother and not the father must still have somebody the
-		// school can reach.
-		strings.TrimSpace(req.GuardianName) == "" ||
-			strings.TrimSpace(req.GuardianPhone) == ""); err != nil {
+		// Primary only when there is no first -- a child whose sheet carries
+		// the mother and not the father must still have somebody the school
+		// can reach.
+		!haveFirst); err != nil {
+		return "", "", err
+	}
+	if err := link(req.Guardian3Name, req.Guardian3Phone, req.Guardian3Email,
+		req.Guardian3Relation, "guardian",
+		// And the guardian is primary for a child who has neither parent on
+		// the sheet, which is exactly the child a guardian column is for.
+		!haveFirst && !haveSecond); err != nil {
+		return "", "", err
+	}
+
+	if err := recordConcession(r, tx, instID, studentID, req); err != nil {
 		return "", "", err
 	}
 
@@ -844,6 +892,14 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			Guardian2Phone:    firstNonEmpty(get(rec, "guardian2_phone"), get(rec, "mother_phone")),
 			Guardian2Email:    firstNonEmpty(get(rec, "guardian2_email"), get(rec, "mother_email")),
 			Guardian2Relation: strings.ToLower(get(rec, "guardian2_relation")),
+			Guardian3Name:     firstNonEmpty(get(rec, "guardian3_name"), get(rec, "guardian_name_3")),
+			Guardian3Phone:    firstNonEmpty(get(rec, "guardian3_phone"), get(rec, "guardian_phone_3")),
+			Guardian3Email:    firstNonEmpty(get(rec, "guardian3_email"), get(rec, "guardian_email_3")),
+			Guardian3Relation: strings.ToLower(get(rec, "guardian3_relation")),
+			ConcessionKind:    get(rec, "concession"),
+			ConcessionPercent: get(rec, "concession_percent"),
+			ConcessionAmount:  get(rec, "concession_amount"),
+			ConcessionReason:  get(rec, "concession_reason"),
 			// Carries a human label such as "Class 6-A" at this point; resolved
 			// to a section id below, once, rather than per row.
 		}
@@ -1041,6 +1097,84 @@ func knownCategory(v string) string {
 		return c
 	}
 	return ""
+}
+
+/*
+recordConcession carries across a reduction the family already has.
+
+	Written as approved, and deliberately. A concession raised in this product
+	is a request, decided by somebody with the authority to give money away --
+	and that control matters. But a school importing its roll is not asking for
+	anything: it is stating what it has been charging this family for years,
+	and holding those pending would bill every one of them in full on the first
+	run while somebody approved a hundred rows of history.
+
+	The reason says where it came from, so nobody reading the discount book
+	later mistakes it for a decision made here.
+
+	Nothing is written when the sheet names no concession, which is almost
+	every child.
+*/
+func recordConcession(r *http.Request, tx pgx.Tx, instID uuid.UUID,
+	studentID string, req studentWriteRequest) error {
+
+	kind := strings.ToLower(strings.TrimSpace(req.ConcessionKind))
+	if kind == "" || blankConcession[kind] {
+		return nil
+	}
+	if !concessionKindAllowed(kind) {
+		return fmt.Errorf("concession must be one of %s",
+			strings.Join(concessionKinds, ", "))
+	}
+
+	percent := strings.TrimSpace(req.ConcessionPercent)
+	amount := strings.TrimSpace(strings.ReplaceAll(req.ConcessionAmount, ",", ""))
+	if percent == "" && amount == "" {
+		return errors.New("a concession needs a percentage or an amount")
+	}
+
+	var amountPaise *int64
+	if amount != "" {
+		f, err := strconv.ParseFloat(amount, 64)
+		if err != nil || f < 0 {
+			return errors.New("concession_amount must be a number of rupees")
+		}
+		v := int64(math.Round(f * 100))
+		amountPaise = &v
+	}
+	if percent != "" {
+		if f, err := strconv.ParseFloat(percent, 64); err != nil || f <= 0 || f > 100 {
+			return errors.New("concession_percent must be between 1 and 100")
+		}
+	}
+
+	reason := strings.TrimSpace(req.ConcessionReason)
+	if reason == "" {
+		reason = "Carried across when the school's roll was imported"
+	} else {
+		reason += " (carried across at import)"
+	}
+
+	var yearID any
+	var y uuid.UUID
+	if err := tx.QueryRow(r.Context(),
+		`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).
+		Scan(&y); err == nil {
+		yearID = y
+	}
+
+	_, err := tx.Exec(r.Context(), `
+		INSERT INTO fee_concessions (institution_id, student_id, academic_year_id,
+		        kind, percent, amount_paise, reason, status, approved_at)
+		VALUES ($1,$2::uuid,$3,$4,NULLIF($5,'')::numeric,$6,$7,'approved',now())`,
+		instID, studentID, yearID, kind, percent, amountPaise, reason)
+	return err
+}
+
+// blankConcession is a school writing "there isn't one" in the column.
+var blankConcession = map[string]bool{
+	"no": true, "none": true, "nil": true, "na": true, "n/a": true,
+	"-": true, "--": true, "full fee": true, "regular": true,
 }
 
 func normaliseGender(v string) string {
