@@ -2,14 +2,15 @@ import { useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
-import { usePhone } from '@/lib/viewport'
+import { useViewport } from '@/lib/viewport'
 import { useFullScreenInvite } from '@/lib/fullscreen'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, SEAM, CHOSEN } from './ColourDialog'
+import { INK, EDGE, WASH, RING, SEAM } from './ColourDialog'
 import {
-  SettingsNav, SettingsPane, SettingsSectionList, useSettingsItems,
+  SettingsPane, SettingsSectionList, useSettingsItems, useSettingsValues,
   type SettingsTab,
 } from './AppearanceDialog'
+import { Rows, NavRow } from './SettingsRows'
 
 /* SETTINGS AS A PLACE, WHICH ON A PHONE IS WHAT IT ALWAYS LOOKED LIKE.
 
@@ -77,8 +78,22 @@ import {
 export default function SettingsPage() {
   const t = useT()
   const navigate = useNavigate()
-  const phone = usePhone()
+  /* TWO COMPOSITIONS, NOT ONE SCALED.
+
+     Below 1024px Settings is a NAVIGATION: the list of sections, each a
+     44px row carrying its current value, each opening its own screen with
+     one group of choices and the way back at the top. One decision per
+     screen, because a phone shows one thing at a time and a thumb needs the
+     target.
+
+     From 1024px it is a PAGE: the same section list as a nav down the left,
+     the chosen section's rows on the right, everything in view without a
+     drill-in, and rows at 38px because a mouse points where a thumb cannot.
+     The rows are the same components; only the composition and the three
+     density properties differ. */
+  const wide = useViewport() === 'desktop'
   const items = useSettingsItems()
+  const values = useSettingsValues()
   const { section } = useParams()
 
   /* An address naming a section that does not exist -- a stale bookmark, a
@@ -87,9 +102,12 @@ export default function SettingsPage() {
      honest answer is the list of what IS here. On a wide viewport the list is
      not a page, so it falls to Appearance the way the dialog does. */
   const found = items.find((i) => i.id === section)
-  const tab: SettingsTab | null = found
-    ? (found.id as SettingsTab)
-    : phone ? null : 'appearance'
+  /* A LIST AT EVERY WIDTH. The desktop used to land on Appearance under a
+     strip of tabs; the phone drilled in. One shape now: /settings is the
+     list, a section is a page with the way back at the top. Measured before
+     the change, the desktop landing carried 48 controls; the list carries
+     one per section. */
+  const tab: SettingsTab | null = found ? (found.id as SettingsTab) : wide ? 'appearance' : null
 
   /* ON A PHONE, A SECTION IS A SCREEN, AND BACK LEAVES IT.
 
@@ -100,14 +118,17 @@ export default function SettingsPage() {
      from a section jumped straight out of Settings to wherever the person
      had come from. Pushed on a phone, so Back returns to the list, and the
      list's own Back leaves. */
+  /* Pushed on a phone so Back returns to the list; replaced on a desktop,
+     where the list is beside the page and Back should leave Settings rather
+     than walk its sections. */
   const open = useCallback((id: string) => {
-    navigate(`/settings/${id}`, { replace: !phone })
-  }, [navigate, phone])
+    navigate(`/settings/${id}`, { replace: wide })
+  }, [navigate, wide])
 
   const backToList = useCallback(() => {
-    if (phone && window.history.length > 1) navigate(-1)
+    if (window.history.length > 1) navigate(-1)
     else navigate('/settings', { replace: true })
-  }, [navigate, phone])
+  }, [navigate])
 
   /* Where a page says it is finished. The only caller is Arrange, on the
      dashboard section, which wants the settings surface out of the way so the
@@ -201,52 +222,66 @@ export default function SettingsPage() {
           EDGE,
         )}
       >
-        <header className={cn('border-b px-[16px] py-4 sm:px-7 sm:py-5', SEAM)}>
-          {/* WHERE YOU ARE, AND THE WAY BACK, IN THAT ORDER -- the same header
-              shape the dialog uses inside a section, for the same reason: the
-              name of the surface you are returning to belongs ON the control
-              that returns you to it.
-
-              44px is stated in pixels and not in rem on purpose. The root font
-              here is 14px, so `min-h-11` -- 2.75rem -- computes to 38.5px and
-              lands under the touch floor. That substitution has caused three
-              separate bugs in this codebase; anything that has to clear a
-              finger or a device edge is written in px. */}
-          {phone && tab !== null && (
+        <header className={cn('border-b px-[16px] py-[12px] sm:px-[24px]', SEAM)}>
+          {/* THE NAME OF WHERE YOU ARE, AND NOTHING ELSE. The line under the
+              title ("Everything you can change from here, and where each
+              change lands") was a sentence about the page on the page; the
+              section's note repeated the row that opened it. Inside a
+              section, the way back sits above the name, labelled with the
+              name of the list it returns to. 44px in pixels: `min-h-11` is
+              38.5px on this 14px root. */}
+          {tab !== null && !wide && (
             <button
               type="button"
               onClick={backToList}
               className={cn(
-                '-ml-2 mb-1 flex min-h-[44px] items-center gap-1 rounded-[8px] pl-1.5 pr-2.5',
-                'text-[13px] transition-colors', INK, WASH, RING,
+                '-ml-[8px] flex min-h-[44px] items-center gap-1 rounded-[8px] pl-[6px] pr-[10px]',
+                'text-[15px] transition-colors', INK, WASH, RING,
               )}
             >
               <ChevronLeft className="size-4 shrink-0" aria-hidden="true" />
               {t('bento.settings.label')}
             </button>
           )}
-          <h1 className={cn('text-[21px] font-semibold', INK)}>
-            {phone && found ? found.label : t('bento.settings.label')}
+          <h1 className={cn('text-[20px] font-semibold', INK)}>
+            {found && !wide ? found.label : t('bento.settings.label')}
           </h1>
-          <p className={cn('mt-0.5 text-[13px]', INK)}>
-            {found
-              ? found.note
-              : 'Everything you can change from here, and where each change lands.'}
-          </p>
         </header>
 
         {/* The wide strip, unchanged and shared with the dialog. It is
             `md:flex` inside SettingsNav, so on a phone it draws nothing and
             the list below is the only navigation -- two navigations for one
             set of pages is the thing this dialog already learnt not to do. */}
-        <SettingsNav items={items} tab={tab} onPick={(id) => open(id)} />
-
-        <div className="px-[16px] py-5 sm:px-7 sm:py-6">
-          {tab === null && <FullScreenOffer />}
-          {tab === null
-            ? <SettingsSectionList items={items} onOpen={open} bleed={phone} />
-            : <SettingsPane tab={tab} onClose={done} />}
-        </div>
+        {/* Rows carry their own 16px inset, so the sheet adds none; on a
+            wide card the rows sit 8px in so their rules stop short of the
+            card's own edge. */}
+        {wide ? (
+          /* THE PAGE. Nav left, the section right, both in view. Density
+             properties set once here, in pixels, and read by every row. */
+          <div
+            className="grid grid-cols-[240px_minmax(0,1fr)]"
+            style={{ ['--srow-h' as string]: '38px', ['--srow-py' as string]: '6px', ['--sband-h' as string]: '32px' }}
+          >
+            <nav aria-label="Settings sections" className={cn('border-r py-[8px]', SEAM)}>
+              <SettingsSectionList items={items} onOpen={open} current={tab} />
+            </nav>
+            <div className="min-w-0 px-[8px] py-[8px]">
+              <h2 className={cn('px-[16px] pt-[6px] pb-[8px] text-[15px] font-semibold', INK)}>
+                {found?.label ?? items[0]?.label}
+              </h2>
+              <SettingsPane tab={tab} onClose={done} />
+            </div>
+          </div>
+        ) : (
+          /* THE NAVIGATION. The list, or one section with the way back in
+             the header; 44px rows, the defaults. */
+          <div className="py-[8px]">
+            {tab === null && <FullScreenOffer />}
+            {tab === null
+              ? <SettingsSectionList items={items} onOpen={open} values={values} />
+              : <SettingsPane tab={tab} onClose={done} />}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -288,47 +323,16 @@ export default function SettingsPage() {
 function FullScreenOffer() {
   const { show, accept, dismiss } = useFullScreenInvite()
   if (!show) return null
-
+  /* Two rows, not a card with a paragraph: the offer and the way to decline
+     it, each a 44px target, each saying what it does in its own words. */
   return (
-    <div
-      className={cn(
-        'mb-4 rounded-[12px] border p-[14px]',
-        EDGE, INK,
-        // The card's own ground, a shade off the sheet it sits on, so it reads
-        // as a thing that arrived rather than a paragraph of the page. Mixed
-        // from the ink, which is the one colour every palette guarantees
-        // against this card, and at 6% it moves the ground without touching
-        // the 21:1 the ink measures on it.
-        'bg-[color-mix(in_srgb,var(--bento-ink)_6%,transparent)]',
-      )}
-    >
-      <p className="text-[13.5px] font-medium">Use the whole screen</p>
-      <p className="mt-1 text-[12.5px]">
-        Your browser is keeping about an eighth of this screen for its own bar.
-        Full screen gives it back to the dashboard.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={accept}
-          className={cn(
-            'inline-flex min-h-[44px] items-center rounded-[10px] border px-3.5',
-            'text-[12.5px] font-medium transition-colors', CHOSEN, RING,
-          )}
-        >
-          Enter full screen
-        </button>
-        <button
-          type="button"
-          onClick={dismiss}
-          className={cn(
-            'inline-flex min-h-[44px] items-center rounded-[10px] border px-3.5',
-            'text-[12.5px] transition-colors', EDGE, INK, WASH, RING,
-          )}
-        >
-          Not now
-        </button>
-      </div>
-    </div>
+    <Rows className={cn('mb-[8px] border-b', SEAM)}>
+      <NavRow
+        label="Use the whole screen"
+        helper="The browser keeps about an eighth of the screen for its bar."
+        onClick={accept}
+      />
+      <NavRow label="Not now" onClick={dismiss} />
+    </Rows>
   )
 }

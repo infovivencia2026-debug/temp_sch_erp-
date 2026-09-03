@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Building2, Check, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, MessageSquare,
-  Minimize2, Minus, Palette, Plus, ShieldCheck, Sliders, Type, UserCircle, X,
-  Contrast as RotateCcw,
+  Building2, ChevronLeft, LayoutGrid, MessageSquare,
+  Palette, ShieldCheck, Sliders, Type, UserCircle, X,
 } from 'lucide-react'
 import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
@@ -15,9 +14,10 @@ import {
 import { useT } from '@/lib/i18n'
 import {
   ColourPanel,
-  INK, EDGE, TRACK, WASH, RING, CHOSEN, SLIDER, SEAM, SURFACE,
+  INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
+import { Rows, Row, NavRow, SelectRow, SliderRow, SwitchRow } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
@@ -39,7 +39,6 @@ import { useOverlayHistory } from '@/lib/overlay-history'
    The specimen is the same string in every card on purpose. Comparison needs a
    constant; fifteen different sample sentences would be fifteen different
    questions. */
-const SPECIMEN = 'Aa Bb 12,482 · ₹8.42Cr'
 
 /* One row of pills per axis.
 
@@ -58,87 +57,19 @@ const SPECIMEN = 'Aa Bb 12,482 · ₹8.42Cr'
     Committing on every input event rather than on release is deliberate: the
     whole point of a continuous scale is watching the page answer as you drag
     it, and the write is one custom property and one localStorage line. */
-const STEP =
-  'grid size-7 shrink-0 place-items-center rounded-full border transition-colors ' +
-  'hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
   const { appearance, setScale } = useAppearance()
   const r = SCALE_RANGE[axis]
-  const v = appearance.scales[axis]
-
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
-      {/* WRAPS, BECAUSE AT 390 IT DID NOT.
-
-          Six things in a row that refuses to wrap -- minus, track, plus, the
-          percentage and the 100% button -- needed more than the 275px the
-          panel has inside its padding on a phone, so the reset button sat past
-          the right edge of the scroller with nothing to say it was there. The
-          same defect as the tab strip, one level down and one control wide.
-          Wrapping puts it on a second line instead, which costs a row of
-          height on the width that has height to spare and nothing at all on
-          the widths where it already fitted. */}
-      <div className="flex min-w-[180px] flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-        {/* Minus and plus either side of the track.
-
-            A slider is good at "somewhere around here" and bad at "one step
-            more" — the thumb is 16px and a 1% change is a pixel of travel. The
-            buttons give the same axis a precise gesture without taking the coarse
-            one away, which is why they flank the track rather than replace it. 5%
-            a press: visible, and not so large that three presses cross the whole
-            range. */}
-        <button
-          type="button"
-          onClick={() => setScale(axis, Math.max(r.min, Math.round((v - 0.05) * 100) / 100))}
-          disabled={v <= r.min}
-          aria-label={`${label} smaller`}
-          className={cn(STEP, INK)}
-        >
-          <Minus className="size-3.5" aria-hidden="true" />
-        </button>
-        <input
-          type="range"
-          min={r.min}
-          max={r.max}
-          step={r.step}
-          value={v}
-          aria-label={label}
-          onChange={(e) => setScale(axis, Number(e.target.value))}
-          /* The track was `bg-border`, which is the palette's hairline: it
-             measured 1.21-1.33:1 against the card in all four, a slider you
-             cannot find. Mixed from the ink instead, with the two-tone
-             handle. */
-          className={cn('h-1.5 flex-1 cursor-pointer appearance-none rounded-full', TRACK, SLIDER, RING)}
-        />
-        <button
-          type="button"
-          onClick={() => setScale(axis, Math.min(r.max, Math.round((v + 0.05) * 100) / 100))}
-          disabled={v >= r.max}
-          aria-label={`${label} bigger`}
-          className={cn(STEP, INK)}
-        >
-          <Plus className="size-3.5" aria-hidden="true" />
-        </button>
-        <span className={cn('w-[52px] shrink-0 text-right text-[12.5px] font-medium tabular-nums', INK)}>
-          {Math.round(v * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => setScale(axis, 1)}
-          disabled={v === 1}
-          aria-label={`Reset ${label}`}
-          className={cn(
-            'shrink-0 rounded-full border px-2 py-0.5 text-[11px]',
-            'transition-colors disabled:opacity-30', EDGE, WASH, RING, INK,
-          )}
-        >
-          100%
-        </button>
-      </div>
-    </div>
+    <SliderRow
+      label={label}
+      value={appearance.scales[axis]}
+      min={r.min}
+      max={r.max}
+      step={r.step}
+      onChange={(v) => setScale(axis, v)}
+    />
   )
 }
 
@@ -154,185 +85,56 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
 
    Both states are shown and the chosen one is filled. With two options that
    costs one extra word of width and removes the question entirely. */
-function Choice<T extends string>({
-  label,
-  value,
-  options,
-  onPick,
-  name,
-}: {
+function Choice<T extends string>(props: {
   label: string
   value: T
   options: readonly T[]
   onPick: (v: T) => void
   name: (v: T) => string
+  helper?: React.ReactNode
 }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
-      <div className={cn('flex items-center gap-1 rounded-full border p-1', EDGE)}>
-        {options.map((o) => {
-          const on = o === value
-          return (
-            <button
-              key={o}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onPick(o)}
-              className={cn(
-                'rounded-full px-3.5 py-1 text-[12.5px] transition-colors',
-                RING,
-                on ? `${CHOSEN} font-medium` : cn(WASH, INK),
-              )}
-            >
-              {name(o)}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
+  return <SelectRow {...props} />
 }
 
-function Axis<T extends string>({
-  label,
-  value,
-  options,
-  onPick,
-  name,
-}: {
+function Axis<T extends string>(props: {
   label: string
   value: T
   options: readonly T[]
   onPick: (v: T) => void
   name: (v: T) => string
+  helper?: React.ReactNode
 }) {
-  /* A scale, not a row of buttons.
-
-     Every one of these axes is ORDERED — smaller to larger, tighter to looser,
-     flatter to deeper — and a row of named pills asked people to read four or
-     five labels to express "a bit more". It also grew the dialog sideways in
-     proportion to how many steps an axis happened to have, so the axis with
-     the most options looked like the most important one.
-
-     Minus and plus need no reading, and the current step is stated between
-     them, so nothing is hidden — only the four you did not choose. */
-  const at = options.indexOf(value)
-  const step = (d: number) => {
-    const next = options[Math.min(options.length - 1, Math.max(0, at + d))]
-    if (next && next !== value) onPick(next)
-  }
-  const arrow = cn(
-    'grid size-7 shrink-0 place-items-center rounded-full border transition-colors',
-    'disabled:opacity-30 disabled:hover:bg-transparent',
-    EDGE, WASH, RING, INK,
-  )
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
-      <p className={cn('w-[104px] shrink-0 text-[13px] font-medium', INK)}>{label}</p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => step(-1)}
-          disabled={at <= 0}
-          aria-label={`${label} down`}
-          className={arrow}
-        >
-          <Minus className="size-3.5" aria-hidden="true" />
-        </button>
-
-        {/* Fixed width so the two arrows do not shuffle sideways as the word
-            between them changes length. */}
-        <span
-          role="status"
-          aria-live="polite"
-          className={cn('w-[104px] text-center text-[12.5px] font-medium', INK)}
-        >
-          {name(value)}
-        </span>
-
-        <button
-          type="button"
-          onClick={() => step(1)}
-          disabled={at >= options.length - 1}
-          aria-label={`${label} up`}
-          className={arrow}
-        >
-          <Plus className="size-3.5" aria-hidden="true" />
-        </button>
-
-        {/* The position on the scale, which the words alone no longer give. */}
-        <span aria-hidden="true" className="flex items-center gap-1">
-          {options.map((o) => (
-            <span
-              key={o}
-              className={cn(
-                'h-1 rounded-full transition-all',
-                /* Both marks are ink now: the current step solid, the rest at
-                   the track's weight. They were the accent and the hairline,
-                   and on the default palette that is a pale green pip on
-                   paper beside pips measuring 1.29:1. */
-                o === value ? 'w-4 bg-[var(--bento-ink)]' : cn('w-1.5', TRACK),
-              )}
-            />
-          ))}
-        </span>
-      </div>
-    </div>
-  )
+  return <SelectRow {...props} />
 }
 
 /** Toggle panel: lets the user hide individual dock category icons. */
 function DockItemsToggle() {
   const role = useActiveRole()
   const { appearance, set } = useAppearance()
-
-  // Collect unique workspace names this role has access to
   const workspaces: string[] = []
   for (const s of role?.sections ?? []) {
-    if (!workspaces.includes(s.workspace || 'Other')) {
-      workspaces.push(s.workspace || 'Other')
-    }
+    if (!workspaces.includes(s.workspace || 'Other')) workspaces.push(s.workspace || 'Other')
   }
   if (!workspaces.length) return null
-
   const hidden = new Set(
-    (appearance.hiddenDockItems ?? '').split(',').map(s => s.trim()).filter(Boolean)
+    (appearance.hiddenDockItems ?? '').split(',').map((x) => x.trim()).filter(Boolean),
   )
-
   const toggle = (name: string) => {
     const next = new Set(hidden)
     if (next.has(name)) next.delete(name)
     else next.add(name)
     set('hiddenDockItems', [...next].join(','))
   }
-
+  /* One switch per category, as rows: on means the category has a place in
+     the dock. A row of pills with a tick glyph in the label was a control
+     you had to decode. */
   return (
-    <div className="mt-3">
-      <p className={cn('mb-2 text-[12px]', INK)}>Visible categories in dock</p>
-      <div className="flex flex-wrap gap-2">
-        {workspaces.map(name => {
-          const visible = !hidden.has(name)
-          return (
-            <button
-              key={name}
-              type="button"
-              onClick={() => toggle(name)}
-              className={cn(
-                'rounded-full border px-3 py-1 text-[12px] transition-colors',
-                RING,
-                visible
-                  ? `${CHOSEN} font-medium`
-                  : cn('border-dashed', EDGE, WASH, INK),
-              )}
-            >
-              {visible ? '✓ ' : ''}{name}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <>
+      <p className="px-[16px] pt-[18px] pb-[4px] text-[12.5px] text-[var(--bento-ink)]">In the dock</p>
+      {workspaces.map((name) => (
+        <SwitchRow key={name} label={name} on={!hidden.has(name)} onToggle={() => toggle(name)} />
+      ))}
+    </>
   )
 }
 
@@ -372,6 +174,9 @@ function DockItemsToggle() {
    that principal can actually reach today. When the setup completes and the
    grants arrive, the rows appear with no client release. */
 type LinkSpec = {
+  /** Show `note` under the row. Only where the catalogue's own name does not
+      say what the screen is for. */
+  explain?: boolean
   /** section slug, then feature slug, as the catalogue names them.
 
       Absent on the two rows below that are not catalogue features at all --
@@ -456,10 +261,12 @@ const LINK_GROUPS: LinkGroup[] = [
          it. */
       {
         at: ['transport', 'driver_phone_tracker'],
+        explain: true,
         note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
       },
       {
         at: ['payments_devices', 'gps_hardware_integration'],
+        explain: true,
         note: 'Whether parents may watch the bus live, how often a driver phone reports, and how long the trail is kept.',
       },
     ],
@@ -579,7 +386,9 @@ const LINK_GROUPS: LinkGroup[] = [
   },
 ]
 
-type ResolvedLink = { href: string; name: string; note: string }
+type ResolvedLink = { href: string; name: string; note: string
+  explain?: boolean
+}
 
 /* Resolving a row against the catalogue the server sent THIS user.
 
@@ -627,6 +436,7 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
               href: featurePath(role.key, section.slug, feature.slug),
               name: feature.name,
               note: spec.note,
+              explain: spec.explain,
             }
           }
         }
@@ -668,43 +478,14 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
    intent every time one of these is pressed, and a hard navigation guarantees
    the dialog, the overlay and the dock's lifted state all go with it. */
 function LinkRow({ link }: { link: ResolvedLink }) {
-  return (
-    <a
-      href={link.href}
-      className={cn(
-        'flex min-h-[44px] items-center gap-3 px-3.5 py-3 transition-colors',
-        WASH, RING, INK,
-      )}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-medium">{link.name}</span>
-        <span className="mt-0.5 block text-[12px]">{link.note}</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
-    </a>
-  )
+  return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} />
 }
 
-function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[] }) {
-  const Icon = group.icon
+function LinkSection({ links }: { group: LinkGroup; links: ResolvedLink[] }) {
   return (
-    <section>
-      {/* Wide only. On a phone the panel header IS this heading -- the section
-          name at title size with its own line under it -- and printing the
-          name a second time nine pixels below itself is the kind of repetition
-          that makes a narrow screen feel full before it has said anything. */}
-      <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
-        <Icon className="size-4" aria-hidden="true" />
-        {group.label}
-      </h3>
-      <p className={cn('mb-4 hidden text-[12px] md:block', INK)}>{group.blurb}</p>
-      <div className={cn(
-        'divide-y overflow-hidden rounded-[10px] border', EDGE,
-        'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
-      )}>
-        {links.map((l) => <LinkRow key={l.href} link={l} />)}
-      </div>
-    </section>
+    <Rows>
+      {links.map((l) => <LinkRow key={l.href} link={l} />)}
+    </Rows>
   )
 }
 
@@ -845,52 +626,46 @@ export type ListItem = { id: string; label: string; icon: typeof Building2; note
    impossible to unsee. Anything that has to line up with a device edge or a
    sibling's edge is written in px in this codebase, and forgetting that has
    now caused five separate bugs here. */
-export function SettingsSectionList({ items, onOpen, bleed = false }: {
+export function SettingsSectionList({ items, onOpen, values, current }: {
   items: ListItem[]
   onOpen: (id: string) => void
+  /** Kept for the dialog, which still passes it; rows carry their own inset now. */
   bleed?: boolean
+  /** The current value a section row shows on a phone -- the row IS the
+      explanation: "Appearance  Focus", "Dock  Default". */
+  values?: Partial<Record<string, string>>
+  /** The section on screen, when the list is a desktop nav. */
+  current?: string | null
 }) {
   return (
-    <div
-      data-settings-list=""
-      className={cn(
-        'divide-y', 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
-        bleed && '-mx-[16px]',
-      )}
-    >
+    <Rows>
       {items.map((item) => {
         const Icon = item.icon
         return (
-          <button
+          <NavRow
             key={item.id}
-            type="button"
+            label={item.label}
+            value={values?.[item.id]}
+            current={current === item.id}
+            icon={<Icon className="size-4" aria-hidden="true" />}
             onClick={() => onOpen(item.id)}
-            className={cn(
-              'flex min-h-[56px] w-full items-start gap-3 py-3 text-left',
-              bleed ? 'px-[16px]' : 'rounded-[8px] px-2',
-              'transition-colors', INK, WASH, RING,
-            )}
-          >
-            {/* Both marks sit on the NAME's line, not in the middle of the
-                row. Centred against a two-line block they float between the
-                two sentences and belong to neither, and the second line then
-                starts further left than the first thing above it. Pinned to
-                the top the whole row has one horizontal band -- icon, name,
-                chevron -- with the description hanging beneath it, so the
-                names read down the list as one column and the descriptions as
-                a second directly under them. The 2px is optical: a 16px glyph
-                against a 13.5px line sits a shade high without it. */}
-            <Icon className="mt-[2px] size-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-medium">{item.label}</span>
-              <span className="mt-0.5 block text-[12px]">{item.note}</span>
-            </span>
-            <ChevronRight className="mt-[2px] size-4 shrink-0" aria-hidden="true" />
-          </button>
+          />
         )
       })}
-    </div>
+    </Rows>
   )
+}
+
+/** What each section row says at a glance. Only where one value sums the
+    section up honestly; a section with several equal choices says nothing. */
+export function useSettingsValues(): Partial<Record<string, string>> {
+  const t = useT()
+  const { appearance } = useAppearance()
+  const { layout: frame } = useFrameLayout()
+  return {
+    appearance: t(`bento.settings.layout.${frame}`),
+    dock: ({ compact: 'Compact', default: 'Default', large: 'Large' }[appearance.dockSize]),
+  }
 }
 
 /* THE LIST OF PAGES, OWNED BY NEITHER SURFACE.
@@ -1026,214 +801,102 @@ export function SettingsPane({
   const { layout: frame, setLayout: setFrame } = useFrameLayout()
   const sections = useSettingsLinks()
   const t = useT()
+  const face = typefaceById(appearance.typeface)
   return (
     <>
-          {tab === 'appearance' && (<div>
-          {/* LAYOUT FIRST, ABOVE THE TYPEFACE CARDS.
-
-              It sat at the foot of the axis stack, below fifteen typeface
-              specimens and five scales -- past the fold on most windows, for
-              the one control here that changes the shape of the whole screen
-              rather than its finish. Everything else on this page is a matter
-              of degree; this is the frame they are all applied to, so it is
-              asked first and the rest follows. */}
-          <div className={cn('mb-6 border-b pb-2', SEAM)}>
-            <Choice<Layout>
-              label={t('bento.settings.layout')}
-              value={frame}
-              options={LAYOUTS}
-              onPick={setFrame}
-              name={(v) => t(`bento.settings.layout.${v}`)}
-            />
-          </div>
-
-          <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-            <Type className="size-4" aria-hidden="true" />
-            {t('bento.settings.typeface')}
-          </h3>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {TYPEFACES.map((face) => {
-              const on = appearance.typeface === face.id
-              return (
-                <button
-                  key={face.id}
-                  type="button"
-                  onClick={() => set('typeface', face.id)}
-                  aria-pressed={on}
-                  /* CHOSEN IS AN OUTLINE HERE, NOT A FILL.
-
-                     The card's whole job is to show a face set in itself, so
-                     it cannot be inverted the way the other chosen states in
-                     these dialogs are — the specimen has to stay on the paper
-                     it will be read on. So the ink does the marking from the
-                     edge instead.
-
-                     It was `border-primary ring-primary`, which the stylesheet
-                     resolves to the mint accent: 1.29:1 against the card, so
-                     the one card in fifteen that is selected was marked with a
-                     boundary you cannot see. The ink is 21:1 in every palette,
-                     and the check beside the name says the same thing a second
-                     way for anybody who cannot use the outline. */
-                  className={cn(
-                    'rounded-[12px] border p-4 text-left transition-colors',
-                    RING, INK,
-                    on
-                      ? '!border-[var(--bento-ink)] ring-1 ring-[var(--bento-ink)]'
-                      : cn(EDGE, WASH),
-                  )}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-medium">{face.name}</span>
-                    {on && <Check className="size-4 shrink-0" aria-hidden="true" />}
-                  </span>
-                  {/* The specimen, set in the face it is offering. font-feature
-                      settings are left alone: a face's default figures are the
-                      ones somebody will actually get. */}
-                  <span
-                    className="mt-1 block text-[19px] leading-snug"
-                    style={{ fontFamily: face.stack }}
-                  >
-                    {SPECIMEN}
-                  </span>
-                  <span className={cn('mt-1.5 block text-[12px]', INK)}>
-                    {face.note}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <p className={cn('mt-5 text-[12px]', INK)}>
-            {t('bento.appearance.font_note', {
-              name: typefaceById(appearance.typeface).name,
-            })}
-          </p>
-
-          <div className={cn('mt-7 divide-y border-t pt-1', SEAM, 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
-            <Scale axis="text" label={t('bento.settings.text')} />
-            <Scale axis="density" label={t('bento.settings.density')} />
-            <Scale axis="corners" label={t('bento.settings.corners')} />
-            <Scale axis="borders" label={t('bento.settings.borders')} />
-            <Scale axis="shadow" label={t('bento.settings.shadow')} />
-            <Axis<Contrast>
-              label={t('bento.settings.contrast')}
-              value={appearance.contrast}
-              options={CONTRASTS}
-              onPick={(v) => set('contrast', v)}
-              name={(v) => t(`bento.settings.contrast.${v}`)}
-            />
-            {/* The frame, which used to be a pane of its own behind the
-                settings menu.
-
-                It was the only thing left in that pane once the theme rows
-                went, so the menu carried a row called Appearance that led to a
-                single choice — and a second row, also called Appearance, that
-                led here. Two identical labels going to different places is not
-                a hierarchy, it is a coin toss. Whether the screen is framed or
-                bare is an answer to the same question the axes above answer,
-                so it is asked in the same place. */}
-            {/* Frame is two states as well -- premium or focus -- so it takes
-                the toggle for the same reason layout did. Contrast above it
-                stays an axis: normal, medium, high is a scale, and "a bit
-                more" is exactly what somebody adjusting it means. */}
-            {/* The personality: one decision that moves both layouts and both
-                polarities at once. Ordered as the brief listed them, trust to
-                machine, so the arrows walk a gradient of mood rather than an
-                alphabet. */}
-            <Axis<Personality>
-              label={t('bento.settings.personality')}
-              value={personality}
-              options={PERSONALITIES}
-              onPick={setPersonality}
-              name={(v) => t(`bento.settings.personality.${v}`)}
-            />
-            <Choice<Skin>
-              label={t('bento.settings.frame')}
-              value={skin}
-              options={SKINS}
-              onPick={setSkin}
-              name={(v) => t(`bento.settings.skin.${v}`)}
-            />
-          </div>
-
+      {tab === 'appearance' && (
+        /* ROWS, IN THE ORDER SOMEBODY DECIDES THEM. The frame first, because
+           it changes the shape of the screen the rest is applied to; then the
+           typeface, whose value is set in the face itself so no specimen
+           cards are needed; then the five continuous axes; then the three
+           named choices; then the two actions. No heading over any of it --
+           the page's own title says Appearance -- and no paragraph: the only
+           helper is on Contrast, whose name does not say what it trades. */
+        <Rows>
+          <Choice<Layout>
+            label={t('bento.settings.layout')}
+            value={frame}
+            options={LAYOUTS}
+            onPick={setFrame}
+            name={(v) => t(`bento.settings.layout.${v}`)}
+          />
+          <SelectRow
+            label={t('bento.settings.typeface')}
+            value={appearance.typeface}
+            options={TYPEFACES.map((f) => f.id)}
+            name={(id) => typefaceById(id).name}
+            onPick={(id) => set('typeface', id)}
+            valueStyle={{ fontFamily: face.stack }}
+          />
+          <Scale axis="text" label={t('bento.settings.text')} />
+          <Scale axis="density" label={t('bento.settings.density')} />
+          <Scale axis="corners" label={t('bento.settings.corners')} />
+          <Scale axis="borders" label={t('bento.settings.borders')} />
+          <Scale axis="shadow" label={t('bento.settings.shadow')} />
+          <Axis<Contrast>
+            label={t('bento.settings.contrast')}
+            value={appearance.contrast}
+            options={CONTRASTS}
+            onPick={(v) => set('contrast', v)}
+            name={(v) => t(`bento.settings.contrast.${v}`)}
+            helper="Higher makes text darker and rules heavier."
+          />
+          <Axis<Personality>
+            label={t('bento.settings.personality')}
+            value={personality}
+            options={PERSONALITIES}
+            onPick={setPersonality}
+            name={(v) => t(`bento.settings.personality.${v}`)}
+          />
+          <Choice<Skin>
+            label={t('bento.settings.frame')}
+            value={skin}
+            options={SKINS}
+            onPick={setSkin}
+            name={(v) => t(`bento.settings.skin.${v}`)}
+          />
           <AppearanceActions onClose={onClose} />
-
-          {/* Colour, in the same dialog rather than behind a second door.
-
-              Typeface, density and colour are three answers to one question —
-              how should this look — and splitting them across two windows made
-              somebody close one to reach the other. */}
-          </div>)}
-          {tab === 'colour' && (
-          <section>
-            <h3 className="mb-3 hidden md:flex items-center gap-2 text-[13px] font-semibold">
-              <Palette className="size-4" aria-hidden="true" />
-              {t('bento.colour.title')}
-            </h3>
-            <ColourPanel onPickingChange={onPickingChange} />
-          </section>
-          )}
-          {tab === 'dock' && (
-          <section ref={dockRef}>
-            <h3 className="mb-4 hidden items-center gap-2 text-[13px] font-semibold md:flex">
-              <LayoutGrid className="size-4" aria-hidden="true" />
-              Dock
-            </h3>
-            <div className={cn(
-              'divide-y border-t', SEAM,
-              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
-            )}>
-              <Axis<DockSize>
-                label="Bar size"
-                value={appearance.dockSize}
-                options={DOCK_SIZES}
-                onPick={(v) => set('dockSize', v)}
-                name={(v) => ({ compact: 'Compact', default: 'Default', large: 'Large' }[v])}
-              />
-              <Axis<IconSize>
-                label="Icon size"
-                value={appearance.iconSize}
-                options={ICON_SIZES}
-                onPick={(v) => set('iconSize', v)}
-                name={(v) => ({ small: 'Small', default: 'Default', large: 'Large' }[v])}
-              />
-            </div>
+        </Rows>
+      )}
+      {tab === 'colour' && (
+        <section>
+          <ColourPanel onPickingChange={onPickingChange} />
+        </section>
+      )}
+      {tab === 'dock' && (
+        <section ref={dockRef}>
+          <Rows>
+            <Axis<DockSize>
+              label="Bar size"
+              value={appearance.dockSize}
+              options={DOCK_SIZES}
+              onPick={(v) => set('dockSize', v)}
+              name={(v) => ({ compact: 'Compact', default: 'Default', large: 'Large' }[v])}
+            />
+            <Axis<IconSize>
+              label="Icon size"
+              value={appearance.iconSize}
+              options={ICON_SIZES}
+              onPick={(v) => set('iconSize', v)}
+              name={(v) => ({ small: 'Small', default: 'Default', large: 'Large' }[v])}
+            />
             <DockItemsToggle />
-          </section>
-          )}
-          {tab === 'dashboard' && (
-          <section ref={dashRef}>
-            <h3 className="mb-1 hidden items-center gap-2 text-[13px] font-semibold md:flex">
-              <Sliders className="size-4" aria-hidden="true" />
-              Dashboard Widgets
-            </h3>
-            <p className={cn('mb-4 text-[12px]', INK)}>
-              Add, remove, resize and reorder the cards on this dashboard.
-            </p>
-            {/* The board's type size lives with the board, not with the app's
-                text size on the Appearance tab. They are two settings. */}
-            <div className={cn('mb-4 divide-y border-y', SEAM,
-              'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]')}>
-              <Scale axis="boardText" label={t('bento.settings.board_text')} />
-            </div>
+          </Rows>
+        </section>
+      )}
+      {tab === 'dashboard' && (
+        <section ref={dashRef}>
+          <Rows>
+            <Scale axis="boardText" label={t('bento.settings.board_text')} />
             <DashboardWidgets onArrange={onClose} />
-          </section>
-          )}
-
-          {/* The catalogue-driven pages.
-
-              One section per tab rather than all of them on one scroller: the
-              reason the display settings were split into pages in the first
-              place applies here too, and School is one row while Security is
-              four. Nothing renders for a group the user has no grant in, and
-              its tab was never drawn either, so there is no state in which
-              this pane is empty. */}
-          {sections.map(({ group, links }) => tab === group.id && (
-            <div key={group.id}>
-              <LinkSection group={group} links={links} />
-            </div>
-          ))}
+          </Rows>
+        </section>
+      )}
+      {sections.map(({ group, links }) => tab === group.id && (
+        <div key={group.id}>
+          <LinkSection group={group} links={links} />
+        </div>
+      ))}
     </>
   )
 }
@@ -1630,47 +1293,8 @@ export function AppearanceDialog({
    What is left here is the pair that stayed with the page they act on. */
 function AppearanceActions({ onClose }: { onClose: () => void }) {
   const t = useT()
-
-  /* Full screen, tracked rather than assumed.
-
-     The control has to say which way it goes, and the state can change without
-     it -- Escape and F11 both leave full screen without touching this dialog --
-     so it listens rather than remembering what it last asked for. */
-  /* AND NOT OFFERED AT ALL WHERE IT CANNOT HAPPEN.
-
-     What this button did on a phone: it called
-     `document.documentElement.requestFullscreen().catch(...)`
-     unconditionally. Measured on a real Android handset, that is three
-     different failures depending on where it runs, and two of them are
-     invisible.
-
-       - In the parent app's WebView, `document.fullscreenEnabled` is FALSE
-         while `requestFullscreen` is still a function. The call is made, the
-         promise rejects, the `.catch` eats it, and the control is a no-op
-         that reports success by saying nothing.
-       - On iOS Safari the method does not exist at all, because Safari has
-         never implemented fullscreen for arbitrary elements -- only <video>.
-         Calling it threw a TypeError inside the click handler, before any
-         promise existed to catch, and took the `onClose()` after it with it.
-       - In mobile Chrome, where it genuinely works, it closed the dialog
-         BEFORE knowing whether the browser had agreed. On the phone route
-         onClose is navigate(-1), so a refusal's only visible effect was
-         throwing somebody off the settings page.
-
-     lib/fullscreen carries the measurements and the one gate that separates
-     those three cases. The consequence here is that a control which cannot
-     work is not drawn: an absence is honest, and it leaves the reader free to
-     install the site to their home screen, which is how the platforms without
-     a fullscreen API lose their browser chrome. */
   const { supported, active: full, enter, exit } = useFullScreen()
-
   const toggleFull = () => {
-    /* The request goes first, with nothing awaited in front of it: the user
-       activation that authorises it is spent by the first await in a handler.
-       The dialog closes in the callback and only on success -- going full
-       screen to look at the dashboard and finding a settings window over it is
-       not what anybody meant by the button, but neither is being sent back a
-       page by a browser that said no. */
     if (full) {
       exit()
       onClose()
@@ -1678,41 +1302,17 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
       void enter().then((ok) => { if (ok) onClose() })
     }
   }
-
-  /* A border now, where the footer's buttons had none.
-
-     In the strip they were the only things on a bar of their own and read as
-     controls by position. On a page, below a stack of sliders and pills, an
-     unbordered label is just more text, so they take the same hairline edge
-     every other pressable thing in this dialog wears. `min-h-[44px]` because
-     they are on a phone page now rather than in desktop chrome. */
-  const ACTION = cn(
-    'flex min-h-[44px] items-center gap-2 rounded-[10px] border px-3.5 py-2 text-[12.5px]',
-    'transition-colors', EDGE, INK, WASH, RING,
-  )
-
   return (
-    <div className={cn('mt-6 flex flex-wrap items-center gap-2 border-t pt-4', SEAM)}>
-      {/* `supported || full` and not `supported` alone: a document that is
-          already full screen must keep its way out, whatever the answer to
-          "could you enter" has become since. */}
+    <>
       {(supported || full) && (
-        <button type="button" onClick={toggleFull} className={ACTION}>
-          {full
-            ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
-            : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
-          {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
-        </button>
+        <NavRow
+          label={t('bento.settings.fullscreen')}
+          value={full ? 'On' : 'Off'}
+          onClick={toggleFull}
+        />
       )}
-
-      {/* A way back. Enough axes live in this dialog at once that somebody
-          ends up somewhere they cannot retrace, and a settings window with no
-          exit from itself is a trap. */}
-      <button type="button" onClick={() => resetAppearance()} className={ACTION}>
-        <RotateCcw className="size-4 shrink-0" aria-hidden="true" />
-        {t('bento.settings.reset')}
-      </button>
-    </div>
+      <NavRow label={t('bento.settings.reset')} onClick={() => resetAppearance()} />
+    </>
   )
 }
 
@@ -1729,91 +1329,33 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
 function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
   const { dashboard, widgets, setArranging } = useBoard()
   const { layout, place, remove, reset } = useLayout(dashboard ?? 'none')
-
   if (!dashboard || widgets.length === 0) {
     return (
-      <div className={cn('rounded-[10px] border border-dashed p-4 text-[12.5px]', EDGE, INK)}>
-        This screen has no arrangeable dashboard. Open one of the dashboards — the
-        principal, finance, faculty, parent or student home — and these controls
-        will list its cards.
-      </div>
+      <Row label="Cards" helper="Open a dashboard first; its cards are listed here." />
     )
   }
-
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
-
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setArranging(true)
-            // The board is the thing being arranged, so the dialog covering it
-            // gets out of the way rather than asking to be dismissed.
-            onArrange()
-          }}
-          /* The accent on its own tint, which is the pairing that does not
-             work. `text-primary` resolves to the mint darkened toward the ink
-             and `bg-primary-soft` to the mint's own tint — and under the
-             default palette those are the same lime, so the label measured
-             2.76:1 on its own button. Inverted instead, the way every other
-             chosen state in these dialogs is: ink on card, 21:1 in every
-             palette, and no coloured word left on the surface. */
-          className={cn(
-            'rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
-            CHOSEN, RING,
-          )}
-        >
-          Arrange on the dashboard
-        </button>
-        {arranged && (
-          <button
-            type="button"
-            onClick={reset}
-            className={cn(
-              'rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
-              EDGE, WASH, RING, INK,
-            )}
-          >
-            Reset to default
-          </button>
-        )}
-      </div>
-
-      <ul className={cn(
-        'divide-y rounded-[10px] border', EDGE,
-        'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
-      )}>
-        {widgets.map((w) => {
-          const off = isRemoved(layout, w.id)
-          return (
-            <li key={w.id} className="flex items-center gap-3 px-3 py-2">
-              {/* "Off the board" is carried by the strike-through, which does
-                  not cost the label any contrast. It used to also drop to the
-                  muted tone, and a second, weaker signal for a state the first
-                  one already states is a row that is harder to read for
-                  nothing. */}
-              <span className={cn('flex-1 truncate text-[12.5px]', INK, off && 'line-through')}>
-                {w.label}
-              </span>
-              <span className={cn('shrink-0 text-[11px] tabular-nums', INK)}>
-                {off ? '—' : `${w.w}×${w.h}`}
-              </span>
-              <button
-                type="button"
-                onClick={() => (off ? place(w.id, DIMS[w.size].w, DIMS[w.size].h) : remove(w.id))}
-                className={cn(
-                  'shrink-0 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
-                  EDGE, WASH, RING, INK,
-                )}
-              >
-                {off ? 'Add' : 'Remove'}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+    <>
+      <NavRow
+        label="Arrange on the dashboard"
+        onClick={() => {
+          setArranging(true)
+          onArrange()
+        }}
+      />
+      {arranged && <NavRow label="Reset layout" onClick={reset} />}
+      {widgets.map((w) => {
+        const off = isRemoved(layout, w.id)
+        return (
+          <SwitchRow
+            key={w.id}
+            label={w.label}
+            on={!off}
+            onToggle={() => (off ? place(w.id, DIMS[w.size].w, DIMS[w.size].h) : remove(w.id))}
+          />
+        )
+      })}
+    </>
   )
 }
