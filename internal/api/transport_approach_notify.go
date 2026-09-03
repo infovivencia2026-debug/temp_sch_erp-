@@ -9,12 +9,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-/* The distance used for a guardian who has never opened the settings screen.
+/*
+The distance used for a guardian who has never opened the settings screen.
 
-   The same 800 m getChildBus hands the map, so the number a parent is shown
-   before they touch anything is the number that actually decides when they are
-   told. Two different defaults for the same setting is how a parent ends up
-   sure the alert is broken. */
+	The same 800 m getChildBus hands the map, so the number a parent is shown
+	before they touch anything is the number that actually decides when they are
+	told. Two different defaults for the same setting is how a parent ends up
+	sure the alert is broken.
+*/
 const defaultApproachProximityM = 800
 
 /*
@@ -171,6 +173,117 @@ func (s *Server) notifyApproaching(ctx context.Context, tx pgx.Tx, dev *busTrack
 			// Logged, not returned: see the function comment. A school with no
 			// provider set up still gets its bus tracked.
 			slog.Warn("approach notice not queued", "error", err,
+				"trip", trip, "student", student)
+		}
+	}
+}
+
+/*
+notifyTripStarted tells the guardians on a route that the bus has set off.
+
+	The moment the driver starts the run, before the bus has moved. The
+	approach notice above answers "it is nearly here"; this answers the
+	question a parent asks an hour earlier -- "has it left yet" -- so they can
+	get a child to the stop instead of watching a map that has not started
+	moving. Sent to every guardian on the route who has an account, not only
+	the ones who set an approach distance: leaving is a fact about the run, not
+	a proximity a family tuned.
+
+	Once per child per run, keyed on the trip and the student, and in-app only
+	like its sibling -- there is no push wired here, and an SMS per child per
+	run is a bill a school did not agree to. Failures are logged and swallowed:
+	the run is already recorded, and a courtesy notice that could not be queued
+	is not a reason to fail the driver's start.
+*/
+func (s *Server) notifyTripStarted(ctx context.Context, tx pgx.Tx, inst,
+	trip, route uuid.UUID, direction string) {
+
+	dirWord := "pickup"
+	if direction == "drop" {
+		dirWord = "drop-off"
+	}
+
+	var schoolName, routeName string
+	_ = tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName)
+	if err := tx.QueryRow(ctx, `SELECT name FROM routes WHERE id = $1`, route).Scan(&routeName); err != nil {
+		slog.Warn("trip-start notice: route name", "error", err, "trip", trip)
+		return
+	}
+
+	type target struct {
+		user    uuid.UUID
+		student uuid.UUID
+		name    string
+		stop    string
+	}
+	rows, qerr := tx.Query(ctx, `
+		SELECT g.user_id, ta.student_id,
+		       COALESCE(NULLIF(TRIM(st.first_name || ' ' || COALESCE(st.last_name,'')),''),
+		                'Your child'),
+		       COALESCE(rs.name, 'the stop')
+		  FROM transport_allocations ta
+		  JOIN students st ON st.id = ta.student_id
+		  JOIN student_guardians sg ON sg.student_id = ta.student_id
+		  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+		  LEFT JOIN route_stops rs
+		         ON rs.id = CASE WHEN $3 = 'drop' THEN ta.drop_stop_id
+		                         ELSE ta.pickup_stop_id END
+		 WHERE ta.institution_id = $1
+		   AND ta.route_id = $2
+		   AND ta.valid_from <= CURRENT_DATE
+		   AND (ta.valid_to IS NULL OR ta.valid_to >= CURRENT_DATE)
+		   AND st.status = 'active'`,
+		inst, route, direction)
+	if qerr != nil {
+		slog.Error("trip-start notice: read guardians", "error", qerr, "trip", trip)
+		return
+	}
+	var targets []target
+	for rows.Next() {
+		var t target
+		if err := rows.Scan(&t.user, &t.student, &t.name, &t.stop); err != nil {
+			rows.Close()
+			slog.Error("trip-start notice: scan guardian", "error", err, "trip", trip)
+			return
+		}
+		targets = append(targets, t)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		slog.Error("trip-start notice: read guardians", "error", err, "trip", trip)
+		return
+	}
+	if len(targets) == 0 {
+		return
+	}
+
+	set, err := s.loadProviders(ctx, tx, inst)
+	if err != nil {
+		slog.Warn("trip-start notice: providers", "error", err, "trip", trip)
+		return
+	}
+
+	for _, t := range targets {
+		student := t.student
+		user := t.user
+		if _, err := s.queueWith(ctx, tx, inst, set, SendRequest{
+			Channel:      "in_app",
+			TemplateCode: "transport.trip_started",
+			ToUserID:     &user,
+			StudentID:    &student,
+			Vars: map[string]any{
+				"student_name": t.name,
+				"route_name":   routeName,
+				"direction":    dirWord,
+				"stop_name":    t.stop,
+				"school_name":  schoolName,
+			},
+			SourceKind: "transport_trip",
+			SourceID:   &trip,
+			// One per child per run; the next run tells them again.
+			OccurrenceKey: fmt.Sprintf("started:%s:%s", trip, student),
+		}); err != nil {
+			slog.Warn("trip-start notice not queued", "error", err,
 				"trip", trip, "student", student)
 		}
 	}

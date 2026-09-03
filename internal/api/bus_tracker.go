@@ -812,6 +812,11 @@ func (s *Server) startBusTrackerTrip(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		// The families on this route learn the run has begun, in the same
+		// transaction that opened it: a trip that rolls back tells nobody.
+		// Best-effort inside, swallowing its own errors.
+		s.notifyTripStarted(r.Context(), tx, dev.Institution, tripID, route, req.Direction)
+
 		/* Ordered the way the bus will actually drive it.
 
 		   The afternoon run is the morning's sequence reversed. An ETA

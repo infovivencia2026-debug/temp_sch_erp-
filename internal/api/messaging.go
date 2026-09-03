@@ -788,6 +788,10 @@ var builtinTemplates = map[string]builtinTemplate{
 	   one thing to say. The distance is the parent's own setting read back, so
 	   a parent who set five hundred metres and gets a message four minutes out
 	   can see why. */
+	"transport.trip_started": {
+		Subject: "{{student_name}}'s bus has started",
+		Body:    "{{student_name}}'s {{direction}} bus on {{route_name}} has just started, heading to {{stop_name}}. You can follow it live now.\n\n{{school_name}}",
+	},
 	"transport.bus_approaching": {
 		Subject: "{{student_name}}'s bus is nearly at {{stop_name}}",
 		Body:    "{{student_name}}'s bus is about {{distance_m}} m from {{stop_name}}.\n\n{{school_name}}",
