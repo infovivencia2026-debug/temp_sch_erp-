@@ -1,10 +1,16 @@
-Sequence,Period,Starts,Ends,Break
-1,Period 1,09:00,09:45,No
-2,Period 2,09:45,10:30,No
-3,Short break,10:30,10:45,Yes
-4,Period 3,10:45,11:30,No
-5,Period 4,11:30,12:15,No
-6,Lunch,12:15,13:00,Yes
-7,Period 5,13:00,13:45,No
-8,Period 6,13:45,14:30,No
-9,Period 7,14:30,15:15,No
+Day,Classes,Sequence,Period,Starts,Ends,Break
+,,1,Period 1,09:00,09:45,No
+,,2,Period 2,09:45,10:30,No
+,,3,Short break,10:30,10:45,Yes
+,,4,Period 3,10:45,11:30,No
+,,5,Period 4,11:30,12:15,No
+,,6,Lunch,12:15,13:00,Yes
+,,7,Period 5,13:00,13:45,No
+,,8,Period 6,13:45,14:30,No
+,,9,Period 7,14:30,15:15,No
+Primary,"Nursery, Jr KG, Sr KG",1,Period 1,09:30,10:10,No
+Primary,"Nursery, Jr KG, Sr KG",2,Period 2,10:10,10:50,No
+Primary,"Nursery, Jr KG, Sr KG",3,Play break,10:50,11:20,Yes
+Primary,"Nursery, Jr KG, Sr KG",4,Period 3,11:20,12:00,No
+Primary,"Nursery, Jr KG, Sr KG",5,Lunch,12:00,12:40,Yes
+Primary,"Nursery, Jr KG, Sr KG",6,Period 4,12:40,13:20,No

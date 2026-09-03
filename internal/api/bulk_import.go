@@ -510,10 +510,21 @@ var importSpecs = map[string]importSpec{
 	/* The school day. sequence orders the grid, so it is required and has to
 	   be a number -- a period list sorted by name puts P10 before P2. */
 	"periods": {
-		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"sequence", "name", "starts_at", "ends_at", "is_break"},
+		Perm: rbac.AcademicsWrite,
+		/* A SCHOOL DOES NOT ALWAYS RUN ONE BELL.
+
+		   Primary starts later, finishes earlier and takes a longer lunch, and
+		   a sheet that can only describe one day forces the school to type the
+		   second one by hand -- which is the half that gets skipped, after
+		   which primary attendance is marked against periods nobody sat.
+
+		   day names which timetable a row belongs to, and classes says who
+		   runs to it. Both empty means the whole school, which is what every
+		   sheet written before this meant and still means. */
+		Columns: []string{"day", "classes", "sequence", "name",
+			"starts_at", "ends_at", "is_break"},
 		Required: []string{"sequence", "name"},
-		Sample:   []string{"1", "P1", "09:00", "09:45", "N"},
+		Sample:   []string{"Primary", "Nursery, LKG, UKG", "1", "P1", "09:30", "10:10", "N"},
 		Check: func(row map[string]string) error {
 			if n, err := strconv.Atoi(strings.TrimSpace(row["sequence"])); err != nil || n <= 0 {
 				return errors.New("sequence must be a whole number above zero. It is what orders the day")
@@ -529,21 +540,61 @@ var importSpecs = map[string]importSpec{
 		},
 		Write: func(c *importCtx, row map[string]string) error {
 			seq, _ := strconv.Atoi(strings.TrimSpace(row["sequence"]))
+
+			schedule, err := c.bellScheduleID(row["day"])
+			if err != nil {
+				return err
+			}
+
 			var id uuid.UUID
 			var inserted bool
-			err := c.tx.QueryRow(c.r.Context(), `
-				INSERT INTO periods (institution_id, campus_id, name, sequence,
-				                     starts_at, ends_at, is_break)
-				VALUES ($1,$2,$3,$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7)
-				ON CONFLICT (institution_id, campus_id, sequence)
+			/* ON CONFLICT (bell_schedule_id, sequence), which is how periods
+			   are actually keyed.
+
+			   This said (institution_id, campus_id, sequence) and no such
+			   index exists -- the same fault the school-day form had. Postgres
+			   refuses a conflict target it cannot match, so every commit of
+			   this sheet failed outright. A dry run never runs the write, so
+			   the file was reported valid and then would not load. */
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO periods (institution_id, campus_id, bell_schedule_id,
+				                     name, sequence, starts_at, ends_at, is_break)
+				VALUES ($1,$2,$3,$4,$5,NULLIF($6,'')::time,NULLIF($7,'')::time,$8)
+				ON CONFLICT (bell_schedule_id, sequence)
 				DO UPDATE SET name = EXCLUDED.name, starts_at = EXCLUDED.starts_at,
 				              ends_at = EXCLUDED.ends_at, is_break = EXCLUDED.is_break
 				RETURNING id, (xmax = 0)`,
-				c.inst, c.campus, strings.TrimSpace(row["name"]), seq,
+				c.inst, c.campus, schedule, strings.TrimSpace(row["name"]), seq,
 				strings.TrimSpace(row["starts_at"]), strings.TrimSpace(row["ends_at"]),
-				isYes(row["is_break"])).Scan(&id, &inserted)
+				isYes(row["is_break"])).Scan(&id, &inserted); err != nil {
+				return err
+			}
 			c.noteCreated("periods", id, inserted)
-			return err
+
+			/* The classes that run to this day, named on the row.
+
+			   Repeated on every period of the day, which is how a spreadsheet
+			   says it -- the alternative is a second sheet relating days to
+			   classes, and nobody keeps one. Applying it every time is
+			   harmless: it is the same statement each row. */
+			for _, name := range strings.FieldsFunc(row["classes"], func(r rune) bool {
+				return r == ',' || r == ';' || r == '/'
+			}) {
+				name = strings.TrimSpace(name)
+				if name == "" {
+					continue
+				}
+				classID, cerr := c.classID(name)
+				if cerr != nil {
+					return cerr
+				}
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE classes SET bell_schedule_id = $2 WHERE id = $1`,
+					classID, schedule); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	},
 	/* Fee heads. Not fee amounts -- those are per class and belong to the
@@ -942,7 +993,7 @@ var importSpecs = map[string]importSpec{
 	   teacher sets the subject teacher. A row with both does both.
 	*/
 	"allocations": {
-		Perm:     rbac.AcademicsWrite,
+		Perm: rbac.AcademicsWrite,
 		// Teachers by name or staff code as well as by email, like the sheet
 		// above. Both column spellings are read, so older files still load.
 		Columns:  []string{"class", "section", "room", "class_teacher", "subject", "teacher"},
@@ -1977,6 +2028,59 @@ func (c *importCtx) pastExamID(year uuid.UUID, name string) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	c.pastExams[key] = id
+	return id, nil
+}
+
+/*
+bellScheduleID finds the school day a row belongs to, creating it when the
+sheet names one the school has not set up.
+
+	An empty name is the school's own day -- which is what every sheet written
+	before this meant, and what a school running one bell always means. A named
+	one is created rather than demanded, because the whole point of naming it
+	in a sheet is that it does not exist yet.
+
+	Never the default. One day is the school's own and a second day that
+	marked itself default would silently move every class that has not been
+	told otherwise.
+*/
+func (c *importCtx) bellScheduleID(name string) (uuid.UUID, error) {
+	key := strings.ToLower(strings.TrimSpace(name))
+	if c.pastYears == nil {
+		c.pastYears = map[string]uuid.UUID{}
+	}
+	if id, ok := c.pastYears["bell:"+key]; ok {
+		return id, nil
+	}
+
+	var id uuid.UUID
+	var err error
+	if key == "" {
+		err = c.tx.QueryRow(c.r.Context(), `
+			SELECT id FROM bell_schedules
+			 WHERE institution_id = $1
+			 ORDER BY is_default DESC, created_at LIMIT 1`, c.inst).Scan(&id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+				VALUES ($1,$2,'Standard day',true) RETURNING id`,
+				c.inst, c.campus).Scan(&id)
+		}
+	} else {
+		err = c.tx.QueryRow(c.r.Context(), `
+			SELECT id FROM bell_schedules
+			 WHERE institution_id = $1 AND lower(name) = $2`, c.inst, key).Scan(&id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+				VALUES ($1,$2,$3,false) RETURNING id`,
+				c.inst, c.campus, strings.TrimSpace(name)).Scan(&id)
+		}
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+	c.pastYears["bell:"+key] = id
 	return id, nil
 }
 
