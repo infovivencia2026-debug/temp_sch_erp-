@@ -40,6 +40,8 @@ import { safetyKeys } from './operations/safety-keys'
 import { childBusKeys } from './portal/child-bus-keys'
 import { transportPrefsKeys } from './portal/transport-prefs-keys'
 import { trackerKeys } from './super_admin/tracker-keys'
+import { libraryYearKeys } from './operations/library-year-keys'
+import { attendanceDevicesKeys } from './hr/attendance-devices-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -547,6 +549,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...messageRulesKeys,
   ...reportBuilderKeys,
   ...digitalLibraryKeys,
+  ...libraryYearKeys,
+  ...attendanceDevicesKeys,
   ...familyKeys,
   ...adminAcademicsKeys,
   ...learningKeys,

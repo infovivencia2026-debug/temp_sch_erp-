@@ -1070,6 +1070,7 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/ops", func(r chi.Router) {
 			s.mountInfirmary(r)
 			s.mountDigitalLibrary(r)
+			s.mountLibraryFines(r)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles", s.listLibraryTitles)
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/titles/{id}/copies", s.listTitleCopies)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/issue", s.issueBook)

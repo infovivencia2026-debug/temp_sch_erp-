@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 333 of the catalog's features are implemented.
+// 339 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
@@ -107,6 +107,8 @@ var implementedFeatures = map[string]bool{
 	"hod.timetable.my_timetable":                                                     true,
 	"hod.timetable.staff_timetable":                                                  true,
 	"hod.timetable.substitution_requests":                                            true,
+	"hr.attendance.biometric_machine_attendance_sync":                                true,
+	"hr.attendance.biometric_punch_in_out_grace_period":                              true,
 	"hr.attendance.staff_duty_roster":                                                true,
 	"hr.attendance.staff_register":                                                   true,
 	"hr.hiring_training.staff_hiring":                                                true,
@@ -197,13 +199,17 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.students.student_360":                                         true,
 	"institution_admin.students.student_photographs":                                 true,
 	"librarian.library.accession_register":                                           true,
+	"librarian.library.annual_book_stock_verification":                               true,
 	"librarian.library.barcode_spine_label_printing":                                 true,
 	"librarian.library.book_cataloging_accession_register":                           true,
 	"librarian.library.book_issue_return_terminal":                                   true,
 	"librarian.library.book_reservation_queue":                                       true,
 	"librarian.library.books_copies":                                                 true,
+	"librarian.library.digital_library_usage":                                        true,
+	"librarian.library.fine_penalty_summary":                                         true,
 	"librarian.library.fines":                                                        true,
 	"librarian.library.issue_return":                                                 true,
+	"librarian.library.new_session_textbook_orders":                                  true,
 	"librarian.library.opac_digital_book_search":                                     true,
 	"librarian.library.reservations":                                                 true,
 	"librarian.my_profile.my_pay":                                                    true,

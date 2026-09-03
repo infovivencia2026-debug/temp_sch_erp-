@@ -88,6 +88,8 @@ func (s *Server) mountHRLifecycle(r chi.Router) {
 
 	r.Get("/leave-policy", s.getLeavePolicy)
 	r.With(write).Post("/leave-policy", s.saveLeavePolicy)
+	// The morning grace window on its own, with the punches it would mark late.
+	s.mountPunchGrace(r)
 	r.Get("/lop", s.getLOPRegister)
 }
 

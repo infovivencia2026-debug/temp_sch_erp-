@@ -127,6 +127,7 @@ func (s *Server) mountDigitalLibrary(r chi.Router) {
 		write := httpx.RequirePermission(rbac.LibraryWrite)
 
 		r.With(read).Get("/catalogue", s.listDigitalCatalogue)
+		r.With(read).Get("/usage", s.getDigitalUsage)
 		r.With(read).Get("/holdings/{id}/access", s.openDigitalHolding)
 		r.With(read).Post("/holdings/{id}/borrow", s.borrowDigitalHolding)
 
@@ -447,11 +448,16 @@ func (s *Server) openDigitalHolding(w http.ResponseWriter, r *http.Request) {
 		// The file join is the standard one: a soft-deleted file is not a file,
 		// and joining without the predicate is how a deleted document keeps
 		// being served.
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			SELECT h.external_url, f.id::text
 			  FROM digital_holdings h
 			  LEFT JOIN files f ON f.id = h.file_id AND f.deleted_at IS NULL
-			 WHERE h.id = $1`, holdingID).Scan(&url, &fileID)
+			 WHERE h.id = $1`, holdingID).Scan(&url, &fileID); err != nil {
+			return err
+		}
+		// The open is counted here, past the entitlement checks, so the usage
+		// figures count reads and not refusals.
+		return logDigitalOpen(r.Context(), tx, id.InstitutionID, holdingID, id.UserID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

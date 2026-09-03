@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookMarked, ClipboardList, PackageOpen, Tags } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useRouteFeature } from '@/lib/catalog'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
@@ -87,7 +88,17 @@ const TABS = [
 ] as const
 
 export default function LibraryDesk() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('holds')
+  /* Opened from the catalogue entry for the stock audit or the textbook
+     indent, the desk starts on that tab rather than on the holds. */
+  const { feature } = useRouteFeature()
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(() => {
+    switch (feature?.slug) {
+      case 'annual_book_stock_verification': return 'audit'
+      case 'new_session_textbook_orders': return 'indent'
+      case 'barcode_spine_label_printing': return 'labels'
+      default: return 'holds'
+    }
+  })
 
   const holds = useQuery({
     queryKey: ['library-reservations'],
