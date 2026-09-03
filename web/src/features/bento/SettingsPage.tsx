@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { usePhone } from '@/lib/viewport'
+import { useFullScreenInvite } from '@/lib/fullscreen'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, SEAM } from './ColourDialog'
+import { INK, EDGE, WASH, RING, SEAM, CHOSEN } from './ColourDialog'
 import {
   SettingsNav, SettingsPane, SettingsSectionList, useSettingsItems,
   type SettingsTab,
@@ -133,7 +134,42 @@ export default function SettingsPage() {
        and a border, the page would read as a card sitting on the work area,
        which is the shape its own sibling gave up. Above `sm` there is room for
        the panel to be a panel again. */
-    <div className="mx-auto w-full max-w-[980px] px-0 py-0 sm:px-6 sm:py-6">
+    /* ONE INSET ON A PHONE, NOT TWO STACKED.
+
+       Measured at 390px on the live site: the section rows were 323px wide,
+       running from x=16 to x=357, so 33.5px of a 390px screen -- 17 per cent
+       of everything the reader has -- went on air before a word of content.
+       That was two paddings, both individually defensible and wrong together:
+
+         - the board's page gutter, 16px, set in BentoOutlet, which is right
+           for a BOARD of cards that have to read as objects floating on a
+           ground and therefore must not touch the glass;
+         - this card's own `px-5`, which on a 14px root computes to 17.5px and
+           not the 20px it looks like.
+
+       The reason the pair is wrong specifically here is that on a phone this
+       surface is not a card on a ground. It is a full sheet: `rounded-none`,
+       no side borders, occupying every pixel. A sheet that already touches
+       the edge does not need a gutter holding it away from that edge, and
+       then a second inset inside the gutter. So below `sm` the sheet cancels
+       the board's gutter with a negative margin of exactly the same 16px and
+       spends 16px of its own instead: one inset, the same number, so the two
+       surfaces agree about where a line of text starts. Rows go from 323px to
+       358px, which is 35px -- most of a word per line, on a page whose every
+       row carries a two-line description.
+
+       From `sm` up nothing changes at all. There the panel genuinely is a
+       floating card with a radius and a border on a page with room to spare,
+       and both insets are correct for the same reason they were wrong below.
+
+       Stated in px and not in rem, twice over. `-mx-4` is 14px on this root,
+       not 16, and would leave a 2px ledge of the board's gutter down each
+       side of a sheet that is supposed to be flush. That substitution has
+       caused five separate bugs in this codebase. */
+    <div className={cn(
+      '-mx-[16px] w-[calc(100%+32px)] py-0',
+      'sm:mx-auto sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
+    )}>
       <div
         className={cn(
           'flex flex-col overflow-hidden rounded-none border-x-0 border-t-0',
@@ -143,7 +179,7 @@ export default function SettingsPage() {
           EDGE,
         )}
       >
-        <header className={cn('border-b px-5 py-4 sm:px-7 sm:py-5', SEAM)}>
+        <header className={cn('border-b px-[16px] py-4 sm:px-7 sm:py-5', SEAM)}>
           {/* WHERE YOU ARE, AND THE WAY BACK, IN THAT ORDER -- the same header
               shape the dialog uses inside a section, for the same reason: the
               name of the surface you are returning to belongs ON the control
@@ -183,11 +219,93 @@ export default function SettingsPage() {
             set of pages is the thing this dialog already learnt not to do. */}
         <SettingsNav items={items} tab={tab} onPick={(id) => open(id)} />
 
-        <div className="px-5 py-5 sm:px-7 sm:py-6">
+        <div className="px-[16px] py-5 sm:px-7 sm:py-6">
+          {tab === null && <FullScreenOffer />}
           {tab === null
-            ? <SettingsSectionList items={items} onOpen={open} />
+            ? <SettingsSectionList items={items} onOpen={open} bleed={phone} />
             : <SettingsPane tab={tab} onClose={done} />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* THE ONE INVITATION, AND WHY IT IS AN OFFER RATHER THAN A TOAST.
+
+   WHAT IT IS FOR. Measured on a real Samsung handset in Chrome 151:
+   window.innerHeight is 725 against a screen height of 832. The browser keeps
+   107px -- thirteen per cent of the glass -- for a URL bar nobody asked for.
+   On most sites that is a scroll away and costs nothing. This product's home
+   screen is a fixed, non-scrolling board of cards packed to a page, so the
+   107px does not move down the page: it comes straight out of the last card,
+   every time, on every visit. Full screen is worth asking about here in a way
+   it is not worth asking about on a document.
+
+   WHY IT IS HERE AND NOT FLOATING OVER THE BOARD. A card on the settings page
+   cannot cover content, cannot cover the dock, cannot be mistaken for a system
+   dialog and needs no z-index, no scrim and no dismiss-on-outside-press. It
+   sits above the list, at the top of the surface the reader opened precisely
+   because they were looking for how this thing is set up, one tap from every
+   screen. A floating prompt over the dashboard would be seen sooner and would
+   have to fight the dock for the bottom of the screen and the board for the
+   middle of it; that mount belongs to BentoOutlet, which is not this file's to
+   change, and it can be added later by rendering this same component there.
+
+   THE FOUR CONDITIONS ARE ALL IN lib/fullscreen, AND EVERY ONE OF THEM WAS
+   MEASURED RATHER THAN ASSUMED. Touch pointer, not desktop. A document the
+   browser will actually let go full screen, which is false in the parent app's
+   WebView and absent on iOS. Not an installed web app, which has no browser
+   chrome left to hide. And not already answered: entering counts as an answer
+   and so does declining, the answer is kept on the device under
+   `erp.fullscreen.invite`, and the card never returns.
+
+   TWO WAYS OUT AND BOTH ARE ONE TAP. Declining is a real control with a real
+   name, not a corner cross, because a person who does not want this should not
+   have to aim. Both are 44px tall STATED IN PIXELS: `min-h-11` is 2.75rem,
+   which on this 14px root is 38.5px and under the floor. */
+function FullScreenOffer() {
+  const { show, accept, dismiss } = useFullScreenInvite()
+  if (!show) return null
+
+  return (
+    <div
+      className={cn(
+        'mb-4 rounded-[12px] border p-[14px]',
+        EDGE, INK,
+        // The card's own ground, a shade off the sheet it sits on, so it reads
+        // as a thing that arrived rather than a paragraph of the page. Mixed
+        // from the ink, which is the one colour every palette guarantees
+        // against this card, and at 6% it moves the ground without touching
+        // the 21:1 the ink measures on it.
+        'bg-[color-mix(in_srgb,var(--bento-ink)_6%,transparent)]',
+      )}
+    >
+      <p className="text-[13.5px] font-medium">Use the whole screen</p>
+      <p className="mt-1 text-[12.5px]">
+        Your browser is keeping about an eighth of this screen for its own bar.
+        Full screen gives it back to the dashboard.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={accept}
+          className={cn(
+            'inline-flex min-h-[44px] items-center rounded-[10px] border px-3.5',
+            'text-[12.5px] font-medium transition-colors', CHOSEN, RING,
+          )}
+        >
+          Enter full screen
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          className={cn(
+            'inline-flex min-h-[44px] items-center rounded-[10px] border px-3.5',
+            'text-[12.5px] transition-colors', EDGE, INK, WASH, RING,
+          )}
+        >
+          Not now
+        </button>
       </div>
     </div>
   )

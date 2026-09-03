@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
+import { useFullScreen } from '@/lib/fullscreen'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
 import { useLayout as useFrameLayout, LAYOUTS, type Layout } from '@/lib/layout'
@@ -819,12 +820,40 @@ export type ListItem = { id: string; label: string; icon: typeof Building2; note
    name badly enough that the pair stops reading as one thing. `text-left` is
    explicit because a <button> centres its text and every one of these is a
    sentence. */
-export function SettingsSectionList({ items, onOpen }: { items: ListItem[]; onOpen: (id: string) => void }) {
+/* `bleed` is the phone sheet asking for its rules back.
+
+   On a full-bleed sheet the list sits inside the sheet's single 16px inset,
+   and a divider that respects that inset stops 16px short of the glass at
+   both ends. Two short rules floating in a column of text do not read as the
+   structure of a list; they read as an accident, and they draw attention to
+   exactly the inset that was just reduced. Every settings list on every phone
+   answers this the same way: the RULE runs to the edge and the TEXT is inset,
+   which is one gesture rather than two competing ones.
+
+   So the caller says whether it is drawing on a sheet, and when it is, the
+   list cancels the sheet's inset with a negative margin of the same 16px and
+   each row pays it back as its own padding. The rows' contents stay exactly
+   where they were; only the rules and the pressed wash grow to the full
+   width, which is also what makes a row look like something you can hit
+   anywhere along.
+
+   16px in pixels, not in rem. The root font is 14px here, so the `-mx-4` that
+   reads as the same number computes to 14px and would leave a 2px ledge of
+   card down either side of every rule: a misalignment that is hard to see and
+   impossible to unsee. Anything that has to line up with a device edge or a
+   sibling's edge is written in px in this codebase, and forgetting that has
+   now caused five separate bugs here. */
+export function SettingsSectionList({ items, onOpen, bleed = false }: {
+  items: ListItem[]
+  onOpen: (id: string) => void
+  bleed?: boolean
+}) {
   return (
     <div
       data-settings-list=""
       className={cn(
         'divide-y', 'divide-[color-mix(in_srgb,var(--bento-ink)_20%,transparent)]',
+        bleed && '-mx-[16px]',
       )}
     >
       {items.map((item) => {
@@ -835,7 +864,8 @@ export function SettingsSectionList({ items, onOpen }: { items: ListItem[]; onOp
             type="button"
             onClick={() => onOpen(item.id)}
             className={cn(
-              'flex min-h-[56px] w-full items-start gap-3 rounded-[8px] px-2 py-3 text-left',
+              'flex min-h-[56px] w-full items-start gap-3 py-3 text-left',
+              bleed ? 'px-[16px]' : 'rounded-[8px] px-2',
               'transition-colors', INK, WASH, RING,
             )}
           >
@@ -1584,29 +1614,46 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
      The control has to say which way it goes, and the state can change without
      it -- Escape and F11 both leave full screen without touching this dialog --
      so it listens rather than remembering what it last asked for. */
-  const [full, setFull] = useState(
-    () => typeof document !== 'undefined' && !!document.fullscreenElement,
-  )
-  useEffect(() => {
-    const onChange = () => setFull(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
+  /* AND NOT OFFERED AT ALL WHERE IT CANNOT HAPPEN.
+
+     What this button did on a phone: it called
+     `document.documentElement.requestFullscreen().catch(...)`
+     unconditionally. Measured on a real Android handset, that is three
+     different failures depending on where it runs, and two of them are
+     invisible.
+
+       - In the parent app's WebView, `document.fullscreenEnabled` is FALSE
+         while `requestFullscreen` is still a function. The call is made, the
+         promise rejects, the `.catch` eats it, and the control is a no-op
+         that reports success by saying nothing.
+       - On iOS Safari the method does not exist at all, because Safari has
+         never implemented fullscreen for arbitrary elements -- only <video>.
+         Calling it threw a TypeError inside the click handler, before any
+         promise existed to catch, and took the `onClose()` after it with it.
+       - In mobile Chrome, where it genuinely works, it closed the dialog
+         BEFORE knowing whether the browser had agreed. On the phone route
+         onClose is navigate(-1), so a refusal's only visible effect was
+         throwing somebody off the settings page.
+
+     lib/fullscreen carries the measurements and the one gate that separates
+     those three cases. The consequence here is that a control which cannot
+     work is not drawn: an absence is honest, and it leaves the reader free to
+     install the site to their home screen, which is how the platforms without
+     a fullscreen API lose their browser chrome. */
+  const { supported, active: full, enter, exit } = useFullScreen()
 
   const toggleFull = () => {
-    /* Both calls reject rather than throw -- a browser may refuse full screen
-       when the gesture is not trusted -- so the rejection is swallowed and the
-       listener above keeps the label truthful either way.
-
-       The dialog closes on the way in: going full screen to look at the
-       dashboard and finding a settings window over it is not what anybody
-       meant by the button. */
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {})
+    /* The request goes first, with nothing awaited in front of it: the user
+       activation that authorises it is spent by the first await in a handler.
+       The dialog closes in the callback and only on success -- going full
+       screen to look at the dashboard and finding a settings window over it is
+       not what anybody meant by the button, but neither is being sent back a
+       page by a browser that said no. */
+    if (full) {
+      exit()
       onClose()
     } else {
-      void document.documentElement.requestFullscreen().catch(() => {})
-      onClose()
+      void enter().then((ok) => { if (ok) onClose() })
     }
   }
 
@@ -1624,12 +1671,17 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={cn('mt-6 flex flex-wrap items-center gap-2 border-t pt-4', SEAM)}>
-      <button type="button" onClick={toggleFull} className={ACTION}>
-        {full
-          ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
-          : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
-        {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
-      </button>
+      {/* `supported || full` and not `supported` alone: a document that is
+          already full screen must keep its way out, whatever the answer to
+          "could you enter" has become since. */}
+      {(supported || full) && (
+        <button type="button" onClick={toggleFull} className={ACTION}>
+          {full
+            ? <Minimize2 className="size-4 shrink-0" aria-hidden="true" />
+            : <Maximize2 className="size-4 shrink-0" aria-hidden="true" />}
+          {t(full ? 'bento.settings.fullscreen.exit' : 'bento.settings.fullscreen')}
+        </button>
+      )}
 
       {/* A way back. Enough axes live in this dialog at once that somebody
           ends up somewhere they cannot retrace, and a settings window with no
