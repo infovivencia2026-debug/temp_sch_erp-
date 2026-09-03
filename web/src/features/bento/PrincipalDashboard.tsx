@@ -3092,22 +3092,31 @@ function CardCell({
      becomes a dash — there is no number — and the drawing row carries the
      error, which is the one thing that row is allowed to say that is not
      data. */
+  /* THE ARROW ONLY WHERE THERE IS A DOOR.
+
+     The corner mark was drawn from the cue label alone, and the label exists
+     whether or not `to` does. On a school still in setup the catalogue hides
+     every feature but Getting started, so every card had an arrow and not one
+     of them was a link: a board of eight promises that a tap could not keep,
+     which is what "clicking the cells does nothing" turned out to be. The
+     shell's own rule is that a card with no reachable feature is not a link;
+     the mark now follows the same rule. */
   const body =
     status === 'error' ? (
-      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
         <CellError message={t('bento.principal.source_failed')} />
       </CardShell>
     ) : status === 'loading' ? (
       <CardShell
         title={title}
         sub={sub}
-        glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined}
+        glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined}
         value="—"
         change={t('bento.principal.source_loading')}
         className="h-full"
       />
     ) : (
-      <CardShell title={title} sub={sub} glyph={glyph} action={cueLabel ? { label: cueLabel } : undefined} value={value} change={change} delta={delta} deltaNote={deltaNote} className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined} value={value} change={change} delta={delta} deltaNote={deltaNote} className="h-full">
         {children}
       </CardShell>
     )
