@@ -6,21 +6,25 @@
 -- unique index, and every reader of it agrees: biometric_punches.device_user_id
 -- is integer, the enrol lookup compares the two as integers, and the employee
 -- editor writes it as *int. On this installation the column had drifted to
--- text -- altered by hand, not by any migration -- and the mismatch was not
--- cosmetic: scanning a text column into *int failed, and GET /hr/employees
--- answered 500. The whole HR staff list went dark over one column's type.
+-- text -- altered by hand, not by any migration -- and rebuilt around that
+-- text: a functional unique index on upper(btrim(device_user_id)) and a
+-- _present check on btrim(device_user_id) <> ''. The mismatch was not
+-- cosmetic: scanning text into *int failed and GET /hr/employees answered 500,
+-- so the whole HR staff list went dark over one column's type.
 --
--- Safe as a plain cast: every value the column holds is already numeric. The
--- USING clause makes the intent explicit rather than leaning on an implicit
--- coercion Postgres would refuse anyway.
---
--- Defensive about the constraint and the index too: whoever retyped the column
--- may have dropped and recreated it, taking 00184's guards with it. Re-added
--- only when absent, so a database that kept them is left untouched.
+-- The text-shaped guards have to go before the cast, or the ALTER re-checks
+-- btrim(device_user_id) against an integer and fails. Dropped first, then the
+-- column is cast -- safe, every value it holds is already numeric -- then
+-- 00184's own integer guards are put back.
+
+-- The text-era guards, if this installation grew them.
+ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_device_user_id_present;
+DROP INDEX IF EXISTS employees_device_user_id_per_institution;
 
 ALTER TABLE employees
     ALTER COLUMN device_user_id TYPE integer USING device_user_id::integer;
 
+-- 00184's positive check, re-added only when absent.
 -- +goose StatementBegin
 DO $$
 BEGIN
@@ -34,6 +38,7 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
+-- 00184's per-school unique index, in its integer shape.
 CREATE UNIQUE INDEX IF NOT EXISTS employees_device_user_id_per_institution
     ON employees (institution_id, device_user_id)
     WHERE device_user_id IS NOT NULL;
