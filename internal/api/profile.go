@@ -87,6 +87,22 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 type updateProfileRequest struct {
 	FullName string  `json:"full_name"`
 	Phone    *string `json:"phone"`
+	/* THE ADDRESS SOMEBODY SIGNS IN WITH.
+
+	   Left out of this until now, on the grounds that changing a login
+	   identifier deserves a verification round trip rather than a PUT. That
+	   reasoning is sound and the outcome was not: a teacher whose school
+	   address changed, or who was set up under a typo, could correct their
+	   name and their number and not the one field they actually sign in with
+	   -- and had to ask the office to do it in the staff record.
+
+	   So it is editable, and the password is the check. Not a formality: a
+	   session left open on a staffroom computer could otherwise be used to
+	   move somebody's login to another address and lock them out of their own
+	   school, silently, with no email ever sent. Asking for the password makes
+	   that require the password. */
+	Email           *string `json:"email"`
+	CurrentPassword string  `json:"current_password,omitempty"`
 }
 
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
@@ -100,12 +116,49 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "full_name must be 1-120 characters")
 		return
 	}
-	// Email is deliberately not editable here: it is a login identifier, so
-	// changing it needs a verification round trip, not a PUT.
+	/* Changing the address you sign in with costs a password.
+
+	   Only when it actually changes -- somebody correcting their phone number
+	   should not be asked for a password because the email field was posted
+	   back unchanged. */
+	var newEmail *string
+	if req.Email != nil {
+		e := strings.ToLower(strings.TrimSpace(*req.Email))
+		if e != "" && !strings.Contains(e, "@") {
+			httpx.BadRequest(w, r, "that does not look like an email address")
+			return
+		}
+		var currentEmail *string
+		var hash *string
+		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(),
+				`SELECT email::text, password_hash FROM users WHERE id = $1`,
+				id.UserID).Scan(&currentEmail, &hash)
+		}); err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		if currentEmail == nil || !strings.EqualFold(strings.TrimSpace(*currentEmail), e) {
+			if hash == nil || s.Hasher.Verify(*hash, req.CurrentPassword) != nil {
+				httpx.BadRequest(w, r,
+					"enter your current password to change the address you sign in with")
+				return
+			}
+			newEmail = &e
+		}
+	}
+
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, err := tx.Exec(r.Context(),
-			`UPDATE users SET full_name = $2, phone = $3, updated_at = now() WHERE id = $1`,
-			id.UserID, req.FullName, req.Phone)
+		_, err := tx.Exec(r.Context(), `
+			UPDATE users
+			   SET full_name = $2,
+			       phone = $3,
+			       -- Left alone unless it changed, so a caller that does not
+			       -- send the field cannot blank a login identifier.
+			       email = COALESCE($4::citext, email),
+			       updated_at = now()
+			 WHERE id = $1`,
+			id.UserID, req.FullName, req.Phone, newEmail)
 		return err
 	})
 	/* A number somebody else already has is the caller's problem to fix, not a
@@ -114,6 +167,14 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	   at the login screen — and "something went wrong" tells the person
 	   holding the phone none of that. */
 	if isUniqueViolation(err) {
+		// Both the phone and the email are unique within a school, so the
+		// message names whichever one this call was actually changing.
+		if newEmail != nil {
+			httpx.BadRequest(w, r,
+				"that email address is already on another account at this school. "+
+					"An address can only sign in as one person")
+			return
+		}
 		httpx.BadRequest(w, r,
 			"that phone number is already on another account at this school, and "+
 				"a number can only belong to one person")
