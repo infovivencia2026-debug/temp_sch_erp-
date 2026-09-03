@@ -6,6 +6,8 @@
     <!-- The page asks for a tick under the thumb through navigator.vibrate;
          without this the WebView silently ignores it. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The app lock: the phone's own fingerprint or face prompt. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <!-- DELIBERATELY NOT android.permission.CAMERA.
 

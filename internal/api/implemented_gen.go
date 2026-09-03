@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 339 of the catalog's features are implemented.
+// 343 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
@@ -237,6 +237,7 @@ var implementedFeatures = map[string]bool{
 	"parent.profile.digital_parent_id_card_for_campus_entry":                         true,
 	"parent.profile.digital_student_id_card_view":                                    true,
 	"parent.profile.language":                                                        true,
+	"parent.profile.parent_app_biometric_lock_face_id_fingerprint":                   true,
 	"parent.profile.parent_app_dark_mode_high_contrast_accessibility":                true,
 	"parent.school_life.calendar_ptm":                                                true,
 	"parent.school_life.live_event_seating_pass":                                     true,
@@ -263,6 +264,7 @@ var implementedFeatures = map[string]bool{
 	"student.alumni.alumni_network_registration":                                     true,
 	"student.attendance.apply_for_leave":                                             true,
 	"student.attendance.attendance":                                                  true,
+	"student.campus_life.digital_hall_of_fame":                                       true,
 	"student.campus_life.digital_locker_combination_access_log":                      true,
 	"student.campus_life.lost_found_item_board":                                      true,
 	"student.campus_life.lost_found_photo_board_with_claim_verification":             true,
@@ -278,6 +280,8 @@ var implementedFeatures = map[string]bool{
 	"student.homework.homework_assignments":                                          true,
 	"student.learning.courses_subjects":                                              true,
 	"student.learning.e_learning_resource_hub":                                       true,
+	"student.learning.gamified_learning_badge_showcase":                              true,
+	"student.learning.gamified_learning_streak_counter":                              true,
 	"student.learning.global_university_guidance_counselor":                          true,
 	"student.learning.peer_tutoring_study_groups":                                    true,
 	"student.learning.student_portfolio_management":                                  true,

@@ -3,13 +3,19 @@ package com.schoolerp.parent
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
+import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
@@ -84,6 +90,23 @@ class MainActivity : Activity() {
        splash is held up against it; see holdSplash. */
     private var painted = false
 
+    /* THE APP LOCK.
+
+       A parent who turns it on (Profile → App lock in the portal) is asking
+       the phone, not the school, to check it is them before the portal is
+       shown again. When the app has been away for a minute or more the
+       WebView is hidden behind this panel and the phone's own prompt is
+       raised: fingerprint, face or the device PIN on Android 11 and up, the
+       keyguard's confirm-credential screen on older phones. Nothing about
+       the fingerprint ever reaches the site; the site is only told, through
+       the bridge, whether the switch is on.
+
+       Hidden rather than unloaded: the page and its session are left exactly
+       where they were, so unlocking shows the screen the parent was on. */
+    private lateinit var lock: View
+    private var leftAt = 0L
+    private var prompting = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -112,6 +135,10 @@ class MainActivity : Activity() {
         }
         offline = buildOfflineView()
         offline.visibility = View.GONE
+        lock = buildLockView()
+        lock.visibility = View.GONE
+        Shell.prefs = getSharedPreferences("shell", MODE_PRIVATE)
+        Shell.canLock = canLock()
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             visibility = View.GONE
@@ -147,6 +174,7 @@ class MainActivity : Activity() {
         pull.addView(web, FrameLayout.LayoutParams(-1, -1))
         root.addView(pull, FrameLayout.LayoutParams(-1, -1))
         root.addView(offline, FrameLayout.LayoutParams(-1, -1))
+        root.addView(lock, FrameLayout.LayoutParams(-1, -1))
         root.addView(
             progress,
             FrameLayout.LayoutParams(-1, (4 * resources.displayMetrics.density).toInt(), Gravity.TOP),
@@ -228,6 +256,25 @@ class MainActivity : Activity() {
         fun setAtTop(value: Boolean) {
             reported = value
         }
+
+        /* The app lock's switch. Still nothing but booleans: the page may
+           turn the lock on or off and ask whether it is on and whether the
+           phone can do it. It cannot raise the prompt, cannot read a result,
+           and cannot reach anything else on the device. Bridge methods run
+           on a WebView thread; SharedPreferences is safe from there. */
+        lateinit var prefs: SharedPreferences
+        @Volatile var canLock: Boolean = false
+
+        @android.webkit.JavascriptInterface
+        fun setAppLock(on: Boolean) {
+            prefs.edit().putBoolean("app_lock", on).apply()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun appLockEnabled(): Boolean = prefs.getBoolean("app_lock", false)
+
+        @android.webkit.JavascriptInterface
+        fun biometricsAvailable(): Boolean = canLock
     }
 
     private val shell = Shell
@@ -561,6 +608,11 @@ class MainActivity : Activity() {
     @Deprecated("Platform Activity has no ActivityResultLauncher; see the note below.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_UNLOCK) {
+            prompting = false
+            if (resultCode == RESULT_OK) unlocked()
+            return
+        }
         if (requestCode != REQUEST_FILES) return
 
         /* THE REGISTERFORACTIVITYRESULT QUESTION, ANSWERED IN THE NEGATIVE.
@@ -735,6 +787,113 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) super.onBackPressed() else back()
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!Shell.appLockEnabled()) return
+        // A cold start is "away for ever"; a switch to another app and back
+        // inside a minute is not away at all.
+        val away = if (leftAt == 0L) Long.MAX_VALUE else SystemClock.elapsedRealtime() - leftAt
+        if (away >= LOCK_AFTER_MS) showLock()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        leftAt = SystemClock.elapsedRealtime()
+    }
+
+    private fun canLock(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bm = getSystemService(BiometricManager::class.java) ?: return false
+            return bm.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+        }
+        return (getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure
+    }
+
+    private fun showLock() {
+        lock.visibility = View.VISIBLE
+        web.visibility = View.INVISIBLE
+        askToUnlock()
+    }
+
+    private fun unlocked() {
+        prompting = false
+        lock.visibility = View.GONE
+        web.visibility = View.VISIBLE
+    }
+
+    private fun askToUnlock() {
+        if (prompting) return
+        prompting = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val prompt = BiometricPrompt.Builder(this)
+                .setTitle(getString(R.string.lock_title))
+                .setDescription(getString(R.string.lock_body))
+                .setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                )
+                .build()
+            prompt.authenticate(
+                CancellationSignal(),
+                mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                        unlocked()
+                    }
+
+                    // Cancelled, too many tries, or the sensor is busy: the
+                    // panel stays and its button asks again.
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                        prompting = false
+                    }
+                },
+            )
+            return
+        }
+        val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        val intent = km.createConfirmDeviceCredentialIntent(
+            getString(R.string.lock_title),
+            getString(R.string.lock_body),
+        )
+        if (intent == null) {
+            // No secure lock on the phone: there is nothing to ask for.
+            unlocked()
+            return
+        }
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_UNLOCK)
+    }
+
+    private fun buildLockView(): View {
+        val pad = (24 * resources.displayMetrics.density).toInt()
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, pad)
+            setBackgroundColor(pageColor())
+            gravity = Gravity.CENTER
+            isClickable = true
+            addView(TextView(context).apply {
+                text = getString(R.string.lock_title)
+                textSize = 22f
+                setTextColor(getColor(R.color.page_text))
+            })
+            addView(TextView(context).apply {
+                text = getString(R.string.lock_body)
+                textSize = 15f
+                setTextColor(getColor(R.color.page_muted))
+                setPadding(0, pad / 2, 0, pad)
+            })
+            addView(Button(context).apply {
+                text = getString(R.string.unlock)
+                minimumHeight = (48 * resources.displayMetrics.density).toInt()
+                setOnClickListener { askToUnlock() }
+            })
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         // The session cookie is written to disk lazily. A phone that kills
@@ -761,5 +920,7 @@ class MainActivity : Activity() {
     private companion object {
         val PORTAL_HOST: String? = Uri.parse(BuildConfig.PORTAL_URL).host
         const val REQUEST_FILES = 1001
+        const val REQUEST_UNLOCK = 1002
+        const val LOCK_AFTER_MS = 60_000L
     }
 }

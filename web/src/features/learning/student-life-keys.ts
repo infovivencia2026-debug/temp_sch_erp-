@@ -42,4 +42,10 @@ export const studentLifeKeys = {
   'student.home.custom_theme_selection': screen(() => import('./ThemeSelection')),
   'student.homework.classmate_homework_help_forum': screen(() => import('./HomeworkForum')),
   'student.learning.virtual_classroom_hand_raise_telemetry': screen(() => import('./HandRaise')),
+
+  /* Days in a row, badges, and the board in the foyer. All three read records
+     that already exist (student_growth.go); none mints anything of its own. */
+  'student.learning.gamified_learning_streak_counter': screen(() => import('./Streak')),
+  'student.learning.gamified_learning_badge_showcase': screen(() => import('./Badges')),
+  'student.campus_life.digital_hall_of_fame': screen(() => import('./HallOfFame')),
 }

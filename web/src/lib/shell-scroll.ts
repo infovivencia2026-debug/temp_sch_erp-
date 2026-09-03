@@ -23,6 +23,12 @@
 
 interface ErpShell {
   setAtTop(v: boolean): void
+  /* The app lock (features/portal/AppLock.tsx). Absent in older builds of the
+     app and in every browser, so both are optional and the screen says so. */
+  setAppLock?(on: boolean): void
+  appLockEnabled?(): boolean
+  /* Whether the phone can actually ask for a fingerprint or face. */
+  biometricsAvailable?(): boolean
 }
 
 declare global {

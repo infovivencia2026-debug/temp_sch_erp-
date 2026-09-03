@@ -12,4 +12,8 @@
     <string name="choose_file">Choose a file</string>
     <string name="no_picker">This phone has no app that can choose a file.</string>
     <string name="capture_failed">The photo was not saved. Check there is space on the phone and try again.</string>
+    <!-- The app lock, asked for from Profile → App lock in the portal. -->
+    <string name="lock_title">Unlock EDU CLOUD</string>
+    <string name="lock_body">Confirm it is you to see the school app.</string>
+    <string name="unlock">Unlock</string>
 </resources>

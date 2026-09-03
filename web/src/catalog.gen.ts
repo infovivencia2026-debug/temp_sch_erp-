@@ -1053,7 +1053,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'student.learning.courses_subjects', slug: 'courses_subjects', name: 'Courses / subjects', scope: 'self', tier: 'core', summary: 'Current enrolled courses/subjects, teacher and learning resources.' },
           { key: 'student.learning.e_learning_resource_hub', slug: 'e_learning_resource_hub', name: 'E-Learning Resource Hub', scope: 'self', tier: 'core', summary: 'Access teacher-uploaded video lectures, PDF notes, chapter slides, and reference links.' },
-          { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: '24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
+          { key: 'student.learning.ai_personal_learning_companion', slug: 'ai_personal_learning_companion', name: 'AI Personal Learning Companion', scope: 'self', tier: 'core', summary: 'Not built: needs an outside AI service the school would have to buy and be answerable for; nothing here can honestly tutor a child without it. 24/7 AI tutor answering student doubts, explaining math problems step-by-step, and generating practice quizzes.' },
           { key: 'student.learning.peer_tutoring_study_groups', slug: 'peer_tutoring_study_groups', name: 'Peer Tutoring & Study Groups', scope: 'self', tier: 'optional', summary: 'Sign up as student tutors or request peer study group assistance in specific subjects.' },
           { key: 'student.learning.gamified_learning_streak_counter', slug: 'gamified_learning_streak_counter', name: 'Gamified Learning Streak Counter', scope: 'self', tier: 'optional', summary: 'Visual daily login and homework completion streak counter rewarding students with digital badges.' },
           { key: 'student.learning.gamified_learning_badge_showcase', slug: 'gamified_learning_badge_showcase', name: 'Gamified Learning Badge Showcase', scope: 'self', tier: 'optional', summary: 'Display earned academic, behavioral, and extracurricular digital badges on public student profile.' },
@@ -1156,7 +1156,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.ai_child_performance_summary_audio', slug: 'ai_child_performance_summary_audio', name: 'AI Child Performance Summary Audio', scope: 'children', tier: 'optional', summary: 'Generate a weekly 60-second audio podcast summarizing the child\'s academic and behavioral week.' },
+          { key: 'parent.academics.ai_child_performance_summary_audio', slug: 'ai_child_performance_summary_audio', name: 'AI Child Performance Summary Audio', scope: 'children', tier: 'optional', summary: 'Not built: needs an outside AI and text-to-speech vendor; the same week is readable on the dashboard and in child remarks. Generate a weekly 60-second audio podcast summarizing the child\'s academic and behavioral week.' },
           { key: 'parent.academics.iep_progress_goal_tracker', slug: 'iep_progress_goal_tracker', name: 'IEP Progress Goal Tracker', scope: 'children', tier: 'advanced', summary: 'View real-time progress bars towards child\'s specific IEP milestones and therapy goals.' },
           { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them — commendations and concerns alike — newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
@@ -1185,7 +1185,7 @@ export const ROLES: Role[] = [
         workspace: 'Transport',
         features: [
           { key: 'parent.alerts_preferences.parent_bus_proximity_radius_customizer', slug: 'parent_bus_proximity_radius_customizer', name: 'Parent Bus Proximity Radius Customizer', scope: 'children', tier: 'optional', summary: 'Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away).' },
-          { key: 'parent.alerts_preferences.real_time_school_bus_live_video_feed_access', slug: 'real_time_school_bus_live_video_feed_access', name: 'Real-time School Bus Live Video Feed Access', scope: 'children', tier: 'optional', summary: 'Permit authorized parents to view 15-second live video camera check-ins of child\'s bus during transit.' },
+          { key: 'parent.alerts_preferences.real_time_school_bus_live_video_feed_access', slug: 'real_time_school_bus_live_video_feed_access', name: 'Real-time School Bus Live Video Feed Access', scope: 'children', tier: 'optional', summary: 'Not built: needs bus-mounted cameras and a streaming vendor; live position is already in Live bus tracking. Permit authorized parents to view 15-second live video camera check-ins of child\'s bus during transit.' },
           { key: 'parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer', slug: 'parent_app_live_bus_tracking_refresh_rate_customizer', name: 'Parent App Live Bus Tracking Refresh Rate Customizer', scope: 'children', tier: 'optional', summary: 'Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery.' },
         ],
       },
@@ -1216,7 +1216,7 @@ export const ROLES: Role[] = [
         workspace: 'Documents',
         features: [
           { key: 'parent.documents.certificate_requests', slug: 'certificate_requests', name: 'Certificate requests', scope: 'children', tier: 'core', summary: 'Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download.' },
-          { key: 'parent.documents.digilocker_document_pull', slug: 'digilocker_document_pull', name: 'DigiLocker Document Pull', scope: 'children', tier: 'advanced', summary: 'Fetch the child\'s school-issued certificates and mark sheets directly into the parent\'s DigiLocker.' },
+          { key: 'parent.documents.digilocker_document_pull', slug: 'digilocker_document_pull', name: 'DigiLocker Document Pull', scope: 'children', tier: 'advanced', summary: 'Not built: needs the school registered as a DigiLocker issuer and that vendor integration; certificates are still downloadable from Certificate requests. Fetch the child\'s school-issued certificates and mark sheets directly into the parent\'s DigiLocker.' },
         ],
       },
       {

@@ -171,8 +171,8 @@ type childBusRow struct {
 	   A parent watching a dot move asks one question and this product could
 	   not answer it: nothing anywhere computed a time. The number is
 	   deliberately coarse and the basis says so -- see etaMinutes. */
-	EtaMinutes *int   `json:"eta_minutes,omitempty"`
-	SpeedKmph  *float64 `json:"speed_kmph,omitempty"`
+	EtaMinutes  *int     `json:"eta_minutes,omitempty"`
+	SpeedKmph   *float64 `json:"speed_kmph,omitempty"`
 	State       string   `json:"state"`
 	RefreshSecs int      `json:"refresh_seconds"`
 	ProximityM  int      `json:"proximity_m"`
@@ -503,7 +503,6 @@ func (s *Server) mountBusTracking(r chi.Router) {
 	r.With(self).Get("/me/child-bus", s.getChildBus)
 	r.With(self).Post("/me/child-bus/prefs", s.saveWatchPrefs)
 }
-
 
 /*
 etaMinutes turns a distance and a speed into the one number a parent actually

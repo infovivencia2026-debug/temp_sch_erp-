@@ -223,7 +223,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			Active: st.Active, Code: st.Code, Reason: st.Reason,
 			PlanCode: st.PlanCode, PlanName: st.PlanName,
 			CustomIntegration: st.CustomIntegration,
-			Status: st.Status, Modules: st.Modules(),
+			Status:            st.Status, Modules: st.Modules(),
 		}
 		if st.TrialEndsOn != nil {
 			ss.TrialEndsOn = st.TrialEndsOn.Format("2006-01-02")

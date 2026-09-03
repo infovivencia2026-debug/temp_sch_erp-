@@ -41,4 +41,8 @@ export const parentKeys = {
    * door to open. */
   'student.attendance.apply_for_leave': screen(() => import('./LeaveRequests')),
   'student.requests.requests': screen(() => import('./Requests')),
+  /* A device setting, not a server one: the Android app asks the phone for a
+     fingerprint or face before it shows the portal again. Nothing to store on
+     the server, so there is no route behind this screen — see AppLock.tsx. */
+  'parent.profile.parent_app_biometric_lock_face_id_fingerprint': screen(() => import('./AppLock')),
 }
