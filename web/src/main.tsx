@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import './features/bento/bento-theme.css'
 import { startOutbox } from './lib/outbox'
+import { reportScrollToShell } from './lib/shell-scroll'
 
 /* Started before the app renders, not inside it.
 
@@ -13,6 +14,11 @@ import { startOutbox } from './lib/outbox'
    after a component that happens to care has mounted, since the screen the
    person lands on is usually not the screen they were on when it failed. */
 startOutbox()
+
+/* Tells the Android shell where the page's scroller is, so its pull-to-refresh
+   only fires at the top. A no-op in every browser: the bridge does not exist
+   there. */
+reportScrollToShell()
 
 /* The application shell, kept on the device.
 

@@ -117,7 +117,30 @@ class MainActivity : Activity() {
             visibility = View.GONE
         }
         pull = PullToRefresh(this).apply {
-            canScrollUp = { web.canScrollVertically(-1) }
+            /* THE WEBVIEW IS THE WRONG THING TO ASK.
+             *
+             * `canScrollVertically` reports on the document, and this site
+             * scrolls an element inside it: the dock is fixed and the shell
+             * scrolls internally, so the document sits at zero on nearly every
+             * screen no matter how far down the parent actually is. Asking the
+             * WebView therefore answers "at the top" always, and the gesture
+             * fired fifteen screens into the setup wizard and threw the page
+             * back to the start. On a half-filled form that loses the form.
+             *
+             * PullToRefresh's own comment concluded there was no native answer
+             * to this and the page would have to give up its inner scroller.
+             * There is one, because we own the page as well: it reports where
+             * its scroller is, and this reads the last thing it said. Kept as
+             * a value rather than asked over the bridge because the question is
+             * asked in ACTION_DOWN, where nothing may block, and
+             * evaluateJavascript answers on another turn of the loop.
+             *
+             * Defaults to "not at the top", so a page that has not reported —
+             * an old bundle, a screen still loading, a foreign origin — gets no
+             * gesture rather than a gesture that reloads at the wrong moment.
+             * Refusing is the safe direction: the cost is a missing
+             * convenience, and the cost of the other default is lost work. */
+            canScrollUp = { !shell.atTop }
             onRefresh = { web.reload() }
         }
         web = buildWebView()
@@ -181,6 +204,26 @@ class MainActivity : Activity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    /* WHERE THE PAGE'S SCROLLER IS, as last reported.
+     *
+     * `@Volatile` because it is written on the JavaScript bridge's thread and
+     * read on the UI thread inside a touch event. Without it the touch handler
+     * may read a stale value indefinitely, which here means the gesture keeps
+     * firing on a page the parent has already scrolled.
+     *
+     * Starts false — "not at the top" — so nothing is offered until the page
+     * has actually said where it is. */
+    private object Shell {
+        @Volatile var atTop: Boolean = false
+
+        @android.webkit.JavascriptInterface
+        fun setAtTop(value: Boolean) {
+            atTop = value
+        }
+    }
+
+    private val shell = Shell
+
     private fun buildWebView(): WebView {
         val view = WebView(this)
         with(view.settings) {
@@ -203,6 +246,20 @@ class MainActivity : Activity() {
             cacheMode = WebSettings.LOAD_DEFAULT
         }
         view.setBackgroundColor(pageColor())
+
+        /* The one thing the page is allowed to tell the app.
+         *
+         * Deliberately a single boolean and nothing else. A JavascriptInterface
+         * is a hole in the wall between a web page and the device, and every
+         * method on it is reachable by whatever is running in that WebView; the
+         * narrowest possible surface is the whole design. It cannot read, it
+         * cannot navigate, it cannot open anything. It can say "my scroller is
+         * at the top" and that is all it can say.
+         *
+         * Same-origin is enforced elsewhere — shouldOverrideUrlLoading sends
+         * every foreign URL to a real browser — so the only code that can reach
+         * this is the school's own bundle. */
+        view.addJavascriptInterface(shell, "ErpShell")
 
         view.webViewClient = object : WebViewClient() {
             /* ANYTHING NOT THE SCHOOL OPENS IN A REAL BROWSER.

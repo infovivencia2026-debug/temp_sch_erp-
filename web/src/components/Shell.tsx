@@ -1026,6 +1026,11 @@ export function Shell({
               an interface says it was never checked at that size. */}
           <main
             data-paint="workarea"
+            /* Named so the Android shell can find the thing that actually
+               scrolls. It asks the WebView otherwise, which reports on the
+               document — and the document never moves, because this element
+               is what does. See lib/shell-scroll.ts. */
+            data-app-scroll=""
             className={cn(
               'min-h-0 min-w-0 flex-1 pb-[var(--dock-reserve,0px)]',
               split ? 'overflow-hidden' : 'overflow-y-auto',
