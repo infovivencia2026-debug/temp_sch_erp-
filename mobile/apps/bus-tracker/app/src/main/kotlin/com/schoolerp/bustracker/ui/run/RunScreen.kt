@@ -44,7 +44,7 @@ import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.prefs.DIRECTION_DROP
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
-import com.schoolerp.bustracker.data.remote.RollChild
+import com.schoolerp.bustracker.engine.Headcount
 import com.schoolerp.bustracker.engine.TrackerStatus
 import com.schoolerp.bustracker.ui.LocationPermissionPrompt
 import androidx.compose.foundation.text.KeyboardOptions
@@ -68,7 +68,9 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val stops by viewModel.stops.collectAsStateWithLifecycle()
     val routes by viewModel.routeBook.collectAsStateWithLifecycle()
     val scannedBus by viewModel.scannedBus.collectAsStateWithLifecycle()
-    val roll by viewModel.roll.collectAsStateWithLifecycle()
+    val students by viewModel.students.collectAsStateWithLifecycle()
+    val pendingMarks by viewModel.pendingMarks.collectAsStateWithLifecycle()
+    val notices by viewModel.notices.collectAsStateWithLifecycle()
     val alert by viewModel.alert.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
@@ -101,6 +103,8 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
         status.institution?.let {
             Text(it, style = MaterialTheme.typography.titleMedium)
         }
+
+        NoticeBanner(notices, onAcknowledge = viewModel::acknowledgeNotice)
 
         ReportingCard(status)
 
@@ -186,10 +190,12 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             /* The one question the driver has while moving, answered first
                and in the largest type on the screen. Everything under it is
                reference; this is the line read at a junction. */
-            NextStopCard(stops = stops, lastArrival = lastArrival)
+            val counts = students.groupBy { it.stopId }
+                .mapValues { (_, here) -> Headcount.of(here, trip.direction) }
+            NextStopCard(stops = stops, lastArrival = lastArrival, counts = counts, direction = trip.direction)
 
             RouteSketch(stops, modifier = Modifier.fillMaxWidth())
-            StopList(stops)
+            StopList(stops, counts, trip.direction)
 
             /* WHO IS ON THE BUS.
 
@@ -199,11 +205,13 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                question a parent rings about is not where the bus is; it is
                whether their child is on it, and this is the only place that
                can honestly be answered. */
-            RollCard(
-                children = roll,
-                onOpen = viewModel::refreshRoll,
+            ChildrenByStop(
+                stops = stops,
+                students = students,
+                direction = trip.direction,
+                pendingMarks = pendingMarks,
                 onMark = viewModel::markChild,
-                enabled = !busy,
+                photo = viewModel::photo,
             )
 
             /* END RUN ASKS FIRST.
@@ -432,7 +440,7 @@ private fun ReportingCard(status: TrackerStatus) {
  * as the name of the place they are looking for.
  */
 @Composable
-private fun StopList(stops: List<StopEntity>) {
+private fun StopList(stops: List<StopEntity>, counts: Map<String, Headcount>, direction: String) {
     if (stops.isEmpty()) return
     val nextIndex = stops.indexOfFirst { it.arrivedAtMillis == null }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -455,19 +463,32 @@ private fun StopList(stops: List<StopEntity>) {
                         else -> MaterialTheme.colorScheme.onSurface
                     },
                 )
-                Text(
-                    stop.name,
-                    style = if (isNext) {
-                        MaterialTheme.typography.titleMedium
-                    } else {
-                        MaterialTheme.typography.bodyLarge
-                    },
-                    color = when {
-                        done -> MaterialTheme.colorScheme.onSurfaceVariant
-                        isNext -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurface
-                    },
-                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stop.name,
+                        style = if (isNext) {
+                            MaterialTheme.typography.titleMedium
+                        } else {
+                            MaterialTheme.typography.bodyLarge
+                        },
+                        color = when {
+                            done -> MaterialTheme.colorScheme.onSurfaceVariant
+                            isNext -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    counts[stop.stopId]?.let { count ->
+                        Text(
+                            count.summary(direction),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (done && !count.complete) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -487,7 +508,12 @@ private fun StopList(stops: List<StopEntity>) {
  * above the sketch as a chip.
  */
 @Composable
-private fun NextStopCard(stops: List<StopEntity>, lastArrival: String?) {
+private fun NextStopCard(
+    stops: List<StopEntity>,
+    lastArrival: String?,
+    counts: Map<String, Headcount> = emptyMap(),
+    direction: String = DIRECTION_PICKUP,
+) {
     if (stops.isEmpty()) return
     val done = stops.count { it.arrivedAtMillis != null }
     val next = stops.firstOrNull { it.arrivedAtMillis == null }
@@ -511,6 +537,19 @@ private fun NextStopCard(stops: List<StopEntity>, lastArrival: String?) {
                 "$done of ${stops.size} stops",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            /* Who to expect here, before the doors open. "2 of 3 on, 1
+               reported absent" is the difference between pulling away and
+               waiting for a child who is in bed. */
+            next?.let { counts[it.stopId] }?.let { count ->
+                Text(
+                    if (count.expected == 0 && count.reportedAbsent == 0) {
+                        "Nobody allocated to this stop"
+                    } else {
+                        count.summary(direction)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
             LinearProgressIndicator(
                 progress = { if (stops.isEmpty()) 0f else done.toFloat() / stops.size },
                 modifier = Modifier.fillMaxWidth(),
@@ -736,76 +775,6 @@ private fun DriverSignIn(
  * worth far more to an office at nine o'clock than a run with three blanks,
  * because only one of them tells you somebody should ring a house.
  */
-@Composable
-private fun RollCard(
-    children: List<RollChild>,
-    onOpen: () -> Unit,
-    onMark: (String, String) -> Unit,
-    enabled: Boolean,
-) {
-    var open by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
-            onClick = {
-                open = !open
-                if (open) onOpen()
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) { Text(if (open) "Hide the children" else "Who is on the bus") }
-
-        if (!open) return@Column
-
-        if (children.isEmpty()) {
-            Text(
-                "Nobody is allocated to this route yet, or the school could not be reached. " +
-                    "The run still tracks either way.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            return@Column
-        }
-
-        children.forEach { child ->
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(child.name, style = MaterialTheme.typography.titleMedium)
-                if (child.stopName.isNotBlank()) {
-                    Text(
-                        child.stopName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(
-                        "boarded" to "On",
-                        "alighted" to "Off",
-                        "absent" to "Absent",
-                    ).forEach { (value, label) ->
-                        if (child.status == value) {
-                            Button(
-                                onClick = { },
-                                enabled = false,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(label) }
-                        } else {
-                            OutlinedButton(
-                                onClick = { onMark(child.studentId, value) },
-                                enabled = enabled,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(label) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
 /**
  * The three phone settings that quietly ruin tracking, behind one line.
  *
