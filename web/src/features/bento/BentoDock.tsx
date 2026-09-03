@@ -1,4 +1,4 @@
-import { useMemo, useState , type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
@@ -8,6 +8,7 @@ import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
+import { onOpenLauncher } from './launcher-open'
 import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
 import { useBoard } from '@/lib/widgets'
@@ -63,6 +64,9 @@ export function BentoDock() {
     [appearance.hiddenDockItems],
   )
   const [all, setAll] = useState(false)
+  /* The board's swipe-up asks for the launcher from a sibling subtree. See
+     launcher-open.ts for why this is an emitter rather than a context. */
+  useEffect(() => onOpenLauncher(() => setAll(true)), [])
 
   /* Where "Work" goes, per role.
 

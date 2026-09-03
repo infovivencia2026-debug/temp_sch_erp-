@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useSwipeUpForAll } from './swipe-up-launcher'
+import { openLauncher } from './launcher-open'
 import {
   ArrowLeft, ArrowRight, Check, GripVertical, Minus, Plus, RotateCcw, Undo2, Wand2, X,
 } from 'lucide-react'
@@ -325,6 +327,10 @@ export function WidgetLayer({
   })
 
   const paged = phone && !arranging && inBoard
+  /* Exactly the condition that makes this a home screen: a phone, a real
+     board, and not in the middle of rearranging it. The same three facts that
+     turn on paging turn on the swipe. */
+  useSwipeUpForAll(paged, openLauncher)
   const spots = useMemo(() => {
     if (!paged) return null
     return paginate(
