@@ -470,6 +470,7 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		if relation == "" {
 			relation = fallbackRelation
 		}
+		relation = normaliseRelation(relation)
 		var guardianID string
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO guardians (institution_id, full_name, relation, phone, email, occupation)
@@ -1209,6 +1210,36 @@ func recordConcession(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 var blankConcession = map[string]bool{
 	"no": true, "none": true, "nil": true, "na": true, "n/a": true,
 	"-": true, "--": true, "full fee": true, "regular": true,
+}
+
+/*
+normaliseRelation maps what a school writes onto what the column allows.
+
+	The column takes father, mother, guardian or other. A roll says
+	grandmother, uncle, elder brother, aunt -- and a row carrying one of those
+	failed on a check constraint, reported as SQLSTATE 23514 to somebody who
+	had written a true and ordinary word.
+
+	Anything that is not a parent becomes "guardian", which is precisely what
+	the column means by it: the person responsible for this child who is not
+	their mother or father. The school's own word is not lost -- it is on the
+	guardian's own record, which is where somebody reads it.
+*/
+func normaliseRelation(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "father", "f", "dad", "papa":
+		return "father"
+	case "mother", "m", "mom", "mum", "mummy":
+		return "mother"
+	case "":
+		return "guardian"
+	case "other":
+		return "other"
+	default:
+		// Grandmother, uncle, elder brother, aunt, cousin, legal guardian --
+		// every one of them is a guardian as far as the record is concerned.
+		return "guardian"
+	}
 }
 
 func normaliseGender(v string) string {
