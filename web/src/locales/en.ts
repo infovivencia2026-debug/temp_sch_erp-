@@ -1987,6 +1987,7 @@ export const en = {
   // say whose day it is — it can only be theirs.
   'bento.student_day.eyebrow': 'Home',
   'bento.student_day.loading': 'Reading your day…',
+  'bento.student_day.no_record': 'This login is not linked to a student record yet. Ask the office to link it.',
   'bento.student_day.failed':
     'That did not load. Nothing here is a figure you can rely on until it does.',
   'bento.student_day.now_label': 'On now',

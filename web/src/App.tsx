@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api'
 import { Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -33,7 +34,12 @@ const queryClient = new QueryClient({
          revision poll makes most of these refetches free anyway: a cache that
          is already current has nothing to fetch. */
       refetchOnWindowFocus: true,
-      retry: 1,
+      /* One retry, and none for a refusal. A 404 or 403 is an answer, not a
+         blip: retrying it only holds the screen on its loading line for the
+         backoff, which on a slow day was the whole difference between a
+         student seeing "no record yet" at once and after twenty seconds. */
+      retry: (count, err) =>
+        count < 1 && !(err instanceof ApiError && err.status >= 400 && err.status < 500),
     },
   },
 })

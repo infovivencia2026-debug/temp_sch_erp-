@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, type List } from '@/lib/api'
+import { api, ApiError, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { formatPaise } from '@/lib/utils'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
@@ -150,6 +150,13 @@ export default function StudentDay() {
      Only the two the whole board rests on gate it. The register and the ledger
      degrade per cell instead — losing the trend is not a reason to hide the
      timetable. */
+  /* Not found is not a failure. The login exists and no student record is
+     tied to it yet, which is the office's to fix — say that, rather than
+     "did not load", which sends a child to reload a page that will never
+     change. */
+  if (summary.error instanceof ApiError && summary.error.status === 404) {
+    return <BentoError message={t('bento.student_day.no_record')} />
+  }
   if (children.error || summary.error || !summary.data) {
     return <BentoError message={t('bento.student_day.failed')} />
   }
