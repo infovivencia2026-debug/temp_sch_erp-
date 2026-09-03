@@ -1,0 +1,10 @@
+Sequence,Period,Starts,Ends,Break
+1,Period 1,09:00,09:45,No
+2,Period 2,09:45,10:30,No
+3,Short break,10:30,10:45,Yes
+4,Period 3,10:45,11:30,No
+5,Period 4,11:30,12:15,No
+6,Lunch,12:15,13:00,Yes
+7,Period 5,13:00,13:45,No
+8,Period 6,13:45,14:30,No
+9,Period 7,14:30,15:15,No

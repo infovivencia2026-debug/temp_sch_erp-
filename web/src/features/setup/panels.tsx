@@ -1462,6 +1462,18 @@ function PeriodsPanel({ onDone }: PanelProps) {
           ))}
         </Existing>
       )}
+      {/* The importer for this has existed the whole time with nothing on any
+          screen calling it. A school with a nine-period day and a second set
+          of timings for the primary section was typing eighteen rows by hand
+          past an endpoint that would have taken the file. */}
+      <div className="mt-4 border-t pt-4">
+        <BulkImport
+          entity="periods"
+          title="Or the day from a sheet"
+          hint="Sequence, name, start, end, and whether it is a break. Breaks are listed too: the timetable needs them to know a teacher is free."
+          onDone={onDone}
+        />
+      </div>
     </form>
   )
 }
@@ -2260,6 +2272,17 @@ function FeeHeadsPanel({ onDone }: PanelProps) {
         ))}
       </div>
       <SaveRow pending={save.isPending} error={save.error} label={`Add ${picked.size || ''} fee heads`} />
+      {/* Same story: an importer nobody could reach. A school with twenty
+          heads across tuition, transport, books and lab was clicking through
+          a list one at a time. */}
+      <div className="mt-4 border-t pt-4">
+        <BulkImport
+          entity="fee_heads"
+          title="Or every fee head from a sheet"
+          hint="Name, code, and whether it recurs each term. The code is what a receipt prints and what a second upload matches on."
+          onDone={onDone}
+        />
+      </div>
     </form>
   )
 }
