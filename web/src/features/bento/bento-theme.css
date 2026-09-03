@@ -1410,6 +1410,21 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
     min-height: 0;
   }
 
+  /* AND THE SHEET STOPS WITH IT TOO.
+
+     Three elements had to be told, which is one more than it should be, and
+     the first two were not enough on their own. The board gave up its height,
+     the ground gave up its minimum, and the sheet between them carries
+     `h-full` and went on filling the window: measured at 1440x900, a 456px
+     board inside a 762px surface, so its edge sat three hundred pixels below
+     the last card. Nothing is painted in that gap, which is why it took a
+     screenshot rather than a colour probe to see it -- what reads is the
+     boundary, and a boundary that far from the content says the board carries
+     on down there and is empty. */
+  [data-layout='bento'] .bento-surface:has([data-card]):not(:has([data-card]:not([data-quiet]))) {
+    height: auto;
+  }
+
   /* AND A QUIET CARD TAKES ONE ROW, WHATEVER HEIGHT ITS OWNER GAVE IT.
 
      Row spans are the reader's own arrangement and are honoured everywhere
