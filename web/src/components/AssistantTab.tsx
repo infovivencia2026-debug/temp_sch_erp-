@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Mic, Square, X } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -74,6 +75,21 @@ interface Turn {
 export function AssistantTab() {
   const session = useSession()
   const [open, setOpen] = useState(false)
+  /* NOT ON SETTINGS.
+   *
+   * The orb floats above the dock at a fixed corner, which is right over a
+   * page of full-width rows: measured at 390x844 it sat on top of the Account
+   * row, so one of the things somebody came to Settings to press was covered
+   * by a button for asking questions about something else.
+   *
+   * It is also the wrong offer there. Settings is where somebody changes a
+   * thing they have already decided to change; the assistant belongs on the
+   * screens where they are still working something out.
+   *
+   * Route-based rather than width-based because `/settings` IS the phone
+   * case — above the drill-in breakpoint the same content is a dialog opened
+   * from the dock, and the orb over a dialog is already handled by `open`. */
+  const onSettings = useLocation().pathname.startsWith('/settings')
 
   /* Back closes the assistant rather than the app. See useOverlayHistory. */
   const closeAssistant = useCallback(() => setOpen(false), [])
@@ -215,6 +231,9 @@ export function AssistantTab() {
       inputRef.current?.focus()
     }
   }
+
+  /* Placed after every hook, so the early return cannot change how many run. */
+  if (onSettings && !open) return null
 
   return (
     <>

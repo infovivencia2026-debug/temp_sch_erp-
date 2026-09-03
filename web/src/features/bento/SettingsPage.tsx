@@ -177,8 +177,20 @@ export default function SettingsPage() {
        side of a sheet that is supposed to be flush. That substitution has
        caused five separate bugs in this codebase. */
     <div className={cn(
-      '-mx-[16px] w-[calc(100%+32px)] py-0',
-      'sm:mx-auto sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
+      /* FULL SCREEN ON A PHONE, IN ALL FOUR DIRECTIONS.
+       *
+       * The horizontal gutter was already cancelled here so the rows reach the
+       * glass. The vertical one was not, so the sheet started 21px down and
+       * stopped 21px short: a settings surface floating in a band of ground,
+       * which is what a card does and not what a screen does.
+       *
+       * `-mt-6 -mb-6` rather than a measured `-mt-[21px]`, deliberately. The
+       * padding being cancelled is `pt-6 pb-6` on the outlet, and the same
+       * token cancels it exactly whatever the root font size is. Writing the
+       * pixel value would be right at 14px and wrong the moment somebody
+       * changes the text size — which this very screen offers. */
+      '-mx-[16px] -mt-6 -mb-6 w-[calc(100%+32px)] py-0',
+      'sm:mx-auto sm:mt-0 sm:mb-0 sm:w-full sm:max-w-[980px] sm:px-6 sm:py-6',
     )}>
       <div
         className={cn(
