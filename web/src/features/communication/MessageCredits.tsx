@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import {
-  Card, CardHeader, Button, Input, Field, FormGrid, FormNotice, Badge,
+  Card, CardHeader, Button, ConfirmButton, Input, Field, FormGrid, FormNotice, Badge,
   Table, Td, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
-  useCredits, useCreditEntries, useTopUpCredits,
+  useCredits, useCreditEntries, useTopUpCredits, useStopMetering,
   type CreditBalance,
 } from '@/features/super_admin/messaging-lib'
 import { formatDate } from '@/lib/utils'
@@ -54,6 +54,7 @@ function ChannelMeter({ credit }: { credit: CreditBalance }) {
   const [low, setLow] = useState(String(credit.low_water))
   const [open, setOpen] = useState(false)
   const topUp = useTopUpCredits(credit.channel)
+  const stop = useStopMetering(credit.channel)
   const entries = useCreditEntries(credit.channel)
 
   const n = Number(amount)
@@ -138,6 +139,19 @@ function ChannelMeter({ credit }: { credit: CreditBalance }) {
           <Button variant="secondary" onClick={() => setOpen((o) => !o)}>
             {open ? 'Hide history' : 'History'}
           </Button>
+          {/* The way back. Taking a balance to zero does not undo metering —
+              it stops the channel — so a school metered by mistake needs a
+              door out that is not "leave its messages held forever". */}
+          {credit.metered && (
+            <ConfirmButton
+              variant="ghost"
+              onConfirm={() => stop.mutate()}
+              question={`Stop metering ${name}? It goes back to sending without a limit. The history is kept.`}
+              confirmLabel="Stop metering"
+            >
+              Stop metering
+            </ConfirmButton>
+          )}
         </div>
 
         <FormNotice error={topUp.error} />

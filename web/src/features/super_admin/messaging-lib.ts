@@ -321,3 +321,13 @@ export function useSmsPresets() {
     staleTime: 60 * 60 * 1000,
   })
 }
+
+/* Back to unmetered, which no amount of topping down can reach: a balance of
+   zero is a stopped channel, not an absent meter. */
+export function useStopMetering(channel: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.del<{ channel: string; metered: boolean }>(`${BASE}/credits/${channel}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['messaging'] }),
+  })
+}

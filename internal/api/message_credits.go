@@ -173,6 +173,7 @@ func (s *Server) mountMessageCredits(r chi.Router) {
 	r.With(read).Get("/messaging/credits", s.listMessageCredits)
 	r.With(read).Get("/messaging/credits/{channel}/entries", s.listMessageCreditEntries)
 	r.With(write).Post("/messaging/credits/{channel}", s.topUpMessageCredits)
+	r.With(write).Delete("/messaging/credits/{channel}", s.stopMeteringChannel)
 }
 
 type creditView struct {
@@ -334,4 +335,61 @@ func (s *Server) topUpMessageCredits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"channel": channel, "balance": balance})
+}
+
+/*
+STOP METERING, which is not the same as setting the balance to zero.
+
+	This gap was found by using the feature: taking a balance back down to zero
+	leaves the school METERED at zero, and a metered channel at zero is stopped.
+	So the only way to undo "I metered the wrong school" was to leave its
+	messages held forever, and there was no path back to the state every school
+	starts in.
+
+	Removing the row is that path: no row means no meter, which is exactly how
+	an untouched school behaves.
+
+	The ledger is deliberately NOT removed. It is the record of money already
+	spent with the vendor, and it has to survive somebody switching the meter
+	off — otherwise the way to make an awkward month disappear is to stop
+	metering and start again.
+*/
+func (s *Server) stopMeteringChannel(w http.ResponseWriter, r *http.Request) {
+	channel := chi.URLParam(r, "channel")
+	if !metered(channel) {
+		httpx.BadRequest(w, r, "channel must be sms or whatsapp")
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var balance int
+		err := tx.QueryRow(r.Context(),
+			`DELETE FROM message_credits WHERE institution_id = $1 AND channel = $2
+			 RETURNING balance`, id.InstitutionID, channel).Scan(&balance)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Already unmetered. Saying so as success rather than 404: the
+			// caller asked for a state and the state is what they asked for.
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		/* What was left is written off in the ledger rather than vanishing.
+		   A balance that simply disappears makes the history stop adding up,
+		   and this history exists to be checked against a vendor's bill. */
+		if balance > 0 {
+			_, err = tx.Exec(r.Context(), `
+				INSERT INTO message_credit_entries
+				       (institution_id, channel, delta, reason, actor_id, note)
+				VALUES ($1, $2, $3, 'adjustment', $4, 'metering switched off')`,
+				id.InstitutionID, channel, -balance, id.UserID)
+		}
+		return err
+	})
+	if err != nil {
+		httpx.Error(w, r, http.StatusInternalServerError, "credits_failed",
+			"Could not switch metering off.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"channel": channel, "metered": false})
 }
