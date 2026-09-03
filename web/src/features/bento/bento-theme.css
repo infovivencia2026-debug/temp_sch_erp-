@@ -1384,15 +1384,26 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      a collapsed board is the compact scale it was tuned for rather than the
      one meant for a half-screen tile. */
   .bento-board:has([data-card][data-quiet]):not(:has([data-card]:not([data-quiet]))) {
-    height: auto !important;
-    /* `flex: 0 0 auto` and NOT `align-self: start`. The board is a child of a
-       COLUMN flex container, so its cross axis is horizontal: measured, an
-       `align-self: start` meant to stop the board stretching downwards shrank
-       it to 24 pixels WIDE and took every column with it. Only the main-axis
-       growth needed switching off, and that is what flex-grow does. */
-    flex: 0 0 auto !important;
-    grid-template-rows: repeat(var(--board-rows, 3), 148px) !important;
-    grid-auto-rows: 148px !important;
+    /* THE CARDS TAKE THE ROOM, RATHER THAN THE SHEET GIVING IT UP.
+     *
+     * This rule used to collapse the board to rows of exactly 148px so that
+     * nothing empty was painted below the last one. That removed the slab and
+     * left the space: a board of eight cards ended halfway down a 1440x723
+     * window with a third of the screen doing nothing.
+     *
+     * There were only ever two ways to answer "there is empty space below the
+     * cards", and shrinking away from it is the weaker one. The cards fill it
+     * instead. The board is a home screen and a home screen occupies its
+     * screen.
+     *
+     * `minmax(148px, 1fr)` rather than plain `1fr` keeps the floor the
+     * collapse was built around: 148px is what a quiet card holds — a two-line
+     * title, a figure and a sentence — and it is above the 150px container
+     * query that switches a card to its short-cell type scale. A board with
+     * more rows than will fit still gives each one that much and scrolls,
+     * instead of crushing twelve cards into a window that fits five. */
+    grid-template-rows: repeat(var(--board-rows, 3), minmax(148px, 1fr)) !important;
+    grid-auto-rows: minmax(148px, 1fr) !important;
   }
 
   /* AND THE GROUND STOPS WITH IT.
@@ -1410,27 +1421,18 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      is what stops a two-card page ending in a hard edge halfway down the
      screen. */
   [data-layout='bento'] .bento-ground:has([data-card]):not(:has([data-card]:not([data-quiet]))) {
-    min-height: 0;
-    /* AND THE HEIGHT, NOT ONLY THE MINIMUM.
+    /* Nothing to shrink away from any more.
      *
-     * `min-height: 0` alone was measured as fixed and was not. The ground
-     * carries `lg:h-full` in its class list, which is a declared
-     * `height: 100%` from 1024px up, and a minimum has nothing to say to a
-     * height that is stated outright. So the slab this rule exists to remove
-     * survived at every desktop width and vanished only on a phone, where
-     * `lg:` does not apply -- which is exactly where it was checked.
+     * This released the ground's height so that a board which had collapsed
+     * did not leave a slab of card-coloured grey beneath it. The board fills
+     * its room now, so the slab cannot form, and releasing the height here
+     * would instead stop the cards reaching the foot of the window — which is
+     * the whole point of the rule above.
      *
-     * Measured afterwards at 1440x723: a 456px board sitting in a 627px
-     * ground, so 171px of card-coloured grey below the last row with the
-     * dock's 96px reserve under that again. It reads as more empty board
-     * rather than as background, because it is the same colour as the gaps
-     * between the cards. */
-    height: auto;
-    /* The ground is a block child of `main`, so nothing stretches it once the
-       height is released -- but the flex line is stated anyway, because the
-       moment `main` becomes a flex column this silently grows back and the
-       symptom is a slab of grey nobody will connect to this rule. */
-    flex: 0 0 auto;
+     * Kept as an explicit full height rather than deleted, because `lg:h-full`
+     * in the class list only applies from 1024px, and the cards should reach
+     * the dock on a phone too. */
+    min-height: 100%;
   }
 
   /* AND THE SHEET STOPS WITH IT TOO.
@@ -1445,7 +1447,11 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      boundary, and a boundary that far from the content says the board carries
      on down there and is empty. */
   [data-layout='bento'] .bento-surface:has([data-card]):not(:has([data-card]:not([data-quiet]))) {
-    height: auto;
+    /* Full height for the same reason as the ground: the sheet is what the
+       board is measured against, and a sheet that stops short stops the cards
+       with it. `main` carries the dock's reserve as padding, so filling here
+       reaches the dock and never passes under it. */
+    height: 100%;
   }
 
   /* AND A QUIET CARD TAKES ONE ROW, WHATEVER HEIGHT ITS OWNER GAVE IT.
