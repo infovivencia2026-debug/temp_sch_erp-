@@ -1,0 +1,8 @@
+subject,class,section,room,class_teacher_email,teacher_email,max_marks,periods_per_week
+English,Class 1,,,,,100,6
+Mathematics,Class 1,,,,,100,6
+EVS,Class 1,,,,,100,4
+English,Class 6,A,6A,priya@yajur.test,anand@yajur.test,100,6
+Mathematics,Class 6,A,6A,,priya@yajur.test,100,6
+General Science,Class 6,B,6B,,anand@yajur.test,100,5
+Sanskrit,,,,,,,

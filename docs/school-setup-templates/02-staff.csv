@@ -1,0 +1,5 @@
+employee_code,first_name,last_name,email,phone,designation,role,joined_on,subjects
+T-014,Priya,Rao,priya@school.in,9876543210,Teacher,faculty,2026-06-01,MATH; SCI
+T-001,Priya,Rao,priya@yajur.test,9876543210,Teacher,faculty,2026-06-01,MATH; SCI
+T-002,Anand,Kumar,anand@yajur.test,9876543211,Teacher,faculty,2026-06-01,ENG
+A-001,Meera,Iyer,meera@yajur.test,9876543212,Accountant,accounts,2026-06-01,
