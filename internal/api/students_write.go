@@ -920,9 +920,16 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		good = append(good, parsed{req: req, row: rowNum})
 	}
 
-	// Resolve "Class 6-A" style placement once, not per row.
+	/* Resolve "Class 6-A" style placement once, not per row -- and on the dry
+	   run as well as the commit.
+
+	   Loaded only when committing, so the dry run could not tell a school that
+	   a section did not exist. It reported every row valid and the commit then
+	   handed the label "Class 1-A" to Postgres as a uuid, which came back as
+	   "invalid input syntax for type uuid" and stopped the whole file on row
+	   three. The clerk is told the file is ready and then shown a SQLSTATE. */
 	sectionByLabel := map[string]string{}
-	if commit && len(good) > 0 {
+	if len(good) > 0 {
 		_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 			rows, err := tx.Query(r.Context(), `
 				SELECT lower(c.name || '-' || s.name), s.id::text
@@ -941,6 +948,33 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			return rows.Err()
 		})
 	}
+
+	/* A placement naming a section the school does not have.
+
+	   Checked here, before anything is written, and reported against its own
+	   row like any other bad value -- rather than being passed on as a uuid it
+	   plainly is not. One child in the wrong class does not stop the file. */
+	kept := good[:0]
+	for _, g := range good {
+		label := strings.TrimSpace(g.req.SectionID)
+		if label == "" {
+			kept = append(kept, g)
+			continue
+		}
+		if _, ok := sectionByLabel[strings.ToLower(label)]; ok {
+			kept = append(kept, g)
+			continue
+		}
+		out.Valid--
+		out.Rejected++
+		out.Problems = append(out.Problems, importRow{
+			Row: g.row,
+			Problem: fmt.Sprintf("no class and section called %q. "+
+				"Create the classes and sections first, and write them as the "+
+				"school does \u2014 Class 6 and A", label),
+		})
+	}
+	good = kept
 
 	if !commit {
 		httpx.JSON(w, http.StatusOK, out)
