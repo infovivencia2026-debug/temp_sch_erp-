@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api'
 import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
   type ReactElement, type ReactNode,
@@ -1721,6 +1722,29 @@ export function FormGrid({ children }: { children: ReactNode }) {
 
 /** Inline result of a save: the server's own words, not a generic toast. */
 export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
+  /* A WRITE HELD FOR THE NETWORK IS NOT A FAILURE, AND MUST NOT BE PAINTED AS ONE.
+
+     When there is no connection the API layer keeps the write and sends it
+     later, and it says so by throwing an error whose code is queued_offline.
+     Two hundred and eight screens hand that error to this component, and it
+     rendered the sentence "Saved on this device. It will be sent as soon as
+     there is a connection." in red, bordered, as a thing that went wrong.
+
+     So the one moment the product did something quietly clever — nothing was
+     lost, the reminder is going out — was the moment it told the person it had
+     failed. Handled here rather than on each screen because here is where all
+     of them already come, and a fix that has to be made two hundred times is
+     one that will be made sixty. */
+  if (error instanceof ApiError && error.code === 'queued_offline') {
+    return (
+      <p
+        role="status"
+        className="rounded-md border border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
+      >
+        {error.message}
+      </p>
+    )
+  }
   if (error) {
     const msg = error instanceof Error ? error.message : 'Could not save'
     return (

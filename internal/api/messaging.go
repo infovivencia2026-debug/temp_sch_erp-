@@ -375,10 +375,10 @@ gatewaySettings describes a vendor's send endpoint without naming the vendor.
 	{key}, {dlt}.
 */
 type gatewaySettings struct {
-	Endpoint   string            `json:"endpoint"`
-	Method     string            `json:"method"`
-	SenderID   string            `json:"sender_id"`
-	AuthHeader string            `json:"auth_header"`
+	Endpoint   string `json:"endpoint"`
+	Method     string `json:"method"`
+	SenderID   string `json:"sender_id"`
+	AuthHeader string `json:"auth_header"`
 	/* WHICH HEADER CARRIES THE KEY.
 
 	   The value was configurable and the header's name was not -- it was
@@ -390,8 +390,8 @@ type gatewaySettings struct {
 
 	   Empty still means Authorization, so every channel configured before this
 	   behaves exactly as it did. */
-	AuthHeaderName string `json:"auth_header_name,omitempty"`
-	Params     map[string]string `json:"params"`
+	AuthHeaderName string            `json:"auth_header_name,omitempty"`
+	Params         map[string]string `json:"params"`
 	// form | json. How Params is carried.
 	Encoding string `json:"encoding"`
 }
@@ -735,12 +735,47 @@ func buildProvider(channel string, cfg []byte, secret string) MessagingProvider 
 // tomorrow can set a reminder working today. A seed would only reach the
 // tenants that existed when the migration ran, and the next school would find
 // a trigger screen it cannot use until somebody authors four templates.
+/* Messages the platform sends on a school's behalf, through its own channels.
+
+   A password reset has always gone this way so that a school which configured
+   nothing can still send one. The credit alerts join it for the same reason
+   turned inside out: the school whose meter has run dry is precisely the school
+   that may have no working channel of its own. */
+var sentByPlatform = map[string]bool{
+	"password_reset": true,
+	"credits.low":    true,
+	"credits.empty":  true,
+}
+
 type builtinTemplate struct {
 	Subject string
 	Body    string
 }
 
 var builtinTemplates = map[string]builtinTemplate{
+	/* THE METER IS RUNNING LOW, said before it stops rather than after.
+
+	   A school discovers an empty balance by messages silently not arriving,
+	   and by then the ones that mattered — the fee reminder due today, the
+	   absence alert — are already held. The warning point exists on the meter;
+	   this is what fires when it is crossed. Once per crossing, and once a day
+	   at most for the same channel, so a balance hovering at the line does not
+	   become a daily nag.
+
+	   Goes to the school's administrators AND to the seller, because both have
+	   something to do: one asks, the other grants. The same sentence for both,
+	   because they are looking at the same number. */
+	"credits.low": {
+		Subject: "{{school_name}}: {{channel}} messages running low ({{balance}} left)",
+		Body: "{{school_name}} has {{balance}} {{channel}} messages left, below the warning point of {{low_water}}.\n\n" +
+			"Ask for more from Communication → Message channels → {{channel}} before it stops.\n\n{{school_name}}",
+	},
+	"credits.empty": {
+		Subject: "{{school_name}}: {{channel}} messages have stopped",
+		Body: "{{school_name}} has no {{channel}} messages left. Everything queued is being held, not lost, " +
+			"and goes out the moment credits are added.\n\n" +
+			"Ask for more from Communication → Message channels → {{channel}}.\n\n{{school_name}}",
+	},
 	/* THE BUS IS NEARLY AT THE STOP.
 
 	   The one message this product exists to send, and the one it never sent.
@@ -1129,7 +1164,22 @@ QueueMessage records one outbound message and leaves it for the dispatcher.
 func (s *Server) QueueMessage(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	req SendRequest) (SendResult, error) {
 
-	set, err := s.loadProviders(ctx, tx, inst)
+	/* Judged against whoever will actually send it.
+
+	   A message the platform sends on the school's behalf leaves by the
+	   platform's channels, so the school's own configuration is the wrong
+	   thing to check: a school with no mail server of its own must still be
+	   told its credits have run out, and that is precisely the school most
+	   likely to have none. The dispatcher already swaps to the platform's
+	   providers for these codes at send time; this is the same swap at queue
+	   time, so the two agree. */
+	var set providerSet
+	var err error
+	if sentByPlatform[req.TemplateCode] {
+		set, err = s.platformProviders(ctx)
+	} else {
+		set, err = s.loadProviders(ctx, tx, inst)
+	}
 	if err != nil {
 		return SendResult{}, err
 	}
@@ -1146,11 +1196,26 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	}
 	p, ok := set[req.Channel]
 	if !ok || !p.Configured() {
-		why := "not set up yet"
-		if ok {
-			why = p.Why()
+		/* Held, not refused, when the platform is the sender.
+
+		   The rule above — refuse rather than pretend — is right for a
+		   school's own message: a row nothing will ever send is a lie in the
+		   log. It is wrong for the platform's, which a password reset has
+		   always sidestepped with a direct insert for exactly this reason:
+		   the vendor configuring its mail server is a thing that WILL happen,
+		   and every alert queued before that moment should go out the moment
+		   it does rather than have silently never existed. The row carries
+		   the reason on its face until then. */
+		if !sentByPlatform[req.TemplateCode] {
+			why := "not set up yet"
+			if ok {
+				why = p.Why()
+			}
+			return SendResult{}, fmt.Errorf("%s: %w: %s", req.Channel, ErrProviderNotConfigured, why)
 		}
-		return SendResult{}, fmt.Errorf("%s: %w: %s", req.Channel, ErrProviderNotConfigured, why)
+		if !ok {
+			p = unconfiguredProvider{req.Channel, "platform channel not set up yet"}
+		}
 	}
 
 	req.Recipient = strings.TrimSpace(req.Recipient)
@@ -1443,7 +1508,7 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			   only if that school had configured email, which most never do.
 			   The seller keeps one mail server and one SMS channel for every
 			   school's resets, and the school need configure nothing. */
-			if code != nil && *code == "password_reset" {
+			if code != nil && sentByPlatform[*code] {
 				if set, err = s.platformProviders(ctx); err != nil {
 					return err
 				}
@@ -1573,7 +1638,7 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			 * otherwise be paid for twice -- once by the reservation and again
 			 * by the retry that follows -- and this dispatcher retries by
 			 * design. */
-			if e := spendCredit(ctx, tx, inst, channel, id); e != nil {
+			if e := s.spendCredit(ctx, tx, inst, channel, id); e != nil {
 				return e
 			}
 

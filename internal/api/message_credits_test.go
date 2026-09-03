@@ -58,7 +58,7 @@ func TestTheTopPackWithoutABalanceIsNotMetered(t *testing.T) {
 			t.Errorf("metered at %d; a school paying its own vendor should have no ceiling here", bal)
 		}
 		// And spending against it must be a no-op rather than an error.
-		return spendCredit(t.Context(), tx, sc.inst, "sms", uuid.New())
+		return (&Server{DB: sc.db}).spendCredit(t.Context(), tx, sc.inst, "sms", uuid.New())
 	})
 	if _, found := balanceOf(t, sc, "sms"); found {
 		t.Error("spending on an unmetered school created a balance row")
@@ -120,7 +120,7 @@ func TestASendSpendsExactlyOne(t *testing.T) {
 		return err
 	})
 	sc.tx(t, func(tx pgx.Tx) error {
-		return spendCredit(t.Context(), tx, sc.inst, "whatsapp", uuid.Nil)
+		return (&Server{DB: sc.db}).spendCredit(t.Context(), tx, sc.inst, "whatsapp", uuid.Nil)
 	})
 	if bal, _ := balanceOf(t, sc, "whatsapp"); bal != 2 {
 		t.Fatalf("balance %d after one send, want 2", bal)
@@ -143,7 +143,7 @@ func TestTheMeterCannotGoNegative(t *testing.T) {
 	})
 	for i := 0; i < 5; i++ {
 		sc.tx(t, func(tx pgx.Tx) error {
-			return spendCredit(t.Context(), tx, sc.inst, "sms", uuid.Nil)
+			return (&Server{DB: sc.db}).spendCredit(t.Context(), tx, sc.inst, "sms", uuid.Nil)
 		})
 	}
 	bal, _ := balanceOf(t, sc, "sms")
@@ -423,4 +423,73 @@ func TestTheScreenAgreesWithTheDispatcherAboutMetering(t *testing.T) {
 		}
 		return nil
 	})
+}
+
+/*
+The warning fires at the line and at zero, and nowhere else.
+
+	Read after the decrement and matched by equality, so one crossing is one
+	alert. A range check — "balance <= low_water" — would fire on every send
+	below the line, and a school that ignores the first warning would be
+	warned again on each of the next four hundred messages.
+*/
+func TestTheAlertFiresOnceAtTheLineAndOnceAtZero(t *testing.T) {
+	sc := newClassroomSchool(t)
+	s := &Server{DB: sc.db}
+	// Somebody at the school to tell. The classroom school is built by hand
+	// without seeded roles, so the role row is made here too.
+	sc.tx(t, func(tx pgx.Tx) error {
+		var roleID, adminID uuid.UUID
+		if err := tx.QueryRow(t.Context(), `
+			INSERT INTO roles (institution_id, key, name, is_system)
+			VALUES ($1, 'institution_admin', 'Principal', true)
+			ON CONFLICT (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
+			DO UPDATE SET name = EXCLUDED.name RETURNING id`, sc.inst).Scan(&roleID); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(t.Context(), `
+			INSERT INTO users (institution_id, email, full_name, status)
+			VALUES ($1, 'head@credits.test', 'Head', 'active') RETURNING id`, sc.inst).Scan(&adminID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(t.Context(), `
+			INSERT INTO user_roles (institution_id, user_id, role_id) VALUES ($1, $2, $3)`,
+			sc.inst, adminID, roleID)
+		return err
+	})
+	// Start at 3 with the warning at 2: sends land on 2 (line), 1, 0 (empty).
+	sc.tx(t, func(tx pgx.Tx) error {
+		if _, err := addCredits(t.Context(), tx, sc.inst, "sms", 3, "topup", "", uuid.Nil); err != nil {
+			return err
+		}
+		_, err := tx.Exec(t.Context(),
+			`UPDATE message_credits SET low_water = 2 WHERE institution_id = $1 AND channel = 'sms'`, sc.inst)
+		return err
+	})
+	queued := func() int {
+		var n int
+		sc.tx(t, func(tx pgx.Tx) error {
+			return tx.QueryRow(t.Context(),
+				`SELECT count(*) FROM message_log WHERE institution_id = $1 AND source_kind = 'credits'`,
+				sc.inst).Scan(&n)
+		})
+		return n
+	}
+	spend := func() {
+		sc.tx(t, func(tx pgx.Tx) error { return s.spendCredit(t.Context(), tx, sc.inst, "sms", uuid.Nil) })
+	}
+
+	spend() // 3 -> 2: on the line
+	atLine := queued()
+	if atLine == 0 {
+		t.Fatal("balance reached the warning point and nothing was queued")
+	}
+	spend() // 2 -> 1: below the line, must be silent
+	if got := queued(); got != atLine {
+		t.Fatalf("a send below the line queued %d more alerts; the line is a crossing, not a region", got-atLine)
+	}
+	spend() // 1 -> 0: empty
+	if got := queued(); got <= atLine {
+		t.Fatal("balance reached zero and nothing new was queued")
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -112,7 +113,7 @@ Spend one, at the moment the message is known to have gone.
 	A school that is not metered has no row, so this updates nothing and writes
 	no ledger entry, which is exactly right: there is nothing to count.
 */
-func spendCredit(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string, msgID uuid.UUID) error {
+func (s *Server) spendCredit(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string, msgID uuid.UUID) error {
 	if !metered(channel) {
 		return nil
 	}
@@ -125,6 +126,12 @@ func spendCredit(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string,
 	}
 	if tag.RowsAffected() == 0 {
 		return nil
+	}
+	if err := s.alertIfCrossed(ctx, tx, inst, channel); err != nil {
+		/* An alert that cannot be queued must not fail the send that was
+		   already made: the credit is spent and the message went. Logged
+		   rather than returned. */
+		slog.Warn("credit alert not queued", "channel", channel, "err", err)
 	}
 	/* A nil id is stored as NULL rather than as a zero uuid, which no message
 	   has and the foreign key rightly refuses. The column is nullable because
@@ -664,4 +671,116 @@ func (s *Server) setMessageRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"channel": channel, "route": route})
+}
+
+/*
+Say so at the line, and at zero.
+
+	Read AFTER the decrement, so `balance` is what is left. Fires when the
+	balance sits exactly on the warning point or exactly on zero — an equality,
+	not a range — so a single crossing produces a single alert and every send
+	below the line does not produce another. The occurrence key adds the day,
+	which is the belt to that brace: a balance topped up to just above the line
+	and spent back through it twice in one afternoon still says it once.
+
+	To the school's administrators and to the seller. message_log needs a real
+	institution, so the seller's copy rides on the school's row with the address
+	overridden — which is also the honest shape: the alert is about that school.
+*/
+func (s *Server) alertIfCrossed(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string) error {
+	var balance, low int
+	if err := tx.QueryRow(ctx,
+		`SELECT balance, low_water FROM message_credits WHERE institution_id = $1 AND channel = $2`,
+		inst, channel).Scan(&balance, &low); err != nil {
+		return err
+	}
+	code := ""
+	switch {
+	case balance == 0:
+		code = "credits.empty"
+	case low > 0 && balance == low:
+		code = "credits.low"
+	default:
+		return nil
+	}
+
+	var school string
+	if err := tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).Scan(&school); err != nil {
+		return err
+	}
+	vars := map[string]any{
+		"school_name": school, "channel": channelLabel(channel),
+		"balance": balance, "low_water": low,
+	}
+	day := time.Now().UTC().Format("2006-01-02")
+
+	// The school's own administrators, by account, so the address is theirs.
+	rows, err := tx.Query(ctx, `
+		SELECT DISTINCT u.id FROM users u
+		  JOIN user_roles ur ON ur.user_id = u.id
+		  JOIN roles r ON r.id = ur.role_id
+		 WHERE u.institution_id = $1 AND u.status = 'active' AND u.email IS NOT NULL
+		   AND r.key = 'institution_admin'`, inst)
+	if err != nil {
+		return err
+	}
+	var admins []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		admins = append(admins, id)
+	}
+	rows.Close()
+	for _, id := range admins {
+		uid := id
+		if _, err := s.QueueMessage(ctx, tx, inst, SendRequest{
+			Channel: "email", TemplateCode: code, Vars: vars, ToUserID: &uid,
+			SourceKind: "credits", OccurrenceKey: code + ":" + channel + ":" + day,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// The seller, by address: platform staff hold no institution.
+	srows, err := tx.Query(ctx, `
+		SELECT DISTINCT u.email FROM users u
+		  JOIN user_roles ur ON ur.user_id = u.id
+		  JOIN roles r ON r.id = ur.role_id
+		 WHERE u.institution_id IS NULL AND u.status = 'active' AND u.email IS NOT NULL
+		   AND r.key = 'seller_admin'`)
+	if err != nil {
+		return err
+	}
+	var sellers []string
+	for srows.Next() {
+		var e string
+		if err := srows.Scan(&e); err != nil {
+			srows.Close()
+			return err
+		}
+		sellers = append(sellers, e)
+	}
+	srows.Close()
+	for _, addr := range sellers {
+		if _, err := s.QueueMessage(ctx, tx, inst, SendRequest{
+			Channel: "email", TemplateCode: code, Vars: vars, Recipient: addr,
+			SourceKind: "credits", OccurrenceKey: code + ":" + channel + ":seller:" + addr + ":" + day,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func channelLabel(ch string) string {
+	switch ch {
+	case "sms":
+		return "SMS"
+	case "whatsapp":
+		return "WhatsApp"
+	}
+	return ch
 }
