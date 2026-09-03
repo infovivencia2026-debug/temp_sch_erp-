@@ -244,12 +244,23 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           so giving it more room here costs card height rather than pushing
           anything off screen.
 
-          The bottom allowance was the dock's own height written out as 72px,
-          which is the number the dock would need if it sat on the floor. It
-          floats 24px above it, so the last row of every table ended up under
-          the pill. Taken from --bento-dock — the token the dock is sized from,
-          so the two cannot drift — plus the clearance it floats by. */}
-      <div className="flex-1 w-full pt-6 pb-[calc(var(--bento-dock)+2.5rem)] px-3 sm:px-4 lg:px-5 flex flex-col">
+          The bottom allowance was the dock's own height plus the distance it
+          floats by, because the dock is fixed and the last row of every table
+          ended up under the pill.
+
+          THE SCROLLER RESERVES THAT NOW, AND THIS WAS RESERVING IT AGAIN. The
+          shell's <main> carries `pb-[var(--dock-reserve)]`, which used to be
+          zero above 1024px on the belief that the dock returns to the layout
+          on a desktop; it does not, and that zero was removed. So from then on
+          both this wrapper and the scroller above it were holding the dock's
+          height back: 112px here and 96px there, 208px of clearance on an
+          844px phone, which is why a board of three cards stopped a long way
+          short of the page dots.
+
+          One reserve, in the scroller, because that is the element that
+          scrolls and the one the dock actually overlaps. What is left here is
+          ordinary bottom padding, matching the top. */}
+      <div className="flex-1 w-full pt-6 pb-6 px-3 sm:px-4 lg:px-5 flex flex-col">
         {inner}
       </div>
     </div>

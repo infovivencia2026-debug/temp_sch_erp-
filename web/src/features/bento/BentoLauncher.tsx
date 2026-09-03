@@ -354,6 +354,33 @@ export function BentoLauncher({ open, onClose }: { open: boolean; onClose: () =>
 
   useEffect(() => setCursor(0), [needle])
 
+  /* THE PHONE'S BACK GESTURE HAS TO CLOSE THIS, NOT THE APP.
+
+     The launcher covers the whole screen and is state, not a route, so the
+     history stack knew nothing about it. In a browser tab that is merely
+     surprising. Inside the parent app it is the bug people report: the shell
+     walks the WebView's history on back and finishes the activity when there
+     is nowhere left to go, so opening All features and pressing back closed
+     the app outright from what looks like a second screen.
+
+     One entry pushed on open, popped on close. The guard matters both ways:
+     `popped` distinguishes "the reader pressed back" -- where the entry is
+     already gone and calling history.back() again would leave the real page --
+     from "the reader pressed Close or picked a row", where the entry is still
+     on the stack and has to be taken off. The Settings dialog carries the same
+     pattern for the same reason. */
+  useEffect(() => {
+    if (!open) return
+    let popped = false
+    window.history.pushState({ launcher: true }, '')
+    const onPop = () => { popped = true; onClose() }
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      if (!popped) window.history.back()
+    }
+  }, [open, onClose])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

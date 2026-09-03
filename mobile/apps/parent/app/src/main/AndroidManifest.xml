@@ -31,8 +31,23 @@
         </intent>
     </queries>
 
+    <!-- WITHOUT enableOnBackInvokedCallback, BACK ALWAYS LEFT THE APP.
+
+         MainActivity registers an OnBackInvokedCallback that walks the
+         WebView's history and only finishes when there is nowhere left to go,
+         which is the whole point of a wrapper. From Android 13 the platform
+         IGNORES that registration unless the application opts in below, and
+         the deprecated onBackPressed path deliberately defers to super on
+         those versions, so both routes ended at "close the activity". Back
+         from a fee receipt shut the app. The comment on back() calls that the
+         commonest complaint about any wrapper, and it was true of this one on
+         every phone from Android 13 onward.
+
+         The bus tracker has carried this line since it was written; this app
+         never did. -->
     <application
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
