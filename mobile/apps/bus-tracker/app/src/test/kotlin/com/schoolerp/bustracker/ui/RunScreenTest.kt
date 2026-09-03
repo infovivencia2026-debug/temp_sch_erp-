@@ -14,7 +14,6 @@ import com.schoolerp.bustracker.data.prefs.ActiveTrip
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
 import com.schoolerp.bustracker.data.repo.SignInOutcome
-import com.schoolerp.bustracker.data.repo.StartOutcome
 import com.schoolerp.bustracker.data.repo.TrackerRepository
 import com.schoolerp.bustracker.device.LocationBlocker
 import com.schoolerp.bustracker.engine.TrackerStatus
@@ -22,6 +21,7 @@ import com.schoolerp.bustracker.ui.run.RunScreen
 import com.schoolerp.bustracker.ui.run.RunViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -80,6 +80,7 @@ class RunScreenTest {
             repository,
             fakeSettingsStore(),
             fakeEngine(),
+            mockk(relaxed = true),
             ApplicationProvider.getApplicationContext(),
         )
         compose.setContent { RunScreen(viewModel) }
@@ -87,27 +88,21 @@ class RunScreenTest {
 
     /* THE GAP BETWEEN PAIRING AND DRIVING.
      *
-     * A handset can be paired, showing its bus and its routes, with Start fully
-     * enabled, and still have no driver session — the driver sign-in endpoint
-     * returns a device token and no session. This pins what the driver sees
-     * when they press Start in that state: a sentence telling them what to do,
-     * and emphatically not a 401. If this ever regresses to silence, the run
-     * simply never opens and nobody in the office knows why.
+     * A handset can be paired, showing its bus and its routes, and still have
+     * no driver session -- the server refuses trip start without one and
+     * answers 401. The screen used to draw Start anyway and explain the 401
+     * after the tap; now the sign-in is the step in front and Start is not
+     * offered until it is done. This pins that: nobody signed in means a
+     * sign-in form and no Start button, so the run can never be attempted in
+     * a state the server will refuse.
      */
     @Test
-    fun `pressing Start with nobody signed in says so instead of failing quietly`() {
+    fun `with nobody signed in the screen asks for the sign-in and offers no Start`() {
         val repository = fakeRepository(settings(routeBook = listOf(route)), signedIn = false)
-        coEvery { repository.startTrip(any(), any(), any(), any()) } returns StartOutcome.NotSignedIn
         show(repository)
 
-        compose.onNodeWithText("Start Run, Morning — Anna Nagar").performScrollTo().performClick()
-
-        compose.onNodeWithText("Sign in before starting the run").assertExists()
-        compose.onNodeWithText(
-            "The school records who drove each run, so the phone needs your number and " +
-                "PIN before it can open one. Use Sign in on this screen. The office " +
-                "issued the PIN with your login.",
-        ).assertExists()
+        compose.onNodeWithText("Sign in to start a run").assertExists()
+        compose.onAllNodesWithText("Start Run, Morning — Anna Nagar").assertCountEquals(0)
     }
 
     @Test
@@ -173,10 +168,13 @@ class RunScreenTest {
         )
 
         compose.onNodeWithText("The school cannot see this bus").assertExists()
-        // Twice on purpose: the blocker is the card's headline and it is also
-        // what the one-line summary above it reports, because a blocked phone
-        // has nothing more useful to say about itself.
-        compose.onAllNodesWithText(LocationBlocker.FOREGROUND_ONLY.headline).assertCountEquals(2)
+        // The blocker is what the one-line summary reports, because a blocked
+        // phone has nothing more useful to say about itself.
+        compose.onNodeWithText(LocationBlocker.FOREGROUND_ONLY.headline).assertExists()
+        // The explanation and the button that fixes it live on the settings
+        // screen behind the one underlined line, which must say something is
+        // wrong rather than the quiet "Tracker settings".
+        compose.onNodeWithText("1 phone setting could thin out the tracking").performClick()
         compose.onNodeWithText(LocationBlocker.FOREGROUND_ONLY.detail).assertExists()
         compose.onNodeWithText("App permissions").assertExists()
     }

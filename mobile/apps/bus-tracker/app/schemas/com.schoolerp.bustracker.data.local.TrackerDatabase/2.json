@@ -1,0 +1,258 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "d1c336363a4052d036eb7623b0f86023",
+    "entities": [
+      {
+        "tableName": "buffered_fix",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tripId` TEXT NOT NULL, `recordedAtSeconds` INTEGER NOT NULL, `recordedAt` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `speedKmph` REAL, `headingDeg` INTEGER, `accuracyM` REAL, PRIMARY KEY(`tripId`, `recordedAtSeconds`))",
+        "fields": [
+          {
+            "fieldPath": "tripId",
+            "columnName": "tripId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedAtSeconds",
+            "columnName": "recordedAtSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordedAt",
+            "columnName": "recordedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "speedKmph",
+            "columnName": "speedKmph",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "headingDeg",
+            "columnName": "headingDeg",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "accuracyM",
+            "columnName": "accuracyM",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tripId",
+            "recordedAtSeconds"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_buffered_fix_recordedAtSeconds",
+            "unique": false,
+            "columnNames": [
+              "recordedAtSeconds"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_buffered_fix_recordedAtSeconds` ON `${TABLE_NAME}` (`recordedAtSeconds`)"
+          }
+        ]
+      },
+      {
+        "tableName": "trip_stop",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tripId` TEXT NOT NULL, `stopId` TEXT NOT NULL, `name` TEXT NOT NULL, `sequence` INTEGER NOT NULL, `latitude` REAL, `longitude` REAL, `geofenceM` INTEGER NOT NULL, `scheduledAt` TEXT, `arrivedAtMillis` INTEGER, PRIMARY KEY(`tripId`, `stopId`))",
+        "fields": [
+          {
+            "fieldPath": "tripId",
+            "columnName": "tripId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stopId",
+            "columnName": "stopId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sequence",
+            "columnName": "sequence",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "geofenceM",
+            "columnName": "geofenceM",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduledAt",
+            "columnName": "scheduledAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "arrivedAtMillis",
+            "columnName": "arrivedAtMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tripId",
+            "stopId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_trip_stop_tripId_sequence",
+            "unique": false,
+            "columnNames": [
+              "tripId",
+              "sequence"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trip_stop_tripId_sequence` ON `${TABLE_NAME}` (`tripId`, `sequence`)"
+          }
+        ]
+      },
+      {
+        "tableName": "trip_student",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tripId` TEXT NOT NULL, `studentId` TEXT NOT NULL, `name` TEXT NOT NULL, `admissionNo` TEXT NOT NULL, `className` TEXT NOT NULL, `stopId` TEXT NOT NULL, `hasPhoto` INTEGER NOT NULL, `absent` INTEGER NOT NULL, `absentReason` TEXT NOT NULL, `status` TEXT NOT NULL, `markedAt` TEXT NOT NULL, `pendingStatus` TEXT, `pendingAtMillis` INTEGER, PRIMARY KEY(`tripId`, `studentId`))",
+        "fields": [
+          {
+            "fieldPath": "tripId",
+            "columnName": "tripId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "studentId",
+            "columnName": "studentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "admissionNo",
+            "columnName": "admissionNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "className",
+            "columnName": "className",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stopId",
+            "columnName": "stopId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasPhoto",
+            "columnName": "hasPhoto",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "absent",
+            "columnName": "absent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "absentReason",
+            "columnName": "absentReason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markedAt",
+            "columnName": "markedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingStatus",
+            "columnName": "pendingStatus",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pendingAtMillis",
+            "columnName": "pendingAtMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "tripId",
+            "studentId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_trip_student_tripId_stopId",
+            "unique": false,
+            "columnNames": [
+              "tripId",
+              "stopId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trip_student_tripId_stopId` ON `${TABLE_NAME}` (`tripId`, `stopId`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd1c336363a4052d036eb7623b0f86023')"
+    ]
+  }
+}

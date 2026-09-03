@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -325,10 +327,18 @@ class TrackerRepository @Inject constructor(
 
     val pendingMarks: Flow<Int> = students.observePendingCount()
 
+    /* One lock over the roster and the boarding push. The push loop, the
+       heartbeat loop and endTrip all call these, and they overlap: a roster
+       GET that started before a push and lands after its settle() would write
+       the server's old "not marked" over a tick the server has just accepted,
+       and two pushes at once would each send the same taps. Taking turns
+       makes the read-merge-write in each function atomic against the other. */
+    private val rosterLock = Mutex()
+
     /** True when the school answered. The stored roster stands either way. */
-    suspend fun syncRoster(tripId: String): Boolean {
+    suspend fun syncRoster(tripId: String): Boolean = rosterLock.withLock {
         val ctx = requireContext() ?: return false
-        return try {
+        try {
             val response = api.roster(ctx.baseUrl, ctx.token, tokenStore.session(), tripId)
             students.mergeRoster(
                 tripId,
@@ -361,11 +371,11 @@ class TrackerRepository @Inject constructor(
     }
 
     /** Hands over every tap the school has not confirmed. Returns how many it took. */
-    suspend fun pushBoarding(tripId: String): Int {
+    suspend fun pushBoarding(tripId: String): Int = rosterLock.withLock {
         val ctx = requireContext() ?: return 0
         val pending = students.pending(tripId)
         if (pending.isEmpty()) return 0
-        return try {
+        try {
             val response = api.postBoarding(
                 ctx.baseUrl, ctx.token, tokenStore.session(), tripId,
                 BoardingRequest(

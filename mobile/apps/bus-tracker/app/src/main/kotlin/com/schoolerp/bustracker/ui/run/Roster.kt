@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -94,6 +95,10 @@ fun ChildrenByStop(
     val byStop = students.groupBy { it.stopId }
     val nextStopId = stops.firstOrNull { it.arrivedAtMillis == null }?.stopId
     var opened by remember { mutableStateOf<String?>(null) }
+    // A driver who folded the open group away should not have to unfold the
+    // next one by hand: when the bus moves on, the choice is forgotten and
+    // the next stop opens itself again.
+    LaunchedEffect(nextStopId) { opened = null }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val total = Headcount.of(students, direction)
@@ -107,10 +112,17 @@ fun ChildrenByStop(
             )
         }
 
+        // A child whose allocation names a stop this leg does not visit is
+        // still expected somewhere: they count in the total above, so they
+        // must appear below too, rather than vanish from a list that claims
+        // to add up.
+        val known = stops.map { it.stopId }.toSet()
+        val elsewhere = students.filter { it.stopId.isNotEmpty() && it.stopId !in known }
         val groups = stops.map { it.stopId to it.name } +
+            listOfNotNull(if (elsewhere.isNotEmpty()) OTHER_STOP to "Other stop" else null) +
             listOfNotNull(if (byStop.containsKey("")) "" to "No stop set" else null)
         groups.forEach { (stopId, stopName) ->
-            val here = byStop[stopId] ?: return@forEach
+            val here = (if (stopId == OTHER_STOP) elsewhere else byStop[stopId]) ?: return@forEach
             val count = Headcount.of(here, direction)
             val isOpen = (opened ?: nextStopId) == stopId
             StopGroup(
@@ -248,3 +260,6 @@ private fun StudentPhoto(child: StudentEntity, photo: suspend (String) -> Bitmap
         }
     }
 }
+
+/** Group key for children allocated to a stop this leg does not visit. Not a real stop id. */
+private const val OTHER_STOP = "\u0000other"

@@ -64,6 +64,12 @@ fun fakeRepository(
     every { it.paired } returns MutableStateFlow(paired)
     every { it.driverName() } returns null
     every { it.observeStops(any()) } returns flowOf(emptyList())
+    // The roster and the office's notices are read as flows the moment the
+    // run screen composes; a relaxed mock hands back an untyped object there,
+    // which fails the cast to a list before any assertion runs.
+    every { it.observeStudents(any()) } returns flowOf(emptyList())
+    every { it.pendingMarks } returns flowOf(0)
+    every { it.notices } returns MutableStateFlow(emptyList())
 }
 
 fun fakeAggregator(status: TrackerStatus): StatusAggregator =

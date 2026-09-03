@@ -1,5 +1,7 @@
 package com.schoolerp.bustracker
 
+import com.schoolerp.bustracker.data.remote.BoardingMark
+import com.schoolerp.bustracker.data.remote.BoardingRequest
 import com.schoolerp.bustracker.data.remote.ClaimRequest
 import com.schoolerp.bustracker.data.remote.ClaimResponse
 import com.schoolerp.bustracker.data.remote.EndTripRequest
@@ -8,6 +10,7 @@ import com.schoolerp.bustracker.data.remote.HeartbeatResponse
 import com.schoolerp.bustracker.data.remote.PositionFix
 import com.schoolerp.bustracker.data.remote.PositionsRequest
 import com.schoolerp.bustracker.data.remote.PositionsResponse
+import com.schoolerp.bustracker.data.remote.RosterResponse
 import com.schoolerp.bustracker.data.remote.StartTripRequest
 import com.schoolerp.bustracker.data.remote.StartTripResponse
 import com.schoolerp.bustracker.data.remote.TrackerApi
@@ -180,5 +183,84 @@ class WireContractTest {
         assertEquals("/api/v1/bus-tracker/positions", TrackerApi.PATH_POSITIONS)
         assertEquals("/api/v1/bus-tracker/heartbeat", TrackerApi.PATH_HEARTBEAT)
         assertEquals(200, TrackerApi.MAX_FIXES_PER_PUSH)
+    }
+
+    /* THE ROSTER, THE TAPS AND THE OFFICE'S MESSAGES.
+     *
+     * The same discipline for the three shapes the roster feature added: every
+     * documented key is read from JSON the server would actually send, and the
+     * driver's marks are encoded under the names the server reads.
+     */
+
+    @Test
+    fun `roster response decodes every documented student field`() {
+        val decoded = json.decodeFromString<RosterResponse>(
+            """
+            {"trip_id":"t1","direction":"pickup","leg":"morning","students":[
+              {"id":"s1","name":"Anita","admission_no":"A-17","class":"3 B","stop_id":"st1",
+               "has_photo":true,"absent":true,"absent_reason":"fever","status":"absent",
+               "marked_at":"2026-09-03T07:10:00Z"}]}
+            """.trimIndent(),
+        )
+        assertEquals("t1", decoded.tripId)
+        assertEquals("pickup", decoded.direction)
+        assertEquals("morning", decoded.leg)
+        val child = decoded.students.single()
+        assertEquals("s1", child.id)
+        assertEquals("Anita", child.name)
+        assertEquals("A-17", child.admissionNo)
+        assertEquals("3 B", child.className)
+        assertEquals("st1", child.stopId)
+        assertEquals(true, child.hasPhoto)
+        assertEquals(true, child.absent)
+        assertEquals("fever", child.absentReason)
+        assertEquals("absent", child.status)
+        assertEquals("2026-09-03T07:10:00Z", child.markedAt)
+    }
+
+    @Test
+    fun `roster student fields beyond id and name are optional`() {
+        val decoded = json.decodeFromString<RosterResponse>(
+            """{"trip_id":"t1","students":[{"id":"s1","name":"Anita"}]}""",
+        )
+        val child = decoded.students.single()
+        assertEquals("", child.stopId)
+        assertEquals(false, child.hasPhoto)
+        assertEquals(false, child.absent)
+        assertEquals("", child.status)
+    }
+
+    @Test
+    fun `boarding request names marks student_id status and at`() {
+        val encoded = json.encodeToString(
+            BoardingRequest(listOf(BoardingMark(studentId = "s1", status = "boarded", at = "2026-09-03T07:10:00Z"))),
+        )
+        assertTrue(encoded, encoded.contains("\"marks\""))
+        listOf("student_id", "status", "at")
+            .forEach { assertTrue("$it missing from $encoded", encoded.contains("\"$it\"")) }
+    }
+
+    @Test
+    fun `heartbeat response carries notices with id body and sent_at`() {
+        val decoded = json.decodeFromString<HeartbeatResponse>(
+            """{"notices":[{"id":"n1","body":"Wait at the gate","sent_at":"2026-09-03T07:00:00Z"}]}""",
+        )
+        val notice = decoded.notices.single()
+        assertEquals("n1", notice.id)
+        assertEquals("Wait at the gate", notice.body)
+        assertEquals("2026-09-03T07:00:00Z", notice.sentAt)
+    }
+
+    @Test
+    fun `heartbeat response without notices means none, not a parse error`() {
+        assertTrue(json.decodeFromString<HeartbeatResponse>("{}").notices.isEmpty())
+    }
+
+    @Test
+    fun `roster boarding photo and ack paths are exactly the ones the contract lists`() {
+        assertEquals("/api/v1/bus-tracker/trips/t1/roster", TrackerApi.pathRoster("t1"))
+        assertEquals("/api/v1/bus-tracker/trips/t1/boarding", TrackerApi.pathBoarding("t1"))
+        assertEquals("/api/v1/bus-tracker/students/s1/photo", TrackerApi.pathStudentPhoto("s1"))
+        assertEquals("/api/v1/bus-tracker/notices/n1/ack", TrackerApi.pathAckNotice("n1"))
     }
 }
