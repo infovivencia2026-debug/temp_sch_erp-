@@ -1411,6 +1411,26 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      screen. */
   [data-layout='bento'] .bento-ground:has([data-card]):not(:has([data-card]:not([data-quiet]))) {
     min-height: 0;
+    /* AND THE HEIGHT, NOT ONLY THE MINIMUM.
+     *
+     * `min-height: 0` alone was measured as fixed and was not. The ground
+     * carries `lg:h-full` in its class list, which is a declared
+     * `height: 100%` from 1024px up, and a minimum has nothing to say to a
+     * height that is stated outright. So the slab this rule exists to remove
+     * survived at every desktop width and vanished only on a phone, where
+     * `lg:` does not apply -- which is exactly where it was checked.
+     *
+     * Measured afterwards at 1440x723: a 456px board sitting in a 627px
+     * ground, so 171px of card-coloured grey below the last row with the
+     * dock's 96px reserve under that again. It reads as more empty board
+     * rather than as background, because it is the same colour as the gaps
+     * between the cards. */
+    height: auto;
+    /* The ground is a block child of `main`, so nothing stretches it once the
+       height is released -- but the flex line is stated anyway, because the
+       moment `main` becomes a flex column this silently grows back and the
+       symptom is a slab of grey nobody will connect to this rule. */
+    flex: 0 0 auto;
   }
 
   /* AND THE SHEET STOPS WITH IT TOO.
