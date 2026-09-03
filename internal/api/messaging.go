@@ -1443,6 +1443,29 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			defer cancel()
 
 			msgID, sendErr := "", waErr
+
+			/* NOTHING IS SENT ON AN EMPTY METER.
+			 *
+			 * Checked here, in front of the provider call, because the point
+			 * of the meter is to stop money being spent -- a check after the
+			 * send would only be a record of having spent it.
+			 *
+			 * It produces an ordinary send error rather than a special case,
+			 * so the row takes the path every other failure takes: held as
+			 * queued with the reason attached, visible on the message log,
+			 * and sent for real once somebody tops up. A message refused for
+			 * want of credit must not be buried, because the credit is
+			 * exactly the thing that is about to change. */
+			if sendErr == nil {
+				bal, isMetered, cErr := creditBalance(ctx, tx, inst, channel)
+				if cErr != nil {
+					return cErr
+				}
+				if isMetered && bal <= 0 {
+					sendErr = ErrNoCredits
+				}
+			}
+
 			if sendErr == nil {
 				msgID, sendErr = p.Send(sendCtx, OutboundMessage{
 					To: recipient, Subject: strVal(subject), Body: strVal(body),
@@ -1492,6 +1515,19 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				   SET status = 'sent', sent_at = now(), attempts = attempts + 1,
 				       provider = $3, provider_msg_id = NULLIF($2,''), error = NULL
 				 WHERE id = $1`, id, truncate(msgID, 200), p.Name()); e != nil {
+				return e
+			}
+
+			/* The credit is spent here and nowhere else: in the same
+			 * transaction as the row becoming 'sent', so the two commit
+			 * together or neither does.
+			 *
+			 * Deliberately after the send rather than reserved before it. A
+			 * provider that times out having actually delivered would
+			 * otherwise be paid for twice -- once by the reservation and again
+			 * by the retry that follows -- and this dispatcher retries by
+			 * design. */
+			if e := spendCredit(ctx, tx, inst, channel, id); e != nil {
 				return e
 			}
 
@@ -2433,6 +2469,10 @@ func (s *Server) mountMessaging(r chi.Router) {
 	r.With(creds).Put("/messaging/providers/{channel}", s.saveMessagingProvider)
 	r.With(creds).Delete("/messaging/providers/{channel}", s.forgetMessagingProvider)
 	r.With(creds).Post("/messaging/providers/{channel}/test", s.testMessagingProvider)
+	/* Read with `read`, not `creds`: these are public shapes with no secret in
+	   them, and the screen that shows the choice is the one somebody opens
+	   before they have any credentials to write. */
+	r.With(read).Get("/messaging/sms-presets", s.listSMSPresets)
 	s.mountDirectSend(r)
 
 	// Templates. Shared by both screens and by every feature that sends.
@@ -2444,6 +2484,9 @@ func (s *Server) mountMessaging(r chi.Router) {
 	r.With(config).Post("/messaging/triggers", s.saveTriggerRule)
 	r.With(config).Delete("/messaging/triggers/{id}", s.deleteTriggerRule)
 	r.With(send).Post("/messaging/triggers/run", s.runTriggerSweep)
+
+	// What is left to spend, and where it went.
+	s.mountMessageCredits(r)
 
 	// The dispatch log, and the two verbs that move messages.
 	r.With(logRead).Get("/messaging/log", s.listMessageLog)

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { FileText, Mail, MessageSquare, Phone } from 'lucide-react'
+import { FileText, Gauge, Mail, MessageSquare, Phone } from 'lucide-react'
 import { PageHead, PageBody, Card, Loading } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -25,9 +25,29 @@ import { cn } from '@/lib/utils'
    across three menu entries. */
 
 const EmailServer = lazy(() => import('../super_admin/EmailServer'))
-const SmsGateway = lazy(() => import('./SmsGateway'))
 const WhatsAppApi = lazy(() => import('../super_admin/WhatsAppApi'))
 const MessageTemplates = lazy(() => import('./MessageTemplates'))
+const SmsVendor = lazy(() => import('./SmsVendor'))
+const MessageCredits = lazy(() => import('./MessageCredits'))
+
+/* THE OFFICE HANDSET, ARCHIVED RATHER THAN DELETED.
+ *
+ * SmsGateway.tsx sends the school's SMS through an Android phone in a drawer.
+ * It works, it is paired to a real device, and it is not what this product
+ * offers a school any more: sending now goes through the school's own vendor
+ * account, which does not depend on a handset staying charged, in signal and
+ * in the building.
+ *
+ * Nothing is removed. The screen, its hooks, its keys and the Android app all
+ * remain in the tree and on the server, so a school already paired keeps
+ * sending and switching the tab back on is this one constant. It is off
+ * because offering two ways to send SMS means every support conversation
+ * starts by working out which one a school is using.
+ *
+ * If this is still false a year from now, that is the moment to decide whether
+ * to delete it — not before. */
+const HANDSET_GATEWAY_OFFERED = false
+const SmsGateway = lazy(() => import('./SmsGateway'))
 
 const TABS = [
   {
@@ -40,13 +60,19 @@ const TABS = [
     id: 'sms',
     label: 'SMS',
     icon: MessageSquare,
-    blurb: 'The gateway a fee reminder and an absence alert go out on. Costs money per message.',
+    blurb: 'The vendor account a fee reminder and an absence alert go out on. The school pays the vendor directly.',
   },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
     icon: Phone,
     blurb: 'Read more than either, and the strictest: outside a 24-hour window only approved templates send.',
+  },
+  {
+    id: 'credits',
+    label: 'Credits',
+    icon: Gauge,
+    blurb: 'How many messages this school may still send on the paid channels, and where the rest went.',
   },
   {
     id: 'templates',
@@ -107,7 +133,8 @@ export default function ChannelSetup() {
             here configures their school and nobody else's. */}
         <Suspense fallback={<Loading label="Opening…" />}>
           {active === 'email' && <EmailServer />}
-          {active === 'sms' && <SmsGateway />}
+          {active === 'sms' && (HANDSET_GATEWAY_OFFERED ? <SmsGateway /> : <SmsVendor />)}
+          {active === 'credits' && <MessageCredits />}
           {active === 'whatsapp' && <WhatsAppApi />}
           {active === 'templates' && <MessageTemplates />}
         </Suspense>

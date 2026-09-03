@@ -252,3 +252,72 @@ export function when(iso?: string): string {
     hour12: false,
   })
 }
+
+/* ── MESSAGE CREDITS ────────────────────────────────────────────────────────
+   What is left to spend on the channels that cost money, and where it went.
+   `metered` is not the same fact as a zero balance: a school nobody has
+   metered sends freely, and the screen has to be able to say so rather than
+   showing "0 left" beside a channel that is working perfectly. */
+
+export interface CreditBalance {
+  channel: string
+  metered: boolean
+  balance: number
+  low_water: number
+  low: boolean
+  empty: boolean
+}
+
+export interface CreditEntry {
+  id: string
+  delta: number
+  reason: string
+  note?: string
+  actor?: string
+  created_at: string
+}
+
+export interface SmsPreset {
+  id: string
+  label: string
+  note: string
+  endpoint: string
+  method: string
+  encoding: string
+  params: Record<string, string>
+  needs: string[]
+}
+
+export function useCredits() {
+  return useQuery({
+    queryKey: ['messaging', 'credits'],
+    queryFn: () => api.get<Listed<CreditBalance>>(`${BASE}/credits`),
+  })
+}
+
+export function useCreditEntries(channel: string) {
+  return useQuery({
+    queryKey: ['messaging', 'credits', channel, 'entries'],
+    queryFn: () => api.get<Listed<CreditEntry>>(`${BASE}/credits/${channel}/entries`),
+  })
+}
+
+export function useTopUpCredits(channel: string) {
+  return useMessagingWrite<{ channel: string; balance: number }, {
+    delta?: number
+    low_water?: number
+    note?: string
+    reason?: string
+  }>((body) => api.post(`${BASE}/credits/${channel}`, body))
+}
+
+/* Fetched rather than bundled: the shapes live with the provider that consumes
+   them, so a vendor changing its endpoint is a server deploy and not a client
+   rebuild. */
+export function useSmsPresets() {
+  return useQuery({
+    queryKey: ['messaging', 'sms-presets'],
+    queryFn: () => api.get<Listed<SmsPreset>>(`${BASE}/sms-presets`),
+    staleTime: 60 * 60 * 1000,
+  })
+}
