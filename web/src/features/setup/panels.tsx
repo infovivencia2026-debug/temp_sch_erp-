@@ -167,19 +167,23 @@ function Preset({ onClick, children }: { onClick: () => void; children: ReactNod
    changed, not just that something did. */
 function SavedDialog({ message, onClose }: { message: string; onClose: () => void }) {
   // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(true, onClose)
+  /* The hook's return value is what a close control must call. Calling
+     onClose directly unmounts first, and the cleanup then spends the
+     history entry the hook had pushed -- so the panel closes and the page
+     navigates back at the same time. */
+  const close = useOverlayHistory(true, onClose)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') close()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [close])
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={close}
       role="alertdialog"
       aria-modal="true"
       aria-label="Saved"
@@ -193,7 +197,7 @@ function SavedDialog({ message, onClose }: { message: string; onClose: () => voi
         </div>
         <p className="text-[15px] font-medium">Done</p>
         <p className="mt-1 text-[13.5px] text-muted-foreground">{message}</p>
-        <Button className="mt-4 w-full" onClick={onClose}>
+        <Button className="mt-4 w-full" onClick={close}>
           Close
         </Button>
       </div>
