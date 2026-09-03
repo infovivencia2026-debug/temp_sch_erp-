@@ -879,7 +879,7 @@ var importSpecs = map[string]importSpec{
 						return err
 					}
 				}
-				if ct := firstOf(row, "class_teacher", "class_teacher_email"); ct != "" {
+				if ct := optional(row, "class_teacher", "class_teacher_email"); ct != "" {
 					ctID, err := c.teacherByEmail(ct)
 					if err != nil {
 						return err
@@ -895,7 +895,7 @@ var importSpecs = map[string]importSpec{
 			// Naming a teacher with no section attaches them to every section
 			// of that class -- which is what "who teaches Grade 6 maths" means
 			// in a school with two sections and one maths teacher.
-			email := firstOf(row, "teacher", "teacher_email")
+			email := optional(row, "teacher", "teacher_email")
 			if email == "" {
 				return nil
 			}
@@ -961,7 +961,7 @@ var importSpecs = map[string]importSpec{
 				}
 			}
 
-			if email := firstOf(row, "class_teacher", "class_teacher_email"); email != "" {
+			if email := optional(row, "class_teacher", "class_teacher_email"); email != "" {
 				teacher, err := c.teacherByEmail(email)
 				if err != nil {
 					return err
@@ -974,7 +974,7 @@ var importSpecs = map[string]importSpec{
 			}
 
 			code := firstOf(row, "subject", "subject_code")
-			email := firstOf(row, "teacher", "teacher_email")
+			email := optional(row, "teacher", "teacher_email")
 			if code == "" || email == "" {
 				// A row that only names the class teacher is complete. Treating
 				// a blank subject as an error would mean two files for what a
@@ -2696,6 +2696,36 @@ func firstOf(row map[string]string, names ...string) string {
 }
 
 /*
+blankWords are the ways a school writes "there isn't one" in a cell.
+
+	A sheet came in with class_teacher: No against every Grade 1 row, and the
+	import read "No" as somebody's name and failed the row for a member of
+	staff who does not exist. The school had not made a mistake -- they had
+	answered the question. Nobody leaves a cell empty in a printed register;
+	they write No, or NA, or a dash, and the meaning is identical.
+
+	Only ever applied to a column naming a person or a thing that may be
+	absent. A subject called "None" would be nonsense, but a class teacher
+	genuinely may not be appointed yet.
+*/
+var blankWords = map[string]bool{
+	"no": true, "none": true, "nil": true, "na": true, "n/a": true,
+	"-": true, "--": true, "not applicable": true, "not assigned": true,
+	"nan": true, "null": true, "tbd": true, "to be decided": true,
+	"vacant": true, "pending": true,
+}
+
+// optional reads a column that may legitimately be answered rather than left
+// empty, and treats an answer of "none" as empty.
+func optional(row map[string]string, names ...string) string {
+	v := firstOf(row, names...)
+	if blankWords[strings.ToLower(strings.TrimSpace(v))] {
+		return ""
+	}
+	return v
+}
+
+/*
 teacherByEmail finds the member of staff a spreadsheet names.
 
 	Named for the address because that is all it once accepted, and that was
@@ -2770,7 +2800,7 @@ func (c *importCtx) teacherByEmail(who string) (uuid.UUID, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, fmt.Errorf(
 			"no member of staff called %q, by email, staff code or name. "+
-				"Import the staff first â and note that somebody with no email "+
+				"Import the staff first. Somebody with no email "+
 				"has a record but no account, so nothing can be assigned to them",
 			who)
 	}
