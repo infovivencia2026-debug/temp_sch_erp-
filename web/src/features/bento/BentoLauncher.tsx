@@ -389,12 +389,16 @@ export function BentoLauncher({
   /* Back closes the launcher rather than the app. The effect that did this
      inline moved into useOverlayHistory when three more surfaces turned out to
      need exactly the same thing; the reasoning lives there now. */
-  useOverlayHistory(open, onClose)
+  /* The one close everything goes through. Calling `onClose` directly leaves
+     the history entry the open pushed, so the next Back goes one page too far;
+     the function this returns takes the entry with it. Escape, the button and
+     the pull-down all use it. */
+  const close = useOverlayHistory(open, onClose)
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
+      if (e.key === 'Escape') { close(); return }
       if (!walkable.length) return
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -434,6 +438,48 @@ export function BentoLauncher({
      slide has finished, which is why `open` alone no longer decides whether
      it renders. */
   const dragging = drag !== null && !open
+
+  /* THE SAME GESTURE, BACKWARDS.
+
+     A sheet that slid up under the thumb and then only answers a button or
+     Back on the way out is half a sheet. Pulling it down should take it down:
+     the finger drags, the panel follows exactly, and on release it either
+     finishes leaving or springs back. The pull is only recognised when the
+     sheet's own list is scrolled to the top — otherwise a downward finger is
+     scrolling the list, and stealing that would break the one thing a long
+     list needs.
+
+     `pull` is 0..1 of the sheet's height, written to the same transform the
+     open-drag uses, so the two directions are one mechanism. */
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const [pull, setPull] = useState(0)
+  const pullStart = useRef<{ y: number; live: boolean } | null>(null)
+  const onSheetTouchStart = (e: React.TouchEvent) => {
+    if (!open || e.touches.length !== 1) return
+    const el = sheetRef.current
+    pullStart.current = { y: e.touches[0].clientY, live: !!el && el.scrollTop <= 0 }
+  }
+  const onSheetTouchMove = (e: React.TouchEvent) => {
+    const st = pullStart.current
+    if (!st || !st.live || e.touches.length !== 1) return
+    const dy = e.touches[0].clientY - st.y
+    const h = sheetRef.current?.clientHeight || window.innerHeight
+    if (dy <= 0) { setPull(0); return }
+    setPull(Math.min(1, dy / h))
+  }
+  const onSheetTouchEnd = () => {
+    const st = pullStart.current
+    pullStart.current = null
+    if (!st || !st.live) return
+    /* A fifth of the way is a decision; less is a wobble. The same
+       proportion the up-swipe commits at, so the two feel like one hinge. */
+    if (pull > 0.2) {
+      setPull(0)
+      close()
+      return
+    }
+    setPull(0)
+  }
   const [mounted, setMounted] = useState(open)
   const [shown, setShown] = useState(false)
   const reduce =
@@ -463,10 +509,11 @@ export function BentoLauncher({
   }, [open, dragging, reduce])
 
   if (!mounted || !role) return null
-  const y = dragging ? (1 - (drag ?? 0)) * 100 : shown ? 0 : 100
+  const pulling = pullStart.current !== null && pull > 0
+  const y = dragging ? (1 - (drag ?? 0)) * 100 : shown ? pull * 100 : 100
   const sheet: CSSProperties = {
     transform: `translate3d(0, ${y}%, 0)`,
-    transition: dragging || reduce
+    transition: dragging || pulling || reduce
       ? 'none'
       : `transform ${SHEET_MS}ms var(--ease-phone, cubic-bezier(0.32, 0.72, 0, 1))`,
     willChange: 'transform',
@@ -612,7 +659,12 @@ export function BentoLauncher({
       /* Frosted glass over the board, the way an iPhone's App Library sits
          over the wallpaper — see .bento-frost in bento-theme.css for why the
          saturation matters as much as the blur. */
-      className="bento-frost fixed inset-0 z-[60] overflow-y-auto"
+      ref={sheetRef}
+      onTouchStart={onSheetTouchStart}
+      onTouchMove={onSheetTouchMove}
+      onTouchEnd={onSheetTouchEnd}
+      onTouchCancel={onSheetTouchEnd}
+      className="bento-frost fixed inset-0 z-[60] overflow-y-auto overscroll-contain"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
          This panel is the one place in the layout whose ground is the PAGE and
