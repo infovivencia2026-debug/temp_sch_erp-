@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { formatDateTime, cn } from '@/lib/utils'
 import {
   Card, CardHeader, Button, Loading, ErrorState, Badge, Input, Field, FormNotice,
 } from '@/components/ui'
@@ -26,6 +27,12 @@ export default function ProfileView() {
 
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
+  /* Typed twice, because this is the one field nobody can read back.
+
+     A mistyped password is not discovered at the keyboard -- it is discovered
+     the next morning, by somebody who is now locked out of the school they
+     work at, with no way to prove who they are except asking the office. */
+  const [confirm, setConfirm] = useState('')
 
   /* Editing was never wired up.
 
@@ -37,12 +44,25 @@ export default function ProfileView() {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  /* The address you sign in with, and the password that authorises moving it.
+     Asked for only when the address actually changes -- correcting a phone
+     number should not require a password. */
+  const [email, setEmail] = useState('')
+  const [pwForEmail, setPwForEmail] = useState('')
+  const emailChanged =
+    email.trim().toLowerCase() !== (data?.email ?? '').trim().toLowerCase()
 
   const save = useMutation({
     mutationFn: () =>
-      api.put('/api/v1/profile', { full_name: name.trim(), phone: phone.trim() || null }),
+      api.put('/api/v1/profile', {
+        full_name: name.trim(),
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        current_password: pwForEmail,
+      }),
     onSuccess: () => {
       setEditing(false)
+      setPwForEmail('')
       qc.invalidateQueries({ queryKey: ['profile'] })
       qc.invalidateQueries({ queryKey: ['session'] })
     },
@@ -51,6 +71,8 @@ export default function ProfileView() {
   function startEditing() {
     setName(data?.full_name ?? '')
     setPhone(data?.phone ?? '')
+    setEmail(data?.email ?? '')
+    setPwForEmail('')
     setEditing(true)
   }
 
@@ -59,7 +81,7 @@ export default function ProfileView() {
       current_password: current, new_password: next,
     }),
     onSuccess: () => {
-      setCurrent(''); setNext('')
+      setCurrent(''); setNext(''); setConfirm('')
       qc.invalidateQueries({ queryKey: ['profile'] })
     },
   })
@@ -80,6 +102,44 @@ export default function ProfileView() {
           }
         />
 
+        {/* WHO THIS IS, before what is recorded about them.
+
+            A list of label-and-value rows answers "what is my phone number"
+            and never answers "whose account am I looking at" -- which is the
+            first thing somebody checks on a shared machine. Name, school and
+            standing, once, at the top. */}
+        {!editing && (
+          <div className="flex items-start gap-4 border-b p-5">
+            <span
+              className="flex h-14 w-14 flex-none items-center justify-center rounded-full
+                         bg-primary/10 text-[18px] font-semibold text-primary"
+              aria-hidden
+            >
+              {(data?.full_name ?? '?')
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((w) => w[0]?.toUpperCase())
+                .join('')}
+            </span>
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[19px] font-semibold">{data?.full_name}</h3>
+                {session.user?.roles.map((role) => (
+                  <Badge key={role}>{role}</Badge>
+                ))}
+                <Badge tone={data?.status === 'active' ? 'success' : 'warning'}>
+                  {data?.status}
+                </Badge>
+              </div>
+              <p className="text-[13px] text-muted-foreground">
+                {session.institution?.name ?? 'This school'}
+                {data?.last_login_at ? ` \u00b7 last signed in ${formatDateTime(data.last_login_at)}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
+
         {editing ? (
           <div className="flex flex-col gap-4 p-5">
             <Field label="Name">
@@ -88,12 +148,26 @@ export default function ProfileView() {
             <Field label="Phone" hint="Used for attendance and fee alerts.">
               <Input value={phone} onChange={setPhone} placeholder="98xxxxxxxx" />
             </Field>
-            <p className="text-[12.5px] text-muted-foreground">
-              Email is your sign-in and cannot be changed here.
-            </p>
+            <Field label="Email" hint="This is how you sign in.">
+              <Input value={email} onChange={setEmail} placeholder="you@school.in" />
+            </Field>
+            {/* Only when it actually changes. A password box that appears
+                whether or not you touched the field trains people to type
+                their password without reading why. */}
+            {emailChanged && (
+              <Field
+                label="Your current password"
+                hint="Moving the address you sign in with needs it, so a session left open on a shared machine cannot lock you out of your own school."
+              >
+                <Input type="password" value={pwForEmail} onChange={setPwForEmail} />
+              </Field>
+            )}
             <FormNotice error={save.error} />
             <div className="flex gap-2">
-              <Button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>
+              <Button
+                disabled={!name.trim() || save.isPending || (emailChanged && !pwForEmail)}
+                onClick={() => save.mutate()}
+              >
                 {save.isPending ? 'Saving…' : 'Save changes'}
               </Button>
               <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
@@ -138,14 +212,24 @@ export default function ProfileView() {
           onSubmit={(e) => { e.preventDefault(); change.mutate() }}
         >
           <PasswordField label="Current password" value={current} onChange={setCurrent} />
-          <PasswordField label="New password" value={next} onChange={setNext} hint="At least 12 characters." />
+          <PasswordField label="New password" value={next} onChange={setNext} />
+          <PasswordMeter value={next} />
+          <PasswordField
+            label="Confirm new password"
+            value={confirm}
+            onChange={setConfirm}
+            hint={confirm && confirm !== next ? 'These two do not match.' : undefined}
+          />
           {change.isError && (
             <p className="text-xs text-destructive">
               {change.error instanceof Error ? change.error.message : 'Could not change password'}
             </p>
           )}
           {change.isSuccess && <p className="text-xs text-success">Password changed. Other sessions signed out.</p>}
-          <Button type="submit" disabled={change.isPending || next.length < 12 || !current}>
+          <Button
+            type="submit"
+            disabled={change.isPending || next.length < 12 || !current || confirm !== next}
+          >
             {change.isPending ? 'Saving…' : 'Change password'}
           </Button>
         </form>
@@ -166,6 +250,62 @@ export default function ProfileView() {
       <MyGrowthPanels quiet />
     </div>
     </>
+  )
+}
+
+
+/* What is actually wrong with the password, while it is being typed.
+ *
+ * "At least 12 characters" as a hint under the box is read once and then
+ * ignored, and the refusal arrives after the form is submitted. The rules are
+ * few and checkable, so they are shown filling in as they are met -- the
+ * person can see which one they have not done rather than guessing at a
+ * strength word.
+ *
+ * The bar is a count of rules met, not an opinion about entropy. A meter that
+ * says "Strong" for a password a school will reject teaches somebody to trust
+ * the wrong thing.
+ */
+function PasswordMeter({ value }: { value: string }) {
+  const rules = [
+    { label: '12 characters', ok: value.length >= 12 },
+    { label: 'a capital', ok: /[A-Z]/.test(value) },
+    { label: 'a small letter', ok: /[a-z]/.test(value) },
+    { label: 'a number', ok: /[0-9]/.test(value) },
+    { label: 'a symbol', ok: /[^A-Za-z0-9]/.test(value) },
+  ]
+  const met = rules.filter((r) => r.ok).length
+
+  if (!value) return null
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5" aria-hidden>
+        {rules.map((r, i) => (
+          <span
+            key={r.label}
+            className={cn(
+              'h-1 flex-1 rounded-full',
+              i < met
+                ? met <= 2 ? 'bg-destructive' : met <= 4 ? 'bg-warning' : 'bg-success'
+                : 'bg-border',
+            )}
+          />
+        ))}
+      </div>
+      <p className="flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
+        {rules.map((r) => (
+          <span
+            key={r.label}
+            className={cn('inline-flex items-center gap-1',
+              r.ok ? 'text-success' : 'text-muted-foreground')}
+          >
+            <span aria-hidden>{r.ok ? '✓' : '○'}</span>
+            {r.label}
+          </span>
+        ))}
+      </p>
+    </div>
   )
 }
 
