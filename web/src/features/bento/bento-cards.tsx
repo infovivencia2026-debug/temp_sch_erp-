@@ -409,10 +409,16 @@ export function CardShell({
                    5.18:1 light and 7.19:1 dark and is still plainly the
                    quietest line on the card, which is all the treatment was
                    ever asking for. */
-                'mt-1 truncate opacity-60',
-                isLatin(sub)
-                  ? 'font-normal uppercase leading-none tracking-[0.04em] text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.92))]'
-                  : 'font-normal leading-tight text-[length:var(--card-sub,10px)]',
+                /* SENTENCE CASE. This micro-label was set uppercase, mono and
+                   tracked — the "quiet voice" the card leaned on to look
+                   measured. Uppercase tracking is not quiet; it is the second
+                   styled thing on a card whose only job is to carry one figure.
+                   Plain small muted text says the same period ("Now", "Last 30
+                   days") without a typographic costume, and the figure is then
+                   the only thing on the card wearing one. The 0.92 shrink was a
+                   compensation for the width uppercase tracking adds, so it goes
+                   with them. */
+                'mt-1 truncate opacity-60 font-normal leading-tight text-[length:var(--card-sub,10px)]',
               )}
             >
               {sub}
@@ -447,7 +453,18 @@ export function CardShell({
                Inter is variable here, so 650 is a real weight, not synthesised
                from two. */
             'truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:650]',
-            value === '—'
+            /* A QUIET CARD DOES NOT SHOUT ITS ZERO.
+
+               An empty school renders "0" and "₹0", and at the figure's own
+               40px each one is a headline announcing nothing — the loudest
+               thing on a home that has no news. `quiet` is already set on
+               exactly these cards (the drawing reported it has nothing to
+               draw), so a zero is dropped to the supporting size and muted, the
+               same treatment the em-dash placeholder gets. The number is still
+               there and still legible for anyone who wants it; it simply stops
+               being the thing the eye lands on when there is nothing to report.
+               A card with real news keeps its big figure untouched. */
+            value === '—' || quiet
               ? 'leading-tight opacity-45 text-[length:var(--card-change,13px)]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
           )}
@@ -464,8 +481,8 @@ export function CardShell({
               {delta}
             </span>
             {deltaNote && (
-              <span className="mt-0.5 block whitespace-nowrap font-normal uppercase
-                               leading-none tracking-[0.06em] opacity-60
+              <span className="mt-0.5 block whitespace-nowrap font-normal
+                               leading-tight opacity-60
                                text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.9))]">
                 {deltaNote}
               </span>

@@ -585,7 +585,13 @@ export function StatCell({
           weight stops reading as emphasis and starts reading as noise, and the
           label is not what the eye is meant to land on. */}
       <p
-        className="bento-label text-[10px] font-normal uppercase leading-tight tracking-[0.08em]
+        /* SENTENCE CASE, no tracking. The eyebrow was 10px uppercase with 0.08em
+           of tracking — the loud, shouty caption the brief names. Uppercase and
+           wide tracking are what make eight small words read as a signal; a
+           label is not a signal, it is the figure's subject. Set as plain small
+           muted text it still sits under the figure and out of the way, and it
+           stops adding a second emphasised line to every card on the board. */
+        className="bento-label text-[10px] font-normal leading-tight
                    text-[var(--bento-muted)]"
       >
         {label}

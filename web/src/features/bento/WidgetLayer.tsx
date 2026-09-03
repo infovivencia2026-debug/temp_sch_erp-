@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, DIMS, TINT_STARTS, inkFor, cssHsl, hexToHsl, hslToHex,
+  WIDTHS, DIMS, TINT_STARTS, softTintBg, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, PRESETS, BOARD_ROWS,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
   type WidgetSize, type BoardWidget, type Spot,
@@ -926,7 +926,10 @@ function ColourPick({
           setOpen((v) => !v)
         }}
         className="size-6 rounded-full border-2 border-white shadow-sm transition-transform hover:scale-110"
-        style={{ background: value ? cssHsl(value) : 'var(--bento-card)' }}
+        /* Previews the CARD, not the raw hue: the dot shows the soft panel the
+           card will actually wear, so the picker never promises a fill it no
+           longer paints. */
+        style={{ background: value ? softTintBg(value) : 'var(--bento-card)' }}
       />
       {value && (
         <button
@@ -1135,26 +1138,32 @@ export function Widget({
 
   const paint: Record<string, string> = {}
   if (tint) {
-    const bg = cssHsl(tint)
-    const ink = inkFor(tint)
-    for (const d of DOMAINS) {
-      /* `-soft` as well as the base, and this is the one that actually paints.
+    /* THE TINT IS A PANEL NOW, NOT A FILL.
 
-         `Cell` draws its background from `--dom-x-soft` — that changed when the
-         domain tokens were corrected, since `--dom-x` is the INK and `-soft` is
-         the PANEL. This loop was still repointing only the base and the text,
-         so picking a colour for a card recoloured a token nothing read and the
-         card stayed exactly as it was. Choosing a colour did nothing at all. */
-      paint[`--dom-${d}`] = bg
-      paint[`--dom-${d}-soft`] = bg
-      paint[`--dom-${d}-text`] = ink
+       This used to paint the chosen hue at full chroma as the card's own
+       background and then invert every figure to white or black to survive it.
+       That is the loud card the whole board was made of: brand colour used as a
+       cell fill, with the number fighting the ground it sits on.
+
+       `softTintBg` keeps the person's hue — its identity is intact, a blue card
+       is still visibly blue — and drops only its VOLUME, mixing it down over the
+       card so it reads as a tinted panel in both themes. Because the panel is
+       mostly the card, the card's normal ink keeps the contrast it was measured
+       at: no `inkFor`, no forced white-on-colour, no rainbow of figures. A tint
+       someone saved months ago at full strength softens here on its own. */
+    const soft = softTintBg(tint)
+    for (const d of DOMAINS) {
+      /* `Cell` draws its background from `--dom-x-soft`, so that is the token
+         that must carry the softened panel. `--dom-x` is the INK a few marks
+         still read (a meter, a gauge) — it keeps the hue at strength so those
+         small strokes stay visible against the quiet panel. `-text` is the
+         card's own ink, which is legible on a panel that is mostly the card. */
+      paint[`--dom-${d}-soft`] = soft
+      paint[`--dom-${d}`] = cssHsl(tint)
+      paint[`--dom-${d}-text`] = 'var(--bento-ink)'
     }
-    // The card's own ink, for the parts that read the bento tokens rather than
-    // a domain one — the label and any supporting sentence.
-    paint['--bento-ink'] = ink
-    paint['--bento-muted'] = ink === '#ffffff'
-      ? 'rgba(255,255,255,0.72)'
-      : 'rgba(16,17,20,0.62)'
+    // Label and supporting sentence stay on the card's own ink/muted — a soft
+    // panel does not move them off the contrast the theme already guarantees.
   }
 
   return (

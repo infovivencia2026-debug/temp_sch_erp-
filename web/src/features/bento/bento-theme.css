@@ -215,7 +215,11 @@
   border-left: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   border-radius: 0;
-  opacity: 0.55;
+  /* Quieter still at rest. The whole card is the link, so the corner arrow is a
+     hint that a tap opens something, not the control itself. At 0.4 it is barely
+     there until the pointer or keyboard focus reaches the card, at which point
+     the rule below brings it fully up — discoverable, not decorative. */
+  opacity: 0.4;
 }
 [data-layout='bento'] .bento-cue:hover,
 [data-layout='bento'] .bento-cue:focus-visible {

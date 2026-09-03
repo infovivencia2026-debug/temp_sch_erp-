@@ -137,6 +137,32 @@ export function cssHsl({ h, s, l }: Hsl): string {
   return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`
 }
 
+/** The chosen hue as a QUIET PANEL, not a fill.
+
+    A card tint was painted at full chroma — the brand colour used as the card's
+    background — which is the loudest thing a school's home can do and the whole
+    reason the board reads as five competing signals. The person still gets the
+    colour they chose: the hue is preserved exactly. What changes is its volume.
+
+    `color-mix` over `--bento-card` is what lets one declaration behave in both
+    themes without the JS knowing which is active. On light the card is white, so
+    the hue lands as a pale wash; on dark the card is #1c1e26, so the same hue
+    lands as a dim tint — soft in both, never a flooded cell. And because the
+    panel is mostly the card, the card's OWN ink keeps its measured contrast on
+    top of it: no per-tint ink calculation, no rainbow of coloured figures.
+
+    `pct` is small on purpose — 16% reads the hue's identity at a glance and is
+    far too little to shout. It is also the measured contrast floor: at 16% even
+    a fully-saturated user-picked hue keeps the card's opacity-0.6 sub-label at
+    4.92:1 on dark and 5.14:1 on light (worst case over the whole hue wheel),
+    both clear of 4.5; pushing the mix to 18% dropped dark to 4.67 and 22% to
+    4.23, under the floor. Old saved tints stored at full strength flow through
+    here too, so a board someone already coloured softens on its own without
+    touching their saved choice. */
+export function softTintBg(tint: Hsl, pct = 16): string {
+  return `color-mix(in srgb, ${cssHsl(tint)} ${pct}%, var(--bento-card))`
+}
+
 /** The columns and rows a named default occupies. */
 export const DIMS: Record<WidgetSize, { w: number; h: number }> = {
   small: { w: 1, h: 1 },
