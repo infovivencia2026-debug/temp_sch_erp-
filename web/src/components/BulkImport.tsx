@@ -1231,8 +1231,14 @@ export function SheetViewer({
   rows: string[][]
   onClose: () => void
 }) {
-  // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(true, onClose)
+  /* The phone's Back closes this, like every overlay: see overlay-history.ts.
+
+     The hook's return value has to be what the close button calls. Calling
+     onClose directly unmounted the panel, and the hook's cleanup then consumed
+     the history entry it had pushed -- so pressing Close shut the panel and
+     navigated the page back at the same time, which reads as Close doing
+     nothing, or worse, as the app jumping somewhere else. */
+  const close = useOverlayHistory(true, onClose)
   /* Two sizes, because both are wanted.
    *
    * A sheet eighteen columns wide is read edge to edge; the same sheet checked
@@ -1241,7 +1247,7 @@ export function SheetViewer({
   const [full, setFull] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') close()
     }
     document.addEventListener('keydown', onKey)
     // Restored on close rather than assumed to have been empty: another
@@ -1252,7 +1258,7 @@ export function SheetViewer({
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = previous
     }
-  }, [onClose])
+  }, [close])
 
   return (
     <div
@@ -1261,7 +1267,17 @@ export function SheetViewer({
           ? 'fixed inset-0 z-50 bg-background'
           : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
       }
-      onClick={onClose}
+      /* Clicking the dark surround closes it -- unless a drag ended there.
+
+         Reading a sheet means selecting cells, and a selection that runs off
+         the edge of the table finishes its mouse-up on the backdrop. Closing
+         then loses the file the moment somebody highlights a column, which is
+         the one gesture this window exists for. */
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) return
+        if ((window.getSelection()?.toString() ?? '') !== '') return
+        close()
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -1274,7 +1290,11 @@ export function SheetViewer({
         }
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
+        {/* The title bar is furniture, not content. Dragging across a sheet
+            from top-left otherwise selects the file name and the row count
+            along with the data, which is what makes a highlighted table look
+            like the screen has broken. */}
+        <div className="flex select-none flex-wrap items-center gap-3 border-b px-4 py-3">
           <p className="text-[14px] font-medium">{title}</p>
           <span className="text-[12.5px] text-muted-foreground">
             {rows.length - 1} rows · {rows[0]?.length ?? 0} columns
@@ -1283,7 +1303,7 @@ export function SheetViewer({
             {full ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             {full ? 'Windowed' : 'Full screen'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onClose}>
+          <Button size="sm" variant="ghost" onClick={close}>
             Close
           </Button>
         </div>

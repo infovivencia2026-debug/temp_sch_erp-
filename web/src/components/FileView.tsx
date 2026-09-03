@@ -100,7 +100,11 @@ export default function FileView({
   onClose: () => void
 }) {
   // The phone's Back closes this, like every overlay: see overlay-history.ts.
-  useOverlayHistory(true, onClose)
+  /* The hook's return value is what a close control must call. Calling
+     onClose directly unmounts first, and the cleanup then spends the
+     history entry the hook had pushed -- so the panel closes and the page
+     navigates back at the same time. */
+  const close = useOverlayHistory(true, onClose)
   const kind = kindOf(file)
   const src = `/api/v1/files/${file.file_id}?inline=1`
   const [text, setText] = useState<string | null>(null)
@@ -119,10 +123,10 @@ export default function FileView({
   }, [src, kind])
 
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [onClose])
+  }, [close])
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex flex-col bg-background" role="dialog" aria-label={file.name}>
@@ -141,7 +145,7 @@ export default function FileView({
             <Download className="h-3.5 w-3.5" aria-hidden />
             Download
           </a>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="ghost" onClick={close}>Close</Button>
         </div>
       </div>
 
