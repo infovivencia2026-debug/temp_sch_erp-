@@ -815,24 +815,19 @@ function ClassesPanel({ onDone }: PanelProps) {
         </div>
       )}
           <div className="mt-4 border-t pt-4">
+        {/* ONE SHEET, NOT TWO.
+
+            There were two boxes here: the classes, then the sections against
+            the classes you had just made. The second only works once the
+            first has landed, so doing them in the wrong order rejected every
+            row for a class that did not exist yet -- which reads as the file
+            being wrong rather than the order. */}
         <BulkImport
           entity="classes"
-          title="Or add every class from a sheet"
-          hint="One column is enough: the name. The order is read from it, so a sheet that says Grade 6 has already said six."
+          title="Classes and sections from a sheet"
+          hint="Three columns: the class, its sections, and how many seats each holds. Only the class name is required — a school that has not decided its sections yet can add them later."
           onDone={onDone}
         />
-        {/* The sections sheet stays reachable, on the step that now owns
-            sections. A school with forty of them is not typing them in, and
-            deleting the panel this lived on would have quietly taken the
-            importer with it. */}
-        <div className="mt-4">
-          <BulkImport
-            entity="sections"
-            title="And the sections from a sheet"
-            hint="Class, name, capacity. The class must exist already and is matched by its name."
-            onDone={onDone}
-          />
-        </div>
       </div>
 </form>
   )

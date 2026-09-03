@@ -225,14 +225,47 @@ func classImportLevel(row map[string]string) (int, error) {
 
 var importSpecs = map[string]importSpec{
 	"classes": {
-		Perm:    rbac.AcademicsWrite,
-		Columns: []string{"name", "level", "stream"},
-		// Only the name. Level is read out of it -- a sheet that says
-		// "Grade 6" has already said six, and requiring the column made a
-		// school add one to a list it already had.
+		Perm: rbac.AcademicsWrite,
+		/* ONE SHEET FOR CLASSES AND THEIR SECTIONS.
+
+		   There were two: upload the classes, then upload the sections against
+		   the classes you had just made. Two templates for one list, and the
+		   second only works after the first has landed -- so a school that did
+		   them in the wrong order got every row rejected for a class that did
+		   not exist yet, which reads as the file being wrong.
+
+		   Nobody writes those separately either. The list a school already has
+		   is one sheet with the sections beside the class, which is exactly
+		   this shape.
+
+		   Only the name is required. Sections and capacity are optional
+		   because a school may not have decided them yet, and level is
+		   optional because it is already in the name. */
+		/* Three columns, and two of them optional.
+
+		   Level and stream came off the template. Level is already in the name
+		   -- a sheet that says Grade 6 has said six -- and asking for it again
+		   is asking somebody to restate what they wrote and to be blamed when
+		   the two disagree. Stream is a thing a handful of senior schools use
+		   and every other school had to look at and decide to leave empty.
+
+		   Both are still read where a file happens to carry them, so a sheet
+		   written against the old template still imports. They are simply not
+		   asked for. */
+		Columns:  []string{"name", "sections", "capacity"},
 		Required: []string{"name"},
-		Sample:   []string{"Grade 6", "", ""},
+		Sample:   []string{"Grade 6", "A, B", "40"},
 		Check: func(row map[string]string) error {
+			/* Capacity, checked here so a bad one fails during the dry run
+			   rather than at the commit. */
+			if cap := strings.TrimSpace(row["capacity"]); cap != "" {
+				n, err := strconv.Atoi(strings.ReplaceAll(cap, ",", ""))
+				if err != nil || n <= 0 {
+					return errors.New("capacity must be a whole number of seats above zero")
+				}
+			}
+			// One resolver for the level, shared with the writer below, so the
+			// dry run and the commit cannot come to disagree about it.
 			_, err := classImportLevel(row)
 			return err
 		},
@@ -255,10 +288,28 @@ var importSpecs = map[string]importSpec{
 				RETURNING id`,
 				c.inst, c.campus, strings.TrimSpace(row["name"]), level,
 				strings.TrimSpace(row["stream"])).Scan(&id)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return nil
+			/* A class that already existed still needs its sections read.
+
+			   DO NOTHING returns no row on a conflict, and returning early
+			   there meant a corrected re-upload -- the commonest second action
+			   after a first attempt -- silently skipped every section on every
+			   class it had already created. */
+			existed := errors.Is(err, pgx.ErrNoRows)
+			if existed {
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT id FROM classes
+					 WHERE institution_id = $1 AND lower(name) = lower($2)`,
+					c.inst, strings.TrimSpace(row["name"])).Scan(&id); err != nil {
+					return err
+				}
+			} else if err != nil {
+				return err
 			}
-			c.noteCreated("classes", id, err == nil)
+			c.noteCreated("classes", id, !existed)
+
+			if err := c.writeSections(row, id); err != nil {
+				return err
+			}
 			return err
 		},
 	},
@@ -1613,6 +1664,63 @@ func subjectColumnsFrom(r *http.Request) map[string]string {
 		}
 	}
 	return out
+}
+
+/*
+writeSections creates the sections named beside a class on the same row.
+
+	Separated by commas or spaces, because a school writes "A, B" and "A B" and
+	should not have to learn which we wanted. Empty is allowed: a class with no
+	sections yet is a real state, and inventing an "A" for it would put a
+	section in the register that the school never asked for.
+
+	Capacity defaults to 40 rather than to nothing. A section with no capacity
+	can never be full, so the admissions screen cannot warn anybody, and the
+	first a school hears of it is a forty-first child in a room of forty.
+*/
+func (c *importCtx) writeSections(row map[string]string, classID uuid.UUID) error {
+	list := strings.TrimSpace(row["sections"])
+	if list == "" {
+		return nil
+	}
+	capacity := 40
+	if v := strings.TrimSpace(strings.ReplaceAll(row["capacity"], ",", "")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			capacity = n
+		}
+	}
+
+	var yearID uuid.UUID
+	if err := c.tx.QueryRow(c.r.Context(), `
+		SELECT id FROM academic_years
+		 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
+		return errors.New("open the academic year before importing sections")
+	}
+
+	for _, raw := range strings.FieldsFunc(list, func(r rune) bool {
+		return r == ',' || r == ';' || r == '/'
+	}) {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		var secID uuid.UUID
+		var fresh bool
+		if err := c.tx.QueryRow(c.r.Context(), `
+			INSERT INTO sections (institution_id, campus_id, class_id,
+			                      academic_year_id, name, capacity)
+			VALUES ($1,$2,$3,$4,$5,$6)
+			-- A re-upload corrects the capacity rather than failing, which is
+			-- what somebody expects from editing a row they can see.
+			ON CONFLICT (class_id, academic_year_id, name)
+			DO UPDATE SET capacity = EXCLUDED.capacity
+			RETURNING id, xmax = 0`,
+			c.inst, c.campus, classID, yearID, name, capacity).Scan(&secID, &fresh); err != nil {
+			return err
+		}
+		c.noteCreated("sections", secID, fresh)
+	}
+	return nil
 }
 
 // getBulkTemplate hands back a CSV with the headers and one filled example
