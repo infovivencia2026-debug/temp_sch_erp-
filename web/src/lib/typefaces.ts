@@ -1,14 +1,24 @@
 /* The typefaces somebody can choose, and how they arrive.
 
-   Fifteen faces, and the product ships exactly one of them. Inter is bundled
-   as a variable woff2 and is the default; everything else is fetched from
-   Google Fonts the first time it is wanted — when the picker opens to draw its
-   specimens, or when a choice is restored on load.
+   Six faces, and the product ships exactly one of them. Inter is bundled as a
+   variable woff2 and is the default; the other four fetched families come from
+   Google Fonts the first time one is wanted -- when the picker opens to draw
+   its specimens, or when a choice is restored on load.
 
    That is the whole reason this file exists rather than a list of CSS classes.
-   Bundling fifteen families would put roughly two megabytes of webfont into
-   the initial download so that fourteen of them could go unused by almost
-   everybody. Fetching on demand costs the default nothing.
+   Bundling every family would put roughly two megabytes of webfont into the
+   initial download so that all but one could go unused by almost everybody.
+   Fetching on demand costs the default nothing.
+
+   IT WAS FIFTEEN. The list carried a serif, two monospaces and seven more
+   sans faces that differed from each other by less than the specimen row
+   could show at this size, so the picker asked a school to choose between
+   things it could not tell apart. A choice nobody can make is not a choice,
+   and every extra row was another specimen to render and another family to
+   fetch. Removing one is safe by construction: typefaceById falls back to the
+   first entry, so anybody already on a face that has gone is on Inter the next
+   time they load, with nothing to fix and nothing lost but a preference they
+   could set again in two taps.
 
    THE OFFLINE CASE IS REAL AND IS HANDLED BY DOING NOTHING. A school running
    this on a LAN with no route out will have the <link> fail, and the stack
@@ -51,25 +61,6 @@ export const TYPEFACES: readonly Typeface[] = [
     note: 'Institutional, slightly technical.' },
   { id: 'dm', name: 'DM Sans', google: 'DM+Sans:opsz,wght@9..40,400..700',
     stack: "'DM Sans', ui-sans-serif, system-ui, sans-serif", note: 'Geometric and compact.' },
-  { id: 'alata', name: 'Alata', google: 'Alata',
-    stack: "Alata, ui-sans-serif, system-ui, sans-serif", note: 'Wide and even, low contrast.' },
-  { id: 'barlow', name: 'Barlow', google: 'Barlow:wght@400;500;600',
-    stack: "Barlow, ui-sans-serif, system-ui, sans-serif", note: 'Slightly condensed, signage-like.' },
-  { id: 'josefin', name: 'Josefin Sans', google: 'Josefin+Sans:wght@400;500;600',
-    stack: "'Josefin Sans', ui-sans-serif, system-ui, sans-serif",
-    note: 'Geometric with a tall x-height.' },
-  { id: 'outfit', name: 'Outfit', google: 'Outfit:wght@400;500;600',
-    stack: "Outfit, ui-sans-serif, system-ui, sans-serif", note: 'Clean geometric display.' },
-  { id: 'figtree', name: 'Figtree', google: 'Figtree:wght@400;500;600',
-    stack: "Figtree, ui-sans-serif, system-ui, sans-serif", note: 'Warm, softly rounded.' },
-  { id: 'sourceserif', name: 'Source Serif', google: 'Source+Serif+4:opsz,wght@8..60,400..700',
-    stack: "'Source Serif 4', ui-serif, Georgia, serif", note: 'A serif, for reading at length.' },
-  { id: 'jetbrains', name: 'JetBrains Mono', google: 'JetBrains+Mono:wght@400;500',
-    stack: "'JetBrains Mono', ui-monospace, Menlo, monospace",
-    note: 'Fixed width. Every figure lines up.' },
-  { id: 'ibmplexmono', name: 'IBM Plex Mono', google: 'IBM+Plex+Mono:wght@400;500;600',
-    stack: "'IBM Plex Mono', ui-monospace, Menlo, monospace",
-    note: 'Monospaced. IDs, codes, and technical values.' },
 ] as const
 
 export const DEFAULT_TYPEFACE = 'inter'
