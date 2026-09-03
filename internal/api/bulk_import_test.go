@@ -189,7 +189,9 @@ func TestDryRunCatchesWhatTheWriterWouldReject(t *testing.T) {
 	}
 
 	staff := importSpecs["staff"]
-	if err := staff.Check(map[string]string{"employee_code": "T-1", "first_name": "Priya", "joined_on": "01/06/2026"}); err == nil {
+	// 01/06/2026 and 01 Jun 2026 are dates the importer now reads on purpose;
+	// only a string no reader could parse should be refused.
+	if err := staff.Check(map[string]string{"employee_code": "T-1", "first_name": "Priya", "joined_on": "June, sometime"}); err == nil {
 		t.Error("a date in the wrong format passed the dry run")
 	}
 	if err := staff.Check(map[string]string{"employee_code": "T-1", "first_name": "Priya", "joined_on": ""}); err != nil {

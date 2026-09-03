@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"os"
@@ -37,15 +38,51 @@ func legFor(direction string) string {
 	return "morning"
 }
 
-// tripOfThisBus confirms the trip belongs to the device's vehicle and returns
-// what the roster needs from it.
-func tripOfThisBus(r *http.Request, tx pgx.Tx, dev *busTracker, trip uuid.UUID) (route uuid.UUID, direction string, open bool, err error) {
+/*
+tripOfThisBus confirms the trip is this handset's and returns what the roster
+needs from it.
+
+	"This handset's" is either of two things. A phone paired to one bus has a
+	vehicle and the trip must be on it. The ordinary phone now is registered
+	to a driver, its Vehicle is nil and the bus is whatever sticker was
+	scanned at the start of the run; for that phone the trip is the one it
+	opened, found by tracker_id. Comparing against a nil vehicle alone would
+	match nothing and 404 every driver who scanned in.
+*/
+func tripOfThisBus(r *http.Request, tx pgx.Tx, dev *busTracker, trip uuid.UUID) (route, vehicle uuid.UUID, direction string, open bool, err error) {
 	err = tx.QueryRow(r.Context(), `
-		SELECT route_id, direction, ended_at IS NULL
+		SELECT route_id, vehicle_id, direction, ended_at IS NULL
 		  FROM vehicle_trips
-		 WHERE id = $1 AND vehicle_id = $2 AND institution_id = $3`,
-		trip, dev.Vehicle, dev.Institution).Scan(&route, &direction, &open)
+		 WHERE id = $1 AND institution_id = $2
+		   AND (tracker_id = $3 OR vehicle_id = $4)`,
+		trip, dev.Institution, dev.ID, dev.Vehicle).Scan(&route, &vehicle, &direction, &open)
 	return
+}
+
+/*
+vehicleForTracker is the bus this handset is on, for the calls that have no
+trip id to go by: a photo, a notice, an OK.
+
+	The paired-to-a-bus phone answers from its own row. A driver's phone
+	answers from its trips: the open one if there is one, otherwise the most
+	recent one that ended in the last twelve hours, because "run cancelled,
+	come back" has to reach a driver who pressed End two minutes ago, and a
+	photo request in flight as the run ends must not 404. A phone with no run
+	today is on no bus, and gets nothing.
+*/
+func vehicleForTracker(ctx context.Context, tx pgx.Tx, dev *busTracker) (uuid.UUID, bool) {
+	if dev.Vehicle != nil {
+		return *dev.Vehicle, true
+	}
+	var v uuid.UUID
+	err := tx.QueryRow(ctx, `
+		SELECT vehicle_id
+		  FROM vehicle_trips
+		 WHERE tracker_id = $1 AND institution_id = $2
+		   AND (ended_at IS NULL OR ended_at > now() - interval '12 hours')
+		 ORDER BY (ended_at IS NULL) DESC, started_at DESC
+		 LIMIT 1`, dev.ID, dev.Institution).Scan(&v)
+	return v, err == nil
 }
 
 type rosterStudent struct {
@@ -84,7 +121,7 @@ func (s *Server) getBusTrackerRoster(w http.ResponseWriter, r *http.Request) {
 	students := []rosterStudent{}
 	var direction string
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		route, dir, _, err := tripOfThisBus(r, tx, dev, tripID)
+		route, _, dir, _, err := tripOfThisBus(r, tx, dev, tripID)
 		if err != nil {
 			return err
 		}
@@ -181,6 +218,21 @@ markBusTrackerBoarding records what the driver saw at the stop.
 
 	Idempotent on (student, day, leg): tapping "On" twice is one boarding, and
 	a mark replayed after a lost response changes nothing.
+
+	Newest tap wins, not last write. A phone replaying its outbox after a dead
+	zone may hand over "boarded 07:40" a minute after the office's screen, or
+	its own later batch, recorded "alighted 08:15". The tap time is kept in
+	remarks as RFC 3339 text -- the table has no column for it and one more
+	migration for one timestamp is not worth the churn -- and an update only
+	lands when its tap is no older than the one stored. Remarks the office
+	writes by hand are not timestamps, and a row carrying one of those is
+	treated as never tapped. A stale mark is still reported accepted: the
+	phone's job was to hand it over, and it did.
+
+	The tap time is also what dates the mark, so a boarding at 23:50 lands on
+	the day it happened. A clock that is more than twelve hours out -- a phone
+	that has been off for a week and not yet synced -- would file the mark on
+	some other day's register, so its mark is taken as now.
 */
 func (s *Server) markBusTrackerBoarding(w http.ResponseWriter, r *http.Request) {
 	dev := busTrackerFrom(r.Context())
@@ -204,7 +256,7 @@ func (s *Server) markBusTrackerBoarding(w http.ResponseWriter, r *http.Request) 
 
 	accepted := []string{}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		route, dir, _, err := tripOfThisBus(r, tx, dev, tripID)
+		route, _, dir, _, err := tripOfThisBus(r, tx, dev, tripID)
 		if err != nil {
 			return err
 		}
@@ -214,39 +266,56 @@ func (s *Server) markBusTrackerBoarding(w http.ResponseWriter, r *http.Request) 
 			if err != nil || !oneOfStr(m.Status, "boarded", "alighted", "absent") {
 				continue
 			}
-			at := time.Now()
+			now := time.Now()
+			at := now
 			if t, err := time.Parse(time.RFC3339, m.At); err == nil {
 				at = t
 			}
-			tag, err := tx.Exec(r.Context(), `
-				INSERT INTO transport_attendance
-				    (institution_id, student_id, route_id, stop_id, on_date, leg,
-				     status, source, marked_by, boarded_at, alighted_at, remarks)
-				SELECT $1, ta.student_id, ta.route_id,
-				       CASE WHEN $4 = 'drop' THEN ta.drop_stop_id ELSE ta.pickup_stop_id END,
-				       ($5::timestamptz AT TIME ZONE 'Asia/Kolkata')::date, $6,
-				       $7, 'manual', $8,
-				       CASE WHEN $7 = 'boarded'  THEN $5::timestamptz END,
-				       CASE WHEN $7 = 'alighted' THEN $5::timestamptz END,
-				       'driver app'
-				  FROM transport_allocations ta
-				 WHERE ta.student_id = $2 AND ta.route_id = $3 AND ta.institution_id = $1
-				   AND (ta.valid_to IS NULL OR ta.valid_to >= current_date)
-				 LIMIT 1
-				ON CONFLICT (student_id, on_date, leg)
-				DO UPDATE SET status = EXCLUDED.status,
-				              source = EXCLUDED.source,
-				              marked_by = COALESCE(EXCLUDED.marked_by, transport_attendance.marked_by),
-				              boarded_at = COALESCE(transport_attendance.boarded_at, EXCLUDED.boarded_at),
-				              alighted_at = COALESCE(EXCLUDED.alighted_at, transport_attendance.alighted_at),
-				              remarks = EXCLUDED.remarks`,
-				dev.Institution, student, route, dir, at, leg, m.Status, markedBy)
+			if d := at.Sub(now); d > 12*time.Hour || d < -12*time.Hour {
+				at = now
+			}
+			tap := at.UTC().Format(time.RFC3339)
+			var onRoute bool
+			err = tx.QueryRow(r.Context(), `
+				WITH alloc AS (
+				  SELECT ta.student_id, ta.route_id,
+				         CASE WHEN $4 = 'drop' THEN ta.drop_stop_id ELSE ta.pickup_stop_id END AS stop_id
+				    FROM transport_allocations ta
+				   WHERE ta.student_id = $2 AND ta.route_id = $3 AND ta.institution_id = $1
+				     AND (ta.valid_to IS NULL OR ta.valid_to >= current_date)
+				   LIMIT 1
+				), ins AS (
+				  INSERT INTO transport_attendance
+				      (institution_id, student_id, route_id, stop_id, on_date, leg,
+				       status, source, marked_by, boarded_at, alighted_at, remarks)
+				  SELECT $1, student_id, route_id, stop_id,
+				         ($5::timestamptz AT TIME ZONE 'Asia/Kolkata')::date, $6,
+				         $7, 'manual', $8,
+				         CASE WHEN $7 = 'boarded'  THEN $5::timestamptz END,
+				         CASE WHEN $7 = 'alighted' THEN $5::timestamptz END,
+				         $9
+				    FROM alloc
+				  ON CONFLICT (student_id, on_date, leg)
+				  DO UPDATE SET status = EXCLUDED.status,
+				                source = EXCLUDED.source,
+				                marked_by = COALESCE(EXCLUDED.marked_by, transport_attendance.marked_by),
+				                boarded_at = COALESCE(transport_attendance.boarded_at, EXCLUDED.boarded_at),
+				                alighted_at = COALESCE(EXCLUDED.alighted_at, transport_attendance.alighted_at),
+				                remarks = EXCLUDED.remarks
+				        WHERE $5::timestamptz >= CASE
+				                WHEN transport_attendance.remarks ~ '^\d{4}-\d{2}-\d{2}T'
+				                THEN transport_attendance.remarks::timestamptz
+				                ELSE 'epoch'::timestamptz END
+				  RETURNING 1
+				)
+				SELECT EXISTS (SELECT 1 FROM alloc)`,
+				dev.Institution, student, route, dir, at, leg, m.Status, markedBy, tap).Scan(&onRoute)
 			if err != nil {
 				return err
 			}
-			// Zero rows means the child is not on this route: not this bus's
-			// mark to make, and not worth failing the batch over.
-			if tag.RowsAffected() > 0 {
+			// Not on this route means not this bus's mark to make, and not
+			// worth failing the batch over.
+			if onRoute {
 				accepted = append(accepted, m.StudentID)
 			}
 		}
@@ -285,6 +354,10 @@ func (s *Server) getBusTrackerStudentPhoto(w http.ResponseWriter, r *http.Reques
 	}
 	var key, contentType string
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		vehicle, ok := vehicleForTracker(r.Context(), tx, dev)
+		if !ok {
+			return pgx.ErrNoRows
+		}
 		return tx.QueryRow(r.Context(), `
 			SELECT f.object_key, f.content_type
 			  FROM students st
@@ -297,7 +370,7 @@ func (s *Server) getBusTrackerStudentPhoto(w http.ResponseWriter, r *http.Reques
 			        AND (ta.route_id IN (SELECT id FROM routes WHERE vehicle_id = $3)
 			          OR ta.route_id IN (SELECT route_id FROM vehicle_trips
 			                              WHERE vehicle_id = $3 AND ended_at IS NULL)))`,
-			studentID, dev.Institution, dev.Vehicle).Scan(&key, &contentType)
+			studentID, dev.Institution, vehicle).Scan(&key, &contentType)
 	})
 	if err != nil {
 		httpx.NotFound(w, r)
@@ -341,13 +414,17 @@ type driverNotice struct {
 // pendingDriverNotices is what the heartbeat carries down: everything sent to
 // this bus that nobody has tapped OK on and that has not gone stale.
 func pendingDriverNotices(r *http.Request, tx pgx.Tx, dev *busTracker) ([]driverNotice, error) {
+	vehicle, ok := vehicleForTracker(r.Context(), tx, dev)
+	if !ok {
+		return []driverNotice{}, nil
+	}
 	rows, err := tx.Query(r.Context(), `
 		SELECT id::text, body, to_char(sent_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 		  FROM driver_notices
 		 WHERE vehicle_id = $1 AND institution_id = $2
 		   AND acknowledged_at IS NULL AND expires_at > now()
 		 ORDER BY sent_at
-		 LIMIT 10`, dev.Vehicle, dev.Institution)
+		 LIMIT 10`, vehicle, dev.Institution)
 	if err != nil {
 		return nil, err
 	}
@@ -378,11 +455,15 @@ func (s *Server) acknowledgeDriverNotice(w http.ResponseWriter, r *http.Request)
 		by = &sess.UserID
 	}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		vehicle, ok := vehicleForTracker(r.Context(), tx, dev)
+		if !ok {
+			return pgx.ErrNoRows
+		}
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE driver_notices
 			   SET acknowledged_at = COALESCE(acknowledged_at, now()),
 			       acknowledged_by = COALESCE(acknowledged_by, $3)
-			 WHERE id = $1 AND vehicle_id = $2`, id, dev.Vehicle, by)
+			 WHERE id = $1 AND vehicle_id = $2 AND institution_id = $4`, id, vehicle, by, dev.Institution)
 		if err != nil {
 			return err
 		}
