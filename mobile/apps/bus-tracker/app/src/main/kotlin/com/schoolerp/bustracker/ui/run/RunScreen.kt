@@ -25,6 +25,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import com.journeyapps.barcodescanner.ScanContract
+import com.schoolerp.bustracker.ui.scan.BusScanActivity
 import com.journeyapps.barcodescanner.ScanOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -607,7 +608,8 @@ private fun StartRunSection(
                             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                             .setPrompt("Point at the bus sticker")
                             .setBeepEnabled(false)
-                            .setOrientationLocked(false),
+                            .setOrientationLocked(false)
+                            .setCaptureActivity(BusScanActivity::class.java),
                     )
                 },
             ) { Text("Scan") }

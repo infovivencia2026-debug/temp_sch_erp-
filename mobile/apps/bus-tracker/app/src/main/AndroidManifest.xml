@@ -76,6 +76,16 @@
             </intent-filter>
         </activity>
 
+        <!-- The bus-sticker scanner. Not exported: only this app starts it,
+             from the run screen. Its own layout gives it the PhonePe-style
+             window; the machinery is ZXing's CaptureActivity. -->
+        <activity
+            android:name=".ui.scan.BusScanActivity"
+            android:exported="false"
+            android:screenOrientation="fullSensor"
+            android:stateNotNeeded="true"
+            android:theme="@style/Theme.BusTracker" />
+
         <!--
             location, not specialUse or dataSync. The type is what the platform
             checks the app's permissions against: from Android 10 a location
