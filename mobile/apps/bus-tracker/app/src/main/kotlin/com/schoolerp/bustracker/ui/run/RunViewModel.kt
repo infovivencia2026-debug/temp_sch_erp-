@@ -7,10 +7,14 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.graphics.Bitmap
 import com.schoolerp.bustracker.data.local.StopEntity
+import com.schoolerp.bustracker.data.local.StudentEntity
+import com.schoolerp.bustracker.data.remote.Notice
+import com.schoolerp.bustracker.data.repo.PhotoStore
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
 import com.schoolerp.bustracker.data.prefs.SavedRoute
-import com.schoolerp.bustracker.data.remote.RollChild
 import com.schoolerp.bustracker.data.prefs.SettingsStore
 import com.schoolerp.bustracker.data.repo.EndOutcome
 import com.schoolerp.bustracker.data.repo.SignInOutcome
@@ -53,6 +57,7 @@ class RunViewModel @Inject constructor(
     private val repository: TrackerRepository,
     private val settingsStore: SettingsStore,
     private val engine: TripEngine,
+    private val photos: PhotoStore,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -122,6 +127,8 @@ class RunViewModel @Inject constructor(
                             "carry on the run.",
                     )
                     is EngineEvent.StopReached -> _lastArrival.value = event.stopName
+                    // Shown as a banner from the notices flow; nothing to do here.
+                    is EngineEvent.Notice -> Unit
                 }
             }
         }
@@ -180,43 +187,37 @@ class RunViewModel @Inject constructor(
         }
     }
 
-    /* THE REGISTER FOR THE OPEN RUN.
+    /* WHO IS ON THE BUS, from disk.
 
-       Empty until the driver opens it: the roll is a list of children's names,
-       and a phone on a dashboard should not be showing one until somebody asks
-       it to. Refreshed on open rather than polled, because a bus with an
-       attendant's second handset would otherwise fight over the same rows. */
-    private val _roll = MutableStateFlow<List<RollChild>>(emptyList())
-    val roll: StateFlow<List<RollChild>> = _roll.asStateFlow()
+       Observed, not fetched: the roster is written by the repository when the
+       run starts and on every heartbeat, and the driver's taps land in the
+       same table. The screen never waits on the school to draw a name. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val students: StateFlow<List<StudentEntity>> = repository.settings
+        .map { it.activeTrip?.tripId }
+        .distinctUntilChanged()
+        .flatMapLatest { tripId ->
+            if (tripId == null) flowOf(emptyList()) else repository.observeStudents(tripId)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun refreshRoll() {
+    val pendingMarks: StateFlow<Int> = repository.pendingMarks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    fun markChild(studentId: String, status: String) {
         viewModelScope.launch {
             val tripId = repository.settings.first().activeTrip?.tripId ?: return@launch
-            repository.roll(tripId)?.let { _roll.value = it }
+            repository.markBoarding(tripId, studentId, status)
         }
     }
 
-    /* Marked optimistically, then reconciled.
+    suspend fun photo(studentId: String): Bitmap? = photos.load(studentId)
 
-       A driver at a stop taps three names in four seconds on a connection that
-       is a bar of 3G on a bypass. Waiting for each round trip before the tick
-       appears is how the fourth child gets marked twice and the fifth not at
-       all. The refresh afterwards is what makes the screen honest again if the
-       school refused any of them. */
-    fun markChild(studentId: String, status: String) {
-        _roll.value = _roll.value.map {
-            if (it.studentId == studentId) it.copy(status = status) else it
-        }
-        viewModelScope.launch {
-            val tripId = repository.settings.first().activeTrip?.tripId ?: return@launch
-            if (!repository.markChild(tripId, studentId, status)) {
-                _alert.value = DriverAlert(
-                    "That did not reach the school",
-                    "The child is still shown as not marked. Try again when you have signal.",
-                )
-                repository.roll(tripId)?.let { _roll.value = it }
-            }
-        }
+    /* THE OFFICE'S MESSAGES, with one button. */
+    val notices: StateFlow<List<Notice>> = repository.notices
+
+    fun acknowledgeNotice(noticeId: String) {
+        viewModelScope.launch { repository.acknowledgeNotice(noticeId) }
     }
 
     fun signOut() {

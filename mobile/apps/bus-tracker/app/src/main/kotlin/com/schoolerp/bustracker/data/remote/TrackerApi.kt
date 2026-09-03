@@ -214,6 +214,55 @@ class TrackerApi(
         }
     }
 
+    // ---------------------------------------------------------- the children
+
+    suspend fun roster(baseUrl: BaseUrl, token: String, session: String?, tripId: String): RosterResponse =
+        call {
+            client.get(baseUrl.resolve(pathRoster(tripId))) {
+                bearer(token)
+                session?.let { staffSession(it) }
+            }
+        }
+
+    suspend fun postBoarding(
+        baseUrl: BaseUrl,
+        token: String,
+        session: String?,
+        tripId: String,
+        request: BoardingRequest,
+    ): BoardingResponse = call {
+        client.post(baseUrl.resolve(pathBoarding(tripId))) {
+            bearer(token)
+            session?.let { staffSession(it) }
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+    }
+
+    /** The bytes of a child's photo, or null for a child who has none. */
+    suspend fun studentPhoto(baseUrl: BaseUrl, token: String, studentId: String): ByteArray? {
+        val response = try {
+            client.get(baseUrl.resolve(pathStudentPhoto(studentId))) { bearer(token) }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (other: Exception) {
+            throw ApiFailure.Network(other.javaClass.simpleName)
+        }
+        if (response.status.value == 404) return null
+        if (response.status.value !in 200..299) {
+            throw ApiFailures.from(json, response.status.value, null, null)
+        }
+        return response.body<ByteArray>()
+    }
+
+    suspend fun ackNotice(baseUrl: BaseUrl, token: String, session: String?, noticeId: String): AckResponse =
+        call {
+            client.post(baseUrl.resolve(pathAckNotice(noticeId))) {
+                bearer(token)
+                session?.let { staffSession(it) }
+            }
+        }
+
     private suspend inline fun <reified T> call(block: () -> HttpResponse): T {
         val response = try {
             block()
@@ -273,6 +322,10 @@ class TrackerApi(
         const val HEADER_STAFF_SESSION = "X-Staff-Session"
 
         fun pathEndTrip(tripId: String): String = "/api/v1/bus-tracker/trips/$tripId/end"
+        fun pathRoster(tripId: String): String = "/api/v1/bus-tracker/trips/$tripId/roster"
+        fun pathBoarding(tripId: String): String = "/api/v1/bus-tracker/trips/$tripId/boarding"
+        fun pathStudentPhoto(studentId: String): String = "/api/v1/bus-tracker/students/$studentId/photo"
+        fun pathAckNotice(noticeId: String): String = "/api/v1/bus-tracker/notices/$noticeId/ack"
 
         /** The contract's own ceiling: "Up to 200 fixes per request." */
         const val MAX_FIXES_PER_PUSH = 200

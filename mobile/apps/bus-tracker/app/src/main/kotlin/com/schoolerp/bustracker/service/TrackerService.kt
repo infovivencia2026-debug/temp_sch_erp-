@@ -158,6 +158,9 @@ class TrackerService : Service() {
                 stopSelf()
             }
             is EngineEvent.StopReached -> Unit
+            // High-importance channel on purpose: the screen is off on the
+            // dashboard and the office would not send one for nothing.
+            is EngineEvent.Notice -> notifications.problem("Message from the school", event.body)
         }
     }
 

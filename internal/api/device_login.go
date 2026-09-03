@@ -603,6 +603,23 @@ func (s *Server) busTrackerSignOut(w http.ResponseWriter, r *http.Request) {
 // Mounted over trip start and end only. Positions and heartbeat stay open to
 // the device alone: a session that expires mid-run must not drop a moving bus
 // off the parents' map, and the trip already carries the driver who opened it.
+// readBusTrackerDriver attaches the driver session when the header carries a
+// valid one and lets the request through either way. For the calls where the
+// person is useful to know and not required to exist.
+func (s *Server) readBusTrackerDriver(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		dev := busTrackerFrom(r.Context())
+		if dev == nil {
+			busTrackerUnauthorized(w, r)
+			return
+		}
+		if sess := s.readStaffSession(r.Context(), r, "bus_tracker", dev.ID); sess != nil {
+			r = r.WithContext(context.WithValue(r.Context(), staffSessionCtxKey{}, sess))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) requireBusTrackerDriver(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dev := busTrackerFrom(r.Context())

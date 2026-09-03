@@ -7,6 +7,7 @@ import com.schoolerp.bustracker.core.SystemTimeSource
 import com.schoolerp.bustracker.core.TimeSource
 import com.schoolerp.bustracker.data.local.FixDao
 import com.schoolerp.bustracker.data.local.StopDao
+import com.schoolerp.bustracker.data.local.StudentDao
 import com.schoolerp.bustracker.data.local.TrackerDatabase
 import com.schoolerp.bustracker.data.remote.TrackerApi
 import dagger.Module
@@ -99,4 +100,7 @@ object AppModule {
 
     @Provides
     fun stopDao(database: TrackerDatabase): StopDao = database.stops()
+
+    @Provides
+    fun studentDao(database: TrackerDatabase): StudentDao = database.students()
 }

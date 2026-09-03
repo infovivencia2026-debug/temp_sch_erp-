@@ -1471,8 +1471,9 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 	}
 	var ping int
 	var paused bool
+	notices := []driverNotice{}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			UPDATE vehicle_trackers
 			   SET last_seen_at = now(),
 			       battery_pct = COALESCE($2, battery_pct),
@@ -1483,13 +1484,23 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 			 WHERE id = $1
 			RETURNING ping_seconds, paused`,
 			dev.ID, req.BatteryPct, req.Charging, req.LocationOK, req.AppVersion).
-			Scan(&ping, &paused)
+			Scan(&ping, &paused); err != nil {
+			return err
+		}
+		// The office's messages ride down on the heartbeat rather than on a
+		// poll of their own: it already runs whether or not a trip is open,
+		// which is exactly when "come back, the run is cancelled" is sent.
+		var err error
+		notices, err = pendingDriverNotices(r, tx, dev)
+		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"ping_seconds": ping, "paused": paused})
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"ping_seconds": ping, "paused": paused, "notices": notices,
+	})
 }
 
 // --- mounting ----------------------------------------------------------------
@@ -1548,6 +1559,15 @@ func (s *Server) mountBusTrackerDevice(r chi.Router) {
 
 		r.Post("/bus-tracker/positions", s.ingestBusTrackerPositions)
 		r.Post("/bus-tracker/heartbeat", s.busTrackerHeartbeatHandler)
+
+		/* The children. Device-authenticated only, like positions: a driver
+		   whose session lapsed at the fourth stop must still be able to see
+		   who boards at the fifth. The session is read when present so a
+		   mark can name who made it. See bus_tracker_roster.go. */
+		r.With(s.readBusTrackerDriver).Get("/bus-tracker/trips/{id}/roster", s.getBusTrackerRoster)
+		r.With(s.readBusTrackerDriver).Post("/bus-tracker/trips/{id}/boarding", s.markBusTrackerBoarding)
+		r.Get("/bus-tracker/students/{id}/photo", s.getBusTrackerStudentPhoto)
+		r.With(s.readBusTrackerDriver).Post("/bus-tracker/notices/{id}/ack", s.acknowledgeDriverNotice)
 	})
 }
 
@@ -1565,4 +1585,6 @@ func (s *Server) mountBusTrackerAdmin(r chi.Router) {
 	   a live map of where children are during the day, and that is not the
 	   same decision as editing a route. */
 	r.With(write).Post("/transport/trackers/{id}/approve", s.approveBusTracker)
+
+	s.mountDriverNoticeAdmin(r)
 }

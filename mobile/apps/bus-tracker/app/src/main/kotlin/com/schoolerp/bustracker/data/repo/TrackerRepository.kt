@@ -9,6 +9,11 @@ import com.schoolerp.bustracker.data.local.FixDao
 import com.schoolerp.bustracker.data.local.FixEntity
 import com.schoolerp.bustracker.data.local.StopDao
 import com.schoolerp.bustracker.data.local.StopEntity
+import com.schoolerp.bustracker.data.local.StudentDao
+import com.schoolerp.bustracker.data.local.StudentEntity
+import com.schoolerp.bustracker.data.remote.BoardingMark
+import com.schoolerp.bustracker.data.remote.BoardingRequest
+import com.schoolerp.bustracker.data.remote.Notice
 import com.schoolerp.bustracker.data.prefs.SavedRoute
 import com.schoolerp.bustracker.data.prefs.ActiveTrip
 import com.schoolerp.bustracker.data.prefs.SettingsStore
@@ -17,7 +22,6 @@ import com.schoolerp.bustracker.data.prefs.TrackerSettings
 import com.schoolerp.bustracker.data.remote.ApiFailure
 import com.schoolerp.bustracker.data.remote.ClaimRequest
 import com.schoolerp.bustracker.data.remote.MarkChildRequest
-import com.schoolerp.bustracker.data.remote.RollChild
 import com.schoolerp.bustracker.data.remote.TripCheckRequest
 import com.schoolerp.bustracker.data.remote.DriverSignInRequest
 import com.schoolerp.bustracker.data.remote.EnrolRequest
@@ -51,6 +55,7 @@ class TrackerRepository @Inject constructor(
     private val settingsStore: SettingsStore,
     private val fixes: FixDao,
     private val stops: StopDao,
+    private val students: StudentDao,
     private val device: DeviceStatusProvider,
     private val locationPermissions: LocationPermissions,
     private val time: TimeSource,
@@ -260,6 +265,7 @@ class TrackerRepository @Inject constructor(
         // phone is no longer allowed to speak to.
         settingsStore.settings.first().activeTrip?.let { fixes.discardTrip(it.tripId) }
         stops.clear()
+        students.clear()
         settingsStore.clearPairing()
         // A driver who unpaired on purpose is not owed an explanation of why
         // he is looking at the sign-in screen, and showing him the last
@@ -307,29 +313,105 @@ class TrackerRepository @Inject constructor(
         }
     }
 
-    /* THE REGISTER, ON THE BUS.
+    /* THE CHILDREN, ON THE BUS.
 
-       Read fresh each time rather than cached: two adults on one run -- a
-       driver and an attendant with a second handset -- must not each be
-       working from their own idea of who is already aboard. */
-    suspend fun roll(tripId: String): List<RollChild>? {
-        val ctx = requireContext() ?: return null
+       Kept on disk with the stops rather than fetched when the card opens.
+       The stop where the question "is everyone on?" gets asked is the one
+       with no signal, and a list that needs the school to answer before it
+       will draw is a list the driver stops opening. The roster comes down
+       when the run starts and is refreshed on every heartbeat; the driver's
+       taps are written here first and handed over like fixes are, so a tap in
+       a dead zone is a tap, not an error. */
+    fun observeStudents(tripId: String): Flow<List<StudentEntity>> = students.observe(tripId)
+
+    val pendingMarks: Flow<Int> = students.observePendingCount()
+
+    /** True when the school answered. The stored roster stands either way. */
+    suspend fun syncRoster(tripId: String): Boolean {
+        val ctx = requireContext() ?: return false
         return try {
-            api.roll(ctx.baseUrl, ctx.token, tripId).children
+            val response = api.roster(ctx.baseUrl, ctx.token, tokenStore.session(), tripId)
+            students.mergeRoster(
+                tripId,
+                response.students.map {
+                    StudentEntity(
+                        tripId = tripId,
+                        studentId = it.id,
+                        name = it.name,
+                        admissionNo = it.admissionNo,
+                        className = it.className,
+                        stopId = it.stopId,
+                        hasPhoto = it.hasPhoto,
+                        absent = it.absent,
+                        absentReason = it.absentReason,
+                        status = it.status,
+                        markedAt = it.markedAt,
+                    )
+                },
+            )
+            true
         } catch (failure: ApiFailure) {
-            null
+            BtLog.w("roster", "could not refresh ${tripId}: ${failure.reason}")
+            false
         }
     }
 
-    /** Returns true when the school accepted the mark. */
-    suspend fun markChild(tripId: String, studentId: String, status: String): Boolean {
-        val ctx = requireContext() ?: return false
-        val session = tokenStore.session() ?: return false
+    /** The driver's tap. Lands on disk now and goes to the school on the next push. */
+    suspend fun markBoarding(tripId: String, studentId: String, status: String) {
+        students.mark(tripId, studentId, status, time.nowMillis())
+    }
+
+    /** Hands over every tap the school has not confirmed. Returns how many it took. */
+    suspend fun pushBoarding(tripId: String): Int {
+        val ctx = requireContext() ?: return 0
+        val pending = students.pending(tripId)
+        if (pending.isEmpty()) return 0
         return try {
-            api.markChild(ctx.baseUrl, ctx.token, session, tripId,
-                MarkChildRequest(studentId = studentId, status = status))
-            true
+            val response = api.postBoarding(
+                ctx.baseUrl, ctx.token, tokenStore.session(), tripId,
+                BoardingRequest(
+                    pending.map {
+                        BoardingMark(
+                            studentId = it.studentId,
+                            status = it.pendingStatus.orEmpty(),
+                            at = Rfc3339.format(it.pendingAtMillis ?: time.nowMillis()),
+                        )
+                    },
+                ),
+            )
+            var settled = 0
+            pending.filter { it.studentId in response.accepted }.forEach {
+                settled += students.settle(tripId, it.studentId, it.pendingAtMillis ?: 0L)
+            }
+            settled
         } catch (failure: ApiFailure) {
+            BtLog.w("roster", "boarding push failed: ${failure.reason}")
+            0
+        }
+    }
+
+    suspend fun fetchStudentPhoto(studentId: String): ByteArray? {
+        val ctx = requireContext() ?: return null
+        return api.studentPhoto(ctx.baseUrl, ctx.token, studentId)
+    }
+
+    // ------------------------------------------------------------- notices
+
+    /* The office's messages nobody has tapped OK on. They arrive on the
+       heartbeat and are re-sent on every one until acknowledged, so this is
+       memory, not disk: a process death loses nothing the next heartbeat will
+       not bring back. */
+    private val _notices = MutableStateFlow<List<Notice>>(emptyList())
+    val notices: StateFlow<List<Notice>> = _notices.asStateFlow()
+
+    /** The tap. Dropped from the screen at once; told to the school when it answers. */
+    suspend fun acknowledgeNotice(noticeId: String): Boolean {
+        _notices.value = _notices.value.filterNot { it.id == noticeId }
+        val ctx = requireContext() ?: return false
+        return try {
+            api.ackNotice(ctx.baseUrl, ctx.token, tokenStore.session(), noticeId).acknowledged
+        } catch (failure: ApiFailure) {
+            BtLog.w("notice", "ack of $noticeId failed: ${failure.reason}")
             false
         }
     }
@@ -447,6 +529,10 @@ class TrackerRepository @Inject constructor(
                     startedAtMillis = startedAtMillis,
                 ),
             )
+            students.pruneOtherThan(response.tripId)
+            // Best effort, while there is still signal at the depot. The
+            // heartbeat refreshes it from here on.
+            syncRoster(response.tripId)
             BtLog.i("trip", "opened ${response.tripId} with ${response.stops.size} stops")
             StartOutcome.Started(response.tripId, response.stops.size)
         } catch (failure: ApiFailure) {
@@ -489,6 +575,7 @@ class TrackerRepository @Inject constructor(
         val endedAt = time.nowMillis()
 
         if (ctx != null) {
+            runCatching { pushBoarding(trip.tripId) }
             runCatching { flushBuffer(trip.tripId) }
         }
 
@@ -521,6 +608,7 @@ class TrackerRepository @Inject constructor(
         }
 
         stops.clear()
+        students.clear()
         settingsStore.closeTrip()
         val kept: Int
         if (settled) {
@@ -611,8 +699,10 @@ class TrackerRepository @Inject constructor(
         current.pendingEnd?.let { fixes.discardTrip(it.tripId) }
         settingsStore.clearPendingEnd()
         stops.clear()
+        students.clear()
         settingsStore.clearPairing()
         settingsStore.recordSignedOut(reason)
+        _notices.value = emptyList()
         tokenStore.clear()
     }
 
@@ -620,6 +710,7 @@ class TrackerRepository @Inject constructor(
     suspend fun abandonTrip(tripId: String) {
         fixes.discardTrip(tripId)
         stops.clear()
+        students.clear()
         settingsStore.closeTrip()
     }
 
@@ -747,6 +838,7 @@ class TrackerRepository @Inject constructor(
             )
             settingsStore.applyServerDirectives(response.pingSeconds, response.paused)
             settingsStore.recordHeartbeat(time.nowMillis())
+            _notices.value = response.notices
             HeartbeatOutcome.Acknowledged(response.pingSeconds, response.paused)
         } catch (failure: ApiFailure) {
             if (failure is ApiFailure.Unauthorized) HeartbeatOutcome.NotPaired

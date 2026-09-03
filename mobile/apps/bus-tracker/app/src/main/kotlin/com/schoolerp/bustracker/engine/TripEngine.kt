@@ -93,6 +93,7 @@ class TripEngine @Inject constructor(
         launch { collectFixes() }
         launch { pushLoop() }
         launch { heartbeatLoop() }
+        launch { watchNotices() }
     }
 
     /**
@@ -152,6 +153,9 @@ class TripEngine @Inject constructor(
             var pauseFor = settings.pingSeconds.toLong()
 
             if (trip != null && !settings.paused) {
+                // Taps first: a tap is one row and the fixes behind it can be
+                // two hundred, and the office is waiting on the tap.
+                repository.pushBoarding(trip.tripId)
                 when (val outcome = repository.pushOneBatch(trip.tripId)) {
                     is PushOutcome.Sent -> {
                         if (outcome.remaining > 0 && outcome.acknowledged > 0) pauseFor = 0
@@ -199,9 +203,31 @@ class TripEngine @Inject constructor(
                 }
                 is HeartbeatOutcome.Failed ->
                     BtLog.w("engine", "heartbeat failed: ${outcome.reason}")
-                is HeartbeatOutcome.Acknowledged -> Unit
+                is HeartbeatOutcome.Acknowledged -> {
+                    // The roster rides on the heartbeat's cadence: a parent
+                    // who reports absence after the bus left shows up grey
+                    // within a few minutes, and the driver's own taps go up.
+                    settingsStore.settings.first().activeTrip?.let { trip ->
+                        repository.pushBoarding(trip.tripId)
+                        repository.syncRoster(trip.tripId)
+                    }
+                }
             }
             delay(heartbeatIntervalMillis())
+        }
+    }
+
+    /**
+     * Raises each of the office's messages once, when it first arrives.
+     * The heartbeat re-sends an unanswered one every few minutes; the driver
+     * is not buzzed every few minutes for it.
+     */
+    private suspend fun watchNotices() {
+        val seen = HashSet<String>()
+        repository.notices.collect { notices ->
+            notices.forEach { notice ->
+                if (seen.add(notice.id)) _events.tryEmit(EngineEvent.Notice(notice.id, notice.body))
+            }
         }
     }
 

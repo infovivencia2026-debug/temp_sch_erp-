@@ -104,12 +104,54 @@ that window the phone's time is trusted; it is the one that was there.
 
     POST /api/v1/bus-tracker/heartbeat          (device token)
       { battery_pct, charging, location_ok, app_version }
-      -> { ping_seconds, paused }
+      -> { ping_seconds, paused, notices: [ { id, body, sent_at } ] }
 
 `location_ok` is the field the office actually needs. A phone that is online,
 charged, and reporting `location_ok: false` — permission revoked, or the OS
 denying background location — is the exact failure where everything looks
 healthy and the bus is not on the map.
+
+`notices` are the office's messages to this bus that nobody has tapped OK on
+yet (see below). An older server omits the key; the phone treats that as none.
+
+## The children
+
+    GET  /api/v1/bus-tracker/trips/{id}/roster       (device token; session read if sent)
+      -> { trip_id, direction, leg,
+           students: [ { id, name, admission_no, class, stop_id, has_photo,
+                         absent, absent_reason, status, marked_at } ] }
+
+Every child allocated to the trip's route, with the stop they use on this leg
+(`pickup_stop_id` for pickup, `drop_stop_id` for drop; empty when none is set).
+`absent` is somebody else's word — a parent's report through the portal or the
+class register — and the phone greys the card rather than letting the driver
+wait. `status` is the driver's own mark for today's leg: `boarded`,
+`alighted`, `absent`, or empty.
+
+    POST /api/v1/bus-tracker/trips/{id}/boarding     (device token; session read if sent)
+      { marks: [ { student_id, status, at } ] }
+      -> { accepted: [student_id, ...] }
+
+Batched and idempotent on `(student, day, leg)`, for the same reason positions
+are: the phone keeps a mark on disk until the server names it in `accepted`.
+`at` is when the driver tapped, RFC 3339. A child not on this route is skipped,
+not an error. `leg` is `morning` for a pickup run and `afternoon` for a drop.
+
+    GET  /api/v1/bus-tracker/students/{id}/photo     (device token)
+      -> image bytes, or 404
+
+Only for a child currently allocated to a route this bus runs. Nothing but the
+image leaves; a wrong id and a child with no photo are the same 404.
+
+## Notices
+
+    POST /api/v1/bus-tracker/notices/{id}/ack        (device token; session read if sent)
+      -> { acknowledged: true }
+
+The office writes a notice to a vehicle (`POST /api/v1/transport/vehicles/{id}/notices`,
+`transport.write`). It rides down on the heartbeat until the driver taps OK,
+which is this call, or until it expires twelve hours after sending. The office
+sees who tapped and when.
 
 ## What the server decides and the phone obeys
 

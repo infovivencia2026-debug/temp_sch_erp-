@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BatteryWarning, BusFront, MapPin, RadioTower, TriangleAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Select, SkeletonTable, ErrorState, EmptyState,
+  Table, Td, Badge, Select, SkeletonTable, ErrorState, EmptyState, Button, Textarea,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { FleetMap } from '@/components/FleetMap'
@@ -310,6 +310,7 @@ export default function LiveVehicleMap() {
                   'Last fix',
                   { label: 'Battery', align: 'right' },
                   'Phone',
+                  'Message',
                 ]}
                 empty={vehicles.length === 0}
                 emptyLabel={
@@ -371,6 +372,9 @@ export default function LiveVehicleMap() {
                         <Badge tone="success">Paired</Badge>
                       )}
                     </Td>
+                    <Td>
+                      <DriverMessage vehicleId={v.vehicle_id} paired={!!v.paired} />
+                    </Td>
                   </tr>
                 ))}
               </Table>
@@ -419,4 +423,84 @@ function plotGap(
     title: 'No position reported yet',
     body: 'A trip is open, but no phone on it has sent a position. Usually the phone is still finding satellites, or the OS has refused it location — the Location blocked count above tells the two apart.',
   }
+}
+
+type DriverNotice = {
+  id: string
+  body: string
+  sent_at: string
+  sent_by?: string
+  acknowledged_at?: string
+  acknowledged_by?: string
+  expired: boolean
+}
+
+/* A line to the driver, and whether it was read.
+
+   The phone fetches this on its heartbeat and shows it as a banner with one
+   button; tapping it is what turns "sent" into "seen" here. Delivered is not
+   the same as read on a phone face-down on a dashboard, so only the tap is
+   shown as anything. */
+function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boolean }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [body, setBody] = useState('')
+  const notices = useQuery({
+    queryKey: ['driver-notices', vehicleId],
+    queryFn: () => api.get<List<DriverNotice>>(`/api/v1/transport/vehicles/${vehicleId}/notices`),
+    enabled: paired,
+    refetchInterval: open ? 10_000 : 60_000,
+  })
+  const send = useMutation({
+    mutationFn: () =>
+      api.post<{ id: string }>(`/api/v1/transport/vehicles/${vehicleId}/notices`, {
+        body: body.trim().slice(0, 500),
+      }),
+    onSuccess: () => {
+      setBody('')
+      qc.invalidateQueries({ queryKey: ['driver-notices', vehicleId] })
+    },
+  })
+  if (!paired) return <span className="text-muted-foreground">—</span>
+  const latest = notices.data?.items?.[0]
+  return (
+    <div className="min-w-[180px] space-y-1">
+      {latest && (
+        <div className="text-[12.5px]">
+          <div className="max-w-[240px] truncate" title={latest.body}>{latest.body}</div>
+          <div className="text-muted-foreground">
+            {latest.acknowledged_at
+              ? `Seen ${latest.acknowledged_at}${latest.acknowledged_by ? ` by ${latest.acknowledged_by}` : ''}`
+              : latest.expired
+                ? 'Never seen'
+                : `Sent ${latest.sent_at}, not seen yet`}
+          </div>
+        </div>
+      )}
+      {open ? (
+        <div className="space-y-1">
+          <Textarea
+            value={body}
+            onChange={setBody}
+            rows={2}
+            placeholder="Return to school, run cancelled."
+            onSubmit={() => { if (body.trim() && !send.isPending) send.mutate() }}
+          />
+          <div className="flex gap-1">
+            <Button size="sm" disabled={send.isPending || !body.trim()} onClick={() => send.mutate()}>
+              Send to driver
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+          {send.isError && <div className="text-[12px] text-destructive">Could not send.</div>}
+        </div>
+      ) : (
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+          Message driver
+        </Button>
+      )}
+    </div>
+  )
 }

@@ -309,7 +309,58 @@ data class HeartbeatRequest(
 data class HeartbeatResponse(
     @SerialName("ping_seconds") val pingSeconds: Int? = null,
     val paused: Boolean = false,
+    /** The office's messages nobody has tapped OK on. Absent on an older server. */
+    val notices: List<Notice> = emptyList(),
 )
+
+// ------------------------------------------------------------------ notices
+
+@Serializable
+data class Notice(
+    val id: String,
+    val body: String,
+    @SerialName("sent_at") val sentAt: String = "",
+)
+
+@Serializable
+data class AckResponse(val acknowledged: Boolean = false)
+
+// ------------------------------------------------------------- the children
+
+@Serializable
+data class RosterResponse(
+    @SerialName("trip_id") val tripId: String,
+    val direction: String = "",
+    val leg: String = "",
+    val students: List<RosterStudent> = emptyList(),
+)
+
+@Serializable
+data class RosterStudent(
+    val id: String,
+    val name: String,
+    @SerialName("admission_no") val admissionNo: String = "",
+    @SerialName("class") val className: String = "",
+    @SerialName("stop_id") val stopId: String = "",
+    @SerialName("has_photo") val hasPhoto: Boolean = false,
+    val absent: Boolean = false,
+    @SerialName("absent_reason") val absentReason: String = "",
+    val status: String = "",
+    @SerialName("marked_at") val markedAt: String = "",
+)
+
+@Serializable
+data class BoardingMark(
+    @SerialName("student_id") val studentId: String,
+    val status: String,
+    val at: String,
+)
+
+@Serializable
+data class BoardingRequest(val marks: List<BoardingMark>)
+
+@Serializable
+data class BoardingResponse(val accepted: List<String> = emptyList())
 
 // ------------------------------------------------------------------- errors
 
