@@ -4,10 +4,9 @@ import {
   Table, Td, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import {
-  useCredits, useCreditEntries, useTopUpCredits, useStopMetering,
+  useCreditEntries, useTopUpCredits, useStopMetering,
   type CreditBalance,
 } from '@/features/super_admin/messaging-lib'
-import { useSession } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* HOW MANY MESSAGES ARE LEFT, AND WHERE THE REST WENT.
@@ -30,45 +29,9 @@ import { formatDate } from '@/lib/utils'
    words. A channel with no meter sends freely; a channel with a meter at zero
    is stopped. Showing "0 left" for the first would be a lie about a channel
    that is working. */
-export default function MessageCredits() {
-  const session = useSession()
-  const credits = useCredits()
-  const own = !!session.subscription?.custom_integration
-
-  if (credits.isLoading) return <SkeletonTable columns={4} label="Counting what is left…" />
-  if (credits.error) return <ErrorState error={credits.error} />
-
-  const items = credits.data?.items ?? []
-  return (
-    <div className="space-y-5">
-      {/* Which arrangement is in force, said once at the top, because the
-          numbers underneath mean opposite things in the two cases. On the
-          lower packs a credit is something the school bought from us; on the
-          top pack it is a ceiling we put on a bill we do not pay. */}
-      <p className="text-[13px] text-muted-foreground">
-        {own ? (
-          <>
-            This school sends on its own vendor account and pays that vendor directly. A
-            balance here is an optional ceiling, not a prepayment — leave a channel unmetered
-            and it sends without limit.
-          </>
-        ) : (
-          <>
-            This school sends through our account, so every SMS and WhatsApp template comes
-            out of the credits below. Email and in-app cost nothing and are never metered.
-          </>
-        )}
-      </p>
-      {items.map((c) => (
-        <ChannelMeter key={c.channel} credit={c} />
-      ))}
-    </div>
-  )
-}
-
 const NAMES: Record<string, string> = { sms: 'SMS', whatsapp: 'WhatsApp' }
 
-function ChannelMeter({ credit }: { credit: CreditBalance }) {
+export function ChannelMeter({ credit }: { credit: CreditBalance }) {
   const name = NAMES[credit.channel] ?? credit.channel
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')

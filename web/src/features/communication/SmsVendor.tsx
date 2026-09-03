@@ -3,10 +3,8 @@ import {
   Card, CardHeader, Button, Input, Field, FormGrid, FormNotice, Badge,
   SkeletonForm, ErrorState,
 } from '@/components/ui'
-import { useSession } from '@/lib/session'
 import {
   useProviders, useSaveProvider, useTestProvider, useSmsPresets,
-  useRouting, useSetRoute,
   type SmsPreset,
 } from '@/features/super_admin/messaging-lib'
 
@@ -30,10 +28,7 @@ import {
    like the gateway being broken — so the field is here, named, rather than
    buried in an advanced section. */
 export default function SmsVendor() {
-  const session = useSession()
   const providers = useProviders()
-  const routing = useRouting()
-  const setRoute = useSetRoute('sms')
   const presets = useSmsPresets()
   const save = useSaveProvider('sms')
   const test = useTestProvider('sms')
@@ -50,37 +45,6 @@ export default function SmsVendor() {
 
   if (providers.isLoading) return <SkeletonForm fields={4} label="Reading the channel…" />
   if (providers.error) return <ErrorState error={providers.error} />
-
-  /* THE ARRANGEMENT THIS SCHOOL ACTUALLY HAS, rather than a form it cannot
-     submit.
-
-     On the lower packs the messages leave through our account and are paid for
-     with credits, so there is no vendor to link and the honest screen says
-     which arrangement is in force and what the other one would change. The
-     server refuses the write either way — this only decides what is offered,
-     because a hidden tab stops nobody who can type a URL. */
-  if (!session.subscription?.custom_integration) {
-    return (
-      <Card>
-        <CardHeader title="SMS vendor" action={<Badge tone="neutral">Included</Badge>} />
-        <div className="px-5 pb-5">
-          <p className="text-[13px] text-muted-foreground">
-            On this pack your messages send through our account, so there is nothing to link
-            and no vendor contract to hold. What a message costs comes out of your credits —
-            see the Credits tab for what is left and how to top it up.
-          </p>
-          <p className="mt-3 text-[13px] text-muted-foreground">
-            The Complete pack lets a school link its <strong>own</strong> SMS or WhatsApp
-            account instead: you hold the vendor relationship and the DLT registration, you
-            pay that vendor directly, and nothing here meters it.
-          </p>
-        </div>
-      </Card>
-    )
-  }
-
-  const route = routing.data?.items.find((x) => x.channel === 'sms')
-  const onOwn = route?.route === 'own'
 
   const chosen = preset
   const params = { ...(chosen?.params ?? (cfg.params as Record<string, string>) ?? {}) }
@@ -102,50 +66,7 @@ export default function SmsVendor() {
         }
       />
       <div className="px-5 pb-5">
-        {/* BOTH ROUTES, AND WHICH ONE IS IN FORCE.
-
-            The top pack may send either way and the two are not variations of
-            one thing: on ours we hold the vendor contract, the DLT
-            registration and the bill, and the school pays with credits; on
-            its own the school holds all three and we are not in the middle.
-            Choosing is a commercial decision, so it is stated as one rather
-            than implied by whether a form happens to be filled in. */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={!onOwn ? 'primary' : 'secondary'}
-            size="sm"
-            disabled={setRoute.isPending}
-            onClick={() => setRoute.mutate({ route: 'edu_cloud' })}
-          >
-            Send through EDU CLOUD
-          </Button>
-          <Button
-            variant={onOwn ? 'primary' : 'secondary'}
-            size="sm"
-            disabled={setRoute.isPending}
-            onClick={() => setRoute.mutate({ route: 'own' })}
-          >
-            Use our own account
-          </Button>
-        </div>
-
-        <p className="mt-3 text-[13px] text-muted-foreground">
-          {onOwn ? (
-            <>
-              Sending on this school's own vendor account. It holds the contract and the DLT
-              registration and pays that vendor directly; credits do not apply unless somebody
-              sets a ceiling.
-            </>
-          ) : (
-            <>
-              Sending through EDU CLOUD. We hold the vendor account and the DLT registration,
-              there is nothing to configure below, and each message comes out of the credits on
-              the Credits tab.
-            </>
-          )}
-        </p>
-
-        {!onOwn ? null : presets.isLoading ? null : (
+        {presets.isLoading ? null : (
           <div className="mt-4 flex flex-wrap gap-2">
             {(presets.data?.items ?? []).map((p) => (
               <Button
@@ -163,11 +84,8 @@ export default function SmsVendor() {
           </div>
         )}
 
-        {onOwn && chosen && (
-          <p className="mt-3 text-[13px] text-muted-foreground">{chosen.note}</p>
-        )}
+        {chosen && <p className="mt-3 text-[13px] text-muted-foreground">{chosen.note}</p>}
 
-        {onOwn && (
         <FormGrid>
           <Field label="Endpoint" hint="Filled by the vendor above; editable, because a vendor may move it." wide>
             <Input value={endpoint} onChange={setEndpoint} placeholder="https://…" />
@@ -187,9 +105,7 @@ export default function SmsVendor() {
             </Field>
           )}
         </FormGrid>
-        )}
 
-        {onOwn && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button
             disabled={save.isPending || !endpoint.trim()}
@@ -229,9 +145,8 @@ export default function SmsVendor() {
           </div>
         </div>
 
-        )}
 
-        <FormNotice error={save.error ?? test.error ?? setRoute.error} />
+        <FormNotice error={save.error ?? test.error} />
         {current && !current.configured && current.reason && (
           <p className="mt-2 text-[13px] text-muted-foreground">{current.reason}</p>
         )}

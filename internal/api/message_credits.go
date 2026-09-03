@@ -33,8 +33,18 @@ import (
    them would mean a school unable to send a receipt because it had run out of
    something that was never scarce. */
 
-// Channels that cost money per message.
+// Channels that cost money per message. Email is absent because an SMTP send
+// is a connection rather than a billed unit, and a school unable to send a fee
+// receipt for want of a credit would be absurd.
 func metered(channel string) bool { return channel == "sms" || channel == "whatsapp" }
+
+/* Channels where "whose account does this leave by" is a real question.
+ *
+ * Wider than metered on purpose. A school may well want its circulars and
+ * receipts to leave from its own mail server — its own domain, its own
+ * reputation — while letting SMS go through us. That is a routing decision
+ * with no money attached, and the two lists differ for exactly that reason. */
+func routable(channel string) bool { return metered(channel) || channel == "email" }
 
 /*
 NO ROW MEANS NOT METERED, and this is the whole compatibility story.
@@ -524,7 +534,7 @@ WHICH ACCOUNT THIS CHANNEL LEAVES BY, resolved rather than assumed.
 	when it moves up again, not have it erased.
 */
 func routeFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string) (string, error) {
-	if !metered(channel) {
+	if !routable(channel) {
 		return RouteOwn, nil
 	}
 	custom, err := planAllowsCustomIntegration(ctx, tx, inst)
@@ -577,7 +587,7 @@ func (s *Server) listMessageRoutes(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		for _, ch := range []string{"sms", "whatsapp"} {
+		for _, ch := range []string{"email", "sms", "whatsapp"} {
 			route, err := routeFor(r.Context(), tx, id.InstitutionID, ch)
 			if err != nil {
 				return err
@@ -602,8 +612,8 @@ func (s *Server) listMessageRoutes(w http.ResponseWriter, r *http.Request) {
  */
 func (s *Server) setMessageRoute(w http.ResponseWriter, r *http.Request) {
 	channel := chi.URLParam(r, "channel")
-	if !metered(channel) {
-		httpx.BadRequest(w, r, "channel must be sms or whatsapp")
+	if !routable(channel) {
+		httpx.BadRequest(w, r, "channel must be email, sms or whatsapp")
 		return
 	}
 	var body struct {

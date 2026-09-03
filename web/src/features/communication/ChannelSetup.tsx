@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { FileText, Gauge, Mail, MessageSquare, Phone } from 'lucide-react'
+import { FileText, Mail, MessageSquare, Phone } from 'lucide-react'
 import { PageHead, PageBody, Card, Loading } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +28,7 @@ const EmailServer = lazy(() => import('../super_admin/EmailServer'))
 const WhatsAppApi = lazy(() => import('../super_admin/WhatsAppApi'))
 const MessageTemplates = lazy(() => import('./MessageTemplates'))
 const SmsVendor = lazy(() => import('./SmsVendor'))
-const MessageCredits = lazy(() => import('./MessageCredits'))
+const ChannelRoute = lazy(() => import('./ChannelRoute'))
 
 /* THE OFFICE HANDSET, ARCHIVED RATHER THAN DELETED.
  *
@@ -67,12 +67,6 @@ const TABS = [
     label: 'WhatsApp',
     icon: Phone,
     blurb: 'Read more than either, and the strictest: outside a 24-hour window only approved templates send.',
-  },
-  {
-    id: 'credits',
-    label: 'Credits',
-    icon: Gauge,
-    blurb: 'How many messages this school may still send on the paid channels, and where the rest went.',
   },
   {
     id: 'templates',
@@ -132,10 +126,24 @@ export default function ChannelSetup() {
             calls was always scoped to the caller's institution, so a principal
             here configures their school and nobody else's. */}
         <Suspense fallback={<Loading label="Opening…" />}>
-          {active === 'email' && <EmailServer />}
-          {active === 'sms' && (HANDSET_GATEWAY_OFFERED ? <SmsGateway /> : <SmsVendor />)}
-          {active === 'credits' && <MessageCredits />}
-          {active === 'whatsapp' && <WhatsAppApi />}
+          {/* Every channel answers the same first question — whose account
+              does this leave by — so the same control opens each of them, and
+              what follows is only the part that differs. */}
+          {active === 'email' && (
+            <ChannelRoute channel="email" name="email">
+              <EmailServer />
+            </ChannelRoute>
+          )}
+          {active === 'sms' && (
+            <ChannelRoute channel="sms" name="SMS">
+              {HANDSET_GATEWAY_OFFERED ? <SmsGateway /> : <SmsVendor />}
+            </ChannelRoute>
+          )}
+          {active === 'whatsapp' && (
+            <ChannelRoute channel="whatsapp" name="WhatsApp">
+              <WhatsAppApi />
+            </ChannelRoute>
+          )}
           {active === 'templates' && <MessageTemplates />}
         </Suspense>
       </PageBody>
