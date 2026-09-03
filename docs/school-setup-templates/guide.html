@@ -1,0 +1,493 @@
+<title>School Setup Sheets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --paper:   #f2f3ef;
+    --surface: #fbfbf9;
+    --ink:     #1b2430;
+    --ink-soft:#5b6570;
+    --rule:    #d9dbd4;
+    --stamp:   #2f5d78;
+    --oxide:   #9a3b2f;
+    --amber:   #8a6a1f;
+    --chip:    #e6e8e1;
+
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --sans:  "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:   #14181c;
+      --surface: #1b2025;
+      --ink:     #e7e5df;
+      --ink-soft:#98a2ac;
+      --rule:    #2c343b;
+      --stamp:   #8fbcd6;
+      --oxide:   #dd8f83;
+      --amber:   #d6b46a;
+      --chip:    #242c33;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #14181c;
+    --surface: #1b2025;
+    --ink:     #e7e5df;
+    --ink-soft:#98a2ac;
+    --rule:    #2c343b;
+    --stamp:   #8fbcd6;
+    --oxide:   #dd8f83;
+    --amber:   #d6b46a;
+    --chip:    #242c33;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  /* ---- masthead ---- */
+  header { display: flex; flex-direction: column; gap: .75rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .75rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--stamp);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.1;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin: 0;
+  }
+
+  /* ---- how uploading behaves ---- */
+  .assurances {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .assurance {
+    padding: 1.15rem 1.5rem 1.15rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .assurance + .assurance { border-left: 1px solid var(--rule); padding-left: 1.5rem; }
+  .assurance h3 {
+    font-family: var(--sans);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 0;
+  }
+  .assurance p { margin: 0; font-size: .9rem; color: var(--ink-soft); line-height: 1.5; }
+
+  /* ---- order strip ---- */
+  .order {
+    border-left: 3px solid var(--amber);
+    padding: .25rem 0 .25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .order h2 {
+    font-family: var(--sans);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--amber);
+  }
+  .order ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+  .order li { font-size: .95rem; }
+  .order p { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+
+  /* ---- a sheet block ---- */
+  .sheets { display: flex; flex-direction: column; gap: 2.75rem; }
+
+  article { display: flex; flex-direction: column; gap: .85rem; }
+  .head { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+  .num {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--stamp);
+    letter-spacing: .05em;
+  }
+  h2.name {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -.005em;
+  }
+  .file {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--ink-soft);
+  }
+  .later {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    padding: .1rem .4rem;
+  }
+
+  .lede { margin: 0; max-width: 68ch; }
+
+  .header-strip {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+  }
+  .header-strip pre {
+    margin: 0;
+    padding: .8rem 1rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.7;
+    white-space: pre;
+    color: var(--ink);
+  }
+  .header-strip .req { color: var(--oxide); font-weight: 500; }
+  .header-strip .ex  { color: var(--ink-soft); }
+
+  dl.cols {
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(9rem, max-content) 1fr;
+    column-gap: 1.5rem;
+    row-gap: .55rem;
+    align-items: baseline;
+  }
+  dl.cols dt {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--stamp);
+  }
+  dl.cols dd { margin: 0; font-size: .93rem; line-height: 1.55; }
+
+  .note {
+    font-size: .9rem;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 68ch;
+  }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- typed-in section ---- */
+  .typed { display: flex; flex-direction: column; gap: 1rem; border-top: 1px solid var(--rule); padding-top: 2rem; }
+  .typed h2 {
+    font-family: var(--serif); font-size: 1.5rem; font-weight: 600; margin: 0;
+  }
+  .typed dl {
+    margin: 0; display: grid;
+    grid-template-columns: minmax(10rem, max-content) 1fr;
+    column-gap: 1.5rem; row-gap: .55rem; align-items: baseline;
+  }
+  .typed dt { font-weight: 600; font-size: .93rem; }
+  .typed dd { margin: 0; font-size: .93rem; color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+    font-size: .85rem;
+    color: var(--ink-soft);
+  }
+  footer .minimum { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--stamp); }
+  :focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+</style>
+
+<div class="sheet">
+
+  <header>
+    <p class="eyebrow">Setting up a school</p>
+    <h1>The seven sheets, and what goes in them</h1>
+    <p class="standfirst">
+      Fill these in Excel or Google Sheets, export as CSV, and upload them in
+      order. Every heading below was taken from the server that reads it.
+    </p>
+  </header>
+
+  <section class="assurances" aria-label="How uploading behaves">
+    <div class="assurance">
+      <h3>Checked before it is written</h3>
+      <p>Every upload is a dry run first. It names the wrong rows by number, with
+         the values. A file with one bad row writes nothing at all.</p>
+    </div>
+    <div class="assurance">
+      <h3>Your column names are fine</h3>
+      <p>Do not rename anything. Upload the sheet you already have and the screen
+         asks which of your columns is which.</p>
+    </div>
+    <div class="assurance">
+      <h3>An upload can be undone</h3>
+      <p>Each upload is listed with who did it and when, and removes only what it
+         created — never a record somebody typed by hand.</p>
+    </div>
+  </section>
+
+  <section class="order" aria-label="Where order matters">
+    <h2>Order matters in three places</h2>
+    <ul>
+      <li><strong>Staff</strong> before <strong>subjects</strong>, if you want teacher emails in that sheet.</li>
+      <li><strong>Classes</strong> before <strong>subjects</strong> and before <strong>past years</strong>.</li>
+      <li><strong>Students</strong> before <strong>past years</strong>, <strong>past results</strong> and <strong>staff service</strong>.</li>
+    </ul>
+    <p>Everything else can go in any order. A sheet that names something not yet
+       created is rejected row by row and tells you what is missing.</p>
+  </section>
+
+  <div class="sheets">
+
+    <article>
+      <div class="head">
+        <span class="num">01</span>
+        <h2 class="name">Classes and sections</h2>
+        <span class="file">01-classes-and-sections.csv</span>
+      </div>
+      <p class="lede">One row per class, with its sections written beside it. This
+        used to be two sheets and the second only worked after the first had
+        landed — so doing them the wrong way round rejected everything.</p>
+      <div class="header-strip"><pre><span class="req">name</span>,sections,capacity
+<span class="ex">Class 6,"A, B",40
+Nursery,A,30</span></pre></div>
+      <dl class="cols">
+        <dt>name</dt>
+        <dd>The class as the school says it. The year is read from it, so
+            <em>Class 10</em> sorts below <em>Class 9</em> with nothing to fill in.
+            <em>Nursery</em>, <em>LKG</em> and <em>UKG</em> are understood.</dd>
+        <dt>sections</dt>
+        <dd>As you say them — <em>A, B</em> or <em>Rose, Newton</em>. Leave empty
+            for a class whose sections are not decided yet.</dd>
+        <dt>capacity</dt>
+        <dd>Seats per section. Defaults to 40. A section with no capacity can
+            never be full, so admissions can never warn you.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">02</span>
+        <h2 class="name">Staff</h2>
+        <span class="file">02-staff.csv</span>
+      </div>
+      <p class="lede">Everyone on the roll — teaching and not.</p>
+      <div class="header-strip"><pre><span class="req">employee_code</span>,<span class="req">first_name</span>,last_name,email,phone,designation,role,joined_on,subjects
+<span class="ex">T-001,Priya,Rao,priya@school.in,9876543210,Teacher,faculty,2026-06-01,MATH; SCI</span></pre></div>
+      <dl class="cols">
+        <dt>email</dt>
+        <dd>This is what creates their login. No email means a personnel record
+            and no account — a real choice for a school that does not give
+            everyone one.</dd>
+        <dt>subjects</dt>
+        <dd>Semicolon list of what they teach: <em>MATH; SCI</em>. Matched on the
+            subject code or its name.</dd>
+        <dt>joined_on</dt>
+        <dd>The day they actually joined. It decides seniority and prints on an
+            experience certificate.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">03</span>
+        <h2 class="name">Subjects, classes and teachers</h2>
+        <span class="file">03-subjects-classes-teachers.csv</span>
+      </div>
+      <p class="lede">One sheet doing three jobs. What a row does depends on what
+        it carries — so a plain list of subject names is a valid file, a full
+        allocation grid is a valid file, and so is anything between.</p>
+      <div class="header-strip"><pre><span class="req">subject</span>,class,section,room,class_teacher_email,teacher_email,max_marks,periods_per_week
+<span class="ex">Sanskrit,,,,,,,
+English,Class 1,,,,,100,6
+Mathematics,Class 6,A,6A,priya@school.in,anand@school.in,100,6</span></pre></div>
+      <dl class="cols">
+        <dt>subject alone</dt>
+        <dd>Adds the subject. A subject the school has not created yet is created
+            from this sheet — there is no separate subject list to do first.</dd>
+        <dt>+ class</dt>
+        <dd>That class studies it.</dd>
+        <dt>+ section</dt>
+        <dd>That section only, and its room. Leave it empty and a named teacher
+            covers every section of the class, which is what a small school
+            means.</dd>
+        <dt>+ teacher_email</dt>
+        <dd>Who teaches the subject. <span style="font-family:var(--mono);font-size:.8rem">class_teacher_email</span>
+            is who takes that section as a form class.</dd>
+        <dt>periods_per_week</dt>
+        <dd>What the timetable solver reads. Without it, generating a draft has
+            nothing to work from.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">04</span>
+        <h2 class="name">Students</h2>
+        <span class="file">04-students.csv</span>
+      </div>
+      <p class="lede">Only the name is required. A sheet with six columns imports
+        exactly as well as one with twenty-one — a school that keeps no blood
+        groups does not have to invent an empty column.</p>
+      <div class="header-strip"><pre><span class="req">full_name</span>,admission_no,date_of_birth,gender,blood_group,medium,mother_tongue,
+section,roll_no,address,city,state,pincode,prior_school,
+admission_date,previous_class,previous_year,
+guardian_name,guardian_relation,guardian_phone,guardian_email
+<span class="ex">Ravi Teja Bandaru,ADM0001,14/06/2015,male,,english,Telugu,
+Class 6-A,1,12 Green Park,Hyderabad,Telangana,500001,,
+12/06/2021,Class 5,2025-26,Suresh Bandaru,father,9845012345,</span></pre></div>
+      <dl class="cols">
+        <dt>guardian_phone</dt>
+        <dd><strong>The one that matters most.</strong> It is the parent's login,
+            the fee reminder and the absence alert. A child imported without one
+            is invisible to their own family.</dd>
+        <dt>admission_date</dt>
+        <dd>The day they actually joined, not today. Without it every child
+            appears to have joined on the morning of the import — which decides
+            seniority and prints on every transfer certificate.</dd>
+        <dt>previous_class<br>previous_year</dt>
+        <dd>Gives a child who did not start here a history, so <em>which class was
+            she in last year</em> has an answer on their transfer certificate.</dd>
+        <dt>section</dt>
+        <dd>Written as <em>Class 6-A</em>. Matched by name, so it must already
+            exist from sheet 01.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">05</span>
+        <h2 class="name">Past years, per child</h2>
+        <span class="file">05-past-years-per-child.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">One row per child per year. Attendance as a total, fees as a
+        figure — which is what a school actually hands over, rather than four
+        years of registers and receipts.</p>
+      <div class="header-strip"><pre><span class="req">admission_no</span>,<span class="req">year</span>,class,days_present,days_total,fee_billed,fee_paid,fee_waived,notes
+<span class="ex">ADM0001,2025-26,Class 5,187,210,35500,32500,3000,Promoted with distinction</span></pre></div>
+      <dl class="cols">
+        <dt>days_present<br>days_total</dt>
+        <dd>Out of the days the school actually ran. Present above total is
+            refused — it prints as attendance over 100%.</dd>
+        <dt>fee_billed<br>fee_paid</dt>
+        <dd>Rupees as you write them; <em>28,000</em> is fine. Held apart from
+            this year's collection, so a closed year is never counted as today's
+            takings.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">06</span>
+        <h2 class="name">Past results</h2>
+        <span class="file">06-past-results-grid.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">The mark sheet as a staff room keeps it — children down,
+        subjects across, one mark in a cell. Not one row per subject: forty
+        children across six subjects is 240 rows, and nobody keeps marks that
+        way.</p>
+      <div class="header-strip"><pre>Adm No,Name,English,Maths,Hindi,Science,Total,Rank
+<span class="ex">ADM0001,Ravi Teja,72,81,64,77,294,3
+ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
+      <dl class="cols">
+        <dt>the columns</dt>
+        <dd>Name the subject each marks column holds when you upload. Leave
+            <em>Total</em> and <em>Rank</em> unmapped — they are worked out from
+            the marks, not read from the sheet.</dd>
+        <dt>AB</dt>
+        <dd>Absent, which is a result. A blank cell is a subject that child does
+            not take — not a zero.</dd>
+        <dt>asked once</dt>
+        <dd>The year, the exam, the class and what the papers are out of are
+            asked above the file, not repeated on every row.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">07</span>
+        <h2 class="name">Staff service</h2>
+        <span class="file">07-staff-service.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">Years served before this system. Without it, an imported
+        teacher of eleven years' standing has worked here since the morning of
+        the upload.</p>
+      <div class="header-strip"><pre><span class="req">employee_code</span>,<span class="req">year</span>,designation,days_present,days_total,leaves_taken,notes
+<span class="ex">T-001,2025-26,Senior Teacher,212,220,8,Class teacher 6-A</span></pre></div>
+      <p class="note">This is what a school reaches for when it writes an
+        experience certificate, settles seniority, or answers an inspector asking
+        how long somebody has taught a subject.</p>
+    </article>
+
+  </div>
+
+  <section class="typed">
+    <h2>Not a sheet — typed in once</h2>
+    <dl>
+      <dt>The school day</dt>
+      <dd>Period names and times. Name a second day if the little ones run
+          different hours, and tick which classes use it.</dd>
+      <dt>Grading scale</dt>
+      <dd>A1 91–100, A2 81–90, and so on. Marks cannot become grades without it.</dd>
+      <dt>Fee heads</dt>
+      <dd>Tuition, Admission, Transport, Lab, Books, Exam.</dd>
+      <dt>Fee structures</dt>
+      <dd>Per class: which heads, how much, which instalment, due date.</dd>
+      <dt>An exam</dt>
+      <dd>Name, kind, dates, grading scale.</dd>
+      <dt>UDISE+ code</dt>
+      <dd>Eleven digits. Needed before the annual return can be filed.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <p><span class="minimum">Minimum to open the school:</span> sheets 01, 02, 03
+      and 04. Everything else can follow once children are on the roll.</p>
+  </footer>
+
+</div>
