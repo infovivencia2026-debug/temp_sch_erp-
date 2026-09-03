@@ -103,13 +103,27 @@ type studentWriteRequest struct {
 	SectionID string `json:"section_id,omitempty"`
 	// AllowOverflow admits into a section that is already at capacity. A
 	// deliberate act, not a default: see the check in placement below.
-	AllowOverflow      bool   `json:"allow_overflow,omitempty"`
-	AcademicYearID     string `json:"academic_year_id,omitempty"`
-	RollNo             int    `json:"roll_no,omitempty"`
-	GuardianName       string `json:"guardian_name,omitempty"`
-	GuardianPhone      string `json:"guardian_phone,omitempty"`
-	GuardianEmail      string `json:"guardian_email,omitempty"`
-	GuardianRelation   string `json:"guardian_relation,omitempty"`
+	AllowOverflow    bool   `json:"allow_overflow,omitempty"`
+	AcademicYearID   string `json:"academic_year_id,omitempty"`
+	RollNo           int    `json:"roll_no,omitempty"`
+	GuardianName     string `json:"guardian_name,omitempty"`
+	GuardianPhone    string `json:"guardian_phone,omitempty"`
+	GuardianEmail    string `json:"guardian_email,omitempty"`
+	GuardianRelation string `json:"guardian_relation,omitempty"`
+	/* THE OTHER PARENT.
+
+	   A school's roll has the father and the mother side by side, with two
+	   names, two mobile numbers and often two email addresses. We stored one,
+	   so importing a real file silently threw the mother away -- and she is
+	   frequently the number that answers, the one on the gate pass, and the
+	   only contact when the father works away.
+
+	   A second guardian, not a replacement: both are linked to the child, the
+	   first is primary, and either can be reached. */
+	Guardian2Name      string `json:"guardian2_name,omitempty"`
+	Guardian2Phone     string `json:"guardian2_phone,omitempty"`
+	Guardian2Email     string `json:"guardian2_email,omitempty"`
+	Guardian2Relation  string `json:"guardian2_relation,omitempty"`
 	GuardianOccupation string `json:"guardian_occupation,omitempty"`
 }
 
@@ -407,11 +421,21 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 		// what matters to protect what does not.
 	}
 
-	// Guardian. Reused across siblings via the phone+name key.
-	if req.GuardianName != "" && req.GuardianPhone != "" {
-		relation := req.GuardianRelation
+	/* Both parents, where the sheet has both.
+
+	   Reused across siblings via the phone-and-name key, so two children of
+	   one family share the guardian rather than duplicating them -- which is
+	   what makes "a sibling already here" answerable later.
+
+	   The first is primary. That is not a judgement about the family; it is
+	   which number a single-contact message goes to, and something has to be
+	   first. */
+	link := func(name, phone, email, relation, fallbackRelation string, primary bool) error {
+		if strings.TrimSpace(name) == "" || strings.TrimSpace(phone) == "" {
+			return nil
+		}
 		if relation == "" {
-			relation = "father"
+			relation = fallbackRelation
 		}
 		var guardianID string
 		if err := tx.QueryRow(r.Context(), `
@@ -425,17 +449,29 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			              -- erase what the office typed on the child's page.
 			              occupation = COALESCE(EXCLUDED.occupation, guardians.occupation)
 			RETURNING id::text`,
-			instID, req.GuardianName, relation, req.GuardianPhone,
-			nullString(req.GuardianEmail),
-			nullString(req.GuardianOccupation)).Scan(&guardianID); err != nil {
-			return "", "", err
+			instID, strings.TrimSpace(name), relation, strings.TrimSpace(phone),
+			nullString(email), nullString(req.GuardianOccupation)).Scan(&guardianID); err != nil {
+			return err
 		}
-		if _, err := tx.Exec(r.Context(), `
+		_, err := tx.Exec(r.Context(), `
 			INSERT INTO student_guardians (student_id, guardian_id, institution_id, is_primary)
-			VALUES ($1::uuid,$2::uuid,$3,true) ON CONFLICT DO NOTHING`,
-			studentID, guardianID, instID); err != nil {
-			return "", "", err
-		}
+			VALUES ($1::uuid,$2::uuid,$3,$4) ON CONFLICT DO NOTHING`,
+			studentID, guardianID, instID, primary)
+		return err
+	}
+
+	if err := link(req.GuardianName, req.GuardianPhone, req.GuardianEmail,
+		req.GuardianRelation, "father", true); err != nil {
+		return "", "", err
+	}
+	if err := link(req.Guardian2Name, req.Guardian2Phone, req.Guardian2Email,
+		req.Guardian2Relation, "mother",
+		// Primary only when there is no first guardian -- a child whose sheet
+		// carries the mother and not the father must still have somebody the
+		// school can reach.
+		strings.TrimSpace(req.GuardianName) == "" ||
+			strings.TrimSpace(req.GuardianPhone) == ""); err != nil {
+		return "", "", err
 	}
 
 	return studentID, admissionNo, nil
@@ -756,7 +792,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			MiddleName:   middle,
 			LastName:     last,
 			DateOfBirth:  normaliseDate(get(rec, "date_of_birth")),
-			Gender:       strings.ToLower(get(rec, "gender")),
+			Gender:       normaliseGender(get(rec, "gender")),
 			BloodGroup:   get(rec, "blood_group"),
 			Medium:       strings.ToLower(get(rec, "medium")),
 			MotherTongue: get(rec, "mother_tongue"),
@@ -767,6 +803,16 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			APAARID:      get(rec, "apaar_id"),
 			ChildInfoID:  get(rec, "child_info_id"),
 			PriorSchool:  get(rec, "prior_school"),
+			/* A SCHOOL KEEPS THE CLASS AND THE SECTION IN TWO COLUMNS.
+
+			   This wanted them joined -- "Class 6-A" in one cell -- and every
+			   export in existence has Class and Section side by side. So a
+			   school had to add a column to a sheet it already had, or watch
+			   every child arrive with no placement.
+
+			   The joined form still works, because our own template writes it
+			   that way. */
+			SectionID:    sectionLabel(get(rec, "section"), get(rec, "class")),
 			CustomFields: customValues(rec, customCols),
 			// Optional, like every column but the name: a school that keeps
 			// none of this imports exactly as well without them.
@@ -779,9 +825,14 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			GuardianPhone:    get(rec, "guardian_phone"),
 			GuardianEmail:    get(rec, "guardian_email"),
 			GuardianRelation: strings.ToLower(get(rec, "guardian_relation")),
+			// mother_* as well as guardian2_*, because that is what a school's
+			// own sheet calls the column.
+			Guardian2Name:     firstNonEmpty(get(rec, "guardian2_name"), get(rec, "mother_name")),
+			Guardian2Phone:    firstNonEmpty(get(rec, "guardian2_phone"), get(rec, "mother_phone")),
+			Guardian2Email:    firstNonEmpty(get(rec, "guardian2_email"), get(rec, "mother_email")),
+			Guardian2Relation: strings.ToLower(get(rec, "guardian2_relation")),
 			// Carries a human label such as "Class 6-A" at this point; resolved
 			// to a section id below, once, rather than per row.
-			SectionID: get(rec, "section"),
 		}
 		if v := get(rec, "roll_no"); v != "" {
 			req.RollNo, _ = strconv.Atoi(v)
@@ -917,6 +968,15 @@ func normaliseDate(v string) string {
 	for _, layout := range []string{
 		time.DateOnly, "02/01/2006", "02-01-2006", "2/1/2006",
 		"01/02/2006", "2006/01/02", "02.01.2006",
+		/* The shapes an export from another school system writes.
+
+		   A real file arrived with "9-Dec-22" in every date column and
+		   "01 Jan 2024" in the staff sheet. Neither parsed, so every row was
+		   rejected for a date the school can read perfectly well. A two-digit
+		   year is unambiguous here: nobody enrolls a child born in 1922. */
+		"2-Jan-06", "02-Jan-06", "2-Jan-2006", "02-Jan-2006",
+		"2 Jan 2006", "02 Jan 2006", "2 January 2006",
+		"Jan 2, 2006", "2-Jan-2006",
 	} {
 		if t, err := time.Parse(layout, v); err == nil {
 			// Guard against a US-format misread producing an impossible year.
@@ -926,6 +986,49 @@ func normaliseDate(v string) string {
 		}
 	}
 	return v // hand it to validate(), which will reject it with a clear message
+}
+
+/*
+normaliseGender accepts what a register actually says.
+
+	A file arrived with Boy and Girl in every row, which is how an Indian
+	school writes it, and every row was rejected for a gender that "must be
+	male, female or other". The school was not wrong.
+*/
+
+func normaliseGender(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "m", "male", "boy", "b":
+		return "male"
+	case "f", "female", "girl", "g":
+		return "female"
+	case "":
+		return ""
+	default:
+		// Anything else is handed on and refused by name, rather than guessed
+		// at -- a school with its own word should be told we did not know it.
+		return strings.ToLower(strings.TrimSpace(v))
+	}
+}
+
+/*
+sectionLabel builds the placement from whichever columns the file carries.
+
+	Ours writes one cell, "Class 6-A". Every export from another system writes
+	two, Class and Section. Both are the same fact and both are read here, so
+	nobody has to add a column to a sheet they already have.
+*/
+func sectionLabel(section, class string) string {
+	sec := strings.TrimSpace(section)
+	cls := strings.TrimSpace(class)
+	if sec == "" {
+		return ""
+	}
+	// Already joined, or there is no class column to join it to.
+	if cls == "" || strings.Contains(sec, "-") {
+		return sec
+	}
+	return cls + "-" + sec
 }
 
 func isTruthy(v string) bool {
