@@ -452,7 +452,8 @@ export function CardShell({
                heavy is what gives a figure density instead of just size.
                Inter is variable here, so 650 is a real weight, not synthesised
                from two. */
-            'truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:650]',
+            /* `card-fig`: the hook the lead/supporting weight rules in bento-theme.css key on. */
+            'card-fig truncate pb-[0.06em] tracking-[-0.035em] tabular-nums [font-weight:650]',
             /* A QUIET CARD DOES NOT SHOUT ITS ZERO.
 
                An empty school renders "0" and "₹0", and at the figure's own
@@ -516,7 +517,7 @@ export function CardShell({
            a headline, so it is set at 13px regular instead of 11px light —
            the reading, not a caption under nothing. */
         <p className={cn(
-          'line-clamp-2 leading-tight opacity-70',
+          'card-note line-clamp-2 leading-tight opacity-70',
           quiet
             ? 'font-normal text-[length:max(13px,var(--card-change,11px))]'
             : 'font-light text-[length:var(--card-change,11px)]',

@@ -1164,7 +1164,26 @@ export function Widget({
     }
     // Label and supporting sentence stay on the card's own ink/muted — a soft
     // panel does not move them off the contrast the theme already guarantees.
+
+    /* THE BAND. The one place the colour is painted exactly as chosen: a 4px
+       rule along the card's top edge, drawn by bento-theme.css from this
+       token. It sits on no text, so it costs nothing in contrast, and it is
+       what lets a person recognise "my blue card" at a glance even though the
+       panel under the words is mixed down to --tint-mix. */
+    paint['--tint-solid'] = cssHsl(tint)
   }
+
+  /* ONE CARD LEADS — WHEN IT HAS SOMETHING TO SAY.
+
+     `data-lead` marks the first card of the arrangement. The stylesheet only
+     honours it when that card is not `[data-quiet]`: on a board where the
+     first card has nothing to draw there is no lead, and every card sits at
+     the quiet register — no large frame around an em dash. When it does have
+     data, the lead keeps the full figure scale (96px on a desktop 2x2, the
+     phone's own clamp) at weight 650, and every other card's figure is capped
+     at 44px (34 on a phone) at 600. Size and weight do the leading; the lead
+     wears the same --tint-mix panel and the same ink as every other card. */
+  const lead = pos === 0
 
   return (
     <div
@@ -1213,6 +1232,9 @@ export function Widget({
          — can follow the card's derived ink instead once it has been tinted.
          A pink measured against a white card says nothing on a deep navy. */
       data-tinted={tint ? 'true' : undefined}
+      /* The first card of the arrangement. Gated in CSS on the card not being
+         quiet — see `lead` above and bento-theme.css. */
+      data-lead={lead ? '' : undefined}
       /* Reordering by drop rather than by arrow buttons: this is a home
          screen, and dragging is the gesture people already have for it. */
       draggable={editing}

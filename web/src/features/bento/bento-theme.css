@@ -3200,3 +3200,142 @@ html:not(.dark)[data-layout='bento'] {
 [data-layout='bento'] .bento-dock [data-tip]::after {
   letter-spacing: 0.01em;
 }
+
+
+/* ═════════════════════════════════════════════════════════════════════════
+   THE BAND, AND ONE CARD THAT LEADS.
+
+   Two additions on top of the quiet board above, and both are about ORDER
+   rather than volume: the board above is calm because every card is at the
+   same register, and a sheet with one register still has nothing the eye
+   goes to first.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* THE BAND: four pixels of the colour exactly as the person chose it, along
+   the top edge of every tinted card. The panel under the words is the hue
+   mixed down to --tint-mix so the ink stays legible; the band is where the
+   hue is still itself, so a card is recognisably "the blue one" from across
+   the room. It touches no text and so costs nothing in contrast. Pixels,
+   because it has to clear the card's edge at any text size. The cell is
+   `relative isolate` with its art at -z-10, so a ::before at z-index 1 sits
+   above the ground and below nothing that matters. */
+[data-layout='bento'] .bento-widget[data-tinted] .bento-cell::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--tint-solid);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* THE LEAD: the first card of the arrangement, but only while it has
+   something to say. `data-lead` is written by the widget layer on position
+   alone; `[data-quiet]` is reported by the card's own drawing, so the gate
+   has to be read here, in the DOM, where both facts live. Written without
+   nesting one :has() inside another, which CSS forbids and which silently
+   dropped the whole rule in the first cut (measured: a supporting figure at
+   48px beside the lead). On an all-quiet board the selectors below match nothing and every card stays at the
+   quiet register — no large frame around an em dash.
+
+   When they match, the lead keeps the base figure scale (96px on a desktop
+   2x2; the phone clamp of 34-56px is not exceeded) at 650, and every OTHER
+   card's figure is capped at 44px on desktop and 34px on a phone, at 600.
+   Same --bento-text multiplier as the base scale, so the text-size axis
+   still moves everything together. Same panel, same ink: size and weight do
+   the leading. */
+[data-layout='bento'] .bento-board:has(.bento-widget[data-lead] [data-card]:not([data-quiet]))
+  .bento-widget:not([data-lead]) .bento-cell {
+  --card-fig: calc(clamp(28px, 16cqh, 44px) * var(--bento-text, 1));
+}
+@media (max-width: 1023px) {
+  [data-layout='bento'] .bento-board:has(.bento-widget[data-lead] [data-card]:not([data-quiet]))
+    .bento-widget:not([data-lead]) .bento-cell {
+    --card-fig: calc(clamp(24px, 12cqh, 34px) * var(--bento-text, 1));
+  }
+}
+[data-layout='bento'] .bento-board:has(.bento-widget[data-lead] [data-card]:not([data-quiet]))
+  .bento-widget:not([data-lead]) [data-card] .card-fig {
+  font-weight: 600;
+}
+[data-layout='bento'] .bento-widget[data-lead]:has([data-card]:not([data-quiet])) [data-card] .card-fig {
+  font-weight: 650;
+}
+
+
+/* ═════════════════════════════════════════════════════════════════════════
+   LOAD, NOT COLOUR. "No cognitive overload; the UI should be easy."
+
+   Four rules that make every card the same object, read in one glance.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ONE SKELETON. Every card: the same 16px of padding, in pixels, at every
+   width — it was `p-4 lg:p-3`, which is 14px on a phone and 10.5px on a
+   desktop under the 14px root, so the same card had two insets. And the
+   same type sizes on every card: the title, eyebrow and sentence were sized
+   by container query (cqh/cqi), so a 2x2 card's title was 18px beside a 1x1
+   card's 14px — the same word, two sizes, on one sheet. Fixed now. The ONLY
+   two things allowed to vary between cards are the lead's figure and the
+   chosen tint. */
+[data-layout='bento'] .bento-cell {
+  padding: 16px;
+  --card-title: calc(15px * var(--bento-text, 1));
+  --card-sub: calc(12px * var(--bento-text, 1));
+  --card-change: calc(13px * var(--bento-text, 1));
+  --card-note: calc(13px * var(--bento-text, 1));
+}
+
+/* ONE THING PER CARD. On a quiet card the sentence is the news, so it takes
+   the width at 16px, regular, full ink, and the figure steps back to 20px at
+   600 — context for the sentence, not a rival to it. A card with data keeps
+   the figure as the news and the sentence as its caption (13px, faded). */
+[data-layout='bento'] [data-card][data-quiet] .card-fig {
+  font-size: calc(20px * var(--bento-text, 1));
+  font-weight: 600;
+}
+[data-layout='bento'] [data-card][data-quiet] .card-note {
+  font-size: calc(16px * var(--bento-text, 1));
+  font-weight: 400;
+  opacity: 1;
+  line-height: 1.35;
+}
+
+/* NOTHING ASKS FOR A DECISION AT REST. A quiet card has nothing behind it
+   worth an arrow; the mark is gone there, not faded. The card is still the
+   link it was (keyboard and screen reader keep it); it simply stops
+   inviting a click it cannot repay. */
+[data-layout='bento'] [data-card][data-quiet] .bento-cue {
+  display: none;
+}
+
+
+/* FIVE SIZES ON THE HOME, NOT FOURTEEN. Measured on the board with data:
+   the drawings' legends came in at 8, 8.5, 9, 10, 11 and 11.5px — six
+   "small" sizes for the same job (a label beside a bar), several of them
+   below the 11px this product calls its floor, and four of them in
+   capitals. One small size, 12px, the eyebrow's — so the board's type is
+   title 15 / sentence 16 / small 12 / body 13, plus the figure. The dock
+   joins the same scale: its label was 12.5 and its key cap 10. */
+[data-layout='bento'] [data-card] :is(
+  .text-\[8px\], .text-\[8\.5px\], .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[11px\],
+  .text-\[length\:min\(10px\2c var\(--card-note\2c 10px\)\)\],
+  .text-\[length\:min\(9px\2c var\(--card-note\2c 9px\)\)\]
+) {
+  font-size: calc(12px * var(--bento-text, 1));
+}
+[data-layout='bento'] .bento-cell { --card-sub-mult: 1; }
+[data-layout='bento'] [data-card] .uppercase {
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+[data-layout='bento'] .bento-dock kbd { font-size: 12px; }
+[data-layout='bento'] .bento-dock .text-\[12\.5px\] { font-size: 13px; }
+
+/* THE MARK IS NOT TEXT. The full-ink rule for tinted cards lifts every
+   `span` to opacity 1, and the corner mark is a span — so on a tinted card
+   the arrow came back at full strength (measured 1.0 beside 0.4 on the
+   white cards). One rest opacity for the mark everywhere; hover and focus
+   still restore it. */
+[data-layout='bento'] .bento-widget[data-tinted] .bento-cell:not(:hover) [data-card] .bento-cue:not(:focus-visible) {
+  opacity: 0.4;
+}
