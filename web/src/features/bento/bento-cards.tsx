@@ -463,9 +463,17 @@ export function CardShell({
                same treatment the em-dash placeholder gets. The number is still
                there and still legible for anyone who wants it; it simply stops
                being the thing the eye lands on when there is nothing to report.
-               A card with real news keeps its big figure untouched. */
+               A card with real news keeps its big figure untouched.
+
+               NO OPACITY, AND IT IS A CONTRAST FIX. Measured on the live
+               board: the em-dash at 0.45 was 3.14:1 on light, and a zero given
+               the same fade took the rupee unit inside it — which stacks its own
+               0.7 — to 2.12:1; at 0.70 the unit still only reached 3.57:1. Quiet
+               is done by SIZE here: at 13px the figure is a supporting line, and
+               the unit's own 0.7 is the only fade, which measures 4.53:1 or
+               better on both themes on the real board. */
             value === '—' || quiet
-              ? 'leading-tight opacity-45 text-[length:var(--card-change,13px)]'
+              ? 'leading-tight text-[length:var(--card-change,13px)]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
           )}
         >
