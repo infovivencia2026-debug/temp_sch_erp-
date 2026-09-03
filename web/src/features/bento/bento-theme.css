@@ -2435,10 +2435,27 @@ html:not(.dark)[data-layout='bento'][data-force-dark] {
      the tone recedes; it is the difference between passing and failing. */
   --bento-muted: #808184;
   --bento-line: rgba(255,255,255,0.07);
-  --bento-mint: #7fe3f0;   --bento-mint-tint: #171a1e;
-  --bento-purple: #7fe3f0; --bento-purple-tint: #171a1e;
-  --bento-pink: #f2756b;      --bento-pink-tint: #171a1e;
-  --bento-orange: #f5c86b;  --bento-orange-tint: #171a1e;
+  /* FOUR ACCENTS THAT CAN BE TOLD APART, checked rather than eyeballed.
+
+     As shipped, purple and mint were the SAME teal (#7fe3f0), so the primary
+     accent and the success accent were one colour — a card marked "primary"
+     rendered as "success", and any drawing with two series drew them
+     identically. Running the palette validator on the four accents showed
+     more than the duplicate: every one sat above the lightness band a
+     categorical palette needs on a dark ground (they were pastels, L 0.71–0.86
+     against a ceiling of 0.67), and the teal's chroma was under the floor that
+     separates "a colour" from "a grey".
+
+     These four pass every check on #1c1e26: inside the band, above the chroma
+     floor, adjacent pairs ≥ 10.7 ΔE under deutan/protan/tritan simulation and
+     ≥ 19.6 for normal vision, all ≥ 3:1 against the card. The order is fixed —
+     mint, purple, orange, pink — because a series keeps its colour by slot and
+     never by rank. Orange took four tries to land inside the band; #bf7a00 is
+     the lightest that does. */
+  --bento-mint: #0e9384;   --bento-mint-tint: #171a1e;
+  --bento-purple: #8b5cf6; --bento-purple-tint: #171a1e;
+  --bento-pink: #e0407f;      --bento-pink-tint: #171a1e;
+  --bento-orange: #bf7a00;  --bento-orange-tint: #171a1e;
   --bento-anchor-from: #111316; --bento-anchor-to: #111316;
   --bento-anchor-ink: #ffffff;
   --bento-dock-bg: rgba(17,19,22,0.72); --bento-dock-ink: #ffffff;
@@ -2518,10 +2535,16 @@ html:not(.dark)[data-layout='bento'] {
   --bento-ink: #0a0b0d;
   --bento-muted: #63656a;
   --bento-line: rgba(10,11,13,0.10);
-  --bento-mint: #0e7490;   --bento-mint-tint: #eceef2;
-  --bento-purple: #0e7490; --bento-purple-tint: #eceef2;
-  --bento-pink: #b3261e;      --bento-pink-tint: #eceef2;
-  --bento-orange: #8a5a00;  --bento-orange-tint: #eceef2;
+  /* The light counterpart, re-stepped for the same reasons as the dark set
+     above and validated on #ffffff: purple was the same teal as mint here too,
+     and the old orange↔pink pair measured 0.7 ΔE under deutan simulation —
+     indistinguishable to roughly one man in twelve. Now ≥ 14.1 ΔE across
+     every adjacent pair under every simulation, ≥ 20.3 for normal vision,
+     inside the light band, above the chroma floor. */
+  --bento-mint: #0d9488;   --bento-mint-tint: #eceef2;
+  --bento-purple: #7c3aed; --bento-purple-tint: #eceef2;
+  --bento-pink: #db2777;      --bento-pink-tint: #eceef2;
+  --bento-orange: #d97706;  --bento-orange-tint: #eceef2;
   --bento-anchor-from: #ffffff; --bento-anchor-to: #ffffff;
   --bento-anchor-ink: #0a0b0d;
   --bento-dock-bg: rgba(255,255,255,0.78); --bento-dock-ink: #0a0b0d;
