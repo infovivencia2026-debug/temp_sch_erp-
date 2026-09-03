@@ -1,3 +1,4 @@
+import { LoaderBlock } from '@/components/Loader'
 import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useCatalog, usable } from '@/lib/catalog'
@@ -116,7 +117,7 @@ class BentoBoundary extends Component<
 /** The gap a lazily-loaded Bento screen leaves behind. Deliberately plain and
     local: it must not reach into the classic layout's components. */
 function BentoChunkPending() {
-  return <div className="p-6" aria-busy="true" />
+  return <LoaderBlock className="py-20" />
 }
 
 export function BentoOutlet({ children, path }: { children: ReactNode; path?: string }) {

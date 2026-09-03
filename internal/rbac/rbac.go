@@ -308,7 +308,7 @@ optionalRoles are seeded on request rather than into every new school.
 // nobody finds. Eight of the nine schools on this installation had no hod
 // row at all.
 var optionalRoles = map[string]bool{
-	"board_member": true,
+	"board_member":  true,
 	"support_admin": true, "vice_principal": true, "it_admin": true,
 	"exam_controller": true, "front_office": true, "operations": true,
 	"librarian": true, "transport_manager": true, "hostel_warden": true,
@@ -476,9 +476,9 @@ var SystemRoles = []Role{
 	   into every school: most schools have no board, and the ones that do add
 	   it from the Roles screen in one click. */
 	{"board_member", "Board / Trustee", []string{
-		InstitutionRead, AcademicsRead, StudentsRead, StudentsReadAll, AttendanceReadAll,
+		InstitutionRead, AcademicsRead, StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
 		FeesRead, InvoicesRead, PaymentsRead, PayrollRead, EmployeesRead, InventoryRead,
-		ReportsRead, AuditRead, SelfProfileRead, SelfProfileWrite}},
+		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},

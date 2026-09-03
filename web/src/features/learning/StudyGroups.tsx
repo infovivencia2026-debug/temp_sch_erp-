@@ -1,3 +1,4 @@
+import { TriLoader } from '@/components/Loader'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, GraduationCap, UserPlus } from 'lucide-react'
@@ -241,7 +242,7 @@ export default function StudyGroups() {
                       {openRoster === g.id && (
                         <div className="mt-3 rounded-md border bg-muted/30 p-3">
                           {roster.isLoading ? (
-                            <p className="text-[13px] text-muted-foreground">Loading…</p>
+                            <TriLoader size={16} className="text-muted-foreground" />
                           ) : roster.error ? (
                             <p className="text-[13px] text-muted-foreground">
                               Only members can see who is in a group.

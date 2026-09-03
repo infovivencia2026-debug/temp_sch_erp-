@@ -1,3 +1,4 @@
+import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { ApiError } from '@/lib/api'
 import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
@@ -11,7 +12,6 @@ import {
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
-import { useDelayed } from './Skeleton'
 
 /* Primitives in the "pulse" language: hairline borders, no shadows, mint used
    as an accent and near-black ink for solid actions. */
@@ -960,6 +960,7 @@ export function Badge({
 }
 
 export function Button({
+  pending,
   children,
   onClick,
   disabled,
@@ -970,6 +971,7 @@ export function Button({
   tone,
   className,
 }: {
+  pending?: boolean
   children: ReactNode
   onClick?: () => void
   disabled?: boolean
@@ -997,7 +999,8 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
       title={title}
       aria-label={title}
       className={cn(
@@ -1069,6 +1072,7 @@ export function Button({
         className,
       )}
     >
+      {pending && <TriLoader size={14} className="-ml-0.5 mr-1.5" />}
       {children}
     </button>
   )
@@ -1795,13 +1799,7 @@ export function ErrorState({ error }: { error: unknown }) {
  * status` with a polite live region says the sentence once, when it appears.
  */
 export function Loading({ label = 'Loading…', delay }: { label?: string; delay?: number }) {
-  const show = useDelayed(true, delay)
-  if (!show) return null
-  return (
-    <p role="status" aria-live="polite" className="px-5 py-12 text-center text-[14px] text-muted-foreground">
-      {label}
-    </p>
-  )
+  return <LoaderBlock label={label} delay={delay} />
 }
 
 /* The skeletons moved out.

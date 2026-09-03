@@ -191,6 +191,15 @@ func TestOptionalRolesMatchMigration(t *testing.T) {
 		}
 		inSQL[m[1]] = true
 	}
+	// Roles that became optional after 00016 are labelled in their own
+	// migration, in the same shape; each of those files is read too.
+	for _, later := range []string{"../../migrations/00231_board_member_optional.sql"} {
+		if b, err := os.ReadFile(later); err == nil {
+			for _, m := range quoted.FindAllStringSubmatch(string(b), -1) {
+				inSQL[m[1]] = true
+			}
+		}
+	}
 	for key := range optionalRoles {
 		if !inSQL[key] {
 			t.Errorf("role %q is optional in Go but not labelled in the migration", key)
