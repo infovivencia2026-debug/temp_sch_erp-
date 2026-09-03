@@ -43,6 +43,10 @@ type resetPasswordResponse struct {
 	UserID            string `json:"user_id"`
 	TemporaryPassword string `json:"temporary_password"`
 	Note              string `json:"note"`
+	// SentBy and SentTo say where the password also went: "email" and a
+	// masked address, or "" when the account carries no contact.
+	SentBy string `json:"sent_by,omitempty"`
+	SentTo string `json:"sent_to,omitempty"`
 }
 
 // resetUserPassword issues a temporary password and invalidates every session.
@@ -88,6 +92,8 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	enabled := s.platformChannels(r.Context())
+	var sentBy, sentTo string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		/* A generated password is a value the office reads aloud, so the
 		   account is held on it until the person replaces it. One the
@@ -105,9 +111,30 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		if tag.RowsAffected() == 0 {
 			return pgx.ErrNoRows
 		}
-		_, err = tx.Exec(r.Context(), `
+		if _, err = tx.Exec(r.Context(), `
 			UPDATE sessions SET revoked_at = now()
-			 WHERE user_id = $1 AND revoked_at IS NULL`, target)
+			 WHERE user_id = $1 AND revoked_at IS NULL`, target); err != nil {
+			return err
+		}
+		/* A generated value goes to the person as well as the screen. One the
+		   administrator typed does not: they chose it, usually with the
+		   person beside them, and it is theirs to hand over. */
+		if chosen != "" {
+			return nil
+		}
+		var email, phone *string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT email::text, phone FROM users WHERE id = $1`, target).Scan(&email, &phone); err != nil {
+			return err
+		}
+		login := ""
+		if email != nil && *email != "" {
+			login = *email
+		} else if phone != nil {
+			login = *phone
+		}
+		sentBy, sentTo, err = s.queueIssuedPassword(r.Context(), tx, id.InstitutionID, target,
+			email, phone, login, temp, enabled)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -131,6 +158,7 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		out.TemporaryPassword = temp
 		out.Note = "Shown once. Give it to the user in person and ask them to change it " +
 			"from their profile. All their existing sessions have been signed out."
+		out.SentBy, out.SentTo = sentBy, sentTo
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }

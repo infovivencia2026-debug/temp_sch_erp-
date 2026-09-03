@@ -114,6 +114,8 @@ type createUserResponse struct {
 	Roles             []string `json:"roles"`
 	Status            string   `json:"status"`
 	TemporaryPassword string   `json:"temporary_password,omitempty"`
+	SentBy            string   `json:"sent_by,omitempty"`
+	SentTo            string   `json:"sent_to,omitempty"`
 	Note              string   `json:"note,omitempty"`
 }
 
@@ -167,6 +169,10 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var enabled map[string]bool
+	if temp != "" && !known {
+		enabled = s.platformChannels(r.Context())
+	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		status := "invited"
 		var hash any
@@ -200,6 +206,21 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		out.Roles = assigned
+		/* A generated password goes to the person as well as the screen. When
+		   the password is their own number there is nothing to send. */
+		if temp != "" && !known {
+			uid, err := uuid.Parse(out.ID)
+			if err != nil {
+				return err
+			}
+			login := req.Email
+			if login == "" {
+				login = req.Phone
+			}
+			out.SentBy, out.SentTo, err = s.queueIssuedPassword(r.Context(), tx, id.InstitutionID, uid,
+				nullString(req.Email), nullString(req.Phone), login, temp, enabled)
+			return err
+		}
 		return nil
 	})
 	if err != nil {

@@ -458,6 +458,7 @@ function AccountForm({
   // names leaves every role unticked and saves an empty set.
   const [picked, setPicked] = useState<string[]>(user?.role_keys ?? [])
   const [tempPassword, setTempPassword] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   const save = useMutation({
@@ -465,7 +466,7 @@ function AccountForm({
       if (editing) {
         return api.put(`/api/v1/admin/users/${user!.id}/roles`, { role_keys: picked })
       }
-      return api.post<{ temporary_password?: string }>('/api/v1/admin/users', {
+      return api.post<{ temporary_password?: string; sent_by?: string; sent_to?: string }>('/api/v1/admin/users', {
         ...f,
         role_keys: picked,
         set_password: true,
@@ -482,9 +483,11 @@ function AccountForm({
         return
       }
       qc.invalidateQueries({ queryKey: ['school-logins'] })
-      const pw = (res as { temporary_password?: string } | undefined)?.temporary_password
-      if (pw) setTempPassword(pw)
-      else onClose()
+      const pw = (res as { temporary_password?: string; sent_by?: string; sent_to?: string } | undefined)?.temporary_password
+      if (pw) {
+        setSent(sentLine(res as { sent_by?: string; sent_to?: string }))
+        setTempPassword(pw)
+      } else onClose()
     },
   })
 
@@ -492,13 +495,14 @@ function AccountForm({
   const [resetNote, setResetNote] = useState<string | null>(null)
   const reset = useMutation({
     mutationFn: (pw: string) =>
-      api.post<{ temporary_password?: string }>(
+      api.post<{ temporary_password?: string; sent_by?: string; sent_to?: string }>(
         `/api/v1/admin/users/${user!.id}/reset-password`,
         pw ? { new_password: pw } : {},
       ),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['school-logins'] })
       if (res?.temporary_password) {
+        setSent(sentLine(res))
         setTempPassword(res.temporary_password)
         return
       }
@@ -514,7 +518,7 @@ function AccountForm({
       <Card className="p-5">
         <p className="text-[14px] font-medium">Password issued</p>
         <p className="mt-1 text-[14px] text-muted-foreground">
-          Give them this one-time password. It is shown once and cannot be retrieved later.
+          {sent ?? 'Give them this one-time password. It is shown once and cannot be retrieved later.'}
         </p>
         <p className="mt-3 rounded-md bg-muted px-3 py-2 font-mono text-[15px] tracking-wider">
           {tempPassword}
@@ -614,4 +618,12 @@ function AccountForm({
       </div>
     </Card>
   )
+}
+
+/* Where the password also went, in one sentence, or the hand-over line when
+   the account has no contact a message could reach. */
+function sentLine(res: { sent_by?: string; sent_to?: string } | undefined): string | null {
+  if (!res?.sent_to) return null
+  const by = res.sent_by === 'email' ? 'email' : res.sent_by === 'whatsapp' ? 'WhatsApp' : 'SMS'
+  return `Sent to ${res.sent_to} by ${by}. It is also shown here once, in case that does not arrive.`
 }
