@@ -30,4 +30,12 @@ export const connectorsKeys = {
   'super_admin.payments_devices.virtual_classroom_integration': lazy(
     () => import('./VirtualClassroom'),
   ),
+
+  // Platform Setup — Payments & Devices. Merchant keys per school, sealed;
+  // a record for the day a checkout is wired, said so by the server.
+  'super_admin.payments_devices.payment_gateway_connectors': screen(() => import('./PaymentGateways')),
+
+  // Platform Setup — Payments & Devices. Every school's ADMS readers on one
+  // page, read-only; a reader is registered inside its school.
+  'super_admin.payments_devices.biometric_device_integration': screen(() => import('./BiometricFleet')),
 }

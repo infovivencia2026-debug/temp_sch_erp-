@@ -42,6 +42,7 @@ import { transportPrefsKeys } from './portal/transport-prefs-keys'
 import { trackerKeys } from './super_admin/tracker-keys'
 import { libraryYearKeys } from './operations/library-year-keys'
 import { attendanceDevicesKeys } from './hr/attendance-devices-keys'
+import { signalsKeys } from './super_admin/signals-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -504,6 +505,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...childBusKeys,
   ...transportPrefsKeys,
   ...trackerKeys,
+  ...signalsKeys,
 
   'hr.onboarding_exit.staff_joinings_exits': screen(() => import('./hr/Lifecycle')),
   'hr.leave.leave_rules': screen(() => import('./hr/LeavePolicy')),

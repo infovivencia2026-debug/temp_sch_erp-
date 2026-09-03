@@ -52,6 +52,9 @@ func (s *Server) mountTeaching(r chi.Router) {
 	r.Get("/virtual-classes/providers", s.listVirtualClassProviders)
 	r.Get("/question-bank", s.listBankQuestions)
 	r.Get("/question-bank/summary", s.getBankSummary)
+	// A draw from the bank by blueprint. A read that takes a body, so it is a
+	// POST; it writes nothing. See paper_compose.go.
+	r.Post("/question-bank/compose", s.composePaper)
 	r.Get("/question-bank/{id}", s.getBankQuestion)
 	r.Get("/online-tests", s.listOnlineTests)
 	r.Get("/online-tests/{id}", s.getOnlineTest)

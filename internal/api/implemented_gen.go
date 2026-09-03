@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 343 of the catalog's features are implemented.
+// 348 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"admissions.admissions.fee_enrollment":                                           true,
 	"admissions.admissions.rte_quota":                                                true,
@@ -59,6 +59,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.my_profile.profile":                                                     true,
 	"faculty.my_profile.remarks_about_me":                                            true,
 	"faculty.my_profile.student_leave_requests":                                      true,
+	"faculty.question_papers_online_tests.ai_examcell_paper_generator":               true,
 	"faculty.question_papers_online_tests.objective_online_test_creation":            true,
 	"faculty.question_papers_online_tests.question_bank_management":                  true,
 	"faculty.teaching.assignments_submissions":                                       true,
@@ -297,6 +298,8 @@ var implementedFeatures = map[string]bool{
 	"super_admin.access_security.user_directory":                                     true,
 	"super_admin.access_security.users":                                              true,
 	"super_admin.ai_automation.automated_timetable_optimizer":                        true,
+	"super_admin.ai_automation.predictive_dropout_risk_engine":                       true,
+	"super_admin.ai_automation.smart_fee_cash_flow_predictor":                        true,
 	"super_admin.campuses_academic_year.academic_calendar_model":                     true,
 	"super_admin.campuses_academic_year.franchise_management":                        true,
 	"super_admin.campuses_academic_year.white_label_branding":                        true,
@@ -312,8 +315,10 @@ var implementedFeatures = map[string]bool{
 	"super_admin.messaging.whatsapp_api_integration":                                 true,
 	"super_admin.operations.data_backup_restore":                                     true,
 	"super_admin.operations.system_health_integration_alerts":                        true,
+	"super_admin.payments_devices.biometric_device_integration":                      true,
 	"super_admin.payments_devices.gps_hardware_integration":                          true,
 	"super_admin.payments_devices.meritto_leadsquared_sync":                          true,
+	"super_admin.payments_devices.payment_gateway_connectors":                        true,
 	"super_admin.payments_devices.tally_erp_prime_connector":                         true,
 	"super_admin.payments_devices.virtual_classroom_integration":                     true,
 	"super_admin.platform_configuration.audit_log":                                   true,

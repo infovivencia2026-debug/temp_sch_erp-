@@ -1226,6 +1226,10 @@ func (s *Server) Routes() http.Handler {
 			s.mountWhatsApp(r)
 			s.mountTallyConnector(r)
 			s.mountConnectors(r)
+			// Merchant keys and the reader fleet — see platform_gateways.go.
+			s.mountPlatformDevices(r)
+			// Dropout risk and the cash outlook, as rules — see platform_signals.go.
+			s.mountPlatformSignals(r)
 			s.mountIntegrationsIndex(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)

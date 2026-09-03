@@ -17,11 +17,10 @@ import { screen } from '@/lib/screen'
  * summary for this feature reads "Configure payment gateway, email/SMS/WhatsApp,
  * biometric devices, Google/Microsoft and other connectors." The screen is an
  * index over the connectors that exist, and it does not configure anything —
- * each row links to the screen that does. Of the things the summary names, a
- * payment gateway connector and a biometric device connector do not exist
- * anywhere in this codebase: no table, no route, no handler. They are absent
- * from the index rather than shown as "not set up", because a row saying that
- * would imply a screen to go and configure, and there isn't one.
+ * each row links to the screen that does. The payment gateway keys and the
+ * reader fleet have screens of their own in the same section (connectors-keys)
+ * and are not rows here: the first is a record with no checkout behind it,
+ * the second is read-only and school-owned, and neither has a health to show.
  */
 export const integrationsKeys = {
   // Platform Setup — Platform Configuration. Read-only; every row links out to
