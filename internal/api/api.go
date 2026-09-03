@@ -1208,6 +1208,8 @@ func (s *Server) Routes() http.Handler {
 		   attendance or of fees, it is the question those modules answer
 		   together. One endpoint, gated per probe by the caller's own
 		   permissions rather than by a wrapper here. */
+		// The board's one question, by campus. Read-only by construction.
+		s.mountBoard(r)
 		r.Get("/attention", s.getAttention)
 
 		// The first-run tour is every user's own, so it sits outside /seller.

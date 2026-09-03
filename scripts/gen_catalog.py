@@ -50,6 +50,7 @@ ROLE_KEYS = {
     # skipped with a warning.
     "Parent / Guardian": "parent",
     "Accounts & Finance": "finance",
+    "Board / Trustee": "board_member",
     "Admissions & Front Office": "admissions",
     # The reception desk, on its own.
     #
@@ -75,7 +76,7 @@ ROLE_KEYS = {
 # is "most of your day" rather than alphabetical.
 ROLE_ORDER = [
     "seller_admin", "super_admin",
-    "institution_admin", "hod", "faculty",
+    "institution_admin", "board_member", "hod", "faculty",
     "librarian", "transport_manager",
     "finance", "admissions", "front_office", "hr",
     "student", "parent",

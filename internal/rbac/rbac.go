@@ -308,6 +308,7 @@ optionalRoles are seeded on request rather than into every new school.
 // nobody finds. Eight of the nine schools on this installation had no hod
 // row at all.
 var optionalRoles = map[string]bool{
+	"board_member": true,
 	"support_admin": true, "vice_principal": true, "it_admin": true,
 	"exam_controller": true, "front_office": true, "operations": true,
 	"librarian": true, "transport_manager": true, "hostel_warden": true,
@@ -459,6 +460,25 @@ var SystemRoles = []Role{
 	   question — who covers the class — and that is the department's to answer
 	   and the principal's to overrule. HR still holds every consequence of the
 	   decision: the balance, the loss of pay, the payslip that follows. */
+	/* THE PERSON WHO SIGNS OFF AND NEVER TOUCHES A KEYBOARD.
+
+	   A trustee or board member asks one question of this product — where is
+	   the money going, across every campus — and must be able to answer it
+	   without being able to change anything. Every grant here is a read. No
+	   FeesWrite, no PaymentsWrite, no RefundsWrite, no messaging: a board that
+	   can take a fee is a board that will be asked to, and the role stops
+	   being oversight.
+
+	   StudentsReadAll and AttendanceReadAll rather than the scoped forms,
+	   because a board reads the whole school and not a section of it; the
+	   campus reach comes from the grant itself — a user_roles row with a NULL
+	   campus_id spans every campus (see internal/scope). Optional, not seeded
+	   into every school: most schools have no board, and the ones that do add
+	   it from the Roles screen in one click. */
+	{"board_member", "Board / Trustee", []string{
+		InstitutionRead, AcademicsRead, StudentsRead, StudentsReadAll, AttendanceReadAll,
+		FeesRead, InvoicesRead, PaymentsRead, PayrollRead, EmployeesRead, InventoryRead,
+		ReportsRead, AuditRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
 		StaffAttend, ReportsRead, SelfProfileRead, SelfProfileWrite}},

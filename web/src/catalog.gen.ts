@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 13 roles, 336 features. */
+/** 14 roles, 341 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -397,6 +397,45 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.attendance_devices.biometric_readers', slug: 'biometric_readers', name: 'Biometric Readers', scope: 'institution', tier: 'core', summary: 'The fingerprint readers this school runs: the serial each one reports, whether it is trusted yet, when it last spoke, and punches from a finger nobody claims.' },
           { key: 'institution_admin.attendance_devices.staff_attendance_register', slug: 'staff_attendance_register', name: 'Staff attendance register', scope: 'institution', tier: 'core', summary: 'Who was in today and who was not, taken off the fingerprint readers above. The day the school actually had, not the one the roster planned: late arrivals, early departures, and the staff a reader recorded no punch for at all.' },
           { key: 'institution_admin.attendance_devices.staff_attendance_reports', slug: 'staff_attendance_reports', name: 'Staff attendance reports', scope: 'institution', tier: 'core', summary: 'The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'board_member',
+    name: 'Board / Trustee',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'board_member.home.where_the_money_goes', slug: 'where_the_money_goes', name: 'Where the money goes', scope: 'institution', tier: 'core', summary: 'Every campus on one sheet: what came in over the period, what is still owed, what went out in salaries, and how many children and staff that was for. Read-only, the whole school, for the people who sign off rather than operate.' },
+        ],
+      },
+      {
+        slug: 'money',
+        name: 'Money',
+        workspace: 'Money',
+        features: [
+          { key: 'board_member.money.fee_overview', slug: 'fee_overview', name: 'Fee overview', scope: 'institution', tier: 'core', summary: 'Expected against collected for the period, and the gap between them, for the school as a whole.' },
+          { key: 'board_member.money.collections_dues', slug: 'collections_dues', name: 'Collections & dues', scope: 'institution', tier: 'core', summary: 'The finance desks own dashboard, read-only: collected today and over the period, outstanding, overdue, and the count of families behind.' },
+        ],
+      },
+      {
+        slug: 'reports',
+        name: 'Reports',
+        workspace: 'Reports',
+        features: [
+          { key: 'board_member.reports.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Every export the school produces — fees, attendance, payroll — downloadable as they are, for the board pack.' },
+        ],
+      },
+      {
+        slug: 'audit',
+        name: 'Audit',
+        workspace: 'Audit',
+        features: [
+          { key: 'board_member.audit.audit_trail', slug: 'audit_trail', name: 'Audit trail', scope: 'institution', tier: 'core', summary: 'Who changed what, when. A board reads this to trust the numbers above it, not to chase anybody.' },
         ],
       },
     ],

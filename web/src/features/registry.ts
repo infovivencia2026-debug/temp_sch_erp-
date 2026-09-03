@@ -1,6 +1,7 @@
 import { screen } from '@/lib/screen'
 import { type ComponentType, type LazyExoticComponent } from 'react'
 import { financeKeys } from './finance/keys'
+import { boardMemberKeys } from './board/keys'
 import { facultyCommsKeys } from './faculty/keys'
 import { channelSetupKeys } from './communication/channel-setup-keys'
 import { hrLifecycleKeys } from './hr/lifecycle-keys'
@@ -517,6 +518,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.welfare.staff_welfare': screen(() => import('./hr/Welfare')),
   'hr.records.staff_records': screen(() => import('./hr/Employees')),
   'hr.records.service_book_qualifications': screen(() => import('./hr/ServiceRecords')),
+  ...boardMemberKeys,
   ...financeKeys,
 
   ...facultyCommsKeys,
