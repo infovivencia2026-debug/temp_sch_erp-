@@ -212,6 +212,9 @@ func (s *Server) mountMessageCredits(r chi.Router) {
 	   answers needs the pack. */
 	r.With(read).Get("/messaging/routing", s.listMessageRoutes)
 	r.With(write).Put("/messaging/routing/{channel}", s.setMessageRoute)
+
+	// Asking for more, and withdrawing the ask.
+	s.mountRecharge(r)
 }
 
 type creditView struct {

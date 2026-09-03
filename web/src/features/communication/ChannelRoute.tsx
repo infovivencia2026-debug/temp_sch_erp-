@@ -3,6 +3,7 @@ import {
   useRouting, useSetRoute, useCredits,
 } from '@/features/super_admin/messaging-lib'
 import { ChannelMeter } from './MessageCredits'
+import Recharge from './Recharge'
 
 /* WHOSE ACCOUNT THIS CHANNEL LEAVES BY, AND WHAT THAT COSTS.
 
@@ -118,7 +119,15 @@ export default function ChannelRoute({
 
       {/* The cost of the route that has one, immediately under the choice that
           selected it. */}
-      {!onOwn && credit && channel !== 'email' && <ChannelMeter credit={credit} />}
+      {!onOwn && credit && channel !== 'email' && (
+        <>
+          {/* The way out of an empty meter comes FIRST, above the numbers.
+              Somebody arriving here because messages stopped needs the next
+              action, not the history of how it got to zero. */}
+          <Recharge credit={credit} name={name} />
+          <ChannelMeter credit={credit} />
+        </>
+      )}
 
       {onOwn && children}
     </>

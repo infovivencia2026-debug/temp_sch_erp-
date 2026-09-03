@@ -1162,6 +1162,8 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/tenants", s.provisionTenant)
 			r.Put("/tenants/{id}/subscription", s.setSubscription)
 			r.Post("/tenants/{id}/reset-admin", s.resetTenantAdmin)
+			// The recharge queue: schools asking for more messages.
+			s.mountSellerRecharge(r)
 			r.Get("/plans", s.listPlans)
 			// The price list is the one screen in this workspace that exists
 			// to be changed — see plans_write.go. A school's agreed price is

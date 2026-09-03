@@ -83,7 +83,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
         <div className="mt-4"><FormGrid>
           <Field
             label={credit.metered ? 'Add or remove' : 'Starting balance'}
-            hint="A whole number of messages. Negative corrects a mistake."
+            hint="Messages. Negative corrects a mistake."
           >
             <Input
               value={amount}
@@ -94,12 +94,13 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
           <Field label="Warn below" hint="Shown as a warning before it stops.">
             <Input value={low} onChange={setLow} />
           </Field>
-          <Field label="Note" hint="What was bought, so the history reads as a record.">
-            <Input
-              value={note}
-              onChange={setNote}
-              placeholder="MSG91 · 10k transactional"
-            />
+          {/* Abstract on purpose. The placeholder used to read
+              "MSG91 · 10k transactional", which names a vendor this school may
+              not use and a gateway's word for a message class nobody here
+              counts in. What the history needs is why the number moved, in
+              whatever words the person has. */}
+          <Field label="Note" hint="Why this changed, for the record.">
+            <Input value={note} onChange={setNote} placeholder="Optional" />
           </Field>
         </FormGrid></div>
 

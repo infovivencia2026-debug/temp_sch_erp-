@@ -353,3 +353,52 @@ export function useSetRoute(channel: string) {
     (body) => api.put(`${BASE}/routing/${channel}`, body),
   )
 }
+
+/* ── RECHARGE ───────────────────────────────────────────────────────────────
+   The school asks; the seller grants. No price and no payment anywhere in
+   here: the unit is messages, because that is the only quantity both sides can
+   check against the same evidence. */
+
+export interface Recharge {
+  id: string
+  channel: string
+  messages: number
+  status: 'pending' | 'granted' | 'declined' | 'cancelled'
+  note?: string
+  response?: string
+  requested_by?: string
+  requested_at: string
+  granted?: number
+  decided_at?: string
+  /** Only on the seller's queue. */
+  school?: string
+}
+
+export function useRecharges() {
+  return useQuery({
+    queryKey: ['messaging', 'recharges'],
+    queryFn: () => api.get<Listed<Recharge>>(`${BASE}/recharges`),
+  })
+}
+
+export function useRechargeSizes() {
+  return useQuery({
+    queryKey: ['messaging', 'recharge-sizes'],
+    queryFn: () => api.get<{ items: number[] }>(`${BASE}/recharge-sizes`),
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
+export function useRequestRecharge(channel: string) {
+  return useMessagingWrite<{ ok: boolean }, { messages: number; note?: string }>(
+    (body) => api.post(`${BASE}/recharges/${channel}`, body),
+  )
+}
+
+export function useCancelRecharge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.del<{ ok: boolean }>(`${BASE}/recharges/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['messaging'] }),
+  })
+}
