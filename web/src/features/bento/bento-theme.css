@@ -2564,20 +2564,25 @@ html:not(.dark)[data-layout='bento'] {
      class the five-column block above already has to out-weigh.
 
      `grid-auto-columns` is a percentage of the SCROLLPORT, which is what makes
-     a page exactly one screen: two columns and the gap between them come to
-     100%, so the snap position for page two puts page one entirely off the
-     left edge and page two entirely on. */
+     a page exactly one screen. It is the whole width now: one card across, so
+     a page is one column and the snap position for page two puts page one
+     entirely off the left edge. */
   [data-layout='bento'] .bento-board[data-pager] {
     display: grid !important;
     grid-template-columns: none !important;
-    grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
-    /* FOUR, matching PHONE_ROWS in web/src/lib/widgets.ts. Three rows with
-       two-row cards allowed put two cards on an 844px screen, each 470px tall
-       and mostly empty. Four rows of one-row cards is ~200px each — the height
-       these cards are built for. The two numbers must agree: the pager's
-       inline grid-row comes from PHONE_ROWS and the track count comes from
-       here, and a mismatch silently drops the last row off the page. */
-    grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+    /* ONE COLUMN, matching PHONE_COLS. Two columns meant a card was either
+       half a phone wide or all of it, and the full width ones kept their
+       content in the left half, so the board read as a column of tiles beside
+       a column of nothing. A figure, a name and a sentence are one measure and
+       do not want a neighbour. */
+    grid-auto-columns: 100%;
+    /* THREE, matching PHONE_ROWS in web/src/lib/widgets.ts. The two numbers
+       must agree: the pager's inline grid-row comes from PHONE_ROWS and the
+       track count comes from here, and a mismatch silently drops the last row
+       off the page. Four rows leaves each card about 80px tall on a 390x844
+       device once the dock and the dots are out, which is shorter than the
+       text inside it. */
+    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--bento-gap) !important;

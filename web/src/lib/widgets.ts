@@ -643,25 +643,28 @@ export function rowsNeeded(items: { w: number; h: number }[], cols = 5): number 
 export const BOARD_COLS = 5
 export const BOARD_ROWS = 3
 
-/* THE SAME BOARD, AT PHONE PROPORTIONS.
+/* THE SAME BOARD, AT PHONE PROPORTIONS: ONE COLUMN, THREE ROWS.
 
-   A phone page is two columns by three rows, which is six slots against the
-   desktop board's fifteen. Stated here beside BOARD_COLS/BOARD_ROWS and for
-   the same reason: the packer below and the `max-width: 767px` block in
-   bento-theme.css both have to believe the same two numbers, and a number that
-   lives in one place cannot drift from the other.
+   Stated here beside BOARD_COLS/BOARD_ROWS and for the same reason: the packer
+   below and the `max-width: 767px` block in bento-theme.css both have to
+   believe the same two numbers, and a number that lives in one place cannot
+   drift from the other. It had drifted anyway -- the comment that stood here
+   argued for three rows and the constant underneath it said four.
 
-   Two columns because a cell is at most two wide (MAX_SPAN), so two columns is
-   the narrowest grid on which every legal shape still exists — a 2-wide card
-   is a full-width row of the page and a 2x2 is a third of it, which is exactly
-   the small/medium/large vocabulary a phone home screen already has.
+   ONE COLUMN, not two. Two columns meant a card was either half the width of a
+   phone or all of it, and the ones that were all of it kept their content in
+   the left half, so a board read as a column of tiles with a column of empty
+   space beside it. Nothing on a card here wants a neighbour: a figure, a name
+   and a sentence are a single measure, and at 182px the sentence was the first
+   thing to break. A phone is a column. This is the shape it was always going
+   to be.
 
-   Three rows rather than four. Four was tried on paper and gives tiles about
-   80px tall on a 390x844 device once the dock and the page dots are taken out,
-   which is shorter than the text inside them. Three gives roughly 4:3 tiles,
-   which is the proportion iOS widgets actually use. */
-export const PHONE_COLS = 2
-export const PHONE_ROWS = 4
+   THREE ROWS, which is what the old comment already asked for. Four gives
+   tiles about 80px tall on a 390x844 device once the dock and the page dots
+   are taken out, which is shorter than the text inside them. Three leaves a
+   card tall enough to hold its own sentence. */
+export const PHONE_COLS = 1
+export const PHONE_ROWS = 3
 
 /** Where one widget ended up: which page, and where on it. */
 export interface Spot {
