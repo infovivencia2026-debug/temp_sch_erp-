@@ -541,6 +541,28 @@ var importSpecs = map[string]importSpec{
 			}
 			return nil
 		},
+		/* THE CLASSES NAMED IN THE SHEET, CHECKED BEFORE ANYTHING IS WRITTEN.
+
+		   Without this the dry run reported fifteen rows valid and the commit
+		   then rejected six of them for classes the school does not have. A
+		   check that passes a file the write refuses is worse than no check:
+		   the clerk was told the file was ready.
+
+		   Read-only, in the transaction the commit would use, which is what
+		   Verify is for. */
+		Verify: func(c *importCtx, row map[string]string) error {
+			for _, name := range strings.FieldsFunc(row["classes"], func(r rune) bool {
+				return r == ',' || r == ';' || r == '/'
+			}) {
+				if name = strings.TrimSpace(name); name == "" {
+					continue
+				}
+				if _, err := c.classID(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
 		Write: func(c *importCtx, row map[string]string) error {
 			seq, _ := strconv.Atoi(strings.TrimSpace(row["sequence"]))
 
