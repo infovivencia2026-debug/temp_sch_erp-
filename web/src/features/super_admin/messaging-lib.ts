@@ -331,3 +331,25 @@ export function useStopMetering(channel: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['messaging'] }),
   })
 }
+
+/* WHICH ACCOUNT EACH CHANNEL LEAVES BY.
+   'own' is the school's linked vendor; 'edu_cloud' is ours, paid with credits.
+   `may_choose` is false on the lower packs, where the answer is always ours. */
+export interface MessageRoute {
+  channel: string
+  route: 'own' | 'edu_cloud'
+  may_choose: boolean
+}
+
+export function useRouting() {
+  return useQuery({
+    queryKey: ['messaging', 'routing'],
+    queryFn: () => api.get<Listed<MessageRoute>>(`${BASE}/routing`),
+  })
+}
+
+export function useSetRoute(channel: string) {
+  return useMessagingWrite<{ channel: string; route: string }, { route: string }>(
+    (body) => api.put(`${BASE}/routing/${channel}`, body),
+  )
+}

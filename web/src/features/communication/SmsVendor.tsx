@@ -6,6 +6,7 @@ import {
 import { useSession } from '@/lib/session'
 import {
   useProviders, useSaveProvider, useTestProvider, useSmsPresets,
+  useRouting, useSetRoute,
   type SmsPreset,
 } from '@/features/super_admin/messaging-lib'
 
@@ -31,6 +32,8 @@ import {
 export default function SmsVendor() {
   const session = useSession()
   const providers = useProviders()
+  const routing = useRouting()
+  const setRoute = useSetRoute('sms')
   const presets = useSmsPresets()
   const save = useSaveProvider('sms')
   const test = useTestProvider('sms')
@@ -76,6 +79,9 @@ export default function SmsVendor() {
     )
   }
 
+  const route = routing.data?.items.find((x) => x.channel === 'sms')
+  const onOwn = route?.route === 'own'
+
   const chosen = preset
   const params = { ...(chosen?.params ?? (cfg.params as Record<string, string>) ?? {}) }
   // Gupshup carries the account id as a parameter rather than a header, so the
@@ -96,13 +102,50 @@ export default function SmsVendor() {
         }
       />
       <div className="px-5 pb-5">
-        <p className="text-[13px] text-muted-foreground">
-          The school sends on its own vendor account and pays that vendor directly. Nothing is
-          bought through this product — the credits screen only meters how much of it a school
-          may spend.
+        {/* BOTH ROUTES, AND WHICH ONE IS IN FORCE.
+
+            The top pack may send either way and the two are not variations of
+            one thing: on ours we hold the vendor contract, the DLT
+            registration and the bill, and the school pays with credits; on
+            its own the school holds all three and we are not in the middle.
+            Choosing is a commercial decision, so it is stated as one rather
+            than implied by whether a form happens to be filled in. */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={!onOwn ? 'primary' : 'secondary'}
+            size="sm"
+            disabled={setRoute.isPending}
+            onClick={() => setRoute.mutate({ route: 'edu_cloud' })}
+          >
+            Send through EDU CLOUD
+          </Button>
+          <Button
+            variant={onOwn ? 'primary' : 'secondary'}
+            size="sm"
+            disabled={setRoute.isPending}
+            onClick={() => setRoute.mutate({ route: 'own' })}
+          >
+            Use our own account
+          </Button>
+        </div>
+
+        <p className="mt-3 text-[13px] text-muted-foreground">
+          {onOwn ? (
+            <>
+              Sending on this school's own vendor account. It holds the contract and the DLT
+              registration and pays that vendor directly; credits do not apply unless somebody
+              sets a ceiling.
+            </>
+          ) : (
+            <>
+              Sending through EDU CLOUD. We hold the vendor account and the DLT registration,
+              there is nothing to configure below, and each message comes out of the credits on
+              the Credits tab.
+            </>
+          )}
         </p>
 
-        {presets.isLoading ? null : (
+        {!onOwn ? null : presets.isLoading ? null : (
           <div className="mt-4 flex flex-wrap gap-2">
             {(presets.data?.items ?? []).map((p) => (
               <Button
@@ -120,8 +163,11 @@ export default function SmsVendor() {
           </div>
         )}
 
-        {chosen && <p className="mt-3 text-[13px] text-muted-foreground">{chosen.note}</p>}
+        {onOwn && chosen && (
+          <p className="mt-3 text-[13px] text-muted-foreground">{chosen.note}</p>
+        )}
 
+        {onOwn && (
         <FormGrid>
           <Field label="Endpoint" hint="Filled by the vendor above; editable, because a vendor may move it." wide>
             <Input value={endpoint} onChange={setEndpoint} placeholder="https://…" />
@@ -141,7 +187,9 @@ export default function SmsVendor() {
             </Field>
           )}
         </FormGrid>
+        )}
 
+        {onOwn && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button
             disabled={save.isPending || !endpoint.trim()}
@@ -181,7 +229,9 @@ export default function SmsVendor() {
           </div>
         </div>
 
-        <FormNotice error={save.error ?? test.error} />
+        )}
+
+        <FormNotice error={save.error ?? test.error ?? setRoute.error} />
         {current && !current.configured && current.reason && (
           <p className="mt-2 text-[13px] text-muted-foreground">{current.reason}</p>
         )}

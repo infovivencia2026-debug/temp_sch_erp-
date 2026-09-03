@@ -1410,9 +1410,32 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				return e
 			}
 
+			/* WHOSE ACCOUNT THIS ONE LEAVES BY.
+			 *
+			 * On the top pack a school may send by its own linked vendor or by
+			 * ours; on the lower packs it is always ours. Resolved per message
+			 * rather than per sweep because a school can hold its own SMS
+			 * contract — the one needing a DLT registration and weeks of
+			 * paperwork — while letting WhatsApp go through us, and the sweep
+			 * carries both channels. */
+			route, err := routeFor(ctx, tx, inst, channel)
+			if err != nil {
+				return err
+			}
+
 			set, err := s.loadProviders(ctx, tx, inst)
 			if err != nil {
 				return err
+			}
+			if route == RouteEduCloud {
+				/* Ours, so the school need configure nothing and the credits
+				 * are what pays for it. Exactly the mechanism a password reset
+				 * has always used, now offered as a route a school can be on
+				 * deliberately rather than only as a fallback for one
+				 * template. */
+				if set, err = s.platformProviders(ctx); err != nil {
+					return err
+				}
 			}
 			/* A password reset leaves through the seller, not the school.
 
@@ -1472,7 +1495,14 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			 * and sent for real once somebody tops up. A message refused for
 			 * want of credit must not be buried, because the credit is
 			 * exactly the thing that is about to change. */
-			if sendErr == nil {
+			/* Only once there is something to spend it on.
+			 *
+			 * A channel whose account nobody has set up cannot send whatever
+			 * the balance says, and "out of message credits" on a route that
+			 * has no vendor behind it sends an administrator to top up
+			 * something that was never the problem. The provider's own reason
+			 * is the true one, so it is allowed to win. */
+			if sendErr == nil && p.Configured() {
 				bal, isMetered, cErr := creditBalance(ctx, tx, inst, channel)
 				if cErr != nil {
 					return cErr

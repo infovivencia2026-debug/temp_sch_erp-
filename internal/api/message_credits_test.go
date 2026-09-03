@@ -37,14 +37,18 @@ A school on the top pack, with no balance set, sends exactly as it always did.
 	already configured, with nothing on any screen to say why.
 
 	It still holds where it matters — the schools that link their own vendor and
-	pay their own bill. On the lower packs an absent row now means zero, because
-	there the messages leave on the SELLER's account and "unlimited by default"
-	would be a school spending money nobody is counting. That is asserted
-	separately, below.
+	pay their own bill. Everywhere the messages leave on OUR account, an absent
+	row now means zero, because "unlimited by default" there is a school
+	spending money nobody is counting. That is asserted separately, below, and
+	it covers the top pack too whenever it chooses our account.
 */
 func TestTheTopPackWithoutABalanceIsNotMetered(t *testing.T) {
 	sc := newClassroomSchool(t)
 	setPlan(t, sc, "complete")
+	// Paying its own vendor is what removes the ceiling, not the pack alone:
+	// a Complete school that has linked nothing is on OUR account, and that is
+	// metered like any other.
+	linkOwnProvider(t, sc, "sms")
 	sc.tx(t, func(tx pgx.Tx) error {
 		bal, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
 		if err != nil {
@@ -216,22 +220,34 @@ func TestALowerPackIsMeteredEvenWithNoRow(t *testing.T) {
 }
 
 /*
-The top pack pays its own vendor, so an absent meter means no meter.
+The top pack gets BOTH routes, and defaults to ours until it links a vendor.
 
-	On Complete the school has linked its own account and the seller is not in
-	the middle of it. Metering it by default would cap a bill the seller does
-	not pay and cannot see.
+	This is what "both available" means in practice. Complete may link its own
+	MSG91 or Meta account and pay that vendor, or it may send on ours and pay
+	with credits, per channel. Until it has linked anything there is nothing to
+	send by except ours — so it is metered, exactly like a lower pack, because
+	the money is ours in both cases.
+
+	The pack is what grants the CHOICE. It is not what decides who pays, and
+	metering follows who pays.
 */
-func TestTheTopPackIsUnmeteredByDefault(t *testing.T) {
+func TestTheTopPackDefaultsToOurAccountUntilItLinksOne(t *testing.T) {
 	sc := newClassroomSchool(t)
 	setPlan(t, sc, "complete")
 	sc.tx(t, func(tx pgx.Tx) error {
+		route, err := routeFor(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if route != RouteEduCloud {
+			t.Errorf("route %q with nothing linked, want edu_cloud", route)
+		}
 		_, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
 		if err != nil {
 			return err
 		}
-		if isMetered {
-			t.Error("complete is metered by default; its vendor bill is not the seller's to cap")
+		if !isMetered {
+			t.Error("unmetered while sending on our account: our bill, uncounted")
 		}
 		return nil
 	})
@@ -270,6 +286,110 @@ func TestAnExplicitBalanceAppliesOnTheTopPackToo(t *testing.T) {
 		}
 		if !isMetered || bal != 40 {
 			t.Errorf("metered=%v balance=%d, want metered at 40", isMetered, bal)
+		}
+		return nil
+	})
+}
+
+func linkOwnProvider(t *testing.T, sc *classroomSchool, channel string) {
+	t.Helper()
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(), `
+			INSERT INTO integrations (institution_id, kind, provider, config, enabled)
+			VALUES ($1, 'messaging', $2, '{}'::jsonb, true)`, sc.inst, channel)
+		return err
+	})
+}
+
+/*
+A school that already linked a vendor keeps sending by it, unasked.
+
+	This is the regression the inference exists to prevent. A blanket default of
+	'edu_cloud' would silently re-route every school that had linked its own
+	account — and meter it, because our route always is — leaving it unable to
+	send on an account it pays for itself, with a credits error to explain it.
+*/
+func TestALinkedVendorIsStillUsedWithoutBeingAsked(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
+	linkOwnProvider(t, sc, "sms")
+	sc.tx(t, func(tx pgx.Tx) error {
+		route, err := routeFor(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if route != RouteOwn {
+			t.Errorf("route %q, want own: a configured vendor was re-routed through us", route)
+		}
+		return nil
+	})
+}
+
+// The top pack may sit on OUR account instead, and then it is metered exactly
+// like a lower pack: the money is ours either way.
+func TestTheTopPackOnOurAccountIsMetered(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(),
+			`INSERT INTO message_routing (institution_id, channel, route)
+			 VALUES ($1, 'sms', 'edu_cloud')`, sc.inst)
+		return err
+	})
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, isMetered, err := creditBalance(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if !isMetered {
+			t.Error("Complete on our account is unmetered; that is our bill going uncounted")
+		}
+		return nil
+	})
+}
+
+// And the two channels are independent: a school may hold its own SMS
+// contract — the one needing DLT paperwork — while WhatsApp goes through us.
+func TestTheTwoChannelsRouteIndependently(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete")
+	linkOwnProvider(t, sc, "sms")
+	sc.tx(t, func(tx pgx.Tx) error {
+		sms, err := routeFor(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		wa, err := routeFor(t.Context(), tx, sc.inst, "whatsapp")
+		if err != nil {
+			return err
+		}
+		if sms != RouteOwn || wa != RouteEduCloud {
+			t.Errorf("sms=%q whatsapp=%q, want own and edu_cloud", sms, wa)
+		}
+		return nil
+	})
+}
+
+// A lower pack is on our account whatever is stored — including a choice it
+// made on a higher pack, which is kept rather than erased so that moving back
+// up restores it.
+func TestALowerPackIsOnOurAccountWhateverIsStored(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "starter")
+	linkOwnProvider(t, sc, "sms")
+	sc.tx(t, func(tx pgx.Tx) error {
+		_, err := tx.Exec(t.Context(),
+			`INSERT INTO message_routing (institution_id, channel, route)
+			 VALUES ($1, 'sms', 'own')`, sc.inst)
+		return err
+	})
+	sc.tx(t, func(tx pgx.Tx) error {
+		route, err := routeFor(t.Context(), tx, sc.inst, "sms")
+		if err != nil {
+			return err
+		}
+		if route != RouteEduCloud {
+			t.Errorf("route %q on starter, want edu_cloud", route)
 		}
 		return nil
 	})

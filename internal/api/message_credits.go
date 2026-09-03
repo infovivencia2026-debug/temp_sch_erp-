@@ -56,22 +56,28 @@ func creditBalance(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel strin
 		`SELECT balance FROM message_credits WHERE institution_id = $1 AND channel = $2`,
 		inst, channel).Scan(&balance)
 	if errors.Is(err, pgx.ErrNoRows) {
-		/* WHAT AN ABSENT ROW MEANS DEPENDS ON WHOSE ACCOUNT IS PAYING.
+		/* WHAT AN ABSENT ROW MEANS DEPENDS ON WHOSE ACCOUNT IS PAYING, and
+		 * that is the route rather than the pack.
 		 *
-		 * On the top pack the school has linked its own vendor and pays that
-		 * vendor directly, so nobody here needs a ceiling: no row means no
-		 * meter, exactly as before.
+		 * Sending by the school's own vendor, no row means no meter: the
+		 * school pays that bill and a ceiling on it would be ours to impose on
+		 * money we neither spend nor see. Somebody may still set one
+		 * deliberately.
 		 *
-		 * On the lower packs the school sends through the SELLER's account,
-		 * and an absent row meaning "unmetered" would be a school sending on
-		 * somebody else's bill with nothing counting it. There it means zero:
-		 * recharge to send. Messages are held rather than lost, so a school
-		 * that recharges gets the backlog it queued while empty. */
-		custom, cErr := planAllowsCustomIntegration(ctx, tx, inst)
-		if cErr != nil {
-			return 0, false, cErr
+		 * Sending by ours, no row means zero — recharge to send. "Unlimited by
+		 * default" there is a school spending our money with nothing counting
+		 * it, which is the hole this was built to close. Messages are held
+		 * rather than lost, so a school that recharges gets the backlog it
+		 * queued while empty.
+		 *
+		 * Keyed on the route and not on the pack, because the top pack may be
+		 * on either: a school on Complete that chose our account is metered
+		 * exactly like one on Starter. */
+		route, rErr := routeFor(ctx, tx, inst, channel)
+		if rErr != nil {
+			return 0, false, rErr
 		}
-		return 0, !custom, nil
+		return 0, route == RouteEduCloud, nil
 	}
 	if err != nil {
 		return 0, false, err
@@ -189,6 +195,13 @@ func (s *Server) mountMessageCredits(r chi.Router) {
 	r.With(read).Get("/messaging/credits/{channel}/entries", s.listMessageCreditEntries)
 	r.With(write).Post("/messaging/credits/{channel}", s.topUpMessageCredits)
 	r.With(write).Delete("/messaging/credits/{channel}", s.stopMeteringChannel)
+
+	/* Which account each channel leaves by. Readable on every pack, because a
+	   school must always be able to see how its own messages are sent; the
+	   choice itself is checked in the handler, since only one of the two
+	   answers needs the pack. */
+	r.With(read).Get("/messaging/routing", s.listMessageRoutes)
+	r.With(write).Put("/messaging/routing/{channel}", s.setMessageRoute)
 }
 
 type creditView struct {
@@ -437,19 +450,20 @@ func planAllowsCustomIntegration(ctx context.Context, tx pgx.Tx, inst uuid.UUID)
 	return allowed != nil && *allowed, nil
 }
 
-/* THE LINKING SCREEN IS THE TOP PACK'S, AND THE GATE IS HERE.
+/*
+THE LINKING SCREEN IS THE TOP PACK'S, AND THE GATE IS HERE.
 
-   Enforced on the server, not by hiding a tab. The screen is hidden too,
-   because offering a form somebody cannot submit is its own kind of rude —
-   but a hidden tab stops nobody who can type a URL or a curl command, and what
-   is behind this gate is the ability to route a school's messages away from
-   the account the seller is metering. A client-side check would make the meter
-   optional for anybody willing to read the bundle.
+	Enforced on the server, not by hiding a tab. The screen is hidden too,
+	because offering a form somebody cannot submit is its own kind of rude —
+	but a hidden tab stops nobody who can type a URL or a curl command, and what
+	is behind this gate is the ability to route a school's messages away from
+	the account the seller is metering. A client-side check would make the meter
+	optional for anybody willing to read the bundle.
 
-   402 rather than 403: the request is well formed and the caller has every
-   permission for it. What is missing is the pack, which is a commercial fact
-   and has a status code of its own. The client already branches on 402 to show
-   the plan notice.
+	402 rather than 403: the request is well formed and the caller has every
+	permission for it. What is missing is the pack, which is a commercial fact
+	and has a status code of its own. The client already branches on 402 to show
+	the plan notice.
 */
 func (s *Server) RequireCustomIntegration(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -466,4 +480,158 @@ func (s *Server) RequireCustomIntegration(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Route names which account a channel leaves by.
+const (
+	RouteOwn      = "own"       // the school's linked vendor
+	RouteEduCloud = "edu_cloud" // ours, paid for with credits
+)
+
+/*
+WHICH ACCOUNT THIS CHANNEL LEAVES BY, resolved rather than assumed.
+
+	An explicit choice wins. Where there is none, the answer is inferred from
+	what the school actually has: a configured provider of its own means it is
+	already sending by that and must keep doing so, and anything else means
+	ours.
+
+	Inferring rather than defaulting to a constant is the whole point. A blanket
+	default of 'edu_cloud' would have silently re-routed any school that had
+	already linked a vendor — and metered it, since our route always is — which
+	is a school suddenly unable to send on an account it pays for itself.
+
+	The lower packs are edu_cloud whatever is stored. Enforced here, at the
+	point of reading, rather than by refusing to store 'own': a school that
+	chose its own vendor and then moved DOWN a pack should get that choice back
+	when it moves up again, not have it erased.
+*/
+func routeFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID, channel string) (string, error) {
+	if !metered(channel) {
+		return RouteOwn, nil
+	}
+	custom, err := planAllowsCustomIntegration(ctx, tx, inst)
+	if err != nil {
+		return RouteEduCloud, err
+	}
+	if !custom {
+		return RouteEduCloud, nil
+	}
+
+	var stored string
+	err = tx.QueryRow(ctx,
+		`SELECT route FROM message_routing WHERE institution_id = $1 AND channel = $2`,
+		inst, channel).Scan(&stored)
+	if err == nil {
+		return stored, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return RouteEduCloud, err
+	}
+
+	// No choice recorded: follow what the school already has configured.
+	var configured bool
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*) > 0 FROM integrations
+		 WHERE institution_id = $1 AND kind = 'messaging' AND provider = $2 AND enabled`,
+		inst, channel).Scan(&configured); err != nil {
+		return RouteEduCloud, err
+	}
+	if configured {
+		return RouteOwn, nil
+	}
+	return RouteEduCloud, nil
+}
+
+type routeView struct {
+	Channel string `json:"channel"`
+	Route   string `json:"route"`
+	// Whether this school may change it. False on the lower packs, where the
+	// answer is always ours and the screen should say so rather than offer a
+	// control that will be refused.
+	MayChoose bool `json:"may_choose"`
+}
+
+func (s *Server) listMessageRoutes(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	out := []routeView{}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		custom, err := planAllowsCustomIntegration(r.Context(), tx, id.InstitutionID)
+		if err != nil {
+			return err
+		}
+		for _, ch := range []string{"sms", "whatsapp"} {
+			route, err := routeFor(r.Context(), tx, id.InstitutionID, ch)
+			if err != nil {
+				return err
+			}
+			out = append(out, routeView{Channel: ch, Route: route, MayChoose: custom})
+		}
+		return nil
+	})
+	if err != nil {
+		httpx.Error(w, r, http.StatusInternalServerError, "routing_failed",
+			"Could not read how messages are being sent.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+/* Choose the account a channel leaves by.
+ *
+ * Only 'own' needs the pack. Moving TO our account is always allowed, on any
+ * pack — it is the route that costs the school nothing to be on, and refusing
+ * it would strand a school that wanted to stop using a vendor it was leaving.
+ */
+func (s *Server) setMessageRoute(w http.ResponseWriter, r *http.Request) {
+	channel := chi.URLParam(r, "channel")
+	if !metered(channel) {
+		httpx.BadRequest(w, r, "channel must be sms or whatsapp")
+		return
+	}
+	var body struct {
+		Route string `json:"route"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httpx.BadRequest(w, r, "body must be json")
+		return
+	}
+	route := strings.TrimSpace(body.Route)
+	if route != RouteOwn && route != RouteEduCloud {
+		httpx.BadRequest(w, r, "route must be own or edu_cloud")
+		return
+	}
+
+	id := httpx.IdentityFrom(r.Context())
+	refused := false
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if route == RouteOwn {
+			custom, err := planAllowsCustomIntegration(r.Context(), tx, id.InstitutionID)
+			if err != nil {
+				return err
+			}
+			if !custom {
+				refused = true
+				return nil
+			}
+		}
+		_, err := tx.Exec(r.Context(), `
+			INSERT INTO message_routing (institution_id, channel, route)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (institution_id, channel) DO UPDATE
+			   SET route = EXCLUDED.route, updated_at = now()`,
+			id.InstitutionID, channel, route)
+		return err
+	})
+	if refused {
+		httpx.Error(w, r, http.StatusPaymentRequired, "plan_required",
+			"Sending on your own vendor account is part of the Complete pack.")
+		return
+	}
+	if err != nil {
+		httpx.Error(w, r, http.StatusInternalServerError, "routing_failed",
+			"Could not change how messages are sent.")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"channel": channel, "route": route})
 }
