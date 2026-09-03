@@ -1324,24 +1324,21 @@ function PeriodsPanel({ onDone }: PanelProps) {
           Left alone this is the school's own day, which is what it has always
           been. Only a school that needs a second one has to read any of it. */}
       <div className="mb-4 rounded-lg border p-3">
-        <FormGrid>
-          <Field
-            label="Whose day is this"
-            hint="Leave empty for the whole school. Name it — Primary, Afternoon shift — to give some classes their own timings."
-          >
-            <Input
-              value={scheduleName}
-              onChange={setScheduleName}
-              placeholder="The whole school"
-            />
-          </Field>
-        </FormGrid>
+        {/* THE BOXES ARE THE CONTROL, not a thing behind a text field.
 
-        {scheduleName.trim() !== '' && (
-          <div className="mt-3">
-            <p className="eyebrow mb-1.5 text-muted-foreground">
-              Which classes run to it
-            </p>
+            These were hidden until somebody typed a name, so the one question
+            worth asking on this step — which classes are these timings for
+            — was invisible until you had already guessed that naming a day
+            was how you got there. Nobody guesses that.
+
+            So the classes are the first thing, and always shown. Choose none
+            and this is the whole school's day, which is what it has always
+            been and what most schools want. Choose some and it becomes their
+            own day, and only then does it need a name. */}
+        <div>
+          <p className="eyebrow mb-1.5 text-muted-foreground">
+            Which classes run to these timings
+          </p>
             {/* BOXES, NOT A COLUMN OF TICKS.
 
                 A school picking the primary timings is choosing a run of
@@ -1394,14 +1391,42 @@ function PeriodsPanel({ onDone }: PanelProps) {
                 )
               })}
             </div>
-            {/* A day nobody runs to looks like it is in use and is not. */}
-            {!Object.values(forClasses).some(Boolean) && (
-              <p className="mt-1.5 text-[12.5px] text-warning">
-                No class is ticked, so nothing will use these timings.
-              </p>
-            )}
-          </div>
-        )}
+          {/* What the current choice means, said in the words somebody
+              would use rather than left to be worked out from an empty set. */}
+          {(() => {
+            const all = classes.data?.items ?? []
+            const chosen = all.filter((c) => forClasses[c.id]).length
+            if (chosen === 0 || chosen === all.length) {
+              return (
+                <p className="mt-2 text-[12.5px] text-muted-foreground">
+                  These are the whole school&rsquo;s timings.
+                </p>
+              )
+            }
+            return (
+              <div className="mt-3">
+                <FormGrid>
+                  <Field
+                    label="Call this day"
+                    hint="A name for these timings, so the rest of the school keeps its own."
+                  >
+                    <Input
+                      value={scheduleName}
+                      onChange={setScheduleName}
+                      placeholder="Primary"
+                    />
+                  </Field>
+                </FormGrid>
+                {!scheduleName.trim() && (
+                  <p className="mt-1.5 text-[12.5px] text-warning">
+                    Give these timings a name, or they will overwrite the
+                    whole school&rsquo;s day.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
+        </div>
 
         {otherDays.length > 0 && (
           <div className="mt-3 border-t pt-2.5 text-[12.5px] text-muted-foreground">
