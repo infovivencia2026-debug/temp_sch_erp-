@@ -394,3 +394,33 @@ func TestALowerPackIsOnOurAccountWhateverIsStored(t *testing.T) {
 		return nil
 	})
 }
+
+/*
+The screen and the dispatcher must not disagree about who is metered.
+
+	Found live: the credits list reported "not metered" for any channel with no
+	row, while the dispatcher meters anything sending on our account whether a
+	row exists or not. A school was told it had no limit and then found its
+	messages held. Two readings of one fact is the bug; this pins them together.
+*/
+func TestTheScreenAgreesWithTheDispatcherAboutMetering(t *testing.T) {
+	sc := newClassroomSchool(t)
+	setPlan(t, sc, "complete") // may choose, has linked nothing, so: our account
+	sc.tx(t, func(tx pgx.Tx) error {
+		for _, ch := range []string{"sms", "whatsapp"} {
+			route, err := routeFor(t.Context(), tx, sc.inst, ch)
+			if err != nil {
+				return err
+			}
+			_, isMetered, err := creditBalance(t.Context(), tx, sc.inst, ch)
+			if err != nil {
+				return err
+			}
+			if (route == RouteEduCloud) != isMetered {
+				t.Errorf("%s: route=%q but metered=%v; the screen would contradict the sender",
+					ch, route, isMetered)
+			}
+		}
+		return nil
+	})
+}

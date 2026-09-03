@@ -217,9 +217,10 @@ type creditView struct {
 
 func (s *Server) listMessageCredits(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
+	ctx := r.Context()
 	out := []creditView{}
-	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		rows, err := tx.Query(r.Context(), `
+	err := s.DB.InTenant(ctx, tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
 			SELECT channel, balance, low_water
 			  FROM message_credits WHERE institution_id = $1`, id.InstitutionID)
 		if err != nil {
@@ -240,14 +241,30 @@ func (s *Server) listMessageCredits(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		// Every metered channel appears, whether or not it has a row, so the
-		// screen can offer to start metering one that is not.
+		/* Every channel appears, and whether it is metered is RESOLVED rather
+		 * than read off the table.
+		 *
+		 * The bug this replaces: the screen reported "not metered" for any
+		 * channel with no row, while the dispatcher meters anything sending on
+		 * our account whether or not a row exists. So a school on our route
+		 * with no balance was told it had no limit, and then found its
+		 * messages held — two sources of truth for one fact, disagreeing.
+		 *
+		 * The dispatcher's answer is the true one, so this asks the same
+		 * function the dispatcher asks. */
 		for _, ch := range []string{"sms", "whatsapp"} {
-			if v, ok := seen[ch]; ok {
-				out = append(out, v)
-			} else {
-				out = append(out, creditView{Channel: ch})
+			v, ok := seen[ch]
+			if !ok {
+				v = creditView{Channel: ch}
 			}
+			_, isMetered, err := creditBalance(ctx, tx, id.InstitutionID, ch)
+			if err != nil {
+				return err
+			}
+			v.Metered = isMetered
+			v.Empty = isMetered && v.Balance <= 0
+			v.Low = isMetered && !v.Empty && v.LowWater > 0 && v.Balance <= v.LowWater
+			out = append(out, v)
 		}
 		return nil
 	})
