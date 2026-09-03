@@ -208,7 +208,21 @@ export default function Notifications() {
             data-closing={closing && !open ? '' : undefined}
             onAnimationEnd={() => { if (!open) setClosing(false) }}
             onClick={(e) => e.stopPropagation()}
-            className="flex h-full w-[min(26rem,100vw)] flex-col border-l bg-card shadow-[var(--lift-float)]"
+            /* FULL WIDTH ON A PHONE, A DRAWER ON EVERYTHING ELSE.
+
+               This was `w-[min(26rem,100vw)]`, written to mean "26rem, or the
+               whole screen if that is narrower". It never reached the whole
+               screen: index.css pins the root font to 14px for the dense
+               desktop baseline, so 26rem is 364px rather than the 416 the
+               figure suggests, and on a 390px phone the drawer stopped 26px
+               short. What was left was a sliver of the dashboard down one edge
+               and no way to press it, which reads as a panel that failed to
+               finish opening rather than as a drawer.
+
+               The same 14px root turned a 44px touch minimum written in rem
+               into 38.5px elsewhere in this product. A length that has to
+               clear a device edge is stated in pixels here for that reason. */
+            className="flex h-full w-full flex-col border-l bg-card shadow-[var(--lift-float)] sm:w-[416px]"
           >
             <header className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
               <div className="min-w-0 flex-1">
@@ -240,7 +254,11 @@ export default function Notifications() {
                 a fortnight's feed is longer than one. */}
             <div className="scroll-y min-h-0 flex-1 overscroll-contain">
               {items.length === 0 ? (
-                <div className="px-6 py-16 text-center">
+                /* Centred in the panel, not sitting near its top. An empty
+                   state anchored to the first sixth of a full-height sheet
+                   leaves a thousand pixels of nothing under two lines of
+                   text, which is what the drawer looked like on a phone. */
+                <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
                   <p className="text-[14px] font-medium">Nothing yet</p>
                   <p className="mx-auto mt-1.5 max-w-[22rem] text-[13px] text-muted-foreground">
                     Homework, notices, fees and timetable changes appear here as
