@@ -803,6 +803,18 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			APAARID:      get(rec, "apaar_id"),
 			ChildInfoID:  get(rec, "child_info_id"),
 			PriorSchool:  get(rec, "prior_school"),
+			/* CATEGORY MEANS TWO DIFFERENT THINGS.
+
+			   Ours is the government one -- general, OBC, SC, ST, EWS -- and
+			   it drives the RTE return. A real school's export had "Day
+			   Scholar" and "Hosteller" in that column, which is a residence
+			   type and an equally reasonable thing to call Category.
+
+			   Read as ours where it is one of ours, kept as the school's own
+			   field where it is not. Refusing 399 rows over a word that means
+			   something true is the wrong answer to a collision of
+			   vocabularies. */
+			Category: knownCategory(get(rec, "category")),
 			/* A SCHOOL KEEPS THE CLASS AND THE SECTION IN TWO COLUMNS.
 
 			   This wanted them joined -- "Class 6-A" in one cell -- and every
@@ -812,8 +824,9 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 
 			   The joined form still works, because our own template writes it
 			   that way. */
-			SectionID:    sectionLabel(get(rec, "section"), get(rec, "class")),
-			CustomFields: customValues(rec, customCols),
+			SectionID: sectionLabel(get(rec, "section"), get(rec, "class")),
+			CustomFields: withUnmapped(customValues(rec, customCols),
+				"Category", get(rec, "category"), knownCategory(get(rec, "category")) == ""),
 			// Optional, like every column but the name: a school that keeps
 			// none of this imports exactly as well without them.
 			AdmissionDate:    normaliseDate(get(rec, "admission_date")),
@@ -995,6 +1008,40 @@ normaliseGender accepts what a register actually says.
 	school writes it, and every row was rejected for a gender that "must be
 	male, female or other". The school was not wrong.
 */
+
+/*
+knownCategory keeps the government category and lets anything else through as
+a school's own word.
+
+	Returned empty rather than refused, with the original preserved as an
+	extra field by the caller. A column that means one thing to a return and
+	another to a school is not a mistake by either of them.
+*/
+/*
+withUnmapped keeps a value the record has no field for, under the school's own
+label, instead of dropping it.
+
+	A word we do not recognise in a column we do is still the school's data.
+	Dropping it silently is how an import reports success and loses something.
+*/
+func withUnmapped(fields map[string]string, label, value string, keep bool) map[string]string {
+	if !keep || strings.TrimSpace(value) == "" {
+		return fields
+	}
+	if fields == nil {
+		fields = map[string]string{}
+	}
+	fields[label] = strings.TrimSpace(value)
+	return fields
+}
+
+func knownCategory(v string) string {
+	c := strings.ToLower(strings.TrimSpace(v))
+	if validCategories[c] {
+		return c
+	}
+	return ""
+}
 
 func normaliseGender(v string) string {
 	switch strings.ToLower(strings.TrimSpace(v)) {
