@@ -91,13 +91,23 @@ export default function SettingsPage() {
     ? (found.id as SettingsTab)
     : phone ? null : 'appearance'
 
+  /* ON A PHONE, A SECTION IS A SCREEN, AND BACK LEAVES IT.
+
+     Both of these replaced the history entry, which is right on a wide
+     viewport where the sections are tabs beside a list -- Back from a tab
+     should leave Settings, not walk the tabs. On a phone the list and the
+     section are two screens, and replacing meant the phone's Back gesture
+     from a section jumped straight out of Settings to wherever the person
+     had come from. Pushed on a phone, so Back returns to the list, and the
+     list's own Back leaves. */
   const open = useCallback((id: string) => {
-    navigate(`/settings/${id}`, { replace: true })
-  }, [navigate])
+    navigate(`/settings/${id}`, { replace: !phone })
+  }, [navigate, phone])
 
   const backToList = useCallback(() => {
-    navigate('/settings', { replace: true })
-  }, [navigate])
+    if (phone && window.history.length > 1) navigate(-1)
+    else navigate('/settings', { replace: true })
+  }, [navigate, phone])
 
   /* Where a page says it is finished. The only caller is Arrange, on the
      dashboard section, which wants the settings surface out of the way so the

@@ -42,6 +42,7 @@ import {
   Stack as StackCols,
   Nil
 } from './bento-cards'
+import { useCatalog, featurePath } from '@/lib/catalog'
 
 /* THE HEAD'S PAGE, IN THE BENTO LANGUAGE.
 
@@ -3088,6 +3089,21 @@ function CardCell({
   children?: ReactNode
 }) {
   const t = useT()
+  /* A DOOR ON EVERY CARD, EVEN BEFORE THE SCHOOL EXISTS.
+
+     While setup is incomplete the catalogue hides every feature but Getting
+     started, so no card had a destination and, with the arrow drawn only on
+     linked cards, a whole board of arrows disappeared at once -- which read
+     as the arrows having been removed. The honest destination for a card on
+     a school with no classes yet IS the setup screen: that is where the
+     number on the card comes from. So a card with nowhere else to go opens
+     School setup for as long as setup is what stands in the way. */
+  const catalog = useCatalog()
+  const door =
+    to ??
+    (catalog.setup_required
+      ? featurePath(catalog.active_role, 'getting_started', 'school_setup')
+      : undefined)
   /* A failed fetch is never a confident zero and never a drawing. The figure
      becomes a dash — there is no number — and the drawing row carries the
      error, which is the one thing that row is allowed to say that is not
@@ -3103,29 +3119,29 @@ function CardCell({
      the mark now follows the same rule. */
   const body =
     status === 'error' ? (
-      <CardShell title={title} sub={sub} glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
         <CellError message={t('bento.principal.source_failed')} />
       </CardShell>
     ) : status === 'loading' ? (
       <CardShell
         title={title}
         sub={sub}
-        glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined}
+        glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined}
         value="—"
         change={t('bento.principal.source_loading')}
         className="h-full"
       />
     ) : (
-      <CardShell title={title} sub={sub} glyph={glyph} action={to && cueLabel ? { label: cueLabel } : undefined} value={value} change={change} delta={delta} deltaNote={deltaNote} className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined} value={value} change={change} delta={delta} deltaNote={deltaNote} className="h-full">
         {children}
       </CardShell>
     )
 
   return (
     <Cell span={span} domain={domain}>
-      {to ? (
+      {door ? (
         <Link
-          to={to}
+          to={door}
           aria-label={cueLabel}
           className="block min-h-0 flex-1 rounded-[6px] outline-none focus-visible:ring-2 focus-visible:ring-current"
         >

@@ -26,6 +26,7 @@ import { useFullScreen } from '@/lib/fullscreen'
 // dashboard cards sit. This one is the frame -- sidebar or focus.
 import { useLayout as useFrameLayout, LAYOUTS, type Layout } from '@/lib/layout'
 import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Choosing a typeface by looking at it.
 
@@ -1246,6 +1247,8 @@ export function AppearanceDialog({
   onClose: () => void
   initialTab?: 'appearance' | 'dock' | 'dashboard'
 }) {
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  useOverlayHistory(open, onClose)
   const [picking, setPicking] = useState(false)
   const onPickingChange = useCallback((v: boolean) => setPicking(v), [])
   const t = useT()

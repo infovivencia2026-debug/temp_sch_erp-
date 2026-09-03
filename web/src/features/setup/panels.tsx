@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
@@ -8,6 +8,7 @@ import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* The forms behind each wizard step.
 
@@ -165,6 +166,8 @@ function Preset({ onClick, children }: { onClick: () => void; children: ReactNod
    people have already stopped looking by the time it appears. It says what
    changed, not just that something did. */
 function SavedDialog({ message, onClose }: { message: string; onClose: () => void }) {
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  useOverlayHistory(true, onClose)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -2986,6 +2989,9 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
   const withoutLogin = staff.filter((t) => !t.can_sign_in).length
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  const closeLogins = useCallback(() => setOpen(false), [])
+  useOverlayHistory(open, closeLogins)
 
   /* The list, as the file a school actually keeps.
    *

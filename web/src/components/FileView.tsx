@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Paperclip, Download } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Reading an attachment without taking a copy of it.
 
@@ -98,6 +99,8 @@ export default function FileView({
   file: ViewableFile
   onClose: () => void
 }) {
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  useOverlayHistory(true, onClose)
   const kind = kindOf(file)
   const src = `/api/v1/files/${file.file_id}?inline=1`
   const [text, setText] = useState<string | null>(null)

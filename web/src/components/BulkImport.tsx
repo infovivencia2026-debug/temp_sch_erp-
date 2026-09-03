@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -1207,6 +1208,8 @@ export function SheetViewer({
   rows: string[][]
   onClose: () => void
 }) {
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  useOverlayHistory(true, onClose)
   /* Two sizes, because both are wanted.
    *
    * A sheet eighteen columns wide is read edge to edge; the same sheet checked

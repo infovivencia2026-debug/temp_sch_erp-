@@ -12,6 +12,7 @@ import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* The homework diary, from both ends.
 
@@ -602,6 +603,8 @@ function HomeworkSheet({
      a wall of white below it. */
   showRegister?: boolean
 }) {
+  // The phone's Back closes this, like every overlay: see overlay-history.ts.
+  useOverlayHistory(true, onClose)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()

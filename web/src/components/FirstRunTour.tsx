@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { shortcutLabel } from '@/lib/platform'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,6 +8,7 @@ import {
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* The first morning.
 
@@ -132,16 +133,20 @@ export default function FirstRunTour() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tour'] }),
   })
 
-  if (!data || data.seen || dismissed) return null
+  const showing = !!data && !data.seen && !dismissed
+  const dismiss = useCallback(() => {
+    setDismissed(true)
+    finish.mutate()
+  }, [finish])
+  // The phone's Back dismisses the tour, like every overlay: see overlay-history.ts.
+  useOverlayHistory(showing, dismiss)
+  if (!showing) return null
   const steps = stepsFor(data)
   const step = steps[at]
   const Icon = step.icon
   const last = at === steps.length - 1
 
-  const close = () => {
-    setDismissed(true)
-    finish.mutate()
-  }
+  const close = dismiss
 
   return (
     <div
