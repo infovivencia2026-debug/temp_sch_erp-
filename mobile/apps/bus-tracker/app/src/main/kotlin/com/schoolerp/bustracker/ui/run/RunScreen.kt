@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -70,7 +74,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var confirmUnpair by rememberSaveable { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
     // Some ROMs ship without the settings screens these intents name, and an
     // unhandled ActivityNotFoundException took the run screen down with it.
@@ -100,7 +104,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
 
         ReportingCard(status)
 
-        /* PHONE SETUP, FOLDED AWAY.
+        /* PHONE SETUP, ON ITS OWN SCREEN.
 
            Location, battery and notifications each had a full-width card with
            a headline and a paragraph, stacked above the only two controls the
@@ -108,17 +112,19 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
            advice before the Start button, every morning, for ever -- and the
            app looked broken because it opened on a wall of warnings.
 
-           They are still here, and still say the same thing, behind one line
-           that counts them. A driver whose phone is set up correctly never
-           sees any of it. */
-        PhoneSetupSection(
-            status = status,
-            onOpen = ::open,
-            appSettings = viewModel::openAppSettings,
-            locationSettings = viewModel::openLocationSettings,
-            batteryExemption = viewModel::requestBatteryExemption,
-            notificationSettings = viewModel::openNotificationSettings,
-        )
+           They were then folded behind one line that expanded in place, which
+           pushed the Start button off the bottom the moment it was opened.
+           Now the line counts them and opens a screen of its own -- the whole
+           display, with a Back control, not a dialog squeezed into the middle of
+           the run -- and the rarer controls (stopping the tracker, changing
+           driver) live there too instead of trailing under End Run. A driver
+           whose phone is set up correctly still sees one quiet line. */
+        TextButton(onClick = { settingsOpen = true }) {
+            Text(
+                phoneSetupSummary(status),
+                textDecoration = TextDecoration.Underline,
+            )
+        }
 
         /* THE SHIFT.
          *
@@ -158,7 +164,6 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                 bus = scannedBus,
                 onBusScanned = viewModel::onBusScanned,
                 onStart = viewModel::startRun,
-                onAddRoute = viewModel::addRoute,
                 onRemoveRoute = viewModel::removeRoute,
             )
         }
@@ -246,74 +251,31 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                 )
             }
         }
-
-        /* THE OFF SWITCH.
-
-           The tracker is a foreground service whose notification cannot be
-           swiped away -- that is what keeps it alive across a four-hour run --
-           so the only way to stop it was End Run, which tells the school the
-           children are off the bus. A driver parking up at the end of a shift,
-           or handing the phone to the office to charge, had the choice between
-           saying something untrue and force-stopping the app from Android's
-           settings. This is the third answer.
-
-           Below the run controls, never beside them: it is the rarer action
-           and must not be reachable by a thumb aiming at End Run. */
-        BackgroundTrackingSwitch(
-            running = status.serviceRunning,
-            runOpen = status.trip != null,
-            onStop = viewModel::stopBackgroundTracking,
-            onStart = viewModel::startBackgroundTracking,
-        )
-
-        /* THE WAY BACK TO THE SIGN-IN SCREEN.
-
-           A handset paired before this build opens straight onto this screen
-           and never shows the number-and-password sign-in at all, because that
-           lives behind `paired == false`. The driver is looking at a bus that
-           may not be his, with no visible way to become himself -- "cannot see
-           the login" is exactly what that looks like from the seat.
-
-           Same call as before; the wording is what changed. "Unpair this
-           phone" describes the mechanism and reads as something to avoid.
-           This says what it is for. */
-        TextButton(onClick = { confirmUnpair = true }, enabled = !busy) {
-            Text(
-                "Sign in as a different driver",
-                textDecoration = TextDecoration.Underline,
-            )
-        }
-        if (confirmUnpair) {
-            AlertDialog(
-                onDismissRequest = { confirmUnpair = false },
-                title = { Text("Take this phone off the bus?") },
-                text = {
-                    Text(
-                        "The phone forgets which bus it is and stops reporting. You will " +
-                            "sign in again with your number and password.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirmUnpair = false
-                        viewModel.unpair()
-                    }) { Text("Take it off") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { confirmUnpair = false }) { Text("Cancel") }
-                },
-            )
-        }
-        Text(
-            "Takes this phone off the bus it is on and asks for your number and " +
-                "password again. Nothing is reported in the meantime.",
-            style = MaterialTheme.typography.bodySmall,
-        )
     }
 
     // Asked once the driver is looking at the app, never from a service — and
     // in two stages, because that is what the platform requires.
     LocationPermissionPrompt(onFinished = viewModel::refresh)
+
+    /* The settings screen sits over the run rather than replacing it in a
+       navigation graph: the run screen's state (scanned bus, half-typed
+       password) survives a look at the settings, and the back gesture returns
+       to exactly where the driver was. */
+    if (settingsOpen) {
+        TrackerSettingsScreen(
+            status = status,
+            busy = busy,
+            onClose = { settingsOpen = false },
+            onOpen = ::open,
+            appSettings = viewModel::openAppSettings,
+            locationSettings = viewModel::openLocationSettings,
+            batteryExemption = viewModel::requestBatteryExemption,
+            notificationSettings = viewModel::openNotificationSettings,
+            onStopTracking = viewModel::stopBackgroundTracking,
+            onStartTracking = viewModel::startBackgroundTracking,
+            onUnpair = viewModel::unpair,
+        )
+    }
 
     alert?.let { current ->
         AlertDialog(
@@ -567,16 +529,12 @@ private fun StartRunSection(
     bus: String,
     onBusScanned: (String) -> Unit,
     onStart: (SavedRoute, String, Boolean) -> Unit,
-    onAddRoute: (String, String) -> Unit,
     onRemoveRoute: (String) -> Unit,
 ) {
     var direction by remember { mutableStateOf(DIRECTION_PICKUP) }
     // Keyed on the answer: the book starts empty and fills a frame later, so
     // the office-setup form opened for every driver, routes or not.
-    var showAdd by remember(routes.isEmpty()) { mutableStateOf(routes.isEmpty()) }
     var removing by remember { mutableStateOf<SavedRoute?>(null) }
-    var newId by remember { mutableStateOf("") }
-    var newLabel by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Start a run", style = MaterialTheme.typography.titleLarge)
@@ -673,41 +631,10 @@ private fun StartRunSection(
         if (routes.isEmpty()) {
             Text(
                 "No route has been put on this bus yet. Ask the office to add one on the " +
-                    "Transport screen, then sign in again and it will be here. You can still " +
-                    "add one by hand below if they give you its route id.",
+                    "Transport screen, then scan the bus again or sign in again and it " +
+                    "will be here.",
                 style = MaterialTheme.typography.bodyMedium,
             )
-        }
-
-        TextButton(onClick = { showAdd = !showAdd }) {
-            Text(if (showAdd) "Hide route setup" else "Add a route (office setup)")
-        }
-
-        if (showAdd) {
-            OutlinedTextField(
-                value = newLabel,
-                onValueChange = { newLabel = it },
-                label = { Text("Name the driver will see") },
-                placeholder = { Text("Morning, Anna Nagar") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = newId,
-                onValueChange = { newId = it },
-                label = { Text("Route id from the transport screen") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Button(
-                onClick = {
-                    onAddRoute(newId, newLabel)
-                    newId = ""
-                    newLabel = ""
-                    showAdd = false
-                },
-                enabled = newId.isNotBlank(),
-            ) { Text("Save route") }
         }
     }
 }
@@ -892,6 +819,149 @@ private fun RollCard(
  * shows nothing at all when none of them do. What has gone is the assumption
  * that a warning must be the biggest thing on the screen to have been made.
  */
+private fun phoneSetupProblems(status: TrackerStatus): List<String> = listOfNotNull(
+    status.locationBlocker?.let { "location" },
+    if (!status.ignoringBatteryOptimisations) "battery" else null,
+    if (!status.notificationsAllowed) "notifications" else null,
+)
+
+/** The one line the run screen shows for all of this. */
+private fun phoneSetupSummary(status: TrackerStatus): String {
+    val problems = phoneSetupProblems(status)
+    return if (problems.isEmpty()) "Tracker settings"
+    else "${problems.size} phone setting${if (problems.size == 1) "" else "s"} " +
+        "could thin out the tracking"
+}
+
+/**
+ * Full-screen home for everything that is not the run: the phone settings
+ * above, the tracker's off switch, and the way back to the sign-in screen.
+ *
+ * A screen and not a dialog because the content is three explanations with
+ * buttons, plus two more below, and a dialog cannot hold that on a handset
+ * without scrolling inside a box inside the screen. The back arrow and the
+ * back gesture both close it; nothing here changes on the way out.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrackerSettingsScreen(
+    status: TrackerStatus,
+    busy: Boolean,
+    onClose: () -> Unit,
+    onOpen: (android.content.Intent) -> Unit,
+    appSettings: () -> android.content.Intent,
+    locationSettings: () -> android.content.Intent,
+    batteryExemption: () -> android.content.Intent,
+    notificationSettings: () -> android.content.Intent,
+    onStopTracking: () -> Unit,
+    onStartTracking: () -> Unit,
+    onUnpair: () -> Unit,
+) {
+    var confirmUnpair by rememberSaveable { mutableStateOf(false) }
+    BackHandler(onBack = onClose)
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text("Tracker settings") },
+                // A word, not an arrow glyph: the icon set is not a dependency
+                // of this app and a driver reads "Back" faster anyway.
+                navigationIcon = {
+                    TextButton(onClick = onClose) { Text("Back") }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("Phone setup", style = MaterialTheme.typography.titleMedium)
+            PhoneSetupSection(
+                status = status,
+                onOpen = onOpen,
+                appSettings = appSettings,
+                locationSettings = locationSettings,
+                batteryExemption = batteryExemption,
+                notificationSettings = notificationSettings,
+            )
+
+            /* THE OFF SWITCH.
+
+               The tracker is a foreground service whose notification cannot be
+               swiped away -- that is what keeps it alive across a four-hour run --
+               so the only way to stop it was End Run, which tells the school the
+               children are off the bus. A driver parking up at the end of a shift,
+               or handing the phone to the office to charge, had the choice between
+               saying something untrue and force-stopping the app from Android's
+               settings. This is the third answer.
+
+               On this screen, never beside End Run: it is the rarer action
+               and must not be reachable by a thumb aiming at End Run. */
+            Text("Tracking", style = MaterialTheme.typography.titleMedium)
+            BackgroundTrackingSwitch(
+                running = status.serviceRunning,
+                runOpen = status.trip != null,
+                onStop = onStopTracking,
+                onStart = onStartTracking,
+            )
+
+            /* THE WAY BACK TO THE SIGN-IN SCREEN.
+
+               A handset paired before this build opens straight onto the run
+               screen and never shows the number-and-password sign-in at all,
+               because that lives behind `paired == false`. The driver is
+               looking at a bus that may not be his, with no visible way to
+               become himself -- "cannot see the login" is exactly what that
+               looks like from the seat.
+
+               Same call as before; the wording is what changed. "Unpair this
+               phone" describes the mechanism and reads as something to avoid.
+               This says what it is for. */
+            Text("Driver", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = { confirmUnpair = true }, enabled = !busy) {
+                Text(
+                    "Sign in as a different driver",
+                    textDecoration = TextDecoration.Underline,
+                )
+            }
+            Text(
+                "Takes this phone off the bus it is on and asks for your number and " +
+                    "password again. Nothing is reported in the meantime.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+
+    if (confirmUnpair) {
+        AlertDialog(
+            onDismissRequest = { confirmUnpair = false },
+            title = { Text("Take this phone off the bus?") },
+            text = {
+                Text(
+                    "The phone forgets which bus it is and stops reporting. You will " +
+                        "sign in again with your number and password.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmUnpair = false
+                    onClose()
+                    onUnpair()
+                }) { Text("Take it off") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmUnpair = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
 @Composable
 private fun PhoneSetupSection(
     status: TrackerStatus,
@@ -901,25 +971,16 @@ private fun PhoneSetupSection(
     batteryExemption: () -> android.content.Intent,
     notificationSettings: () -> android.content.Intent,
 ) {
-    val problems = listOfNotNull(
-        status.locationBlocker?.let { "location" },
-        if (!status.ignoringBatteryOptimisations) "battery" else null,
-        if (!status.notificationsAllowed) "notifications" else null,
-    )
-    if (problems.isEmpty()) return
+    val problems = phoneSetupProblems(status)
+    if (problems.isEmpty()) {
+        Text(
+            "Location, battery and notifications are all set up for tracking.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        return
+    }
 
-    var open by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = { open = !open }) {
-            Text(
-                if (open) "Hide phone settings"
-                else "${problems.size} phone setting${if (problems.size == 1) "" else "s"} " +
-                    "could thin out the tracking",
-            )
-        }
-        if (!open) return@Column
-
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         status.locationBlocker?.let { blocker ->
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(blocker.headline, style = MaterialTheme.typography.titleSmall)
