@@ -60,6 +60,14 @@ self.addEventListener('activate', (e) => {
    posts this the moment the session's user changes. */
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'erp-forget-data') e.waitUntil(caches.delete(DATA))
+  /* Take over now, because the page asked.
+   *
+   * `install` deliberately does not call this: a tab mid-task is running the
+   * previous build's JavaScript, and swapping under it means the next chunk it
+   * lazily imports is fetched under a controller that has already dropped that
+   * build's assets. The page is the only thing that knows when there is
+   * nothing to lose, and it asks at that moment — see main.tsx. */
+  if (e.data?.type === 'erp-take-over') self.skipWaiting()
 })
 
 self.addEventListener('fetch', (e) => {
