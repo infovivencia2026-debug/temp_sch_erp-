@@ -45,9 +45,22 @@ const hasSignal = (values: number[]) =>
 const LATIN_ONLY = /^[ -ɏ‐-›]*$/
 const isLatin = (s: string) => LATIN_ONLY.test(s)
 
-const MARK = ink(88)
-const TRACK = ink(10)
-const QUIET = ink(38)
+/* THE MARK IS INK AT REDUCED WEIGHT, NOT A SLAB.
+
+   At 88% every rail on a busy board was a near-black bar 18px thick on a
+   grey track — measured on the busy fixture: "Billed", "Grade 6", "On roll",
+   "Covered", four saturated slabs per screen, and thirty fat columns under
+   the attendance figure. A single-series mark is the card's ink at reduced
+   weight; 60% on the light card is 5.0:1 and on the dark card 6.1:1, well
+   over the 3:1 a graphical mark needs, and plainly quieter than the figure.
+   The track is a lighter step of the SAME ink — one hue, two weights — not a
+   grey against a black. `QUIET` is the muted column beside the current one. */
+const MARK = ink(60)
+const TRACK = ink(12)
+const QUIET = ink(30)
+/** The one full-weight mark a drawing may carry: the current period, the
+    column the reader is looking at. Everything else is `MARK` or quieter. */
+const NOW = ink(92)
 /** THE SENTENCE THE CARD HAS ALREADY SAID.
 
     Carries the card's change note down to whatever is drawn in the drawing
@@ -851,17 +864,23 @@ export function Bars({ values, activeIndex, srLabel }: {
 
        The gap is 2px rather than 4: bars are a distribution, and a distribution
        reads as one shape with gaps in it, not as a row of separate objects. */
+    /* SLIM COLUMNS, NOT A WALL. Thirty periods across a 553px cell drew as
+       thirty 16px blocks touching at a 2px seam — a grey wall with one black
+       brick at the end. Each column is capped at 6px and the row spreads
+       them, so the series reads as thirty marks over a hairline baseline;
+       the top is rounded 2px (the data end) and the foot is square. The
+       current period is the one full-weight mark; the rest are muted. */
     <div
-      className="flex h-full items-end gap-[2px] border-b"
-      style={{ borderColor: ink(22) }}
+      className="flex h-full items-end justify-between gap-[2px] border-b"
+      style={{ borderColor: ink(14) }}
       role="img"
       aria-label={srLabel}
     >
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1"
+        <span key={i} className="min-w-0 flex-1 max-w-[6px] rounded-t-[2px]"
               style={{
                 height: `${Math.max(3, (v / hi) * 100)}%`,
-                background: activeIndex === undefined || i === activeIndex ? MARK : QUIET,
+                background: activeIndex === undefined ? MARK : i === activeIndex ? NOW : QUIET,
               }} />
       ))}
     </div>
@@ -942,8 +961,13 @@ export function Rows({ items, srLabel, formatValue }: {
               however tall the cell got, which is what made a 2x2 card look
               like a 1x1 with more black around it. Capped so a card with two
               rows does not draw two slabs. */}
-          <span className="h-[min(18px,55%)] overflow-hidden" style={{ background: TRACK }}>
-            <span className="block h-full"
+          {/* 6px, NOT min(18px, 55%). A rail that grew with its row became an
+              18px slab on every 2x1 card of a busy board — the thing the
+              board was accused of. A measure is a rail: 6px, square where it
+              starts at the label, rounded 3px at the data end, on a track
+              that is the same ink two steps lighter. */}
+          <span className="h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+            <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="text-[length:min(10px,var(--card-note,10px))] leading-none
@@ -1013,16 +1037,17 @@ export function Stack({ columns, srLabel }: {
   if (!columns.length || !hasSignal(columns.map((c) => c.total))) return null
   const hi = Math.max(...columns.map((c) => c.total)) || 1
   return (
-    <div className="flex h-full items-end gap-1.5" role="img" aria-label={srLabel}>
+    <div className="flex h-full items-end justify-between gap-[2px]" role="img" aria-label={srLabel}>
       {columns.map((c, i) => (
-        // Square, for the same reason as Bars: a rounded cap eats most of a
-        // 4px-wide column and turns the shortest period into a dot.
-        <span key={i} className="flex min-w-0 flex-1 flex-col overflow-hidden"
+        // Slim columns, 2px of surface between the parts of each (a stack
+        // whose parts touch reads as one bar with stripes on it), the top
+        // part rounded 2px at the data end, the foot square.
+        <span key={i} className="flex min-w-0 flex-1 max-w-[6px] flex-col gap-[2px] overflow-hidden rounded-t-[2px]"
               style={{ height: `${Math.max(4, (c.total / hi) * 100)}%` }}>
           {c.parts.map((p, j) => (
             <span key={j} style={{
               height: `${(p / (c.total || 1)) * 100}%`,
-              background: ink(88 - j * 26),
+              background: ink(Math.max(18, 60 - j * 20)),
             }} />
           ))}
         </span>
@@ -1035,9 +1060,9 @@ export function Distribution({ values, srLabel }: { values: number[]; srLabel: s
   if (!values.length || !hasSignal(values)) return null
   const hi = Math.max(...values) || 1
   return (
-    <div className="flex h-full items-end gap-1" role="img" aria-label={srLabel}>
+    <div className="flex h-full items-end justify-between gap-[2px]" role="img" aria-label={srLabel}>
       {values.map((v, i) => (
-        <span key={i} className="min-w-0 flex-1"
+        <span key={i} className="min-w-0 flex-1 max-w-[6px] rounded-t-[2px]"
               style={{ height: `${Math.max(3, (v / hi) * 100)}%`, background: MARK }} />
       ))}
     </div>
@@ -1067,8 +1092,8 @@ export function Compare({ rows, srLabel, formatValue }: {
           <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
             {r.label}
           </span>
-          <span className="h-2.5 overflow-hidden" style={{ background: TRACK }}>
-            <span className="block h-full"
+          <span className="h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+            <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${(r.value / hi) * 100}%`, background: MARK }} />
           </span>
           <b className="text-[9px] font-bold tabular-nums">{fmt(r.value)}</b>
@@ -1110,8 +1135,8 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
         </span>
         <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
       </div>
-      <span className="relative block h-2.5 overflow-hidden" style={{ background: TRACK }}>
-        <span className="block h-full" style={{ width: `${pct}%`, background: MARK }} />
+      <span className="relative block h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+        <span className="block h-full rounded-r-[3px]" style={{ width: `${pct}%`, background: MARK }} />
       </span>
       {/* The shortfall, named. Without this the empty end of the track is just
           empty, and the one number a principal came for is the one nobody
@@ -1182,8 +1207,8 @@ export function Funnel({ stages, srLabel, formatValue }: {
     <div className="flex h-full flex-col justify-end gap-1" role="img" aria-label={srLabel}>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
-          <span className="h-3 min-w-0 flex-1">
-            <span className="block h-full"
+          <span className="h-[6px] min-w-0 flex-1">
+            <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${Math.max(6, (s.value / hi) * 100)}%`, background: MARK }} />
           </span>
           <b className="shrink-0 text-[9px] font-bold tabular-nums">{fmt(s.value)}</b>

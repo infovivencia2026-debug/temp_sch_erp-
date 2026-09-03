@@ -238,9 +238,6 @@ const deep = (a: Accent) => `color-mix(in srgb, var(--bento-${a}) 38%, currentCo
 /** A fill under a line, a halo, or the art layer's weight. Decoration: what it
     sits under, behind or around is what carries the reading. */
 const wash = (a: Accent, pct: number) => `color-mix(in srgb, ${mark(a)} ${pct}%, transparent)`
-/** The neutral weights, on `currentColor` for the same reason everything else
-    is: a track has to sit on whatever ground the cell turned out to have. */
-const TRACK = 'color-mix(in srgb, currentColor 12%, transparent)'
 
 /** What ground a cell sits on, which is the only thing that decides what may
     be drawn inside it.
@@ -505,8 +502,12 @@ export function Bars({
         <div key={`${item.label}-${i}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
           <div className={cn('flex w-full items-end', barArea)} title={item.title}>
             <div
+              /* SLIM. A column is capped at 8px and centred in its slot, so
+                 ten days across a wide cell are ten marks rather than ten
+                 blocks; 3px radius at the top (the data end), square at the
+                 baseline. */
               className={cn(
-                'w-full rounded-t-[6px] rounded-b-[3px]',
+                'mx-auto w-full max-w-[8px] rounded-t-[3px]',
                 still ? '' : 'transition-[height] duration-300',
               )}
               style={{
@@ -522,14 +523,14 @@ export function Bars({
                    `--bento-muted` at 70% is what this was, and on an inverted
                    or domain-tinted cell that grey was neither the ink nor the
                    ground. */
+                /* The current period in the accent, the rest muted at 32% —
+                   still 3:1 or better on every theme, and plainly the ground
+                   the one accented column stands against. No inset highlight:
+                   a 8px column has no room for a second edge. */
                 background:
                   i === activeAt
-                    ? `linear-gradient(180deg, ${mark(accent)}, ${deep(accent)})`
-                    : 'color-mix(in srgb, currentColor 55%, transparent)',
-                // Seated rather than floating: a highlight along the top edge
-                // in the bar's own hue, which is the one place a little depth
-                // stops a flat rectangle reading as a wireframe.
-                boxShadow: i === activeAt ? `inset 0 1.5px 0 ${wash(accent, 45)}` : undefined,
+                    ? mark(accent)
+                    : 'color-mix(in srgb, currentColor 32%, transparent)',
               }}
             />
           </div>
@@ -793,21 +794,15 @@ export function Meter({
          was not visible at all, and on an inverted cell it was a light slab
          under a dark one. A track mixed from `currentColor` is a fraction of
          whatever ink the cell resolved, which is a rail on every ground. */
-      className="h-2.5 w-full overflow-hidden rounded-full"
-      style={{ background: TRACK }}
+      /* 6px, square at the origin, rounded 3px at the data end; the track is
+         the accent's own lighter step rather than a neutral grey, so the
+         meter is one hue at two weights. */
+      className="h-[6px] w-full overflow-hidden rounded-r-[3px]"
+      style={{ background: wash(accent, 14) }}
     >
-      {/* The gradient runs ALONG the fill, deep at the origin and full
-          strength at the head, so the bar has a direction and its leading edge
-          is the strongest thing in it — which is the end a reader measures
-          from. Both stops are mixes of the same accent into the same ink, so
-          no point along the ramp is weaker than the 3.61:1 floor. */}
       <div
-        className="h-full rounded-full"
-        style={{
-          width: `${pct}%`,
-          background: `linear-gradient(90deg, ${deep(accent)}, ${mark(accent)})`,
-          boxShadow: `inset 0 1.5px 0 ${wash(accent, 45)}`,
-        }}
+        className="h-full rounded-r-[3px]"
+        style={{ width: `${pct}%`, background: mark(accent) }}
       />
     </div>
   )
