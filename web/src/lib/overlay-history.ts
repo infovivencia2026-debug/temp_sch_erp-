@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /* Back closes what is on top, rather than leaving the page underneath it.
  *
@@ -23,12 +23,42 @@ import { useEffect } from 'react'
  * Returns the function a close button should call.
  */
 export function useOverlayHistory(open: boolean, onClose: () => void) {
+  /* THE CALLBACK IS HELD IN A REF, AND THAT IS NOT A STYLE CHOICE.
+   *
+   * Every caller passes an inline arrow — `onClose={() => setAll(false)}` —
+   * so the function is a new identity on every render. With `onClose` in the
+   * dependency list this effect therefore tore down and re-ran on every
+   * render that happened while the panel was open, and its teardown calls
+   * `history.back()`. A re-render of the parent, from a route change, a query
+   * settling, anything, silently spent a history entry and pushed a fresh
+   * one. Sometimes that nets out. Sometimes the push lands before the
+   * asynchronous back resolves, and then the back consumes the new entry
+   * instead of the old one — at which point the next real Back has nothing of
+   * ours left to eat and leaves the app.
+   *
+   * The effect must run exactly once per opening, so `open` is the only thing
+   * it may depend on. */
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  /* Set while a popstate is being handled, so the teardown can tell the two
+     ways of closing apart. They need opposite treatment and the marker alone
+     cannot distinguish them: Back has already removed our entry, so calling
+     `history.back()` again in the teardown takes a step that belongs to the
+     page underneath — which is precisely "Back exited the app" as reported
+     from the launcher. */
+  const byPop = useRef(false)
+
   useEffect(() => {
     if (!open) return
+    byPop.current = false
 
     window.history.pushState({ erpOverlay: true }, '')
 
-    const pop = () => onClose()
+    const pop = () => {
+      byPop.current = true
+      closeRef.current()
+    }
     window.addEventListener('popstate', pop)
 
     return () => {
@@ -38,14 +68,15 @@ export function useOverlayHistory(open: boolean, onClose: () => void) {
          would otherwise need two Backs to get past. Consuming it here means
          one Back always moves one step, whichever way the panel was shut.
 
-         Guarded on our own marker so this never eats an entry belonging to
-         somebody else. */
-      if (window.history.state?.erpOverlay) window.history.back()
+         Not after a Back, which has already taken it. Guarded on our own
+         marker as well, so this never eats an entry belonging to somebody
+         else. */
+      if (!byPop.current && window.history.state?.erpOverlay) window.history.back()
     }
-  }, [open, onClose])
+  }, [open])
 
   return () => {
     if (window.history.state?.erpOverlay) window.history.back()
-    else onClose()
+    else closeRef.current()
   }
 }

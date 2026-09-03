@@ -7,6 +7,7 @@ import './features/bento/bento-theme.css'
 import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
+import { startHaptics } from './lib/haptics'
 
 /* Started before the app renders, not inside it.
 
@@ -21,6 +22,10 @@ startOutbox()
    only fires at the top. A no-op in every browser: the bridge does not exist
    there. */
 reportScrollToShell()
+
+/* A short tap back when a control is pressed. One document-level listener
+   rather than a prop on several hundred buttons. */
+startHaptics()
 
 /* The application shell, kept on the device.
 
