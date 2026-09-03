@@ -214,11 +214,19 @@ class MainActivity : Activity() {
      * Starts false — "not at the top" — so nothing is offered until the page
      * has actually said where it is. */
     private object Shell {
-        @Volatile var atTop: Boolean = false
+        /* The backing field is private and differently named, which is not
+           style. `var atTop` compiles to a JVM setter called setAtTop, which
+           collides with the bridge method of that name — the same trap
+           PullToRefresh records for pullEnabled against View.setEnabled. Read
+           through a val, so the generated accessor is getAtTop and there is
+           nothing to clash with. */
+        @Volatile private var reported: Boolean = false
+
+        val atTop: Boolean get() = reported
 
         @android.webkit.JavascriptInterface
         fun setAtTop(value: Boolean) {
-            atTop = value
+            reported = value
         }
     }
 
