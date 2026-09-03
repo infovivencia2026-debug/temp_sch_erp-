@@ -18,9 +18,10 @@ label.
 
 ORDER MATTERS FOR THREE OF THEM
 -------------------------------
-  02 staff        before 03, if you want teacher emails in it
-  01 classes      before 03 and 05
-  04 students     before 05, 06 and 07
+  02 staff        before 03, if you want teacher names in it
+  01 classes      before 03 and 07
+  06 fee heads    before 07
+  04 students     before 08, 09 and 10
 
 Everything else can go in any order.
 
@@ -85,12 +86,32 @@ THE SHEETS
     every child appears to have joined on the morning of the import, which
     decides seniority and prints on transfer certificates.
 
-05-past-years-per-child.csv    (only if the school ran before this system)
+05-school-day.csv                  Sequence, Period, Starts, Ends, Break
+    The periods and the breaks, in order. Breaks are listed too: the timetable
+    needs them to know a teacher is free, and attendance needs them to know a
+    period was not taught. A school whose primary section runs different hours
+    names a second day on the screen and ticks which classes use it.
+
+06-fee-heads.csv                   Fee Head, Code, Recurring
+    What the school charges for, before what any class pays. The code is what
+    a receipt prints and what a second upload matches on, so a corrected sheet
+    edits rather than doubles.
+
+07-fee-structures.csv              Structure, Class, Fee Head, Annual Amount,
+                                   Instalments
+    One row per head per class. The structure name groups them -- every row
+    with the same name is one price list. Instalments is how many times a year
+    it is billed: 3 for a termly fee, 1 for a one-off like admission.
+
+    Needs 01 and 06 first: it is matched to the class by name and to the head
+    by name.
+
+08-past-years-per-child.csv    (only if the school ran before this system)
     One row per child per year. Attendance as a total, fees as a figure. Held
     apart from this year's registers and collection, so a closed year is never
     counted as today's.
 
-06-past-results-grid.csv       (only if the school ran before this system)
+09-past-results-grid.csv       (only if the school ran before this system)
     The mark sheet as a staff room keeps it: children down, subjects across.
     Name the subject each marks column holds when you upload; leave Total and
     Rank unmapped, they are worked out from the marks. AB is absent. A blank
@@ -99,7 +120,7 @@ THE SHEETS
     The year, the exam, the class and what the papers are out of are asked
     once, above the file.
 
-07-staff-service.csv           (only if the school ran before this system)
+10-staff-service.csv           (only if the school ran before this system)
     Years served before this system, for experience certificates and
     seniority. Without it an imported teacher has worked here since the
     morning of the upload.
@@ -109,16 +130,11 @@ WHAT IS NOT A SHEET
 -------------------
 These are typed in, once, and take a few minutes each:
 
-    the school day       period names and times; name a second day if the
-                         little ones run different hours, and tick which
-                         classes use it
     grading scale        A1 91-100, A2 81-90, and so on. Marks cannot become
                          grades without it
-    fee heads            Tuition, Admission, Transport, Lab, Books, Exam
-    fee structures       per class: which heads, how much, which instalment,
-                         due date
     an exam              name, kind, dates, grading scale
     UDISE+ code          eleven digits, needed before the annual return
 
 
 MINIMUM TO OPEN THE SCHOOL: 01, 02, 03, 04.
+Money needs 06 and 07. A timetable needs 05.

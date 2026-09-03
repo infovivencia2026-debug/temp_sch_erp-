@@ -273,8 +273,9 @@
   <section class="order" aria-label="Where order matters">
     <h2>Order matters in three places</h2>
     <ul>
-      <li><strong>Staff</strong> before <strong>subjects</strong>, if you want teacher emails in that sheet.</li>
-      <li><strong>Classes</strong> before <strong>subjects</strong> and before <strong>past years</strong>.</li>
+      <li><strong>Staff</strong> before <strong>subjects</strong>, if you want teacher names in that sheet.</li>
+      <li><strong>Classes</strong> before <strong>subjects</strong> and before <strong>fee structures</strong>.</li>
+      <li><strong>Fee heads</strong> before <strong>fee structures</strong>.</li>
       <li><strong>Students</strong> before <strong>past years</strong>, <strong>past results</strong> and <strong>staff service</strong>.</li>
     </ul>
     <p>Everything else can go in any order. A sheet that names something not yet
@@ -411,8 +412,71 @@ PABBA MOUNIKA,8374799642,,
     <article>
       <div class="head">
         <span class="num">05</span>
+        <h2 class="name">The school day</h2>
+        <span class="file">05-school-day.csv</span>
+      </div>
+      <p class="lede">Periods and breaks, in order. Breaks are listed too &mdash; the
+        timetable needs them to know a teacher is free, and attendance needs
+        them to know a period was not taught.</p>
+      <div class="header-strip"><pre><span class="req">Sequence</span>,<span class="req">Period</span>,Starts,Ends,Break
+<span class="ex">1,Period 1,09:00,09:45,No
+3,Short break,10:30,10:45,Yes</span></pre></div>
+      <p class="note">A school whose primary section runs different hours names
+        a second day on the screen &mdash; <strong>Primary</strong>, <strong>Afternoon
+        shift</strong> &mdash; and ticks which classes use it. Grade 1 then changes
+        lesson when Grade 1 changes lesson, not when Grade 10 does.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">06</span>
+        <h2 class="name">Fee heads</h2>
+        <span class="file">06-fee-heads.csv</span>
+      </div>
+      <p class="lede">What the school charges for, before deciding what any
+        class pays.</p>
+      <div class="header-strip"><pre><span class="req">Fee Head</span>,Code,Recurring
+<span class="ex">Tuition,TUI,Yes
+Admission,ADM,No</span></pre></div>
+      <dl class="cols">
+        <dt>Code</dt>
+        <dd>What a receipt prints, and what a second upload matches on &mdash; so a
+            corrected sheet edits the head rather than adding a twin.</dd>
+        <dt>Recurring</dt>
+        <dd>Yes for anything billed every term. No for a one-off like an
+            admission fee.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">07</span>
+        <h2 class="name">Fee structures</h2>
+        <span class="file">07-fee-structures.csv</span>
+      </div>
+      <p class="lede">One row per head per class. Needs sheets 01 and 06 first:
+        the class and the head are both matched by name.</p>
+      <div class="header-strip"><pre><span class="req">Structure</span>,<span class="req">Class</span>,<span class="req">Fee Head</span>,<span class="req">Annual Amount</span>,Instalments
+<span class="ex">Nursery 2026-27,Nursery,Tuition,36000,3
+Nursery 2026-27,Nursery,Books and stationery,4500,1</span></pre></div>
+      <dl class="cols">
+        <dt>Structure</dt>
+        <dd>The name groups the rows. Every row carrying the same name is one
+            price list, so a class's whole fee is written down the sheet rather
+            than across it.</dd>
+        <dt>Annual Amount</dt>
+        <dd>The year's figure for that head. Rupees as you write them.</dd>
+        <dt>Instalments</dt>
+        <dd>How many times a year it is billed &mdash; 3 for a termly fee, 1 for
+            something charged once. The amount is divided across them.</dd>
+      </dl>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">08</span>
         <h2 class="name">Past years, per child</h2>
-        <span class="file">05-past-years-per-child.csv</span>
+        <span class="file">08-past-years-per-child.csv</span>
         <span class="later">only if the school ran before</span>
       </div>
       <p class="lede">One row per child per year. Attendance as a total, fees as a
@@ -433,9 +497,9 @@ PABBA MOUNIKA,8374799642,,
 
     <article>
       <div class="head">
-        <span class="num">06</span>
+        <span class="num">09</span>
         <h2 class="name">Past results</h2>
-        <span class="file">06-past-results-grid.csv</span>
+        <span class="file">09-past-results-grid.csv</span>
         <span class="later">only if the school ran before</span>
       </div>
       <p class="lede">The mark sheet as a staff room keeps it &mdash; children down,
@@ -461,9 +525,9 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
 
     <article>
       <div class="head">
-        <span class="num">07</span>
+        <span class="num">10</span>
         <h2 class="name">Staff service</h2>
-        <span class="file">07-staff-service.csv</span>
+        <span class="file">10-staff-service.csv</span>
         <span class="later">only if the school ran before</span>
       </div>
       <p class="lede">Years served before this system. Without it, an imported
@@ -481,15 +545,8 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
   <section class="typed">
     <h2>Not a sheet &mdash; typed in once</h2>
     <dl>
-      <dt>The school day</dt>
-      <dd>Period names and times. Name a second day if the little ones run
-          different hours, and tick which classes use it.</dd>
       <dt>Grading scale</dt>
       <dd>A1 91–100, A2 81–90, and so on. Marks cannot become grades without it.</dd>
-      <dt>Fee heads</dt>
-      <dd>Tuition, Admission, Transport, Lab, Books, Exam.</dd>
-      <dt>Fee structures</dt>
-      <dd>Per class: which heads, how much, which instalment, due date.</dd>
       <dt>An exam</dt>
       <dd>Name, kind, dates, grading scale.</dd>
       <dt>UDISE+ code</dt>
@@ -499,7 +556,8 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
 
   <footer>
     <p><span class="minimum">Minimum to open the school:</span> sheets 01, 02, 03
-      and 04. Everything else can follow once children are on the roll.</p>
+      and 04. Money needs 06 and 07; a timetable needs 05. The last three are
+      only for a school that ran before this system.</p>
   </footer>
 
 </div>
