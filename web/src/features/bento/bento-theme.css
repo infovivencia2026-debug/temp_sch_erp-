@@ -442,6 +442,22 @@ html.dark[data-layout='bento'] {
 }
 html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: none; }
 
+/* AND OFF ON THE PHONE, BY THE MARK'S OWN ARGUMENT.
+
+   The note above keeps the crosshair on the grounds that it is legible on the
+   small cards without turning the large ones into two halves. The phone board
+   is one column now, so every card on it is the large case: a full width tile
+   with a rule down its centre, which is the shape of a fold rather than a mark
+   drawn on a card. The fade at the ends is what makes it a mark on a 182px
+   cell and it is not enough at 390px.
+
+   Scoped to the pager rather than to a width, because the pager is what makes
+   a board one column per page; a phone laid out some other way keeps the
+   mark. */
+[data-layout='bento'] .bento-board[data-pager] .bento-cell::before {
+  display: none;
+}
+
 /* The card answers the pointer, but only where there is something to answer.
 
    :has(.bento-cue) is the whole rule: a cell holding an action lifts, and a
