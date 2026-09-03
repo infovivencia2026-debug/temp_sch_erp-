@@ -14,6 +14,23 @@ import { startOutbox } from './lib/outbox'
    person lands on is usually not the screen they were on when it failed. */
 startOutbox()
 
+/* The application shell, kept on the device.
+
+   Registered after load rather than during it: the worker's install downloads
+   about a megabyte, and racing that against the first paint makes the very
+   first visit slower to help every later one. The first visit is the one where
+   somebody decides whether this is a fast product.
+
+   Guarded on `serviceWorker` existing because it does not on an insecure
+   origin, and dev runs on http. Failure is not reported anywhere: the app
+   works without it, just not offline, and there is nothing a person reading a
+   console message could do. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

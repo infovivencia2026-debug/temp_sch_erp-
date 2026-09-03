@@ -2,6 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
+import { forgetCachedDataOnUserChange } from './sw-data'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { claimTabs } from './tabs'
 
@@ -84,6 +85,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      unsent writes flushed under the next sign-in posts one teacher's register
      as another, to sections they may not even be scoped for. */
   setOutboxUser(data.user?.id)
+  forgetCachedDataOnUserChange(data.user?.id)
 
   return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
 }
