@@ -950,17 +950,19 @@ A phone that claims a pair code is approved by the act of the code existing.
 	written on. It pins the two facts that broke — that the column is named in
 	the insert, and that the enrol path deliberately does not name it.
 */
-func TestPairedTrackersAreApprovedAndEnrolledOnesAreNot(t *testing.T) {
-	claim := busTrackerSourceOf(t, "claimBusTrackerPairCode")
-	if !strings.Contains(claim, "approved_at") {
-		t.Error("claiming a pair code no longer sets approved_at: every phone " +
-			"that pairs will be refused as awaiting_approval")
-	}
-
-	enrol := busTrackerSourceOf(t, "enrolBusTracker")
-	if strings.Contains(enrol, "approved_at, approved_by") {
-		t.Error("self-enrolment sets approved_at: a driver would be approving " +
-			"their own phone onto a map of where children are")
+func TestEveryDriverAuthenticatedDoorApprovesTheTracker(t *testing.T) {
+	/* The rule changed on 2026-08-29 with the driver sign-in: a PIN proves
+	   who the person is, HR decided which bus, and a principal approving a
+	   pairing the office already made is a queue with nothing in it. Enrol
+	   used to be the exception, and the exception was the door the pair
+	   screen used whenever a sticker was scanned -- so the same driver got a
+	   working bus or a silent one by which button he pressed. */
+	for _, fn := range []string{"claimBusTrackerPairCode", "enrolBusTracker", "signInBusDriver"} {
+		src := busTrackerSourceOf(t, fn)
+		if !strings.Contains(src, "approved_at") {
+			t.Errorf("%s no longer sets approved_at: every phone that comes in "+
+				"this way is refused as awaiting_approval", fn)
+		}
 	}
 }
 
@@ -968,7 +970,7 @@ func TestPairedTrackersAreApprovedAndEnrolledOnesAreNot(t *testing.T) {
 // source, so a test can assert on SQL that has no database to run against.
 func busTrackerSourceOf(t *testing.T, fn string) string {
 	t.Helper()
-	for _, file := range []string{"bus_tracker.go", "device_login.go"} {
+	for _, file := range []string{"bus_tracker.go", "device_login.go", "bus_driver_signin.go"} {
 		b, err := os.ReadFile(file)
 		if err != nil {
 			continue

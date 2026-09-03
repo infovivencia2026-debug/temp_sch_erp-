@@ -61,6 +61,16 @@ import (
 // a short one buys a driver typing a PIN in the dark twice a day.
 const staffSessionTTL = 30 * 24 * time.Hour
 
+/*
+A bus run is signed for by the person driving it, and thirty days is not a
+
+	shift. A shared handset carried the first driver's session for a month, so
+	every run after his was filed against his name. Long enough to cover a
+	split shift and the next morning without asking again; short enough that
+	Monday's driver is not still "signed in" on Wednesday.
+*/
+const busTrackerSessionTTL = 20 * time.Hour
+
 const staffSessionTokenPrefix = "sess"
 
 /*
@@ -293,7 +303,11 @@ func (s *Server) openStaffSession(
 		return "", uuid.Nil, time.Time{}, err
 	}
 
-	expires = time.Now().Add(staffSessionTTL)
+	ttl := staffSessionTTL
+	if app == "bus_tracker" {
+		ttl = busTrackerSessionTTL
+	}
+	expires = time.Now().Add(ttl)
 	if err = tx.QueryRow(ctx, `
 		INSERT INTO device_staff_sessions
 		    (institution_id, user_id, app, device_id, token_sealed, expires_at)
@@ -501,6 +515,22 @@ func (s *Server) busTrackerSignIn(w http.ResponseWriter, r *http.Request) {
 	// from another institution is a valid PIN and still not this bus's driver.
 	if who.Institution != dev.Institution {
 		deviceLoginRejected(w, r, errBadPIN)
+		return
+	}
+	var notDriver bool
+	if err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		err := requireTransportDriver(r.Context(), tx, who)
+		if errors.Is(err, errNotADriver) {
+			notDriver = true
+			return nil
+		}
+		return err
+	}); err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if notDriver {
+		notADriver(w, r)
 		return
 	}
 
@@ -1002,7 +1032,9 @@ func temporaryPIN() (string, error) {
 // --- the driver enrols their own bus tracker ---------------------------------
 
 type trackerEnrolRequest struct {
-	Phone          string `json:"phone"`
+	Phone string `json:"phone"`
+	// The ordinary login password; "pin" is still read for older handsets.
+	Password       string `json:"password"`
 	PIN            string `json:"pin"`
 	Registration   string `json:"registration_no"`
 	DeviceModel    string `json:"device_model"`
@@ -1075,7 +1107,16 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	who, err := s.authenticatePIN(r.Context(), req.Phone, req.PIN)
+	/* The same credential rule as the driver sign-in beside this: password
+	   first, PIN as a fallback. The pair screen sends whatever the driver
+	   typed to this route when a bus was scanned and to driver-signin when it
+	   was not, so the two had to agree, and they did not: a scanned bus
+	   turned a working password into "PIN does not match". */
+	secret := req.Password
+	if secret == "" {
+		secret = req.PIN
+	}
+	who, err := s.authenticateStaffLogin(r.Context(), req.Phone, secret)
 	if err != nil {
 		deviceLoginRejected(w, r, err)
 		return
@@ -1084,6 +1125,9 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 	var out trackerEnrolResponse
 	device := uuid.New()
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		if err := requireTransportDriver(r.Context(), tx, who); err != nil {
+			return err
+		}
 		var vehicle uuid.UUID
 		var plate string
 		/* The plate, or the code on the sticker in the windscreen.
@@ -1135,13 +1179,20 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		// approved_at stays NULL. There is no self-approval on this app, for
-		// the reason in migration 00156: this is a live map of children.
+		/* Approved here, as the driver sign-in beside it already is.
+
+		   This left approved_at NULL for a principal to fill in, while the
+		   sign-in route in the same app approved on the spot. Same PIN, same
+		   person, same bus: which door the driver came through decided
+		   whether the bus appeared on the map, and the one that waited for
+		   the principal was the one the pair screen used whenever a sticker
+		   was scanned. The office's approve endpoint stays for trackers
+		   paired by code. */
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO vehicle_trackers (id, institution_id, vehicle_id, name,
 			    device_model, android_version, app_version, token_sealed,
-			    enrolled_by, ping_seconds)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			    enrolled_by, ping_seconds, approved_at, approved_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $9)`,
 			device, who.Institution, vehicle, truncate(who.Name+" - "+plate, 80),
 			nullIfBlank(req.DeviceModel), nullIfBlank(req.AndroidVersion),
 			nullIfBlank(req.AppVersion), sealed, who.UserID,
@@ -1169,10 +1220,14 @@ func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
 			Vehicle:      plate,
 			Name:         who.Name,
 			PingSeconds:  policy.PingSeconds,
-			Approved:     false,
+			Approved:     true,
 		}
 		return nil
 	})
+	if errors.Is(err, errNotADriver) {
+		notADriver(w, r)
+		return
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Named plainly. Unlike a pair code, a registration number is not a
 		// secret and getting it wrong is the likeliest thing a tired driver

@@ -58,6 +58,7 @@ var (
 	// mistyped sticker, the other is a conversation with the office.
 	errNoSuchBus      = errors.New("no bus in this school has that code")
 	errDriverNoRecord = errors.New("this login is not an employee record")
+	errNotADriver     = errors.New("this login is not a driver's")
 )
 
 type driverSignInRequest struct {
@@ -156,6 +157,9 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 
 			   Scoped to his own school either way, so a code read off a bus in
 			   another yard resolves to nothing. */
+			if gerr := requireTransportDriver(r.Context(), tx, who); gerr != nil {
+				return gerr
+			}
 			busCode := strings.TrimSpace(req.BusCode)
 			if busCode != "" {
 				if qerr := tx.QueryRow(r.Context(), `
@@ -206,6 +210,27 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			       revoked_reason = 'replaced when the driver signed in on another phone'
 			 WHERE vehicle_id = $1 AND revoked_at IS NULL`, vehicleID); rerr != nil {
 				return rerr
+			}
+			/* Revoked rows nothing refers to are dropped, not kept.
+
+			   Every sign-in wrote a row and nothing ever removed one, so a
+			   driver who reinstalled a few times left a column of dead
+			   trackers under his bus on the transport screen. A row a trip
+			   points at stays, because the trip's record of which phone
+			   reported it is the reason the revoke-not-delete rule exists. */
+			if _, derr := tx.Exec(r.Context(), `
+			WITH dead AS (
+			    SELECT t.id FROM vehicle_trackers t
+			     WHERE t.vehicle_id = $1
+			       AND t.revoked_at IS NOT NULL
+			       AND NOT EXISTS (SELECT 1 FROM vehicle_trips p WHERE p.tracker_id = t.id)
+			), gone AS (
+			    DELETE FROM device_staff_sessions d
+			     WHERE d.app = 'bus_tracker' AND d.device_id IN (SELECT id FROM dead)
+			)
+			DELETE FROM vehicle_trackers WHERE id IN (SELECT id FROM dead)`,
+				vehicleID); derr != nil {
+				return derr
 			}
 			if ierr := tx.QueryRow(r.Context(), `
 			INSERT INTO vehicle_trackers
@@ -301,6 +326,9 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		})
 
 	switch {
+	case errors.Is(err, errNotADriver):
+		notADriver(w, r)
+		return
 	case errors.Is(err, errNoSuchBus):
 		httpx.Error(w, r, http.StatusNotFound, "no_such_bus",
 			"no bus in this school has that code. Check the sticker in the cab, "+
@@ -413,7 +441,66 @@ func (s *Server) authenticateStaffLogin(ctx context.Context, identifier, secret 
 		return staffIdentity{}, err
 	}
 
-	// Not a password, or no password set. Try it as a PIN -- and only now, so
-	// a mistyped password never counts towards the PIN lockout.
+	/* Not the password. Try it as a PIN only when it is shaped like one.
+
+	   This handed every failed password straight to authenticatePIN, which
+	   counts the failure against the PIN and locks it after a few. So five
+	   mistyped passwords locked a PIN the driver had never typed, and the
+	   comment above this line said the opposite. A string with letters in
+	   it, or the wrong number of digits, cannot be a PIN and is refused here
+	   without touching the counter. */
+	if !validPIN(secret) {
+		return staffIdentity{}, errBadPIN
+	}
 	return s.authenticatePIN(ctx, identifier, secret)
+}
+
+/*
+requireTransportDriver refuses a login that is not a driver's.
+
+	Every door into this app authenticates a person and then lets that person
+	name a bus: the code on the windscreen at sign-in, at enrolment, or at the
+	top of a run. That answered "which bus am I in" for a driver, and answered
+	it just as readily for a clerk with the app and a sticker code -- who then
+	retired the real driver's tracker on that bus, because one live tracker
+	per vehicle is the rule, and put the bus on the map from a desk. The
+	sign-in file's own header said this could not happen.
+
+	A driver here is somebody HR has put against a vehicle, in any state; or
+	whose designation says driver; or who holds transport.write, which is the
+	office itself. Anybody else is told so in words they can repeat.
+*/
+func requireTransportDriver(ctx context.Context, tx pgx.Tx, who staffIdentity) error {
+	var ok bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (
+		    SELECT 1 FROM vehicles v
+		      JOIN employees e ON e.id = v.driver_employee_id
+		     WHERE e.user_id = $1 AND v.institution_id = $2)
+		    OR EXISTS (
+		    SELECT 1 FROM employees e
+		      JOIN designations d ON d.id = e.designation_id
+		     WHERE e.user_id = $1 AND e.institution_id = $2
+		       AND d.name ILIKE '%driver%')
+		    OR EXISTS (
+		    SELECT 1 FROM user_roles ur
+		      JOIN role_permissions rp ON rp.role_id = ur.role_id
+		      JOIN permissions p ON p.id = rp.permission_id
+		     WHERE ur.user_id = $1 AND p.key = 'transport.write')`,
+		who.UserID, who.Institution).Scan(&ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errNotADriver
+	}
+	return nil
+}
+
+// notADriver answers the gate above; 409 rather than 403 because the handset
+// folds 401 and 403 into "credentials wrong" and clears its pairing, and
+// this is neither.
+func notADriver(w http.ResponseWriter, r *http.Request) {
+	httpx.Error(w, r, http.StatusConflict, "not_a_driver",
+		"this login is not a driver's. Ask the office to put you against a "+
+			"vehicle in Transport, then sign in again")
 }
