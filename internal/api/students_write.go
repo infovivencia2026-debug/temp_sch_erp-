@@ -901,6 +901,15 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			ConcessionPercent: get(rec, "concession_percent"),
 			ConcessionAmount:  get(rec, "concession_amount"),
 			ConcessionReason:  get(rec, "concession_reason"),
+			/* The last four digits, which is all this record keeps.
+
+			   A roll carries the whole twelve-digit number. Storing it would
+			   make a school's student list a document that has to be handled
+			   under the Aadhaar Act; the last four are what an office uses to
+			   check they have the right child against a paper form, and they
+			   identify nobody on their own. The sheet may carry either. */
+			AadhaarLast4: aadhaarTail(get(rec, "aadhaar"), get(rec, "aadhaar_last4"),
+				get(rec, "student_aadhaar_number")),
 			// Carries a human label such as "Class 6-A" at this point; resolved
 			// to a section id below, once, rather than per row.
 		}
@@ -1225,6 +1234,31 @@ normaliseRelation maps what a school writes onto what the column allows.
 	their mother or father. The school's own word is not lost -- it is on the
 	guardian's own record, which is where somebody reads it.
 */
+/*
+lastFour keeps only the tail of an identity number a school writes in full.
+
+	Deliberately lossy. The whole Aadhaar number in a student list turns an
+	ordinary spreadsheet into a document governed by the Aadhaar Act, and the
+	office only ever uses the last four to check a paper form against the
+	right child.
+*/
+func aadhaarTail(vals ...string) string {
+	for _, v := range vals {
+		digits := ""
+		for _, c := range v {
+			if c >= '0' && c <= '9' {
+				digits += string(c)
+			}
+		}
+		// A float from a spreadsheet -- 609509000000.0 -- keeps its trailing
+		// zeros, so a short run of digits is a partial number, not an Aadhaar.
+		if len(digits) >= 4 {
+			return digits[len(digits)-4:]
+		}
+	}
+	return ""
+}
+
 func normaliseRelation(v string) string {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "father", "f", "dad", "papa":

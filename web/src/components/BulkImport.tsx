@@ -6,6 +6,7 @@ import {
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { markTaken, packFor } from '@/features/setup/setup-pack'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -299,6 +300,28 @@ export default function BulkImport({
     }
     setColMap(exact)
   }
+
+  /* THE SHEET THE SCHOOL ALREADY HANDED OVER.
+   *
+   * Where the wizard was given the filled-in template folder, this step's own
+   * sheet is sitting in it. Loading it here is the same as if it had just been
+   * dropped on this box: the dry run still runs, the rows are still shown, and
+   * nothing is written until somebody says so. It is taken out of the pack on
+   * arrival so putting it down again is putting it down.
+   *
+   * Only when the box is empty. Re-opening a step after an import, or after a
+   * file was deliberately discarded, must not silently refill it.
+   */
+  useEffect(() => {
+    if (csv) return
+    const waiting = packFor(entity)
+    if (!waiting) return
+    markTaken(entity)
+    take(waiting.text, waiting.name)
+    // take() is defined below and closes over setters only; entity and csv are
+    // what decide whether it should run at all.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entity, csv])
 
   const onFile = (f: File | undefined) => {
     if (!f) return

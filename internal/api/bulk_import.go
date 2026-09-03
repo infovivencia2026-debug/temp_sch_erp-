@@ -1609,10 +1609,12 @@ var importSpecs = map[string]importSpec{
 		// status is here so a sheet carrying one can be mapped to it -- which
 		// is also what lets the crossed-column swap below see both values.
 		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
-			"designation", "status", "role", "joined_on", "subjects"},
+			"designation", "department", "employment_type", "status",
+			"role", "joined_on", "relieved_on", "subjects"},
 		Required: []string{"employee_code", "first_name"},
-		Sample: []string{"YPS001", "Priya", "Rao", "priya@school.in", "9876543210",
-			"Teacher", "Active", "faculty", "01 Jan 2024", "MATH; SCI"},
+		Sample: []string{"YPS001", "Priya Rao", "", "priya@school.in", "9876543210",
+			"Teacher", "Teaching staff", "Permanent", "Active",
+			"faculty", "01 Jan 2024", "", "MATH; SCI"},
 		Check: func(row map[string]string) error {
 			/* The same date reader the student sheet uses.
 
@@ -1684,15 +1686,41 @@ var importSpecs = map[string]importSpec{
 			if derr != nil {
 				return derr
 			}
+			/* The department, like the post: a name the school writes, and
+			   employees.department_id is a uuid nothing was filling. */
+			departmentID, dperr := c.departmentID(row["department"])
+			if dperr != nil {
+				return dperr
+			}
+
+			/* A NAME IN ONE COLUMN IS A NAME.
+
+			   Every export writes "RAMYA SRI RACHERLA" in a single Staff Name
+			   cell. This read first_name and last_name, so the whole name went
+			   into the first and the surname was empty -- and a school's staff
+			   list then sorts, searches and prints on a letter by a surname
+			   nobody has. Split on the last space where the sheet gives one
+			   column, exactly as the student sheet already does. */
+			first, last := strings.TrimSpace(row["first_name"]), strings.TrimSpace(row["last_name"])
+			if last == "" {
+				if i := strings.LastIndex(first, " "); i > 0 {
+					first, last = strings.TrimSpace(first[:i]), strings.TrimSpace(first[i+1:])
+				}
+			}
+
 			req := employeeRequest{
 				EmployeeCode: strings.TrimSpace(row["employee_code"]),
-				FirstName:    strings.TrimSpace(row["first_name"]),
-				LastName:     strings.TrimSpace(row["last_name"]),
+				FirstName:    first,
+				LastName:     last,
 				Email:        strings.TrimSpace(row["email"]),
 				Phone:        strings.TrimSpace(row["phone"]),
 				Designation:  designationID,
-				JoinedOn:     normaliseDate(row["joined_on"]),
-				RoleKey:      strings.ToLower(strings.TrimSpace(row["role"])),
+				Department:   departmentID,
+				// Permanent, Contract, Probation, Part time, Visiting -- the
+				// words a school writes, mapped onto the five the column takes.
+				EmploymentType: normaliseEmployment(row["employment_type"]),
+				JoinedOn:       normaliseDate(row["joined_on"]),
+				RoleKey:        strings.ToLower(strings.TrimSpace(row["role"])),
 			}
 			// A login is minted only where there is an address to send it to.
 			// A teacher with no email is still a teacher; inventing a username
@@ -1702,6 +1730,31 @@ var importSpecs = map[string]importSpec{
 			if err != nil {
 				return err
 			}
+			/* THE DAY SOMEBODY LEFT, and the status that goes with it.
+
+			   A roll carries people who have left -- forty-one of eighty-nine
+			   in one real export -- with the date they went. Importing them
+			   all as active gives a school a staff list half full of people
+			   who are not there, and every one of them gets a login. */
+			if left := normaliseDate(row["relieved_on"]); left != "" {
+				if _, err := c.tx.Exec(c.r.Context(), `
+					UPDATE employees
+					   SET relieved_on = $2::date,
+					       status = CASE WHEN status = 'active' THEN 'resigned' ELSE status END
+					 WHERE institution_id = $1 AND employee_code = $3`,
+					c.inst, left, strings.TrimSpace(row["employee_code"])); err != nil {
+					return err
+				}
+			} else if st := strings.ToLower(strings.TrimSpace(row["status"])); st != "" &&
+				isStaffStatusWord(st) && st != "active" {
+				if _, err := c.tx.Exec(c.r.Context(), `
+					UPDATE employees SET status = $2
+					 WHERE institution_id = $1 AND employee_code = $3`,
+					c.inst, staffStatusValue(st), strings.TrimSpace(row["employee_code"])); err != nil {
+					return err
+				}
+			}
+
 			// Only staff this file brought onto the roll. The upsert matches on
 			// employee_code, so a corrected re-upload edits people who were
 			// already appointed and undoing it must not remove them.
@@ -2180,6 +2233,70 @@ func (c *importCtx) designationID(name string) (string, error) {
 	return id, nil
 }
 
+/*
+departmentID finds a department by name, creating it where the sheet names one
+the school has not set up.
+
+	employees.department_id is a uuid and nothing was filling it, so a staff
+	sheet's Department column -- which every export has -- was read and
+	dropped, the same way the designation was.
+*/
+func (c *importCtx) departmentID(name string) (string, error) {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		return "", nil
+	}
+	var id string
+	err := c.tx.QueryRow(c.r.Context(), `
+		SELECT id::text FROM departments
+		 WHERE institution_id = $1 AND lower(name) = lower($2)`, c.inst, n).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = c.tx.QueryRow(c.r.Context(), `
+			INSERT INTO departments (institution_id, name)
+			VALUES ($1,$2) RETURNING id::text`, c.inst, n).Scan(&id)
+	}
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+// normaliseEmployment maps the words a school writes onto the five the column
+// takes. Anything unrecognised is left empty rather than guessed at: a wrong
+// employment type decides notice periods and gratuity.
+func normaliseEmployment(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "permanent", "regular", "confirmed":
+		return "permanent"
+	case "contract", "contractual":
+		return "contract"
+	case "probation", "probationary", "on probation":
+		return "probation"
+	case "part time", "part-time", "parttime":
+		return "part_time"
+	case "visiting", "guest", "guest faculty":
+		return "visiting"
+	}
+	return ""
+}
+
+// staffStatusValue maps a status word onto what the column stores.
+func staffStatusValue(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "inactive", "left", "resigned":
+		return "resigned"
+	case "retired":
+		return "retired"
+	case "terminated":
+		return "terminated"
+	case "on leave":
+		return "on_leave"
+	case "suspended":
+		return "suspended"
+	}
+	return "active"
+}
+
 func isStaffStatusWord(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "active", "inactive", "left", "resigned", "retired",
@@ -2652,14 +2769,14 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				// with it, so the undo record must not still name those rows.
 				ctx.created = ctx.created[:madeSoFar]
 				/* AND NEITHER MAY THE LOOKUP CACHES.
-				
+
 				   A row that creates something and then fails takes the thing
 				   it created back with it, but the id stayed cached -- so
 				   every later row pointed at a class, a year, a schedule or an
 				   exam that no longer existed, and failed on a foreign key
 				   naming a constraint rather than anything a school could act
 				   on.
-				
+
 				   Found by committing a file rather than dry-running it: one
 				   row named a class this school does not have, and the six
 				   rows after it failed on a bell schedule that had been rolled

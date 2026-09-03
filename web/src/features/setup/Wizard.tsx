@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Check, ChevronRight, Lock } from 'lucide-react'
+import { Building2, Check, ChevronRight, FolderOpen, Lock, X } from 'lucide-react'
 import { actingInstitution, api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, Loading, ErrorState, Button, Select, Reload, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { PANELS, type PanelProps } from './panels'
+import {
+  clearPack, packEntries, readPack, setPack, subscribeToPack, wasTaken,
+  type PackEntry,
+} from './setup-pack'
 
 /* The first hour with the product.
 
@@ -232,6 +236,8 @@ export default function Wizard() {
             inside its own box. The two desktop tracks already said
             `minmax(0,...)` for exactly this reason; the phone case was the one
             that had never been written down. */}
+        <PackGate onOpen={setActive} />
+
         <div className="grid gap-6 grid-cols-[minmax(0,1fr)]
                         lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]
                         xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
@@ -294,6 +300,152 @@ export default function Wizard() {
         </div>
       </PageBody>
     </>
+  )
+}
+
+/* DO THEY ALREADY HAVE THE SHEETS?
+ *
+ * Schools are sent a folder of templates before they ever open this screen,
+ * and the ones that filled it in arrive with ten files and no way to say so.
+ * The wizard asked for them one at a time, buried a step deep each, which is
+ * ten separate hunts for a folder already open on the desktop.
+ *
+ * So it is asked once, at the top, and only until it is answered. A school
+ * that has no folder presses nothing and sees the wizard it always saw --
+ * this is a shortcut past typing, not a new way in, and there is no state
+ * where the normal setup is unavailable because of it.
+ *
+ * Handing the folder over imports nothing. Each sheet is put into its own
+ * step's uploader, where the dry run, the row-by-row report and the commit
+ * button are exactly what they are for a file dropped by hand.
+ */
+function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
+  const [asked, setAsked] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const folderRef = useRef<HTMLInputElement>(null)
+
+  // The pack is module state -- the uploaders take files out of it as they
+  // pick them up -- so this list has to hear about that to tick them off.
+  const [, bump] = useState(0)
+  useEffect(() => subscribeToPack(() => bump((n) => n + 1)), [])
+  const entries = packEntries()
+
+  const accept = async (files: FileList | null) => {
+    if (!files?.length) return
+    setBusy(true)
+    setNote('')
+    try {
+      const found = await readPack(Array.from(files))
+      if (found.length === 0) {
+        setNote(
+          'None of those look like the setup sheets. They are the files whose names ' +
+            'start 01 to 10 — pick the folder they are in, not the zip.',
+        )
+        return
+      }
+      setPack(found)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (dismissed && entries.length === 0) return null
+
+  if (entries.length > 0) {
+    const left = entries.filter((e) => !wasTaken(e.entity)).length
+    return (
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b px-5 py-4">
+          <h3 className="text-[15px] tracking-tight">Your filled-in sheets</h3>
+          <p className="text-[13px] text-muted-foreground">
+            {left > 0
+              ? `${left} of ${entries.length} still to load. Open a step and its sheet is already in the box — it is checked there, and nothing is written until you say so.`
+              : 'Every sheet has been handed to its step.'}
+          </p>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={clearPack}>
+            <X className="h-3.5 w-3.5" />
+            Put them away
+          </Button>
+        </div>
+        <ul className="divide-y">
+          {entries.map((e: PackEntry) => {
+            const done = wasTaken(e.entity)
+            return (
+              <li key={e.file.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5">
+                <span className="text-[14px]">{e.label}</span>
+                <span className="text-[13px] text-muted-foreground">{e.file.name}</span>
+                {done ? (
+                  <span className="ml-auto inline-flex items-center gap-1 text-[13px] text-muted-foreground">
+                    <Check className="h-3.5 w-3.5" />
+                    In its step
+                  </span>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => onOpen(e.step)}
+                  >
+                    Open {e.label.toLowerCase()}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="mb-6">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
+        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+        <div className="min-w-[16rem] flex-1">
+          <p className="text-[15px] tracking-tight">
+            Were you sent the setup sheets to fill in?
+          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {asked
+              ? 'Choose the folder they are in. Every sheet it recognises goes into the step it belongs to, and each one is still checked before anything is written.'
+              : 'If the school filled in the ten template sheets, hand the folder over here rather than finding each one again below.'}
+          </p>
+          {note && <p className="mt-2 text-[13px] text-destructive">{note}</p>}
+        </div>
+        {asked ? (
+          <Button size="sm" disabled={busy} onClick={() => folderRef.current?.click()}>
+            {busy ? 'Reading…' : 'Choose the folder'}
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" onClick={() => setAsked(true)}>
+              Yes, I have them
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setDismissed(true)}>
+              No, set it up here
+            </Button>
+          </>
+        )}
+      </div>
+      {/* Both, because a browser that will not hand over a folder still hands
+          over ten selected files, and a school on a phone has neither. */}
+      <input
+        ref={folderRef}
+        type="file"
+        multiple
+        accept=".csv,text/csv"
+        // Not in React's DOM typings; the folder picker is the whole point.
+        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+        className="hidden"
+        onChange={(e) => {
+          void accept(e.target.files)
+          e.target.value = ''
+        }}
+      />
+    </Card>
   )
 }
 
