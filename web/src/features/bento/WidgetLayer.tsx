@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
+import { buzz } from '@/lib/haptics'
 import { openLauncher } from './launcher-open'
 import {
   ArrowLeft, ArrowRight, Check, GripVertical, Minus, Plus, RotateCcw, Undo2, Wand2, X,
@@ -731,7 +732,13 @@ function PageDots({ pages, mark }: { pages: number; mark: { current: HTMLSpanEle
         for (const e of entries) {
           if (!e.isIntersecting) continue
           const n = Number(e.target.getAttribute('data-page'))
-          if (!Number.isNaN(n)) setAt(n)
+          if (!Number.isNaN(n)) {
+            setAt((was) => {
+              // A page landing, not the first observation on mount.
+              if (was !== n) buzz('select')
+              return n
+            })
+          }
         }
       },
       { root: board, threshold: 0.6 },

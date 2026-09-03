@@ -7,6 +7,7 @@ import { CornerMark } from './bento-cards'
 import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { buzz } from '@/lib/haptics'
 import { useDetail, useWidgetSize } from '@/lib/widget-size'
 
 /* THE BENTO KIT.
@@ -377,6 +378,7 @@ export function Cell({
     const link =
       cell.querySelector<HTMLAnchorElement>('a:has(> .bento-cue)') ??
       cell.querySelector<HTMLAnchorElement>('a[href]')
+    if (link) buzz('tap')
     link?.click()
   }, [])
 
@@ -702,7 +704,7 @@ export function Cue({
          The strip is `lg:flex`, so this is a desktop behaviour and a phone is
          unaffected -- which is right: tabs are for a person with a keyboard
          working several things at once, not for a parent on a bus. */
-      onClick={() => openTab(to, label, here)}
+      onClick={() => { buzz('tap'); openTab(to, label, here) }}
       className={cn('contents', still ? '' : '[&>*]:transition-colors [&>*]:duration-150')}
     >
       {/* The Link is `display: contents` so the mark itself is the box — one

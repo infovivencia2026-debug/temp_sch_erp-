@@ -9,6 +9,7 @@ import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { onOpenLauncher } from './launcher-open'
+import { buzz } from '@/lib/haptics'
 import { BentoSettings } from './BentoSettings'
 import { useAppearance } from '@/lib/appearance'
 import { useBoard } from '@/lib/widgets'
@@ -73,6 +74,9 @@ export function BentoDock() {
   useEffect(() => onOpenLauncher((sig) => {
     if (sig.kind === 'drag') setDrag(sig.progress)
     else {
+      // The sheet settling one way or the other is the moment the thumb
+      // expects an answer; the drag itself stays silent.
+      buzz(sig.kind === 'open' ? 'open' : 'snap')
       setDrag(null)
       if (sig.kind === 'open') setAll(true)
     }
