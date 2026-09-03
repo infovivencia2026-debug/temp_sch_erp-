@@ -878,12 +878,18 @@ var importSpecs = map[string]importSpec{
 				   row naming the same subject joins the first rather than
 				   making a twin. */
 				var fresh bool
+				/* Subjects are unique on (institution, campus, code), not on
+				   (institution, code) -- and Postgres refuses a conflict
+				   target it cannot match, so this raised a raw 42P10 at the
+				   school rather than creating anything. The campus was
+				   missing from both the target and the insert. */
 				if err := c.tx.QueryRow(c.r.Context(), `
-					INSERT INTO subjects (institution_id, name, code)
-					VALUES ($1,$2,upper(left(regexp_replace($2,'[^A-Za-z]','','g'),6)))
-					ON CONFLICT (institution_id, code) DO UPDATE SET name = subjects.name
+					INSERT INTO subjects (institution_id, campus_id, name, code)
+					VALUES ($1,$2,$3,upper(left(regexp_replace($3,'[^A-Za-z]','','g'),6)))
+					ON CONFLICT (institution_id, campus_id, code)
+					DO UPDATE SET name = subjects.name
 					RETURNING id, xmax = 0`,
-					c.inst, want).Scan(&subjectID, &fresh); err != nil {
+					c.inst, c.campus, want).Scan(&subjectID, &fresh); err != nil {
 					return err
 				}
 				c.noteCreated("subjects", subjectID, fresh)
