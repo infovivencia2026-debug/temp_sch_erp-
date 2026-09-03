@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
@@ -142,6 +142,36 @@ export function BentoDock() {
      Resolved to the first feature of the workspace that actually opens, so a
      category with nothing reachable in it is simply absent rather than a
      button that lands on "not in your workspace". */
+  /* How many marks the strip has room for, measured, not assumed.
+
+     Each mark is a fixed-width button; the strip's width is whatever the bar
+     leaves it after the search field and the right-hand controls. Read from
+     the DOM and re-read on resize, so a narrower window folds more and a
+     wider one folds none. One mark of room is always reserved for the fold
+     itself when anything is folded, so the "+N" never becomes the thing that
+     does not fit. */
+  const stripRef = useRef<HTMLSpanElement>(null)
+  /* The dock is sized by its content, so the strip's own width says nothing
+     about how much room it has — measuring it would only ever confirm whatever
+     was last rendered. What is fixed is everything *else* in the dock (home,
+     search, bell, gear, the separators): the room for marks is the dock's cap
+     (the viewport less its 3rem margins) minus those. */
+  const [room, setRoom] = useState<number | null>(null)
+  useEffect(() => {
+    const el = stripRef.current
+    const dock = el?.parentElement
+    if (!el || !dock) return
+    const measure = () => {
+      const fixed = dock.getBoundingClientRect().width - el.getBoundingClientRect().width
+      setRoom(window.innerWidth - 96 - fixed)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(dock)
+    window.addEventListener('resize', measure)
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [phone])
+
   const categories = useMemo(() => {
     if (!role) return []
     const out: { name: string; href: string }[] = []
@@ -347,6 +377,19 @@ export function BentoDock() {
   const rule =
     'mx-0.5 h-5 w-px shrink-0 bg-[color-mix(in_srgb,var(--ink-here)_35%,transparent)]'
 
+  const visibleCategories = categories.filter((c) => !hidden.has(c.name))
+  /* 40px per mark plus the 2px gap; the strip's width is null until measured,
+     and until then everything shows, which is the pre-existing behaviour and
+     a single frame long. */
+  const MARK_W = 42
+  const FOLD_W = 40
+  const fit = room == null ? visibleCategories.length : Math.max(0, Math.floor(room / MARK_W))
+  const shownCategories =
+    fit >= visibleCategories.length
+      ? visibleCategories
+      : visibleCategories.slice(0, Math.max(0, Math.floor((room! - FOLD_W) / MARK_W)))
+  const foldedCount = visibleCategories.length - shownCategories.length
+
   return (
     <>
       <div
@@ -463,8 +506,27 @@ export function BentoDock() {
            equal-cell grid is a whole sixth column of nothing, which is what
            pushed the settings gear against the right edge. */}
         {!phone && (
-        <span className="flex min-w-0 items-center gap-0.5 [overflow-x:clip] [overflow-y:visible]">
-          {(categories.filter(c => !hidden.has(c.name))).map((c) => {
+        <span
+          ref={stripRef}
+          className="flex min-w-0 items-center gap-0.5 [overflow:visible]"
+        >
+          {/* SHOW WHAT FITS, AND SAY HOW MANY DID NOT.
+
+              The strip clipped on the x-axis, which did two quiet wrongs at
+              once. A person holding many workspaces — the principal here
+              holds ten — had the marks past the edge simply not exist, with
+              nothing to say they were missing. And the hover label is an
+              ::after positioned above its mark, so a mark near either edge had
+              its label clipped too: the tooltip that exists to say what a
+              glyph means arrived as "Admissi", and for the last marks not at
+              all. "Overflowing even when hovered", in the user's words.
+
+              Clipping was the wrong tool. The strip now measures itself and
+              renders only as many marks as fit; the remainder fold into one
+              mark that opens the launcher, where every workspace is listed by
+              name. Nothing is ever hidden without a sign that it is, and with
+              nothing to clip the labels are free to be labels. */}
+          {shownCategories.map((c) => {
             const Mark = markFor(c.name)
             return (
               <button
@@ -498,6 +560,20 @@ export function BentoDock() {
               </button>
             )
           })}
+          {foldedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setAll(true)}
+              data-tip={`${foldedCount} more`}
+              aria-label={`${foldedCount} more workspaces`}
+              className={item}
+              style={btnStyle}
+            >
+              <span className="text-[11.5px] font-semibold tabular-nums" aria-hidden="true">
+                +{foldedCount}
+              </span>
+            </button>
+          )}
         </span>
         )}
 
