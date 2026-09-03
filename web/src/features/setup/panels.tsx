@@ -950,6 +950,25 @@ function SubjectsPanel({ onDone }: PanelProps) {
 
 // --- 7. class-subject mapping ----------------------------------------------
 
+/* The subject list and what studies it, on one step.
+ *
+ * These were two steps and the second needed the first, so a school that
+ * started with the mapping sheet had every row rejected for a subject written
+ * on the page in front of them. Picking the subjects is still worth its own
+ * block -- the Telangana list is two clicks and typing it out is twenty -- so
+ * it sits above the mapping rather than being folded into it.
+ */
+function SubjectsAndMapping({ onDone }: PanelProps) {
+  return (
+    <div className="space-y-5">
+      <SubjectsPanel onDone={onDone} />
+      <div className="border-t pt-5">
+        <ClassSubjectsPanel onDone={onDone} />
+      </div>
+    </div>
+  )
+}
+
 function ClassSubjectsPanel({ onDone }: PanelProps) {
   const { data: classes } = useQuery({
     queryKey: ['classes'],
@@ -1151,8 +1170,8 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
       <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="class_subjects"
-          title="Or map every class from a sheet"
-          hint="Class, subject code, max marks and — in the same row — the teacher's email. Naming a teacher here assigns them to every section of that class, so there is no second pass to do it."
+          title="Classes, subjects and teachers from a sheet"
+          hint="Class, subject, and the teacher who takes it. A subject the school has not added yet is created from this sheet, and naming a teacher assigns them to every section of that class — so one file does the whole job."
           onDone={onDone}
         />
       </div>
@@ -2786,8 +2805,7 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   campus: CampusPanel,
   academic_year: YearPanel,
   classes: ClassesPanel,
-  subjects: SubjectsPanel,
-  class_subjects: ClassSubjectsPanel,
+  subjects: SubjectsAndMapping,
   periods: PeriodsPanel,
   staff: StaffPanel,
   students: StudentsPanel,

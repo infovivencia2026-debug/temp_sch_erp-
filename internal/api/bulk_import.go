@@ -576,9 +576,25 @@ var importSpecs = map[string]importSpec{
 	   next to each other. */
 	"class_subjects": {
 		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"class", "subject_code", "max_marks", "periods_per_week", "teacher_email"},
-		Required: []string{"class", "subject_code"},
-		Sample:   []string{"Grade 6", "MATH", "100", "6", "priya.rao@jsm.test"},
+		/* WHAT EACH CLASS STUDIES, AND WHO TEACHES IT, IN ONE SHEET.
+
+		   This needed the subjects to exist already, which meant a separate
+		   upload first -- and a school that did them the other way round had
+		   every row rejected for a subject that plainly exists on the sheet in
+		   front of them. Naming a subject against a class IS the school
+		   declaring that subject, so it is created here rather than demanded
+		   in advance.
+
+		   Section and class_teacher_email are optional and do the rest of the
+		   job in the same file: which teacher takes 6-A as a form class, and
+		   which teacher takes a subject in a particular section rather than
+		   across the whole class. Left out, the subject teacher covers every
+		   section of the class, which is what a small school means. */
+		Columns: []string{"class", "subject", "section", "class_teacher_email",
+			"teacher_email", "max_marks", "periods_per_week"},
+		Required: []string{"class", "subject"},
+		Sample: []string{"Grade 6", "Mathematics", "A", "priya.rao@jsm.test",
+			"anand.k@jsm.test", "100", "6"},
 		Check: func(row map[string]string) error {
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {
 				if n, err := strconv.Atoi(v); err != nil || n <= 0 {
@@ -604,17 +620,40 @@ var importSpecs = map[string]importSpec{
 			   rejected files whose every row named a subject that plainly
 			   exists. The staff importer had already learned this; these two
 			   had not. */
-			want := strings.TrimSpace(row["subject_code"])
+			want := strings.TrimSpace(row["subject"])
+			if want == "" {
+				// The older template called this column subject_code, and
+				// sheets written against it still load.
+				want = strings.TrimSpace(row["subject_code"])
+			}
 			var subjectID uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(), `
 				SELECT id FROM subjects
 				 WHERE institution_id = $1
 				   AND (upper(code) = upper($2) OR lower(name) = lower($2))`,
 				c.inst, want).Scan(&subjectID); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					return fmt.Errorf("no subject called %q. Add the subjects first", want)
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return err
 				}
-				return err
+				/* Created, because naming a subject against a class is how a
+				   school says it teaches that subject. Demanding it exist
+				   first made the order of two uploads matter, and getting it
+				   wrong rejected every row for a subject written on the sheet
+				   in front of them.
+
+				   Matched on name or code above before creating, so a second
+				   row naming the same subject joins the first rather than
+				   making a twin. */
+				var fresh bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					INSERT INTO subjects (institution_id, name, code)
+					VALUES ($1,$2,upper(left(regexp_replace($2,'[^A-Za-z]','','g'),6)))
+					ON CONFLICT (institution_id, code) DO UPDATE SET name = subjects.name
+					RETURNING id, xmax = 0`,
+					c.inst, want).Scan(&subjectID, &fresh); err != nil {
+					return err
+				}
+				c.noteCreated("subjects", subjectID, fresh)
 			}
 			maxMarks := 100
 			if v := strings.TrimSpace(row["max_marks"]); v != "" {

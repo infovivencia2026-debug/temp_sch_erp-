@@ -1591,10 +1591,19 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		{"classes", "Create classes and their sections", c.Classes > 0 && c.Sections > 0,
 			c.Classes,
 			"Class 1 to 10, each with its sections and how many seats they hold.", true},
-		{"subjects", "Add subjects", c.Subjects > 0, c.Subjects,
-			"Scholastic and co-scholastic.", true},
-		{"class_subjects", "Map subjects to classes", c.ClassSubjects > 0, c.ClassSubjects,
-			"Which class studies what.", true},
+		/* SUBJECTS AND WHO STUDIES THEM ARE ONE STEP.
+
+		   Mapping was a step of its own, and it needed the subjects to exist
+		   first -- so a school that started with the mapping sheet had every
+		   row rejected for a subject written on the page in front of them.
+		   Naming a subject against a class is how a school says it teaches
+		   that subject; there is no earlier moment to declare it in.
+
+		   Done when both exist, because a subject list nothing studies is a
+		   step that looks finished and has produced nothing. */
+		{"subjects", "Add subjects and who studies them",
+			c.Subjects > 0 && c.ClassSubjects > 0, c.Subjects,
+			"Which class studies what, and the teacher who takes it.", true},
 		{"periods", "Define the school day", c.Periods > 0, c.Periods,
 			"Periods and breaks, in order.", false},
 		{"staff", "Add staff", c.Teachers > 0, c.Teachers,
