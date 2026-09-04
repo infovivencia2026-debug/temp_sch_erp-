@@ -111,6 +111,23 @@ DO \$\$ BEGIN
 END \$\$;
 SQL
 
+# Postgres ships tuned for a machine from 2005: 128MB of shared buffers, a
+# spinning-disk random_page_cost of 4, one outstanding I/O. On a 4GB VPS with
+# an SSD every one of those is wrong in the direction of slower. These are
+# modest -- the box also runs nginx, Redis, the Go services and an assistant
+# -- and idempotent. Everything but shared_buffers applies on reload;
+# shared_buffers waits for the next Postgres restart, which a reboot or
+# `systemctl restart postgresql` supplies.
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+ALTER SYSTEM SET shared_buffers = '256MB';
+ALTER SYSTEM SET effective_cache_size = '1536MB';
+ALTER SYSTEM SET work_mem = '8MB';
+ALTER SYSTEM SET maintenance_work_mem = '128MB';
+ALTER SYSTEM SET random_page_cost = 1.1;
+ALTER SYSTEM SET effective_io_concurrency = 200;
+SELECT pg_reload_conf();
+SQL
+
 if ! sudo -u postgres psql -lqtA | cut -d'|' -f1 | grep -qx "$DB_NAME"; then
     sudo -u postgres createdb -O "$DB_OWNER" "$DB_NAME"
     echo "  created database ${DB_NAME}"
@@ -277,7 +294,10 @@ say "nginx"
 SSL_BLOCK=""
 REDIRECT_BLOCK=""
 if [ -d "/etc/letsencrypt/live/${FQDN}" ]; then
-    SSL_BLOCK="listen 443 ssl;
+    # http2: the SPA is 350 hashed asset files, and over HTTP/1.1 a browser
+    # fetches them six at a time per host. Multiplexing is the single largest
+    # first-load win available and costs nothing on the server.
+    SSL_BLOCK="listen 443 ssl http2;
     ssl_certificate     /etc/letsencrypt/live/${FQDN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${FQDN}/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
@@ -325,6 +345,17 @@ server {
     # The type matters as much as the body: Android refuses anything that is
     # not application/json, and refuses a redirect, so this is an exact match
     # with the type stated outright.
+    # Self-hosted map tiles: one PMTiles archive of the region plus the fonts
+    # and sprites its style needs (scripts/refresh-tiles.sh puts them here).
+    # Range requests are how PMTiles is read, and nginx serves them from disk
+    # by default. A day's cache; the file is replaced whole on refresh.
+    location /tiles/ {
+        alias /var/www/temperp-tiles/;
+        add_header Cache-Control "public, max-age=86400";
+        add_header Access-Control-Allow-Origin "*";
+        access_log off;
+    }
+
     location = /.well-known/assetlinks.json {
         alias ${WEBROOT}/well-known/assetlinks.json;
         default_type application/json;

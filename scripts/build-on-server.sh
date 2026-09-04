@@ -101,11 +101,16 @@ say "Build"
 cd "$SRC"
 # One core: -p 1 keeps the compiler from thrashing, and the build cache under
 # /root/.cache/go-build makes every run after the first one quick.
-CGO_ENABLED=0 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
+#
+# nice/ionice: the compiler shares that one core with the web server that is
+# serving a school right now. Unniced, a deploy during the day shows up in the
+# request log as ten-second responses on every endpoint; at the lowest
+# priority the build takes a little longer and nobody notices it happened.
+CGO_ENABLED=0 nice -n 15 ionice -c 3 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
     -o "$BUILD/web" ./cmd/web
-CGO_ENABLED=0 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
+CGO_ENABLED=0 nice -n 15 ionice -c 3 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
     -o "$BUILD/worker" ./cmd/worker
-CGO_ENABLED=0 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
+CGO_ENABLED=0 nice -n 15 ionice -c 3 go build -p 1 -trimpath -ldflags "-s -w -X main.version=$COMMIT" \
     -o "$BUILD/migrate" ./cmd/migrate
 for b in web worker migrate; do
     [ -s "$BUILD/$b" ] || { echo "build produced no $b binary — aborting before anything is installed" >&2; exit 1; }
