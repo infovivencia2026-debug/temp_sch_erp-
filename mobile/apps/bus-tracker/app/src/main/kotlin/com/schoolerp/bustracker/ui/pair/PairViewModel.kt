@@ -36,7 +36,12 @@ data class PairUiState(
      * assigned yet and for schools already using codes. */
     val phone: String = "",
     val pin: String = "",
-    val usePairCode: Boolean = true,
+    /* FALSE, because the login is the ordinary way in and the code is the
+       exception. It defaulted to true, and since the screen rendered only the
+       code field there was no way back: the entire credential path below --
+       and the server endpoint written for it -- was unreachable in every
+       shipped build. */
+    val usePairCode: Boolean = false,
     /** The bus read off the sticker in the windscreen, if the driver scanned
      *  one. Empty means "whichever bus HR has this driver against", which is
      *  the ordinary case and stays the default. */
