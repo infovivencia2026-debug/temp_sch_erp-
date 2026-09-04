@@ -289,7 +289,7 @@ export default function SettingsPage() {
              Measured at 390px: the cards sat 9px from the edge and the header
              text 30px, so the screen had two left edges 21px apart and nothing
              on it lined up with anything else. One number for both. */
-          <div className="px-4 py-3">
+          <div className="px-[14px] py-3">
             {tab === null && <FullScreenOffer />}
             {tab === null
               ? <SettingsGroups items={items} onOpen={open} values={values} />
