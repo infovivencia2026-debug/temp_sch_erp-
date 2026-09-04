@@ -108,7 +108,7 @@ sealed interface EngineEvent {
     data object Unpaired : EngineEvent
 
     /** Local geofence verdict, shown to the driver. The server keeps its own. */
-    data class StopReached(val stopName: String) : EngineEvent
+    data class StopReached(val stopId: String, val stopName: String) : EngineEvent
 
     /** A message from the office, new since the last heartbeat. */
     data class Notice(val id: String, val body: String) : EngineEvent

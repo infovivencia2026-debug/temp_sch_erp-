@@ -146,7 +146,7 @@ class TripEngine @Inject constructor(
             // the row itself says whether this arrival was new. Announcing on
             // the read alone said "Reached X" twice.
             if (repository.markStopArrived(trip.tripId, stop.stopId)) {
-                _events.tryEmit(EngineEvent.StopReached(stop.name))
+                _events.tryEmit(EngineEvent.StopReached(stop.stopId, stop.name))
             }
         }
     }

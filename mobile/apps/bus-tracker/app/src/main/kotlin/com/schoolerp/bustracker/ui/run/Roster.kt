@@ -11,8 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -263,3 +268,56 @@ private fun StudentPhoto(child: StudentEntity, photo: suspend (String) -> Bitmap
 
 /** Group key for children allocated to a stop this leg does not visit. Not a real stop id. */
 private const val OTHER_STOP = "\u0000other"
+
+/**
+ * The children of the stop the bus has just reached, in front of everything.
+ *
+ * Raised by the geofence, not by a tap: the moment the doors open is the
+ * moment the question "who gets on here" is asked, and the roster's answer
+ * was three screens down. Every row has the same On/Absent buttons as the
+ * roster, and the marks land in the same table, so a child marked here is
+ * marked everywhere. Done closes it; swiping it away does the same, because
+ * the marks are already saved and a sheet that cannot be dismissed is a
+ * sheet that gets in the way of driving.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StopArrivalSheet(
+    stopName: String,
+    students: List<StudentEntity>,
+    direction: String,
+    onMark: (String, String) -> Unit,
+    photo: suspend (String) -> Bitmap?,
+    onDone: () -> Unit,
+) {
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDone, sheetState = state) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Reached $stopName", style = MaterialTheme.typography.headlineSmall)
+            val count = Headcount.of(students, direction)
+            Text(count.summary(direction), style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (direction == DIRECTION_DROP) {
+                    "Mark each child as they get off."
+                } else {
+                    "Mark each child as they get on."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            students.forEach { child ->
+                StudentRow(child, direction, onMark, photo)
+            }
+            Button(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) { Text("Done, drive on") }
+        }
+    }
+}

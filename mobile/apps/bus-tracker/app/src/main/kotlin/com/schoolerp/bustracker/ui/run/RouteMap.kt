@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -76,6 +77,10 @@ fun RouteMap(
     muted: Boolean,
     onMuteChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    /** The map is the whole screen, not a card in a column: no fixed height, no rounded corners. */
+    fillScreen: Boolean = false,
+    /** Room under the camera buttons for a sheet that peeks over the map's bottom edge. */
+    controlsBottomPadding: Dp = 0.dp,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -151,12 +156,14 @@ fun RouteMap(
        map the driver zooms out of to see anything. */
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val shape = MaterialTheme.shapes.medium
-    Box(
+    val sized = if (fillScreen) {
+        modifier.fillMaxSize()
+    } else {
         modifier
             .height((screenHeight * 0.55f).coerceAtLeast(360.dp))
             .clip(shape)
-            .clipToBounds(),
-    ) {
+    }
+    Box(sized.clipToBounds()) {
         AndroidView(
             factory = { ctx ->
                 FrameLayout(ctx).apply {
@@ -212,7 +219,7 @@ fun RouteMap(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(8.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + controlsBottomPadding),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.End,
         ) {

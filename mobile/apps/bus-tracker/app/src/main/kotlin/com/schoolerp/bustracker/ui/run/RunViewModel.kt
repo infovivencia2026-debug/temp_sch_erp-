@@ -110,6 +110,19 @@ class RunViewModel @Inject constructor(
     private val _lastArrival = MutableStateFlow<String?>(null)
     val lastArrival: StateFlow<String?> = _lastArrival.asStateFlow()
 
+    /* THE STOP THE DOORS JUST OPENED AT.
+
+       Set by the geofence and cleared by the driver's Done, so the screen can
+       put that stop's children in front of him while they are getting on.
+       Held separately from lastArrival, which is a line of text that stays
+       until the next stop; this is a sheet that has to go away when told. */
+    private val _arrivedStopId = MutableStateFlow<String?>(null)
+    val arrivedStopId: StateFlow<String?> = _arrivedStopId.asStateFlow()
+
+    fun dismissArrival() {
+        _arrivedStopId.value = null
+    }
+
     /* THE BUS ON THE MAP, from the engine's own fix. Not a second location
        client: see TripEngine.lastFix. */
     val lastFix: StateFlow<Fix?> = engine.lastFix
@@ -252,7 +265,10 @@ class RunViewModel @Inject constructor(
                             "stopped reporting. Sign in again with your number and password to " +
                             "carry on the run.",
                     )
-                    is EngineEvent.StopReached -> _lastArrival.value = event.stopName
+                    is EngineEvent.StopReached -> {
+                        _lastArrival.value = event.stopName
+                        _arrivedStopId.value = event.stopId
+                    }
                     // Shown as a banner from the notices flow; nothing to do here.
                     is EngineEvent.Notice -> Unit
                 }

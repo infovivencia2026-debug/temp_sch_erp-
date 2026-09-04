@@ -12,7 +12,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Button
@@ -63,6 +65,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
  * a question a driver would ask out loud — which bus am I, is the school seeing
  * me, and what happens if I lose signal.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val status by viewModel.status.collectAsStateWithLifecycle()
@@ -75,6 +78,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val alert by viewModel.alert.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
+    val arrivedStopId by viewModel.arrivedStopId.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val guidance by viewModel.guidance.collectAsStateWithLifecycle()
     val voiceMuted by viewModel.voiceMuted.collectAsStateWithLifecycle()
@@ -88,139 +92,159 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
             .onFailure { BtLog.w("ui", "no activity for ${intent.action}", it) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        /* THE HEADING IS THE SCHOOL, AND THAT IS ALL.
+    val trip = status.trip
+    val located = stops.filter { it.latitude != null && it.longitude != null }
+    val next = stops.firstOrNull { it.arrivedAtMillis == null }
+    val counts = trip?.let { t ->
+        students.groupBy { it.stopId }.mapValues { (_, here) -> Headcount.of(here, t.direction) }
+    } ?: emptyMap()
 
-           It used to be the bus registration in display type with the school
-           under it -- from when a phone was one bus for ever. A phone is now a
-           driver's, and the bus is whatever he scans this morning, so putting
-           a registration at the top of the app states something that is not
-           true until a run opens. The bus belongs to the run, and that is
-           where it is now shown. */
-        status.institution?.let {
-            Text(it, style = MaterialTheme.typography.titleMedium)
+    /* The phone's own maps app, for a driver who wants the voice he knows.
+       google.navigation: is what Google Maps answers to, geo: is what every
+       other maps app answers to, and a phone with neither is told so rather
+       than left with a button that does nothing. Tracking carries on
+       underneath: the foreground service does not know or care what is in
+       front of it. */
+    val onNavigate: (() -> Unit)? = next?.takeIf { it.latitude != null && it.longitude != null }?.let { stop ->
+        {
+            val intents = viewModel.navigateIntent(stop.latitude!!, stop.longitude!!, stop.name)
+            val opened = intents.any { intent ->
+                runCatching { context.startActivity(intent) }.isSuccess
+            }
+            if (!opened) {
+                BtLog.w("ui", "no navigation app for ${stop.name}")
+                android.widget.Toast.makeText(
+                    context, "No maps app on this phone", android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
         }
+    }
 
-        NoticeBanner(notices, onAcknowledge = viewModel::acknowledgeNotice)
+    /* THE MAP IS THE SCREEN.
 
-        ReportingCard(status)
+       The navigator was a card a little over half the screen tall, with the
+       school's name, the reporting card and the settings line stacked above
+       it and the roster below, all in one scrolling column. A driver at a
+       junction was looking at a map through a letterbox and scrolling to
+       find it again after every glance at the roster.
 
-        /* PHONE SETUP, ON ITS OWN SCREEN.
+       With a run open and a map to draw, the map now fills the display and
+       everything else lives in a sheet pulled up from the bottom edge, the
+       way a car's navigator keeps the trip details under the map. The sheet
+       peeks far enough to show the route and the next stop; a drag brings up
+       the roster and End Run. The plain column remains for a phone with no
+       signal or a route with no coordinates, where there is no map to give
+       the screen to. */
+    val mapFillsScreen = trip != null && located.isNotEmpty() && status.hasNetwork
 
-           Location, battery and notifications each had a full-width card with
-           a headline and a paragraph, stacked above the only two controls the
-           driver came for. On a handset that is three screenfuls of settings
-           advice before the Start button, every morning, for ever -- and the
-           app looked broken because it opened on a wall of warnings.
-
-           They were then folded behind one line that expanded in place, which
-           pushed the Start button off the bottom the moment it was opened.
-           Now the line counts them and opens a screen of its own -- the whole
-           display, with a Back control, not a dialog squeezed into the middle of
-           the run -- and the rarer controls (stopping the tracker, changing
-           driver) live there too instead of trailing under End Run. A driver
-           whose phone is set up correctly still sees one quiet line. */
-        TextButton(onClick = { settingsOpen = true }) {
-            Text(
-                phoneSetupSummary(status),
-                textDecoration = TextDecoration.Underline,
+    if (mapFillsScreen && trip != null) {
+        val peek = 200.dp
+        BottomSheetScaffold(
+            sheetPeekHeight = peek,
+            sheetContent = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    RunDetails(
+                        trip = trip,
+                        stops = stops,
+                        students = students,
+                        counts = counts,
+                        pendingMarks = pendingMarks,
+                        lastArrival = lastArrival,
+                        busy = busy,
+                        onNavigate = onNavigate,
+                        onMark = viewModel::markChild,
+                        photo = viewModel::photo,
+                        onEndRun = viewModel::endRun,
+                    )
+                    ScreenHeader(
+                        status = status,
+                        notices = notices,
+                        onAcknowledge = viewModel::acknowledgeNotice,
+                        onSettings = { settingsOpen = true },
+                    )
+                }
+            },
+        ) { inner ->
+            RouteMap(
+                stops = stops,
+                guidance = guidance,
+                muted = voiceMuted,
+                onMuteChange = viewModel::setVoiceMuted,
+                fillScreen = true,
+                controlsBottomPadding = peek,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(inner),
             )
         }
-
-        /* THE SHIFT.
-         *
-         * Above Start rather than in front of the whole app. Pairing is the
-         * office's job and is done once; signing in is the driver's and is
-         * done every morning, and the moment it matters is when a run is about
-         * to open -- the server refuses trip start without it and answers 401.
-         *
-         * A login wall in front of the app would also mean a phone picked up
-         * mid-run shows a form instead of the route, which is the worst moment
-         * for it. */
-        /* ONE THING AT A TIME.
-
-           Sign-in and Start-a-run were both drawn whenever no run was open, so
-           a driver who had not signed in was shown a login form, a bus field,
-           a route list, a direction toggle and a route-setup form together --
-           and the Start button he could not use yet was the one below the fold.
-
-           Signing in is the step in front; the run is the step after. Drawing
-           the second before the first is done is what made the screen look
-           like a settings page instead of a two-tap morning. */
-        val trip = status.trip
-        if (trip == null && !signedIn) {
-            DriverSignIn(
-                signedIn = false,
-                driverName = viewModel.driverName,
-                busy = busy,
-                onSignIn = viewModel::signIn,
-                onSignOut = viewModel::signOut,
-            )
-        }
-
-        if (trip == null && signedIn) {
-            StartRunSection(
-                routes = routes,
-                busy = busy,
-                bus = scannedBus,
-                onBusScanned = viewModel::onBusScanned,
-                onStart = viewModel::startRun,
-                onRemoveRoute = viewModel::removeRoute,
-            )
-        }
-
-        /* THE RUN ITSELF, and its own branch rather than an else.
-
-           This was the `else` of "no run and signed in", so it also caught the
-           driver who had not signed in yet: the compiler stopped it, because
-           trip is nullable there and every line below reads it. Splitting the
-           three states apart is what the screen was restructured for in the
-           first place - sign in, then start, then drive - and an else could
-           only ever express two of them. */
-        if (trip != null) {
-            Text(
-                "${trip.routeName.ifBlank { "Route" }}, " +
-                    if (trip.direction == DIRECTION_DROP) "drop" else "pickup",
-                style = MaterialTheme.typography.titleLarge,
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            ScreenHeader(
+                status = status,
+                notices = notices,
+                onAcknowledge = viewModel::acknowledgeNotice,
+                onSettings = { settingsOpen = true },
             )
 
-            /* The one question the driver has while moving, answered first
-               and in the largest type on the screen. Everything under it is
-               reference; this is the line read at a junction. */
-            val counts = students.groupBy { it.stopId }
-                .mapValues { (_, here) -> Headcount.of(here, trip.direction) }
+            /* THE SHIFT.
+             *
+             * Above Start rather than in front of the whole app. Pairing is the
+             * office's job and is done once; signing in is the driver's and is
+             * done every morning, and the moment it matters is when a run is about
+             * to open -- the server refuses trip start without it and answers 401.
+             *
+             * A login wall in front of the app would also mean a phone picked up
+             * mid-run shows a form instead of the route, which is the worst moment
+             * for it. */
+            /* ONE THING AT A TIME.
 
-            /* THE NAVIGATOR, before the roster.
+               Sign-in and Start-a-run were both drawn whenever no run was open, so
+               a driver who had not signed in was shown a login form, a bus field,
+               a route list, a direction toggle and a route-setup form together --
+               and the Start button he could not use yet was the one below the fold.
 
-               The sketch drew the stops to scale on a blank background and
-               said in its caption that it carried no map data. True, and no
-               help: a driver on a route he had not driven could see the next
-               stop was north-east and nothing about which road got him there.
-               This is the banner and the map a car's navigator shows, fed by
-               the run's own fixes, and it comes first because it is what the
-               screen is looked at for while the bus is moving.
-
-               The sketch stays as the fallback for a phone with no signal or a
-               route with no coordinates: tiles cannot be fetched with no
-               network, and a grey grid would read as the app being broken. */
-            val located = stops.filter { it.latitude != null && it.longitude != null }
-            val next = stops.firstOrNull { it.arrivedAtMillis == null }
-            if (located.isNotEmpty() && status.hasNetwork) {
-                // The banner is drawn on the map, at its top edge.
-                RouteMap(
-                    stops = stops,
-                    guidance = guidance,
-                    muted = voiceMuted,
-                    onMuteChange = viewModel::setVoiceMuted,
-                    modifier = Modifier.fillMaxWidth(),
+               Signing in is the step in front; the run is the step after. Drawing
+               the second before the first is done is what made the screen look
+               like a settings page instead of a two-tap morning. */
+            if (trip == null && !signedIn) {
+                DriverSignIn(
+                    signedIn = false,
+                    driverName = viewModel.driverName,
+                    busy = busy,
+                    onSignIn = viewModel::signIn,
+                    onSignOut = viewModel::signOut,
                 )
-            } else {
+            }
+
+            if (trip == null && signedIn) {
+                StartRunSection(
+                    routes = routes,
+                    busy = busy,
+                    bus = scannedBus,
+                    onBusScanned = viewModel::onBusScanned,
+                    onStart = viewModel::startRun,
+                    onRemoveRoute = viewModel::removeRoute,
+                )
+            }
+
+            /* THE RUN WITHOUT A MAP: no signal, or a route with no coordinates.
+
+               Tiles cannot be fetched with no network, and a grey grid would
+               read as the app being broken, so the sketch draws the stops to
+               scale and the banner still says where to turn. */
+            if (trip != null) {
                 if (located.isNotEmpty() && next != null) {
                     NavigationBanner(
                         guidance = guidance,
@@ -229,103 +253,48 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     )
                 }
                 RouteSketch(stops, modifier = Modifier.fillMaxWidth())
-            }
-
-            NextStopCard(
-                stops = stops,
-                lastArrival = lastArrival,
-                counts = counts,
-                direction = trip.direction,
-                onNavigate = next?.takeIf { it.latitude != null && it.longitude != null }?.let { stop ->
-                    {
-                        /* The phone's own maps app, for a driver who wants
-                           the voice he knows. google.navigation: is what
-                           Google Maps answers to, geo: is what every other
-                           maps app answers to, and a phone with neither is
-                           told so rather than left with a button that does
-                           nothing. Tracking carries on underneath: the
-                           foreground service does not know or care what is
-                           in front of it. */
-                        val intents = viewModel.navigateIntent(stop.latitude!!, stop.longitude!!, stop.name)
-                        val opened = intents.any { intent ->
-                            runCatching { context.startActivity(intent) }.isSuccess
-                        }
-                        if (!opened) {
-                            BtLog.w("ui", "no navigation app for ${stop.name}")
-                            android.widget.Toast.makeText(
-                                context, "No maps app on this phone", android.widget.Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                    }
-                },
-            )
-
-            StopList(stops, counts, trip.direction)
-
-            /* WHO IS ON THE BUS.
-
-               transport_attendance had one writer -- a screen in the office,
-               typed up from what the driver remembered -- so it sat empty
-               while the product knew the bus's position to the metre. The
-               question a parent rings about is not where the bus is; it is
-               whether their child is on it, and this is the only place that
-               can honestly be answered. */
-            ChildrenByStop(
-                stops = stops,
-                students = students,
-                direction = trip.direction,
-                pendingMarks = pendingMarks,
-                onMark = viewModel::markChild,
-                photo = viewModel::photo,
-            )
-
-            /* END RUN ASKS FIRST.
-
-               It was a full-width red button directly under a scrolling list,
-               and ending a run early tells the school the children are off a
-               bus they are still on. A thumb steadying the phone over a
-               pothole is enough. The dialog costs a tap at the depot, once. */
-            var confirmEnd by remember { mutableStateOf(false) }
-            Button(
-                onClick = { confirmEnd = true },
-                enabled = !busy,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp),
-            ) { Text("End Run", style = MaterialTheme.typography.titleMedium) }
-            Text(
-                "End Run tells the school the children are off the bus. Only you can say that, " +
-                    "if the phone simply stops, the school records the run as timed out instead.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-
-            if (confirmEnd) {
-                AlertDialog(
-                    onDismissRequest = { confirmEnd = false },
-                    title = { Text("End this run?") },
-                    text = {
-                        Text(
-                            "The school will be told the children are off the bus and this " +
-                                "phone stops reporting where it is.",
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            confirmEnd = false
-                            viewModel.endRun()
-                        }) { Text("End the run") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { confirmEnd = false }) { Text("Keep driving") }
-                    },
+                RunDetails(
+                    trip = trip,
+                    stops = stops,
+                    students = students,
+                    counts = counts,
+                    pendingMarks = pendingMarks,
+                    lastArrival = lastArrival,
+                    busy = busy,
+                    onNavigate = onNavigate,
+                    onMark = viewModel::markChild,
+                    photo = viewModel::photo,
+                    onEndRun = viewModel::endRun,
                 )
             }
         }
     }
 
+    /* THE DOORS OPEN.
+
+       The geofence fired, the engine said "Reached X" in a line inside the
+       next-stop card, and the driver then scrolled to the roster, found the
+       stop's group and marked each child. At a kerb with the doors open that
+       is three screens away from the question being asked, which is "who is
+       getting on here". The sheet puts exactly that list in front of the
+       driver the moment the bus arrives, and goes away on Done. A stop with
+       nobody allocated raises nothing: there is nobody to mark. */
+    val arrivedStop = arrivedStopId?.let { id -> stops.firstOrNull { it.stopId == id } }
+    val arrivedChildren = arrivedStop?.let { stop -> students.filter { it.stopId == stop.stopId } } ?: emptyList()
+    if (trip != null && arrivedStop != null && arrivedChildren.isNotEmpty()) {
+        StopArrivalSheet(
+            stopName = arrivedStop.name,
+            students = arrivedChildren,
+            direction = trip.direction,
+            onMark = viewModel::markChild,
+            photo = viewModel::photo,
+            onDone = viewModel::dismissArrival,
+        )
+    } else if (arrivedStopId != null) {
+        // Nothing to show for it: forget it so the next arrival is not
+        // confused with this one.
+        LaunchedEffect(arrivedStopId) { viewModel.dismissArrival() }
+    }
     // Asked once the driver is looking at the app, never from a service — and
     // in two stages, because that is what the platform requires.
     LocationPermissionPrompt(onFinished = viewModel::refresh)
@@ -1070,5 +1039,159 @@ private fun PhoneSetupSection(
                 }
             }
         }
+    }
+}
+
+/**
+ * The school's name, the office's message, whether the school can see the
+ * bus, and the one line to the phone-setup screen. Drawn at the top of the
+ * column when there is no map, and inside the sheet under the run details
+ * when the map has the screen.
+ */
+@Composable
+private fun ScreenHeader(
+    status: TrackerStatus,
+    notices: List<com.schoolerp.bustracker.data.remote.Notice>,
+    onAcknowledge: (String) -> Unit,
+    onSettings: () -> Unit,
+) {
+    /* THE HEADING IS THE SCHOOL, AND THAT IS ALL.
+
+       It used to be the bus registration in display type with the school
+       under it -- from when a phone was one bus for ever. A phone is now a
+       driver's, and the bus is whatever he scans this morning, so putting
+       a registration at the top of the app states something that is not
+       true until a run opens. The bus belongs to the run, and that is
+       where it is now shown. */
+    status.institution?.let {
+        Text(it, style = MaterialTheme.typography.titleMedium)
+    }
+
+    NoticeBanner(notices, onAcknowledge = onAcknowledge)
+
+    ReportingCard(status)
+
+    /* PHONE SETUP, ON ITS OWN SCREEN.
+
+       Location, battery and notifications each had a full-width card with
+       a headline and a paragraph, stacked above the only two controls the
+       driver came for. On a handset that is three screenfuls of settings
+       advice before the Start button, every morning, for ever -- and the
+       app looked broken because it opened on a wall of warnings.
+
+       They were then folded behind one line that expanded in place, which
+       pushed the Start button off the bottom the moment it was opened.
+       Now the line counts them and opens a screen of its own -- the whole
+       display, with a Back control, not a dialog squeezed into the middle of
+       the run -- and the rarer controls (stopping the tracker, changing
+       driver) live there too instead of trailing under End Run. A driver
+       whose phone is set up correctly still sees one quiet line. */
+    TextButton(onClick = onSettings) {
+        Text(
+            phoneSetupSummary(status),
+            textDecoration = TextDecoration.Underline,
+        )
+    }
+}
+
+/**
+ * Everything about the open run except the map: the route's name, the next
+ * stop, the stop list, the roster and End Run. One composable so the sheet
+ * under the map and the column without one show the same thing in the same
+ * order.
+ */
+@Composable
+private fun RunDetails(
+    trip: com.schoolerp.bustracker.data.prefs.ActiveTrip,
+    stops: List<StopEntity>,
+    students: List<com.schoolerp.bustracker.data.local.StudentEntity>,
+    counts: Map<String, Headcount>,
+    pendingMarks: Int,
+    lastArrival: String?,
+    busy: Boolean,
+    onNavigate: (() -> Unit)?,
+    onMark: (String, String) -> Unit,
+    photo: suspend (String) -> android.graphics.Bitmap?,
+    onEndRun: () -> Unit,
+) {
+    Text(
+        "${trip.routeName.ifBlank { "Route" }}, " +
+            if (trip.direction == DIRECTION_DROP) "drop" else "pickup",
+        style = MaterialTheme.typography.titleLarge,
+    )
+
+    /* The one question the driver has while moving, answered first and in
+       the largest type on the screen. Everything under it is reference;
+       this is the line read at a junction. */
+    NextStopCard(
+        stops = stops,
+        lastArrival = lastArrival,
+        counts = counts,
+        direction = trip.direction,
+        onNavigate = onNavigate,
+    )
+
+    StopList(stops, counts, trip.direction)
+
+    /* WHO IS ON THE BUS.
+
+       transport_attendance had one writer -- a screen in the office,
+       typed up from what the driver remembered -- so it sat empty
+       while the product knew the bus's position to the metre. The
+       question a parent rings about is not where the bus is; it is
+       whether their child is on it, and this is the only place that
+       can honestly be answered. */
+    ChildrenByStop(
+        stops = stops,
+        students = students,
+        direction = trip.direction,
+        pendingMarks = pendingMarks,
+        onMark = onMark,
+        photo = photo,
+    )
+
+    /* END RUN ASKS FIRST.
+
+       It was a full-width red button directly under a scrolling list,
+       and ending a run early tells the school the children are off a
+       bus they are still on. A thumb steadying the phone over a
+       pothole is enough. The dialog costs a tap at the depot, once. */
+    var confirmEnd by remember { mutableStateOf(false) }
+    Button(
+        onClick = { confirmEnd = true },
+        enabled = !busy,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp),
+    ) { Text("End Run", style = MaterialTheme.typography.titleMedium) }
+    Text(
+        "End Run tells the school the children are off the bus. Only you can say that, " +
+            "if the phone simply stops, the school records the run as timed out instead.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+
+    if (confirmEnd) {
+        AlertDialog(
+            onDismissRequest = { confirmEnd = false },
+            title = { Text("End this run?") },
+            text = {
+                Text(
+                    "The school will be told the children are off the bus and this " +
+                        "phone stops reporting where it is.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmEnd = false
+                    onEndRun()
+                }) { Text("End the run") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmEnd = false }) { Text("Keep driving") }
+            },
+        )
     }
 }
