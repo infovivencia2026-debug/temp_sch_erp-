@@ -70,13 +70,32 @@ if ('serviceWorker' in navigator) {
           if (this.state === 'installed' && navigator.serviceWorker.controller) takeOver()
         })
       })
+      /* THE GUARD WAS FOR THE TAB, AND IT SHOULD HAVE BEEN FOR THE RELOAD.
+       *
+       * It stored a flag on the first controller change and never cleared it,
+       * so a tab took the first new build it saw and then ignored every one
+       * after that for as long as it stayed open. On a desk that is a day and
+       * a dozen deploys: the update installs, the worker takes over, the
+       * controller changes, and this returns. The person keeps working in a
+       * build from the morning, and every fix shipped since is invisible to
+       * them while being demonstrably live on the server.
+       *
+       * A timestamp instead. A reload loop is two reloads in the same breath,
+       * which ten seconds catches; two deploys ten seconds apart is not a
+       * thing that happens, and if it did, taking the second is right. */
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (sessionStorage.getItem('erp.sw.reloaded')) return
+        let last = 0
         try {
-          sessionStorage.setItem('erp.sw.reloaded', '1')
+          last = Number(sessionStorage.getItem('erp.sw.reloaded') ?? 0)
         } catch {
-          /* Private mode. One reload without the guard is still better than
+          /* Private mode: no guard, and one reload is still better than
              running a build whose assets the controller has dropped. */
+        }
+        if (last && Date.now() - last < 10_000) return
+        try {
+          sessionStorage.setItem('erp.sw.reloaded', String(Date.now()))
+        } catch {
+          /* As above. */
         }
         window.location.reload()
       })
