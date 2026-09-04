@@ -1207,6 +1207,10 @@ export function Widget({
     paint['--bento-mint'] = 'var(--bento-line)'
     paint['--bento-dark-bg'] = soft
     paint['--bento-dark-ink'] = 'var(--bento-ink)'
+    /* And the fourth way a card gets a ground: one of the four house tints,
+       painted straight onto the shell. That card was the last one on the
+       board still refusing a colour. */
+    paint['--bento-card-accent'] = soft
   }
 
   /* ONE CARD LEADS — WHEN IT HAS SOMETHING TO SAY.

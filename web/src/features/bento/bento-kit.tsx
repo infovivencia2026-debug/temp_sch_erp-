@@ -185,11 +185,22 @@ const ACCENT_INK: Record<Accent, string> = {
   pink: 'text-[var(--bento-ink)]',
   orange: 'text-[var(--bento-ink)]',
 }
+/* THE CARD SHELL, THROUGH A TOKEN A PICKED COLOUR CAN REACH.
+
+   These four are the fixed house tints, and a card wearing one painted it
+   directly -- so it was the one card on the board that ignored every colour
+   anybody chose for it, while the cards either side of it changed.
+
+   --bento-card-accent is set only when a tint is picked, and falls back to
+   the house tint otherwise, so an unpainted board looks exactly as it did.
+   Kept off --bento-*-tint itself because badges elsewhere paint from those
+   directly, and repointing them would swallow every chip inside the card
+   into the card's own colour. */
 const ACCENT_TINT: Record<Accent, string> = {
-  mint: 'bg-[var(--bento-mint-tint)]',
-  purple: 'bg-[var(--bento-purple-tint)]',
-  pink: 'bg-[var(--bento-pink-tint)]',
-  orange: 'bg-[var(--bento-orange-tint)]',
+  mint: 'bg-[var(--bento-card-accent,var(--bento-mint-tint))]',
+  purple: 'bg-[var(--bento-card-accent,var(--bento-purple-tint))]',
+  pink: 'bg-[var(--bento-card-accent,var(--bento-pink-tint))]',
+  orange: 'bg-[var(--bento-card-accent,var(--bento-orange-tint))]',
 }
 /* ACCENT_FILL is gone. It was the flat accent as a background class, and
    every drawing that used it — the active bar, the meter's fill — now builds
