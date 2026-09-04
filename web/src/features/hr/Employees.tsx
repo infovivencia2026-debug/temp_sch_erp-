@@ -106,12 +106,21 @@ export default function Employees() {
      the row rather than behind a separate screen. The result is shown once and
      never stored — a password the system can show you twice is one it is
      keeping somewhere a third party can read. */
+  /* Which row the card is about, kept beside the card so that a reset can be
+     asked for from the card itself. The server only replaces a working
+     password when told to in as many words (?reset=true); the row's button
+     never said so, and "Reset password" answered with a card that had no
+     password on it. */
+  const [handoverFor, setHandoverFor] = useState<Employee | null>(null)
   const issue = useMutation({
-    mutationFn: (e: Employee) => {
+    mutationFn: ({ e, reset }: { e: Employee; reset?: boolean }) => {
       setIssuing(e.id)
-      return api.post<StaffLogin>(`/api/v1/setup/employees/${e.id}/login`, {})
+      return api.post<StaffLogin>(
+        `/api/v1/setup/employees/${e.id}/login${reset ? '?reset=true' : ''}`,
+        {},
+      )
     },
-    onSuccess: (h) => { setHandover(h); staff.refetch() },
+    onSuccess: (h, { e }) => { setHandover(h); setHandoverFor(e); staff.refetch() },
     onSettled: () => setIssuing(null),
   })
 
@@ -221,7 +230,24 @@ export default function Employees() {
               </div>
               <div>
                 <dt className="text-[12px] text-muted-foreground">Password</dt>
-                <dd className="select-all font-mono text-[17px] font-semibold">{handover.password}</dd>
+                {handover.password ? (
+                  <dd className="select-all font-mono text-[17px] font-semibold">{handover.password}</dd>
+                ) : (
+                  /* The login already works and the password is not on file.
+                     The one thing the office can do about a lost password is
+                     issue a new one, and that stops the old one, so it is
+                     asked for here in front of the sentence that says so
+                     rather than fired from the row. */
+                  <dd className="mt-1">
+                    <Button
+                      size="sm"
+                      disabled={issuing != null || !handoverFor}
+                      onClick={() => handoverFor && issue.mutate({ e: handoverFor, reset: true })}
+                    >
+                      {issuing ? 'Resetting…' : 'Reset password'}
+                    </Button>
+                  </dd>
+                )}
               </div>
             </dl>
           </div>
@@ -421,9 +447,9 @@ export default function Employees() {
                         size="sm"
                         variant="secondary"
                         disabled={issuing === e.id}
-                        onClick={() => issue.mutate(e)}
+                        onClick={() => issue.mutate({ e })}
                       >
-                        {issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Reset password'}
+                        {issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Sign-in details'}
                       </Button>
                     )}
                     {/* Only where a PIN can actually be used: it needs an
