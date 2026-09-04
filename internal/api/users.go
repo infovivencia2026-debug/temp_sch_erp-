@@ -489,6 +489,9 @@ var overlappingRoles = [][2]string{
 	// All five of the receptionist's entries are inside admissions — the same
 	// four desk registers plus My pay. Granting both is the front desk twice.
 	{"admissions", "front_office"},
+	// The warden's six entries are the principal's hostel section drawn again
+	// under its own name: rooms, outpasses and laundry are the same screens.
+	{"institution_admin", "hostel_warden"},
 }
 
 /* Why those two and not the rest.
@@ -516,6 +519,9 @@ var overlapRemedy = map[[2]string]string{
 	{"admissions", "front_office"}: "Admissions already contains the four front-desk " +
 		"registers. Give front_office alone to somebody who only works the desk, or " +
 		"admissions alone to somebody who does both.",
+	{"institution_admin", "hostel_warden"}: "The principal's workspace already holds the " +
+		"whole hostel section. Give hostel_warden alone to the person who runs the hostel; " +
+		"a principal who also does so already has every register from their own role.",
 }
 
 // checkGrantable rejects a role list a caller is not entitled to hand out.
@@ -659,10 +665,14 @@ var AllOperationalRoles = []string{
 	   listed twice. Somebody running the whole school single-handed still
 	   teaches and still works the desk — they get the classroom screens from
 	   hod once they are allocated a subject, and the four desk registers from
-	   admissions, which already contains them. */
+	   admissions, which already contains them.
+
+	   Nor hostel_warden beside institution_admin, for the same reason: the
+	   principal's workspace carries the whole hostel section, so the person
+	   running everything already has every register the warden has. */
 	"institution_admin", "it_admin", "hod",
 	"finance", "admissions", "hr", "operations",
-	"exam_controller", "librarian", "transport_manager", "hostel_warden",
+	"exam_controller", "librarian", "transport_manager",
 }
 
 var rolePresets = []rolePreset{

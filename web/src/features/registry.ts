@@ -41,6 +41,7 @@ import { childBusKeys } from './portal/child-bus-keys'
 import { transportPrefsKeys } from './portal/transport-prefs-keys'
 import { trackerKeys } from './super_admin/tracker-keys'
 import { libraryYearKeys } from './operations/library-year-keys'
+import { welfareKeys } from './welfare/welfare-keys'
 import { attendanceDevicesKeys } from './hr/attendance-devices-keys'
 import { signalsKeys } from './super_admin/signals-keys'
 import { examControllerKeys } from './exams/exam-controller-keys'
@@ -561,6 +562,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...reportBuilderKeys,
   ...digitalLibraryKeys,
   ...libraryYearKeys,
+  ...welfareKeys,
   ...attendanceDevicesKeys,
   ...familyKeys,
   ...adminAcademicsKeys,

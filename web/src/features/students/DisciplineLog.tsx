@@ -7,6 +7,7 @@ import {
   Field, FormGrid, FormNotice, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useCan } from '@/lib/session'
 
 /* The conduct file, from the office's side.
 
@@ -63,6 +64,10 @@ const STATUS: Record<string, 'neutral' | 'warning' | 'info' | 'success'> = {
 
 export default function DisciplineLog() {
   const qc = useQueryClient()
+  /* Escalating and closing writes the child's record, which is students.write.
+     A discipline officer reads this log and writes conduct notes elsewhere; a
+     Handle button whose every save answers 403 is worse than no button. */
+  const mayHandle = useCan()('students.write')
   const [status, setStatus] = useState('')
   const [severity, setSeverity] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -188,13 +193,15 @@ export default function DisciplineLog() {
                     {r.status === 'closed' ? '—' : `${r.age_days}d`}
                   </Td>
                   <Td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setOpen(open === r.id ? null : r.id)}
-                    >
-                      {open === r.id ? 'Close' : 'Handle'}
-                    </Button>
+                    {mayHandle && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setOpen(open === r.id ? null : r.id)}
+                      >
+                        {open === r.id ? 'Close' : 'Handle'}
+                      </Button>
+                    )}
                   </Td>
                 </tr>
               ))}

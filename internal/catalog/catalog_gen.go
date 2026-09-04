@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 18 roles, 369 features.
+// Roles is the catalog: 23 roles, 395 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -902,6 +902,167 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "driver.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
 					{Key: "driver.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "nurse",
+		Name: "Nurse / Clinic",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "nurse.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clinic's day on one page: who has come in, what has been given, and the children whose file says something before anyone opens it."},
+				},
+			},
+			{
+				Slug:      "clinic",
+				Name:      "Clinic",
+				Workspace: "Clinic",
+				Features: []Feature{
+					{Key: "nurse.clinic.visits_medication", Slug: "visits_medication", Name: "Visits & medication", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Today's register: each child who came in, what was wrong, what was done — and the medication register beside it, with who allowed each dose."},
+					{Key: "nurse.clinic.checkups_camps", Slug: "checkups_camps", Name: "Checkups & camps", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The yearly health checkup per child, and the camps a visiting doctor runs."},
+					{Key: "nurse.clinic.health_records", Slug: "health_records", Name: "Health records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Allergies, chronic conditions, blood group and the family doctor, for the moment somebody needs them quickly."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "nurse.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "counsellor",
+		Name: "Counsellor",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "counsellor.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The conversations open with families, the concerns teachers wrote this week, and the children whose health file flags something."},
+				},
+			},
+			{
+				Slug:      "counselling",
+				Name:      "Counselling",
+				Workspace: "Counselling",
+				Features: []Feature{
+					{Key: "counsellor.counselling.family_conversations", Slug: "family_conversations", Name: "Family conversations", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Private threads with a child's family. Who can read one is a named list and nothing else."},
+					{Key: "counsellor.counselling.conduct_notes", Slug: "conduct_notes", Name: "Conduct notes", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Praise and concerns teachers have recorded, one record read in order."},
+					{Key: "counsellor.counselling.health_records", Slug: "health_records", Name: "Health records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Allergies, chronic conditions and the family doctor, read from the clinic's master file."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "counsellor.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "discipline_officer",
+		Name: "Discipline Officer",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "discipline_officer.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Incidents still open, the serious ones, and what was written about conduct this week."},
+				},
+			},
+			{
+				Slug:      "discipline",
+				Name:      "Discipline",
+				Workspace: "Discipline",
+				Features: []Feature{
+					{Key: "discipline_officer.discipline.conduct_notes", Slug: "conduct_notes", Name: "Conduct notes", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Badges and demerits: record praise or a concern against a child, and read what others have written."},
+					{Key: "discipline_officer.discipline.incident_log", Slug: "incident_log", Name: "Incident log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "discipline_officer.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "hostel_warden",
+		Name: "Hostel Warden",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "hostel_warden.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Passes waiting on you, who is out and late back, beds against boarders, and complaints still open."},
+				},
+			},
+			{
+				Slug:      "hostel",
+				Name:      "Hostel",
+				Workspace: "Hostel",
+				Features: []Feature{
+					{Key: "hostel_warden.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Blocks, rooms and who sleeps where, with a free bed to put a child in."},
+					{Key: "hostel_warden.hostel.outpasses_mess", Slug: "outpasses_mess", Name: "Outpasses & mess", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave out of the hostel, complaints raised from it, and the week's mess menu."},
+					{Key: "hostel_warden.hostel.night_study", Slug: "night_study", Name: "Night study", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who was in the study hall, taken the way the register is."},
+					{Key: "hostel_warden.hostel.visitor_log", Slug: "visitor_log", Name: "Visitor log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who came to see a boarder, when they arrived and when they left."},
+					{Key: "hostel_warden.hostel.boarder_laundry", Slug: "boarder_laundry", Name: "Boarder laundry", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Bundles out and back, so a missing shirt has a record rather than an argument."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "hostel_warden.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "activity_coord",
+		Name: "Activity / Sports Coordinator",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "activity_coord.home.dashboard", Slug: "dashboard", Name: "Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs and teams running, how full each is, and the achievements waiting to be published."},
+				},
+			},
+			{
+				Slug:      "activities",
+				Name:      "Activities",
+				Workspace: "Activities",
+				Features: []Feature{
+					{Key: "activity_coord.activities.clubs_activities", Slug: "clubs_activities", Name: "Clubs & activities", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it."},
+					{Key: "activity_coord.activities.achievements_showcase", Slug: "achievements_showcase", Name: "Achievements showcase", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Awards and sports results, and the family's consent before a child's name goes in front of the school."},
+					{Key: "activity_coord.activities.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A notice to the classes concerned — fixtures, practice times, a trip — with who has read it."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "activity_coord.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},

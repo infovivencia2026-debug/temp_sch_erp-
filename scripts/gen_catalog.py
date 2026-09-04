@@ -78,6 +78,14 @@ ROLE_KEYS = {
     "IT Administrator": "it_admin",
     "Operations Staff": "operations",
     "Driver / Bus Attendant": "driver",
+    # The five welfare and pastoral roles. Each is offered to schools and each
+    # held capability grants and nothing to navigate: a nurse signed in to
+    # "no workspace" while the clinic screens sat on the principal's menu.
+    "Nurse / Clinic": "nurse",
+    "Counsellor": "counsellor",
+    "Discipline Officer": "discipline_officer",
+    "Hostel Warden": "hostel_warden",
+    "Activity / Sports Coordinator": "activity_coord",
 }
 
 # Display order in the role switcher and docs: platform-wide first, then
@@ -88,6 +96,7 @@ ROLE_ORDER = [
     "seller_admin", "super_admin",
     "institution_admin", "board_member", "hod", "exam_controller", "faculty",
     "librarian", "transport_manager", "operations", "driver",
+    "nurse", "counsellor", "discipline_officer", "hostel_warden", "activity_coord",
     "finance", "admissions", "front_office", "hr", "it_admin",
     "student", "parent",
 ]

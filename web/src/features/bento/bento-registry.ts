@@ -93,6 +93,14 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
   'it_admin.home.systems_desk': screen(() => import('./ITDesk')),
   'operations.home.operations_desk': screen(() => import('./OpsDesk')),
   'driver.home.my_run': screen(() => import('./DriverDay')),
+  /* The five welfare boards. Each role's Home is catalogued at
+     `<role>.home.dashboard`, the same key the classic registry binds to the
+     same board, so the two layouts land on one page rather than two. */
+  'nurse.home.dashboard': screen(() => import('../welfare/NurseDay')),
+  'counsellor.home.dashboard': screen(() => import('../welfare/CounsellorDay')),
+  'discipline_officer.home.dashboard': screen(() => import('../welfare/DisciplineDay')),
+  'hostel_warden.home.dashboard': screen(() => import('../welfare/WardenDay')),
+  'activity_coord.home.dashboard': screen(() => import('../welfare/ActivityDay')),
 }
 
 /** The Bento rendering of a feature key, or undefined — which means "render

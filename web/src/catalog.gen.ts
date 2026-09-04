@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 18 roles, 369 features. */
+/** 23 roles, 395 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -855,6 +855,167 @@ export const ROLES: Role[] = [
         features: [
           { key: 'driver.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'driver.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'nurse',
+    name: 'Nurse / Clinic',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'nurse.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'The clinic\'s day on one page: who has come in, what has been given, and the children whose file says something before anyone opens it.' },
+        ],
+      },
+      {
+        slug: 'clinic',
+        name: 'Clinic',
+        workspace: 'Clinic',
+        features: [
+          { key: 'nurse.clinic.visits_medication', slug: 'visits_medication', name: 'Visits & medication', scope: 'institution', tier: 'core', summary: 'Today\'s register: each child who came in, what was wrong, what was done — and the medication register beside it, with who allowed each dose.' },
+          { key: 'nurse.clinic.checkups_camps', slug: 'checkups_camps', name: 'Checkups & camps', scope: 'institution', tier: 'core', summary: 'The yearly health checkup per child, and the camps a visiting doctor runs.' },
+          { key: 'nurse.clinic.health_records', slug: 'health_records', name: 'Health records', scope: 'institution', tier: 'core', summary: 'Allergies, chronic conditions, blood group and the family doctor, for the moment somebody needs them quickly.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'nurse.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'counsellor',
+    name: 'Counsellor',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'counsellor.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'The conversations open with families, the concerns teachers wrote this week, and the children whose health file flags something.' },
+        ],
+      },
+      {
+        slug: 'counselling',
+        name: 'Counselling',
+        workspace: 'Counselling',
+        features: [
+          { key: 'counsellor.counselling.family_conversations', slug: 'family_conversations', name: 'Family conversations', scope: 'institution', tier: 'core', summary: 'Private threads with a child\'s family. Who can read one is a named list and nothing else.' },
+          { key: 'counsellor.counselling.conduct_notes', slug: 'conduct_notes', name: 'Conduct notes', scope: 'institution', tier: 'core', summary: 'Praise and concerns teachers have recorded, one record read in order.' },
+          { key: 'counsellor.counselling.health_records', slug: 'health_records', name: 'Health records', scope: 'institution', tier: 'core', summary: 'Allergies, chronic conditions and the family doctor, read from the clinic\'s master file.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'counsellor.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'discipline_officer',
+    name: 'Discipline Officer',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'discipline_officer.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'Incidents still open, the serious ones, and what was written about conduct this week.' },
+        ],
+      },
+      {
+        slug: 'discipline',
+        name: 'Discipline',
+        workspace: 'Discipline',
+        features: [
+          { key: 'discipline_officer.discipline.conduct_notes', slug: 'conduct_notes', name: 'Conduct notes', scope: 'institution', tier: 'core', summary: 'Badges and demerits: record praise or a concern against a child, and read what others have written.' },
+          { key: 'discipline_officer.discipline.incident_log', slug: 'incident_log', name: 'Incident log', scope: 'institution', tier: 'core', summary: 'Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'discipline_officer.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'hostel_warden',
+    name: 'Hostel Warden',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'hostel_warden.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'Passes waiting on you, who is out and late back, beds against boarders, and complaints still open.' },
+        ],
+      },
+      {
+        slug: 'hostel',
+        name: 'Hostel',
+        workspace: 'Hostel',
+        features: [
+          { key: 'hostel_warden.hostel.hostel_rooms', slug: 'hostel_rooms', name: 'Hostel & rooms', scope: 'institution', tier: 'core', summary: 'Blocks, rooms and who sleeps where, with a free bed to put a child in.' },
+          { key: 'hostel_warden.hostel.outpasses_mess', slug: 'outpasses_mess', name: 'Outpasses & mess', scope: 'institution', tier: 'core', summary: 'Leave out of the hostel, complaints raised from it, and the week\'s mess menu.' },
+          { key: 'hostel_warden.hostel.night_study', slug: 'night_study', name: 'Night study', scope: 'institution', tier: 'core', summary: 'Who was in the study hall, taken the way the register is.' },
+          { key: 'hostel_warden.hostel.visitor_log', slug: 'visitor_log', name: 'Visitor log', scope: 'institution', tier: 'core', summary: 'Who came to see a boarder, when they arrived and when they left.' },
+          { key: 'hostel_warden.hostel.boarder_laundry', slug: 'boarder_laundry', name: 'Boarder laundry', scope: 'institution', tier: 'core', summary: 'Bundles out and back, so a missing shirt has a record rather than an argument.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'hostel_warden.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'activity_coord',
+    name: 'Activity / Sports Coordinator',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'activity_coord.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'institution', tier: 'core', summary: 'The clubs and teams running, how full each is, and the achievements waiting to be published.' },
+        ],
+      },
+      {
+        slug: 'activities',
+        name: 'Activities',
+        workspace: 'Activities',
+        features: [
+          { key: 'activity_coord.activities.clubs_activities', slug: 'clubs_activities', name: 'Clubs & activities', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it.' },
+          { key: 'activity_coord.activities.achievements_showcase', slug: 'achievements_showcase', name: 'Achievements showcase', scope: 'institution', tier: 'core', summary: 'Awards and sports results, and the family\'s consent before a child\'s name goes in front of the school.' },
+          { key: 'activity_coord.activities.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A notice to the classes concerned — fixtures, practice times, a trip — with who has read it.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'activity_coord.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],

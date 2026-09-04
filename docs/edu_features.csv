@@ -368,3 +368,29 @@ Driver / Bus Attendant,Home,Home,My run,"The bus you are on, the route and its s
 Driver / Bus Attendant,Transport,Transport,My bus & route,"Your bus, its papers, the stops in order with pickup and drop times, the riders at each, and the last fortnight's checks.",Self only,Must-Have,core
 Driver / Bus Attendant,My Profile,My Profile,Profile,"Your own name, phone, email and password.",Self only,Must-Have,core
 Driver / Bus Attendant,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Nurse / Clinic,Home,Home,Dashboard,"The clinic's day on one page: who has come in, what has been given, and the children whose file says something before anyone opens it.",Assigned institution/campus,Must-Have,core
+Nurse / Clinic,Clinic,Clinic,Visits & medication,"Today's register: each child who came in, what was wrong, what was done — and the medication register beside it, with who allowed each dose.",Assigned institution/campus,Must-Have,core
+Nurse / Clinic,Clinic,Clinic,Checkups & camps,"The yearly health checkup per child, and the camps a visiting doctor runs.",Assigned institution/campus,Must-Have,core
+Nurse / Clinic,Clinic,Clinic,Health records,"Allergies, chronic conditions, blood group and the family doctor, for the moment somebody needs them quickly.",Assigned institution/campus,Must-Have,core
+Nurse / Clinic,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Counsellor,Home,Home,Dashboard,"The conversations open with families, the concerns teachers wrote this week, and the children whose health file flags something.",Assigned institution/campus,Must-Have,core
+Counsellor,Counselling,Counselling,Family conversations,"Private threads with a child's family. Who can read one is a named list and nothing else.",Assigned institution/campus,Must-Have,core
+Counsellor,Counselling,Counselling,Conduct notes,"Praise and concerns teachers have recorded, one record read in order.",Assigned institution/campus,Must-Have,core
+Counsellor,Counselling,Counselling,Health records,"Allergies, chronic conditions and the family doctor, read from the clinic's master file.",Assigned institution/campus,Must-Have,core
+Counsellor,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Discipline Officer,Home,Home,Dashboard,"Incidents still open, the serious ones, and what was written about conduct this week.",Assigned institution/campus,Must-Have,core
+Discipline Officer,Discipline,Discipline,Conduct notes,"Badges and demerits: record praise or a concern against a child, and read what others have written.",Assigned institution/campus,Must-Have,core
+Discipline Officer,Discipline,Discipline,Incident log,"Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension.",Assigned institution/campus,Must-Have,core
+Discipline Officer,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Hostel Warden,Home,Home,Dashboard,"Passes waiting on you, who is out and late back, beds against boarders, and complaints still open.",Assigned institution/campus,Must-Have,core
+Hostel Warden,Hostel,Hostel,Hostel & rooms,"Blocks, rooms and who sleeps where, with a free bed to put a child in.",Assigned institution/campus,Must-Have,core
+Hostel Warden,Hostel,Hostel,Outpasses & mess,"Leave out of the hostel, complaints raised from it, and the week's mess menu.",Assigned institution/campus,Must-Have,core
+Hostel Warden,Hostel,Hostel,Night study,"Who was in the study hall, taken the way the register is.",Assigned institution/campus,Must-Have,core
+Hostel Warden,Hostel,Hostel,Visitor log,"Who came to see a boarder, when they arrived and when they left.",Assigned institution/campus,Must-Have,core
+Hostel Warden,Hostel,Hostel,Boarder laundry,"Bundles out and back, so a missing shirt has a record rather than an argument.",Assigned institution/campus,Must-Have,core
+Hostel Warden,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Activity / Sports Coordinator,Home,Home,Dashboard,"The clubs and teams running, how full each is, and the achievements waiting to be published.",Assigned institution/campus,Must-Have,core
+Activity / Sports Coordinator,Activities,Activities,Clubs & activities,"The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it.",Assigned institution/campus,Must-Have,core
+Activity / Sports Coordinator,Activities,Activities,Achievements showcase,"Awards and sports results, and the family's consent before a child's name goes in front of the school.",Assigned institution/campus,Must-Have,core
+Activity / Sports Coordinator,Activities,Activities,Circulars,"A notice to the classes concerned — fixtures, practice times, a trip — with who has read it.",Assigned institution/campus,Must-Have,core
+Activity / Sports Coordinator,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
