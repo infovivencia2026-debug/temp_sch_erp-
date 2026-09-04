@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Field, FormGrid,
   FormNotice, SkeletonForm, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatTime } from '@/lib/utils'
 
 /* THE MORNING GRACE WINDOW.
 
@@ -114,7 +114,7 @@ export default function PunchGrace() {
                     <tr key={`${p.employee}-${p.on_date}-${i}`}>
                       <Td className="font-medium">{p.employee}</Td>
                       <Td>{formatDate(p.on_date)}</Td>
-                      <Td className="tabular-nums">{p.check_in}</Td>
+                      <Td className="tabular-nums">{formatTime(p.check_in)}</Td>
                       <Td className="tabular-nums">{p.minutes_late} min</Td>
                       <Td>{p.half_day ? <Badge tone="danger">Half day</Badge> : <Badge tone="warning">Late</Badge>}</Td>
                     </tr>

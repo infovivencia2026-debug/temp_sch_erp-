@@ -5,7 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Input, Field,
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatPaise } from '@/lib/utils'
+import { formatPaise, formatTime } from '@/lib/utils'
 
 /* WHAT THE PUNCHES ADD UP TO.
 
@@ -101,13 +101,17 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
               {/* Due beside actual, so a late count explains itself on the
                   row rather than needing the pattern looked up elsewhere. */}
               <td className="py-1 pr-4 tabular-nums text-slate-400">
-                {d.expected ? d.due_in : '-'}
+                {d.expected ? formatTime(d.due_in) : '-'}
               </td>
-              <td className="py-1 pr-4 tabular-nums">{d.check_in ?? '-'}</td>
+              <td className="py-1 pr-4 tabular-nums">
+                {d.check_in ? formatTime(d.check_in) : '-'}
+              </td>
               <td className="py-1 pr-4 tabular-nums text-slate-400">
-                {d.expected ? d.due_out : '-'}
+                {d.expected ? formatTime(d.due_out) : '-'}
               </td>
-              <td className="py-1 pr-4 tabular-nums">{d.check_out ?? '-'}</td>
+              <td className="py-1 pr-4 tabular-nums">
+                {d.check_out ? formatTime(d.check_out) : '-'}
+              </td>
               <td className="py-1 pr-4 tabular-nums">{hhmm(d.minutes) || '-'}</td>
               <td className="py-1 pr-4 tabular-nums">
                 {d.late_by_minutes ? `${d.late_by_minutes} min` : '-'}
@@ -196,7 +200,9 @@ export default function StaffHours() {
                       <Badge tone="warning">None set</Badge>
                     ) : (
                       <>
-                        <div className="tabular-nums">{r.starts_at}&ndash;{r.ends_at}</div>
+                        <div className="tabular-nums">
+                          {formatTime(r.starts_at)}&ndash;{formatTime(r.ends_at)}
+                        </div>
                         <div className="text-xs text-slate-500">
                           {r.pattern} &middot; {r.grace_minutes} min grace
                         </div>

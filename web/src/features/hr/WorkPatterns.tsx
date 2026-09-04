@@ -6,7 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input, Field, FormGrid,
   FormNotice, Select, SkeletonTable, ErrorState, EmptyState, ConfirmButton,
 } from '@/components/ui'
-import { WEEKDAYS } from '@/lib/utils'
+import { WEEKDAYS, formatTime } from '@/lib/utils'
 
 /* THE HOURS THIS SCHOOL KEEPS, AND WHAT A DAY LOST COSTS.
 
@@ -360,7 +360,9 @@ export default function WorkPatterns() {
                   <Td className="font-medium">
                     {p.name} {p.is_default && <Badge tone="neutral">Default</Badge>}
                   </Td>
-                  <Td className="tabular-nums">{p.starts_at}&ndash;{p.ends_at}</Td>
+                  <Td className="tabular-nums">
+                    {formatTime(p.starts_at)}&ndash;{formatTime(p.ends_at)}
+                  </Td>
                   <Td>{p.working_days.map((d) => WEEKDAYS[d - 1]).join(' ')}</Td>
                   <Td>{rule(p)}</Td>
                   <Td className="text-slate-500">

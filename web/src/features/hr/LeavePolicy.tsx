@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Clock, Scale } from 'lucide-react'
 import { api } from '@/lib/api'
+import { formatTime } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
@@ -150,7 +151,7 @@ export default function LeavePolicy() {
           <Stat label="Unpaid types" value={unpaid}
             hint="Days taken on these become loss of pay" />
           <Stat label="Grace period" value={`${draft.grace_minutes} min`} icon={Clock}
-            hint={`After ${draft.shift_starts_at}`} />
+            hint={`After ${formatTime(draft.shift_starts_at)}`} />
           <Stat label="Late marks per day lost" value={draft.late_marks_per_lop_day} icon={Scale} />
         </CellGrid>
 
