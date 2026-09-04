@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl, { type LngLatBoundsLike, type Map as MLMap } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { Protocol } from 'pmtiles'
+import { layers, namedFlavor } from '@protomaps/basemaps'
+import { isAndroidWebView } from '@/lib/fullscreen'
 import { Maximize2, Minimize2, Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +32,59 @@ import { cn } from '@/lib/utils'
    host sees the viewport, which is roughly where the school and its buses
    are. That is the trade for not running a tile server. */
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+
+/* THE MAP WE HOST OURSELVES, FOR THE ANDROID APP FIRST.
+
+   OpenFreeMap above is free and needs no key, and it is somebody else's
+   server with no promise attached. The alternative is one file: a PMTiles
+   archive of the region (Andhra Pradesh and Telangana, cut from the daily
+   Protomaps build of OpenStreetMap by scripts/refresh-tiles.sh), served as a
+   static file with range requests from the ERP's own nginx under /tiles/,
+   with the fonts and sprites the style needs beside it. No third party sees
+   where the buses are, nothing can be revoked, and the hosting cost is a
+   200MB file on a disk that has room for it. When R2 gets a public host the
+   same file moves there and only TILES_BASE changes.
+
+   Rolled out to the Android parent app before anyone else: it is the client
+   the school actually hands out, it is detectable (the WebView writes a `wv`
+   token into its user agent, see isAndroidWebView), and a tile problem shows
+   up in one app rather than on every screen in the office. Browsers and the
+   iOS app keep OpenFreeMap until this has been watched for a while; then the
+   gate goes and the constant above with it.
+
+   The style is built in code from the Protomaps basemap layers rather than
+   fetched as JSON, because the layer list has to name this origin's tile
+   source and asset paths, and a style file with those baked in would be one
+   more thing to regenerate on every deploy. */
+const TILES_BASE = '/tiles'
+const TILES_ARCHIVE = `${TILES_BASE}/south-india.pmtiles`
+
+let pmtilesRegistered = false
+function selfHostedStyle(): maplibregl.StyleSpecification {
+  if (!pmtilesRegistered) {
+    // One protocol handler per page; MapLibre keeps it globally.
+    maplibregl.addProtocol('pmtiles', new Protocol().tile)
+    pmtilesRegistered = true
+  }
+  return {
+    version: 8,
+    glyphs: `${window.location.origin}${TILES_BASE}/assets/fonts/{fontstack}/{range}.pbf`,
+    sprite: `${window.location.origin}${TILES_BASE}/assets/sprites/v4/light`,
+    sources: {
+      protomaps: {
+        type: 'vector',
+        url: `pmtiles://${TILES_ARCHIVE}`,
+        attribution:
+          '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      },
+    },
+    layers: layers('protomaps', namedFlavor('light'), { lang: 'en' }),
+  }
+}
+
+function mapStyle(): string | maplibregl.StyleSpecification {
+  return isAndroidWebView() ? selfHostedStyle() : STYLE_URL
+}
 
 export interface MapVehicle {
   id: string
@@ -169,7 +225,7 @@ export function FleetMap({
     if (!host.current || map.current) return
     const m = new maplibregl.Map({
       container: host.current,
-      style: STYLE_URL,
+      style: mapStyle(),
       center: [78.9629, 20.5937],
       zoom: 3,
       // The office reads this map; it does not present it. Rotation only
