@@ -2340,7 +2340,7 @@ html[data-layout='bento'] body {
      for and, more to the point, it is the ONLY control on most of these cards
      -- the whole cell is a link, but the cue is what the eye aims at. It gets
      the full 44 here, where the pointer is a fingertip. */
-  [data-layout='bento'] .bento-cell { padding: 1.125rem; }
+  [data-layout='bento'] .bento-cell { --cell-pad: 1.125rem; padding: var(--cell-pad); }
   [data-layout='bento'] .bento-cue { width: 2.75rem; height: 2.75rem; }
 
   /* A LINE LENGTH, NOT A COLUMN WIDTH.
@@ -3436,9 +3436,23 @@ html:not(.dark)[data-layout='bento'] {
    measured from the tile, not from whatever happens to wrap it. */
 [data-layout='bento'] .bento-cell {
   position: relative;
+  /* The default the offset below falls back to, for the breakpoints that do
+     not restate it. Kept beside the padding it mirrors. */
+  --cell-pad: 1rem;
 }
-[data-layout='bento'] .bento-cell > .bento-cue,
 [data-layout='bento'] .bento-cell .bento-cue {
-  top: 0;
-  right: 0;
+  /* PULLED BACK OUT THROUGH THE PADDING.
+
+     Making the cell a positioned ancestor was not enough: the card's own
+     wrapper inside it is already relative, so the arrow measures from there,
+     and that wrapper starts where the cell's padding ends. Measured on the
+     live board, that is a 16px gap on every card whose shell provides the
+     wrapper and none on the cards that do not, which is why half the arrows
+     touched the corner and half floated.
+
+     Offset by exactly the padding, read from the same variable that sets it,
+     so the two cannot drift apart the way a hardcoded 16px would the next time
+     somebody tightens a cell. */
+  top: calc(var(--cell-pad, 1rem) * -1);
+  right: calc(var(--cell-pad, 1rem) * -1);
 }
