@@ -42,19 +42,20 @@ type leaveType struct {
 	CarryFwd    bool     `json:"carry_forward"`
 }
 
-func quota(n float64) *float64 { return &n }
+/* NO SCHOOL STARTS WITH LEAVE IT DID NOT GRANT.
 
-// The leave every Indian school gives, and roughly how much of it. Numbers a
-// school will edit; names it will recognise.
-var starterLeaveTypes = []leaveType{
-	{Code: "CL", Name: "Casual leave", AppliesTo: "staff", AnnualQuota: quota(12), IsPaid: true},
-	{Code: "SL", Name: "Sick leave", AppliesTo: "staff", AnnualQuota: quota(12), IsPaid: true},
-	{Code: "EL", Name: "Earned leave", AppliesTo: "staff", AnnualQuota: quota(15), IsPaid: true, CarryFwd: true},
-	{Code: "ML", Name: "Maternity leave", AppliesTo: "staff", AnnualQuota: quota(180), IsPaid: true},
-	{Code: "LOP", Name: "Leave without pay", AppliesTo: "staff", IsPaid: false},
-	{Code: "SICK", Name: "Sick leave", AppliesTo: "student", IsPaid: true},
-	{Code: "FUNC", Name: "Parent function", AppliesTo: "student", IsPaid: true},
-}
+   Five types were carried here as a starting point -- casual, sick, earned,
+   maternity, without pay -- with quotas of twelve and fifteen and a hundred
+   and eighty. A school that had never opened the screen found them on its
+   policy page and had to ask why it was offering earned leave it had never
+   agreed and a quota nobody had set; and because leave feeds loss of pay, a
+   number this product invented was a number a payslip would one day charge
+   against.
+
+   Nothing in the product ever asked for the list. It was reachable only by
+   sending starters:true by hand, and one school has the five rows to show for
+   it. A school now starts with none and names its own, which is the same rule
+   the hours and the deduction already follow. */
 
 func (s *Server) listLeaveTypes(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
@@ -92,7 +93,7 @@ func (s *Server) listLeaveTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"items": out, "suggested": starterLeaveTypes,
+		"items": out,
 	})
 }
 
@@ -102,7 +103,6 @@ func (s *Server) saveLeaveType(w http.ResponseWriter, r *http.Request) {
 	}
 	id := httpx.IdentityFrom(r.Context())
 	var in struct {
-		Starters bool `json:"starters"`
 		leaveType
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -110,25 +110,20 @@ func (s *Server) saveLeaveType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wanted := []leaveType{}
-	if in.Starters {
-		wanted = starterLeaveTypes
-	} else {
-		code := strings.ToUpper(strings.TrimSpace(in.Code))
-		name := strings.TrimSpace(in.Name)
-		if code == "" || name == "" {
-			httpx.BadRequest(w, r, "A leave type needs a short code and a name.")
-			return
-		}
-		if in.AppliesTo != "staff" && in.AppliesTo != "student" {
-			httpx.BadRequest(w, r, "Leave applies either to staff or to students.")
-			return
-		}
-		wanted = append(wanted, leaveType{
-			Code: code, Name: name, AppliesTo: in.AppliesTo,
-			AnnualQuota: in.AnnualQuota, IsPaid: in.IsPaid, CarryFwd: in.CarryFwd,
-		})
+	code := strings.ToUpper(strings.TrimSpace(in.Code))
+	name := strings.TrimSpace(in.Name)
+	if code == "" || name == "" {
+		httpx.BadRequest(w, r, "A leave type needs a short code and a name.")
+		return
 	}
+	if in.AppliesTo != "staff" && in.AppliesTo != "student" {
+		httpx.BadRequest(w, r, "Leave applies either to staff or to students.")
+		return
+	}
+	wanted := []leaveType{{
+		Code: code, Name: name, AppliesTo: in.AppliesTo,
+		AnnualQuota: in.AnnualQuota, IsPaid: in.IsPaid, CarryFwd: in.CarryFwd,
+	}}
 
 	var made int
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
