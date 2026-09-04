@@ -38,7 +38,15 @@ interface Pattern {
   people: number
 }
 interface Dept { id: string; name: string }
-interface Staff { id: string; employee_code: string; first_name?: string; last_name?: string }
+interface Staff {
+  id: string
+  employee_code: string
+  full_name: string
+  department: string
+  teaches: string
+  pattern: string
+  own_pattern: boolean
+}
 
 const BLANK = {
   name: '', starts_at: '08:45', ends_at: '15:45', grace_minutes: '10',
@@ -75,7 +83,10 @@ export default function WorkPatterns() {
 
   const staff = useQuery({
     queryKey: ['work-pattern-staff'],
-    queryFn: () => api.get<{ items: Staff[] }>('/api/v1/hr/employees?limit=500'),
+    // Not the general staff list: that one answers with codes, and a picker
+    // reading "000", "T-001", "FB-369" asks somebody to choose people they
+    // cannot recognise.
+    queryFn: () => api.get<{ items: Staff[] }>('/api/v1/setup/work-patterns/staff'),
   })
 
   const assign = useMutation({
@@ -86,7 +97,11 @@ export default function WorkPatterns() {
         pattern_id: assignTo === '' ? null : assignTo,
         employee_ids: picked,
       }),
-    onSuccess: () => { setPicked([]); done('Those hours now apply to the staff you chose.') },
+    onSuccess: () => {
+      setPicked([])
+      qc.invalidateQueries({ queryKey: ['work-pattern-staff'] })
+      done('Those hours now apply to the staff you chose.')
+    },
     onError: (error) => setNote({ error }),
   })
 
@@ -320,18 +335,27 @@ export default function WorkPatterns() {
             </FormGrid>
             <div className="mt-3 max-h-56 overflow-y-auto rounded-md border p-3">
               {(staff.data?.items ?? []).map((e) => {
-                const name = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.employee_code
                 const on = picked.includes(e.id)
+                // What they teach, or what they do. A driver has no grades and
+                // saying so is more use than an empty column.
+                const does = e.teaches || e.department
                 return (
-                  <label key={e.id} className="flex items-center gap-2 py-1 text-sm">
+                  <label
+                    key={e.id}
+                    className="flex items-baseline gap-2 border-b py-1.5 text-sm last:border-0"
+                  >
                     <input
                       type="checkbox"
+                      className="self-center"
                       checked={on}
                       onChange={() =>
                         setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])}
                     />
-                    <span>{name}</span>
-                    <span className="text-xs text-slate-400">{e.employee_code}</span>
+                    <span className="font-medium">{e.full_name || e.employee_code}</span>
+                    {does && <span className="text-xs text-slate-500">{does}</span>}
+                    <span className="ml-auto text-xs text-slate-400">
+                      {e.pattern || 'No hours'}{e.own_pattern ? '' : ' (inherited)'}
+                    </span>
                   </label>
                 )
               })}

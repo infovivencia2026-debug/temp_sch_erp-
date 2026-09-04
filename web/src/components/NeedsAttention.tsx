@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, CircleAlert, Info, ChevronRight } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CircleAlert, ChevronRight, Info, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
@@ -166,131 +166,222 @@ export default function NeedsAttention({ name }: { name?: string }) {
         )}
       </div>
 
-      {items.length > 0 && (
-        <section>
-          <p className="eyebrow mb-2">Needs your attention</p>
-          {nudged && <p className="mb-2 text-[13px] text-success">{nudged}</p>}
-          <ul className="divide-y rounded-md border bg-card">
-            {items.map((item) => {
-              const Icon = ICON[item.severity]
-              const href = hrefFor(item.href)
-              return (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    disabled={!href}
-                    onClick={() => href && navigate(href)}
-                    className={cn(
-                      'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
-                      href ? 'hover:bg-accent' : 'cursor-default',
-                    )}
+      {/* WHICH WORKSPACE THIS IS, SAID BEFORE THE FIGURES AND NOT AFTER.
+
+          It sat under the tiles as a grey last line, which is where a reader
+          looks once and never again -- and it is the sentence that explains
+          why the numbers above it are the numbers they are. Above the panel
+          now, and closable, because it is orientation rather than news. */}
+      {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
+
+      {/* THE READING ORDER IS NOT THE SAME ON A DESK AND IN A HAND.
+
+          On a desk the eye starts top left, so what needs doing goes there and
+          today's figures take the narrow right-hand column. On a phone there
+          is one column and no glance: the figures are three numbers worth a
+          thumb-length, and burying them under three action cards means
+          scrolling past the work to find out how the day is going. So the
+          tiles come first there, by order alone -- the markup says it once. */}
+      <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
+        {items.length > 0 && (
+          <section className="order-2 lg:order-1 lg:col-span-2">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="eyebrow">Needs your attention</p>
+              {/* How many, on the phone where the list is separate cards and
+                  its length is not one glance. */}
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive sm:hidden">
+                {items.length} pending
+              </span>
+            </div>
+            {nudged && <p className="mb-2 text-[13px] text-success">{nudged}</p>}
+            <ul className="flex flex-col gap-3 sm:gap-0 sm:divide-y sm:rounded-md sm:border sm:bg-card">
+              {items.map((item) => {
+                const Icon = ICON[item.severity]
+                const href = hrefFor(item.href)
+                const chase = item.key === 'attendance.unmarked' && canChase
+                return (
+                  <li
+                    key={item.key}
+                    className="overflow-hidden rounded-md border bg-card sm:rounded-none sm:border-0"
                   >
-                    <Icon
+                    <button
+                      type="button"
+                      disabled={!href}
+                      onClick={() => href && navigate(href)}
                       className={cn(
-                        'h-4 w-4 shrink-0',
-                        item.severity === 'critical' && 'text-destructive',
-                        item.severity === 'warning' && 'text-[hsl(var(--warning,38_92%_40%))]',
-                        item.severity === 'info' && 'text-muted-foreground',
+                        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors sm:items-center',
+                        href ? 'hover:bg-accent' : 'cursor-default',
                       )}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-medium">
-                        {item.headline}
+                    >
+                      {/* A tinted square in a hand, a bare glyph in a dense
+                          desktop row: the same severity at the weight each
+                          layout can carry. */}
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-md p-2 sm:bg-transparent sm:p-0',
+                          item.severity === 'critical' && 'bg-destructive/10',
+                          item.severity === 'warning' && 'bg-[hsl(var(--warn,38_92%_92%))]',
+                          item.severity === 'info' && 'bg-muted',
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            'h-4 w-4',
+                            item.severity === 'critical' && 'text-destructive',
+                            item.severity === 'warning' && 'text-[hsl(var(--warning,38_92%_40%))]',
+                            item.severity === 'info' && 'text-muted-foreground',
+                          )}
+                          aria-hidden
+                        />
                       </span>
-                      {item.detail && (
-                        <span className="block text-[12.5px] text-muted-foreground">
-                          {item.detail}
+                      <span className="min-w-0 flex-1">
+                        {/* Wraps in a hand, one line on a desk. The headline is
+                            the whole of what the row says, and an ellipsis
+                            through the middle of it at 360px is the row saying
+                            nothing. */}
+                        <span className="block text-[14px] font-medium sm:truncate">
+                          {item.headline}
+                        </span>
+                        {item.detail && (
+                          <span className="block text-[12.5px] text-muted-foreground">
+                            {item.detail}
+                          </span>
+                        )}
+                      </span>
+                      {href && (
+                        <span className="hidden shrink-0 items-center gap-1 text-[13px] text-muted-foreground sm:flex">
+                          {item.action}
+                          <ChevronRight className="h-3.5 w-3.5" />
                         </span>
                       )}
-                    </span>
-                    {href && (
-                      <span className="flex shrink-0 items-center gap-1 text-[13px] text-muted-foreground">
-                        {item.action}
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </span>
-                    )}
-                  </button>
-                  {/* An unmarked register is the one warning the reader cannot
-                      act on themselves: a principal does not mark registers and
-                      should not. Sending it to Attendance monitoring named a
-                      real problem and then offered a read-only report. What
-                      they actually do at that moment is chase somebody, so
-                      that is the button. */}
-                  {/* Only for somebody who cannot mark it themselves.
+                    </button>
 
-                      A principal does not mark registers, so chasing is the
-                      right action for them. A teacher's unmarked sections are
-                      her own — the probe scopes to sections the reader can
-                      mark — so this offered her a button to remind herself,
-                      and the endpoint refuses it anyway: it needs
-                      attendance.read.all, which neither faculty nor a head of
-                      department holds. A control shown to people it will 403
-                      for is worse than no control. */}
-                  {item.key === 'attendance.unmarked' && canChase && (
-                    <div className="border-t px-4 py-2">
+                    {/* An unmarked register is the one warning the reader
+                        cannot act on themselves: a principal does not mark
+                        registers and should not. What they do at that moment
+                        is chase somebody, so that is the button.
+
+                        Indented under its own row rather than sitting flush
+                        with the list, because it belongs to the line above it
+                        and read as an alert of its own at the old alignment. */}
+                    {chase && (
+                      <div className="px-4 pb-3 sm:border-t sm:py-2">
+                        <button
+                          type="button"
+                          disabled={nudge.isPending}
+                          onClick={() => nudge.mutate()}
+                          className="ml-11 text-[13px] font-medium text-primary hover:underline disabled:opacity-60 sm:ml-7"
+                        >
+                          {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* The same action as a thumb-sized footer, for the one
+                        layout where a chevron at the end of a row is a 13px
+                        target against the screen edge. */}
+                    {href && (
                       <button
                         type="button"
-                        disabled={nudge.isPending}
-                        onClick={() => nudge.mutate()}
-                        className="text-[13px] font-medium text-primary hover:underline disabled:opacity-60"
+                        onClick={() => navigate(href)}
+                        className="flex w-full items-center justify-between border-t bg-muted/40 px-4 py-2.5 text-[13px] font-medium active:bg-accent sm:hidden"
                       >
-                        {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
+                        <span>{item.action}</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
                       </button>
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      )}
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
 
-      {summary.length > 0 && (
-        <section>
-          <p className="eyebrow mb-2">Today</p>
-          {/* Tracks to match the tiles.
+        {summary.length > 0 && (
+          <section className={cn('order-1 lg:order-2', items.length === 0 && 'lg:col-span-3')}>
+            <p className="eyebrow mb-2">Today</p>
+            {/* THREE ACROSS IN A HAND, ONE COLUMN ON A DESK.
 
-              The grid paints the border colour behind its cells and each tile
-              paints over it, so a column with no tile in it shows as a grey
-              block — which is what a teacher with one figure saw beside it.
-              Written out rather than computed because Tailwind only ships the
-              classes it can see in the source. */}
-          <div
-            className={cn(
-              'grid gap-px overflow-hidden rounded-md border bg-border',
-              summary.length === 1 && 'grid-cols-1',
-              summary.length === 2 && 'sm:grid-cols-2',
-              summary.length === 3 && 'sm:grid-cols-3',
-              summary.length >= 4 && 'sm:grid-cols-2 lg:grid-cols-4',
-            )}
-          >
-            {summary.map((s) => (
-              <div key={s.label} className="bg-card px-4 py-3">
-                <p className="font-display text-[24px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
-                  {s.value}
-                </p>
-                <p className="mt-1.5 text-[12px] text-muted-foreground">{s.label}</p>
-                {s.hint && (
-                  <p className={cn(
-                    'text-[11.5px]',
-                    s.tone === 'good' ? 'text-success' : 'text-muted-foreground/70',
-                  )}>
-                    {s.hint}
+                The tiles ran the full width in a four-up strip, which on a
+                phone stacked into four full-width blocks: four screenfuls of
+                one number each. Beside the attention list they are a narrow
+                column, and on a phone a single row of small figures divided by
+                hairlines -- a glance, which is all a count of students is.
+
+                Written out rather than computed because Tailwind only ships
+                the classes it can see in the source. */}
+            <div
+              className={cn(
+                'grid gap-px overflow-hidden rounded-md border bg-border',
+                'grid-cols-3 sm:grid-cols-4',
+                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-2',
+                summary.length === 1 && 'grid-cols-1 sm:grid-cols-1 lg:grid-cols-1',
+                summary.length === 2 && 'grid-cols-2 sm:grid-cols-2',
+              )}
+            >
+              {summary.map((s) => (
+                <div key={s.label} className="bg-card px-3 py-3 text-center sm:px-4 sm:text-left">
+                  <p className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[24px]">
+                    {s.value}
                   </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+                  <p className="mt-1.5 text-[12px] text-muted-foreground">{s.label}</p>
+                  {s.hint && (
+                    <p className={cn(
+                      'text-[11.5px]',
+                      s.tone === 'good' ? 'text-success' : 'text-muted-foreground/70',
+                    )}>
+                      {s.hint}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}
 
-      {catalog.roles.length > 1 && (
-        <p className="text-[12.5px] text-muted-foreground">
-          This is your {role?.name} workspace. Switch roles from the top bar to see what needs
-          you elsewhere.
-        </p>
-      )}
+const ROLE_NOTE_KEY = 'role-note-dismissed'
+
+/* Orientation, not news -- so it closes, and stays closed for the session. */
+function RoleNote({ roleName }: { roleName?: string }) {
+  /* Read on mount rather than during render: a private window throws on
+     sessionStorage rather than returning nothing, and the first thing drawn
+     after sign-in is not where anybody wants to find that out. */
+  const [gone, setGone] = useState(true)
+  useEffect(() => {
+    try {
+      setGone(sessionStorage.getItem(ROLE_NOTE_KEY) === '1')
+    } catch {
+      setGone(false)
+    }
+  }, [])
+  if (gone) return null
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-2.5">
+      <Info className="mt-px h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <p className="min-w-0 flex-1 text-[12.5px] text-muted-foreground">
+        This is your {roleName} workspace. Switch roles from the top bar to see what needs
+        you elsewhere.
+      </p>
+      <button
+        type="button"
+        aria-label="Hide this note"
+        onClick={() => {
+          setGone(true)
+          try {
+            sessionStorage.setItem(ROLE_NOTE_KEY, '1')
+          } catch {
+            // A browser that will not remember it shows the note again
+            // tomorrow, which is the harmless half of that failure.
+          }
+        }}
+        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus } from 'lucide-react'
+import {
+  CalendarDays, Check, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -80,14 +82,39 @@ export default function Approvals() {
         description="Leave, attendance corrections and fee concessions, in the order they were raised."
       />
       <PageBody>
-        <CellGrid cols={4}>
-          <Stat label="Waiting" value={d.total} icon={Inbox} />
-          {Object.entries(KINDS).map(([key, k]) => (
-            <Stat key={key} label={k.label} value={d.by_kind[key] ?? 0} icon={k.icon} />
-          ))}
-        </CellGrid>
+        {/* FIVE ZEROES IS NOT A SUMMARY.
 
-        <Card>
+            An empty queue drew the full strip -- Waiting 0, Leave 0,
+            Corrections 0, Concessions 0, Admissions 0 -- and then a card
+            underneath saying the same thing a sixth time. Six pieces of
+            furniture to report that there is no work, on the screen somebody
+            opens precisely to find out whether there is any.
+
+            The counts are worth their space the moment one of them is not
+            zero: which kind is waiting decides whether this is two minutes or
+            an afternoon. So the strip stays for that case exactly, and the
+            empty case is one line. */}
+        {d.total === 0 ? (
+          <Card className="flex flex-col items-center gap-2 px-5 py-10 text-center">
+            <span className="rounded-full bg-[hsl(var(--ok,152_45%_92%))] p-2.5">
+              <Check className="h-5 w-5 text-[hsl(var(--ok-fg,152_60%_24%))]" aria-hidden />
+            </span>
+            <p className="text-[15px] font-medium">Nothing is waiting on you</p>
+            <p className="max-w-sm text-[13px] text-muted-foreground">
+              Every leave request, attendance correction and fee concession has been
+              decided. New ones appear here as they are raised.
+            </p>
+          </Card>
+        ) : (
+          <>
+            <CellGrid cols={4}>
+              <Stat label="Waiting" value={d.total} icon={Inbox} />
+              {Object.entries(KINDS).map(([key, k]) => (
+                <Stat key={key} label={k.label} value={d.by_kind[key] ?? 0} icon={k.icon} />
+              ))}
+            </CellGrid>
+
+            <Card>
           <CardHeader
             title="Queue"
             description={
@@ -190,8 +217,10 @@ export default function Approvals() {
             <p className="border-t px-5 py-2.5 text-[13px] text-destructive">
               {decide.error instanceof Error ? decide.error.message : 'Could not record the decision'}
             </p>
-          )}
-        </Card>
+              )}
+            </Card>
+          </>
+        )}
       </PageBody>
     </>
   )

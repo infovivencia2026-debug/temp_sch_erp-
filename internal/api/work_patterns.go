@@ -342,3 +342,60 @@ func (s *Server) assignWorkPattern(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"changed": changed})
 }
+
+/*
+listPatternStaff is the list the picker is chosen from.
+
+	The staff list this screen borrowed answers with employee codes and a name
+	built elsewhere, so the picker read "000", "T-001", "FB-369" -- a column of
+	codes nobody in a staffroom knows anybody by. Choosing which people keep
+	which hours is a decision made about persons, so the list says who they are:
+	their name, their department, what they teach, and the hours they are on now.
+
+	What they teach is the grades, not the subjects. The question being answered
+	is "is this one of the primary teachers who finish at one", and a list of
+	subjects does not answer it.
+*/
+type patternStaff struct {
+	ID      string `json:"id"`
+	Code    string `json:"employee_code"`
+	Name    string `json:"full_name"`
+	Dept    string `json:"department"`
+	Teaches string `json:"teaches"`
+	// The hours they keep today, and where that comes from. Somebody about to
+	// move a person needs to see what they are moving them off.
+	Pattern string `json:"pattern"`
+	Own     bool   `json:"own_pattern"`
+}
+
+func (s *Server) listPatternStaff(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT e.id::text, e.employee_code,
+		       btrim(concat_ws(' ', e.first_name, e.last_name)) AS name,
+		       COALESCE(d.name, ''),
+		       /* The grades they take, named once each and in order. A teacher
+		          on four sections of Class 6 teaches Class 6, not Class 6 four
+		          times. */
+		       COALESCE((
+		         SELECT string_agg(DISTINCT c.name, ', ' ORDER BY c.name)
+		           FROM section_subject_teachers sst
+		           JOIN class_subjects cs ON cs.id = sst.class_subject_id
+		           JOIN classes c ON c.id = cs.class_id
+		          WHERE sst.teacher_user_id = e.user_id), '') AS teaches,
+		       COALESCE(p1.name, p2.name, p3.name, ''),
+		       (e.work_pattern_id IS NOT NULL)
+		  FROM employees e
+		  LEFT JOIN departments   d  ON d.id  = e.department_id
+		  LEFT JOIN work_patterns p1 ON p1.id = e.work_pattern_id
+		  LEFT JOIN work_patterns p2 ON p2.id = d.work_pattern_id
+		  LEFT JOIN work_patterns p3 ON p3.institution_id = e.institution_id
+		                            AND p3.is_default
+		 WHERE e.status = 'active'
+		 ORDER BY name, e.employee_code`, nil,
+		func(rows pgx.Rows) (patternStaff, error) {
+			var v patternStaff
+			return v, rows.Scan(&v.ID, &v.Code, &v.Name, &v.Dept, &v.Teaches,
+				&v.Pattern, &v.Own)
+		})
+	respond(w, r, items, err)
+}

@@ -468,6 +468,8 @@ func (s *Server) Routes() http.Handler {
 			   and assigned by them, not five fixed ones chosen here. */
 			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
 				Get("/work-patterns", s.listWorkPatterns)
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
+				Get("/work-patterns/staff", s.listPatternStaff)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
 				Post("/work-patterns", s.saveWorkPattern)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
