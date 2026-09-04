@@ -14,11 +14,12 @@
 ALTER TABLE leave_policy_rules ADD COLUMN IF NOT EXISTS
     max_per_month numeric(5,1);
 
-DO $$ BEGIN
-    ALTER TABLE leave_policy_rules ADD CONSTRAINT leave_policy_rules_per_month
-        CHECK (max_per_month IS NULL OR max_per_month > 0);
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+-- Plainly, not inside a DO block: goose splits on semicolons unless a
+-- statement is fenced, and it cut the block in half. The column above is new
+-- in this migration, so the constraint cannot already exist.
+ALTER TABLE leave_policy_rules
+    ADD CONSTRAINT leave_policy_rules_per_month
+    CHECK (max_per_month IS NULL OR max_per_month > 0);
 
 -- +goose StatementBegin
 /*
