@@ -110,13 +110,29 @@ export function PersonaPage({
   const grid = (
     <div
       ref={boardRef}
-      className="bento-board mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5"
+      className="bento-board mt-5 min-h-0 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5"
     >
       {dashboard ? <WidgetLayer dashboard={dashboard}>{children}</WidgetLayer> : children}
     </div>
   )
+  /* A FLEX COLUMN THE FULL HEIGHT OF THE GROUND, LIKE BentoPage, AND THAT IS
+     WHAT THE PHONE PAGER STANDS ON.
+
+     Moving the layer inside the board made these three homes page on a phone,
+     and the pager sizes itself as `flex: 1 1 auto` with three row FRACTIONS.
+     This frame was a plain block, so the board's height was indefinite, a
+     fraction of it fell back to the content, and every card kept only its
+     padding: measured on the parent home at 1080x2340, three tiles 65px tall
+     with nothing in them, under a title and above a row of page dots. The
+     ground is already `height: 100%` whenever it holds a pager, so the column
+     has a definite height to hand down; the header takes its own and the
+     board takes the rest.
+
+     Harmless above the phone. At lg the board's height is measured into
+     `--board-h`, and between the two the ground is `min-h-full` and scrolls,
+     which a surface taller than it does not prevent. */
   return (
-    <div className="bento-surface p-3 sm:p-4 text-[var(--bento-ink)]">
+    <div className="bento-surface flex h-full w-full flex-col p-3 sm:p-4 text-[var(--bento-ink)]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.06em] opacity-70">
