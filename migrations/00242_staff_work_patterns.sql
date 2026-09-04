@@ -88,8 +88,22 @@ CREATE INDEX IF NOT EXISTS employees_work_pattern_idx    ON employees (work_patt
 
 ALTER TABLE work_patterns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE work_patterns FORCE ROW LEVEL SECURITY;
+/* The house pair, not a hand-rolled current_setting.
+
+   Written as USING alone against app.institution_id read directly, this policy
+   had two faults that only show at write time. WITH CHECK defaults to USING,
+   so the seed block below inserted under a predicate that never consults
+   app.is_platform_admin, and the migration died with 42501 on the first
+   school it reached: nothing after it could run, and the deploy stopped.
+
+   app_is_platform_admin() and app_current_institution() are what every other
+   table in this schema uses, and the platform escape is the half this needed.
+   Reading the GUC directly also fails differently: an unset app.institution_id
+   makes the comparison NULL rather than false, which is the same refusal with
+   a worse explanation. */
 CREATE POLICY tenant_isolation ON work_patterns
-    USING (institution_id = current_setting('app.institution_id', true)::uuid);
+    USING (app_is_platform_admin() OR institution_id = app_current_institution())
+    WITH CHECK (app_is_platform_admin() OR institution_id = app_current_institution());
 
 -- A first pattern per school, from the school day it already keeps, so the
 -- feature has a sensible answer on the day it appears rather than an empty
