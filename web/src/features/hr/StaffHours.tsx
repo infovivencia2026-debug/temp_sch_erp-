@@ -28,6 +28,7 @@ interface Row {
   expected_days: number
   present_days: number
   half_days: number
+  unmarked_days: number
   absent_days: number
   late_days: number
   early_leaves: number
@@ -86,7 +87,7 @@ export default function StaffHours() {
             <EmptyState title="Nobody on record" body="Active staff appear here once they exist." />
           ) : (
             <Table
-              head={['Name', 'Hours', 'Expected', 'Worked', 'Half', 'Away', 'Late', 'Left early',
+              head={['Name', 'Hours', 'Expected', 'Worked', 'Half', 'Away', 'Not marked', 'Late', 'Left early',
                 'Days lost', 'Deduction']}
             >
               {rows.map((r) => (
@@ -104,6 +105,10 @@ export default function StaffHours() {
                   <Td className="tabular-nums">{r.present_days}</Td>
                   <Td className="tabular-nums">{r.half_days || ''}</Td>
                   <Td className="tabular-nums">{r.absent_days || ''}</Td>
+                  {/* Silence, kept separate from absence. A school that has not
+                      begun marking sees that, rather than a month of absences
+                      it never recorded. */}
+                  <Td className="tabular-nums text-slate-400">{r.unmarked_days || ''}</Td>
                   <Td className="tabular-nums">{r.late_days || ''}</Td>
                   <Td className="tabular-nums">{r.early_leaves || ''}</Td>
                   <Td className="tabular-nums">{r.lop_days || ''}</Td>

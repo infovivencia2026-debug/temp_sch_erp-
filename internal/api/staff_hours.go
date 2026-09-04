@@ -26,17 +26,21 @@ What the check-in times finally add up to.
 */
 
 type staffMonth struct {
-	EmployeeID  string `json:"employee_id"`
-	Code        string `json:"employee_code"`
-	Name        string `json:"name"`
-	Department  string `json:"department"`
-	Pattern     string `json:"pattern"`
-	Expected    int    `json:"expected_days"`
-	Present     int    `json:"present_days"`
-	HalfDays    int    `json:"half_days"`
-	Absent      int    `json:"absent_days"`
-	Late        int    `json:"late_days"`
-	EarlyLeaves int    `json:"early_leaves"`
+	EmployeeID string `json:"employee_id"`
+	Code       string `json:"employee_code"`
+	Name       string `json:"name"`
+	Department string `json:"department"`
+	Pattern    string `json:"pattern"`
+	Expected   int    `json:"expected_days"`
+	Present    int    `json:"present_days"`
+	HalfDays   int    `json:"half_days"`
+	// Days nobody marked at all. Reported rather than absorbed: it is the
+	// difference between a person who was away and a register nobody kept, and
+	// a school reading this needs to know which it is looking at.
+	Unmarked    int `json:"unmarked_days"`
+	Absent      int `json:"absent_days"`
+	Late        int `json:"late_days"`
+	EarlyLeaves int `json:"early_leaves"`
 	// Loss of pay, in days and in money. Days always; money only where the
 	// school has said what a day costs, because inventing that figure is
 	// inventing a deduction.
@@ -138,18 +142,34 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		            school five and a half hours early every morning. So each
 		            punch is brought into Asia/Kolkata first and only then read
 		            as a clock time, exactly as the grace screen already does. */
+		         /* A DAY IS ALSO WORKED WHEN THE OFFICE SAID SO.
+
+		            Not every school runs a reader, and the ones that do still
+		            mark by hand on the day it is down. Counting only punches
+		            made a hand-marked register look like an empty one. */
 		         count(*) FILTER (
-		           WHERE a.check_in IS NOT NULL
-		             AND EXTRACT(EPOCH FROM (
-		                   COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
-		                     - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
-		                 >= s.full_min)::int AS present,
+		           WHERE (a.check_in IS NOT NULL
+		                  AND EXTRACT(EPOCH FROM (
+		                        COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
+		                          - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
+		                      >= s.full_min)
+		              OR (a.check_in IS NULL
+		                  AND a.status IN ('present','late')))::int AS present,
 		         count(*) FILTER (
-		           WHERE a.check_in IS NOT NULL
-		             AND EXTRACT(EPOCH FROM (
-		                   COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
-		                     - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
-		                 BETWEEN s.half_min AND s.full_min - 1)::int AS halves,
+		           WHERE (a.check_in IS NOT NULL
+		                  AND EXTRACT(EPOCH FROM (
+		                        COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
+		                          - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
+		                      BETWEEN s.half_min AND s.full_min - 1)
+		              OR (a.check_in IS NULL AND a.status = 'half_day'))::int AS halves,
+		         /* Approved leave is not absence. It is settled by the leave
+		            policy, which has its own balances and its own approvals,
+		            and docking it here would deduct for it twice. */
+		         count(*) FILTER (WHERE a.status IN ('leave','holiday','week_off'))::int AS excused,
+		         /* Days the register actually speaks about. The difference
+		            between this and the days expected is not absence -- it is
+		            silence, and silence must never be charged as absence. */
+		         count(a.id)::int AS marked,
 		         /* Late is measured past the grace, not past the hour. A school
 		            that allows ten minutes has said so; reporting somebody late
 		            at one minute past makes the report an argument. */
@@ -170,7 +190,17 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		SELECT s.id::text, s.employee_code, s.name, s.department, s.pattern,
 		       COALESCE(e.days, 0),
 		       COALESCE(m.present, 0), COALESCE(m.halves, 0),
-		       GREATEST(0, COALESCE(e.days,0) - COALESCE(m.present,0) - COALESCE(m.halves,0)),
+		       /* Days nobody marked at all, reported rather than absorbed. */
+		       GREATEST(0, COALESCE(e.days,0) - LEAST(COALESCE(m.marked,0), COALESCE(e.days,0))),
+		       /* Absent is what the register says, not what it fails to say.
+
+		          Counting every unmarked day as an absence made a school that
+		          had not begun marking look like one where fourteen people
+		          missed the whole month, and would have deducted a full salary
+		          from each of them. */
+		       GREATEST(0, LEAST(COALESCE(m.marked,0), COALESCE(e.days,0))
+		                     - COALESCE(m.present,0) - COALESCE(m.halves,0)
+		                     - COALESCE(m.excused,0)),
 		       COALESCE(m.late, 0), COALESCE(m.early, 0),
 		       /* A half day is half a day of loss, which is what a school means
 		          by half day and the only reason it distinguishes one. */
@@ -178,7 +208,9 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		          the school's lateness rule turned into half days on top --
 		          "three lates make a half day" is a policy half the schools in
 		          the country keep and none of them could express here before. */
-		       GREATEST(0, COALESCE(e.days,0) - COALESCE(m.present,0) - COALESCE(m.halves,0))
+		       GREATEST(0, LEAST(COALESCE(m.marked,0), COALESCE(e.days,0))
+		                     - COALESCE(m.present,0) - COALESCE(m.halves,0)
+		                     - COALESCE(m.excused,0))
 		         + COALESCE(m.halves,0) * 0.5
 		         + CASE WHEN s.lates_for_half > 0
 		                THEN floor(COALESCE(m.late,0)::numeric / s.lates_for_half) * 0.5
@@ -194,7 +226,7 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 			var perDay, monthly *int64
 			var divisor int
 			if err := rows.Scan(&v.EmployeeID, &v.Code, &v.Name, &v.Department,
-				&v.Pattern, &v.Expected, &v.Present, &v.HalfDays, &v.Absent,
+				&v.Pattern, &v.Expected, &v.Present, &v.HalfDays, &v.Unmarked, &v.Absent,
 				&v.Late, &v.EarlyLeaves, &v.LOPDays,
 				&basis, &perDay, &divisor, &monthly); err != nil {
 				return v, err
