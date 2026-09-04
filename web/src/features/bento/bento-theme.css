@@ -2910,7 +2910,24 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-dock > button[aria-current='page'],
   [data-layout='bento'] .bento-dock > .dock-tab > button[aria-current='page'],
   [data-layout='bento'] .bento-dock > .dock-tab > div > button[aria-current='page'] {
-    background: color-mix(in srgb, var(--ink-here) 16%, transparent) !important;
+    /* A CHIP, NOT A SLAB.
+
+       The wash painted the whole grid cell, so the current tab was a
+       rectangle the full height of the bar with an 8px corner: on a light
+       palette that reads as a grey block bolted to the row rather than as a
+       marked tab, and it is the heaviest thing in a bar whose other four items
+       are hairline glyphs.
+
+       Inset with a margin and given a capsule radius, it becomes a pill around
+       the icon and its word, which is what every phone tab bar a person
+       already knows does. The margin is on the button rather than padding, so
+       the grid track keeps its width and the five cells stay equal. The wash
+       drops to 12 per cent because a smaller shape at the same strength reads
+       darker than the larger one did. */
+    background: color-mix(in srgb, var(--ink-here) 12%, transparent) !important;
+    border-radius: 999px !important;
+    margin-block: 4px;
+    margin-inline: 6px;
   }
 
   /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
