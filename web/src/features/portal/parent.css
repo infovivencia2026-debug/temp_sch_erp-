@@ -1,0 +1,286 @@
+/* THE PARENT'S SCREENS, DRESSED CALM.
+
+   Every rule here is scoped to `[data-role='parent']`, the attribute the Bento
+   outlet puts on the ground under a parent's screen (BentoOutlet.tsx), so
+   nothing in this file can reach a teacher's, a clerk's or the principal's
+   screens. The classic components underneath — PageHead, CellGrid, Stat, Card,
+   Button — are shared by every role and are not edited; this file changes how
+   they are worn on a parent's phone and desktop, which is a different thing
+   from changing what they are.
+
+   THE RULES THE PARENT SURFACE KEEPS
+     One type scale on a screen: 12 / 13 / 15 / 22 on the phone, and the card
+     figure. One accent (the theme's primary). Tinted surfaces only where the
+     tint means something — a fee still owed. No pills around plain values.
+     Sentence case. 44px targets on a phone. Cards with one job, the important
+     number first. */
+
+/* ── the home board ─────────────────────────────────────────────────────── */
+
+/* The one tinted card. The theme paints every domain ground white on purpose
+   (a board of tinted cells is a rainbow); the parent's board has exactly one
+   cell whose tint carries meaning — a fee still owed — and it takes a wash of
+   the school's own accent so it is found first. Off again the moment the
+   balance is nil, because the card switches to the plain ground. */
+[data-role='parent'] {
+  --dom-finance-soft: color-mix(in srgb, hsl(var(--primary)) 11%, var(--bento-card));
+  --dom-finance-text: var(--bento-ink);
+}
+
+/* The child switcher: a small segmented control. Obvious because it is the
+   only control in the header; small because the name is already the title. */
+[data-role='parent'] .parent-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bento-ink) 8%, transparent);
+}
+[data-role='parent'] .parent-switch__item {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--bento-ink);
+  opacity: 0.7;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+[data-role='parent'] .parent-switch__item.is-on {
+  background: var(--bento-card);
+  opacity: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+[data-role='parent'] .parent-switch__item:focus-visible {
+  outline: 2px solid var(--bento-ink);
+  outline-offset: 1px;
+}
+
+/* A short list inside a card: the rest of the day, the rest of what is
+   waiting. Bottom-aligned like every other drawing in the kit, so it sits on
+   the same baseline as a bar chart in the neighbouring cell. */
+[data-role='parent'] .parent-list {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 1px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+[data-role='parent'] .parent-list__row {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  padding-top: 3px;
+  font-size: var(--card-note, 12px);
+  line-height: 1.35;
+}
+[data-role='parent'] .parent-list__time {
+  width: 3.4em;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+[data-role='parent'] .parent-list__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-role='parent'] .parent-list__meta {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+[data-role='parent'] .parent-list__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  align-self: center;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+}
+[data-role='parent'] .parent-list__dot.is-high {
+  opacity: 1;
+}
+
+/* The last thirty marked days. A present day is a faint mark; a missed one
+   is full ink; a late or half day is between; a holiday is a gap. The strip
+   is read left to right like a calendar, and the eye finds the dark marks
+   without counting anything. */
+[data-role='parent'] .parent-strip {
+  display: flex;
+  height: 100%;
+  min-height: 14px;
+  max-height: 28px;
+  align-items: stretch;
+  gap: 2px;
+  margin-top: auto;
+}
+[data-role='parent'] .parent-strip__day {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.16;
+}
+[data-role='parent'] .parent-strip__day.is-part {
+  opacity: 0.45;
+}
+[data-role='parent'] .parent-strip__day.is-absent {
+  opacity: 1;
+}
+[data-role='parent'] .parent-strip__day.is-off {
+  opacity: 0.05;
+}
+
+/* The board's own header on a phone. The kit sets the title at 15px so that
+   every pixel goes to the three cards under it; a parent's title is their
+   child's name and the one thing that must be obvious. */
+@media (max-width: 767px) {
+  [data-role='parent'] .bento-surface > div:first-child h1 {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  [data-role='parent'] .bento-surface > div:first-child p {
+    font-size: 13px;
+  }
+  [data-role='parent'] .parent-switch__item {
+    min-height: 36px;
+  }
+}
+
+/* ── every classic screen a parent reaches ──────────────────────────────── */
+
+/* The screen's name, not a breadcrumb.
+
+   "Fees / Receipts" at 12.5px with the name at 15px was the smallest text on
+   the screen naming the biggest thing. The section is already in the dock and
+   in the launcher, so the eyebrow goes and the name takes the top line. */
+[data-role='parent'] nav.mb-1 > span:not(:last-child) {
+  display: none;
+}
+[data-role='parent'] nav.mb-1 > span:last-child {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* Cards: one radius, a hairline, no lift. A shadow under every card on a
+   grey ground is texture the eye has to read past. */
+[data-role='parent'] .card,
+[data-role='parent'] .cell-grid {
+  border-radius: 16px;
+  box-shadow: none;
+}
+[data-role='parent'] .card .border-b {
+  border-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/* A status is a word, not a chip. Badge's solid form paints a tinted box
+   around "approved", "pending", "12 days late"; the word carries the tone in
+   its own colour and needs no box. */
+[data-role='parent'] span.rounded-sm.px-1\.5.py-0\.5 {
+  background: transparent;
+  padding: 0;
+}
+
+/* ── the phone ──────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* The head: 16px of side room, and the title close to the top. */
+  [data-role='parent'] .pb-6.pt-5 {
+    padding-top: 8px;
+    padding-bottom: 16px;
+  }
+
+  /* The figures: two across, compact, instead of one 120px card per number.
+     Three stacked stat cards took the whole first screen on every parent
+     page before the content — the receipts, the remarks, the passes — began.
+     Two across at 22px keeps the numbers first without hiding what they are
+     about. An odd last figure spans the row, so the grid closes. */
+  [data-role='parent'] .cell-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  [data-role='parent'] .cell-grid > :last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+  [data-role='parent'] .cell-grid > .grid > .cell {
+    height: 100%;
+  }
+  [data-role='parent'] .cell {
+    padding: 14px 16px;
+  }
+  [data-role='parent'] .cell .stat {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+  [data-role='parent'] .cell > .flex > svg {
+    display: none;
+  }
+  [data-role='parent'] .cell p.text-\[13px\] {
+    font-size: 12.5px;
+  }
+
+  /* Card headers a shade lighter, and the body's own padding a shade tighter,
+     so a phone screen is content rather than chrome. */
+  [data-role='parent'] .card > .px-5.py-4 {
+    padding: 14px 16px 12px;
+  }
+  [data-role='parent'] .card h3 {
+    font-size: 15px;
+  }
+
+  /* Anything a thumb presses is at least 44px tall, and a field is 16px so
+     iOS does not zoom into it. Inside the content only — the dock is outside
+     this ground and already sized. */
+  [data-role='parent'] button:not(.parent-switch__item):not([aria-hidden]),
+  [data-role='parent'] a.inline-flex,
+  [data-role='parent'] [role='button'] {
+    min-height: 44px;
+  }
+  [data-role='parent'] input:not([type='checkbox']):not([type='radio']),
+  [data-role='parent'] select,
+  [data-role='parent'] textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  [data-role='parent'] input[type='checkbox'],
+  [data-role='parent'] input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
+  /* A row that opens something is a target too. */
+  [data-role='parent'] .divide-y > li,
+  [data-role='parent'] .divide-y > a,
+  [data-role='parent'] .divide-y > button {
+    min-height: 44px;
+  }
+
+  /* Explanatory paragraphs under a control are read once. On a phone they
+     stack up between the field and the button, so they are set small and
+     quiet rather than in the body size. */
+  [data-role='parent'] .card p.text-muted-foreground {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+}
+
+/* ── the desktop ────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  /* A page, not a ledger: parent screens are short lists and a form, and at
+     1360px they were a strip of cards down the left third of the window. A
+     reading measure, centred. */
+  [data-role='parent'] .max-w-\[1360px\],
+  [data-role='parent'] .max-w-\[1520px\] {
+    max-width: 1040px;
+  }
+}

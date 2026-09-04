@@ -46,7 +46,14 @@ const CHILD_KEY = 'portal-child'
 
 function remembered(): string {
   try {
-    return sessionStorage.getItem(CHILD_KEY) ?? ''
+    /* The home board's choice is the second answer. A parent who has just
+       been looking at Kabir's week and opens the ID card should not be asked
+       "which child?" — the dashboard already knows, under `portal-last-child`
+       (see Portal.tsx and ParentWeek.tsx). The picker stays on every screen,
+       so the other child is one tap away; this only decides who is shown
+       first. Per-tab choice still wins, so two tabs on two children keep
+       working. */
+    return sessionStorage.getItem(CHILD_KEY) ?? localStorage.getItem('portal-last-child') ?? ''
   } catch {
     return '' // private mode; the picker asks again, which is the old behaviour
   }

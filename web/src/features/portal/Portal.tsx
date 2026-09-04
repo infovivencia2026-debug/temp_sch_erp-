@@ -5,7 +5,7 @@ import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-   Button, Loading, SkeletonTiles, ErrorState, EmptyState,
+  Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { formatPaise, cn } from '@/lib/utils'
@@ -350,16 +350,21 @@ export default function Portal() {
         description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
         actions={
           kids.length > 1 ? (
-            <div className="flex flex-wrap gap-1.5">
+            /* The same small segmented control the home board uses, so the
+               switcher is one thing across the parent's screens rather than a
+               row of buttons here and a pill there. Styled in parent.css;
+               only a guardian of several ever sees it. */
+            <div role="group" aria-label={t('portal.portal.title')} className="parent-switch">
               {kids.map((c) => (
-                <Button
+                <button
                   key={c.student_id}
-                  size="sm"
-                  variant={c.student_id === activeId ? 'ink' : 'outline'}
+                  type="button"
+                  aria-pressed={c.student_id === activeId}
                   onClick={() => chooseChild(c.student_id)}
+                  className={cn('parent-switch__item', c.student_id === activeId && 'is-on')}
                 >
                   {c.full_name.split(' ')[0]}
-                </Button>
+                </button>
               ))}
             </div>
           ) : undefined

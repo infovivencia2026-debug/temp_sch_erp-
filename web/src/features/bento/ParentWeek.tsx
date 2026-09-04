@@ -1,76 +1,64 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
+import { usePhone } from '@/lib/viewport'
 import { cn, formatPaise } from '@/lib/utils'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
-import { Area, Compare, Gauge, Line, Rows } from './bento-cards'
+import { Compare } from './bento-cards'
 import {
-  Facts, IN_SCHOOL, Part, PersonaCard, PersonaPage, Say, Split, Titled,
-  byMonth, byStatus, byWeekday, cut, runs, useShape, weeklyRate, type RegisterDay,
+  Facts, IN_SCHOOL, PersonaCard, PersonaPage, Say, Split, Part, Titled,
+  byMonth, hhmm, useNowMinutes, useShape, type RegisterDay,
 } from './persona-kit'
 import { Widget } from './WidgetLayer'
+import type { ChildBusFeed, ChildBusRow } from '../portal/child-bus'
 
-/* THE CHILD'S WEEK, IN THE EDITORIAL CARD LANGUAGE.
+/* THE PARENT'S HOME: one child at a time, the important number first.
 
-   Five cells, every one `PersonaCard` around `CardShell` — header, figure,
-   drawing, the drawing taking every pixel the figure did not — and every
-   drawing one of the twelve in `bento-cards.tsx`.
-   docs/BENTO_CARD_PATTERNS.md is the contract. Nothing here names a colour.
+   Eight cells, every one `PersonaCard` around `CardShell`. The board answers
+   the four questions a parent opens the app with — is anything waiting on me,
+   is money owed, was my child in, what is happening today — and then the
+   things they check less often: homework, the bus, messages, the last result.
 
    ─────────────────────────────────────────────────────────────────────────
    WHICH CHILD. Read this before changing anything on this screen.
    ─────────────────────────────────────────────────────────────────────────
    A guardian may have more than one child, and this repository has shipped the
-   wrong-sibling bug repeatedly — a counselling message that reached the wrong
-   family, a hall-ticket code for the wrong sibling, a goal with no name on it.
-   Two resolvers exist and mean opposite things by a missing `student_id`:
-   `familyChildren` answers for every child the caller owns, `whichChild`
-   silently answers for the eldest. So a dashboard that omits the id does not
-   show "the family" — it shows one child, unlabelled, which is the worst of
-   the three possibilities, because it is the one nobody can see is wrong.
-
-   Two rules follow, and both are load-bearing:
+   wrong-sibling bug repeatedly. Two rules follow, and both are load-bearing:
 
      1. `student_id` is sent EXPLICITLY on every request this screen makes.
-        Never omitted, never left to the resolver's default. That now includes
-        `/portal/fees`, whose handler is `whichChild` — the resolver that
-        answers for the eldest in silence.
-     2. Every cell carries `who` — the child's name and form — and it is the
-        card header's own second line, so it is part of the shell rather than a
-        sentence somebody can forget. IT IS NEVER DROPPED BY SIZE. A cell too
-        small to name its subject is a cell that must not be drawn.
+        Never omitted, never left to the resolver's default — `/portal/summary`
+        and `/portal/fees` both answer for the eldest in silence without it.
+     2. Every cell carries `who` — the child's first name and form — as the
+        card header's own second line. It is short so it reads as a label, not
+        a sentence, but it is never dropped.
+
+   The chosen child is remembered under the same key the classic portal uses
+   (`portal-last-child`) and carried in the URL, so the attendance screen a
+   card opens is about the child the card was about.
 
    ─── WHERE THE FIGURES COME FROM ─────────────────────────────────────────
 
-   Read from internal/api/role_scoped.go and internal/api/portal_family.go.
+     /portal/students          the children, with class, section and roll.
+     /portal/summary           attendance counts, homework, the balance, the
+                               latest result and today's periods.
+     /portal/attendance        ONE ROW PER MARKED DAY for 120 days.
+     /portal/fees              every invoice with `net_paise` and `paid_paise`
+                               — the only real denominator the money has.
+     /attention                what is waiting on the parent.
+     /me/child-bus             the bus, if the child travels by one.
+     /portal/messages/teachers the teachers who can be written to, with unread.
 
-     /portal/students    the children, with class, section and roll.
-     /portal/summary     the attendance counts, the homework and the balance.
-     /portal/attendance  ONE ROW PER MARKED DAY for 120 days, with its status.
-                         The only real SERIES on the board: the trend, the
-                         weekday spread and the monthly counts are all drawn
-                         from it, and each one's denominator is that window's
-                         own marked days.
-     /portal/fees        every non-cancelled invoice with `net_paise` and
-                         `paid_paise`. This is the only REAL DENOMINATOR the
-                         money has — billed — and it is why the fees ring is
-                         allowed to exist. `outstanding_paise` on its own is a
-                         count with no whole, and a ring drawn against an
-                         invented total is the thing this product has had to
-                         remove four times.
+   Everything past the summary DEGRADES, IT DOES NOT GATE: a cell whose feed
+   failed says so, and never falls back to a confident zero.
 
-   THE LEDGER AND THE REGISTER DEGRADE, THEY DO NOT GATE. If either fails the
-   cells drawn from it say so; neither ever falls back to a confident zero.
-
-   LEFT OUT ON PURPOSE: the "needs attention" reminders, which are their own
-   screen with their own query — a cell links to that screen rather than
-   inlining a second copy of it.
-
-   WHAT EACH SIZE ADDS is a ladder, branched on the real WIDTH and HEIGHT and
-   never on area: a wide cell buys marks along a row, a tall one buys rows, and
-   a cell that folded the two into an area would draw the same thing at 2x1 and
-   1x2. */
+   ─── THE PHONE ───────────────────────────────────────────────────────────
+   The pager hands every cell its DECLARED size — a 2x2 "large" widget still
+   reports w=2,h=2 on a 390px phone even though it is drawn one column wide
+   and a third of the screen tall. Every drawing here therefore asks
+   `shape()` below, which answers 1x1 on a phone regardless, so nothing lays
+   out a four-panel split into a box the height of a thumb. */
 
 interface PortalChild {
   student_id: string
@@ -79,11 +67,15 @@ interface PortalChild {
   class_name?: string
   section_name?: string
   roll_no?: number
-  /** On the handler and not previously declared here: how this guardian is
-      related to this child. Shown on the switcher when a family has more than
-      one, because two children with the same surname are told apart by more
-      than the order the query returned them in. */
   relation?: string
+}
+interface TodayPeriod {
+  period: string
+  starts_at?: string
+  ends_at?: string
+  subject: string
+  teacher?: string
+  room?: string
 }
 interface PortalSummary {
   student_id: string
@@ -97,6 +89,10 @@ interface PortalSummary {
   next_homework_title?: string
   outstanding_paise: number
   next_exam?: string
+  latest_result_exam?: string
+  latest_result_pct?: number
+  latest_result_grade?: string
+  today?: TodayPeriod[]
 }
 interface FamilyInvoice {
   invoice_no: string
@@ -115,7 +111,31 @@ interface FamilyFees {
   student_name: string
   outstanding_paise: number
   invoices: FamilyInvoice[]
-  receipts: { receipt_no: string; paid_on: string; amount_paise: number; mode: string; status: string }[]
+}
+interface AttentionItem {
+  key: string
+  severity: string
+  headline: string
+  detail?: string
+  href?: string
+  action?: string
+}
+interface Teacher {
+  user_id: string
+  full_name: string
+  subject?: string
+  class_teacher: boolean
+  unread: number
+}
+
+const LAST_CHILD_KEY = 'portal-last-child'
+
+function rememberedChild(): string | null {
+  try {
+    return localStorage.getItem(LAST_CHILD_KEY)
+  } catch {
+    return null
+  }
 }
 
 function daysUntil(iso: string) {
@@ -124,13 +144,41 @@ function daysUntil(iso: string) {
   )
 }
 
+/** "25 Sep" — the short date a parent reads on a fridge calendar. */
+function shortDate(iso?: string) {
+  if (!iso) return ''
+  const d = new Date(iso + 'T00:00:00')
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+/** The real dimensions on a desktop; 1x1 on a phone, whatever was declared. */
+function useCellShape() {
+  const shape = useShape()
+  const phone = usePhone()
+  return phone ? { ...shape, w: 1, h: 1, wide: false, tall: false, anchor: false } : shape
+}
+
+/** "Class 5-A" — the form, without the roll number, for the card label. */
+function formOf(c?: PortalChild) {
+  if (!c?.class_name) return ''
+  return `${c.class_name}${c.section_name ? `-${c.section_name}` : ''}`
+}
+
 export default function ParentWeek() {
   const t = useT()
-  const [selected, setSelected] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const [selected, setSelected] = useState<string | null>(
+    () => params.get('student_id') ?? rememberedChild(),
+  )
 
   const toAttendance = useFeatureHref('parent.attendance.attendance')
   const toFees = useFeatureHref('parent.fees.fees_payments')
   const toHomework = useFeatureHref('parent.academics.homework_academics')
+  const toBus = useFeatureHref('parent.my_childs_bus.live_bus_tracking')
+  const toMessages = useFeatureHref('parent.messages.direct_teacher_messaging')
+  const toResults = useFeatureHref('parent.academics.results_report_cards')
+  const toDashboard = useFeatureHref('parent.home.dashboard')
 
   const children = useQuery({
     queryKey: ['portal-students'],
@@ -138,14 +186,34 @@ export default function ParentWeek() {
   })
 
   const kids = children.data?.items ?? []
-  const activeId = selected ?? kids[0]?.student_id ?? null
+  const known = selected && kids.some((c) => c.student_id === selected) ? selected : null
+  const activeId = known ?? kids[0]?.student_id ?? null
   const child = kids.find((c) => c.student_id === activeId)
+
+  const chooseChild = useCallback((id: string) => {
+    setSelected(id)
+    try {
+      localStorage.setItem(LAST_CHILD_KEY, id)
+    } catch {
+      /* private window; the URL still carries the choice */
+    }
+  }, [])
+
+  // The address bar names the child on screen, so a link copied from here
+  // opens on the same child. Replace, not push: switching is not a step to
+  // press Back through.
+  useEffect(() => {
+    if (!activeId || params.get('student_id') === activeId) return
+    const next = new URLSearchParams(params)
+    next.set('student_id', activeId)
+    setParams(next, { replace: true })
+  }, [activeId, params, setParams])
+
+  const withChild = (href?: string) =>
+    href && activeId ? `${href}?student_id=${activeId}` : href
 
   const summary = useQuery({
     queryKey: ['portal-summary', activeId],
-    /* Named explicitly. The endpoint resolves the eldest when the id is
-       absent, so omitting it makes the switcher change nothing and prints one
-       child's balance under another child's name. */
     queryFn: () => api.get<PortalSummary>(`/api/v1/portal/summary?student_id=${activeId}`),
     enabled: !!activeId,
   })
@@ -156,26 +224,26 @@ export default function ParentWeek() {
   })
   const ledger = useQuery({
     queryKey: ['portal-fees', activeId],
-    // `whichChild` again: without the id this is the eldest's bill under the
-    // selected child's name.
     queryFn: () => api.get<FamilyFees>(`/api/v1/portal/fees?student_id=${activeId}`),
+    enabled: !!activeId,
+  })
+  const attention = useQuery({
+    queryKey: ['attention', 'parent'],
+    queryFn: () => api.get<{ items: AttentionItem[] }>('/api/v1/attention'),
+  })
+  const bus = useQuery({
+    queryKey: ['child-bus', 'home'],
+    queryFn: () => api.get<ChildBusFeed>('/api/v1/me/child-bus'),
+    refetchInterval: 30_000,
+  })
+  const teachers = useQuery({
+    queryKey: ['portal-teachers', activeId],
+    queryFn: () => api.get<List<Teacher>>(`/api/v1/portal/messages/teachers?student_id=${activeId}`),
     enabled: !!activeId,
   })
 
   if (children.isLoading) return <BentoLoading message={t('bento.parent_week.loading')} />
   if (children.error) return <BentoError message={t('bento.parent_week.failed_children')} />
-
-  /** "Grade 6-A · Roll 2" — blank parts drop out rather than leaving stray
-   *  separators, because a child admitted last week has no roll number yet. */
-  const form = (c?: PortalChild) =>
-    !c
-      ? ''
-      : [
-          c.class_name ? `${c.class_name}${c.section_name ? `-${c.section_name}` : ''}` : null,
-          c.roll_no ? t('bento.common.roll', { roll: c.roll_no }) : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')
 
   if (!kids.length) {
     return (
@@ -187,58 +255,41 @@ export default function ParentWeek() {
     )
   }
 
-  /* The switcher. Rendered only when there is genuinely something to pick — a
-     parent of one asked which child they meant is a portal built for somebody
-     else — and every child is a button rather than a dropdown, so the whole
-     set is visible without opening anything and the selected one is visible
-     without reading it. */
+  /* THE SWITCHER: small, obvious, first names.
+
+     A segmented control rather than a row of buttons carrying the full name
+     and the relation — "Kabir Gupta · Mother" twice across the top of the
+     screen was the loudest thing on the page and said the least. The name is
+     in the title; the switcher only has to say "the other one". */
   const switcher =
     kids.length > 1 ? (
       <div
         role="group"
         aria-label={t('bento.parent_week.switcher_sr')}
-        className="flex flex-wrap gap-1.5"
+        className="parent-switch"
       >
         {kids.map((c) => (
           <button
             key={c.student_id}
             type="button"
             aria-pressed={c.student_id === activeId}
-            onClick={() => setSelected(c.student_id)}
-            className={cn(
-              'rounded-md border px-3 py-1.5 text-[13px] font-medium',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              c.student_id === activeId
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'bg-card text-card-foreground',
-            )}
+            onClick={() => chooseChild(c.student_id)}
+            className={cn('parent-switch__item', c.student_id === activeId && 'is-on')}
           >
-            {c.full_name}
-            {c.relation ? <span className="opacity-70"> · {c.relation}</span> : null}
+            {c.full_name.split(' ')[0]}
           </button>
         ))}
       </div>
     ) : undefined
 
-  /* `arrange` is off for the loading and error bodies: those render no
-     <Widget> at all, so an arranger toolbar above them would offer to edit a
-     board with nothing on it. */
   const header = (body: ReactNode, arrange = false) => (
     <PersonaPage
       eyebrow={t('bento.parent_week.eyebrow')}
       title={child?.full_name ?? t('bento.parent_week.title')}
-      /* A guardian of two is told, in words, that what follows is one child of
-         several — not the household's figures. A guardian of one gets the
-         child's form instead, which is what the office asks for on the
-         telephone. */
       description={
-        kids.length > 1
-          ? t('bento.parent_week.one_of_many', {
-              name: child?.full_name ?? '',
-              form: form(child),
-              count: kids.length,
-            })
-          : form(child) || undefined
+        [formOf(child), child?.roll_no ? t('bento.common.roll', { roll: child.roll_no }) : null]
+          .filter(Boolean)
+          .join(' · ') || undefined
       }
       actions={switcher}
       dashboard={arrange ? 'parent_week' : undefined}
@@ -254,8 +305,6 @@ export default function ParentWeek() {
       </div>,
     )
   }
-  /* Never an empty state from a failure: "nothing owed" read off a 500 is a
-     sentence a parent will act on by not paying. */
   if (summary.error || !summary.data) {
     return header(
       <div className="sm:col-span-2">
@@ -265,58 +314,219 @@ export default function ParentWeek() {
   }
 
   const s = summary.data
-  /* `null` is "could not be read", which is not the same fact as "nothing is
-     there" and must never be drawn as one. */
   const days: RegisterDay[] | null = attendance.error ? null : (attendance.data?.items ?? [])
   const fees: FamilyFees | null = ledger.error ? null : (ledger.data ?? null)
-
-  /* WHO. This string goes on every cell below, without exception. `s.full_name`
-     rather than the switcher's copy of the name deliberately: it is the name
-     the summary endpoint answered with, so a cell can only ever be labelled
-     with the child the figures in it are actually about. If the two ever
-     disagreed, this is the one that is right. */
-  const who = form(child) ? `${s.full_name} · ${form(child)}` : s.full_name
+  const first = s.full_name.split(' ')[0]
+  const who = formOf(child) ? `${first} · ${formOf(child)}` : first
+  const items = attention.data?.items ?? []
+  const busRow = bus.data?.items.find((r) => r.student_id === activeId) ?? null
 
   return header(
     <>
-      <Widget id="week" label={t('bento.parent_week.week_label')} size="large" index={0}>
-        {(span) => <WeekCell span={span} who={who} s={s} days={days} to={toAttendance} />}
+      <Widget id="attention" label={t('bento.parent_week.attention_label')} size="small" index={0}>
+        {(span) => (
+          <AttentionCell
+            span={span}
+            who={who}
+            items={items}
+            failed={!!attention.error}
+            loading={attention.isLoading}
+            to={withChild(toDashboard)}
+          />
+        )}
       </Widget>
 
       <Widget id="fees" label={t('bento.parent_week.fees_label')} size="small" index={1}>
-        {(span) => <FeesCell span={span} who={who} s={s} fees={fees} to={toFees} />}
+        {(span) => <FeesCell span={span} who={who} s={s} fees={fees} to={withChild(toFees)} />}
       </Widget>
 
-      <Widget id="homework" label={t('bento.parent_week.homework_label')} size="small" index={2}>
-        {(span) => <HomeworkCell span={span} who={who} s={s} to={toHomework} />}
+      <Widget id="week" label={t('bento.parent_week.week_label')} size="medium" index={2}>
+        {(span) => <WeekCell span={span} who={who} s={s} days={days} to={withChild(toAttendance)} />}
       </Widget>
 
-      <Widget id="absent" label={t('bento.parent_week.absent_label')} size="small" index={3}>
-        {(span) => <AbsentCell span={span} who={who} s={s} days={days} to={toAttendance} />}
+      <Widget id="today" label={t('bento.parent_week.today_label')} size="medium" index={3}>
+        {(span) => <TodayCell span={span} who={who} s={s} to={withChild(toAttendance)} />}
       </Widget>
 
-      <Widget id="present" label={t('bento.parent_week.present_label')} size="small" index={4}>
-        {(span) => <PresentCell span={span} who={who} s={s} days={days} to={toAttendance} />}
+      <Widget id="homework" label={t('bento.parent_week.homework_label')} size="small" index={4}>
+        {(span) => <HomeworkCell span={span} who={who} s={s} to={withChild(toHomework)} />}
+      </Widget>
+
+      {busRow && (
+        <Widget id="bus" label={t('bento.parent_week.bus_label')} size="small" index={5}>
+          {(span) => <BusCell span={span} who={who} row={busRow} to={toBus} />}
+        </Widget>
+      )}
+
+      <Widget id="messages" label={t('bento.parent_week.messages_label')} size="small" index={6}>
+        {(span) => (
+          <MessagesCell
+            span={span}
+            who={who}
+            teachers={teachers.data?.items ?? null}
+            failed={!!teachers.error}
+            to={withChild(toMessages)}
+          />
+        )}
+      </Widget>
+
+      <Widget id="results" label={t('bento.parent_week.results_label')} size="small" index={7}>
+        {(span) => <ResultsCell span={span} who={who} s={s} to={withChild(toResults)} />}
       </Widget>
     </>,
     true,
   )
 }
 
-/* ─── THE ANCHOR: attendance this year ────────────────────────────────────
+/* ─── NEEDS YOU ────────────────────────────────────────────────────────────
 
-   The register is a real series — one row per marked day, 120 days of them —
-   so this cell is a TREND, and every point's denominator is that week's own
-   marked days. A week the school marked nothing is left out rather than drawn
-   as a collapse to nought, because nought would mean the child missed it.
+   The reason the app was opened. The figure is how many things are waiting;
+   the sentence is the first of them; the drawing lists the rest. The whole
+   card opens the first item's screen, because a card cannot hold a link per
+   row without nesting links. */
+function AttentionCell({
+  span, who, items, failed, loading, to,
+}: {
+  span: CellSpan
+  who: string
+  items: AttentionItem[]
+  failed: boolean
+  loading: boolean
+  to?: string
+}) {
+  const t = useT()
+  const { tall, wide } = useCellShape()
+  const phone = usePhone()
+  const top = items[0]
+  const lines = phone ? 1 : tall ? 6 : wide ? 3 : 2
+  return (
+    <PersonaCard
+      span={span}
+      title={t('bento.parent_week.attention_label')}
+      who={who}
+      value={loading ? '…' : failed ? '—' : items.length}
+      change={
+        failed
+          ? t('bento.parent_week.attention_unread')
+          : items.length === 0
+            ? t('bento.parent_week.attention_none')
+            : top?.headline
+      }
+      to={top?.href ?? to}
+      cueLabel={top?.action ?? t('bento.parent_week.attention_cue')}
+    >
+      {items.length > 1 ? (
+        <ul className="parent-list" aria-label={t('bento.parent_week.attention_sr')}>
+          {items.slice(1, lines + 1).map((i) => (
+            <li key={i.key} className="parent-list__row">
+              <span className={cn('parent-list__dot', i.severity === 'high' && 'is-high')} aria-hidden="true" />
+              <span className="parent-list__text">{i.headline}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </PersonaCard>
+  )
+}
 
-   1x1  `Line` — the weekly rate, the shape only.
-   2x1  `Area` — the same series with the ground under it, over more weeks,
-        which is what the width buys.
-   1x2  `Line`, and under it the real counts.
-   2x2  `Area`, and beside it the FULL status breakdown of the register —
-        present, late, absent, half day, leave — a partition whose parts sum
-        back to the days marked. */
+/* ─── FEES — the one coloured cell, and only while something is owed ───────
+
+   BILLED IS A REAL WHOLE: every non-cancelled invoice arrives with its own
+   `net_paise` and `paid_paise`. If the ledger cannot be read, no track is
+   drawn — the outstanding figure alone has no denominator. */
+export function FeesCell({
+  span, who, s, fees, to,
+}: {
+  span: CellSpan
+  who: string
+  s: PortalSummary
+  fees: FamilyFees | null
+  to?: string
+}) {
+  const t = useT()
+  const { tall } = useCellShape()
+
+  const invoices = fees?.invoices ?? []
+  const billed = invoices.reduce((a, i) => a + i.net_paise, 0)
+  const paid = invoices.reduce((a, i) => a + i.paid_paise, 0)
+  const due = fees ? fees.outstanding_paise : s.outstanding_paise
+  const open = invoices.filter((i) => i.due_paise > 0).sort((a, b) => b.days_overdue - a.days_overdue)
+  const worst = open[0]
+
+  let change: string
+  if (due <= 0) change = t('bento.parent_week.fees_settled_short')
+  else if (worst && worst.days_overdue > 0)
+    change = t('bento.parent_week.fees_overdue', {
+      n: worst.instalment_no ?? '',
+      days: worst.days_overdue,
+    })
+  else if (worst?.due_on)
+    change = t('bento.parent_week.fees_due_on', {
+      n: worst.instalment_no ?? '',
+      date: shortDate(worst.due_on),
+    })
+  else change = t('bento.parent_week.fees_owed_short')
+
+  const facts = [
+    fees ? { label: t('bento.parent_week.fact_billed'), value: formatPaise(billed) } : null,
+    fees ? { label: t('bento.parent_week.fact_paid'), value: formatPaise(paid) } : null,
+    fees && open.length ? { label: t('bento.parent_week.fact_invoices'), value: `${open.length}/${invoices.length}` } : null,
+  ].filter((f): f is { label: string; value: string } => f !== null)
+
+  const sr = t('bento.parent_week.fees_sr', {
+    name: s.full_name, paid: formatPaise(paid), billed: formatPaise(billed),
+  })
+  const tracks =
+    billed > 0 ? (
+      <Compare
+        rows={[
+          { label: t('bento.parent_week.track_paid'), value: paid },
+          { label: t('bento.parent_week.track_due'), value: Math.max(0, billed - paid) },
+        ]}
+        formatValue={formatPaise}
+        srLabel={sr}
+      />
+    ) : (
+      <Say>
+        {fees
+          ? t('bento.parent_week.no_invoices', { name: s.full_name })
+          : t('bento.parent_week.ledger_unread', { name: s.full_name })}
+      </Say>
+    )
+
+  const drawing = tall ? (
+    <Split>
+      <Part grow={2}>{tracks}</Part>
+      <Part grow={3}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
+    </Split>
+  ) : tracks
+
+  return (
+    <PersonaCard
+      span={span}
+      ground={due > 0 ? 'finance' : undefined}
+      title={due > 0 ? t('bento.parent_week.fees_label') : t('bento.parent_week.fees_label_clear')}
+      who={who}
+      value={formatPaise(due)}
+      change={change}
+      to={to}
+      cueLabel={due > 0 ? t('bento.parent_week.fees_pay_cue') : t('bento.parent_week.fees_cue')}
+    >
+      {drawing}
+    </PersonaCard>
+  )
+}
+
+/* ─── ATTENDANCE — the anchor ──────────────────────────────────────────────
+
+   The register is a real series — one row per marked day — so the drawing is
+   the weekly rate, as quiet bars over a baseline rather than a jagged area.
+   A week the school marked nothing is left out rather than drawn as nought.
+
+   1x1  eight weeks of bars.
+   2x1  sixteen weeks.
+   1x2  eight weeks, and the months under them.
+   2x2  sixteen weeks beside days present by month. */
 export function WeekCell({
   span, who, s, days, to,
 }: {
@@ -327,64 +537,59 @@ export function WeekCell({
   to?: string
 }) {
   const t = useT()
-  const { wide, tall } = useShape()
+  const { wide, tall } = useCellShape()
 
-  const weeks = days ? weeklyRate(days, wide ? 16 : 8) : []
-  const points = weeks.map((w) => w.pct)
-  const statuses = days ? byStatus(days) : []
-  const run = days ? runs(days) : { current: 0, longest: 0 }
-
-  const facts = cut(
-    [
-      { label: t('bento.parent_week.fact_marked'), value: String(s.total_days) },
-      { label: t('bento.parent_week.fact_present'), value: String(s.present_days) },
-      { label: t('bento.parent_week.fact_absent'), value: String(s.absent_days) },
-      weeks.length ? { label: t('bento.parent_week.fact_weeks'), value: String(weeks.length) } : null,
-      days ? { label: t('bento.parent_week.fact_run'), value: String(run.current) } : null,
-    ].filter((f): f is { label: string; value: string } => f !== null),
-    tall ? 5 : 3,
-  )
-
-  const sr = t('bento.parent_week.trend_sr', { name: s.full_name, weeks: weeks.length })
-  /* Said once. The note under the figure already carries this exact sentence
-     when there is no register -- see the same fix on the days-absent and
-     days-present cards. */
-  const trend =
+  const months = days ? byMonth(days, (d) => IN_SCHOOL.has(d.status), tall ? 6 : 4) : []
+  /* The last thirty marked days as a strip: a present day is a faint mark, a
+     missed one is full ink. Thirty is about six school weeks, which is the
+     window a parent means by "recently". The bars (weekly rate) are kept for
+     the wide cell, where sixteen of them have room to read as a series;
+     eight bars spread across a phone card read as a barcode. */
+  const window = wide ? 60 : 30
+  const recent = days ? [...days].sort((a, b) => a.date.localeCompare(b.date)).slice(-window) : []
+  const strip = recent.length ? (
+    <div className="parent-strip" role="img" aria-label={t('bento.parent_week.strip_sr', { name: s.full_name, count: recent.length })}>
+      {recent.map((d) => (
+        <span
+          key={d.date}
+          title={`${shortDate(d.date)} · ${d.status.replace('_', ' ')}`}
+          className={cn(
+            'parent-strip__day',
+            d.status === 'absent' && 'is-absent',
+            (d.status === 'late' || d.status === 'half_day') && 'is-part',
+            d.status === 'holiday' && 'is-off',
+          )}
+        />
+      ))}
+    </div>
+  ) : null
+  const bars =
     days === null ? (
       <Say>{t('bento.parent_week.register_unread', { name: s.full_name })}</Say>
-    ) : points.length < 2 ? (
-      days.length === 0 ? null : <Say>{t('bento.parent_week.too_short')}</Say>
-    ) : wide ? (
-      <Area points={points} srLabel={sr} />
-    ) : (
-      <Line points={points} srLabel={sr} />
-    )
+    ) : days.length === 0 ? null : strip
+  const head = wide ? t('bento.parent_week.head_recent_wide') : t('bento.parent_week.head_recent')
 
-  let drawing: ReactNode = trend
-  if (wide && tall) {
+  const monthFacts = months.map((m) => ({ label: m.label, value: `${m.value}` }))
+
+  let drawing: ReactNode = strip ? <Titled head={head}>{bars}</Titled> : bars
+  if (wide && strip && monthFacts.length) {
     drawing = (
       <Split row>
-        <Part grow={3}><Titled head={t('bento.parent_week.head_trend')}>{trend}</Titled></Part>
+        <Part grow={3}><Titled head={head}>{bars}</Titled></Part>
         <Part grow={2}>
-          {statuses.length ? (
-            <Titled head={t('bento.parent_week.head_statuses')}>
-              <Rows items={cut(statuses, 5)} srLabel={t('bento.parent_week.statuses_sr', { name: s.full_name })} />
-            </Titled>
-          ) : (
-            <Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} />
-          )}
+          <Facts items={monthFacts.slice(tall ? -6 : -2)} srLabel={t('bento.parent_week.months_sr', { name: s.full_name })} />
         </Part>
       </Split>
     )
-  } else if (tall) {
+  } else if (tall && strip && monthFacts.length) {
     drawing = (
       <Split>
-        <Part grow={3}><Titled head={t('bento.parent_week.head_trend')}>{trend}</Titled></Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
+        <Part grow={2}><Titled head={head}>{bars}</Titled></Part>
+        <Part grow={3}>
+          <Facts items={monthFacts.slice(-4)} srLabel={t('bento.parent_week.months_sr', { name: s.full_name })} />
+        </Part>
       </Split>
     )
-  } else if (wide) {
-    drawing = <Titled head={t('bento.parent_week.head_trend')}>{trend}</Titled>
   }
 
   return (
@@ -392,12 +597,11 @@ export function WeekCell({
       span={span}
       title={t('bento.parent_week.week_label')}
       who={who}
-      glyph="◷"
       value={s.total_days > 0 ? `${s.attendance_pct}%` : '—'}
       change={
         s.total_days > 0
-          ? t('bento.parent_week.week_note', {
-              name: s.full_name, present: s.present_days, total: s.total_days,
+          ? t('bento.parent_week.week_note_short', {
+              present: s.present_days, total: s.total_days, absent: s.absent_days,
             })
           : t('bento.parent_week.no_register', { name: s.full_name })
       }
@@ -409,150 +613,95 @@ export function WeekCell({
   )
 }
 
-/* ─── FEES — the one coloured cell ─────────────────────────────────────────
+/* ─── TODAY — the timetable, read from now ────────────────────────────────
 
-   The figure a parent came to act on, so it takes the single coloured ground
-   on the page.
-
-   BILLED IS A REAL WHOLE and it is the only one the money has: every
-   non-cancelled invoice arrives with its own `net_paise` and `paid_paise`. If
-   the ledger cannot be read, no ring is drawn — the outstanding figure alone
-   has no denominator, and nothing here invents one.
-
-   1x1  `Compare` — paid against still due, two tracks on one scale. Not a
-        ring: `Gauge` is sized off the drawing row's WIDTH and a one-row cell
-        would cut the bottom third of it off.
-   2x1  the same, and the figures beside them.
-   1x2  the height buys the ring: paid out of billed.
-   2x2  the ring, and beside it the unpaid invoices ranked by what is left on
-        each — one unit down the whole column.
-
-   Money is paise throughout and only ever rendered through `formatPaise`. */
-export function FeesCell({
-  span, who, s, fees, to,
+   The figure is the subject happening now (or next); the sentence is its
+   time, teacher and room; the drawing is the rest of the day. After the last
+   period the card says the day is over rather than pointing at nothing. */
+function TodayCell({
+  span, who, s, to,
 }: {
   span: CellSpan
   who: string
   s: PortalSummary
-  fees: FamilyFees | null
   to?: string
 }) {
   const t = useT()
-  const { wide, tall } = useShape()
+  const { tall, wide } = useCellShape()
+  const now = useNowMinutes()
+  const periods = (s.today ?? []).filter((p) => p.subject && p.subject.toLowerCase() !== 'break')
 
-  const invoices = fees?.invoices ?? []
-  const billed = invoices.reduce((a, i) => a + i.net_paise, 0)
-  const paid = invoices.reduce((a, i) => a + i.paid_paise, 0)
-  const due = fees ? fees.outstanding_paise : s.outstanding_paise
-  const unpaid = invoices
-    .filter((i) => i.due_paise > 0)
-    .sort((a, b) => b.due_paise - a.due_paise)
-    .map((i) => ({ label: i.invoice_no, value: i.due_paise }))
-  const overdue = invoices.filter((i) => i.days_overdue > 0 && i.due_paise > 0).length
-
-  const facts = cut(
-    [
-      fees ? { label: t('bento.parent_week.fact_billed'), value: formatPaise(billed) } : null,
-      fees ? { label: t('bento.parent_week.fact_paid'), value: formatPaise(paid) } : null,
-      { label: t('bento.parent_week.fact_owed'), value: formatPaise(due) },
-      fees ? { label: t('bento.parent_week.fact_invoices'), value: `${unpaid.length}/${invoices.length}` } : null,
-      fees && overdue > 0 ? { label: t('bento.parent_week.fact_overdue'), value: String(overdue) } : null,
-    ].filter((f): f is { label: string; value: string } => f !== null),
-    tall ? 5 : 3,
-  )
-
-  const sr = t('bento.parent_week.fees_sr', {
-    name: s.full_name, paid: formatPaise(paid), billed: formatPaise(billed),
+  const current = periods.find((p) => {
+    const a = hhmm(p.starts_at)
+    const b = hhmm(p.ends_at)
+    return a !== null && b !== null && now >= a && now < b
   })
-  const tracks = billed > 0 ? (
-    <Compare
-      rows={[
-        { label: t('bento.parent_week.track_paid'), value: paid },
-        { label: t('bento.parent_week.track_due'), value: Math.max(0, billed - paid) },
-      ]}
-      formatValue={formatPaise}
-      srLabel={sr}
-    />
-  ) : null
-  const ring = billed > 0 ? <Gauge value={paid} total={billed} srLabel={sr} /> : null
-  const noWhole = (
-    <Say>
-      {fees
-        ? t('bento.parent_week.no_invoices', { name: s.full_name })
-        : t('bento.parent_week.ledger_unread', { name: s.full_name })}
-    </Say>
-  )
+  const next = periods.find((p) => {
+    const a = hhmm(p.starts_at)
+    return a !== null && a > now
+  })
+  const over = periods.length > 0 && !current && !next
+  const lead = current ?? next
+  const state = current ? 'now' : next ? 'next' : 'over'
 
-  let drawing: ReactNode = tracks ?? noWhole
-  if (wide && tall) {
-    drawing = ring ? (
-      <Split row>
-        <Part grow={2}>{ring}</Part>
-        <Part grow={3}>
-          {unpaid.length ? (
-            <Titled head={t('bento.parent_week.head_unpaid')}>
-              <Rows items={cut(unpaid, 5)} formatValue={formatPaise} srLabel={t('bento.parent_week.unpaid_sr', { count: unpaid.length })} />
-            </Titled>
-          ) : (
-            <Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} />
-          )}
-        </Part>
-      </Split>
-    ) : (
-      <Split>
-        <Part>{noWhole}</Part>
-        <Part><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  } else if (wide) {
-    drawing = (
-      <Split row>
-        <Part grow={3}>{tracks ?? noWhole}</Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  } else if (tall) {
-    drawing = (
-      <Split>
-        <Part grow={3}>{ring ?? noWhole}</Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  }
+  const detail = (p: TodayPeriod) =>
+    [
+      p.starts_at ? `${p.starts_at}${p.ends_at ? `–${p.ends_at}` : ''}` : null,
+      p.teacher ?? null,
+      p.room ?? null,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+
+  const rest = lead ? periods.filter((p) => p !== lead) : periods
+  const phone = usePhone()
+  const lines = phone ? 2 : tall ? (wide ? 8 : 6) : wide ? 4 : 3
+  const later = lead ? periods.slice(periods.indexOf(lead) + 1) : rest
 
   return (
     <PersonaCard
       span={span}
-      ground="finance"
-      title={t('bento.parent_week.fees_label')}
+      title={t('bento.parent_week.today_label')}
       who={who}
-      glyph="₹"
-      value={formatPaise(due)}
+      value={
+        periods.length === 0
+          ? t('bento.parent_week.today_free')
+          : over
+            ? t('bento.parent_week.today_over')
+            : lead?.subject ?? '—'
+      }
       change={
-        due > 0
-          ? t('bento.parent_week.fees_owed', { name: s.full_name })
-          : t('bento.parent_week.fees_settled', { name: s.full_name })
+        periods.length === 0
+          ? t('bento.parent_week.today_free_note')
+          : over
+            ? t('bento.parent_week.today_over_note', { count: periods.length })
+            : lead
+              ? `${state === 'now' ? t('bento.parent_week.today_now') : t('bento.parent_week.today_next')} · ${detail(lead)}`
+              : undefined
       }
       to={to}
-      cueLabel={t('bento.parent_week.fees_cue')}
+      cueLabel={t('bento.parent_week.today_cue')}
     >
-      {drawing}
+      {later.length > 0 ? (
+        <ul className="parent-list" aria-label={t('bento.parent_week.today_sr', { name: s.full_name })}>
+          {later.slice(0, lines).map((p, i) => (
+            <li key={`${p.period}-${i}`} className="parent-list__row">
+              <span className="parent-list__time">{p.starts_at ?? '—'}</span>
+              <span className="parent-list__text">{p.subject}</span>
+              {p.room && <span className="parent-list__meta">{p.room}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </PersonaCard>
   )
 }
 
 /* ─── HOMEWORK DUE ────────────────────────────────────────────────────────
 
-   NO DENOMINATOR EXISTS FOR THIS ONE and none is invented. The handler counts
-   published homework still owed; there is no "set this term" in the response
-   for it to be a share of, so there is no ring, no track and no percentage on
-   this card at any size. What the count wants beside it is the other real
-   figures — how soon, and which piece — which is what `Facts` draws.
-
-   1x1  the count, the soonest date.
-   2x1  + which piece it is.
-   1x2  + how many days out it is, from the local calendar.
-   2x2  + the next exam, the only other dated thing this payload carries. */
+   No denominator exists for this one and none is invented. The count, the
+   soonest piece and when it is due; the next exam under it, because it is the
+   only other dated thing this payload carries. */
 export function HomeworkCell({
   span, who, s, to,
 }: {
@@ -562,289 +711,186 @@ export function HomeworkCell({
   to?: string
 }) {
   const t = useT()
-  const { wide, tall } = useShape()
+  const { tall } = useCellShape()
   const hwDays = s.next_homework_due ? daysUntil(s.next_homework_due) : undefined
 
-  const all = [
-    { label: t('bento.parent_week.fact_due'), value: String(s.homework_due) },
-    s.next_homework_due ? { label: t('bento.parent_week.fact_soonest'), value: s.next_homework_due } : null,
-    s.next_homework_title ? { label: t('bento.parent_week.fact_piece'), value: s.next_homework_title } : null,
-    hwDays !== undefined
-      ? {
-          label: t('bento.parent_week.fact_in_days'),
-          value: hwDays < 0
-            ? t('bento.parent_week.days_late', { days: -hwDays })
-            : t('bento.parent_week.days_out', { days: hwDays }),
-        }
-      : null,
-    s.next_exam ? { label: t('bento.parent_week.fact_exam'), value: s.next_exam } : null,
-  ].filter((f): f is { label: string; value: string } => f !== null)
+  const when =
+    hwDays === undefined
+      ? ''
+      : hwDays < 0
+        ? t('bento.parent_week.days_late', { days: -hwDays })
+        : hwDays === 0
+          ? t('bento.parent_week.due_today')
+          : hwDays === 1
+            ? t('bento.parent_week.due_tomorrow')
+            : t('bento.parent_week.due_on', { date: shortDate(s.next_homework_due) })
 
-  const lines = wide && tall ? 5 : tall ? 4 : wide ? 3 : 2
+  const facts = [
+    s.next_homework_due ? { label: t('bento.parent_week.fact_soonest'), value: shortDate(s.next_homework_due) } : null,
+  ].filter((f): f is { label: string; value: string } => f !== null)
 
   return (
     <PersonaCard
       span={span}
       title={t('bento.parent_week.homework_label')}
       who={who}
-      glyph="✎"
       value={s.homework_due}
       change={
         s.homework_due === 0
-          ? t('bento.parent_week.homework_none', { name: s.full_name })
-          : hwDays === undefined
-            ? undefined
-            : hwDays < 0
-              ? t('bento.parent_week.homework_overdue', { days: -hwDays })
-              : hwDays === 0
-                ? t('bento.parent_week.homework_today')
-                : t('bento.parent_week.homework_days', { days: hwDays })
+          ? t('bento.parent_week.homework_none_short')
+          : [s.next_homework_title, when].filter(Boolean).join(' · ')
       }
       to={to}
       cueLabel={t('bento.parent_week.homework_cue')}
     >
-      {s.homework_due === 0 && all.length <= 1 ? (
-        <Say>{t('bento.parent_week.homework_none', { name: s.full_name })}</Say>
-      ) : (
+      {facts.length ? (
         <Facts
-          items={cut(all, lines)}
+          items={facts.slice(0, tall ? 4 : 2)}
           srLabel={t('bento.parent_week.homework_sr', { name: s.full_name, count: s.homework_due })}
         />
-      )}
+      ) : null}
     </PersonaCard>
   )
 }
 
-/* ─── DAYS ABSENT — the shape of the absence ──────────────────────────────
+/* ─── THE BUS ─────────────────────────────────────────────────────────────
 
-   Not a second proportion. The register makes it possible to ask WHEN the days
-   were missed, which is the question a parent can act on, and neither drawing
-   here needs a whole to be true: both are counts of real days.
-
-   1x1  `Rows` — days missed by WEEKDAY. Only the weekdays the register
-        actually uses are drawn; a school that never marks a Saturday should
-        not be shown an empty Saturday.
-   2x1  the same, and the counts beside them.
-   1x2  the weekday spread, and under it the partition of the missed days by
-        status — absent, late, half day, leave — which sums back to the figure.
-   2x2  all three at once. */
-export function AbsentCell({
-  span, who, s, days, to,
+   Only rendered when the child travels by bus — the board leaves the widget
+   out otherwise. The figure is minutes away when the server can say, then
+   distance, then the scheduled time; the sentence names the stop. */
+function BusCell({
+  span, who, row, to,
 }: {
   span: CellSpan
   who: string
-  s: PortalSummary
-  days: RegisterDay[] | null
+  row: ChildBusRow
   to?: string
 }) {
   const t = useT()
-  const { wide, tall } = useShape()
+  const { tall } = useCellShape()
+  const km = row.metres_away != null ? (row.metres_away / 1000).toFixed(1) : null
+  const value =
+    row.eta_minutes != null
+      ? t('bento.parent_week.bus_min', { min: row.eta_minutes })
+      : km
+        ? `${km} km`
+        : row.scheduled_at ?? '—'
+  const change =
+    row.state === 'running'
+      ? t('bento.parent_week.bus_moving', { stop: row.stop ?? row.route })
+      : row.state === 'arrived'
+        ? t('bento.parent_week.bus_arrived', { at: row.arrived_at ?? row.scheduled_at ?? '' })
+        : row.state === 'stale' || row.state === 'no_signal'
+          ? t('bento.parent_week.bus_quiet')
+          : t('bento.parent_week.bus_scheduled', { at: row.scheduled_at ?? '—', stop: row.stop ?? row.route })
 
-  const missed = days ? byWeekday(days, (d) => !IN_SCHOOL.has(d.status)) : []
-  const missedTotal = missed.reduce((a, r) => a + r.value, 0)
-  const kinds = days ? byStatus(days.filter((d) => !IN_SCHOOL.has(d.status))) : []
-  const worst = missed.slice().sort((a, b) => b.value - a.value)[0]
-
-  const facts = cut(
-    [
-      { label: t('bento.parent_week.fact_absent'), value: String(s.absent_days) },
-      { label: t('bento.parent_week.fact_marked'), value: String(s.total_days) },
-      days ? { label: t('bento.parent_week.fact_missed'), value: String(missedTotal) } : null,
-      worst && worst.value > 0 ? { label: t('bento.parent_week.fact_worst_day'), value: `${worst.label} · ${worst.value}` } : null,
-    ].filter((f): f is { label: string; value: string } => f !== null),
-    tall ? 4 : 3,
-  )
-
-  /* Said once, not twice.
-
-     The note under the figure already reads "No days have been marked for
-     Vivaan Rao yet." when the register is empty -- and the body said exactly
-     the same sentence again, four lines below it, in the same card. Two
-     identical sentences stacked in one small box does not read as thorough, it
-     reads as a bug, which is what it was.
-
-     The note keeps it, because it sits with the figure it explains. The body
-     stands empty, which is the honest shape of a card about a register nobody
-     has marked. */
-  const spread =
-    days === null ? (
-      <Say>{t('bento.parent_week.register_unread', { name: s.full_name })}</Say>
-    ) : missedTotal === 0 ? (
-      days.length === 0 ? null : (
-        <Say>{t('bento.parent_week.never_missed', { name: s.full_name })}</Say>
-      )
-    ) : (
-      <Titled head={t('bento.parent_week.head_weekday')}>
-        <Rows
-          items={missed}
-          srLabel={t('bento.parent_week.weekday_sr', { name: s.full_name, count: missedTotal })}
-        />
-      </Titled>
-    )
-
-  const byKind = kinds.length ? (
-    <Titled head={t('bento.parent_week.head_kinds')}>
-      <Rows items={cut(kinds, 4)} srLabel={t('bento.parent_week.kinds_sr', { name: s.full_name })} />
-    </Titled>
-  ) : (
-    <Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} />
-  )
-
-  let drawing: ReactNode = spread
-  if (wide && tall) {
-    drawing = (
-      <Split row>
-        <Part grow={3}>{spread}</Part>
-        <Part grow={2}>
-          <Split>
-            <Part grow={3}>{byKind}</Part>
-            <Part grow={2}><Facts items={cut(facts, 2)} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-          </Split>
-        </Part>
-      </Split>
-    )
-  } else if (wide) {
-    drawing = (
-      <Split row>
-        <Part grow={3}>{spread}</Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  } else if (tall) {
-    drawing = (
-      <Split>
-        <Part grow={3}>{spread}</Part>
-        <Part grow={2}>{byKind}</Part>
-      </Split>
-    )
-  }
+  const facts = [
+    { label: t('bento.parent_week.fact_route'), value: row.route },
+    row.registration_no ? { label: t('bento.parent_week.fact_vehicle'), value: row.registration_no } : null,
+    row.driver ? { label: t('bento.parent_week.fact_driver'), value: row.driver } : null,
+    km ? { label: t('bento.parent_week.fact_away'), value: `${km} km` } : null,
+  ].filter((f): f is { label: string; value: string } => f !== null)
 
   return (
     <PersonaCard
       span={span}
-      title={t('bento.parent_week.absent_label')}
+      title={t('bento.parent_week.bus_label')}
       who={who}
-      glyph="○"
-      value={s.absent_days}
-      change={
-        s.total_days > 0
-          ? t('bento.parent_week.absent_note', { name: s.full_name, total: s.total_days })
-          : t('bento.parent_week.no_register', { name: s.full_name })
-      }
+      value={value}
+      change={change}
       to={to}
-      cueLabel={t('bento.parent_week.absent_cue')}
+      cueLabel={t('bento.parent_week.bus_cue')}
     >
-      {drawing}
+      <Facts items={facts.slice(0, tall ? 4 : 2)} srLabel={t('bento.parent_week.bus_sr', { name: row.student_name })} />
     </PersonaCard>
   )
 }
 
-/* ─── DAYS PRESENT — the proportion ───────────────────────────────────────
+/* ─── MESSAGES ────────────────────────────────────────────────────────────
 
-   The one cell on this board that is a share, and its denominator is real:
-   `total_days` is the days the register carries, counted by the handler in the
-   same query as `present_days`.
-
-   1x1  `Compare` — in school against everything else, two tracks on one scale.
-   2x1  the same, and the counts beside them.
-   1x2  the height buys the ring, over the counts.
-   2x2  the ring, and beside it the days present MONTH BY MONTH — a real count
-        per month off the register, months the school marked nothing left off
-        the axis rather than drawn as nought.
-
-   No cue of its own beyond the register, which is where all three attendance
-   cells already point. */
-export function PresentCell({
-  span, who, s, days, to,
+   Unread notes from the child's teachers, and who they are from. */
+function MessagesCell({
+  span, who, teachers, failed, to,
 }: {
   span: CellSpan
   who: string
-  s: PortalSummary
-  days: RegisterDay[] | null
+  teachers: Teacher[] | null
+  failed: boolean
   to?: string
 }) {
   const t = useT()
-  const { wide, tall } = useShape()
+  const { tall } = useCellShape()
+  const unread = (teachers ?? []).reduce((a, x) => a + x.unread, 0)
+  const from = (teachers ?? []).filter((x) => x.unread > 0)
+  const classTeacher = (teachers ?? []).find((x) => x.class_teacher)
 
-  const other = Math.max(0, s.total_days - s.present_days)
-  const months = days ? byMonth(days, (d) => IN_SCHOOL.has(d.status), tall ? 6 : 4) : []
-  const run = days ? runs(days) : { current: 0, longest: 0 }
-
-  const facts = cut(
-    [
-      { label: t('bento.parent_week.fact_present'), value: String(s.present_days) },
-      { label: t('bento.parent_week.fact_marked'), value: String(s.total_days) },
-      days ? { label: t('bento.parent_week.fact_run'), value: String(run.current) } : null,
-      days ? { label: t('bento.parent_week.fact_longest'), value: String(run.longest) } : null,
-    ].filter((f): f is { label: string; value: string } => f !== null),
-    tall ? 4 : 3,
-  )
-
-  const sr = t('bento.parent_week.absent_sr', {
-    name: s.full_name, present: s.present_days, total: s.total_days,
-  })
-  const tracks = (
-    <Compare
-      rows={[
-        { label: t('bento.parent_week.track_in'), value: s.present_days },
-        { label: t('bento.parent_week.track_out'), value: other },
-      ]}
-      srLabel={sr}
-    />
-  )
-  const ring = <Gauge value={s.present_days} total={s.total_days} srLabel={sr} />
-
-  let drawing: ReactNode = tracks
-  if (wide && tall) {
-    drawing = (
-      <Split row>
-        <Part grow={2}>{ring}</Part>
-        <Part grow={3}>
-          {months.length ? (
-            <Titled head={t('bento.parent_week.head_months')}>
-              <Rows items={months} srLabel={t('bento.parent_week.months_sr', { name: s.full_name })} />
-            </Titled>
-          ) : (
-            <Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} />
-          )}
-        </Part>
-      </Split>
-    )
-  } else if (wide) {
-    drawing = (
-      <Split row>
-        <Part grow={3}>{tracks}</Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  } else if (tall) {
-    drawing = (
-      <Split>
-        <Part grow={3}>{ring}</Part>
-        <Part grow={2}><Facts items={facts} srLabel={t('bento.parent_week.facts_sr', { name: s.full_name })} /></Part>
-      </Split>
-    )
-  }
+  const facts = (from.length ? from : classTeacher ? [classTeacher] : []).map((x) => ({
+    label: x.full_name,
+    value: x.unread > 0 ? t('bento.parent_week.unread_n', { n: x.unread }) : x.subject ?? '',
+  }))
 
   return (
     <PersonaCard
       span={span}
-      title={t('bento.parent_week.present_label')}
+      title={t('bento.parent_week.messages_label')}
       who={who}
-      glyph="●"
-      value={s.present_days}
+      value={failed ? '—' : teachers === null ? '…' : unread}
       change={
-        s.total_days > 0
-          ? t('bento.parent_week.present_note', { name: s.full_name })
-          : t('bento.parent_week.no_register', { name: s.full_name })
+        failed
+          ? t('bento.parent_week.messages_unread_failed')
+          : unread === 0
+            ? t('bento.parent_week.messages_none')
+            : t('bento.parent_week.messages_from', { name: from[0]?.full_name ?? '' })
       }
       to={to}
-      cueLabel={t('bento.parent_week.week_cue')}
+      cueLabel={t('bento.parent_week.messages_cue')}
     >
-      {/* Empty rather than an echo: `change` above already carries this exact
-          sentence when there is no register. See the note on `spread` in the
-          days-absent card. */}
-      {s.total_days > 0 ? drawing : null}
+      {facts.length ? (
+        <Facts items={facts.slice(0, tall ? 4 : 2)} srLabel={t('bento.parent_week.messages_sr')} />
+      ) : null}
+    </PersonaCard>
+  )
+}
+
+/* ─── THE LAST RESULT ─────────────────────────────────────────────────────
+
+   A result that exists beats an exam that is coming: once marks are out the
+   figure is the percentage; until then the card names the next exam. */
+function ResultsCell({
+  span, who, s, to,
+}: {
+  span: CellSpan
+  who: string
+  s: PortalSummary
+  to?: string
+}) {
+  const t = useT()
+  const { tall } = useCellShape()
+  const has = s.latest_result_pct != null
+  const facts = [
+    has && s.latest_result_exam ? { label: t('bento.parent_week.fact_which'), value: s.latest_result_exam } : null,
+    has && s.latest_result_grade ? { label: t('bento.parent_week.fact_grade'), value: s.latest_result_grade } : null,
+  ].filter((f): f is { label: string; value: string } => f !== null)
+
+  return (
+    <PersonaCard
+      span={span}
+      title={has ? t('bento.parent_week.results_label') : t('bento.parent_week.next_exam_label')}
+      who={who}
+      value={has ? `${s.latest_result_pct!.toFixed(1)}%` : s.next_exam ?? '—'}
+      change={
+        s.next_exam
+          ? t('bento.parent_week.next_exam_note', { exam: s.next_exam })
+          : has
+            ? s.latest_result_exam
+            : t('bento.parent_week.results_none')
+      }
+      to={to}
+      cueLabel={t('bento.parent_week.results_cue')}
+    >
+      {facts.length ? (
+        <Facts items={facts.slice(0, tall ? 3 : 2)} srLabel={t('bento.parent_week.results_sr', { name: s.full_name })} />
+      ) : null}
     </PersonaCard>
   )
 }

@@ -3,6 +3,7 @@ import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useCatalog, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
+import '../portal/parent.css'
 import { bentoComponentFor } from './bento-registry'
 import { recordRecent } from '@/lib/recents'
 import { cn } from '@/lib/utils'
@@ -232,6 +233,11 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
         Screen ? 'min-h-full lg:h-full lg:overflow-hidden' : 'min-h-full',
       )}
+      /* The workspace this screen belongs to, for stylesheets that dress one
+         role's screens differently: the parent's calm pass in
+         features/portal/parent.css hangs off `[data-role='parent']`. The first
+         segment of a catalogue key is the role by construction. */
+      data-role={key ? key.split('.')[0] : undefined}
     >
       {/* The room around the board.
 
