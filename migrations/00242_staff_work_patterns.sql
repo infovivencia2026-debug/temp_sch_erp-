@@ -98,8 +98,12 @@ CREATE POLICY tenant_isolation ON work_patterns
 DO $$
 DECLARE inst uuid; opens time; closes time;
 BEGIN
-    PERFORM set_config('app.is_platform_admin', 'on', true);
     FOR inst IN SELECT id FROM institutions LOOP
+        -- FORCE ROW LEVEL SECURITY applies to this block too, and the policy
+        -- on work_patterns knows only app.institution_id -- there is no
+        -- platform-admin escape in it. So the seed becomes each school in
+        -- turn rather than one privileged pass over all of them.
+        PERFORM set_config('app.institution_id', inst::text, true);
         SELECT min(starts_at), max(ends_at) INTO opens, closes
           FROM periods WHERE institution_id = inst;
 
@@ -110,6 +114,9 @@ BEGIN
                 true)
         ON CONFLICT (institution_id, name) DO NOTHING;
     END LOOP;
+    -- Left set, it would follow this transaction into whatever migration runs
+    -- next and scope it to the last school in the list.
+    PERFORM set_config('app.institution_id', '', true);
 END $$;
 -- +goose StatementEnd
 
