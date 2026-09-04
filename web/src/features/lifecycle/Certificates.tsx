@@ -50,7 +50,10 @@ export default function Certificates() {
 
   const decide = useMutation({
     mutationFn: (v: { id: string; status: string; note: string }) =>
-      api.post(`/api/v1/students/certificates/${v.id}/decide`,
+      // Registered under /lifecycle, beside the list this row came from --
+      // not under /students, which is where this call had been pointed and
+      // where chi has nothing to answer with but a 404.
+      api.post(`/api/v1/lifecycle/certificates/${v.id}/decide`,
         { status: v.status, note: v.note }),
     onSuccess: () => {
       setAnswering(null)
