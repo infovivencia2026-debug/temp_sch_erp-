@@ -213,17 +213,50 @@ export function WheelCanvas({
     ctx.putImageData(img, 0, 0)
   }, [])
 
-  const pick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  /* THE WHEEL FOLLOWS THE FINGER.
+
+     It listened for a click and nothing else, and a click is delivered on
+     RELEASE. So the way everybody uses a colour wheel -- press somewhere and
+     drag until the colour is right -- did nothing at all until you let go, at
+     which point the colour jumped to wherever your finger happened to be. No
+     live feedback, no way to hunt for a shade, and on a touchscreen a drag
+     that scrolled the dialog instead.
+
+     Pointer events with capture: the wheel keeps receiving the drag even when
+     it leaves the canvas, which is what makes the rim reachable -- the last
+     few degrees of saturation are exactly where the cursor slips outside. */
+  const at = (clientX: number, clientY: number) => {
     const cv = ref.current
     if (!cv) return
     const box = cv.getBoundingClientRect()
-    const dx = e.clientX - box.left - box.width / 2
-    const dy = e.clientY - box.top - box.height / 2
+    const dx = clientX - box.left - box.width / 2
+    const dy = clientY - box.top - box.height / 2
     const r = box.width / 2
+    // Clamped rather than ignored: dragging past the rim should hold full
+    // saturation at that hue, not stop responding.
     const dist = Math.min(Math.sqrt(dx * dx + dy * dy), r)
     let deg = (Math.atan2(dy, dx) * 180) / Math.PI + 90
     if (deg < 0) deg += 360
     onPick(deg, (dist / r) * 100)
+  }
+
+  const down = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Stops the browser treating the drag as a scroll or a text selection,
+    // which is what made this feel broken on a touchscreen.
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    at(e.clientX, e.clientY)
+  }
+
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
+    at(e.clientX, e.clientY)
+  }
+
+  const up = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
   }
 
   // The marker's position is derived from the value, not remembered from the
@@ -237,8 +270,13 @@ export function WheelCanvas({
     <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
       <canvas
         ref={ref}
-        onClick={pick}
-        style={{ width: SIZE, height: SIZE }}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        // touch-none for the same reason as preventDefault above: without it
+        // the browser claims the gesture as a scroll before the wheel sees it.
+        style={{ width: SIZE, height: SIZE, touchAction: 'none' }}
         className="cursor-crosshair rounded-full shadow-[var(--lift-panel)]"
       />
       {/* Two-tone, because this marker sits on every hue there is and a single
