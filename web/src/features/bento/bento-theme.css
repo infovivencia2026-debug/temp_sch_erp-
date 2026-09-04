@@ -27,9 +27,9 @@
   --tint-mix: 55%;
 
   --bento-bg: #f5f6f8;
-  --bento-card: #ffffff;
+  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
   --bento-card-2: #eef0f4;
-  --bento-ink: #000000;
+  --bento-ink: hsl(var(--paint-cards-text, 0 0% 0%));
   --bento-muted: var(--bento-ink);
   --bento-line: #e3e6ea;
 
@@ -340,9 +340,9 @@ html.dark[data-layout='bento'] {
   --tint-mix: 40%;
 
   --bento-bg: #0d0f14;
-  --bento-card: #1c1e26;
+  --bento-card: hsl(var(--paint-cards-bg, 228 15% 13%));
   --bento-card-2: #2a2c35;
-  --bento-ink: #ffffff;
+  --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   --bento-muted: var(--bento-ink);          /* 5.03:1 on the card */
   --bento-line: #2a2c35;
 
@@ -734,8 +734,8 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 html[data-skin='focus'][data-layout='bento'],
 html[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #f6f7f9;
-  --bento-card: #ffffff;
-  --bento-ink: #000000;
+  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-ink: hsl(var(--paint-cards-text, 0 0% 0%));
   --bento-muted: var(--bento-ink);
   /* Focus keeps a slightly softer corner than the classic board -- it is the
      calmer of the two skins and always has been -- but it was at 10px, which
@@ -780,8 +780,8 @@ html[data-skin='focus'][data-layout='bento']::before {
 html.dark[data-skin='focus'][data-layout='bento'],
 html.dark[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #0e121b;
-  --bento-card: #171d29;
-  --bento-ink: #ffffff;
+  --bento-card: hsl(var(--paint-cards-bg, 220 28% 13%));
+  --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   --bento-muted: var(--bento-ink);
   --bento-line: #30394a;
 
@@ -1381,7 +1381,15 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        Percentage from a calc, clamped at both ends, so nothing outside 0-100
        is ever handed to color-mix. */
     --bento-rule: clamp(0%, calc(200% - var(--bento-density, 1) * 100%), 100%);
-    background: color-mix(in srgb, var(--bento-line) var(--bento-rule), var(--bento-bg));
+    /* Transparent, so the page's own ground shows through the gutters.
+
+       Painting the board a near-line colour drew the hairline rules between
+       cells -- and drew a band anywhere the grid did not reach the board's
+       own edge, which is the line that was still there under the bottom row
+       after the outline came off. The cards are opaque and sit apart on the
+       page, which is the look this file already calls the right one once
+       there is real space between them. */
+    background: transparent;
 
     /* FIVE COLUMNS, THREE ROWS. The board is a fixed 15-slot grid.
 
@@ -2449,9 +2457,9 @@ html[data-layout='bento'] body {
 html.dark[data-layout='bento'],
 html:not(.dark)[data-layout='bento'][data-force-dark] {
   --bento-bg: #0a0b0d;
-  --bento-card: #111316;
+  --bento-card: hsl(var(--paint-cards-bg, 216 13% 8%));
   --bento-card-2: #171a1e;
-  --bento-ink: #ffffff;
+  --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   /* WAS #7c7d7f, AND THE MEASUREMENT ABOVE WAS TAKEN ON THE WRONG PANEL.
 
      The note says the muted tone is white at 45%, 4.52:1, "it recedes without
@@ -2565,9 +2573,9 @@ html:not(.dark)[data-layout='bento'] {
   --bento-edge: inset 0 -1px 0 rgb(10 11 13 / 0.06);
 
   --bento-bg: #f4f5f7;
-  --bento-card: #ffffff;
+  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
   --bento-card-2: #eceef2;
-  --bento-ink: #0a0b0d;
+  --bento-ink: hsl(var(--paint-cards-text, 220 13% 5%));
   --bento-muted: #63656a;
   --bento-line: rgba(10,11,13,0.10);
   /* The light counterpart, re-stepped for the same reasons as the dark set
