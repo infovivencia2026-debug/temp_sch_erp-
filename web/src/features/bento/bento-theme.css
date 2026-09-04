@@ -386,7 +386,19 @@ html.dark[data-layout='bento'] {
      edges reads as a 2px trough, which is exactly the soft, tray-like look
      this is trying to leave behind. The Borders axis still adds one back for
      anyone who wants it; it is simply not the default. */
+  /* NO TOP EDGE.
+
+     A card is a solid colour on a page of a different colour, so the shape is
+     already stated by the fill: a line along the top of it draws a second
+     boundary a pixel inside the first, and on a pale card over a dark board
+     that line is the brightest thing on the tile. It reads as a seam rather
+     than as an edge, which is what "remove the top borders" is describing.
+
+     The other three sides keep theirs, because they are what separates a card
+     from its neighbour where two fills happen to be close in tone. Only the
+     top is redundant, being the side that meets the gutter above it. */
   border-width: max(0px, calc(var(--bento-border-w) - 0.5px));
+  border-top-width: 0;
   border-style: solid;
   /* Was rgba(0,0,0,0.14): a fixed black wash that no palette could move and
      that vanished entirely on the two dark schemes. `--bento-line` is the
@@ -3409,4 +3421,24 @@ html:not(.dark)[data-layout='bento'] {
    still restore it. */
 [data-layout='bento'] .bento-widget[data-tinted] .bento-cell:not(:hover) [data-card] .bento-cue:not(:focus-visible) {
   opacity: 0.4;
+}
+
+/* THE ARROW SITS IN THE CORNER, ON EVERY CARD.
+
+   It is absolutely positioned at top-0 right-0, which resolves against the
+   nearest positioned ancestor. Some cards are built with an inner wrapper that
+   happens to be positioned and some are not, so on half the board the arrow
+   sat flush and on the other half it floated a few pixels in from both edges.
+   Two different insets for the same control is the sort of thing that reads as
+   a rendering fault rather than as a choice.
+
+   Making the cell itself the positioned ancestor settles it once: the arrow is
+   measured from the tile, not from whatever happens to wrap it. */
+[data-layout='bento'] .bento-cell {
+  position: relative;
+}
+[data-layout='bento'] .bento-cell > .bento-cue,
+[data-layout='bento'] .bento-cell .bento-cue {
+  top: 0;
+  right: 0;
 }
