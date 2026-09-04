@@ -1494,7 +1494,10 @@ func (s *Server) getRecipientPolicy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) readRecipientPolicy(ctx context.Context, tx pgx.Tx, inst uuid.UUID, v *recipientPolicyView) error {
-	v.Mode = "allowlist"
+	// No row means everyone, the same answer loadRecipientGuard gives. This
+	// said "allowlist" while the dispatcher sent to everyone, so the screen
+	// showed "Testing" over mail that was actually leaving.
+	v.Mode = "everyone"
 	v.Items = []allowedRecipientView{}
 
 	var note *string

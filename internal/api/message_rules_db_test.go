@@ -489,19 +489,16 @@ func TestPlanPreviewNamesPeopleAndAccountsForTheAllowlist(t *testing.T) {
 	if view.Sample[0].Name == "" {
 		t.Error("preview row has no name")
 	}
-	// No messaging_recipient_policy row was written, so the guard is in
-	// allowlist mode with an empty list: it sends to nobody, and the preview
-	// must say so rather than promising one.
-	if view.GuardMode != "allowlist" {
-		t.Fatalf("guard mode = %q, want allowlist (the safe default)", view.GuardMode)
+	// No messaging_recipient_policy row was written, so the guard is
+	// 'everyone': holding messages back is something a school chooses, and
+	// the preview must promise the send it will actually make.
+	if view.GuardMode != "everyone" {
+		t.Fatalf("guard mode = %q, want everyone (no row means nobody asked to be held back)", view.GuardMode)
 	}
-	if view.WouldSend != 0 || view.Suppressed != 1 {
-		t.Fatalf("preview says would_send=%d suppressed=%d; want 0/1 — the allowlist "+
-			"fails closed and a preview that ignored it would mislead the school",
+	if view.WouldSend != 1 || view.Suppressed != 0 {
+		t.Fatalf("preview says would_send=%d suppressed=%d; want 1/0 — with no policy row "+
+			"the message goes out and the preview must say so",
 			view.WouldSend, view.Suppressed)
-	}
-	if view.Sample[0].Reason == "" {
-		t.Error("a suppressed row must carry the reason it was held")
 	}
 
 	// Open the allowlist to everyone, and the same preview promises the send.

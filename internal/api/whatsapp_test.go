@@ -509,8 +509,8 @@ func TestOneSchoolsAllowlistDoesNotReachAnother(t *testing.T) {
 	if ok, _ := gb.permits("whatsapp", "9100575183"); ok {
 		t.Error("school B inherited school A's allowlist entry")
 	}
-	if gb.Mode != "allowlist" {
-		t.Errorf("school B mode = %q, want the fail-closed default", gb.Mode)
+	if gb.Mode != "everyone" {
+		t.Errorf("school B mode = %q, want everyone: no row means nobody asked to be held back", gb.Mode)
 	}
 }
 
