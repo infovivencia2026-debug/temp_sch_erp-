@@ -1187,6 +1187,26 @@ export function Widget({
        and it is the same softened panel the domain cards get, so a board of
        mixed cards tints to one strength rather than two. */
     paint['--bento-card'] = soft
+
+    /* AND THE TWO TONES THAT NEVER READ THE CARD COLOUR AT ALL.
+
+       A cell is drawn in one of three tones. Only `plain` paints
+       var(--bento-card); `anchor` paints a fixed mint gradient and `dark`
+       paints the ink. So on any board those cards sat there refusing every
+       colour anybody picked, while their neighbours changed -- which is what
+       "some cards cannot change the colours" is.
+
+       The anchor's gradient is repointed to the tint at both stops, which
+       flattens it to the same panel every other card gets: a gradient that
+       ignores the choice is worse than no gradient. Both tones take the
+       card's ordinary ink, because the tint is mixed down over the card and
+       the ink was measured against exactly that. */
+    paint['--bento-anchor-from'] = soft
+    paint['--bento-anchor-to'] = soft
+    paint['--bento-anchor-ink'] = 'var(--bento-ink)'
+    paint['--bento-mint'] = 'var(--bento-line)'
+    paint['--bento-dark-bg'] = soft
+    paint['--bento-dark-ink'] = 'var(--bento-ink)'
   }
 
   /* ONE CARD LEADS — WHEN IT HAS SOMETHING TO SAY.

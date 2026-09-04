@@ -270,7 +270,13 @@ const TONE: Record<CellTone, string> = {
   // takes, in its own hue rather than the neutral line.
   anchor:
     'border-[var(--bento-mint)] dark:border-transparent bg-[linear-gradient(140deg,var(--bento-anchor-from),var(--bento-anchor-to))] text-[var(--bento-anchor-ink)]',
-  dark: 'border-transparent bg-[var(--bento-ink)] text-[var(--bento-bg)]',
+  /* Through tokens with the old values as fallbacks, so a picked colour can
+     reach this tone too. It painted the ink as its ground and the ground as
+     its ink -- two tokens a tint must never repoint, because they are the
+     text colour and the page colour everywhere else on the board. So the
+     tone reads its own pair instead, and a card that is not tinted resolves
+     to exactly what it resolved to before. */
+  dark: 'border-transparent bg-[var(--bento-dark-bg,var(--bento-ink))] text-[var(--bento-dark-ink,var(--bento-bg))]',
 }
 
 export function Cell({

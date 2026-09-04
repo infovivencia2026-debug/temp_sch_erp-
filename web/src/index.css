@@ -1140,13 +1140,35 @@
     background: none !important;
     box-shadow: none !important;
   }
+  /* AND THE ONE THAT ACTUALLY EMPTIED THE SHEET.
+
+     A cell is `container-type: size`, which is `contain: size`: its contents
+     are explicitly not allowed to contribute to its height, because that is
+     what lets a card measure itself and pick a type scale. It only works
+     while the row it sits in states a definite height -- the file says so
+     itself a few hundred lines up.
+
+     On paper there is no definite height to state. So every cell collapsed to
+     nothing and printed as blank space, which is why the sheet came out empty
+     with only the floating dock on it. Releasing the containment is what lets
+     the card be as tall as the thing inside it. */
+  .bento-cell {
+    container-type: normal !important;
+    contain: none !important;
+  }
   .bento-cell,
-  .bento-widget {
+  .bento-widget,
+  [data-card] {
     break-inside: avoid;
     page-break-inside: avoid;
     width: auto !important;
     margin-bottom: 8pt;
   }
+
+  /* A card that clips on screen -- to shed a line it has no room for -- has
+     nothing to shed on a sheet that grows to fit it. */
+  [data-card],
+  .bento-widget { overflow: visible !important; }
 
   /* THE BIG GAP AT THE FOOT OF THE SHEET.
 
