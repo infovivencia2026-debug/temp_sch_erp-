@@ -2937,10 +2937,28 @@ html:not(.dark)[data-layout='bento'] {
        the grid track keeps its width and the five cells stay equal. The wash
        drops to 12 per cent because a smaller shape at the same strength reads
        darker than the larger one did. */
-    background: color-mix(in srgb, var(--ink-here) 12%, transparent) !important;
-    border-radius: 999px !important;
-    margin-block: 4px;
-    margin-inline: 6px;
+    /* AROUND THE GLYPH, NOT AROUND THE CELL.
+
+       As a chip on the button it still spanned icon and label together, which
+       on a 78px cell is a lozenge wider than anything in it. Every phone tab
+       bar worth copying marks the icon and leaves the word plain underneath:
+       the word is already the label, and drawing a field behind it says the
+       label is the thing being selected.
+
+       So the button keeps no fill and the mark moves to the glyph. The svg is
+       already pinned to 18px by the rule below, and content-box padding grows
+       the circle outward from that without touching the icon's own size, so
+       the mark is 34px whatever the icon is. */
+    background: transparent !important;
+  }
+
+  [data-layout='bento'] .bento-dock > button[aria-current='page'] > svg,
+  [data-layout='bento'] .bento-dock > .dock-tab > button[aria-current='page'] > svg,
+  [data-layout='bento'] .bento-dock > .dock-tab > div > button[aria-current='page'] > svg {
+    background: color-mix(in srgb, var(--ink-here) 14%, transparent);
+    border-radius: 999px;
+    padding: 8px;
+    box-sizing: content-box;
   }
 
   /* One glyph size across the bar. Home, Work and the bell arrive at 17, 17
