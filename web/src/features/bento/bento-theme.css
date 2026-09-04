@@ -224,7 +224,20 @@
   color: inherit;
   border-left: 1px solid color-mix(in srgb, currentColor 20%, transparent);
   border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-  border-radius: 0;
+  /* THE CARD IS NOT SQUARE ANY MORE, SO NEITHER IS THIS.
+
+     The comment above argues for a square, and the argument was right when the
+     cells butted together with no corner between them. They do not: the
+     Corners axis rounds every card, and a hard 90-degree box tucked into a
+     20px curve leaves the arrow poking out past the card's own edge, which is
+     what it looks like on screen.
+
+     The outer corner now takes the card's radius, so the button ends exactly
+     where the card ends. The inner corner takes a small one so it reads as a
+     shape rather than a wedge, and the two edges that face into the card keep
+     their hairline. Derived from --radius-card, so this follows the axis
+     instead of being a second number to keep in step with it. */
+  border-radius: 0 var(--radius-card, 11px) 0 6px;
   /* Quieter still at rest. The whole card is the link, so the corner arrow is a
      hint that a tap opens something, not the control itself. At 0.4 it is barely
      there until the pointer or keyboard focus reaches the card, at which point
