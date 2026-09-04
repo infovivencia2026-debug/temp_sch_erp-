@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -94,6 +95,32 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		out.FullName = fullName
 
+		/* THE NUMBER HAS TO REACH THE DATABASE AS TEXT.
+
+		   users.username is citext and staff_number is an integer, and the two
+		   statements below bound the *int straight at it behind a `::text`
+		   cast. pgx builds its encode plan from the Go type and the parameter's
+		   OID, not from a cast written inside the SQL, so it looked for a way
+		   to write an *int as text (OID 25), found none, and failed the request
+		   before it ever reached Postgres:
+
+		       failed to encode args[3]: unable to encode (*int) into text
+		       format for text (OID 25): cannot find encode plan
+
+		   staff_number is assigned automatically when a staff member is added,
+		   so it is non-NULL for essentially everyone, and this fired on nearly
+		   every attempt to give somebody their login. The clerk saw nothing at
+		   all -- the screen showed no error -- and believed it had worked.
+
+		   Converted here, once, rather than at both call sites: a nil number is
+		   still nil, so COALESCE and the contact check below behave as they
+		   did. */
+		var staffNoText *string
+		if staffNo != nil {
+			v := strconv.Itoa(*staffNo)
+			staffNoText = &v
+		}
+
 		/* The number or address the school already holds for them, which is
 		   what goes out in the message that hands over the login. A member of
 		   staff with only a four-digit staff number gets a generated one:
@@ -127,9 +154,9 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 				INSERT INTO users (institution_id, email, phone, username,
 				                   full_name, password_hash, status,
 				                   must_change_password)
-				VALUES ($1, $2::citext, $3, $6::text::citext, $4, $5, 'active', $7)
+				VALUES ($1, $2::citext, $3, $6::citext, $4, $5, 'active', $7)
 				RETURNING id`,
-				id.InstitutionID, email, phone, fullName, hash, staffNo, known).Scan(&newID); err != nil {
+				id.InstitutionID, email, phone, fullName, hash, staffNoText, known).Scan(&newID); err != nil {
 				if isUniqueViolation(err) {
 					/* NAME WHO HOLDS IT.
 
@@ -194,8 +221,8 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 				UPDATE users u
 				   SET email    = COALESCE(u.email, NULLIF($2,'')::citext),
 				       phone    = COALESCE(u.phone, NULLIF($3,'')),
-				       username = COALESCE(u.username, $4::text::citext)
-				 WHERE u.id = $1`, *userID, email, phone, staffNo); err != nil {
+				       username = COALESCE(u.username, $4::citext)
+				 WHERE u.id = $1`, *userID, email, phone, staffNoText); err != nil {
 				// A number that already belongs to somebody else is not a
 				// reason to refuse the login. The account keeps the identifier
 				// it has and the clash is a separate thing to fix.

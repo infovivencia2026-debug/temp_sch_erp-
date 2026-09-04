@@ -452,9 +452,23 @@ func (s *Server) getTour(w http.ResponseWriter, r *http.Request) {
 			       COALESCE(i.name, ''),
 			       -- The first account in a school is the one the vendor handed
 			       -- over, and the only one that arrives to an empty system.
-			       u.id = (SELECT u2.id FROM users u2
-			                WHERE u2.institution_id = u.institution_id
-			                ORDER BY u2.created_at LIMIT 1)
+			       /* NULL IS NOT AN ANSWER TO "ARE YOU THE FIRST ACCOUNT".
+
+			          Platform staff have no institution, and comparing
+			          u2.institution_id to NULL matches nothing, so the subquery
+			          returned no row
+			          and the comparison came back NULL -- which is neither true
+			          nor false and cannot be scanned into a bool. The endpoint
+			          is called on every sign-in, so the vendor's own console
+			          answered 500 every time somebody signed into it.
+
+			          IS NOT DISTINCT FROM compares NULL to NULL as equal, which
+			          ranks platform accounts among themselves, and the COALESCE
+			          answers plainly for anyone the subquery still cannot
+			          place. */
+			       COALESCE(u.id = (SELECT u2.id FROM users u2
+			                WHERE u2.institution_id IS NOT DISTINCT FROM u.institution_id
+			                ORDER BY u2.created_at LIMIT 1), false)
 			  FROM users u
 			  LEFT JOIN institutions i ON i.id = u.institution_id
 			 WHERE u.id = $1`, id.UserID).

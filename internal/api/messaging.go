@@ -2802,7 +2802,19 @@ func (s *Server) saveMessagingProvider(w http.ResponseWriter, r *http.Request) {
 		if id.InstitutionID == uuid.Nil {
 			upsert = `
 			INSERT INTO integrations (institution_id, provider, kind, config, credentials, enabled)
-			VALUES (NULL,$2,'messaging',$3,$4,$5)
+			/* $1::uuid rather than a bare NULL literal.
+
+			   The platform's own row has no institution, so this statement
+			   wrote NULL and never mentioned $1 -- and a parameter a statement
+			   never uses has no type to infer, which Postgres refuses outright:
+			   42P18, "could not determine data type of parameter $1". Every
+			   attempt to save the outgoing mail server from the platform
+			   console failed with "something went wrong", while the same screen
+			   inside a school worked, because that branch does use $1.
+
+			   The parameter is still nil, so the column still gets NULL; naming
+			   it with a cast is what gives the planner a type. */
+			VALUES ($1::uuid,$2,'messaging',$3,$4,$5)
 			ON CONFLICT (provider) WHERE institution_id IS NULL DO UPDATE
 			   SET config      = EXCLUDED.config,
 			       credentials = COALESCE(EXCLUDED.credentials, integrations.credentials),
