@@ -2257,6 +2257,11 @@ type leaveTypeRule struct {
 	Encashable   bool     `json:"encashable"`
 	AllowHalfDay bool     `json:"allow_half_day"`
 	MaxDays      *float64 `json:"max_consecutive_days,omitempty"`
+	// How many of the year's days may be spent in one month. The quota was
+	// annual and only annual, so twelve casual leaves could go in the first
+	// fortnight of June and the rule a school actually keeps -- one a month,
+	// two a month -- could not be written down. Null is no monthly limit.
+	MaxPerMonth  *float64 `json:"max_per_month,omitempty"`
 	NoticeDays   int      `json:"notice_days"`
 	DocAfterDays *float64 `json:"document_required_after_days,omitempty"`
 	OnProbation  bool     `json:"available_during_probation"`
@@ -2307,7 +2312,8 @@ func (s *Server) getLeavePolicy(w http.ResponseWriter, r *http.Request) {
 			       lt.is_paid, lt.carry_forward,
 			       COALESCE(pr.accrual, 'annual'), pr.carry_forward_max::float8,
 			       COALESCE(pr.encashable, false), COALESCE(pr.allow_half_day, true),
-			       pr.max_consecutive_days::float8, COALESCE(pr.notice_days, 0),
+			       pr.max_consecutive_days::float8, pr.max_per_month::float8,
+			       COALESCE(pr.notice_days, 0),
 			       pr.document_required_after_days::float8,
 			       COALESCE(pr.available_during_probation, false), pr.applies_to_gender
 			  FROM leave_types lt
@@ -2323,7 +2329,7 @@ func (s *Server) getLeavePolicy(w http.ResponseWriter, r *http.Request) {
 			var t leaveTypeRule
 			if err := rows.Scan(&t.LeaveTypeID, &t.Code, &t.Name, &t.AnnualQuota,
 				&t.IsPaid, &t.CarryForward, &t.Accrual, &t.CarryMax, &t.Encashable,
-				&t.AllowHalfDay, &t.MaxDays, &t.NoticeDays, &t.DocAfterDays,
+				&t.AllowHalfDay, &t.MaxDays, &t.MaxPerMonth, &t.NoticeDays, &t.DocAfterDays,
 				&t.OnProbation, &t.Gender); err != nil {
 				return err
 			}
@@ -2383,22 +2389,36 @@ func (s *Server) saveLeavePolicy(w http.ResponseWriter, r *http.Request) {
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO leave_policy_rules (leave_type_id, institution_id, accrual,
 				    carry_forward_max, encashable, allow_half_day, max_consecutive_days,
-				    notice_days, document_required_after_days,
+				    max_per_month, notice_days, document_required_after_days,
 				    available_during_probation, applies_to_gender)
-				VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+				VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 				ON CONFLICT (leave_type_id) DO UPDATE SET
 				    accrual = EXCLUDED.accrual,
 				    carry_forward_max = EXCLUDED.carry_forward_max,
 				    encashable = EXCLUDED.encashable,
 				    allow_half_day = EXCLUDED.allow_half_day,
 				    max_consecutive_days = EXCLUDED.max_consecutive_days,
+				    max_per_month = EXCLUDED.max_per_month,
 				    notice_days = EXCLUDED.notice_days,
 				    document_required_after_days = EXCLUDED.document_required_after_days,
 				    available_during_probation = EXCLUDED.available_during_probation,
 				    applies_to_gender = EXCLUDED.applies_to_gender`,
 				t.LeaveTypeID, id.InstitutionID, defaulted(t.Accrual, "annual"),
-				t.CarryMax, t.Encashable, t.AllowHalfDay, t.MaxDays,
+				t.CarryMax, t.Encashable, t.AllowHalfDay, t.MaxDays, t.MaxPerMonth,
 				t.NoticeDays, t.DocAfterDays, t.OnProbation, t.Gender); err != nil {
+				return err
+			}
+			/* The year's total belongs to the school too.
+
+			   annual_quota lives on leave_types and this screen showed it as
+			   context it could not change, so a school raising casual leave
+			   from twelve to fifteen had to find another screen -- and there
+			   is no other screen. The number the payslip charges against is
+			   set where the rest of the rule is set. */
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE leave_types SET annual_quota = $2
+				 WHERE id = $1::uuid AND institution_id = $3`,
+				t.LeaveTypeID, t.AnnualQuota, id.InstitutionID); err != nil {
 				return err
 			}
 		}

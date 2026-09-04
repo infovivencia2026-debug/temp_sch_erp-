@@ -234,7 +234,10 @@
   html[data-text='small'] { --font-scale: 0.94; }
   html[data-text='large'] { --font-scale: 1.08; }
   html[data-text='larger'] { --font-scale: 1.16; }
-  html { font-size: calc(16px * var(--font-scale)); }
+  /* The root size itself is set once, further down, where the 14px baseline
+     is declared -- it used to be set twice, 16px here and 14px there, and the
+     later rule won at equal specificity. So the scale multiplied a number
+     nothing read and the text setting moved nothing on screen. */
 
   html[data-corners='sharp'] { --radius-scale: 0.35; }
   html[data-corners='round'] { --radius-scale: 1.6; }
@@ -451,12 +454,12 @@
   /* 14px is the body baseline for dense enterprise software: small enough to
      fit a working amount of data on screen, large enough to read all day.
      The previous 13px was a step too far and looked cramped. */
-  html { font-size: 14px; }
+  html { font-size: calc(14px * var(--font-scale)); }
 
   body {
     background: hsl(var(--ground));
     color: hsl(var(--foreground));
-    font-size: 14px;
+    font-size: calc(14px * var(--font-scale));
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     /* The Firefox half of the line above. `-webkit-font-smoothing` is Safari
@@ -531,9 +534,9 @@
      Nothing below 15px changes: measured at 14px and at 11px, opsz auto and
      opsz 14 are the same width to the pixel, which is the axis saying it has
      nothing to add down there. */
-  h1 { font-size: 24px; font-weight: 600; letter-spacing: 0; line-height: 1.25; }
-  h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; }
-  h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
+  h1 { font-size: calc(24px * var(--font-scale)); font-weight: 600; letter-spacing: 0; line-height: 1.25; }
+  h2 { font-size: calc(18px * var(--font-scale)); font-weight: 600; letter-spacing: -0.005em; line-height: 1.35; }
+  h3 { font-size: calc(15px * var(--font-scale)); font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
   :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
 
   /* A SENTENCE HAS A LENGTH, AND A SCREEN IS NOT IT.
@@ -2369,4 +2372,62 @@ body[data-scroll-lock] {
 }
 @media (prefers-reduced-motion: reduce) {
   .tri-loader polygon { animation: none; opacity: 0.5; }
+}
+
+/* THE TEXT SIZE SETTING, ON A PRODUCT WRITTEN IN PIXELS.
+
+   Scaling the root font-size is the usual way to do this and it moved almost
+   nothing here: 2,331 places set their size as `text-[13px]` and 76 use a
+   rem-based class, so the axis reached three per cent of the text on screen.
+   Someone choosing Larger got a slightly taller sidebar heading and a
+   workspace that looked exactly as it did before.
+
+   Rewriting 2,331 call sites into a rem scale is the other answer, and it is
+   the wrong one: the px values are deliberate -- 12.5 and 13.5 exist because
+   somebody looked at the row -- and a sweep like that changes every screen at
+   once with nothing to check it against.
+
+   So the utilities themselves carry the scale. One rule per size the product
+   actually uses, generated from the source, each one exactly what the utility
+   already said multiplied by a variable that is 1 until somebody moves it.
+   `html` in front of the class only raises specificity above Tailwind's own
+   rule; it matches everything either way.
+
+   Optical constants stay put on purpose. Hairlines, icon boxes, dock buttons
+   and the grid are px and stay px: this axis is the text, and a person asking
+   for larger text is not asking for a magnified page they have to scroll
+   sideways. */
+  html .text-\[8px\] { font-size: calc(8px * var(--font-scale)); }
+  html .text-\[8.5px\] { font-size: calc(8.5px * var(--font-scale)); }
+  html .text-\[9px\] { font-size: calc(9px * var(--font-scale)); }
+  html .text-\[10px\] { font-size: calc(10px * var(--font-scale)); }
+  html .text-\[10.5px\] { font-size: calc(10.5px * var(--font-scale)); }
+  html .text-\[11px\] { font-size: calc(11px * var(--font-scale)); }
+  html .text-\[11.5px\] { font-size: calc(11.5px * var(--font-scale)); }
+  html .text-\[12px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[12.5px\] { font-size: calc(12.5px * var(--font-scale)); }
+  html .text-\[13px\] { font-size: calc(13px * var(--font-scale)); }
+  html .text-\[13.5px\] { font-size: calc(13.5px * var(--font-scale)); }
+  html .text-\[14px\] { font-size: calc(14px * var(--font-scale)); }
+  html .text-\[14.5px\] { font-size: calc(14.5px * var(--font-scale)); }
+  html .text-\[15px\] { font-size: calc(15px * var(--font-scale)); }
+  html .text-\[16px\] { font-size: calc(16px * var(--font-scale)); }
+  html .text-\[17px\] { font-size: calc(17px * var(--font-scale)); }
+  html .text-\[18px\] { font-size: calc(18px * var(--font-scale)); }
+  html .text-\[19px\] { font-size: calc(19px * var(--font-scale)); }
+  html .text-\[20px\] { font-size: calc(20px * var(--font-scale)); }
+  html .text-\[21px\] { font-size: calc(21px * var(--font-scale)); }
+  html .text-\[22px\] { font-size: calc(22px * var(--font-scale)); }
+  html .text-\[24px\] { font-size: calc(24px * var(--font-scale)); }
+  html .text-\[26px\] { font-size: calc(26px * var(--font-scale)); }
+  html .text-\[28px\] { font-size: calc(28px * var(--font-scale)); }
+  html .text-\[30px\] { font-size: calc(30px * var(--font-scale)); }
+  html .text-\[32px\] { font-size: calc(32px * var(--font-scale)); }
+  html .text-\[34px\] { font-size: calc(34px * var(--font-scale)); }
+  html .text-\[40px\] { font-size: calc(40px * var(--font-scale)); }
+
+@media (min-width: 640px) {
+  html .sm\:text-\[13px\] { font-size: calc(13px * var(--font-scale)); }
+  html .sm\:text-\[22px\] { font-size: calc(22px * var(--font-scale)); }
+  html .sm\:text-\[24px\] { font-size: calc(24px * var(--font-scale)); }
 }

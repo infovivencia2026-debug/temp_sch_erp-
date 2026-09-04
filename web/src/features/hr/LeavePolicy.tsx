@@ -32,6 +32,7 @@ interface TypeRule {
   encashable: boolean
   allow_half_day: boolean
   max_consecutive_days?: number
+  max_per_month?: number
   notice_days: number
   document_required_after_days?: number
   available_during_probation: boolean
@@ -185,13 +186,32 @@ function RulesTab({
     <Card>
       <CardHeader title="What each type allows"
         description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
-      <Table head={['Type', 'Quota', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to']}>
+      <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to']}>
         {types.map((t) => (
           <tr key={t.leave_type_id}>
             <Td className="font-medium">{t.name}
               <div className="text-[12px] font-normal text-muted-foreground">{t.code}</div>
             </Td>
-            <Td className="tabular-nums text-muted-foreground">{t.annual_quota ?? '—'}</Td>
+            {/* THE YEAR'S TOTAL IS THE SCHOOL'S TOO.
+
+                It lived on the leave type and was shown here as context that
+                could not be changed, so a school raising casual leave from
+                twelve to fifteen had to find another screen -- and there is no
+                other screen. Blank is no limit, never zero: a quota nobody
+                entered must not become a quota of none, which would turn every
+                day of that leave into loss of pay. */}
+            <Td className="w-24">
+              <Input type="number" value={t.annual_quota?.toString() ?? ''}
+                onChange={(v) => onChange(t.leave_type_id, { annual_quota: v ? Number(v) : undefined })} />
+            </Td>
+            {/* And how much of it may go in one month. Without this the quota
+                is a rule about the year and no rule at all about the term:
+                twelve casual leaves could be spent in the first fortnight of
+                June, and a class cannot lose the same teacher for a fortnight. */}
+            <Td className="w-24">
+              <Input type="number" value={t.max_per_month?.toString() ?? ''}
+                onChange={(v) => onChange(t.leave_type_id, { max_per_month: v ? Number(v) : undefined })} />
+            </Td>
             <Td>{t.is_paid ? <Badge tone="success">paid</Badge> : <Badge tone="warning">unpaid</Badge>}</Td>
             <Td className="w-24">
               {t.carry_forward ? (
