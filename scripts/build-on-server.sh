@@ -239,6 +239,26 @@ PYEOF
     fi
 fi
 
+# THE STAFF APPS PAGE AND ITS APK DOWNLOADS, asserted the same way.
+#
+# /apps and /apps/{slug}.apk are Go's, served from the published builds
+# directory. The site had no rule for the prefix, so the download fell through
+# to the SPA catch-all and a phone saved 3 KB of HTML as the app. deploy.sh
+# writes the rule on provisioning; this puts it back on a site that predates it.
+NGINX_SITE_APPS="/etc/nginx/sites-available/${SERVICE}"
+if [ -f "$NGINX_SITE_APPS" ] && ! grep -q "location /apps" "$NGINX_SITE_APPS"; then
+    say "Apps route"
+    cp "$NGINX_SITE_APPS" "${NGINX_SITE_APPS}.bak.$(date +%s)"
+    sed -i "s|^    location /logout  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }|&\n    location /apps    { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }|" "$NGINX_SITE_APPS"
+    if grep -q "location /apps" "$NGINX_SITE_APPS" && nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx
+        echo "  inserted /apps -> ${SERVICE}-web; nginx reloaded"
+    else
+        echo "  !! could not insert the /apps route; restoring" >&2
+        cp "$(ls -t ${NGINX_SITE_APPS}.bak.* | head -1)" "$NGINX_SITE_APPS"
+    fi
+fi
+
 ASSISTANT_PORT="${ASSISTANT_PORT:-8001}"
 NGINX_SITE="/etc/nginx/sites-available/${SERVICE}"
 if [ -f "$NGINX_SITE" ] && ! grep -q "location /assistant/" "$NGINX_SITE"; then
