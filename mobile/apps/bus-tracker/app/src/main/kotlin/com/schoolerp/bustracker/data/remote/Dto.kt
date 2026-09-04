@@ -36,8 +36,14 @@ data class ClaimRequest(
 
 @Serializable
 data class ClaimResponse(
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_token") val deviceToken: String,
+    /* DEFAULTED, BECAUSE A SUCCESSFUL SIGN-IN NEED NOT CARRY A BUS.
+     *
+     * A driver whose office has not assigned him a vehicle used to be refused
+     * outright and told to ring them. He signs in now and the server sends the
+     * school's buses instead; there is no handset token until he has picked
+     * one, so these three are absent in exactly that case. */
+    @SerialName("device_id") val deviceId: String = "",
+    @SerialName("device_token") val deviceToken: String = "",
     /**
      * The contract writes `institution` without fixing its shape. The server
      * currently sends a bare uuid string; an object with `id`/`name` is the
@@ -137,6 +143,10 @@ data class DriverSignInRequest(
        the staff record, not a separate numeric code. The server still accepts
        a PIN in this field for handsets issued one. */
     val password: String,
+    /* The bus he picked off the list the server offered, when the office has
+       not put him against one. Null on the first attempt, which is what makes
+       the server answer with the list. */
+    @SerialName("vehicle_id") val vehicleId: String? = null,
     @SerialName("device_model") val deviceModel: String? = null,
     @SerialName("android_version") val androidVersion: String? = null,
     @SerialName("app_version") val appVersion: String? = null,
@@ -157,7 +167,11 @@ data class DriverSignInResponse(
      * Defaulted, so a handset carrying this build still works against a server
      * that predates it. */
     @SerialName("session_token") val sessionToken: String = "",
-    val vehicle: Vehicle,
+    val vehicle: Vehicle? = null,
+    /** True when the credential was good but no bus is chosen yet: `buses`
+     *  then holds what this school runs. */
+    @SerialName("needs_bus") val needsBus: Boolean = false,
+    val buses: List<BusChoice> = emptyList(),
     /** The driver's name, so the run screen can say who is signed in. */
     val driver: String? = null,
     /* THE ROUTES THIS BUS RUNS, decided by the office.
@@ -170,6 +184,16 @@ data class DriverSignInResponse(
      * Empty is not an error: a bus with no route yet still tracks, and the
      * parents still see it move. */
     val routes: List<AssignedRoute> = emptyList(),
+)
+
+/* One of the school's buses, for the driver to pick the one he is standing
+   next to. Registration first: it is what is painted on the back. */
+@Serializable
+data class BusChoice(
+    val id: String,
+    @SerialName("registration_no") val registrationNo: String,
+    @SerialName("bus_code") val busCode: String = "",
+    val model: String = "",
 )
 
 @Serializable

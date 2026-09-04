@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -59,9 +61,53 @@ fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            if (state.usePairCode) "Pair this phone" else "Sign in to drive",
+            when {
+                state.buses.isNotEmpty() -> "Which bus are you on?"
+                state.usePairCode -> "Pair this phone"
+                else -> "Sign in to drive"
+            },
             style = MaterialTheme.typography.headlineSmall,
         )
+
+        /* HE IS SIGNED IN. HE PICKS THE BUS HIMSELF.
+         *
+         * This screen used to end here with "no bus is assigned to you yet,
+         * ask the office" -- a refusal, at ten to seven, that only somebody
+         * sitting at a desk could clear. The office still decides routes and
+         * assignments; it simply is not in the way of a man who has his login
+         * and is standing next to a bus with its registration painted on it.
+         *
+         * Registration in full size because that is what he reads off the
+         * back; the model underneath only where the school recorded one. */
+        if (state.buses.isNotEmpty()) {
+            state.buses.forEachIndexed { index, bus ->
+                if (index > 0) HorizontalDivider()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !state.submitting) { viewModel.chooseBus(bus.id) }
+                        .padding(vertical = 12.dp),
+                ) {
+                    Text(bus.registrationNo, style = MaterialTheme.typography.titleLarge)
+                    val detail = listOf(bus.model, bus.busCode).filter { it.isNotBlank() }
+                    if (detail.isNotEmpty()) {
+                        Text(
+                            detail.joinToString(" \u00b7 "),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+            state.error?.let { message ->
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            return@Column
+        }
 
         if (state.usePairCode) {
             OutlinedTextField(

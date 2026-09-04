@@ -794,9 +794,15 @@ export function Meter({
          was not visible at all, and on an inverted cell it was a light slab
          under a dark one. A track mixed from `currentColor` is a fraction of
          whatever ink the cell resolved, which is a rail on every ground. */
-      /* 6px, square at the origin, rounded 3px at the data end; the track is
+      /* 9px, square at the origin, rounded 3px at the data end; the track is
          the accent's own lighter step rather than a neutral grey, so the
-         meter is one hue at two weights. */
+         meter is one hue at two weights.
+
+         Nine because six was a hairline: on a phone the rail read as a rule
+         under the number rather than as a quantity beside it. Measured on the
+         live board, the rails that actually render come from bento-cards and
+         bento-viz as well as from here, and raising only this one left the
+         board at six -- the number below has to move in all three. */
       className="h-[9px] w-full overflow-hidden rounded-r-[3px]"
       style={{ background: wash(accent, 14) }}
     >

@@ -492,7 +492,7 @@ export function AgeBands({
           >
             {b.label}
           </span>
-          <div className="h-[6px] min-w-0 flex-1 overflow-hidden rounded-r-[3px]" style={{ background: track('pink') }}>
+          <div className="h-[9px] min-w-0 flex-1 overflow-hidden rounded-r-[3px]" style={{ background: track('pink') }}>
             <div
               className="h-full rounded-r-[3px]"
               style={{

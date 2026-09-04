@@ -52,6 +52,12 @@ data class PairUiState(
     val baseUrlEditable: Boolean = BuildConfig.ALLOW_INSECURE_HTTP,
     val submitting: Boolean = false,
     val error: String? = null,
+    /* THE SCHOOL'S BUSES, when the office has not put this driver against one.
+     *
+     * Non-empty means the login was accepted and the only thing left is which
+     * bus he is sitting in -- a question he can answer himself, standing next
+     * to it, which is the entire reason the sign-in no longer fails here. */
+    val buses: List<com.schoolerp.bustracker.data.remote.BusChoice> = emptyList(),
     /** The registration the server echoed back. Shown before anything reports. */
     val pairedVehicle: String? = null,
     val pairedInstitution: String? = null,
@@ -157,6 +163,38 @@ class PairViewModel @Inject constructor(
         _state.value = _state.value.copy(scannedBus = "")
     }
 
+    /* THE BUS HE IS STANDING NEXT TO.
+     *
+     * Signing in again with the id, rather than a second endpoint: the server
+     * treats a chosen bus exactly as it treats a scanned windscreen sticker,
+     * and one path that is used every morning is worth more than two that are
+     * each used half the time. */
+    fun chooseBus(vehicleId: String) {
+        val current = _state.value
+        if (current.submitting) return
+        _state.value = current.copy(submitting = true, error = null)
+        viewModelScope.launch {
+            when (val outcome = repository.driverSignIn(
+                current.baseUrl, current.phone, current.pin, vehicleId,
+            )) {
+                is PairOutcome.Paired -> {
+                    engine.credentialAccepted()
+                    _state.value = _state.value.copy(
+                        submitting = false,
+                        buses = emptyList(),
+                        pairedVehicle = outcome.vehicleRegistration,
+                        pairedInstitution = outcome.institution,
+                        error = null,
+                    )
+                }
+                is PairOutcome.ChooseBus ->
+                    _state.value = _state.value.copy(submitting = false, buses = outcome.buses)
+                is PairOutcome.Rejected ->
+                    _state.value = _state.value.copy(submitting = false, error = outcome.message)
+            }
+        }
+    }
+
     fun usePairCode(on: Boolean) {
         _state.value = _state.value.copy(usePairCode = on, error = null)
     }
@@ -207,6 +245,20 @@ class PairViewModel @Inject constructor(
                         error = null,
                     )
                 }
+                is PairOutcome.ChooseBus ->
+                    _state.value = _state.value.copy(
+                        submitting = false,
+                        buses = outcome.buses,
+                        error = if (outcome.buses.isEmpty()) {
+                            // Signed in, and the school has no active bus at
+                            // all. That is the office's to fix, and saying so
+                            // is better than an empty list he can only stare at.
+                            "You are signed in, but this school has no active bus yet. " +
+                                "Ask the office to add one in Transport."
+                        } else {
+                            null
+                        },
+                    )
                 is PairOutcome.Rejected ->
                     _state.value = _state.value.copy(submitting = false, error = outcome.message)
             }

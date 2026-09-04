@@ -153,13 +153,22 @@ class TrackerRepository @Inject constructor(
             if (response.sessionToken.isNotEmpty()) {
                 tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
             }
-            PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
+            /* enrolWithBus always names a bus, so the server always answers
+               with one; the type allows null for the sign-in that does not. */
+            PairOutcome.Paired(
+                response.vehicle?.registrationNo ?: bus.trim(), response.driver,
+            )
         } catch (failure: ApiFailure) {
             PairOutcome.Rejected(driverSignInMessage(failure))
         }
     }
 
-    suspend fun driverSignIn(rawBaseUrl: String, phone: String, password: String): PairOutcome {
+    suspend fun driverSignIn(
+        rawBaseUrl: String,
+        phone: String,
+        password: String,
+        vehicleId: String? = null,
+    ): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
             .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
@@ -170,17 +179,26 @@ class TrackerRepository @Inject constructor(
                 DriverSignInRequest(
                     phone = phone,
                     password = password,
+                    vehicleId = vehicleId,
                     deviceModel = device.deviceModel(),
                     androidVersion = device.androidVersion(),
                     appVersion = device.appVersion(),
                 ),
             )
             settingsStore.setBaseUrl(baseUrl.value)
+            /* Signed in, but not on a bus yet. Nothing is stored: a handset
+               that recorded a pairing here would believe it was enrolled with
+               no token to report with. The address is kept, because that much
+               was proved by the call succeeding. */
+            val vehicle = response.vehicle
+            if (response.needsBus || vehicle == null) {
+                return PairOutcome.ChooseBus(response.buses)
+            }
             settingsStore.recordPairing(
                 deviceId = response.deviceId,
                 institution = null,
-                vehicleId = response.vehicle.id,
-                vehicleRegistration = response.vehicle.registrationNo,
+                vehicleId = vehicle.id,
+                vehicleRegistration = vehicle.registrationNo,
                 pingSeconds = null,
             )
             /* The office's routes replace whatever the driver typed.
@@ -206,7 +224,7 @@ class TrackerRepository @Inject constructor(
             if (response.sessionToken.isNotEmpty()) {
                 tokenStore.saveSession(response.sessionToken, response.driver.orEmpty())
             }
-            PairOutcome.Paired(response.vehicle.registrationNo, response.driver)
+            PairOutcome.Paired(vehicle.registrationNo, response.driver)
         } catch (failure: ApiFailure) {
             PairOutcome.Rejected(driverSignInMessage(failure))
         }
@@ -887,6 +905,10 @@ class TrackerRepository @Inject constructor(
 sealed interface PairOutcome {
     data class Paired(val vehicleRegistration: String, val institution: String?) : PairOutcome
     data class Rejected(val message: String) : PairOutcome
+    /* The login was good and no bus is assigned. Not a rejection: the driver
+       picks the bus he is sitting in and signs in again with it, which is the
+       whole point of not making him ring the office at six in the morning. */
+    data class ChooseBus(val buses: List<com.schoolerp.bustracker.data.remote.BusChoice>) : PairOutcome
 }
 
 sealed interface StartOutcome {

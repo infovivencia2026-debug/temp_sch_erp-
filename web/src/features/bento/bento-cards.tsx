@@ -966,7 +966,7 @@ export function Rows({ items, srLabel, formatValue }: {
               board was accused of. A measure is a rail: 6px, square where it
               starts at the label, rounded 3px at the data end, on a track
               that is the same ink two steps lighter. */}
-          <span className="h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+          <span className="h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
             <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${Math.min(100, (it.value / hi) * 100)}%`, background: MARK }} />
           </span>
@@ -1092,7 +1092,7 @@ export function Compare({ rows, srLabel, formatValue }: {
           <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
             {r.label}
           </span>
-          <span className="h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+          <span className="h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
             <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${(r.value / hi) * 100}%`, background: MARK }} />
           </span>
@@ -1135,7 +1135,7 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
         </span>
         <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
       </div>
-      <span className="relative block h-[6px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
+      <span className="relative block h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
         <span className="block h-full rounded-r-[3px]" style={{ width: `${pct}%`, background: MARK }} />
       </span>
       {/* The shortfall, named. Without this the empty end of the track is just
@@ -1207,7 +1207,7 @@ export function Funnel({ stages, srLabel, formatValue }: {
     <div className="flex h-full flex-col justify-end gap-1" role="img" aria-label={srLabel}>
       {stages.map((s) => (
         <div key={s.label} className="flex items-center gap-1.5">
-          <span className="h-[6px] min-w-0 flex-1">
+          <span className="h-[9px] min-w-0 flex-1">
             <span className="block h-full rounded-r-[3px]"
                   style={{ width: `${Math.max(6, (s.value / hi) * 100)}%`, background: MARK }} />
           </span>

@@ -83,6 +83,28 @@ type driverSignInRequest struct {
 	   Optional, so a handset built before this goes on working: with no code
 	   the assigned vehicle is still used. */
 	BusCode string `json:"bus_code,omitempty"`
+
+	/* THE BUS HE PICKED OFF THE LIST.
+
+	   bus_code is what is on the sticker, and most schools have not stuck one
+	   on anything yet: on this installation every vehicle has a NULL code. A
+	   driver whose office has not assigned him a bus is offered the school's
+	   buses to choose from and sends the id of the one he is sitting in. Same
+	   check as the code -- it must be an active vehicle of his own school --
+	   and, like the code, it is not a credential: he has already proved who he
+	   is with his login. */
+	VehicleID string `json:"vehicle_id,omitempty"`
+}
+
+/* One of the school's buses, offered to a driver the office has not yet put
+   against one. Registration first because that is what is painted on the back
+   of it; the code is only useful where somebody has stuck one in the
+   windscreen. */
+type busChoice struct {
+	ID             string `json:"id"`
+	RegistrationNo string `json:"registration_no"`
+	BusCode        string `json:"bus_code,omitempty"`
+	Model          string `json:"model,omitempty"`
 }
 
 /*
@@ -123,6 +145,10 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		sessionToken                      string
 		deviceID, vehicleID               uuid.UUID
 		routes                            = []routeRow{}
+		/* Set when the office has not put this driver against a bus. The
+		   sign-in still succeeds; these are what he chooses from. */
+		needsBus bool
+		buses    = []busChoice{}
 	)
 	/* TENANT-SCOPED, NOT PLATFORM.
 
@@ -174,6 +200,19 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 					}
 					return qerr
 				}
+			} else if picked := strings.TrimSpace(req.VehicleID); picked != "" {
+				if qerr := tx.QueryRow(r.Context(), `
+				SELECT v.id, v.registration_no, COALESCE(v.model,'')
+				  FROM vehicles v
+				 WHERE v.institution_id = $1
+				   AND v.id = $2::uuid
+				   AND v.status = 'active'`, who.Institution, picked).
+					Scan(&vehicleID, &registration, &vehicleModel); qerr != nil {
+					if errors.Is(qerr, pgx.ErrNoRows) {
+						return errNoSuchBus
+					}
+					return qerr
+				}
 			} else if qerr := tx.QueryRow(r.Context(), `
 			SELECT v.id, v.registration_no, COALESCE(v.model,'')
 			  FROM vehicles v
@@ -184,10 +223,48 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 			 ORDER BY v.registration_no
 			 LIMIT 1`, who.UserID, who.Institution).
 				Scan(&vehicleID, &registration, &vehicleModel); qerr != nil {
-				if errors.Is(qerr, pgx.ErrNoRows) {
-					return errDriverNoVehicle
+				if !errors.Is(qerr, pgx.ErrNoRows) {
+					return qerr
 				}
-				return qerr
+				/* NO BUS IS NOT A FAILED SIGN-IN.
+
+				   This refused the login outright and told the driver to ring
+				   the office, which is the one thing the whole flow was meant
+				   to remove: he gets a link, downloads the app, is given his
+				   school login, and drives. Whether HR has got round to
+				   putting him against a vehicle is the office's business and
+				   it happens after he is already standing at the bus.
+
+				   So the credential is accepted and the school's own active
+				   buses come back with it. He taps the one he is sitting in
+				   and signs in again with its id, which is the same path the
+				   windscreen sticker takes. Nothing here is a permission: he
+				   passed requireTransportDriver above, and every bus listed
+				   belongs to his own school. */
+				brows, berr := tx.Query(r.Context(), `
+				SELECT v.id::text, v.registration_no, COALESCE(v.bus_code,''),
+				       COALESCE(v.model,'')
+				  FROM vehicles v
+				 WHERE v.institution_id = $1 AND v.status = 'active'
+				 ORDER BY v.registration_no`, who.Institution)
+				if berr != nil {
+					return berr
+				}
+				for brows.Next() {
+					var b busChoice
+					if serr := brows.Scan(&b.ID, &b.RegistrationNo, &b.BusCode,
+						&b.Model); serr != nil {
+						brows.Close()
+						return serr
+					}
+					buses = append(buses, b)
+				}
+				brows.Close()
+				if berr := brows.Err(); berr != nil {
+					return berr
+				}
+				needsBus = true
+				return nil
 			}
 
 			/* ONE LIVE TRACKER PER BUS. Signing in on a new phone retires the old.
@@ -343,6 +420,19 @@ func (s *Server) signInBusDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	case err != nil:
 		httpx.Internal(w, r, err)
+		return
+	}
+
+	/* Signed in, but not yet on a bus. Deliberately a 200 with a list rather
+	   than the 409 this used to be: the credential was good, and the thing
+	   missing is a choice the driver himself can make in one tap. */
+	if needsBus {
+		httpx.JSON(w, http.StatusOK, map[string]any{
+			"needs_bus":   true,
+			"institution": who.Institution.String(),
+			"driver":      who.Name,
+			"buses":       buses,
+		})
 		return
 	}
 
