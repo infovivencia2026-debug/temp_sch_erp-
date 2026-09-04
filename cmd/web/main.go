@@ -97,6 +97,10 @@ func run() error {
 
 	r := chi.NewRouter()
 	r.Use(httpx.RequestID, httpx.RealIP, httpx.Recoverer, httpx.SecurityHeaders)
+	/* The logger is outermost on purpose: it has to time authentication, which
+	   is where the time actually went. It still logs user_id -- see the slot in
+	   httpx.WithIdentity. */
+	r.Use(httpx.Logger)
 	r.Use(sessions.Middleware) // attaches identity when a cookie is present
 	/* And the same identity from a header, for callers that are not browsers.
 
@@ -107,7 +111,6 @@ func run() error {
 	   Authorization: Bearer erpk. token, so the cookie path is untouched.
 	   See internal/api/api_keys.go. */
 	r.Use(apiServer.APIKeyAuth)
-	r.Use(httpx.Logger)        // after auth so lines carry user_id
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := db.Health(r.Context()); err != nil {

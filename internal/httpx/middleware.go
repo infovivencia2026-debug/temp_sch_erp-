@@ -43,6 +43,16 @@ func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		/* The slot goes in before anything else runs, so that authentication
+		   -- which happens further in -- can hand its identity back out here.
+		   Without it this middleware had to be registered AFTER the session
+		   middleware to have a user_id to log, and that put session resolution
+		   outside the timer: every duration_ms in the log understated the real
+		   latency by however long authentication took, which for a long time
+		   was about a second. A number that hides the slowest thing on the
+		   path is worse than no number. */
+		ctx, slot := withIdentitySlot(r.Context())
+		r = r.WithContext(ctx)
 		next.ServeHTTP(rec, r)
 
 		attrs := []any{
@@ -52,7 +62,11 @@ func Logger(next http.Handler) http.Handler {
 			"duration_ms", time.Since(start).Milliseconds(),
 			"request_id", RequestIDFrom(r.Context()),
 		}
-		if id := IdentityFrom(r.Context()); id != nil {
+		id := IdentityFrom(r.Context())
+		if id == nil {
+			id = slot.id
+		}
+		if id != nil {
 			attrs = append(attrs, "institution_id", id.InstitutionID, "user_id", id.UserID)
 		}
 		slog.Info("request", attrs...)

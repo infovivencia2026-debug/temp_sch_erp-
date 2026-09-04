@@ -110,24 +110,53 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 		roleKeys []string
 	)
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		/* THE ROLES COME BACK AS SUBQUERIES, NOT AS JOINS.
+
+		   This ran on every authenticated request and it was the single most
+		   expensive thing the server did: 620-1280ms warm and 306,065 shared
+		   buffers -- 2.4GB read -- to answer "who is this cookie".
+
+		   The cause was the join order, and the planner was not being stupid.
+		   Every RLS policy on these tables reads
+		   `app_is_platform_admin() OR institution_id = ...`, which Postgres
+		   cannot estimate, so it guessed one row from users, from user_roles
+		   and from roles alike. On those estimates the cheapest-looking plan
+		   drives from a sequential scan of users and joins sessions LAST
+		   through a materialise, which meant user_roles was scanned once per
+		   user and `roles` -- a 46-row table -- was scanned 47,040 times per
+		   request. Measured across two minutes of live traffic: 2.87 MILLION
+		   sequential scans of roles for 77 requests served. Lifetime, that
+		   table had read 3.3 billion tuples.
+
+		   Correlating on s.user_id instead takes users, user_roles and roles
+		   out of the driving join altogether, so there is no order left for
+		   the planner to get wrong: the unique index on sessions.token_hash
+		   finds the one row and each subquery answers from an index on the
+		   user id it already has. The GROUP BY goes with the joins.
+
+		   Verified against production, same output, same 131 permissions:
+		   620-1280ms and 306,065 buffers becomes 0.28-0.84ms and 30.
+
+		   The lesson is the one this codebase keeps re-learning: a query that
+		   reads correctly can still be unable to run well, and only EXPLAIN
+		   on real data says which. */
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
 			       u.must_change_password,
-			       COALESCE(array_agg(DISTINCT rp.permission_key)
-			                FILTER (WHERE rp.permission_key IS NOT NULL), '{}'),
-			       COALESCE(array_agg(DISTINCT ro.key)
-			                FILTER (WHERE ro.key IS NOT NULL), '{}')
+			       COALESCE((SELECT array_agg(DISTINCT rp.permission_key)
+			                   FROM user_roles ur
+			                   JOIN role_permissions rp ON rp.role_id = ur.role_id
+			                  WHERE ur.user_id = s.user_id), '{}'),
+			       COALESCE((SELECT array_agg(DISTINCT ro.key)
+			                   FROM user_roles ur
+			                   JOIN roles ro ON ro.id = ur.role_id
+			                  WHERE ur.user_id = s.user_id), '{}')
 			  FROM sessions s
-			  JOIN users u          ON u.id = s.user_id
-			  LEFT JOIN user_roles ur ON ur.user_id = u.id
-			  LEFT JOIN roles ro      ON ro.id = ur.role_id
-			  LEFT JOIN role_permissions rp ON rp.role_id = ur.role_id
+			  JOIN users u ON u.id = s.user_id
 			 WHERE s.token_hash = $1
 			   AND s.revoked_at IS NULL
 			   AND s.expires_at > now()
-			   AND u.status = 'active'
-			 GROUP BY s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
-			          u.must_change_password`,
+			   AND u.status = 'active'`,
 			hashToken(c.Value))
 		return row.Scan(&id.SessionID, &id.UserID, &instID, &lastSeen, &id.FullName,
 			&id.MustChangePassword, &perms, &roleKeys)

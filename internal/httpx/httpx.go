@@ -17,6 +17,7 @@ type ctxKey int
 const (
 	ctxRequestID ctxKey = iota
 	ctxIdentity
+	ctxIdentitySlot
 )
 
 // Identity is the authenticated caller, resolved once per request by the
@@ -72,7 +73,25 @@ func (i *Identity) Can(perm string) bool {
 }
 
 func WithIdentity(ctx context.Context, id *Identity) context.Context {
+	/* The log line is written by a middleware OUTSIDE this one, on a request
+	   whose context was captured before the identity existed, so a value put
+	   here is invisible to it. The slot is a box that Logger puts in the
+	   context first and that this writes into, which is what lets the logger
+	   sit outermost -- and therefore time authentication -- without losing
+	   user_id from every line. */
+	if slot, ok := ctx.Value(ctxIdentitySlot).(*identitySlot); ok && slot != nil {
+		slot.id = id
+	}
 	return context.WithValue(ctx, ctxIdentity, id)
+}
+
+// identitySlot carries the identity back out to a middleware that ran before
+// authentication did. See WithIdentity.
+type identitySlot struct{ id *Identity }
+
+func withIdentitySlot(ctx context.Context) (context.Context, *identitySlot) {
+	slot := &identitySlot{}
+	return context.WithValue(ctx, ctxIdentitySlot, slot), slot
 }
 
 func IdentityFrom(ctx context.Context) *Identity {
