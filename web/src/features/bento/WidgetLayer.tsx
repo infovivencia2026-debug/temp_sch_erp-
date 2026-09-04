@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
-  WIDTHS, DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
+  WIDTHS, DIMS, TINT_STARTS, softTintBg, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, PRESETS, BOARD_ROWS,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
   type WidgetSize, type BoardWidget, type Spot,
@@ -1153,24 +1153,7 @@ export function Widget({
        mostly the card, the card's normal ink keeps the contrast it was measured
        at: no `inkFor`, no forced white-on-colour, no rainbow of figures. A tint
        someone saved months ago at full strength softens here on its own. */
-    /* THE COLOUR THEY PICKED, AT THE STRENGTH THEY PICKED IT.
-
-       This mixed the hue down over the card at --tint-mix so it read as a
-       tinted panel, and the reasoning was sound: a soft panel keeps the
-       card's own ink at the contrast it was measured for, with no forced
-       white-on-colour and no rainbow of figures.
-
-       It also meant that choosing #d81008 -- a saturated red -- produced a
-       pale pink card, and somebody who has just typed a colour into a box and
-       watched almost nothing happen reads that as broken, not as restrained.
-       Asked for repeatedly and plainly.
-
-       So the card takes the colour, and the ink is computed against it rather
-       than assumed: inkFor returns black or white by relative luminance, at
-       the point white and black draw level. That is the one thing full chroma
-       cannot be allowed to cost. */
-    const soft = cssHsl(tint)
-    const ink = inkFor(tint)
+    const soft = softTintBg(tint)
     for (const d of DOMAINS) {
       /* `Cell` draws its background from `--dom-x-soft`, so that is the token
          that must carry the softened panel. `--dom-x` is the INK a few marks
@@ -1228,15 +1211,6 @@ export function Widget({
        painted straight onto the shell. That card was the last one on the
        board still refusing a colour. */
     paint['--bento-card-accent'] = soft
-
-    /* Everything on the card reads --bento-ink, directly or through the
-       -text tokens above, so setting it here carries the whole card to a
-       legible colour in one move. --bento-muted is the quieter voice on the
-       same ground and is mixed from the same pair, so it stays quieter
-       without going under. */
-    paint['--bento-ink'] = ink
-    paint['--bento-muted'] = `color-mix(in srgb, ${ink} 72%, ${soft})`
-    paint['--bento-line'] = `color-mix(in srgb, ${ink} 22%, ${soft})`
   }
 
   /* ONE CARD LEADS — WHEN IT HAS SOMETHING TO SAY.
