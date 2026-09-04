@@ -446,7 +446,14 @@ class MainActivity : Activity() {
                     android.view.HapticFeedbackConstants.CONTEXT_CLICK
                 }
                 "select", "snap" -> android.view.HapticFeedbackConstants.CONTEXT_CLICK
-                else -> android.view.HapticFeedbackConstants.CLOCK_TICK
+                /* CLOCK_TICK was the first choice, and on a OnePlus it was
+                   nothing: logcat showed the call landing and the engine
+                   playing TEXTURE_TICK at medium strength, the faintest
+                   effect it has, under a thumb that felt no answer to a
+                   dock press. VIRTUAL_KEY is what the phone's own navigation
+                   bar plays, tuned by the maker to be felt, and still honours
+                   the touch-feedback setting. */
+                else -> android.view.HapticFeedbackConstants.VIRTUAL_KEY
             }
             view.post { view.performHapticFeedback(constant) }
         }
