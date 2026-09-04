@@ -371,6 +371,58 @@
     --info: 192 85% 62%;
   }
 
+  /* SOFT sits below Normal, for a bright room where the default reads as
+     harsh. Only the two greys that carry text move, and only a little: the
+     borders, the primary and the status colours stay exactly where Normal put
+     them, because dropping those as well is how a theme stops looking like the
+     same product. */
+  :root[data-contrast='soft'] {
+    --secondary-foreground: 0 0% 38%;
+    --muted-foreground: 0 0% 52%;
+  }
+
+  .dark:root[data-contrast='soft'],
+  :root[data-contrast='soft'] .dark {
+    --secondary-foreground: 0 0% 72%;
+    --muted-foreground: 0 0% 56%;
+  }
+
+  /* MAXIMUM is High taken to the end of the range: pure black on white, a
+     border you cannot mistake for a shadow, and the muted grey abandoned
+     entirely. Nothing here is subtle, and it is not meant to be. */
+  :root[data-contrast='maximum'] {
+    --foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 15%;
+    --border: 0 0% 25%;
+    --border-strong: 0 0% 0%;
+    --input: 0 0% 30%;
+    --ring: 217 91% 40%;
+    --primary: 217 91% 38%;
+    --primary-hover: 217 91% 30%;
+    --success: 142 80% 20%;
+    --warning: 32 100% 24%;
+    --destructive: 0 84% 34%;
+    --info: 192 100% 22%;
+  }
+
+  .dark:root[data-contrast='maximum'],
+  :root[data-contrast='maximum'] .dark {
+    --foreground: 0 0% 100%;
+    --secondary-foreground: 0 0% 100%;
+    --muted-foreground: 0 0% 88%;
+    --border: 0 0% 58%;
+    --border-strong: 0 0% 100%;
+    --input: 0 0% 62%;
+    --ring: 217 91% 80%;
+    --primary: 217 97% 82%;
+    --primary-hover: 217 97% 90%;
+    --success: 142 74% 70%;
+    --warning: 35 98% 74%;
+    --destructive: 0 90% 78%;
+    --info: 192 90% 70%;
+  }
+
   * { border-color: hsl(var(--border)); }
   html, body, #root { height: 100%; }
   html, body { overflow-x: clip; max-width: 100%; }

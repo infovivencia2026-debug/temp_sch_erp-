@@ -831,8 +831,21 @@ export function SettingsPane({
           <Scale axis="text" label={t('bento.settings.text')} />
           <Scale axis="density" label={t('bento.settings.density')} />
           <Scale axis="corners" label={t('bento.settings.corners')} />
-          <Scale axis="borders" label={t('bento.settings.borders')} />
-          <Scale axis="shadow" label={t('bento.settings.shadow')} />
+          {/* BORDERS AND SHADOW ARE GONE FROM THIS PANEL.
+
+              Both were sliders over a value the board no longer varies. The
+              cards are solid colours now, so a hairline between a card and the
+              page is drawing a line between two things that already differ,
+              and the board is one ruled sheet, which is a contradiction with a
+              shadow under every cell of it. What the two axes actually did in
+              practice was let somebody set a combination nobody wants: a 5x
+              border on a solid ground, or a lift under a tile that is flush
+              with its neighbours.
+
+              The tokens stay and keep their defaults, so nothing in the
+              stylesheet has to change and a value stored by somebody who moved
+              these sliders before today is still read and still honoured. Only
+              the controls are withdrawn. */}
           <Axis<Contrast>
             label={t('bento.settings.contrast')}
             value={appearance.contrast}

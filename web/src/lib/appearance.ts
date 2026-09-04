@@ -36,7 +36,7 @@ export type Typeface = string
 export type Borders = 'none' | 'hairline' | 'strong'
 export type Shadow = 'flat' | 'default' | 'lifted' | 'deep'
 export type Pattern = 'none' | 'dots' | 'grid' | 'lines' | 'noise'
-export type Contrast = 'normal' | 'medium' | 'high'
+export type Contrast = 'soft' | 'normal' | 'medium' | 'high' | 'maximum'
 export type DockSize = 'compact' | 'default' | 'large'
 export type IconSize = 'small' | 'default' | 'large'
 
@@ -60,7 +60,16 @@ export const TEXT_SIZES: readonly TextSize[] = ['small', 'default', 'large', 'la
 export const BORDERS: readonly Borders[] = ['none', 'hairline', 'strong'] as const
 export const SHADOWS: readonly Shadow[] = ['flat', 'default', 'lifted', 'deep'] as const
 export const PATTERNS: readonly Pattern[] = ['none', 'dots', 'grid', 'lines', 'noise'] as const
-export const CONTRASTS: readonly Contrast[] = ['normal', 'medium', 'high'] as const
+/* FIVE STEPS, NOT THREE.
+
+   Normal to Medium to High is a coarse ladder: the jump from Normal is already
+   most of the way to a near-black-on-white document, so somebody who wants the
+   muted labels a shade darker has to take borders and a darkened primary with
+   them. Soft sits below Normal for a bright room where the default reads as
+   harsh, and Maximum above High for somebody who needs everything at the top
+   of the range. */
+export const CONTRASTS: readonly Contrast[] =
+  ['soft', 'normal', 'medium', 'high', 'maximum'] as const
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
 export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
@@ -195,8 +204,34 @@ function one<T extends string>(key: string, allowed: readonly T[], fallback: T):
   }
 }
 
+/* WHAT A PHONE SHOULD START AT.
+
+   The scales are one set of numbers for every screen, and they were tuned on a
+   desktop board where a card is a tile in a grid of fifteen. A phone shows one
+   card at a time down a single column, and the same numbers leave it airless:
+   cards touching each other, a hairline between every pair, and corners so
+   tight the whole column reads as one slab.
+
+   So a phone starts wider apart, with no dividing lines and a real radius, and
+   the three values are exactly what the owner set by hand after living with
+   it: density 750%, borders 0%, corners 270%.
+
+   A DEFAULT, NOT A LOCK. Every one of these is still a slider, and the moment
+   somebody moves one their value is stored and read back below like any other.
+   This only decides where the sliders sit for somebody who has never touched
+   them, which is almost everybody.
+
+   Measured once at load rather than watched: a phone does not become a desktop
+   while the app is open, and a stored preference outranks this either way. */
+const PHONE_SCALES: Partial<Scales> = { density: 7.5, borders: 0, corners: 2.7 }
+
+function onPhone(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
 function readScales(): Scales {
-  const out = { ...SCALE_DEFAULTS }
+  const out = { ...SCALE_DEFAULTS, ...(onPhone() ? PHONE_SCALES : {}) }
   for (const k of Object.keys(SCALE_DEFAULTS) as (keyof Scales)[]) {
     const raw = readRaw(`erp.scale.${k}`)
     const n = raw === null ? NaN : Number(raw)

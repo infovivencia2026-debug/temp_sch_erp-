@@ -378,11 +378,34 @@ export function tokensFor(r: Roles): Record<string, string> {
   t['--bento-anchor-from'] = r.sidebar
   t['--bento-anchor-to'] = r.card2
   t['--bento-anchor-ink'] = r.ink
+  /* SOLID, NOT A WASH.
+
+     The card ground was the domain hue mixed 85 per cent of the way to the
+     card colour, which is why every card on the board was a pale tint of
+     something rather than a colour: at that mix a blue and a teal are two
+     shades of almost-white, and the board reads as grey paper with faint
+     stains on it.
+
+     0.14 keeps the hue and takes only enough of the card to stop it vibrating
+     against the page. The name -soft is now a lie about the value and stays
+     anyway: it is read by paint.ts, personality.ts, the stylesheet and every
+     card component, and renaming a token across four files to describe a
+     colour is not worth the churn.
+
+     THE INK HAS TO FOLLOW. A ground this saturated cannot carry the page's
+     own ink, which is dark on a light theme: dark text on a solid blue is the
+     unreadable half of this change and the reason the old mix existed. So the
+     text is chosen by measured contrast against the ground it will sit on,
+     white or near-black, whichever wins. contrast() is the same function the
+     test uses to hold ink on card at 4.5, so this is decided by the rule the
+     suite already enforces rather than by eye. */
   DOMAINS.forEach((d, i) => {
     const hue = r.domains[i] ?? r.primary
+    const ground = mix(hue, r.card, 0.14)
     t[`--dom-${d}`] = hue
-    t[`--dom-${d}-soft`] = mix(hue, r.card, 0.85)
-    t[`--dom-${d}-text`] = r.ink
+    t[`--dom-${d}-soft`] = ground
+    t[`--dom-${d}-text`] =
+      contrast('#ffffff', ground) >= contrast('#0b0c0e', ground) ? '#ffffff' : '#0b0c0e'
   })
   return t
 }
