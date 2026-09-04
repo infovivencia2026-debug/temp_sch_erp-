@@ -80,4 +80,7 @@ fun fakeAggregator(status: TrackerStatus): StatusAggregator =
 /** An engine that never emits: the run screen only collects its events. */
 fun fakeEngine(): TripEngine = mockk<TripEngine>(relaxed = true).also {
     every { it.events } returns MutableSharedFlow()
+    // Read as a StateFlow the moment the run screen composes; a relaxed
+    // mock's stand-in for one cannot be collected.
+    every { it.lastFix } returns MutableStateFlow(null)
 }

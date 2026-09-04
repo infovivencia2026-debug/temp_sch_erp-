@@ -11,6 +11,14 @@ import android.graphics.Bitmap
 import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.local.StudentEntity
 import com.schoolerp.bustracker.data.remote.Notice
+import com.schoolerp.bustracker.data.remote.OsrmApi
+import com.schoolerp.bustracker.device.Fix
+import com.schoolerp.bustracker.navigation.Guidance
+import com.schoolerp.bustracker.navigation.LatLng
+import com.schoolerp.bustracker.navigation.Navigator
+import com.schoolerp.bustracker.navigation.RoutePlan
+import com.schoolerp.bustracker.navigation.VoiceGuide
+import com.schoolerp.bustracker.core.BtLog
 import com.schoolerp.bustracker.data.repo.PhotoStore
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.schoolerp.bustracker.data.prefs.DIRECTION_PICKUP
@@ -59,6 +67,8 @@ class RunViewModel @Inject constructor(
     private val engine: TripEngine,
     private val photos: PhotoStore,
     @param:ApplicationContext private val context: Context,
+    private val osrm: OsrmApi,
+    private val voice: VoiceGuide,
 ) : ViewModel() {
 
     val status: StateFlow<TrackerStatus> = aggregator.status
@@ -100,7 +110,123 @@ class RunViewModel @Inject constructor(
     private val _lastArrival = MutableStateFlow<String?>(null)
     val lastArrival: StateFlow<String?> = _lastArrival.asStateFlow()
 
+    /* THE BUS ON THE MAP, from the engine's own fix. Not a second location
+       client: see TripEngine.lastFix. */
+    val lastFix: StateFlow<Fix?> = engine.lastFix
+
+    /* WHERE TO GO NEXT.
+
+       The run screen drew the stops to scale on a blank canvas and called it
+       a sketch, which was honest and useless: a driver put on a new route
+       could see that the next stop was north-east of him and nothing about
+       how to get there. This is the plan through the remaining stops, from
+       the router, and the guidance read off it for every fix.
+
+       The plan is fetched once per situation and kept: once when the run's
+       next stop changes (a stop was reached, so the leg in front is a new
+       one), and again if the bus wanders more than 150 m off the line -- a
+       diversion, or a driver who knows a better road. Never per fix and
+       never per recomposition; the public router would refuse that within a
+       minute and a self-hosted one should not have to carry it. */
+    private data class Planned(val key: PlanKey, val plan: RoutePlan?, val stamp: Long)
+
+    private data class PlanKey(val fromBus: Boolean, val remaining: List<String>)
+
+    private val planned = MutableStateFlow<Planned?>(null)
+    private var planning = false
+    private var lastPlanAtMillis = 0L
+
+    /* This fix and the one before it, so a heading can be worked out on a
+       phone whose GPS reports no bearing. */
+    private val fixPair = MutableStateFlow<Pair<Fix?, Fix?>>(null to null)
+
+    val guidance: StateFlow<Guidance?> = combine(stops, fixPair, planned) { stops, (previous, fix), planned ->
+        val next = stops.firstOrNull { it.arrivedAtMillis == null } ?: return@combine null
+        val plan = planned?.plan ?: return@combine null
+        Navigator.guide(
+            plan = plan,
+            bus = fix?.let { LatLng(it.latitude, it.longitude) },
+            fixHeadingDeg = fix?.headingDeg?.toDouble(),
+            previousBus = previous?.let { LatLng(it.latitude, it.longitude) },
+            nextStopName = next.name,
+            nextStop = next.latitude?.let { lat -> next.longitude?.let { LatLng(lat, it) } },
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val voiceMuted: StateFlow<Boolean> = repository.settings
+        .map { it.voiceMuted }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setVoiceMuted(muted: Boolean) {
+        viewModelScope.launch { settingsStore.setVoiceMuted(muted) }
+    }
+
+    private fun watchRoute() {
+        viewModelScope.launch {
+            engine.lastFix.collect { fix -> fixPair.value = fixPair.value.second to fix }
+        }
+        viewModelScope.launch {
+            combine(stops, engine.lastFix) { stops, fix -> stops to fix }.collect { (stops, fix) ->
+                val remaining = stops.filter { it.arrivedAtMillis == null && it.latitude != null && it.longitude != null }
+                if (remaining.isEmpty()) {
+                    planned.value = null
+                    return@collect
+                }
+                val key = PlanKey(fromBus = fix != null, remaining = remaining.map { it.stopId })
+                val current = planned.value
+                val now = System.currentTimeMillis()
+                val offRoute = current?.plan != null && fix != null &&
+                    Navigator.project(current.plan, LatLng(fix.latitude, fix.longitude)).offM > Navigator.OFF_ROUTE_M
+                val stale = current == null || current.key != key ||
+                    (offRoute && now - lastPlanAtMillis > REPLAN_NO_SOONER_THAN_MILLIS)
+                if (!stale || planning) return@collect
+
+                planning = true
+                lastPlanAtMillis = now
+                val through = listOfNotNull(fix?.let { LatLng(it.latitude, it.longitude) }) +
+                    remaining.map { LatLng(it.latitude!!, it.longitude!!) }
+                // Asked of the router; straight lines between the stops if it
+                // does not answer. Either way the driver has a line to follow.
+                val plan = osrm.route(through)?.let(RoutePlan::fromOsrm) ?: RoutePlan.straight(through)
+                BtLog.i("nav", "planned ${through.size} points, roads=${plan?.roadFollowing}")
+                planned.value = Planned(key, plan, now)
+                planning = false
+            }
+        }
+        /* Each instruction is spoken once per band and never again for the
+           same manoeuvre, however many fixes land inside that band. A new
+           plan resets that, which on a diversion is what the driver wants. */
+        viewModelScope.launch {
+            val spoken = HashSet<String>()
+            var lastStamp = 0L
+            combine(guidance, voiceMuted, planned) { g, muted, p -> Triple(g, muted, p?.stamp ?: 0L) }
+                .collect { (g, muted, stamp) ->
+                    if (stamp != lastStamp) {
+                        spoken.clear()
+                        lastStamp = stamp
+                    }
+                    val cue = g?.cue ?: return@collect
+                    val key = if (cue.stepIndex == Int.MAX_VALUE) "arrive:${g.nextStopName}" else "${cue.stepIndex}:${cue.band}"
+                    if (spoken.add(key) && !muted) voice.say(cue.text)
+                }
+        }
+    }
+
+    /**
+     * Turn-by-turn in whatever maps app the phone has, for a driver who wants
+     * the one he knows. The service keeps reporting underneath it: this is an
+     * activity in front, not a change to the run.
+     */
+    fun navigateIntent(latitude: Double, longitude: Double, name: String): List<Intent> = listOf(
+        Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=$latitude,$longitude&mode=d")),
+        Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude(${Uri.encode(name)})"),
+        ),
+    ).map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+
     init {
+        watchRoute()
         viewModelScope.launch {
             engine.events.collect { event ->
                 when (event) {
@@ -393,6 +519,11 @@ class RunViewModel @Inject constructor(
             TrackerServiceLauncher.stop(context)
             _busy.value = false
         }
+    }
+
+    private companion object {
+        /** Off-route replans no closer together than this: the router is shared. */
+        const val REPLAN_NO_SOONER_THAN_MILLIS = 20_000L
     }
 
     fun openNotificationSettings(): Intent =

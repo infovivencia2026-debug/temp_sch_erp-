@@ -59,8 +59,12 @@ class SettingsStore @Inject constructor(
             },
             routeBook = readRouteBook(prefs),
             signedOutReason = prefs[KEY_SIGNED_OUT_REASON],
+            voiceMuted = prefs[KEY_VOICE_MUTED] ?: false,
         )
     }
+
+    /** The driver's own choice about spoken directions; survives the run and the reboot. */
+    suspend fun setVoiceMuted(muted: Boolean) = edit { it[KEY_VOICE_MUTED] = muted }
 
     suspend fun setBaseUrl(url: String) = edit { it[KEY_BASE_URL] = url }
 
@@ -227,6 +231,7 @@ class SettingsStore @Inject constructor(
         val KEY_SIGNED_OUT_REASON = stringPreferencesKey("signed_out_reason")
         val KEY_PENDING_END_TRIP = stringPreferencesKey("pending_end_trip")
         val KEY_PENDING_END_AT = longPreferencesKey("pending_end_at")
+        val KEY_VOICE_MUTED = booleanPreferencesKey("voice_muted")
     }
 }
 
@@ -279,6 +284,8 @@ data class TrackerSettings(
     val pendingEnd: PendingEnd? = null,
     /** Set when the server rejected this phone's token; shown on the sign-in screen. */
     val signedOutReason: String? = null,
+    /** Spoken turn-by-turn switched off by the driver. */
+    val voiceMuted: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_PING_SECONDS = 20

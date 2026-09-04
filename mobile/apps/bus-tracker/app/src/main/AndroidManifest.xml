@@ -53,6 +53,25 @@
         android:name="android.hardware.location.gps"
         android:required="true" />
 
+    <!-- Android 11 hides other packages unless they are asked for by name.
+         The speech engine is one: without this line TextToSpeech binds to
+         nothing and the directions are silent, with no error anywhere. The
+         navigation schemes are the other, so the Navigate button can tell a
+         phone with no maps app from one that has. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BusTrackerApp"
         android:allowBackup="false"

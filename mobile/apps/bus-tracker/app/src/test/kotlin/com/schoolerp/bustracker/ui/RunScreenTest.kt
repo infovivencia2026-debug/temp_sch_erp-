@@ -82,6 +82,10 @@ class RunScreenTest {
             fakeEngine(),
             mockk(relaxed = true),
             ApplicationProvider.getApplicationContext(),
+            // The router and the voice: neither is reached unless a run with
+            // located stops is open, which no test here composes.
+            mockk(relaxed = true),
+            mockk(relaxed = true),
         )
         compose.setContent { RunScreen(viewModel) }
     }

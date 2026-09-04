@@ -54,6 +54,18 @@ class TripEngine @Inject constructor(
     private val _lastFixAt = MutableStateFlow(0L)
     val lastFixAt: StateFlow<Long> = _lastFixAt.asStateFlow()
 
+    /* WHERE THE BUS IS, for the screen.
+
+       The engine kept only *when* the last fix arrived; the position itself
+       went to the buffer and the geofence check and was gone. The run screen
+       had nothing to draw the bus with, and the obvious fix -- a second
+       location client in the UI -- would have meant two subscriptions to the
+       GPS with two cadences, one of them outside the service and so outside
+       the privacy promise that nothing is collected but the run. This is the
+       same fix the server gets, read once. Null until the run's first fix. */
+    private val _lastFix = MutableStateFlow<Fix?>(null)
+    val lastFix: StateFlow<Fix?> = _lastFix.asStateFlow()
+
     private val _serviceRunning = MutableStateFlow(false)
     val serviceRunning: StateFlow<Boolean> = _serviceRunning.asStateFlow()
 
@@ -125,6 +137,7 @@ class TripEngine @Inject constructor(
         val trip = settingsStore.settings.first().activeTrip ?: return
         repository.bufferFix(trip.tripId, fix)
         _lastFixAt.value = time.nowMillis()
+        _lastFix.value = fix
 
         // Judged here, offline, from the radii that came down with the trip.
         val stops = repository.observeStops(trip.tripId).first()

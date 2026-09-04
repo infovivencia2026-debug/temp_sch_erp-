@@ -26,8 +26,8 @@ android {
         // 26 is where the foreground-service model this app depends on begins.
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.3.0"
+        versionCode = 4
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -62,6 +62,19 @@ android {
     val trackerBaseUrl = (project.findProperty("trackerBaseUrl") as String?)
         ?: "https://temperp.187-127-178-100.sslip.io"
 
+    /* THE ROUTER.
+
+       Turn-by-turn directions come from an OSRM server. The default is the
+       public demo instance at project-osrm.org: it needs no key, but it is
+       rate-limited, carries no uptime promise, and its own usage policy says
+       it is for testing and evaluation only. It is here so the driver has
+       directions today; a fleet of buses must point this at a self-hosted
+       OSRM (a Docker image and an India extract is an afternoon's work):
+         ./gradlew assembleRelease -PosrmBaseUrl=https://osrm.example.in
+    */
+    val osrmBaseUrl = (project.findProperty("osrmBaseUrl") as String?)
+        ?: "https://router.project-osrm.org"
+
     buildTypes {
         debug {
             /* No .debug suffix, so a debug build REPLACES the app rather than
@@ -80,6 +93,7 @@ android {
             // the operator also flips the in-app developer switch.
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
+            buildConfigField("String", "OSRM_BASE_URL", "\"$osrmBaseUrl\"")
         }
         release {
             isMinifyEnabled = true
@@ -87,6 +101,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
             buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
+            buildConfigField("String", "OSRM_BASE_URL", "\"$osrmBaseUrl\"")
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -154,6 +169,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
     implementation(libs.zxing.embedded)
+    implementation(libs.osmdroid)
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.work)

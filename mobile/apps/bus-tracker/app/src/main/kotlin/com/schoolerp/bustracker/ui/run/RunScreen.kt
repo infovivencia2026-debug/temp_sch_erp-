@@ -76,6 +76,8 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val lastArrival by viewModel.lastArrival.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
+    val guidance by viewModel.guidance.collectAsStateWithLifecycle()
+    val voiceMuted by viewModel.voiceMuted.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -193,9 +195,64 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                reference; this is the line read at a junction. */
             val counts = students.groupBy { it.stopId }
                 .mapValues { (_, here) -> Headcount.of(here, trip.direction) }
-            NextStopCard(stops = stops, lastArrival = lastArrival, counts = counts, direction = trip.direction)
 
-            RouteSketch(stops, modifier = Modifier.fillMaxWidth())
+            /* THE NAVIGATOR, before the roster.
+
+               The sketch drew the stops to scale on a blank background and
+               said in its caption that it carried no map data. True, and no
+               help: a driver on a route he had not driven could see the next
+               stop was north-east and nothing about which road got him there.
+               This is the banner and the map a car's navigator shows, fed by
+               the run's own fixes, and it comes first because it is what the
+               screen is looked at for while the bus is moving.
+
+               The sketch stays as the fallback for a phone with no signal or a
+               route with no coordinates: tiles cannot be fetched with no
+               network, and a grey grid would read as the app being broken. */
+            val located = stops.filter { it.latitude != null && it.longitude != null }
+            val next = stops.firstOrNull { it.arrivedAtMillis == null }
+            if (located.isNotEmpty() && next != null) {
+                NavigationBanner(
+                    guidance = guidance,
+                    muted = voiceMuted,
+                    onMuteChange = viewModel::setVoiceMuted,
+                )
+            }
+            if (located.isNotEmpty() && status.hasNetwork) {
+                RouteMap(stops = stops, guidance = guidance, modifier = Modifier.fillMaxWidth())
+            } else {
+                RouteSketch(stops, modifier = Modifier.fillMaxWidth())
+            }
+
+            NextStopCard(
+                stops = stops,
+                lastArrival = lastArrival,
+                counts = counts,
+                direction = trip.direction,
+                onNavigate = next?.takeIf { it.latitude != null && it.longitude != null }?.let { stop ->
+                    {
+                        /* The phone's own maps app, for a driver who wants
+                           the voice he knows. google.navigation: is what
+                           Google Maps answers to, geo: is what every other
+                           maps app answers to, and a phone with neither is
+                           told so rather than left with a button that does
+                           nothing. Tracking carries on underneath: the
+                           foreground service does not know or care what is
+                           in front of it. */
+                        val intents = viewModel.navigateIntent(stop.latitude!!, stop.longitude!!, stop.name)
+                        val opened = intents.any { intent ->
+                            runCatching { context.startActivity(intent) }.isSuccess
+                        }
+                        if (!opened) {
+                            BtLog.w("ui", "no navigation app for ${stop.name}")
+                            android.widget.Toast.makeText(
+                                context, "No maps app on this phone", android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    }
+                },
+            )
+
             StopList(stops, counts, trip.direction)
 
             /* WHO IS ON THE BUS.
@@ -514,6 +571,8 @@ private fun NextStopCard(
     lastArrival: String?,
     counts: Map<String, Headcount> = emptyMap(),
     direction: String = DIRECTION_PICKUP,
+    /** Absent when the next stop has no coordinates: nothing to navigate to. */
+    onNavigate: (() -> Unit)? = null,
 ) {
     if (stops.isEmpty()) return
     val done = stops.count { it.arrivedAtMillis != null }
@@ -557,6 +616,14 @@ private fun NextStopCard(
             )
             lastArrival?.let {
                 Text("Reached $it", style = MaterialTheme.typography.bodyMedium)
+            }
+            if (next != null && onNavigate != null) {
+                OutlinedButton(
+                    onClick = onNavigate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                ) { Text("Navigate in the maps app") }
             }
         }
     }

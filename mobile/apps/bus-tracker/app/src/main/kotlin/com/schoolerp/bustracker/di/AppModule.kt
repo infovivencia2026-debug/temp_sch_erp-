@@ -9,6 +9,7 @@ import com.schoolerp.bustracker.data.local.FixDao
 import com.schoolerp.bustracker.data.local.StopDao
 import com.schoolerp.bustracker.data.local.StudentDao
 import com.schoolerp.bustracker.data.local.TrackerDatabase
+import com.schoolerp.bustracker.data.remote.OsrmApi
 import com.schoolerp.bustracker.data.remote.TrackerApi
 import dagger.Module
 import dagger.Provides
@@ -86,6 +87,12 @@ object AppModule {
     @Provides
     @Singleton
     fun trackerApi(client: HttpClient, json: Json): TrackerApi = TrackerApi(client, json)
+
+    /** The router. Same client, same JSON; only the host differs. See OsrmApi. */
+    @Provides
+    @Singleton
+    fun osrmApi(client: HttpClient, json: Json, @ApplicationContext context: Context): OsrmApi =
+        OsrmApi(client, json, BuildConfig.OSRM_BASE_URL, context.packageName)
 
     @Provides
     @Singleton
