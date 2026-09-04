@@ -1172,7 +1172,7 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 			accepted = append(accepted, p.at.Format(time.RFC3339))
 		}
 
-		if err := s.updateLastPosition(r.Context(), tx, dev, tripID, fixes[len(fixes)-1].at,
+		if err := s.updateLastPosition(r.Context(), tx, dev, tripVehicle, tripID, fixes[len(fixes)-1].at,
 			fixes[len(fixes)-1].f); err != nil {
 			return err
 		}
@@ -1180,7 +1180,7 @@ func (s *Server) ingestBusTrackerPositions(w http.ResponseWriter, r *http.Reques
 			policy, fixesAsPoints(fixes)); err != nil {
 			return err
 		}
-		if err := s.trackSpeeding(r.Context(), tx, dev, tripID, policy,
+		if err := s.trackSpeeding(r.Context(), tx, dev, tripVehicle, tripID, policy,
 			fixesAsPoints(fixes)); err != nil {
 			return err
 		}
@@ -1241,7 +1241,16 @@ func fixesAsPoints(fixes []bufferedFix) []point {
 // every ETA read. Kept apart from the history because the two have opposite
 // shapes — see the migration.
 func (s *Server) updateLastPosition(ctx context.Context, tx pgx.Tx, dev *busTracker,
-	trip uuid.UUID, at time.Time, f positionFix) error {
+	vehicle, trip uuid.UUID, at time.Time, f positionFix) error {
+	/* The bus that ran, not the bus on the pairing.
+
+	   This wrote dev.Vehicle, which since the bus became something a driver
+	   scans at the start of each run is NULL on every handset paired the new
+	   way. The history insert above had already been moved to the trip's
+	   vehicle; this one had not, so every push after the first on such a
+	   handset failed the NOT NULL on vehicle_last_position with a 500, the
+	   phone kept the batch and resent it forever, and the parent's page said
+	   "No signal" over a driver whose phone had sent 77 batches. */
 	_, err := tx.Exec(ctx, `
 		INSERT INTO vehicle_last_position (vehicle_id, institution_id, trip_id,
 		    recorded_at, received_at, latitude, longitude, speed_kmph,
@@ -1255,7 +1264,7 @@ func (s *Server) updateLastPosition(ctx context.Context, tx pgx.Tx, dev *busTrac
 		    tracker_id = EXCLUDED.tracker_id
 		 -- A late-arriving buffered fix must not overwrite a newer live one.
 		 WHERE EXCLUDED.recorded_at > vehicle_last_position.recorded_at`,
-		dev.Vehicle, dev.Institution, trip, at, f.Latitude, f.Longitude,
+		vehicle, dev.Institution, trip, at, f.Latitude, f.Longitude,
 		f.SpeedKmph, f.HeadingDeg, f.AccuracyM, dev.ID)
 	return err
 }
@@ -1388,7 +1397,7 @@ trackSpeeding opens, extends and closes one speeding episode per run.
 	for two minutes is one event with a duration, not twelve events.
 */
 func (s *Server) trackSpeeding(ctx context.Context, tx pgx.Tx, dev *busTracker,
-	trip uuid.UUID, policy *trackingPolicy, points []point) error {
+	vehicle, trip uuid.UUID, policy *trackingPolicy, points []point) error {
 
 	limit := float64(policy.SpeedLimitKmph)
 	hold := time.Duration(policy.SpeedingHoldSecs) * time.Second
@@ -1425,7 +1434,7 @@ func (s *Server) trackSpeeding(ctx context.Context, tx pgx.Tx, dev *busTracker,
 				VALUES ($1,$2,$3,'speeding',$4,$5,$6,$7,$8)
 				ON CONFLICT (trip_id, kind, COALESCE(ended_at, 'epoch'::timestamptz))
 				DO NOTHING`,
-				dev.Institution, trip, dev.Vehicle, p.At, *p.Speed,
+				dev.Institution, trip, vehicle, p.At, *p.Speed,
 				policy.SpeedLimitKmph, p.Lat, p.Lon); err != nil {
 				return err
 			}
