@@ -3,8 +3,10 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
@@ -267,4 +269,143 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 			return v, nil
 		})
 	respond(w, r, items, err)
+}
+
+/*
+getStaffMonthDays is one person's month, a row per day.
+
+	The totals answer "how many days did she lose" and every argument about
+	them is about a particular morning: the day the reader did not read her
+	finger, the day she was here until six and it says half day. Without the
+	days behind the total, the office can only repeat the total back.
+
+	Every day the school expected is listed, including the ones with no punch
+	at all -- those are the days most often argued about, and a list that
+	silently omits them looks complete and is not.
+*/
+type staffDay struct {
+	Date     string  `json:"on_date"`
+	Weekday  string  `json:"weekday"`
+	Expected bool    `json:"expected"`
+	Status   string  `json:"status"`
+	CheckIn  *string `json:"check_in,omitempty"`
+	CheckOut *string `json:"check_out,omitempty"`
+	Minutes  *int    `json:"minutes,omitempty"`
+	LateBy   *int    `json:"late_by_minutes,omitempty"`
+	// What the day came to under this person's own hours, said in words. The
+	// figures above are the evidence for it.
+	Verdict string `json:"verdict"`
+}
+
+func (s *Server) getStaffMonthDays(w http.ResponseWriter, r *http.Request) {
+	month := r.URL.Query().Get("month")
+	if month == "" {
+		month = nowInIndia().Format("2006-01")
+	}
+	if _, err := time.Parse("2006-01", month); err != nil {
+		httpx.BadRequest(w, r, "month must be written as 2026-09")
+		return
+	}
+	employee, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid employee id")
+		return
+	}
+
+	items, err := collect(s, r, `
+		WITH me AS (
+		  SELECT e.id, e.user_id, e.institution_id,
+		         COALESCE(p1.starts_at, p2.starts_at, p3.starts_at, TIME '09:00') AS starts_at,
+		         COALESCE(p1.ends_at, p2.ends_at, p3.ends_at, TIME '16:00')       AS ends_at,
+		         COALESCE(p1.grace_minutes, p2.grace_minutes, p3.grace_minutes, 10) AS grace,
+		         COALESCE(p1.full_day_minutes, p2.full_day_minutes, p3.full_day_minutes, 420) AS full_min,
+		         COALESCE(p1.half_day_minutes, p2.half_day_minutes, p3.half_day_minutes, 210) AS half_min,
+		         COALESCE(p1.working_days, p2.working_days, p3.working_days,
+		                  ARRAY[1,2,3,4,5,6]) AS working_days
+		    FROM employees e
+		    LEFT JOIN departments   d  ON d.id  = e.department_id
+		    LEFT JOIN work_patterns p1 ON p1.id = e.work_pattern_id
+		    LEFT JOIN work_patterns p2 ON p2.id = d.work_pattern_id
+		    LEFT JOIN work_patterns p3 ON p3.institution_id = e.institution_id
+		                              AND p3.is_default
+		   WHERE e.id = $2
+		),
+		days AS (
+		  SELECT g.day::date AS on_date
+		    FROM generate_series(($1 || '-01')::date,
+		                         (($1 || '-01')::date + INTERVAL '1 month - 1 day')::date,
+		                         INTERVAL '1 day') AS g(day)
+		)
+		SELECT to_char(d.on_date, 'YYYY-MM-DD'),
+		       to_char(d.on_date, 'Dy'),
+		       (EXTRACT(ISODOW FROM d.on_date)::int = ANY(m.working_days)
+		        AND NOT EXISTS (SELECT 1 FROM holidays h
+		                         WHERE h.institution_id = m.institution_id
+		                           AND h.kind IN ('holiday','vacation')
+		                           AND h.applies_to IN ('all','staff')
+		                           AND d.on_date BETWEEN h.on_date
+		                                             AND COALESCE(h.to_date, h.on_date))),
+		       COALESCE(a.status, ''),
+		       to_char(a.check_in  AT TIME ZONE 'Asia/Kolkata', 'HH24:MI'),
+		       to_char(a.check_out AT TIME ZONE 'Asia/Kolkata', 'HH24:MI'),
+		       CASE WHEN a.check_in IS NULL THEN NULL ELSE
+		            (EXTRACT(EPOCH FROM (
+		               COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, m.ends_at)
+		                 - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60)::int
+		       END,
+		       CASE WHEN a.check_in IS NULL THEN NULL ELSE
+		            GREATEST(0, (EXTRACT(EPOCH FROM (
+		               (a.check_in AT TIME ZONE 'Asia/Kolkata')::time - m.starts_at))/60)::int)
+		       END
+		  FROM days d
+		  CROSS JOIN me m
+		  LEFT JOIN staff_attendance a ON a.user_id = m.user_id
+		                              AND a.on_date = d.on_date
+		 ORDER BY d.on_date`, []any{month, employee},
+		func(rows pgx.Rows) (staffDay, error) {
+			var v staffDay
+			if err := rows.Scan(&v.Date, &v.Weekday, &v.Expected, &v.Status,
+				&v.CheckIn, &v.CheckOut, &v.Minutes, &v.LateBy); err != nil {
+				return v, err
+			}
+			v.Weekday = strings.TrimSpace(v.Weekday)
+			/* The day in words, so the row explains itself.
+
+			   A day nobody marked says so rather than reading as an absence:
+			   the two look identical in a blank row and only one of them is
+			   the employee's fault. */
+			switch {
+			case !v.Expected && v.Status == "":
+				v.Verdict = "Not a working day"
+			case v.Status == "":
+				v.Verdict = "Nobody marked this day"
+			case v.CheckIn == nil:
+				v.Verdict = statusInWords(v.Status)
+			default:
+				v.Verdict = statusInWords(v.Status)
+			}
+			return v, nil
+		})
+	respond(w, r, items, err)
+}
+
+// statusInWords says what the register recorded, in the words a staffroom uses.
+func statusInWords(status string) string {
+	switch status {
+	case "present":
+		return "Present"
+	case "absent":
+		return "Absent"
+	case "late":
+		return "Late"
+	case "half_day":
+		return "Half day"
+	case "leave":
+		return "On leave"
+	case "holiday":
+		return "Holiday"
+	case "week_off":
+		return "Week off"
+	}
+	return status
 }

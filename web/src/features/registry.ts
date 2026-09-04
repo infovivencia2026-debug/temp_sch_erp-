@@ -528,9 +528,9 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   'hr.attendance.staff_register': screen(() => import('./hr/StaffAttendance')),
   'hr.attendance.staff_duty_roster': screen(() => import('./hr/Rostering')),
-  'hr.attendance.working_hours_lop_rules': screen(() => import('./hr/WorkPatterns')),
+  'hr.attendance.staff_working_hours': screen(() => import('./hr/WorkPatterns')),
   'hr.attendance.staff_hours_this_month': screen(() => import('./hr/StaffHours')),
-  'institution_admin.attendance_devices.working_hours_lop_rules': screen(() => import('./hr/WorkPatterns')),
+  'institution_admin.attendance_devices.staff_working_hours': screen(() => import('./hr/WorkPatterns')),
   'institution_admin.attendance_devices.staff_hours_this_month': screen(() => import('./hr/StaffHours')),
   // The same screen HR uses. The principal decides pay in most schools and
   // had no way to see, let alone set, the rules the payslip is built from.

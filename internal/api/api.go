@@ -480,6 +480,10 @@ func (s *Server) Routes() http.Handler {
 				Post("/work-patterns/assign", s.assignWorkPattern)
 			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
 				Get("/staff-hours", s.getStaffHours)
+			// One person's month, day by day. Every argument about a monthly
+			// total is about a particular morning.
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
+				Get("/staff-hours/{id}", s.getStaffMonthDays)
 			// Completing an appointment: whoever may appoint somebody may let
 			// them in. Deliberately not access.users.write — that right would
 			// also let HR reset the principal's password.

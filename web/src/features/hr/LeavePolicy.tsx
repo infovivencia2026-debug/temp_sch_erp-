@@ -173,15 +173,15 @@ function RulesTab({
   types: TypeRule[]
   onChange: (id: string, patch: Partial<TypeRule>) => void
 }) {
-  if (types.length === 0)
-    return (
+  return (
+    <>
+      <NewLeaveType />
+      {types.length === 0 ? (
       <Card>
         <EmptyState title="No staff leave types yet"
-          body="Casual, sick, earned and maternity leave are set up under Leave; their rules appear here once they exist." />
+          body="Add one above. Every school grants different leave, so none are assumed." />
       </Card>
-    )
-
-  return (
+      ) : (
     <Card>
       <CardHeader title="What each type allows"
         description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
@@ -235,6 +235,89 @@ function RulesTab({
           </tr>
         ))}
       </Table>
+    </Card>
+      )}
+    </>
+  )
+}
+
+/* ADDING A KIND OF LEAVE THE SCHOOL GRANTS.
+
+   The types could be edited and never created, so a school whose leave is not
+   casual/sick/earned -- study leave, duty leave, the compensatory day a school
+   gives for a Sunday exam -- could set rules for kinds of leave it does not
+   grant and could not name the ones it does. The endpoint has always existed;
+   nothing on any screen called it. */
+function NewLeaveType() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [f, setF] = useState({ name: '', code: '', quota: '', paid: true, carry: false })
+  const [note, setNote] = useState<{ error?: unknown; ok?: string }>({})
+
+  const add = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/hr/leave-types', {
+        name: f.name.trim(),
+        code: f.code.trim().toUpperCase(),
+        applies_to: 'staff',
+        // Blank is unlimited, not zero: a quota nobody entered must never
+        // become a quota of none, which would make every day of it loss of pay.
+        annual_quota: f.quota === '' ? null : Number(f.quota),
+        is_paid: f.paid,
+        carry_forward: f.carry,
+      }),
+    onSuccess: () => {
+      setF({ name: '', code: '', quota: '', paid: true, carry: false })
+      setOpen(false)
+      setNote({ ok: 'Added. Set its rules in the table below.' })
+      qc.invalidateQueries({ queryKey: ['hr', 'leave-policy'] })
+    },
+    onError: (error) => setNote({ error }),
+  })
+
+  if (!open) {
+    return (
+      <Card>
+        <div className="flex items-center gap-3 p-5">
+          <Button variant="secondary" onClick={() => { setNote({}); setOpen(true) }}>
+            Add a leave type
+          </Button>
+          <FormNotice error={note.error} ok={note.ok} />
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader title="A kind of leave this school grants" />
+      <div className="p-5">
+        <FormGrid>
+          <Field label="Name" required hint="Study leave, Duty leave, Compensatory off">
+            <Input value={f.name} onChange={(v) => setF({ ...f, name: v })} />
+          </Field>
+          <Field label="Short code" required hint="How it appears on a register: SL, DL, CO">
+            <Input value={f.code} onChange={(v) => setF({ ...f, code: v })} />
+          </Field>
+          <Field label="Days a year" hint="Leave blank for no limit">
+            <Input type="number" value={f.quota} onChange={(v) => setF({ ...f, quota: v })} />
+          </Field>
+        </FormGrid>
+        <div className="mt-4 space-y-3">
+          <Checkbox checked={f.paid} onChange={(v) => setF({ ...f, paid: v })}
+            label="Paid"
+            hint="Unpaid leave costs a day. Paid leave costs nothing until the quota is used up." />
+          <Checkbox checked={f.carry} onChange={(v) => setF({ ...f, carry: v })}
+            label="Unused days carry into next year" />
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <Button onClick={() => add.mutate()} disabled={add.isPending || !f.name || !f.code}>
+            Add
+          </Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+          <FormNotice error={note.error} />
+        </div>
+      </div>
     </Card>
   )
 }

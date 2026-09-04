@@ -182,7 +182,7 @@ export default function WorkPatterns() {
     <>
       <PageHead
         eyebrow="Staff"
-        title="Working hours and loss of pay"
+        title="Staff working hours"
         actions={canWrite && !draft
           ? <Button onClick={() => { setNote({}); setDraft({ ...BLANK }) }}>Add hours</Button>
           : undefined}
@@ -321,6 +321,51 @@ export default function WorkPatterns() {
         )}
 
         <Card>
+          <CardHeader title="Hours the school keeps" />
+          {!draft && <div className="px-5"><FormNotice error={note.error} ok={note.ok} /></div>}
+          {q.isLoading ? (
+            <SkeletonTable rows={3} />
+          ) : q.error ? (
+            <ErrorState error={q.error} />
+          ) : q.data!.items.length === 0 ? (
+            <EmptyState
+              title="No hours set"
+              body="Until a set of hours exists, the readers record punches that are compared to nothing."
+            />
+          ) : (
+            <Table head={['Name', 'Hours', 'Days', 'When a day is lost', 'On these hours', '']}>
+              {q.data!.items.map((p) => (
+                <tr key={p.id}>
+                  <Td className="font-medium">
+                    {p.name} {p.is_default && <Badge tone="neutral">Default</Badge>}
+                  </Td>
+                  <Td className="tabular-nums">{p.starts_at}&ndash;{p.ends_at}</Td>
+                  <Td>{p.working_days.map((d) => WEEKDAYS[d - 1]).join(' ')}</Td>
+                  <Td>{rule(p)}</Td>
+                  <Td className="text-slate-500">
+                    {[p.departments, p.people ? `${p.people} named` : ''].filter(Boolean).join(' / ') || '-'}
+                  </Td>
+                  <Td>
+                    {canWrite && (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => edit(p)}>Edit</Button>
+                        <ConfirmButton
+                          confirmLabel="Delete"
+                          question="Anyone still on these hours falls back to the school's default."
+                          tone="danger"
+                          onConfirm={() => remove.mutate(p.id)}
+                        >
+                          Delete
+                        </ConfirmButton>
+                      </div>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+        <Card>
           <CardHeader title="Put staff on a set of hours" />
           <div className="p-5">
             <FormGrid>
@@ -370,51 +415,6 @@ export default function WorkPatterns() {
           </div>
         </Card>
 
-        <Card>
-          <CardHeader title="Hours the school keeps" />
-          {!draft && <div className="px-5"><FormNotice error={note.error} ok={note.ok} /></div>}
-          {q.isLoading ? (
-            <SkeletonTable rows={3} />
-          ) : q.error ? (
-            <ErrorState error={q.error} />
-          ) : q.data!.items.length === 0 ? (
-            <EmptyState
-              title="No hours set"
-              body="Until a set of hours exists, the readers record punches that are compared to nothing."
-            />
-          ) : (
-            <Table head={['Name', 'Hours', 'Days', 'When a day is lost', 'On these hours', '']}>
-              {q.data!.items.map((p) => (
-                <tr key={p.id}>
-                  <Td className="font-medium">
-                    {p.name} {p.is_default && <Badge tone="neutral">Default</Badge>}
-                  </Td>
-                  <Td className="tabular-nums">{p.starts_at}&ndash;{p.ends_at}</Td>
-                  <Td>{p.working_days.map((d) => WEEKDAYS[d - 1]).join(' ')}</Td>
-                  <Td>{rule(p)}</Td>
-                  <Td className="text-slate-500">
-                    {[p.departments, p.people ? `${p.people} named` : ''].filter(Boolean).join(' / ') || '-'}
-                  </Td>
-                  <Td>
-                    {canWrite && (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => edit(p)}>Edit</Button>
-                        <ConfirmButton
-                          confirmLabel="Delete"
-                          question="Anyone still on these hours falls back to the school's default."
-                          tone="danger"
-                          onConfirm={() => remove.mutate(p.id)}
-                        >
-                          Delete
-                        </ConfirmButton>
-                      </div>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          )}
-        </Card>
       </PageBody>
 
     </>

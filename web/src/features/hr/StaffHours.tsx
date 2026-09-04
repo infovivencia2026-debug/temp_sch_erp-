@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -37,10 +37,78 @@ interface Row {
   lop_rule: string
 }
 
+interface Day {
+  on_date: string
+  weekday: string
+  expected: boolean
+  status: string
+  check_in?: string | null
+  check_out?: string | null
+  minutes?: number | null
+  late_by_minutes?: number | null
+  verdict: string
+}
+
 const thisMonth = () => new Date().toISOString().slice(0, 7)
+
+const hhmm = (m?: number | null) =>
+  m == null ? '' : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
+
+/* ONE PERSON'S MONTH, A ROW PER DAY.
+
+   The totals answer "how many days did she lose" and every argument about them
+   is about a particular morning: the day the reader missed her finger, the day
+   she stayed until six and it still says half day. Without the days behind the
+   total the office can only repeat the total back. */
+function DayList({ employeeId, month }: { employeeId: string; month: string }) {
+  const q = useQuery({
+    queryKey: ['staff-hours-days', employeeId, month],
+    queryFn: () => api.get<{ items: Day[] }>(
+      `/api/v1/setup/staff-hours/${employeeId}?month=${month}`),
+  })
+  if (q.isLoading) return <div className="p-4"><SkeletonTable rows={4} /></div>
+  if (q.error) return <div className="p-4"><ErrorState error={q.error} /></div>
+
+  return (
+    <div className="overflow-x-auto p-4">
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="py-1 pr-4">Day</th>
+            <th className="py-1 pr-4">Punched in</th>
+            <th className="py-1 pr-4">Punched out</th>
+            <th className="py-1 pr-4">On the premises</th>
+            <th className="py-1 pr-4">Late by</th>
+            <th className="py-1">The day</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(q.data?.items ?? []).map((d) => (
+            <tr
+              key={d.on_date}
+              className={d.expected ? 'border-t' : 'border-t text-slate-400'}
+            >
+              <td className="py-1 pr-4 tabular-nums whitespace-nowrap">
+                {d.on_date.slice(8)} {d.weekday}
+              </td>
+              <td className="py-1 pr-4 tabular-nums">{d.check_in ?? '-'}</td>
+              <td className="py-1 pr-4 tabular-nums">{d.check_out ?? '-'}</td>
+              <td className="py-1 pr-4 tabular-nums">{hhmm(d.minutes) || '-'}</td>
+              <td className="py-1 pr-4 tabular-nums">
+                {d.late_by_minutes ? `${d.late_by_minutes} min` : '-'}
+              </td>
+              <td className="py-1">{d.verdict}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export default function StaffHours() {
   const [month, setMonth] = useState(thisMonth)
+  const [open, setOpen] = useState<string | null>(null)
 
   const q = useQuery({
     queryKey: ['staff-hours', month],
@@ -53,7 +121,7 @@ export default function StaffHours() {
 
   return (
     <>
-      <PageHead eyebrow="Staff" title="Hours this month" />
+      <PageHead eyebrow="Staff" title="Staff hours this month" />
       <PageBody>
         <Card>
           <CardHeader
@@ -78,7 +146,9 @@ export default function StaffHours() {
         </Card>
 
         <Card>
-          <CardHeader title="Against each person's own hours" />
+          <CardHeader
+            title="Against each person's own hours"
+            description="Open a row to see the month day by day, with the punches behind it." />
           {q.isLoading ? (
             <SkeletonTable rows={6} />
           ) : q.error ? (
@@ -91,7 +161,11 @@ export default function StaffHours() {
                 'Days lost', 'Deduction']}
             >
               {rows.map((r) => (
-                <tr key={r.employee_id}>
+                <Fragment key={r.employee_id}>
+                <tr
+                  className="cursor-pointer hover:bg-slate-50"
+                  onClick={() => setOpen(open === r.employee_id ? null : r.employee_id)}
+                >
                   <Td className="font-medium">
                     {r.name}
                     {r.department && <div className="text-xs text-slate-500">{r.department}</div>}
@@ -121,6 +195,14 @@ export default function StaffHours() {
                     <div className="text-xs text-slate-500">{r.lop_rule}</div>
                   </Td>
                 </tr>
+                {open === r.employee_id && (
+                  <tr>
+                    <td colSpan={11} className="bg-slate-50 p-0">
+                      <DayList employeeId={r.employee_id} month={month} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </Table>
           )}
