@@ -542,7 +542,7 @@ const smsGatewayCodeAlphabet = "0123456789"
 
 // smsGatewayCodeLength is nine, and the app enforces the same number. Both
 // sides are named rather than inlined so a change here fails loudly there.
-const smsGatewayCodeLength = 9
+const smsGatewayCodeLength = 6
 
 func newSMSGatewayPairCode() (string, error) {
 	b := make([]byte, smsGatewayCodeLength)

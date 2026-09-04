@@ -231,7 +231,7 @@ export default function Transport() {
    a new bus arrives, had none. So it was done for them by whoever had a
    terminal, which is not a product.
 
-   A code is eight characters, single-use and dead in ten minutes, so it is
+   A code is six digits, single-use and dead in ten minutes, so it is
    shown once with the time it expires and never stored anywhere this screen
    can read it back from. Pressing the button again mints a new one and kills
    the old: that is the recovery path as well as the first-issue path, because

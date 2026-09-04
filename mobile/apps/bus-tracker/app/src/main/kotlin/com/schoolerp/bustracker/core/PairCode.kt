@@ -1,7 +1,7 @@
 package com.schoolerp.bustracker.core
 
 /**
- * The 9-digit code the admin console shows, as typed by a human on a phone
+ * The 6-digit code the admin console shows, as typed by a human on a phone
  * keypad in an office.
  *
  * Normalisation is deliberately shallow: upper-case, and drop the whitespace
@@ -12,7 +12,7 @@ package com.schoolerp.bustracker.core
  */
 object PairCode {
 
-    const val LENGTH = 9
+    const val LENGTH = 6
 
     fun normalise(raw: String): String =
         raw.filterNot { it.isWhitespace() || it == '-' || it == '_' }

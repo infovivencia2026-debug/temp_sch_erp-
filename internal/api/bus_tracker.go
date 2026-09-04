@@ -108,7 +108,7 @@ const (
 	// The length, named once. The app enforces the same number, and the claim
 	// below reads this rather than a literal -- the SMS gateway shipped nine
 	// digits against a hard-coded eight and refused every code it printed.
-	busTrackerCodeLength = 9
+	busTrackerCodeLength = 6
 )
 
 // --- pairing credentials -----------------------------------------------------
@@ -458,7 +458,19 @@ claimBusTrackerPairCode turns a code into a paired phone.
 	wrong registration has to be able to stop there, which is the whole reason
 	the field is on the response.
 */
+/* Six attempts per network in ten minutes, the same bucket the SMS gateway's
+   claim keeps. The code is six digits now — every code a person types in this
+   product is — which is a million possibilities against a ten-minute life,
+   and an unlimited public endpoint would make that a race a script could
+   win. Every attempt counts, valid or not. */
+var publicBusTrackerLimiter = &smsGatewayClaimLimiter{hits: map[string][]time.Time{}}
+
 func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request) {
+	if !publicBusTrackerLimiter.allow(callerAddress(r), time.Now()) {
+		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
+			"too many pairing attempts from this network. Wait a few minutes and try again")
+		return
+	}
 	var req busTrackerClaimRequest
 	if !httpx.Decode(w, r, &req) {
 		return
