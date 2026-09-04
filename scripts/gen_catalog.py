@@ -68,6 +68,16 @@ ROLE_KEYS = {
     "Receptionist / Front Office": "front_office",
     "HR & Payroll": "hr",
     "Seller Admin": "seller_admin",
+    # Four roles that held capabilities and no catalogue. A person holding
+    # only one of them signed in to "No workspace": the rbac role granted the
+    # permissions, nothing granted a feature key, and catalog.go draws a
+    # workspace only from feature keys the identity holds. Each gets a small
+    # honest workspace -- their day, the screens they use, their own profile
+    # -- pointed at screens that already exist under the principal.
+    "Examination Controller": "exam_controller",
+    "IT Administrator": "it_admin",
+    "Operations Staff": "operations",
+    "Driver / Bus Attendant": "driver",
 }
 
 # Display order in the role switcher and docs: platform-wide first, then
@@ -76,9 +86,9 @@ ROLE_KEYS = {
 # is "most of your day" rather than alphabetical.
 ROLE_ORDER = [
     "seller_admin", "super_admin",
-    "institution_admin", "board_member", "hod", "faculty",
-    "librarian", "transport_manager",
-    "finance", "admissions", "front_office", "hr",
+    "institution_admin", "board_member", "hod", "exam_controller", "faculty",
+    "librarian", "transport_manager", "operations", "driver",
+    "finance", "admissions", "front_office", "hr", "it_admin",
     "student", "parent",
 ]
 

@@ -1094,6 +1094,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.LibraryRead)).Get("/library/indents", s.listTextbookIndents)
 			r.With(httpx.RequirePermission(rbac.LibraryWrite)).Post("/library/indents", s.saveTextbookIndent)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/vehicles", s.listVehicles)
+			// A driver's own bus, resolved server-side from the employee row --
+			// see transport_driver.go.
+			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/my-bus", s.getMyBus)
 			r.With(httpx.RequirePermission(rbac.TransportRead)).Get("/transport/assignable-staff", s.listAssignableStaff)
 			/* The tracking policy, which nothing could reach.
 

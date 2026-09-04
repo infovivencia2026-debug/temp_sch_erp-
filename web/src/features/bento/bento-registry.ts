@@ -85,6 +85,14 @@ export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>
      `parent.home.dashboard`, and the classic registry has said so all along. */
   'parent.home.dashboard': screen(() => import('./ParentWeek')),
   'faculty.home.todays_classes': screen(() => import('./FacultyToday')),
+
+  /* The four small workspaces: exam office, IT, operations, driver. The same
+     board is the classic Home too, through classic-board.tsx, so there is one
+     Home per role rather than two that drift. */
+  'exam_controller.home.exam_desk': screen(() => import('./ExamDesk')),
+  'it_admin.home.systems_desk': screen(() => import('./ITDesk')),
+  'operations.home.operations_desk': screen(() => import('./OpsDesk')),
+  'driver.home.my_run': screen(() => import('./DriverDay')),
 }
 
 /** The Bento rendering of a feature key, or undefined — which means "render

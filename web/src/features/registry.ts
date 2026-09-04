@@ -43,6 +43,10 @@ import { trackerKeys } from './super_admin/tracker-keys'
 import { libraryYearKeys } from './operations/library-year-keys'
 import { attendanceDevicesKeys } from './hr/attendance-devices-keys'
 import { signalsKeys } from './super_admin/signals-keys'
+import { examControllerKeys } from './exams/exam-controller-keys'
+import { itAdminKeys } from './super_admin/it-admin-keys'
+import { operationsKeys } from './operations/operations-keys'
+import { driverKeys } from './operations/driver-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -506,6 +510,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...transportPrefsKeys,
   ...trackerKeys,
   ...signalsKeys,
+  /* Four roles that held capabilities and no workspace. */
+  ...examControllerKeys,
+  ...itAdminKeys,
+  ...operationsKeys,
+  ...driverKeys,
 
   'hr.onboarding_exit.staff_joinings_exits': screen(() => import('./hr/Lifecycle')),
   'hr.leave.leave_rules': screen(() => import('./hr/LeavePolicy')),

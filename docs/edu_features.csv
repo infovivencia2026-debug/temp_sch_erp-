@@ -340,3 +340,31 @@ Institution Admin / Principal,Staff,Attendance Devices,Staff attendance register
 Institution Admin / Principal,Staff,Attendance Devices,Staff attendance reports,"The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need.",Assigned institution/campus,Should-Have,core
 Institution Admin / Principal,Students,Students,Groups & lists,"The school's own groupings — the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.",Assigned institution/campus,Should-Have,core
 Institution Admin / Principal,Staff,Staff,Staff groups & lists,"Named groups of staff — exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns.",Assigned institution/campus,Should-Have,core
+Examination Controller,Home,Home,Exam desk,"The exams on the calendar, how far marks entry has got, and which papers are still short. The first screen of the exam office's day.",Assigned institution/campus,Must-Have,core
+Examination Controller,Examinations,Examinations,Exams & papers,"Schedule an exam, add the papers on it, and see what has been published.",Assigned institution/campus,Must-Have,core
+Examination Controller,Examinations,Examinations,Hall tickets & seating,"Halls, seat allocation and the hall ticket each candidate carries in.",Assigned institution/campus,Must-Have,core
+Examination Controller,Examinations,Examinations,Report cards,"Generate a section's report cards once every paper is in, preview the school's design, and send the set up for release.",Assigned institution/campus,Must-Have,core
+Examination Controller,Examinations,Examinations,Performance overview,Results by class and subject across the exams held this year.,Assigned institution/campus,Should-Have,core
+Examination Controller,My Profile,My Profile,Profile,"Your own name, phone, email and password.",Self only,Must-Have,core
+Examination Controller,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+IT Administrator,Home,Home,Systems desk,"Logins, who is signed in now, the job queues and what the audit log recorded today.",Assigned institution/campus,Must-Have,core
+IT Administrator,Access,Access,Users,"Every login in the school: create one, reset a password, disable an account, move roles between people.",Assigned institution/campus,Must-Have,core
+IT Administrator,Access,Access,Logins & sessions,"Active sessions by person and device, and the one to sign out now.",Assigned institution/campus,Must-Have,core
+IT Administrator,Access,Access,Roles & permissions,"What each role may do, and installing a role the school does not have yet.",Assigned institution/campus,Must-Have,core
+IT Administrator,Systems,Systems,Audit log,"Who changed what, when, from where.",Assigned institution/campus,Must-Have,core
+IT Administrator,Systems,Systems,Background jobs,"Queue depth, retries and failures, and starting a job by hand.",Assigned institution/campus,Should-Have,core
+IT Administrator,Systems,Systems,Integrations,"Every connector the school has switched on, whether it is working, and what an unset one needs.",Assigned institution/campus,Must-Have,core
+IT Administrator,My Profile,My Profile,Profile,"Your own name, phone, email and password.",Self only,Must-Have,core
+IT Administrator,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Operations Staff,Home,Home,Operations desk,"Stock below its reorder level, buses and the papers about to lapse, library books overdue, and hostel beds free.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,Stores,Stores,Stock & movements,"What is on hand against its reorder level, and recording an issue or a receipt.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,Transport,Transport,Vehicles & routes,"The vehicle register, the routes and their stops, and the driver phones paired as trackers.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,Transport,Transport,Transport office,"Fuel and maintenance logs, pre-trip checks, incidents, student allocation and bus attendance.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,Library,Library,Issue & return,"The counter: scan a card, scan a book, issue or take it back.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,Hostel,Hostel,Hostel & rooms,"Rooms, beds and who is in them; put a boarder in a free bed.",Only assigned operational module/campus,Must-Have,core
+Operations Staff,My Profile,My Profile,Profile,"Your own name, phone, email and password.",Self only,Must-Have,core
+Operations Staff,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core
+Driver / Bus Attendant,Home,Home,My run,"The bus you are on, the route and its stops, whether today's pre-trip check went in, and where to get the bus app.",Self only,Must-Have,core
+Driver / Bus Attendant,Transport,Transport,My bus & route,"Your bus, its papers, the stops in order with pickup and drop times, the riders at each, and the last fortnight's checks.",Self only,Must-Have,core
+Driver / Bus Attendant,My Profile,My Profile,Profile,"Your own name, phone, email and password.",Self only,Must-Have,core
+Driver / Bus Attendant,My Profile,My Profile,My pay,"Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.",Self only,Must-Have,core

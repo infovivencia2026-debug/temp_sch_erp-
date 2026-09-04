@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 14 roles, 341 features. */
+/** 18 roles, 369 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -539,6 +539,40 @@ export const ROLES: Role[] = [
     ],
   },
   {
+    key: 'exam_controller',
+    name: 'Examination Controller',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'exam_controller.home.exam_desk', slug: 'exam_desk', name: 'Exam desk', scope: 'institution', tier: 'core', summary: 'The exams on the calendar, how far marks entry has got, and which papers are still short. The first screen of the exam office\'s day.' },
+        ],
+      },
+      {
+        slug: 'examinations',
+        name: 'Examinations',
+        workspace: 'Examinations',
+        features: [
+          { key: 'exam_controller.examinations.exams_papers', slug: 'exams_papers', name: 'Exams & papers', scope: 'institution', tier: 'core', summary: 'Schedule an exam, add the papers on it, and see what has been published.' },
+          { key: 'exam_controller.examinations.hall_tickets_seating', slug: 'hall_tickets_seating', name: 'Hall tickets & seating', scope: 'institution', tier: 'core', summary: 'Halls, seat allocation and the hall ticket each candidate carries in.' },
+          { key: 'exam_controller.examinations.report_cards', slug: 'report_cards', name: 'Report cards', scope: 'institution', tier: 'core', summary: 'Generate a section\'s report cards once every paper is in, preview the school\'s design, and send the set up for release.' },
+          { key: 'exam_controller.examinations.performance_overview', slug: 'performance_overview', name: 'Performance overview', scope: 'institution', tier: 'core', summary: 'Results by class and subject across the exams held this year.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'exam_controller.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
+          { key: 'exam_controller.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
     key: 'faculty',
     name: 'Faculty / Teacher',
     sections: [
@@ -734,6 +768,93 @@ export const ROLES: Role[] = [
         workspace: 'My Profile',
         features: [
           { key: 'transport_manager.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'operations',
+    name: 'Operations Staff',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'operations.home.operations_desk', slug: 'operations_desk', name: 'Operations desk', scope: 'campus', tier: 'core', summary: 'Stock below its reorder level, buses and the papers about to lapse, library books overdue, and hostel beds free.' },
+        ],
+      },
+      {
+        slug: 'stores',
+        name: 'Stores',
+        workspace: 'Stores',
+        features: [
+          { key: 'operations.stores.stock_movements', slug: 'stock_movements', name: 'Stock & movements', scope: 'campus', tier: 'core', summary: 'What is on hand against its reorder level, and recording an issue or a receipt.' },
+        ],
+      },
+      {
+        slug: 'transport',
+        name: 'Transport',
+        workspace: 'Transport',
+        features: [
+          { key: 'operations.transport.vehicles_routes', slug: 'vehicles_routes', name: 'Vehicles & routes', scope: 'campus', tier: 'core', summary: 'The vehicle register, the routes and their stops, and the driver phones paired as trackers.' },
+          { key: 'operations.transport.transport_office', slug: 'transport_office', name: 'Transport office', scope: 'campus', tier: 'core', summary: 'Fuel and maintenance logs, pre-trip checks, incidents, student allocation and bus attendance.' },
+        ],
+      },
+      {
+        slug: 'library',
+        name: 'Library',
+        workspace: 'Library',
+        features: [
+          { key: 'operations.library.issue_return', slug: 'issue_return', name: 'Issue & return', scope: 'campus', tier: 'core', summary: 'The counter: scan a card, scan a book, issue or take it back.' },
+        ],
+      },
+      {
+        slug: 'hostel',
+        name: 'Hostel',
+        workspace: 'Hostel',
+        features: [
+          { key: 'operations.hostel.hostel_rooms', slug: 'hostel_rooms', name: 'Hostel & rooms', scope: 'campus', tier: 'core', summary: 'Rooms, beds and who is in them; put a boarder in a free bed.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'operations.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
+          { key: 'operations.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'driver',
+    name: 'Driver / Bus Attendant',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'driver.home.my_run', slug: 'my_run', name: 'My run', scope: 'self', tier: 'core', summary: 'The bus you are on, the route and its stops, whether today\'s pre-trip check went in, and where to get the bus app.' },
+        ],
+      },
+      {
+        slug: 'transport',
+        name: 'Transport',
+        workspace: 'Transport',
+        features: [
+          { key: 'driver.transport.my_bus_route', slug: 'my_bus_route', name: 'My bus & route', scope: 'self', tier: 'core', summary: 'Your bus, its papers, the stops in order with pickup and drop times, the riders at each, and the last fortnight\'s checks.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'driver.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
+          { key: 'driver.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],
@@ -1002,6 +1123,49 @@ export const ROLES: Role[] = [
         workspace: 'People',
         features: [
           { key: 'hr.welfare.staff_welfare', slug: 'staff_welfare', name: 'Staff welfare', scope: 'institution', tier: 'core', summary: 'Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'it_admin',
+    name: 'IT Administrator',
+    sections: [
+      {
+        slug: 'home',
+        name: 'Home',
+        workspace: 'Home',
+        features: [
+          { key: 'it_admin.home.systems_desk', slug: 'systems_desk', name: 'Systems desk', scope: 'institution', tier: 'core', summary: 'Logins, who is signed in now, the job queues and what the audit log recorded today.' },
+        ],
+      },
+      {
+        slug: 'access',
+        name: 'Access',
+        workspace: 'Access',
+        features: [
+          { key: 'it_admin.access.users', slug: 'users', name: 'Users', scope: 'institution', tier: 'core', summary: 'Every login in the school: create one, reset a password, disable an account, move roles between people.' },
+          { key: 'it_admin.access.logins_sessions', slug: 'logins_sessions', name: 'Logins & sessions', scope: 'institution', tier: 'core', summary: 'Active sessions by person and device, and the one to sign out now.' },
+          { key: 'it_admin.access.roles_permissions', slug: 'roles_permissions', name: 'Roles & permissions', scope: 'institution', tier: 'core', summary: 'What each role may do, and installing a role the school does not have yet.' },
+        ],
+      },
+      {
+        slug: 'systems',
+        name: 'Systems',
+        workspace: 'Systems',
+        features: [
+          { key: 'it_admin.systems.audit_log', slug: 'audit_log', name: 'Audit log', scope: 'institution', tier: 'core', summary: 'Who changed what, when, from where.' },
+          { key: 'it_admin.systems.background_jobs', slug: 'background_jobs', name: 'Background jobs', scope: 'institution', tier: 'core', summary: 'Queue depth, retries and failures, and starting a job by hand.' },
+          { key: 'it_admin.systems.integrations', slug: 'integrations', name: 'Integrations', scope: 'institution', tier: 'core', summary: 'Every connector the school has switched on, whether it is working, and what an unset one needs.' },
+        ],
+      },
+      {
+        slug: 'my_profile',
+        name: 'My Profile',
+        workspace: 'My Profile',
+        features: [
+          { key: 'it_admin.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
+          { key: 'it_admin.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
     ],

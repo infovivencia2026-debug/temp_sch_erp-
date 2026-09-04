@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 14 roles, 341 features.
+// Roles is the catalog: 18 roles, 369 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -586,6 +586,40 @@ var Roles = []Role{
 		},
 	},
 	{
+		Key:  "exam_controller",
+		Name: "Examination Controller",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "exam_controller.home.exam_desk", Slug: "exam_desk", Name: "Exam desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The exams on the calendar, how far marks entry has got, and which papers are still short. The first screen of the exam office's day."},
+				},
+			},
+			{
+				Slug:      "examinations",
+				Name:      "Examinations",
+				Workspace: "Examinations",
+				Features: []Feature{
+					{Key: "exam_controller.examinations.exams_papers", Slug: "exams_papers", Name: "Exams & papers", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Schedule an exam, add the papers on it, and see what has been published."},
+					{Key: "exam_controller.examinations.hall_tickets_seating", Slug: "hall_tickets_seating", Name: "Hall tickets & seating", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Halls, seat allocation and the hall ticket each candidate carries in."},
+					{Key: "exam_controller.examinations.report_cards", Slug: "report_cards", Name: "Report cards", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Generate a section's report cards once every paper is in, preview the school's design, and send the set up for release."},
+					{Key: "exam_controller.examinations.performance_overview", Slug: "performance_overview", Name: "Performance overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Results by class and subject across the exams held this year."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "exam_controller.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
+					{Key: "exam_controller.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
 		Key:  "faculty",
 		Name: "Faculty / Teacher",
 		Sections: []Section{
@@ -781,6 +815,93 @@ var Roles = []Role{
 				Workspace: "My Profile",
 				Features: []Feature{
 					{Key: "transport_manager.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "operations",
+		Name: "Operations Staff",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "operations.home.operations_desk", Slug: "operations_desk", Name: "Operations desk", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Stock below its reorder level, buses and the papers about to lapse, library books overdue, and hostel beds free."},
+				},
+			},
+			{
+				Slug:      "stores",
+				Name:      "Stores",
+				Workspace: "Stores",
+				Features: []Feature{
+					{Key: "operations.stores.stock_movements", Slug: "stock_movements", Name: "Stock & movements", Scope: Scope("campus"), Tier: Tier("core"), Summary: "What is on hand against its reorder level, and recording an issue or a receipt."},
+				},
+			},
+			{
+				Slug:      "transport",
+				Name:      "Transport",
+				Workspace: "Transport",
+				Features: []Feature{
+					{Key: "operations.transport.vehicles_routes", Slug: "vehicles_routes", Name: "Vehicles & routes", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The vehicle register, the routes and their stops, and the driver phones paired as trackers."},
+					{Key: "operations.transport.transport_office", Slug: "transport_office", Name: "Transport office", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Fuel and maintenance logs, pre-trip checks, incidents, student allocation and bus attendance."},
+				},
+			},
+			{
+				Slug:      "library",
+				Name:      "Library",
+				Workspace: "Library",
+				Features: []Feature{
+					{Key: "operations.library.issue_return", Slug: "issue_return", Name: "Issue & return", Scope: Scope("campus"), Tier: Tier("core"), Summary: "The counter: scan a card, scan a book, issue or take it back."},
+				},
+			},
+			{
+				Slug:      "hostel",
+				Name:      "Hostel",
+				Workspace: "Hostel",
+				Features: []Feature{
+					{Key: "operations.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Rooms, beds and who is in them; put a boarder in a free bed."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "operations.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
+					{Key: "operations.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "driver",
+		Name: "Driver / Bus Attendant",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "driver.home.my_run", Slug: "my_run", Name: "My run", Scope: Scope("self"), Tier: Tier("core"), Summary: "The bus you are on, the route and its stops, whether today's pre-trip check went in, and where to get the bus app."},
+				},
+			},
+			{
+				Slug:      "transport",
+				Name:      "Transport",
+				Workspace: "Transport",
+				Features: []Feature{
+					{Key: "driver.transport.my_bus_route", Slug: "my_bus_route", Name: "My bus & route", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your bus, its papers, the stops in order with pickup and drop times, the riders at each, and the last fortnight's checks."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "driver.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
+					{Key: "driver.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
@@ -1049,6 +1170,49 @@ var Roles = []Role{
 				Workspace: "People",
 				Features: []Feature{
 					{Key: "hr.welfare.staff_welfare", Slug: "staff_welfare", Name: "Staff welfare", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Grievances raised by staff and how they were answered, the recognition wall, and whose birthday or work anniversary falls this week."},
+				},
+			},
+		},
+	},
+	{
+		Key:  "it_admin",
+		Name: "IT Administrator",
+		Sections: []Section{
+			{
+				Slug:      "home",
+				Name:      "Home",
+				Workspace: "Home",
+				Features: []Feature{
+					{Key: "it_admin.home.systems_desk", Slug: "systems_desk", Name: "Systems desk", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Logins, who is signed in now, the job queues and what the audit log recorded today."},
+				},
+			},
+			{
+				Slug:      "access",
+				Name:      "Access",
+				Workspace: "Access",
+				Features: []Feature{
+					{Key: "it_admin.access.users", Slug: "users", Name: "Users", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every login in the school: create one, reset a password, disable an account, move roles between people."},
+					{Key: "it_admin.access.logins_sessions", Slug: "logins_sessions", Name: "Logins & sessions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Active sessions by person and device, and the one to sign out now."},
+					{Key: "it_admin.access.roles_permissions", Slug: "roles_permissions", Name: "Roles & permissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "What each role may do, and installing a role the school does not have yet."},
+				},
+			},
+			{
+				Slug:      "systems",
+				Name:      "Systems",
+				Workspace: "Systems",
+				Features: []Feature{
+					{Key: "it_admin.systems.audit_log", Slug: "audit_log", Name: "Audit log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who changed what, when, from where."},
+					{Key: "it_admin.systems.background_jobs", Slug: "background_jobs", Name: "Background jobs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Queue depth, retries and failures, and starting a job by hand."},
+					{Key: "it_admin.systems.integrations", Slug: "integrations", Name: "Integrations", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every connector the school has switched on, whether it is working, and what an unset one needs."},
+				},
+			},
+			{
+				Slug:      "my_profile",
+				Name:      "My Profile",
+				Workspace: "My Profile",
+				Features: []Feature{
+					{Key: "it_admin.my_profile.profile", Slug: "profile", Name: "Profile", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own name, phone, email and password."},
+					{Key: "it_admin.my_profile.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
 				},
 			},
 		},
