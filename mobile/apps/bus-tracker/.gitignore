@@ -21,3 +21,6 @@ release/
 
 # OS
 .DS_Store
+
+# Google Maps key lives here, never in git
+secrets.properties
