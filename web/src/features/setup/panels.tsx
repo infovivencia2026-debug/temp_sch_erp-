@@ -180,7 +180,10 @@ function SavedDialog({ message, onClose }: { message: string; onClose: () => voi
     return () => document.removeEventListener('keydown', onKey)
   }, [close])
 
-  return (
+  /* Portalled: a fixed panel inside a transformed ancestor lays itself out
+     against that ancestor, not the viewport, and every card here carries a
+     transform while it is pressed. See BulkImport's SheetViewer. */
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={close}
@@ -202,7 +205,10 @@ function SavedDialog({ message, onClose }: { message: string; onClose: () => voi
         </Button>
       </div>
     </div>
+    ,
+    document.body,
   )
+
 }
 
 function SaveRow({

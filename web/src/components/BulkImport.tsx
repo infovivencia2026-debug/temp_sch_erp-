@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, Download, AlertTriangle, CheckCircle2, ClipboardPaste, Maximize2, Minimize2,
@@ -1293,7 +1294,17 @@ export function SheetViewer({
     }
   }, [close])
 
-  return (
+  /* PORTALLED, BECAUSE position: fixed IS NOT ALWAYS THE VIEWPORT.
+
+     A transformed ancestor becomes the containing block for anything fixed
+     inside it, and this window opens from a button inside a .card -- which
+     carries transform: scale(.99) while it is pressed. So the panel laid
+     itself out inside the card instead of over the page: cut off at the top,
+     no dark surround, and the Close button somewhere off the edge. Pressing
+     Close did work; it was not on screen to press.
+
+     The report card viewer already carries this scar and this fix. */
+  return createPortal(
     <div
       className={
         full
@@ -1398,6 +1409,7 @@ export function SheetViewer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
