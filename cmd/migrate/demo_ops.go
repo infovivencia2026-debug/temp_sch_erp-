@@ -295,17 +295,49 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 		return 0, nil
 	}
 
+	/* Every stop has a position and the school is the last stop.
+
+	   The stops were names only, which was enough for the fee slabs and the
+	   allocation screen and nothing for the bus tracker: a route with no
+	   coordinates draws no map, plans no road, and never says "Reached".
+	   These are the real junctions in north Hyderabad the names refer to,
+	   close enough that the navigator draws a road through them, and the
+	   school is a stop of its own at the end because that is how the
+	   product knows the run is over. The radius is left to the school-wide
+	   default except at the school gate, which is wider than a kerb. */
+	type stop struct {
+		name     string
+		lat, lng float64
+		fence    *int
+	}
+	gate := 200
+	school := stop{"School", 17.5160, 78.4830, &gate}
 	routes := []struct {
 		reg, model, route string
 		km                float64
-		stops             []string
+		stops             []stop
 	}{
-		{"TS07UB1234", "Tata Starbus 32", "Route 01 — Kompally", 12.5,
-			[]string{"Kompally X Roads", "Suchitra Circle", "Jeedimetla", "Petbasheerabad"}},
-		{"TS07UB5678", "Ashok Leyland 40", "Route 02 — Secunderabad", 18.2,
-			[]string{"Paradise Circle", "Tarnaka", "Alwal", "Bowenpally"}},
-		{"TS07UB9012", "Tata Starbus 32", "Route 03 — Medchal", 22.0,
-			[]string{"Medchal Bus Stand", "Shamirpet", "Gundlapochampally", "Bahadurpally"}},
+		{"TS07UB1234", "Tata Starbus 32", "Route 01 — Kompally", 12.5, []stop{
+			{"Kompally X Roads", 17.5350, 78.4880, nil},
+			{"Suchitra Circle", 17.5000, 78.4730, nil},
+			{"Jeedimetla", 17.5090, 78.4550, nil},
+			{"Petbasheerabad", 17.5200, 78.4700, nil},
+			school,
+		}},
+		{"TS07UB5678", "Ashok Leyland 40", "Route 02 — Secunderabad", 18.2, []stop{
+			{"Paradise Circle", 17.4420, 78.4870, nil},
+			{"Tarnaka", 17.4280, 78.5280, nil},
+			{"Alwal", 17.5020, 78.5050, nil},
+			{"Bowenpally", 17.4730, 78.4870, nil},
+			school,
+		}},
+		{"TS07UB9012", "Tata Starbus 32", "Route 03 — Medchal", 22.0, []stop{
+			{"Medchal Bus Stand", 17.6290, 78.4830, nil},
+			{"Shamirpet", 17.6210, 78.5730, nil},
+			{"Gundlapochampally", 17.5760, 78.4920, nil},
+			{"Bahadurpally", 17.5920, 78.4570, nil},
+			school,
+		}},
 	}
 
 	n := 0
@@ -332,11 +364,13 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 				-- $4 is both the sequence column and an interval multiplier, so
 				-- it needs an explicit type or Postgres deduces two.
 				INSERT INTO route_stops (institution_id, route_id, name, sequence,
-				                         pickup_time, drop_time, fare_paise)
+				                         pickup_time, drop_time, fare_paise,
+				                         latitude, longitude, geofence_m)
 				VALUES ($1,$2,$3,$4::int,
 				        ('07:00'::time + ($4::int * INTERVAL '8 min')),
-				        ('15:30'::time + ($4::int * INTERVAL '8 min')), $5)`,
-				inst, routeID, stop, i+1, int64(90000+i*10000)); err != nil {
+				        ('15:30'::time + ($4::int * INTERVAL '8 min')), $5, $6, $7, $8)`,
+				inst, routeID, stop.name, i+1, int64(90000+i*10000),
+				stop.lat, stop.lng, stop.fence); err != nil {
 				return n, err
 			}
 		}
