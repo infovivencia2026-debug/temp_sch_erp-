@@ -1306,7 +1306,7 @@ class MainActivity : Activity() {
            path back to a live page has to switch it on again, or a parent who
            met one error keeps a page they can no longer pull to refresh for
            the rest of the session. */
-        pull.pullEnabled = true
+        pull.pullEnabled = false // pull-to-refresh is off: the swipe reloaded the app mid-form
         web.loadUrl(url)
     }
 
@@ -1315,7 +1315,7 @@ class MainActivity : Activity() {
     private fun retry() {
         offline.visibility = View.GONE
         web.visibility = View.VISIBLE
-        pull.pullEnabled = true
+        pull.pullEnabled = false
         servingCache = false
         showingCached = false
         web.settings.cacheMode = WebSettings.LOAD_DEFAULT

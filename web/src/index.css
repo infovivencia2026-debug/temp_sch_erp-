@@ -2028,8 +2028,18 @@ body[data-scroll-lock] {
   main,
   [data-paint='workarea'] {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    /* `none`, not `contain`. Contain stops the scroll chaining into the page
+       behind, but it still leaves the browser's own pull-to-refresh on the
+       document: a swipe down at the top of any list threw the whole app away
+       and reloaded it, which on a half-filled form loses the form. */
+    overscroll-behavior-y: none;
     scroll-behavior: smooth;
+  }
+
+  /* And on the document itself, which is what the browser actually watches
+     for the refresh gesture. */
+  html, body {
+    overscroll-behavior-y: none;
   }
 
   /* THE PRESS IS ACKNOWLEDGED IMMEDIATELY.

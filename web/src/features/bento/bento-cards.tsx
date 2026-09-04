@@ -794,7 +794,7 @@ export function Line({ points, srLabel }: { points: number[]; srLabel: string })
          role="img" aria-label={srLabel}>
       <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
-      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={2.2}
+      <path d={svgPath(points)} fill="none" stroke={MARK} strokeWidth={3.4}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {/* preserveAspectRatio="none" stretches the viewBox, so a circle would
           come out an ellipse -- wide on a 2x1, tall on a 1x2. The dot is drawn
@@ -843,7 +843,7 @@ export function Area({ points, srLabel }: { points: number[]; srLabel: string })
       <line x1="0" y1="149" x2="400" y2="149" stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
       <path d={`${d} L 400 150 L 0 150 Z`} fill={`url(#${gradientID})`} stroke="none" />
-      <path d={d} fill="none" stroke={MARK} strokeWidth={2.2}
+      <path d={d} fill="none" stroke={MARK} strokeWidth={3.4}
             strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -1611,9 +1611,9 @@ export function Forecast({
       <line x1="0" y1={h - 1} x2={w} y2={h - 1} stroke={ink(22)} strokeWidth={1}
             vectorEffect="non-scaling-stroke" />
       <path d={`${upper} ${lower} Z`} fill={ink(12)} stroke="none" />
-      <path d={path(actual, 0)} fill="none" stroke={MARK} strokeWidth={2.2}
+      <path d={path(actual, 0)} fill="none" stroke={MARK} strokeWidth={3.4}
             strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      <path d={path(band, joinIndex)} fill="none" stroke={QUIET} strokeWidth={2.2}
+      <path d={path(band, joinIndex)} fill="none" stroke={QUIET} strokeWidth={3.4}
             strokeDasharray="5 4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       {/* Where measurement stops. */}
       <line x1={x(joinIndex)} y1="4" x2={x(joinIndex)} y2={h - 1} stroke={ink(34)}
@@ -1702,7 +1702,7 @@ export function Radar({
           const [x, y] = at(i, R)
           return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={ink(12)} strokeWidth={0.6} />
         })}
-        <polygon points={poly} fill={ink(14)} stroke={MARK} strokeWidth={1}
+        <polygon points={poly} fill={ink(14)} stroke={MARK} strokeWidth={1.6}
                  vectorEffect="non-scaling-stroke" />
       </svg>
     </div>

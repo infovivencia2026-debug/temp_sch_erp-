@@ -797,7 +797,7 @@ export function Meter({
       /* 6px, square at the origin, rounded 3px at the data end; the track is
          the accent's own lighter step rather than a neutral grey, so the
          meter is one hue at two weights. */
-      className="h-[6px] w-full overflow-hidden rounded-r-[3px]"
+      className="h-[9px] w-full overflow-hidden rounded-r-[3px]"
       style={{ background: wash(accent, 14) }}
     >
       <div
@@ -888,7 +888,7 @@ export function Sparkline({
         d={d}
         fill="none"
         stroke={`url(#${gid}-line)`}
-        strokeWidth={2.2}
+        strokeWidth={3.4}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -1175,7 +1175,7 @@ export function ReservoirArt({ fill }: { fill: number }) {
         x2={right}
         y2={level}
         stroke={artMark('mint')}
-        strokeWidth={2.2}
+        strokeWidth={3.4}
         strokeLinecap="butt"
         vectorEffect="non-scaling-stroke"
       />

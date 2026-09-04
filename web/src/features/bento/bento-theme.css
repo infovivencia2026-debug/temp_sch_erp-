@@ -397,8 +397,14 @@ html.dark[data-layout='bento'] {
      The other three sides keep theirs, because they are what separates a card
      from its neighbour where two fills happen to be close in tone. Only the
      top is redundant, being the side that meets the gutter above it. */
+  /* ALL FOUR SIDES, THE SAME WIDTH.
+
+     The top edge was dropped on its own, which left a card drawn on three
+     sides: the line stops dead at both upper corners and the tile reads as a
+     box missing a lid rather than as a card without a border. An edge is only
+     invisible when it is absent everywhere; one side out of four is the most
+     visible state of all. */
   border-width: max(0px, calc(var(--bento-border-w) - 0.5px));
-  border-top-width: 0;
   border-style: solid;
   /* Was rgba(0,0,0,0.14): a fixed black wash that no palette could move and
      that vanished entirely on the two dark schemes. `--bento-line` is the
@@ -3453,6 +3459,21 @@ html:not(.dark)[data-layout='bento'] {
      Offset by exactly the padding, read from the same variable that sets it,
      so the two cannot drift apart the way a hardcoded 16px would the next time
      somebody tightens a cell. */
-  top: calc(var(--cell-pad, 1rem) * -1);
-  right: calc(var(--cell-pad, 1rem) * -1);
+  top: 0;
+  right: 0;
+}
+
+/* ANCHOR IT TO THE TILE, DO NOT PULL IT OUT OF THE WRAPPER.
+
+   Offsetting by minus the padding assumed every card's wrapper was padded.
+   Half of them are not, and on those the arrow was dragged 16px up and out of
+   the tile: it sat outside the card's own rounded corner, clipped, which is
+   the glitch on screen.
+
+   Taking the wrapper out of the positioning chain fixes both halves with one
+   rule. The cue then measures from the cell in every card, padded or not, so
+   `top: 0; right: 0` is flush against the corner everywhere and no card needs
+   a compensating negative number. */
+[data-layout='bento'] .bento-cell [data-card]:has(> .bento-cue) {
+  position: static;
 }
