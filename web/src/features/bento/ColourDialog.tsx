@@ -284,12 +284,31 @@ export function WheelCanvas({
           one pair a palette guarantees contrasts, so whichever the wheel is
           under the marker, one of the two rings shows. It was `border-white`:
           a named colour, and identical in all four palettes. */}
+      {/* WHITE AND BLACK, NOT THE THEME'S TWO COLOURS.
+
+          The marker was drawn in --bento-card and --bento-ink, which are
+          whatever the palette makes them -- and inside a card that has been
+          given a colour they are that colour and its ink. So the one control
+          that has to stay visible against every hue on the wheel was painted
+          in a pair that can land on top of the hue it is sitting on.
+
+          Plain white with a black ring outside it and a black ring inside:
+          three edges, of which at least two contrast with anything the wheel
+          can show underneath. It also carries the chosen colour in its
+          middle, so the marker says what it is pointing at.
+
+          Drawn a little larger, because at 16px sitting on the rim it was
+          half off the wheel and read as clipped rather than as placed. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2
-                   rounded-full border-2 border-[var(--bento-card)]
-                   ring-1 ring-[var(--bento-ink)]"
-        style={{ left: mx, top: my }}
+        className="pointer-events-none absolute size-[18px] -translate-x-1/2 -translate-y-1/2
+                   rounded-full border-[3px] border-white"
+        style={{
+          left: mx,
+          top: my,
+          background: `hsl(${value.h} ${value.s}% ${value.l}%)`,
+          boxShadow: '0 0 0 1px rgba(0,0,0,.85), inset 0 0 0 1px rgba(0,0,0,.35)',
+        }}
       />
     </div>
   )
