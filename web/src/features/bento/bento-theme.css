@@ -1617,8 +1617,19 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      The wrapper is the same rectangle and its own parent does not clip, so
      the sheet lifts and the arrange toolbar, which lives in the same wrapper,
      lifts with it -- which is right, it is part of the sheet. */
+  /* NO LIFT ON THE SHEET.
+
+     This is the boundary. The sheet was lifted off the ground with a drop
+     shadow, and a drop shadow around a rectangle is a visible edge on all
+     four sides -- a soft grey line under the last row of cards and down both
+     flanks, holding its square shape while the cards inside follow the corner
+     setting. It outlived the board's outline and the board's background
+     because it is neither: it is the sheet's own elevation.
+
+     The cells keep --bento-edge below, which is a property of each card and
+     is what stops the board reading as one flat slab. */
   [data-layout='bento'] .bento-surface:has(> .bento-board) {
-    box-shadow: var(--bento-depth);
+    box-shadow: none;
   }
 
   [data-layout='bento'] .bento-board .bento-cell {
