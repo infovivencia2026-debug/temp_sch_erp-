@@ -1173,6 +1173,20 @@ export function Widget({
        what lets a person recognise "my blue card" at a glance even though the
        panel under the words is mixed down to --tint-mix. */
     paint['--tint-solid'] = cssHsl(tint)
+
+    /* AND THE CARD THAT HAS NO DOMAIN.
+
+       Cell only reads --dom-x-soft when the card carries a domain. A card
+       without one -- and plenty do not -- paints from --bento-card and never
+       looked at any of the tokens above, so choosing a colour for it moved the
+       4px band along its top edge and left the card underneath white. The band
+       is drawn from --tint-solid by the stylesheet, which is why the one part
+       that did change was the one part that is not the card.
+
+       Set here rather than in Cell because this is where the tint is known,
+       and it is the same softened panel the domain cards get, so a board of
+       mixed cards tints to one strength rather than two. */
+    paint['--bento-card'] = soft
   }
 
   /* ONE CARD LEADS — WHEN IT HAS SOMETHING TO SAY.
