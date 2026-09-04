@@ -988,16 +988,70 @@
     display: none !important;
   }
 
-  /* Colour costs money and grey text photocopies badly. */
-  :root {
-    --background: 0 0% 100%;
-    --ground: 0 0% 100%;
-    --card: 0 0% 100%;
-    --card-default: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --secondary-foreground: 0 0% 15%;
-    --muted-foreground: 0 0% 30%;
-    --border: 0 0% 70%;
+  /* THE BENTO TOKENS, WHICH DECIDE THE INK ON EVERY WORD IN THAT LAYOUT.
+
+     The block below resets the classic theme's tokens to black on white and
+     stops there, because when it was written those were the only tokens there
+     were. Bento text reads --bento-ink and Bento grounds read --bento-bg, and
+     neither was touched -- so on a dark skin, or under any palette or card
+     colour whose ink is light, the sheet came out with white text on white
+     paper: a page with height, correctly paginated, and nothing on it.
+
+     Forced rather than defaulted, and after the tint has had its say, because
+     a card that has been given a colour sets these on itself inline. Paper is
+     white whatever the screen is. */
+  [data-layout='bento'],
+  html[data-layout='bento'],
+  html[data-layout='bento'] body,
+  .bento-ground,
+  .bento-surface,
+  .bento-board,
+  .bento-cell,
+  .bento-widget,
+  [data-card] {
+    --bento-ink: #000 !important;
+    --bento-muted: #333 !important;
+    --bento-bg: #fff !important;
+    --bento-card: #fff !important;
+    --bento-card-base: #fff !important;
+    --bento-card-accent: #fff !important;
+    --bento-dark-bg: #fff !important;
+    --bento-dark-ink: #000 !important;
+    --bento-anchor-from: #fff !important;
+    --bento-anchor-to: #fff !important;
+    --bento-anchor-ink: #000 !important;
+    --bento-line: #999 !important;
+    color: #000 !important;
+  }
+
+  /* Colour costs money and grey text photocopies badly.
+
+     ON html.dark AS WELL AS :root, AND WITH !important.
+
+     These were written on :root alone, which is one class less specific than
+     the `html.dark` block that sets the same tokens for the dark theme. So on
+     a dark screen not one of them applied: --foreground stayed near-white,
+     --card stayed dark, and the sheet printed white text on a pale card --
+     paginated correctly, with nothing legible on it. Measured in print
+     emulation: rgb(250,250,250) on rgb(182,182,182).
+
+     A printer has one background and it is white, whatever the screen was. */
+  :root,
+  html,
+  html.dark,
+  html[data-force-dark],
+  html.dark body {
+    --background: 0 0% 100% !important;
+    --ground: 0 0% 100% !important;
+    --card: 0 0% 100% !important;
+    --card-default: 0 0% 100% !important;
+    --popover: 0 0% 100% !important;
+    --foreground: 0 0% 0% !important;
+    --card-foreground: 0 0% 0% !important;
+    --popover-foreground: 0 0% 0% !important;
+    --secondary-foreground: 0 0% 15% !important;
+    --muted-foreground: 0 0% 30% !important;
+    --border: 0 0% 70% !important;
   }
   body {
     background: #fff !important;
