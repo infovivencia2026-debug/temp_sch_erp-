@@ -109,6 +109,67 @@ export default function Certificates() {
             value={rows.filter((r) => r.issued_on.slice(0, 7) === new Date().toISOString().slice(0, 7)).length} />
         </CellGrid>
 
+        {/* WHAT SOMEBODY WAS SENT HERE TO DO COMES FIRST.
+
+            The dashboard alert says "1 certificate request to issue" and links
+            here, and here opened on an empty form: a blank student search and
+            a document dropdown, with the family's actual request below the
+            fold. So the answer to "who asked, and for what" was two screens of
+            scrolling away, and the obvious move -- fill in the empty form --
+            issues a second certificate on a second serial and leaves the
+            family's request open for ever. The queue goes above the form. */}
+        {pending.length > 0 && (
+          <Card>
+            <CardHeader
+              title={`${pending.length} ${pending.length === 1 ? 'request' : 'requests'} from families`}
+              description="Asked for through the parent and student portal. Answering one tells the whole household."
+            />
+            <Table head={['Serial', 'Document', 'For which child', 'Who asked', 'Asked', 'Reason', '']}
+              empty={false}>
+              {pending.map((c) => (
+                <tr key={c.id}>
+                  <Td className="font-mono text-[12px]">{c.serial_no}</Td>
+                  <Td className="font-medium">{c.type}</Td>
+                  {/* THE CHILD, WITH THEIR CLASS. The queue said a name and
+                      nothing else, so a clerk holding the signed paper still
+                      had to look the child up to know where to send it. */}
+                  <Td>
+                    <span className="font-medium">{c.student_name}</span>
+                    <span className="block text-[12px] text-muted-foreground">
+                      {[c.class_name && c.section_name
+                        ? `${c.class_name}-${c.section_name}` : c.class_name,
+                        c.admission_no].filter(Boolean).join(' · ') || '—'}
+                    </span>
+                  </Td>
+                  {/* WHO TO HAND IT TO, and the number to ring. */}
+                  <Td>
+                    {c.asked_by || (
+                      <span className="text-muted-foreground">
+                        Asked from the portal, no name on the account
+                      </span>
+                    )}
+                    {c.asked_phone && (
+                      <a href={`tel:${c.asked_phone}`}
+                        className="block text-[12px] text-primary">
+                        {c.asked_phone}
+                      </a>
+                    )}
+                  </Td>
+                  <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
+                  <Td className="text-muted-foreground">
+                    {String(c.snapshot?.reason || 'No reason given')}
+                  </Td>
+                  <Td>
+                    <Button size="sm" variant="secondary" onClick={() => setAnswering(c)}>
+                      Answer
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        )}
+
         <Card>
           <CardHeader title="Issue a certificate" />
           <div className="space-y-3 p-5">
@@ -159,52 +220,6 @@ export default function Certificates() {
             second serial and left the family's request sitting in their list
             for ever, reading "requested" a fortnight after they collected the
             document from the counter. */}
-        {pending.length > 0 && (
-          <Card>
-            <CardHeader
-              title={`${pending.length} ${pending.length === 1 ? 'request' : 'requests'} from families`}
-              description="Asked for through the parent and student portal. Answering one tells the whole household."
-            />
-            <Table head={['Serial', 'Document', 'For which child', 'Who asked', 'Asked', 'Reason', '']}
-              empty={false}>
-              {pending.map((c) => (
-                <tr key={c.id}>
-                  <Td className="font-mono text-[12px]">{c.serial_no}</Td>
-                  <Td className="font-medium">{c.type}</Td>
-                  {/* THE CHILD, WITH THEIR CLASS. The queue said a name and
-                      nothing else, so a clerk holding the signed paper still
-                      had to look the child up to know where to send it. */}
-                  <Td>
-                    <span className="font-medium">{c.student_name}</span>
-                    <span className="block text-[12px] text-muted-foreground">
-                      {[c.class_name && c.section_name
-                        ? `${c.class_name}-${c.section_name}` : c.class_name,
-                        c.admission_no].filter(Boolean).join(' · ') || '—'}
-                    </span>
-                  </Td>
-                  {/* WHO TO HAND IT TO, and the number to ring. */}
-                  <Td>
-                    {c.asked_by || '—'}
-                    {c.asked_phone && (
-                      <a href={`tel:${c.asked_phone}`}
-                        className="block text-[12px] text-primary">
-                        {c.asked_phone}
-                      </a>
-                    )}
-                  </Td>
-                  <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
-                  <Td className="text-muted-foreground">{String(c.snapshot?.reason ?? '—')}</Td>
-                  <Td>
-                    <Button size="sm" variant="secondary" onClick={() => setAnswering(c)}>
-                      Answer
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          </Card>
-        )}
-
         {answering && (
           <Card>
             <CardHeader
