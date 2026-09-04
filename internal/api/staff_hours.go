@@ -131,22 +131,35 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		),
 		marked AS (
 		  SELECT s.id,
+		/* THE PUNCHES ARE UTC INSTANTS; THE HOURS ARE SCHOOL TIME.
+
+		            A reader in Hyderabad writes 03:15Z for a quarter past nine,
+		            and comparing that to a 08:45 start would make the whole
+		            school five and a half hours early every morning. So each
+		            punch is brought into Asia/Kolkata first and only then read
+		            as a clock time, exactly as the grace screen already does. */
 		         count(*) FILTER (
 		           WHERE a.check_in IS NOT NULL
-		             AND EXTRACT(EPOCH FROM (COALESCE(a.check_out, s.ends_at) - a.check_in))/60
+		             AND EXTRACT(EPOCH FROM (
+		                   COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
+		                     - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
 		                 >= s.full_min)::int AS present,
 		         count(*) FILTER (
 		           WHERE a.check_in IS NOT NULL
-		             AND EXTRACT(EPOCH FROM (COALESCE(a.check_out, s.ends_at) - a.check_in))/60
+		             AND EXTRACT(EPOCH FROM (
+		                   COALESCE((a.check_out AT TIME ZONE 'Asia/Kolkata')::time, s.ends_at)
+		                     - (a.check_in AT TIME ZONE 'Asia/Kolkata')::time))/60
 		                 BETWEEN s.half_min AND s.full_min - 1)::int AS halves,
 		         /* Late is measured past the grace, not past the hour. A school
 		            that allows ten minutes has said so; reporting somebody late
 		            at one minute past makes the report an argument. */
 		         count(*) FILTER (
 		           WHERE a.check_in IS NOT NULL
-		             AND a.check_in > s.starts_at + (s.grace || ' minutes')::interval)::int AS late,
+		             AND (a.check_in AT TIME ZONE 'Asia/Kolkata')::time
+		                 > s.starts_at + (s.grace || ' minutes')::interval)::int AS late,
 		         count(*) FILTER (
-		           WHERE a.check_out IS NOT NULL AND a.check_out < s.ends_at)::int AS early
+		           WHERE a.check_out IS NOT NULL
+		             AND (a.check_out AT TIME ZONE 'Asia/Kolkata')::time < s.ends_at)::int AS early
 		    FROM staff s
 		    LEFT JOIN staff_attendance a
 		           ON a.user_id = (SELECT user_id FROM employees WHERE id = s.id)
