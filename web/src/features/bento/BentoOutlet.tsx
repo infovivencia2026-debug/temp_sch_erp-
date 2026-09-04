@@ -279,10 +279,12 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
 
           This padding and PageBody's own px-5 both apply to the same content,
           so a 390px screen was giving up 36px a side: 72px of 390, near a
-          fifth of the width, before a card had drawn anything. On a desktop
+          fifth of the width, before a card had drawn anything. Cut to 16px
+          total, which was too far the other way and left the cards looking
+          bolted to the edges; 22px is where it sits. On a desktop
           that is margin; on a phone it is the difference between a figure
           fitting on one line and wrapping. */}
-      <div className="flex-1 w-full pt-6 pb-6 px-[10px] sm:px-[20px] lg:px-[24px] flex flex-col">
+      <div className="flex-1 w-full pt-6 pb-6 px-[14px] sm:px-[20px] lg:px-[24px] flex flex-col">
         {inner}
       </div>
     </div>
