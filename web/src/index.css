@@ -1074,6 +1074,104 @@
 
   a[href]::after { content: ''; }
   @page { margin: 14mm; }
+
+  /* ─────────────────────────────────────────────────────────────────────
+     AND THE BENTO SHELL, WHICH THIS BLOCK HAD NEVER HEARD OF.
+
+     Everything above was written for the classic layout: it hides `aside`
+     and `header.chrome`, and that was the whole of the chrome at the time.
+     The Bento shell is none of those things. So on every screen in that
+     layout the printout came out as one almost-empty sheet with the dock
+     floating in the middle of it and the report itself missing.
+
+     Two separate faults, and both have to be fixed or the page still fails.
+     ───────────────────────────────────────────────────────────────────── */
+
+  /* ONE: THE CHROME PRINTED.
+
+     The dock is position:fixed, which on paper does not mean "pinned to the
+     window" -- it means "repeated on every sheet". The launcher, the
+     assistant tab and the tab strip are the same kind of thing: controls,
+     which exist to be clicked and cannot be. */
+  .bento-dock,
+  .bento-launcher,
+  .dock-tab-label,
+  [data-assistant],
+  [data-appearance-dialog],
+  nav[aria-label],
+  .tab-strip {
+    display: none !important;
+  }
+
+  /* TWO: THE REPORT WAS CLIPPED TO ONE SCREENFUL.
+
+     This is the part that made the sheet blank. The work area scrolls, and
+     the Bento ground is `h-full` with `overflow-hidden` so the board can be
+     measured against a definite height -- which is right on a screen and
+     catastrophic on paper, where there is no viewport to be full of. The
+     printer got the first screenful, clipped, and the rest of the register
+     did not exist.
+
+     Every container in that chain is released: heights become auto, overflow
+     becomes visible, and the content is allowed to be as long as it is and
+     to break across sheets. */
+  html,
+  body,
+  #root,
+  main,
+  main[data-app-scroll],
+  .bento-ground,
+  .bento-surface,
+  .bento-board,
+  .bento-cell {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* The board states its own height in a custom property, measured in JS
+     against the window. On paper that measurement means nothing, and a grid
+     of fixed fractions inside it crushes every row to a fraction of a sheet. */
+  .bento-board {
+    --board-h: auto !important;
+    display: block !important;
+    gap: 8pt !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+  .bento-cell,
+  .bento-widget {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    width: auto !important;
+    margin-bottom: 8pt;
+  }
+
+  /* THE BIG GAP AT THE FOOT OF THE SHEET.
+
+     <main> reserves the dock's height as bottom padding so the last row of a
+     table is not covered by the floating pill. The dock is not printed, so
+     that reserve is inches of white paper under a report that has already
+     ended -- which is what pushed a one-page report onto two sheets. */
+  main { padding-bottom: 0 !important; }
+  :root { --dock-reserve: 0px !important; }
+
+  /* Nothing is pinned on paper. A fixed or sticky element repeats on every
+     sheet or lands on top of the text, and neither is ever wanted. */
+  .fixed,
+  [style*='position: fixed'] { position: static !important; }
+  .sticky { position: static !important; }
+
+  /* The board paints a tinted panel per card and the ground paints itself.
+     On paper that is toner for no gain, and pale ink on a pale panel is what
+     makes a photocopy unreadable. */
+  .bento-ground,
+  .bento-surface,
+  [data-card] {
+    background: #fff !important;
+    box-shadow: none !important;
+  }
 }
 
 .print-only { display: none; }
