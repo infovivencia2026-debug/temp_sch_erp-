@@ -275,7 +275,14 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           that came out of those applies here too, so the gutter says what it
           means: 16 on a phone, which is the width every platform's own home
           screen leaves beside a tile, then 20 and 24 as the window earns them. */}
-      <div className="flex-1 w-full pt-6 pb-6 px-[16px] sm:px-[20px] lg:px-[24px] flex flex-col">
+      {/* The gutter is halved on a phone, because two of them stack.
+
+          This padding and PageBody's own px-5 both apply to the same content,
+          so a 390px screen was giving up 36px a side: 72px of 390, near a
+          fifth of the width, before a card had drawn anything. On a desktop
+          that is margin; on a phone it is the difference between a figure
+          fitting on one line and wrapping. */}
+      <div className="flex-1 w-full pt-6 pb-6 px-[10px] sm:px-[20px] lg:px-[24px] flex flex-col">
         {inner}
       </div>
     </div>

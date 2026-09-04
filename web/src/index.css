@@ -191,10 +191,31 @@
        every setting: sharpening the UI should not make a dialog as square as a
        checkbox. */
     --radius-scale: 1;
-    --radius-control: calc(7px * var(--radius-scale));
-    --radius-input: calc(8px * var(--radius-scale));
-    --radius-card: calc(11px * var(--radius-scale));
-    --radius-dialog: calc(14px * var(--radius-scale));
+
+    /* THE AXIS IS DAMPED, AND THE RESULT IS CAPPED.
+
+       Straight multiplication is right at the bottom of the range and wrong at
+       the top. At 270 per cent a card's 11px became 30px, and 30px on a stat
+       row 64px tall is half its height: the row stops being a rectangle with
+       soft corners and becomes a lozenge. Four of those stacked read as a list
+       of pills rather than a table of figures, which is not what somebody
+       asking for rounder corners was asking for.
+
+       So the preference is halved above 1 before it multiplies, and each
+       radius is capped at a value that still looks like a corner on the
+       smallest surface that uses it. 270 per cent now gives a card 20px rather
+       than 30. Below 1 the scale is untouched: nobody has ever complained that
+       square is too square, and damping that direction would stop the sharp
+       setting reaching square at all.
+
+       Kept as a derived token rather than by changing the slider's range: the
+       stored value is somebody's preference and should still mean what it
+       said, and every rule downstream keeps reading one number. */
+    --radius-k: max(var(--radius-scale), calc(1 + (var(--radius-scale) - 1) * 0.5));
+    --radius-control: min(calc(7px * var(--radius-k)), 12px);
+    --radius-input: min(calc(8px * var(--radius-k)), 14px);
+    --radius-card: min(calc(11px * var(--radius-k)), 20px);
+    --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
     --radius: var(--radius-card);
 
     /* Text scale: the same idea applied to size.

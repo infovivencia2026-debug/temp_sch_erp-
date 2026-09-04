@@ -155,7 +155,10 @@ export function PageBody({
   children: ReactNode
   width?: Width
 }) {
-  return <div className={cn('space-y-7 px-5 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
+  /* px-1.5 on a phone, not px-5. The layout that hosts this already draws a
+     gutter of its own, and the two stacked to 36px a side on a 390px screen.
+     From sm up there is width to spare and the original padding stands. */
+  return <div className={cn('space-y-7 px-1.5 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
 }
 
 /* A panel: white where content needs containing, and nothing where it does
