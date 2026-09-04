@@ -351,6 +351,11 @@ server {
     location = /forgot { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location = /reset  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /logout  { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
+    # The staff apps page and its APK downloads, served by Go from the
+    # published builds directory. Without this the SPA shell answered
+    # /apps/bus-tracker.apk with 3 KB of HTML, and a driver's phone saved
+    # that as the app. A prefix match: /apps and /apps/{slug}.apk both.
+    location /apps    { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /static/ { include /etc/nginx/snippets/${SERVICE}-proxy.conf; expires 7d; access_log off; }
 
     # ---- Assistant --------------------------------------------------------
