@@ -2413,6 +2413,10 @@ type lopRow struct {
 	UnpaidLeave  float64 `json:"unpaid_leave_days"`
 	LateMarks    int     `json:"late_marks"`
 	LOPDays      float64 `json:"lop_days"`
+	// Paid leave taken past its quota. Kept apart from unpaid leave because
+	// they are different conversations to have with the person: one is a leave
+	// they were never funded for, the other is a leave they had used up.
+	QuotaLOP float64 `json:"quota_lop_days"`
 }
 
 /*
@@ -2433,7 +2437,7 @@ func (s *Server) getLOPRegister(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT e.id::text, e.employee_code, concat_ws(' ', e.first_name, e.last_name),
 		       l.absent_days::float8, l.half_days::float8, l.unpaid_leave_days::float8,
-		       l.late_marks, l.lop_days::float8
+		       l.late_marks, l.lop_days::float8, l.quota_lop_days::float8
 		  FROM staff_lop_register($1::int, $2::int) l
 		  JOIN employees e ON e.id = l.employee_id
 		 WHERE `+mine+`
@@ -2442,7 +2446,7 @@ func (s *Server) getLOPRegister(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (lopRow, error) {
 			var v lopRow
 			return v, rows.Scan(&v.EmployeeID, &v.EmployeeCode, &v.Name, &v.Absent,
-				&v.HalfDays, &v.UnpaidLeave, &v.LateMarks, &v.LOPDays)
+				&v.HalfDays, &v.UnpaidLeave, &v.LateMarks, &v.LOPDays, &v.QuotaLOP)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

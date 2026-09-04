@@ -808,47 +808,26 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		/* THE SCHOOL'S OWN RULE, not this function's.
+		/* THE HANDSHAKE THAT WAS NEVER MADE.
 
-		   Loss of pay was a fraction with the calendar month underneath it:
-		   days absent over days in the month, the same for a teacher, a driver
-		   and the office, whatever the school's policy actually was. February
-		   therefore cost more per day than January, Sundays counted as payable
-		   days for everyone, and a school that deducts nothing for permanent
-		   staff had no way to say so.
+		   staff_lop_register is the school's rules turned into days lost --
+		   absence, half days, unpaid leave, paid leave past its quota, and
+		   lateness under the school's own "three marks make a day". A comment
+		   beside it says both it and payroll must call it so the two can never
+		   disagree. Payroll did not call it. It counted rows marked 'absent'
+		   and nothing else, so a school running a grace period, a late-marks
+		   rule, unpaid leave or a half-day mark was deducting for none of
+		   them, and the register screen and the payslip quietly showed two
+		   different numbers for the same month.
 
-		   The pattern says how this school cuts: on the days it actually
-		   expected the person, and by its own divisor. Every part of it falls
-		   back to what this code did before, so a school that has set nothing
-		   is paid exactly as it was yesterday. */
+		   Payroll now reads that one function. How the month is divided is
+		   still the school's own, from its work pattern. */
 		rows, err := tx.Query(r.Context(), `
 			SELECT e.id, ss.id, ss.ctc_paise,
-			       -- staff_attendance keys on user_id, not employee_id, so loss
-			       -- of pay is counted through the employee's linked account.
-			       COALESCE((SELECT count(*) FROM staff_attendance sa
-			                  WHERE sa.user_id = e.user_id
-			                    AND sa.status = 'absent'
-			                    AND extract(month FROM sa.on_date) = $1
-			                    AND extract(year  FROM sa.on_date) = $2), 0)::int,
+			       COALESCE(l.lop_days, 0)::float8,
 			       COALESCE(p.lop_basis, 'salary'),
 			       COALESCE(p.salary_divisor, 0),
-			       /* The days this person was actually expected: their pattern's
-			          working days, less the school's holidays. Zero where no
-			          pattern applies, and the caller then keeps the calendar
-			          month it has always used. */
-			       COALESCE((
-			         SELECT count(*)::int
-			           FROM generate_series(make_date($2,$1,1),
-			                                (make_date($2,$1,1) + INTERVAL '1 month - 1 day')::date,
-			                                INTERVAL '1 day') AS g(day)
-			          WHERE p.id IS NOT NULL
-			            AND EXTRACT(ISODOW FROM g.day)::int = ANY(p.working_days)
-			            AND NOT EXISTS (SELECT 1 FROM holidays h
-                             WHERE h.institution_id = e.institution_id
-                               AND h.kind IN ('holiday','vacation')
-                               AND h.applies_to IN ('all','staff')
-                               AND g.day::date BETWEEN h.on_date
-                                          AND COALESCE(h.to_date, h.on_date))), 0)
+			       COALESCE(l.expected_days, 0)::int
 			  FROM employees e
 			  JOIN salary_structures ss ON ss.employee_id = e.id
 			   AND ss.effective_from <= make_date($2,$1,1)
@@ -859,6 +838,7 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			                                               (SELECT dp.id FROM work_patterns dp
 			                                                 WHERE dp.institution_id = e.institution_id
 			                                                   AND dp.is_default LIMIT 1))
+			  LEFT JOIN staff_lop_register($2::int, $1::int) l ON l.employee_id = e.id
 			 WHERE e.status = 'active' AND e.user_id IS NOT NULL`, req.Month, req.Year)
 		if err != nil {
 			return err
@@ -869,12 +849,12 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			lopBasis      string
 			divisor       int
 			expectedDays  int
-			absent        int
+			lopDays       float64
 		}
 		var emps []emp
 		for rows.Next() {
 			var e emp
-			if err := rows.Scan(&e.id, &e.structure, &e.ctc, &e.absent,
+			if err := rows.Scan(&e.id, &e.structure, &e.ctc, &e.lopDays,
 				&e.lopBasis, &e.divisor, &e.expectedDays); err != nil {
 				rows.Close()
 				return err
@@ -901,7 +881,7 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 				base = e.expectedDays
 			}
 
-			paidDays := float64(base - e.absent)
+			paidDays := float64(base) - e.lopDays
 			if paidDays < 0 {
 				paidDays = 0
 			}
@@ -913,6 +893,10 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			   schools actually do. */
 			if e.lopBasis == "none" {
 				ratio = 1
+				// The payslip must not then say it paid for fewer days than it
+				// paid for. The days lost are still recorded beside it, so the
+				// absence is on the record without being charged.
+				paidDays = float64(base)
 			}
 
 			var earn, deduct int64
@@ -1076,7 +1060,7 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 				INSERT INTO payslips (institution_id, payroll_run_id, employee_id, paid_days,
 				                      lop_days, gross_paise, deduction_paise, net_paise, breakup)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-				id.InstitutionID, runID, e.id, paidDays, e.absent,
+				id.InstitutionID, runID, e.id, paidDays, e.lopDays,
 				earn, deduct, earn-deduct, breakup); err != nil {
 				return err
 			}

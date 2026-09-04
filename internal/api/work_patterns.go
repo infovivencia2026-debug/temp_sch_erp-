@@ -265,3 +265,80 @@ func (s *Server) deleteWorkPattern(w http.ResponseWriter, r *http.Request) {
 	}
 	writeRefResult(w, r, err, "work pattern", patternID)
 }
+
+/*
+assignWorkPattern puts named people on a set of hours.
+
+	The hierarchy could always hold an individual override -- employees.work_pattern_id
+	has existed since the table did -- and nothing could write it. So a school
+	could say what its office keeps and what its drivers keep, and could not say
+	that one part-time teacher comes in on Monday, Wednesday and Friday, which is
+	the case the hierarchy exists for.
+
+	Named people rather than a filter. A rule like "everybody in Primary" reads
+	well until somebody joins Primary next term and is silently put on hours
+	nobody chose for them; the department level is where that belongs, and it is
+	already there.
+*/
+type assignRequest struct {
+	// Null clears the override and returns them to their department's hours,
+	// or the school's. Sent as an explicit null rather than an empty string so
+	// that "put them back" is a thing the caller can actually say.
+	PatternID   *string  `json:"pattern_id"`
+	EmployeeIDs []string `json:"employee_ids"`
+}
+
+func (s *Server) assignWorkPattern(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var req assignRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	if len(req.EmployeeIDs) == 0 {
+		httpx.BadRequest(w, r, "choose at least one member of staff")
+		return
+	}
+	var pattern *uuid.UUID
+	if req.PatternID != nil && strings.TrimSpace(*req.PatternID) != "" {
+		p, err := uuid.Parse(strings.TrimSpace(*req.PatternID))
+		if err != nil {
+			httpx.BadRequest(w, r, "invalid work pattern id")
+			return
+		}
+		pattern = &p
+	}
+
+	var changed int64
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// The pattern is checked inside the tenant transaction, so a school
+		// cannot put its staff on another school's hours by guessing an id.
+		if pattern != nil {
+			var ok bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT true FROM work_patterns WHERE id = $1`, *pattern).Scan(&ok); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return errRefGone
+				}
+				return err
+			}
+		}
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE employees SET work_pattern_id = $1
+			 WHERE institution_id = $2 AND id = ANY($3::uuid[])`,
+			pattern, id.InstitutionID, req.EmployeeIDs)
+		if err != nil {
+			return err
+		}
+		changed = tag.RowsAffected()
+		return nil
+	})
+	if errors.Is(err, errRefGone) {
+		httpx.BadRequest(w, r, "those hours no longer exist")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"changed": changed})
+}

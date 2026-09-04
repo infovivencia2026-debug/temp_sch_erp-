@@ -93,9 +93,7 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		         COALESCE(p1.lop_basis, p2.lop_basis, p3.lop_basis, 'none') AS lop_basis,
 		         COALESCE(p1.lop_per_day_paise, p2.lop_per_day_paise, p3.lop_per_day_paise) AS lop_paise,
 		         COALESCE(p1.salary_divisor, p2.salary_divisor, p3.salary_divisor, 30) AS divisor,
-		         COALESCE(p1.lates_for_half_day, p2.lates_for_half_day,
-		                  p3.lates_for_half_day, 0) AS lates_for_half,
-		         /* What this person is paid a month, for the schools that cut
+			         /* What this person is paid a month, for the schools that cut
 		            pay as a fraction of it rather than a flat figure. Null
 		            where no salary is on record, and the deduction is then
 		            reported in days only -- a money figure invented from a
@@ -202,23 +200,23 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		                     - COALESCE(m.present,0) - COALESCE(m.halves,0)
 		                     - COALESCE(m.excused,0)),
 		       COALESCE(m.late, 0), COALESCE(m.early, 0),
-		       /* A half day is half a day of loss, which is what a school means
-		          by half day and the only reason it distinguishes one. */
-		       /* Days lost: whole days away, half a day for each half day, and
-		          the school's lateness rule turned into half days on top --
-		          "three lates make a half day" is a policy half the schools in
-		          the country keep and none of them could express here before. */
-		       GREATEST(0, LEAST(COALESCE(m.marked,0), COALESCE(e.days,0))
-		                     - COALESCE(m.present,0) - COALESCE(m.halves,0)
-		                     - COALESCE(m.excused,0))
-		         + COALESCE(m.halves,0) * 0.5
-		         + CASE WHEN s.lates_for_half > 0
-		                THEN floor(COALESCE(m.late,0)::numeric / s.lates_for_half) * 0.5
-		                ELSE 0 END,
+		       /* DAYS LOST COME FROM ONE PLACE ONLY.
+
+		          This screen worked them out for itself and so did payroll, and
+		          two numbers under the same name in front of the person whose
+		          salary it is will one day differ by half a day and there will
+		          be no way to say which is right. staff_lop_register holds the
+		          school's whole rule -- absence, half days, unpaid leave, paid
+		          leave past its quota, and lateness under its own late-marks
+		          rule -- and is what the payslip is built from. */
+		       COALESCE(l.lop_days, 0),
 		       s.lop_basis, s.lop_paise, s.divisor, s.monthly_paise
 		  FROM staff s
 		  LEFT JOIN expected e ON e.id = s.id
 		  LEFT JOIN marked   m ON m.id = s.id
+		  LEFT JOIN staff_lop_register(
+		              split_part($1,'-',1)::int, split_part($1,'-',2)::int) l
+		         ON l.employee_id = s.id
 		 ORDER BY s.department, s.name`, []any{month},
 		func(rows pgx.Rows) (staffMonth, error) {
 			var v staffMonth

@@ -472,6 +472,10 @@ func (s *Server) Routes() http.Handler {
 				Post("/work-patterns", s.saveWorkPattern)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
 				Delete("/work-patterns/{id}", s.deleteWorkPattern)
+			// The same permission as the write it is: putting somebody on
+			// different hours changes what their month costs them.
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Post("/work-patterns/assign", s.assignWorkPattern)
 			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
 				Get("/staff-hours", s.getStaffHours)
 			// Completing an appointment: whoever may appoint somebody may let

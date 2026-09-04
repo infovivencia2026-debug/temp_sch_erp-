@@ -38,6 +38,7 @@ interface Pattern {
   people: number
 }
 interface Dept { id: string; name: string }
+interface Staff { id: string; employee_code: string; first_name?: string; last_name?: string }
 
 const BLANK = {
   name: '', starts_at: '08:45', ends_at: '15:45', grace_minutes: '10',
@@ -63,6 +64,32 @@ export default function WorkPatterns() {
     queryKey: ['work-patterns'],
     queryFn: () => api.get<{ items: Pattern[] }>('/api/v1/setup/work-patterns'),
   })
+  /* WHO IS ON WHICH HOURS, chosen by name.
+
+     The hierarchy could always hold an individual override and nothing could
+     write one, so a school could describe its office and its drivers and could
+     not describe the part-time teacher who comes in on three mornings -- which
+     is the case the individual level exists for. */
+  const [assignTo, setAssignTo] = useState('')
+  const [picked, setPicked] = useState<string[]>([])
+
+  const staff = useQuery({
+    queryKey: ['work-pattern-staff'],
+    queryFn: () => api.get<{ items: Staff[] }>('/api/v1/hr/employees?limit=500'),
+  })
+
+  const assign = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/setup/work-patterns/assign', {
+        // Empty means "put them back on their department's hours, or the
+        // school's" -- an override you cannot undo is a trap.
+        pattern_id: assignTo === '' ? null : assignTo,
+        employee_ids: picked,
+      }),
+    onSuccess: () => { setPicked([]); done('Those hours now apply to the staff you chose.') },
+    onError: (error) => setNote({ error }),
+  })
+
   const depts = useQuery({
     queryKey: ['departments'],
     queryFn: () => api.get<{ items: Dept[] }>('/api/v1/setup/departments'),
@@ -277,6 +304,47 @@ export default function WorkPatterns() {
             </div>
           </Card>
         )}
+
+        <Card>
+          <CardHeader title="Put staff on a set of hours" />
+          <div className="p-5">
+            <FormGrid>
+              <Field label="These hours" hint="Leave blank to put them back on their department's">
+                <Select
+                  value={assignTo}
+                  onChange={setAssignTo}
+                  placeholder="Their department's hours"
+                  options={(q.data?.items ?? []).map((p) => ({ value: p.id, label: p.name }))}
+                />
+              </Field>
+            </FormGrid>
+            <div className="mt-3 max-h-56 overflow-y-auto rounded-md border p-3">
+              {(staff.data?.items ?? []).map((e) => {
+                const name = [e.first_name, e.last_name].filter(Boolean).join(' ') || e.employee_code
+                const on = picked.includes(e.id)
+                return (
+                  <label key={e.id} className="flex items-center gap-2 py-1 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() =>
+                        setPicked(on ? picked.filter((x) => x !== e.id) : [...picked, e.id])}
+                    />
+                    <span>{name}</span>
+                    <span className="text-xs text-slate-400">{e.employee_code}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {canWrite && (
+              <div className="mt-3 flex items-center gap-3">
+                <Button onClick={() => assign.mutate()} disabled={picked.length === 0 || assign.isPending}>
+                  {picked.length === 0 ? 'Choose staff' : `Apply to ${picked.length}`}
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
 
         <Card>
           <CardHeader title="Hours the school keeps" />
