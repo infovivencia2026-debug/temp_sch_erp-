@@ -11,6 +11,7 @@ import {
   type SettingsTab,
 } from './AppearanceDialog'
 import { Rows, NavRow } from './SettingsRows'
+import { SettingsGroups } from './SettingsGroups'
 
 /* SETTINGS AS A PLACE, WHICH ON A PHONE IS WHAT IT ALWAYS LOOKED LIKE.
 
@@ -275,10 +276,18 @@ export default function SettingsPage() {
         ) : (
           /* THE NAVIGATION. The list, or one section with the way back in
              the header; 44px rows, the defaults. */
-          <div className="py-[8px]">
+          /* GROUPED CARDS ON THE LIST, THE SECTION ITSELF UNCHANGED.
+
+             The flat list was nine rows of equal weight above a screen and a
+             half of empty ground, which is a table of contents rather than a
+             settings screen. SettingsGroups sorts the same items into four
+             short cards, puts who is signed in at the top, and shows the value
+             a row already has. Only the landing changes: open a section and it
+             is the same pane the dialog draws. */
+          <div className="px-3 py-3">
             {tab === null && <FullScreenOffer />}
             {tab === null
-              ? <SettingsSectionList items={items} onOpen={open} values={values} />
+              ? <SettingsGroups items={items} onOpen={open} values={values} />
               : <SettingsPane tab={tab} onClose={done} />}
           </div>
         )}
