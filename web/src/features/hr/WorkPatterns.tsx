@@ -48,6 +48,12 @@ interface Staff {
   own_pattern: boolean
 }
 
+/* The dropdown offered only sets that already existed, so somebody who had
+   ticked the four drivers and wanted to call their hours "Transport" had to
+   leave the choice, scroll up, add the hours, come back, and tick the four
+   drivers again. */
+const NEW_HOURS = '__new__'
+
 const BLANK = {
   name: '', starts_at: '08:45', ends_at: '15:45', grace_minutes: '10',
   full_day_minutes: '420', half_day_minutes: '210', working_days: [1, 2, 3, 4, 5, 6],
@@ -66,6 +72,7 @@ export default function WorkPatterns() {
   const qc = useQueryClient()
   const canWrite = useCan()('hr.employees.write')
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
   const [note, setNote] = useState<{ error?: unknown; ok?: string }>({})
 
   const q = useQuery({
@@ -90,11 +97,11 @@ export default function WorkPatterns() {
   })
 
   const assign = useMutation({
-    mutationFn: () =>
+    mutationFn: (patternID?: string) =>
       api.post('/api/v1/setup/work-patterns/assign', {
         // Empty means "put them back on their department's hours, or the
         // school's" -- an override you cannot undo is a trap.
-        pattern_id: assignTo === '' ? null : assignTo,
+        pattern_id: patternID ?? (assignTo === '' ? null : assignTo),
         employee_ids: picked,
       }),
     onSuccess: () => {
@@ -113,12 +120,13 @@ export default function WorkPatterns() {
   const done = (ok: string) => {
     setNote({ ok })
     setDraft(null)
+    setEditing(null)
     qc.invalidateQueries({ queryKey: ['work-patterns'] })
   }
 
   const save = useMutation({
     mutationFn: (d: Draft) =>
-      api.post('/api/v1/setup/work-patterns', {
+      api.post<{ id: string }>('/api/v1/setup/work-patterns', {
         name: d.name.trim(),
         starts_at: d.starts_at,
         ends_at: d.ends_at,
@@ -135,7 +143,15 @@ export default function WorkPatterns() {
         is_default: d.is_default,
         department_ids: d.department_ids,
       }),
-    onSuccess: () => done('Saved. The month is read against these hours from now on.'),
+    onSuccess: (made) => {
+      /* They ticked the staff first and named the hours second, which is the
+         order the job is actually done in. */
+      if (picked.length > 0 && !editing) {
+        assign.mutate(made.id)
+        return
+      }
+      done('Saved. The month is read against these hours from now on.')
+    },
     onError: (error) => setNote({ error }),
   })
 
@@ -147,6 +163,7 @@ export default function WorkPatterns() {
 
   const edit = (p: Pattern) => {
     setNote({})
+    setEditing(p.name)
     setDraft({
       name: p.name, starts_at: p.starts_at, ends_at: p.ends_at,
       grace_minutes: String(p.grace_minutes),
@@ -184,13 +201,17 @@ export default function WorkPatterns() {
         eyebrow="Staff"
         title="Staff working hours"
         actions={canWrite && !draft
-          ? <Button onClick={() => { setNote({}); setDraft({ ...BLANK }) }}>Add hours</Button>
+          ? <Button onClick={() => { setNote({}); setEditing(null); setDraft({ ...BLANK }) }}>Add hours</Button>
           : undefined}
       />
       <PageBody>
-        {draft && (
+        {draft ? (
           <Card>
-            <CardHeader title={draft.name ? draft.name : 'New hours'} />
+            <CardHeader
+              title={editing ? `Editing ${editing}` : 'New hours'}
+              description={editing
+                ? 'Saving replaces these hours everywhere they are used, including in months already gone.'
+                : 'Name them for the group that keeps them, then choose who is on them.'} />
             <div className="p-5">
               <FormGrid>
                 <Field label="Name" required hint="Teaching, Office, Transport">
@@ -313,13 +334,13 @@ export default function WorkPatterns() {
 
               <div className="mt-5 flex items-center gap-3">
                 <Button onClick={() => save.mutate(draft)} disabled={save.isPending}>Save</Button>
-                <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => { setDraft(null); setEditing(null) }}>Cancel</Button>
                 <FormNotice error={note.error} />
               </div>
             </div>
           </Card>
-        )}
-
+        ) : (
+        <>
         <Card>
           <CardHeader title="Hours the school keeps" />
           {!draft && <div className="px-5"><FormNotice error={note.error} ok={note.ok} /></div>}
@@ -372,9 +393,23 @@ export default function WorkPatterns() {
               <Field label="These hours" hint="Leave blank to put them back on their department's">
                 <Select
                   value={assignTo}
-                  onChange={setAssignTo}
+                  onChange={(v) => {
+                    /* "Make a new one" is one of the answers to "which hours",
+                       so it lives in the same list. The ticks are kept: they
+                       are the reason these hours are being made at all. */
+                    if (v === NEW_HOURS) {
+                      setNote({})
+                      setEditing(null)
+                      setDraft({ ...BLANK })
+                      return
+                    }
+                    setAssignTo(v)
+                  }}
                   placeholder="Their department's hours"
-                  options={(q.data?.items ?? []).map((p) => ({ value: p.id, label: p.name }))}
+                  options={[
+                    ...(q.data?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
+                    { value: NEW_HOURS, label: 'Add a new set of hours...' },
+                  ]}
                 />
               </Field>
             </FormGrid>
@@ -407,7 +442,7 @@ export default function WorkPatterns() {
             </div>
             {canWrite && (
               <div className="mt-3 flex items-center gap-3">
-                <Button onClick={() => assign.mutate()} disabled={picked.length === 0 || assign.isPending}>
+                <Button onClick={() => assign.mutate(undefined)} disabled={picked.length === 0 || assign.isPending}>
                   {picked.length === 0 ? 'Choose staff' : `Apply to ${picked.length}`}
                 </Button>
               </div>
@@ -415,6 +450,8 @@ export default function WorkPatterns() {
           </div>
         </Card>
 
+        </>
+        )}
       </PageBody>
 
     </>

@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
@@ -152,4 +154,60 @@ func (s *Server) saveLeaveType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"created": made})
+}
+
+/*
+deleteLeaveType removes a kind of leave the school does not grant.
+
+	Five types are offered as a starting point -- casual, sick, earned,
+	maternity, leave without pay -- and a school that accepted them was then
+	stuck with all five. A school with no earned leave had a row on its policy
+	screen for earned leave, a quota it never agreed, and staff who could apply
+	for it.
+
+	Refused while anything refers to it rather than cascading. A leave type is
+	how a day already taken is described: deleting it would turn last March's
+	approved sick leave into a day with no explanation, and the payslip that
+	charged nothing for it into one nobody can account for.
+*/
+func (s *Server) deleteLeaveType(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	typeID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid leave type id")
+		return
+	}
+	var requests, balances int
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `
+			SELECT (SELECT count(*)::int FROM leave_requests r WHERE r.leave_type_id = t.id),
+			       (SELECT count(*)::int FROM leave_balances b
+			         WHERE b.leave_type_id = t.id AND (b.taken > 0 OR b.entitled > 0))
+			  FROM leave_types t WHERE t.id = $1`, typeID).Scan(&requests, &balances); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errRefGone
+			}
+			return err
+		}
+		if requests > 0 || balances > 0 {
+			return errRefInUse
+		}
+		// The rules go with it; nothing else points at a type nobody has used.
+		if _, err := tx.Exec(r.Context(),
+			`DELETE FROM leave_policy_rules WHERE leave_type_id = $1`, typeID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(r.Context(), `DELETE FROM leave_types WHERE id = $1`, typeID)
+		return err
+	})
+	if errors.Is(err, errRefInUse) {
+		httpx.BadRequest(w, r,
+			plural(requests, "leave request", "leave requests")+" and "+
+				plural(balances, "staff balance", "staff balances")+
+				" refer to this type. It is how days already taken are described, so "+
+				"removing it would leave those days with no explanation. Set its quota "+
+				"to zero instead if the school no longer grants it")
+		return
+	}
+	writeRefResult(w, r, err, "leave type", typeID)
 }

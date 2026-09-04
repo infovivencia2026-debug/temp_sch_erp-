@@ -85,6 +85,9 @@ func (s *Server) mountHRLifecycle(r chi.Router) {
 	// and that gate is for the staff file, not for a dropdown. Writing one is
 	// still hr.employees.write.
 	r.With(write).Post("/leave-types", s.saveLeaveType)
+	// And remove one the school does not grant: five are offered as a starting
+	// point and a school that accepted them was then stuck with all five.
+	r.With(write).Delete("/leave-types/{id}", s.deleteLeaveType)
 
 	r.Get("/leave-policy", s.getLeavePolicy)
 	r.With(write).Post("/leave-policy", s.saveLeavePolicy)

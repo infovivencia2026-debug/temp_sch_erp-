@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
   Input, Select, Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  ConfirmButton,
 } from '@/components/ui'
 
 /* The rules a payslip already assumed.
@@ -98,6 +99,14 @@ export default function LeavePolicy() {
     queryKey: ['hr', 'leave-policy'],
     queryFn: () => api.get<Policy>('/api/v1/hr/leave-policy'),
   })
+  /* Removing a kind of leave the school does not grant. Refused by the server
+     while anything refers to it: a leave type is how a day already taken is
+     described, and deleting one would leave last March with no explanation. */
+  const remove = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/hr/leave-types/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'leave-policy'] }),
+  })
+
   const save = useMutation({
     mutationFn: (p: Policy) => api.post('/api/v1/hr/leave-policy', p),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hr'] }),
@@ -159,7 +168,10 @@ export default function LeavePolicy() {
           ))}
         </div>
 
-        {tab === 'rules' && <RulesTab types={draft.types} onChange={setType} />}
+        {tab === 'rules' && (
+          <RulesTab types={draft.types} onChange={setType}
+            onRemove={(id) => remove.mutate(id)} />
+        )}
         {tab === 'lop' && <LOPRulesTab policy={draft} onChange={set} />}
         {tab === 'register' && <RegisterTab />}
       </PageBody>
@@ -170,9 +182,11 @@ export default function LeavePolicy() {
 function RulesTab({
   types,
   onChange,
+  onRemove,
 }: {
   types: TypeRule[]
   onChange: (id: string, patch: Partial<TypeRule>) => void
+  onRemove: (id: string) => void
 }) {
   return (
     <>
@@ -186,7 +200,7 @@ function RulesTab({
     <Card>
       <CardHeader title="What each type allows"
         description="The quota, whether it is paid and whether it carries forward live on the leave type itself and are shown here for context. Everything editable below is the policy the database enforces when a request is made." />
-      <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to']}>
+      <Table head={['Type', 'Days a year', 'Most in a month', 'Paid', 'Carry up to', 'Half days', 'Max spell', 'Notice', 'Proof after', 'Probation', 'Restricted to', '']}>
         {types.map((t) => (
           <tr key={t.leave_type_id}>
             <Td className="font-medium">{t.name}
@@ -251,6 +265,19 @@ function RulesTab({
                   { value: 'female', label: 'Women only' },
                   { value: 'male', label: 'Men only' },
                 ]} />
+            </Td>
+            {/* A school that accepted the five suggested types was then stuck
+                with all five, including kinds of leave it does not grant. */}
+            <Td>
+              <ConfirmButton
+                confirmLabel="Remove"
+                question="This school no longer offers this kind of leave."
+                tone="danger"
+                label={`Remove ${t.name}`}
+                onConfirm={() => onRemove(t.leave_type_id)}
+              >
+                Remove
+              </ConfirmButton>
             </Td>
           </tr>
         ))}
