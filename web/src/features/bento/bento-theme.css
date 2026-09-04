@@ -1357,8 +1357,13 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        shows is the gutters — which turns a one-pixel gap into a hairline rule
        without a single border being drawn. It cannot fall out of step with the
        palette, it cannot double where two cells meet, and it costs nothing.
-       The outline closes the frame on the outside edge, where there is no
-       neighbouring cell to make the gap. */
+       The outside edge is left open. It used to be closed with an outline,
+       which drew a square rectangle around the whole board -- and a rectangle
+       is the one shape the cards inside it are not. At the round corner
+       setting the cards curve away from it and the line stands there as a
+       visible boundary cutting across all four corners; at any setting it
+       reads as a frame nobody asked for. The gutters between cells are the
+       rule this board wanted, and they still paint. */
     /* THE RULE FADES AS THE GAP OPENS.
 
        Painting the ground turns a ONE-pixel gutter into a hairline. It does
@@ -1377,7 +1382,6 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
        is ever handed to color-mix. */
     --bento-rule: clamp(0%, calc(200% - var(--bento-density, 1) * 100%), 100%);
     background: color-mix(in srgb, var(--bento-line) var(--bento-rule), var(--bento-bg));
-    outline: 1px solid color-mix(in srgb, var(--bento-line) var(--bento-rule), var(--bento-bg));
 
     /* FIVE COLUMNS, THREE ROWS. The board is a fixed 15-slot grid.
 
