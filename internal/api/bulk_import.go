@@ -435,6 +435,19 @@ var importSpecs = map[string]importSpec{
 		},
 	},
 	"sections": {
+		/* WHAT ONLY THE DATABASE CAN ANSWER, ASKED BEFORE ANYTHING IS WRITTEN.
+
+		   Without this the dry run reports every row ready and the commit then
+		   rejects the ones naming a class, a head or a teacher the school does
+		   not have. A check that passes a file the write refuses is worse than
+		   no check: the clerk has been told it is ready, and spends the credit
+		   the dry run had.
+
+		   Read-only by contract, in the transaction the commit would use. */
+		Verify: func(c *importCtx, row map[string]string) error {
+			_, err := c.classID(row["class"])
+			return err
+		},
 		Perm:     rbac.AcademicsWrite,
 		Columns:  []string{"class", "name", "capacity", "room"},
 		Required: []string{"class", "name"},
@@ -661,6 +674,38 @@ var importSpecs = map[string]importSpec{
 	   expects the odd rupee.
 	*/
 	"fee_structures": {
+		/* WHAT ONLY THE DATABASE CAN ANSWER, ASKED BEFORE ANYTHING IS WRITTEN.
+
+		   Without this the dry run reports every row ready and the commit then
+		   rejects the ones naming a class, a head or a teacher the school does
+		   not have. A check that passes a file the write refuses is worse than
+		   no check: the clerk has been told it is ready, and spends the credit
+		   the dry run had.
+
+		   Read-only by contract, in the transaction the commit would use. */
+		Verify: func(c *importCtx, row map[string]string) error {
+			if cls := strings.TrimSpace(row["class"]); cls != "" {
+				if _, err := c.classID(cls); err != nil {
+					return err
+				}
+			}
+			head := strings.TrimSpace(row["fee_head"])
+			if head == "" {
+				return nil
+			}
+			var ok bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT EXISTS (SELECT 1 FROM fee_heads
+				                WHERE institution_id = $1
+				                  AND (lower(name) = lower($2) OR upper(code) = upper($2)))`,
+				c.inst, head).Scan(&ok); err != nil {
+				return err
+			}
+			if !ok {
+				return fmt.Errorf("no fee head called %q. Add the fee heads first", head)
+			}
+			return nil
+		},
 		Perm:     rbac.FeesWrite,
 		Columns:  []string{"structure", "class", "fee_head", "annual_amount", "instalments"},
 		Required: []string{"structure", "fee_head", "annual_amount"},
@@ -1024,6 +1069,26 @@ var importSpecs = map[string]importSpec{
 	   teacher sets the subject teacher. A row with both does both.
 	*/
 	"allocations": {
+		/* Checked before anything is written, for the same reason as every
+		   other sheet here: a dry run that passes rows the commit refuses has
+		   told the clerk the file is ready and spent the trust it needs. */
+		Verify: func(c *importCtx, row map[string]string) error {
+			if _, err := c.sectionIDFor(row["class"], row["section"]); err != nil {
+				return err
+			}
+			for _, who := range []string{
+				optional(row, "class_teacher", "class_teacher_email"),
+				optional(row, "teacher", "teacher_email"),
+			} {
+				if who == "" {
+					continue
+				}
+				if _, err := c.teacherByEmail(who); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
 		Perm: rbac.AcademicsWrite,
 		// Teachers by name or staff code as well as by email, like the sheet
 		// above. Both column spellings are read, so older files still load.
