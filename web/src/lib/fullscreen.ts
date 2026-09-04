@@ -77,6 +77,16 @@ export function isAndroidWebView(): boolean {
   return /;\s*wv[;)]/.test(navigator.userAgent)
 }
 
+/** Is this page inside the iOS parent app. A WKWebView's user agent is
+    indistinguishable from Safari's on purpose, so the test is for the one
+    thing only the shell provides: the script message handler its bridge
+    posts to (mobile/apps/parent-ios, BridgeScript.swift). */
+export function isIOSShell(): boolean {
+  if (typeof window === 'undefined') return false
+  const w = window as unknown as { webkit?: { messageHandlers?: Record<string, unknown> } }
+  return typeof w.webkit?.messageHandlers?.erpShell === 'object'
+}
+
 /** Is this document actually permitted to go full screen. See the note above
     for why this and not a test for the method. */
 export function fullScreenAllowed(): boolean {

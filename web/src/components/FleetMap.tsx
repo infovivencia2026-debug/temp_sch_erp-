@@ -3,7 +3,7 @@ import maplibregl, { type LngLatBoundsLike, type Map as MLMap } from 'maplibre-g
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
 import { layers, namedFlavor } from '@protomaps/basemaps'
-import { isAndroidWebView } from '@/lib/fullscreen'
+import { isIOSShell } from '@/lib/fullscreen'
 import { Maximize2, Minimize2, Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils'
    are. That is the trade for not running a tile server. */
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
-/* THE MAP WE HOST OURSELVES, FOR THE ANDROID APP FIRST.
+/* THE MAP WE HOST OURSELVES, FOR THE IPHONE APP FIRST.
 
    OpenFreeMap above is free and needs no key, and it is somebody else's
    server with no promise attached. The alternative is one file: a PMTiles
@@ -45,12 +45,12 @@ const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
    200MB file on a disk that has room for it. When R2 gets a public host the
    same file moves there and only TILES_BASE changes.
 
-   Rolled out to the Android parent app before anyone else: it is the client
-   the school actually hands out, it is detectable (the WebView writes a `wv`
-   token into its user agent, see isAndroidWebView), and a tile problem shows
-   up in one app rather than on every screen in the office. Browsers and the
-   iOS app keep OpenFreeMap until this has been watched for a while; then the
-   gate goes and the constant above with it.
+   Rolled out to the iPhone parent app before anyone else: it is the newest
+   client and the smallest audience, it is detectable (only the shell exposes
+   the bridge handler, see isIOSShell), and a tile problem shows up in one app
+   rather than on every screen in the office. Browsers and the Android app
+   keep OpenFreeMap until this has been watched for a while; then the gate
+   goes and the constant above with it.
 
    The style is built in code from the Protomaps basemap layers rather than
    fetched as JSON, because the layer list has to name this origin's tile
@@ -83,7 +83,7 @@ function selfHostedStyle(): maplibregl.StyleSpecification {
 }
 
 function mapStyle(): string | maplibregl.StyleSpecification {
-  return isAndroidWebView() ? selfHostedStyle() : STYLE_URL
+  return isIOSShell() ? selfHostedStyle() : STYLE_URL
 }
 
 export interface MapVehicle {
