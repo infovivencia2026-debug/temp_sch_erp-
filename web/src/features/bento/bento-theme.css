@@ -1187,6 +1187,30 @@ html[data-shadow='deep'][data-layout='bento'] {
   background-attachment: fixed;
 }
 
+/* ROUND CORNERS AND A ONE-PIXEL GUTTER CANNOT BOTH BE TRUE.
+
+   --bento-gap is 1px at density 1, and a one-pixel gap filled with the ground
+   colour is not a space between two cards -- it is a hairline drawn between
+   them. That is the ruled sheet this board was designed as, and with square
+   cards butting together it reads as one: a sheet with rules scored across it.
+
+   Curve the corners and it stops working. The cards pull away from each other
+   at every corner while the one-pixel channel runs on straight between them,
+   so the rule stops reading as the sheet's own ruling and starts reading as a
+   line boxing each card in -- which is what it looks like, because at that
+   width it is a line and nothing else.
+
+   So the ruled sheet belongs to the sharp setting, and the round setting gets
+   a gutter wide enough to be seen as space. Six pixels at density 1, scaling
+   with density like the base. Both skins, because the focus block redeclares
+   the gap at a higher specificity and would otherwise keep the hairline. */
+html[data-corners='round'][data-layout='bento'],
+html[data-corners='round'] [data-layout='bento'],
+html[data-corners='round'][data-skin='focus'][data-layout='bento'],
+html[data-corners='round'][data-skin='focus'] [data-layout='bento'] {
+  --bento-gap: calc(6px * var(--bento-density, 1));
+}
+
 /* WHERE THE GROUND STOPS, THE SAME COLOUR CARRIES ON.
 
    .bento-ground paints --bento-bg and everything behind it -- the scrolling
