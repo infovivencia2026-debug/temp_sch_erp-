@@ -2227,15 +2227,19 @@ func (s *Server) recordRecognition(w http.ResponseWriter, r *http.Request) {
 // leavePolicy mirrors the table. Every field is a rule somebody has to defend
 // to a teacher whose salary came up short.
 type leavePolicy struct {
-	HalfDayFraction float64  `json:"half_day_fraction"`
-	ShiftStartsAt   string   `json:"shift_starts_at"`
-	GraceMinutes    int      `json:"grace_minutes"`
-	LateMarksPerDay int      `json:"late_marks_per_lop_day"`
-	LateHalfDayMins *int     `json:"late_half_day_after_minutes,omitempty"`
-	LOPOnAbsent     bool     `json:"lop_on_absent"`
-	LOPOnUnpaid     bool     `json:"lop_on_unpaid_leave"`
-	Rounding        string   `json:"lop_rounding"`
-	MaxLOPPerMonth  *float64 `json:"max_lop_days_per_month,omitempty"`
+	HalfDayFraction float64 `json:"half_day_fraction"`
+	ShiftStartsAt   string  `json:"shift_starts_at"`
+	GraceMinutes    int     `json:"grace_minutes"`
+	LateMarksPerDay int     `json:"late_marks_per_lop_day"`
+	LateHalfDayMins *int    `json:"late_half_day_after_minutes,omitempty"`
+	LOPOnAbsent     bool    `json:"lop_on_absent"`
+	LOPOnUnpaid     bool    `json:"lop_on_unpaid_leave"`
+	// Paid leave taken past its quota. On by default because that is what
+	// almost every school does, but a school that funds leave past the
+	// entitlement must be able to say so rather than have this decided here.
+	LOPOnExhausted bool     `json:"lop_on_exhausted_quota"`
+	Rounding       string   `json:"lop_rounding"`
+	MaxLOPPerMonth *float64 `json:"max_lop_days_per_month,omitempty"`
 	// The per-type rules, joined to the leave type they govern so the screen
 	// shows the quota and the rule together rather than in two tables.
 	Types []leaveTypeRule `json:"types"`
@@ -2261,7 +2265,8 @@ type leaveTypeRule struct {
 
 const leavePolicyColumns = `half_day_fraction::float8, to_char(shift_starts_at,'HH24:MI'),
 	grace_minutes, late_marks_per_lop_day, late_half_day_after_minutes,
-	lop_on_absent, lop_on_unpaid_leave, lop_rounding, max_lop_days_per_month::float8`
+	lop_on_absent, lop_on_unpaid_leave, lop_on_exhausted_quota,
+	lop_rounding, max_lop_days_per_month::float8`
 
 /*
 getLeavePolicy reads the rules, creating the defaults if the school has none.
@@ -2279,7 +2284,7 @@ func (s *Server) getLeavePolicy(w http.ResponseWriter, r *http.Request) {
 				`SELECT `+leavePolicyColumns+` FROM leave_policy WHERE institution_id = $1`,
 				id.InstitutionID).Scan(&v.HalfDayFraction, &v.ShiftStartsAt,
 				&v.GraceMinutes, &v.LateMarksPerDay, &v.LateHalfDayMins,
-				&v.LOPOnAbsent, &v.LOPOnUnpaid, &v.Rounding, &v.MaxLOPPerMonth)
+				&v.LOPOnAbsent, &v.LOPOnUnpaid, &v.LOPOnExhausted, &v.Rounding, &v.MaxLOPPerMonth)
 		}
 		if err := scan(); errors.Is(err, pgx.ErrNoRows) {
 			if _, err := tx.Exec(r.Context(),
@@ -2354,8 +2359,9 @@ func (s *Server) saveLeavePolicy(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO leave_policy (institution_id, half_day_fraction, shift_starts_at,
 			    grace_minutes, late_marks_per_lop_day, late_half_day_after_minutes,
-			    lop_on_absent, lop_on_unpaid_leave, lop_rounding, max_lop_days_per_month)
-			VALUES ($1,$2,$3::time,$4,$5,$6,$7,$8,$9,$10)
+			    lop_on_absent, lop_on_unpaid_leave, lop_on_exhausted_quota,
+			    lop_rounding, max_lop_days_per_month)
+			VALUES ($1,$2,$3::time,$4,$5,$6,$7,$8,$9,$10,$11)
 			ON CONFLICT (institution_id) DO UPDATE SET
 			    half_day_fraction = EXCLUDED.half_day_fraction,
 			    shift_starts_at = EXCLUDED.shift_starts_at,
@@ -2364,11 +2370,12 @@ func (s *Server) saveLeavePolicy(w http.ResponseWriter, r *http.Request) {
 			    late_half_day_after_minutes = EXCLUDED.late_half_day_after_minutes,
 			    lop_on_absent = EXCLUDED.lop_on_absent,
 			    lop_on_unpaid_leave = EXCLUDED.lop_on_unpaid_leave,
+			    lop_on_exhausted_quota = EXCLUDED.lop_on_exhausted_quota,
 			    lop_rounding = EXCLUDED.lop_rounding,
 			    max_lop_days_per_month = EXCLUDED.max_lop_days_per_month`,
 			id.InstitutionID, req.HalfDayFraction, req.ShiftStartsAt,
 			req.GraceMinutes, req.LateMarksPerDay, req.LateHalfDayMins,
-			req.LOPOnAbsent, req.LOPOnUnpaid, req.Rounding,
+			req.LOPOnAbsent, req.LOPOnUnpaid, req.LOPOnExhausted, req.Rounding,
 			req.MaxLOPPerMonth); err != nil {
 			return err
 		}

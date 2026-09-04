@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 399 features.
+// Roles is the catalog: 23 roles, 400 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -445,6 +445,7 @@ var Roles = []Role{
 					{Key: "institution_admin.attendance_devices.staff_attendance_register", Slug: "staff_attendance_register", Name: "Staff attendance register", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who was in today and who was not, taken off the fingerprint readers above. The day the school actually had, not the one the roster planned: late arrivals, early departures, and the staff a reader recorded no punch for at all."},
 					{Key: "institution_admin.attendance_devices.working_hours_lop_rules", Slug: "working_hours_lop_rules", Name: "Working Hours & LOP Rules", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The hours this school expects, named by the school and assigned to a department or a person: teaching, office and transport rarely start together. Each set says what counts as a full day, when somebody is late, and how -- or whether -- the school cuts pay for a day lost."},
 					{Key: "institution_admin.attendance_devices.staff_hours_this_month", Slug: "staff_hours_this_month", Name: "Staff Hours This Month", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One month of the fingerprint readers read against each person's own expected hours: days worked, half days, late arrivals, early departures, and the loss of pay that follows under the school's own rule -- with the rule named beside the figure."},
+					{Key: "institution_admin.attendance_devices.leave_rules_lop", Slug: "leave_rules_lop", Name: "Leave Rules & LOP", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The leave types this school grants and how many of each, whether they carry forward or are encashed, and exactly what becomes loss of pay -- absence, unpaid leave, leave taken past its quota, and how many late marks make a day. The payslip is built from these and nothing else."},
 					{Key: "institution_admin.attendance_devices.staff_attendance_reports", Slug: "staff_attendance_reports", Name: "Staff attendance reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need."},
 				},
 			},

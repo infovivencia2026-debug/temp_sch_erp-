@@ -46,6 +46,7 @@ interface Policy {
   late_half_day_after_minutes?: number
   lop_on_absent: boolean
   lop_on_unpaid_leave: boolean
+  lop_on_exhausted_quota: boolean
   lop_rounding: string
   max_lop_days_per_month?: number
   types: TypeRule[]
@@ -60,6 +61,7 @@ interface LOPRow {
   unpaid_leave_days: number
   late_marks: number
   lop_days: number
+  quota_lop_days: number
 }
 
 interface LOPRegister {
@@ -303,6 +305,10 @@ function LOPRulesTab({
           <Checkbox checked={policy.lop_on_unpaid_leave} onChange={(v) => onChange('lop_on_unpaid_leave', v)}
             label="Leave taken on an unpaid type costs a day"
             hint="Half-day unpaid leave costs the half-day fraction above" />
+          <Checkbox checked={policy.lop_on_exhausted_quota}
+            onChange={(v) => onChange('lop_on_exhausted_quota', v)}
+            label="Paid leave taken past its quota costs a day"
+            hint="Counted across the school's year. Only the days past the entitlement are charged; a type with no quota set is never exhausted." />
           <FormGrid>
             <Field label="Most days a month may lose"
               hint="Leave blank for no cap. A month can never cost more days than it has.">
@@ -347,7 +353,7 @@ function RegisterTab() {
         <EmptyState title="Nobody lost a day"
           body="Every member of staff was present, on paid leave, or inside the grace period." />
       ) : (
-        <Table head={['Employee', 'Absent', 'Half days', 'Unpaid leave', 'Late marks', 'Days lost']}>
+        <Table head={['Employee', 'Absent', 'Half days', 'Unpaid leave', 'Past quota', 'Late marks', 'Days lost']}>
           {rows.map((r) => (
             <tr key={r.employee_id}>
               <Td className="font-medium">{r.full_name}
@@ -356,6 +362,9 @@ function RegisterTab() {
               <Td className="tabular-nums text-muted-foreground">{r.absent_days || '—'}</Td>
               <Td className="tabular-nums text-muted-foreground">{r.half_days || '—'}</Td>
               <Td className="tabular-nums text-muted-foreground">{r.unpaid_leave_days || '—'}</Td>
+              {/* Kept apart from unpaid leave: one is leave the school never
+                  funded, the other is leave this person had used up. */}
+              <Td className="tabular-nums text-muted-foreground">{r.quota_lop_days || '—'}</Td>
               <Td className="tabular-nums text-muted-foreground">{r.late_marks || '—'}</Td>
               <Td className="tabular-nums font-medium">{r.lop_days}</Td>
             </tr>
