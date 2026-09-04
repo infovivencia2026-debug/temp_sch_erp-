@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 402 of the catalog's features are implemented.
+// 406 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -143,7 +143,9 @@ var implementedFeatures = map[string]bool{
 	"hr.attendance.biometric_machine_attendance_sync":                                true,
 	"hr.attendance.biometric_punch_in_out_grace_period":                              true,
 	"hr.attendance.staff_duty_roster":                                                true,
+	"hr.attendance.staff_hours_this_month":                                           true,
 	"hr.attendance.staff_register":                                                   true,
+	"hr.attendance.working_hours_lop_rules":                                          true,
 	"hr.hiring_training.staff_hiring":                                                true,
 	"hr.hiring_training.staff_performance_reviews":                                   true,
 	"hr.hiring_training.staff_training_development":                                  true,
@@ -178,6 +180,8 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.attendance_devices.biometric_readers":                         true,
 	"institution_admin.attendance_devices.staff_attendance_register":                 true,
 	"institution_admin.attendance_devices.staff_attendance_reports":                  true,
+	"institution_admin.attendance_devices.staff_hours_this_month":                    true,
+	"institution_admin.attendance_devices.working_hours_lop_rules":                   true,
 	"institution_admin.channel_setup.message_channels":                               true,
 	"institution_admin.channel_setup.quiet_hours_sending_limits":                     true,
 	"institution_admin.channel_setup.sender_identity":                                true,

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 395 features. */
+/** 23 roles, 399 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -396,6 +396,8 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.attendance_devices.biometric_readers', slug: 'biometric_readers', name: 'Biometric Readers', scope: 'institution', tier: 'core', summary: 'The fingerprint readers this school runs: the serial each one reports, whether it is trusted yet, when it last spoke, and punches from a finger nobody claims.' },
           { key: 'institution_admin.attendance_devices.staff_attendance_register', slug: 'staff_attendance_register', name: 'Staff attendance register', scope: 'institution', tier: 'core', summary: 'Who was in today and who was not, taken off the fingerprint readers above. The day the school actually had, not the one the roster planned: late arrivals, early departures, and the staff a reader recorded no punch for at all.' },
+          { key: 'institution_admin.attendance_devices.working_hours_lop_rules', slug: 'working_hours_lop_rules', name: 'Working Hours & LOP Rules', scope: 'institution', tier: 'core', summary: 'The hours this school expects, named by the school and assigned to a department or a person: teaching, office and transport rarely start together. Each set says what counts as a full day, when somebody is late, and how -- or whether -- the school cuts pay for a day lost.' },
+          { key: 'institution_admin.attendance_devices.staff_hours_this_month', slug: 'staff_hours_this_month', name: 'Staff Hours This Month', scope: 'institution', tier: 'core', summary: 'One month of the fingerprint readers read against each person\'s own expected hours: days worked, half days, late arrivals, early departures, and the loss of pay that follows under the school\'s own rule -- with the rule named beside the figure.' },
           { key: 'institution_admin.attendance_devices.staff_attendance_reports', slug: 'staff_attendance_reports', name: 'Staff attendance reports', scope: 'institution', tier: 'core', summary: 'The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need.' },
         ],
       },
@@ -1213,6 +1215,8 @@ export const ROLES: Role[] = [
           { key: 'hr.attendance.staff_register', slug: 'staff_register', name: 'Staff register', scope: 'institution', tier: 'core', summary: 'Today\'s attendance for every active member of staff, marked in one pass.' },
           { key: 'hr.attendance.biometric_machine_attendance_sync', slug: 'biometric_machine_attendance_sync', name: 'Biometric Machine Attendance Sync', scope: 'institution', tier: 'advanced', summary: 'Real-time automated fetch of staff check-in/out logs from biometric hardware.' },
           { key: 'hr.attendance.biometric_punch_in_out_grace_period', slug: 'biometric_punch_in_out_grace_period', name: 'Biometric Punch In/Out Grace Period', scope: 'institution', tier: 'advanced', summary: 'Configure 10-minute grace windows for morning staff check-in before triggering late mark deductions.' },
+          { key: 'hr.attendance.working_hours_lop_rules', slug: 'working_hours_lop_rules', name: 'Working Hours & LOP Rules', scope: 'institution', tier: 'core', summary: 'The hours this school expects, named by the school and assigned to a department or a person: teaching, office and transport rarely start together. Each set says what counts as a full day, when somebody is late, and how -- or whether -- the school cuts pay for a day lost.' },
+          { key: 'hr.attendance.staff_hours_this_month', slug: 'staff_hours_this_month', name: 'Staff Hours This Month', scope: 'institution', tier: 'core', summary: 'One month of the fingerprint readers read against each person\'s own expected hours: days worked, half days, late arrivals, early departures, and the loss of pay that follows under the school\'s own rule -- with the rule named beside the figure.' },
           { key: 'hr.attendance.staff_duty_roster', slug: 'staff_duty_roster', name: 'Staff duty roster', scope: 'institution', tier: 'core', summary: 'Assign staff to campus duties - gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they teach.' },
         ],
       },

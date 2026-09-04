@@ -808,6 +808,19 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* THE SCHOOL'S OWN RULE, not this function's.
+
+		   Loss of pay was a fraction with the calendar month underneath it:
+		   days absent over days in the month, the same for a teacher, a driver
+		   and the office, whatever the school's policy actually was. February
+		   therefore cost more per day than January, Sundays counted as payable
+		   days for everyone, and a school that deducts nothing for permanent
+		   staff had no way to say so.
+
+		   The pattern says how this school cuts: on the days it actually
+		   expected the person, and by its own divisor. Every part of it falls
+		   back to what this code did before, so a school that has set nothing
+		   is paid exactly as it was yesterday. */
 		rows, err := tx.Query(r.Context(), `
 			SELECT e.id, ss.id, ss.ctc_paise,
 			       -- staff_attendance keys on user_id, not employee_id, so loss
@@ -816,11 +829,36 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			                  WHERE sa.user_id = e.user_id
 			                    AND sa.status = 'absent'
 			                    AND extract(month FROM sa.on_date) = $1
-			                    AND extract(year  FROM sa.on_date) = $2), 0)::int
+			                    AND extract(year  FROM sa.on_date) = $2), 0)::int,
+			       COALESCE(p.lop_basis, 'salary'),
+			       COALESCE(p.salary_divisor, 0),
+			       /* The days this person was actually expected: their pattern's
+			          working days, less the school's holidays. Zero where no
+			          pattern applies, and the caller then keeps the calendar
+			          month it has always used. */
+			       COALESCE((
+			         SELECT count(*)::int
+			           FROM generate_series(make_date($2,$1,1),
+			                                (make_date($2,$1,1) + INTERVAL '1 month - 1 day')::date,
+			                                INTERVAL '1 day') AS g(day)
+			          WHERE p.id IS NOT NULL
+			            AND EXTRACT(ISODOW FROM g.day)::int = ANY(p.working_days)
+			            AND NOT EXISTS (SELECT 1 FROM holidays h
+                             WHERE h.institution_id = e.institution_id
+                               AND h.kind IN ('holiday','vacation')
+                               AND h.applies_to IN ('all','staff')
+                               AND g.day::date BETWEEN h.on_date
+                                          AND COALESCE(h.to_date, h.on_date))), 0)
 			  FROM employees e
 			  JOIN salary_structures ss ON ss.employee_id = e.id
 			   AND ss.effective_from <= make_date($2,$1,1)
 			   AND (ss.effective_to IS NULL OR ss.effective_to >= make_date($2,$1,1))
+			  LEFT JOIN departments   d ON d.id = e.department_id
+			  LEFT JOIN work_patterns p ON p.id = COALESCE(e.work_pattern_id,
+			                                               d.work_pattern_id,
+			                                               (SELECT dp.id FROM work_patterns dp
+			                                                 WHERE dp.institution_id = e.institution_id
+			                                                   AND dp.is_default LIMIT 1))
 			 WHERE e.status = 'active' AND e.user_id IS NOT NULL`, req.Month, req.Year)
 		if err != nil {
 			return err
@@ -828,12 +866,16 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 		type emp struct {
 			id, structure uuid.UUID
 			ctc           int64
+			lopBasis      string
+			divisor       int
+			expectedDays  int
 			absent        int
 		}
 		var emps []emp
 		for rows.Next() {
 			var e emp
-			if err := rows.Scan(&e.id, &e.structure, &e.ctc, &e.absent); err != nil {
+			if err := rows.Scan(&e.id, &e.structure, &e.ctc, &e.absent,
+				&e.lopBasis, &e.divisor, &e.expectedDays); err != nil {
 				rows.Close()
 				return err
 			}
@@ -845,11 +887,33 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, e := range emps {
-			paidDays := float64(daysInMonth - e.absent)
+			/* What the month is divided by, in the school's terms.
+
+			   Its own divisor where it set one -- thirty is what most Indian
+			   contracts say. Zero means divide by the days actually expected,
+			   which is the fairer rule and the one a short month makes
+			   obvious. Neither set: the calendar month, as before. */
+			base := daysInMonth
+			switch {
+			case e.divisor > 0:
+				base = e.divisor
+			case e.expectedDays > 0:
+				base = e.expectedDays
+			}
+
+			paidDays := float64(base - e.absent)
 			if paidDays < 0 {
 				paidDays = 0
 			}
-			ratio := paidDays / float64(daysInMonth)
+			ratio := paidDays / float64(base)
+
+			/* A school that has said it does not deduct, does not deduct.
+			   Absence is still recorded and still reported; it simply does not
+			   reach the payslip, which for permanent staff is what most
+			   schools actually do. */
+			if e.lopBasis == "none" {
+				ratio = 1
+			}
 
 			var earn, deduct int64
 			breakup := map[string]int64{}

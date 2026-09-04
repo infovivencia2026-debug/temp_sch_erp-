@@ -454,6 +454,26 @@ func (s *Server) Routes() http.Handler {
 			// A phone changes, a name changes, somebody is promoted, a salary
 			// account is keyed wrong once. No delete: leaving is a status.
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).Patch("/employees/{id}", s.updateEmployee)
+
+			/* THE HOURS A SCHOOL EXPECTS, AND WHAT MISSING THEM COSTS.
+
+			   Reading is on employees.read, so HR, the principal and anybody
+			   else holding the staff roll can see the month. Writing is on
+			   employees.write, because these hours decide a deduction and the
+			   people who may not appoint staff may not decide their pay
+			   either.
+
+			   Every school keeps different hours for teaching, office and
+			   transport, so the patterns are the school's own: named, timed
+			   and assigned by them, not five fixed ones chosen here. */
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
+				Get("/work-patterns", s.listWorkPatterns)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Post("/work-patterns", s.saveWorkPattern)
+			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
+				Delete("/work-patterns/{id}", s.deleteWorkPattern)
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
+				Get("/staff-hours", s.getStaffHours)
 			// Completing an appointment: whoever may appoint somebody may let
 			// them in. Deliberately not access.users.write — that right would
 			// also let HR reset the principal's password.
