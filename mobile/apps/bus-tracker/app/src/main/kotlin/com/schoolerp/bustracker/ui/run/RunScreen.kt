@@ -211,16 +211,23 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                network, and a grey grid would read as the app being broken. */
             val located = stops.filter { it.latitude != null && it.longitude != null }
             val next = stops.firstOrNull { it.arrivedAtMillis == null }
-            if (located.isNotEmpty() && next != null) {
-                NavigationBanner(
+            if (located.isNotEmpty() && status.hasNetwork) {
+                // The banner is drawn on the map, at its top edge.
+                RouteMap(
+                    stops = stops,
                     guidance = guidance,
                     muted = voiceMuted,
                     onMuteChange = viewModel::setVoiceMuted,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
-            if (located.isNotEmpty() && status.hasNetwork) {
-                RouteMap(stops = stops, guidance = guidance, modifier = Modifier.fillMaxWidth())
             } else {
+                if (located.isNotEmpty() && next != null) {
+                    NavigationBanner(
+                        guidance = guidance,
+                        muted = voiceMuted,
+                        onMuteChange = viewModel::setVoiceMuted,
+                    )
+                }
                 RouteSketch(stops, modifier = Modifier.fillMaxWidth())
             }
 

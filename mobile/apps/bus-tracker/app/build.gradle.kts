@@ -26,8 +26,8 @@ android {
         // 26 is where the foreground-service model this app depends on begins.
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.4.0"
+        versionCode = 5
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

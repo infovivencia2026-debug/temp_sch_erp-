@@ -1,6 +1,7 @@
 package com.schoolerp.bustracker.ui.run
 
 import android.content.Context
+import android.widget.FrameLayout
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.DashPathEffect
@@ -10,10 +11,14 @@ import android.graphics.Point
 import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -68,6 +73,8 @@ import java.io.File
 fun RouteMap(
     stops: List<StopEntity>,
     guidance: Guidance?,
+    muted: Boolean,
+    onMuteChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -127,13 +134,43 @@ fun RouteMap(
         (nextId?.let { id -> located.firstOrNull { it.stopId == id }?.let { ", next ${it.name}" } } ?: "") +
         (if (bus != null) ", bus shown" else ", waiting for the bus's position")
 
-    Box(modifier.height(360.dp)) {
+    /* CLIPPED, TWICE.
+
+       osmdroid rotates the whole canvas to turn the map heading-up, and it
+       draws the rotated square without clipping it to its own bounds: it
+       relies on whoever holds it to do that. Nothing did. The tiles and the
+       route line painted over the banner above, the route heading above
+       that, and down across the next-stop card -- a tilted square of map
+       bleeding across the screen. Compose clips the Box to the card shape
+       and to its bounds, and the FrameLayout on the View side clips its
+       child as well, because Compose's clip does not reach into a View's
+       own canvas the way a ViewGroup's clipChildren does.
+
+       Most of the screen, and never less than the height that fits a
+       junction: this is the navigator, and a map the height of a card is a
+       map the driver zooms out of to see anything. */
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val shape = MaterialTheme.shapes.medium
+    Box(
+        modifier
+            .height((screenHeight * 0.55f).coerceAtLeast(360.dp))
+            .clip(shape)
+            .clipToBounds(),
+    ) {
         AndroidView(
-            factory = { map },
+            factory = { ctx ->
+                FrameLayout(ctx).apply {
+                    clipChildren = true
+                    clipToPadding = true
+                    addView(map, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
+                .clipToBounds()
                 .semantics { contentDescription = description },
-            update = { view ->
+            update = { _ ->
+                val view = map
                 overlay.stops = located
                 overlay.nextStopId = nextId
                 overlay.line = guidance?.line ?: located.map { LatLng(it.latitude!!, it.longitude!!) }
@@ -159,13 +196,28 @@ fun RouteMap(
             },
         )
 
-        Row(
+        /* The banner sits on the map, at its top edge, the way a car's
+           navigator draws it: one view, not a card and then a map. */
+        NavigationBanner(
+            guidance = guidance,
+            muted = muted,
+            onMuteChange = onMuteChange,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(8.dp),
+        )
+
+        /* Stacked in the corner, not laid across the bottom: the bus sits in
+           the lower third of the map, and a row of buttons there covered it. */
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.End,
         ) {
             val buttonColors = ButtonDefaults.outlinedButtonColors(containerColor = scheme.surface)
+            val small = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             if (panned) {
                 OutlinedButton(
                     onClick = {
@@ -173,7 +225,9 @@ fun RouteMap(
                         fitStamp++
                     },
                     colors = buttonColors,
-                ) { Text("Recentre") }
+                    contentPadding = small,
+                    modifier = Modifier.height(36.dp),
+                ) { Text("Recentre", style = MaterialTheme.typography.labelLarge) }
             }
             OutlinedButton(
                 onClick = {
@@ -182,7 +236,14 @@ fun RouteMap(
                     fitStamp++
                 },
                 colors = buttonColors,
-            ) { Text(if (mode == Camera.FOLLOW) "Whole route" else "Follow bus") }
+                contentPadding = small,
+                modifier = Modifier.height(36.dp),
+            ) {
+                Text(
+                    if (mode == Camera.FOLLOW) "Whole route" else "Follow bus",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }
