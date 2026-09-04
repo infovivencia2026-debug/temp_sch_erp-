@@ -25,6 +25,9 @@ interface Row {
   name: string
   department: string
   pattern: string
+  starts_at: string
+  ends_at: string
+  grace_minutes: number
   expected_days: number
   present_days: number
   half_days: number
@@ -41,6 +44,8 @@ interface Day {
   on_date: string
   weekday: string
   expected: boolean
+  due_in: string
+  due_out: string
   status: string
   check_in?: string | null
   check_out?: string | null
@@ -75,7 +80,9 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
         <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th className="py-1 pr-4">Day</th>
+            <th className="py-1 pr-4">Due in</th>
             <th className="py-1 pr-4">Punched in</th>
+            <th className="py-1 pr-4">Due out</th>
             <th className="py-1 pr-4">Punched out</th>
             <th className="py-1 pr-4">On the premises</th>
             <th className="py-1 pr-4">Late by</th>
@@ -91,7 +98,15 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
               <td className="py-1 pr-4 tabular-nums whitespace-nowrap">
                 {d.on_date.slice(8)} {d.weekday}
               </td>
+              {/* Due beside actual, so a late count explains itself on the
+                  row rather than needing the pattern looked up elsewhere. */}
+              <td className="py-1 pr-4 tabular-nums text-slate-400">
+                {d.expected ? d.due_in : '-'}
+              </td>
               <td className="py-1 pr-4 tabular-nums">{d.check_in ?? '-'}</td>
+              <td className="py-1 pr-4 tabular-nums text-slate-400">
+                {d.expected ? d.due_out : '-'}
+              </td>
               <td className="py-1 pr-4 tabular-nums">{d.check_out ?? '-'}</td>
               <td className="py-1 pr-4 tabular-nums">{hhmm(d.minutes) || '-'}</td>
               <td className="py-1 pr-4 tabular-nums">
@@ -170,10 +185,23 @@ export default function StaffHours() {
                     {r.name}
                     {r.department && <div className="text-xs text-slate-500">{r.department}</div>}
                   </Td>
+                  {/* THE TIMES, NOT JUST THE NAME OF THEM.
+
+                      "School hours" beside a count of late minutes does not say
+                      what the minutes were counted from, and that is the whole
+                      question the moment one member of staff keeps different
+                      hours from the rest. */}
                   <Td>
-                    {r.pattern === 'None'
-                      ? <Badge tone="warning">None set</Badge>
-                      : r.pattern}
+                    {r.pattern === 'None' ? (
+                      <Badge tone="warning">None set</Badge>
+                    ) : (
+                      <>
+                        <div className="tabular-nums">{r.starts_at}&ndash;{r.ends_at}</div>
+                        <div className="text-xs text-slate-500">
+                          {r.pattern} &middot; {r.grace_minutes} min grace
+                        </div>
+                      </>
+                    )}
                   </Td>
                   <Td className="tabular-nums">{r.expected_days}</Td>
                   <Td className="tabular-nums">{r.present_days}</Td>

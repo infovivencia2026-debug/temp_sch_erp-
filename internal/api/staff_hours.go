@@ -33,9 +33,18 @@ type staffMonth struct {
 	Name       string `json:"name"`
 	Department string `json:"department"`
 	Pattern    string `json:"pattern"`
-	Expected   int    `json:"expected_days"`
-	Present    int    `json:"present_days"`
-	HalfDays   int    `json:"half_days"`
+	/* The hours that name stands for, and the grace inside them.
+
+	   The name alone is no use for the thing this screen exists to do. A
+	   school where the guard starts at six and the office at nine saw the word
+	   against a count of late minutes and could not tell what the minutes were
+	   counted from, which is the whole question once the timings differ. */
+	StartsAt string `json:"starts_at"`
+	EndsAt   string `json:"ends_at"`
+	Grace    int    `json:"grace_minutes"`
+	Expected int    `json:"expected_days"`
+	Present  int    `json:"present_days"`
+	HalfDays int    `json:"half_days"`
 	// Days nobody marked at all. Reported rather than absorbed: it is the
 	// difference between a person who was away and a register nobody kept, and
 	// a school reading this needs to know which it is looking at.
@@ -188,6 +197,10 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 		   GROUP BY s.id
 		)
 		SELECT s.id::text, s.employee_code, s.name, s.department, s.pattern,
+		       -- Empty rather than null where nobody is on any pattern: the
+		       -- screen says "None set" in that case and has no times to show.
+		       COALESCE(to_char(s.starts_at,'HH24:MI'), ''),
+		       COALESCE(to_char(s.ends_at,'HH24:MI'), ''), s.grace,
 		       COALESCE(e.days, 0),
 		       COALESCE(m.present, 0), COALESCE(m.halves, 0),
 		       /* Days nobody marked at all, reported rather than absorbed. */
@@ -226,7 +239,8 @@ func (s *Server) getStaffHours(w http.ResponseWriter, r *http.Request) {
 			var perDay, monthly *int64
 			var divisor int
 			if err := rows.Scan(&v.EmployeeID, &v.Code, &v.Name, &v.Department,
-				&v.Pattern, &v.Expected, &v.Present, &v.HalfDays, &v.Unmarked, &v.Absent,
+				&v.Pattern, &v.StartsAt, &v.EndsAt, &v.Grace,
+				&v.Expected, &v.Present, &v.HalfDays, &v.Unmarked, &v.Absent,
 				&v.Late, &v.EarlyLeaves, &v.LOPDays,
 				&basis, &perDay, &divisor, &monthly); err != nil {
 				return v, err
@@ -284,9 +298,14 @@ getStaffMonthDays is one person's month, a row per day.
 	silently omits them looks complete and is not.
 */
 type staffDay struct {
-	Date     string  `json:"on_date"`
-	Weekday  string  `json:"weekday"`
-	Expected bool    `json:"expected"`
+	Date     string `json:"on_date"`
+	Weekday  string `json:"weekday"`
+	Expected bool   `json:"expected"`
+	// What this person was due on this day under their own hours, printed
+	// beside what they actually did. A minute count with nothing to measure it
+	// from is a number somebody has to be told the meaning of.
+	DueIn    string  `json:"due_in"`
+	DueOut   string  `json:"due_out"`
 	Status   string  `json:"status"`
 	CheckIn  *string `json:"check_in,omitempty"`
 	CheckOut *string `json:"check_out,omitempty"`
@@ -338,6 +357,7 @@ func (s *Server) getStaffMonthDays(w http.ResponseWriter, r *http.Request) {
 		)
 		SELECT to_char(d.on_date, 'YYYY-MM-DD'),
 		       to_char(d.on_date, 'Dy'),
+		       to_char(m.starts_at,'HH24:MI'), to_char(m.ends_at,'HH24:MI'),
 		       (EXTRACT(ISODOW FROM d.on_date)::int = ANY(m.working_days)
 		        AND NOT EXISTS (SELECT 1 FROM holidays h
 		                         WHERE h.institution_id = m.institution_id
@@ -364,7 +384,7 @@ func (s *Server) getStaffMonthDays(w http.ResponseWriter, r *http.Request) {
 		 ORDER BY d.on_date`, []any{month, employee},
 		func(rows pgx.Rows) (staffDay, error) {
 			var v staffDay
-			if err := rows.Scan(&v.Date, &v.Weekday, &v.Expected, &v.Status,
+			if err := rows.Scan(&v.Date, &v.Weekday, &v.DueIn, &v.DueOut, &v.Expected, &v.Status,
 				&v.CheckIn, &v.CheckOut, &v.Minutes, &v.LateBy); err != nil {
 				return v, err
 			}
