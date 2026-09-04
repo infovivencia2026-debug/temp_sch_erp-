@@ -17,7 +17,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SelectRow, SliderRow, SwitchRow } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, SliderRow, SwitchRow } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
@@ -93,7 +93,9 @@ function Choice<T extends string>(props: {
   name: (v: T) => string
   helper?: React.ReactNode
 }) {
-  return <SelectRow {...props} />
+  // Was a SelectRow, under a comment arguing at length for a toggle. The
+  // argument was right and the code did not do it.
+  return <SegmentRow {...props} />
 }
 
 function Axis<T extends string>(props: {

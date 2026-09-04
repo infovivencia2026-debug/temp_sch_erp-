@@ -87,6 +87,22 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 type updateProfileRequest struct {
 	FullName string  `json:"full_name"`
 	Phone    *string `json:"phone"`
+	/* THE PICTURE, WHICH THE COLUMN HAS ALWAYS HAD ROOM FOR.
+
+	   users.avatar_key has been in the baseline since the beginning and the
+	   profile read has always returned it. Nothing ever wrote it, so every
+	   person in every school was drawn as their initials and there was no way
+	   to be anything else.
+
+	   A key, not a URL: the value is the id the file endpoint returns, and the
+	   client asks that endpoint for the bytes. Storing a URL would put the
+	   host in the database and break every avatar the day the deployment moves.
+
+	   Absent leaves the picture alone; an empty string takes it off. A JSON
+	   null cannot be told from a missing field once it is decoded into a
+	   pointer, so "remove my photo" is spelled with "" rather than with null,
+	   which is the one spelling that survives the round trip. */
+	AvatarKey *string `json:"avatar_key"`
 	/* THE ADDRESS SOMEBODY SIGNS IN WITH.
 
 	   Left out of this until now, on the grounds that changing a login
@@ -153,12 +169,19 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 			UPDATE users
 			   SET full_name = $2,
 			       phone = $3,
+			       -- Absent keeps what is there, "" clears it, anything else
+			       -- replaces it.
+			       avatar_key = CASE
+			                      WHEN $5::text IS NULL THEN avatar_key
+			                      WHEN $5 = '' THEN NULL
+			                      ELSE $5
+			                    END,
 			       -- Left alone unless it changed, so a caller that does not
 			       -- send the field cannot blank a login identifier.
 			       email = COALESCE($4::citext, email),
 			       updated_at = now()
 			 WHERE id = $1`,
-			id.UserID, req.FullName, req.Phone, newEmail)
+			id.UserID, req.FullName, req.Phone, newEmail, req.AvatarKey)
 		return err
 	})
 	/* A number somebody else already has is the caller's problem to fix, not a

@@ -233,3 +233,59 @@ export function SwitchRow({
     </button>
   )
 }
+
+/* TWO STATES, BOTH SHOWN.
+
+   Sidebar and Focus are not a scale and not a list: they are two shapes of
+   screen, and the answer is always one of exactly two. A dropdown for that
+   hides one of the two answers behind a tap and asks the reader to remember
+   what the other one was called, which is why the row above this one has spent
+   its life carrying a comment arguing for a toggle while rendering a select.
+
+   Both names are on screen and the current one is filled. That costs one extra
+   word of width and removes the question entirely. Above two options this is
+   the wrong control and SelectRow is still the right one, so it refuses rather
+   than laying out five segments nobody can read. */
+export function SegmentRow<T extends string>({
+  label, value, options, name, onPick, helper,
+}: {
+  label: string
+  value: T
+  options: readonly T[]
+  name: (v: T) => string
+  onPick: (v: T) => void
+  helper?: ReactNode
+}) {
+  if (options.length !== 2) {
+    return <SelectRow label={label} value={value} options={options} name={name}
+                      onPick={onPick} helper={helper} />
+  }
+  return (
+    <Row label={label} helper={helper}>
+      <span
+        role="group"
+        aria-label={label}
+        className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full border p-0.5"
+      >
+        {options.map((o) => {
+          const on = o === value
+          return (
+            <button
+              key={o}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPick(o)}
+              className={cn(
+                'rounded-full px-3 py-1 text-[13px] transition-colors',
+                on ? 'bg-foreground text-background font-medium'
+                   : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {name(o)}
+            </button>
+          )
+        })}
+      </span>
+    </Row>
+  )
+}

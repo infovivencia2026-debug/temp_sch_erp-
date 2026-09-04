@@ -1,4 +1,7 @@
-import { ChevronRight } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Camera, ChevronRight } from 'lucide-react'
+import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import type { ListItem } from './AppearanceDialog'
@@ -163,14 +166,33 @@ function Row({ item, value, swatch, onClick }: {
 
    Not vanity: this product signs one person into several roles and several
    schools, and "which account am I in" is a question the old list could not
-   answer at all. The initials are drawn rather than an image because there is
-   no avatar in this product and inventing an upload for one belongs to a
-   different piece of work. */
+   answer at all.
+
+   THE PICTURE IS REAL NOW. users.avatar_key has been in the baseline since the
+   beginning and the profile read has always returned it; nothing ever wrote
+   it, so every person in every school was drawn as their initials with no way
+   to be anything else. The camera button uploads to the same file endpoint the
+   student photo import uses and stores the id it returns.
+
+   Initials stay as the fallback rather than a grey silhouette. A silhouette
+   says "no picture"; initials say who this is, which is the thing the row is
+   for. */
 function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
   const session = useSession()
-  const name = session.user?.full_name ?? 'Signed in'
+  const qc = useQueryClient()
+  const file = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  const profile = useQuery({
+    queryKey: ['profile', 'avatar'],
+    queryFn: () => api.get<{ full_name: string; avatar_key?: string }>('/api/v1/profile'),
+  })
+
+  const name = profile.data?.full_name ?? session.user?.full_name ?? 'Signed in'
   const school = session.institution?.name
   const role = session.user?.roles?.[0]?.replace(/_/g, ' ')
+  const avatar = profile.data?.avatar_key
 
   const initials = name
     .split(/\s+/)
@@ -179,27 +201,87 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || '?'
 
+  async function pick(f: File) {
+    setBusy(true)
+    setFailed(null)
+    try {
+      const form = new FormData()
+      form.append('file', f)
+      const up = await fetch('/api/v1/files', { method: 'POST', body: form })
+      if (!up.ok) throw new Error('That picture did not upload')
+      const { file_id } = (await up.json()) as { file_id: string }
+      /* full_name goes with it because the endpoint rewrites the row and
+         requires a name. Sending the one we just read back keeps this from
+         being a rename nobody asked for. */
+      await api.put('/api/v1/profile', { full_name: name, avatar_key: file_id })
+      await qc.invalidateQueries({ queryKey: ['profile'] })
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'That picture did not upload')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpen('account')}
-      className="flex w-full items-center gap-3 rounded-[14px] border bg-card px-4 py-3.5
-                 text-left transition-colors active:bg-muted"
-    >
-      <span
-        aria-hidden
-        className="grid size-11 shrink-0 place-items-center rounded-full bg-muted
-                   text-[15px] font-semibold"
+    <section className="rounded-[16px] border bg-card p-4">
+      <div className="flex items-center gap-4">
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => file.current?.click()}
+            aria-label={avatar ? 'Change your picture' : 'Add a picture'}
+            className="grid size-[72px] place-items-center overflow-hidden rounded-full
+                       bg-muted text-[24px] font-semibold transition-opacity active:opacity-80"
+          >
+            {avatar
+              ? <img src={`/api/v1/files/${avatar}`} alt="" className="size-full object-cover" />
+              : initials}
+          </button>
+          {/* The camera sits on the picture rather than beside it, so the
+              affordance is on the thing it changes. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-0.5 -right-0.5 grid size-7
+                       place-items-center rounded-full border-2 border-card bg-foreground
+                       text-background"
+          >
+            <Camera className="size-3.5" />
+          </span>
+          <input
+            ref={file}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              // Cleared first: picking the same file twice fires no change
+              // event otherwise, so a failed upload could not be retried.
+              e.target.value = ''
+              if (f) void pick(f)
+            }}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[19px] font-semibold leading-tight">{name}</p>
+          <p className="mt-0.5 truncate text-[13.5px] text-muted-foreground">
+            {[school, role].filter(Boolean).join(' \u00b7 ') || 'Account and profile'}
+          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {busy ? 'Uploading\u2026' : failed ?? (avatar ? 'Tap the photo to change it' : 'Tap the photo to add one')}
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onOpen('account')}
+        className="mt-3 flex w-full items-center gap-2 rounded-[10px] px-1 py-2
+                   text-left text-[14px] font-medium transition-colors active:bg-muted"
       >
-        {initials}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15.5px] font-semibold">{name}</span>
-        <span className="block truncate text-[13px] text-muted-foreground">
-          {[school, role].filter(Boolean).join(' · ') || 'Account and profile'}
-        </span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </button>
+        <span className="flex-1">Account and profile</span>
+        <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+      </button>
+    </section>
   )
 }
