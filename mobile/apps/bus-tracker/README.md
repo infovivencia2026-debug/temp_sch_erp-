@@ -198,17 +198,24 @@ is a separate loop reading from that buffer.
 high-importance notification saying the school closed it, and stops the
 service — rather than buffering into a trip that no longer exists.
 
-## The sketch on the run screen
+## The map on the run screen
 
-There is no map. There is no basemap, no tile server, and no map data in this
-APK. What the run screen draws is the **stops, to true relative scale, with a
-scale bar** and a caption saying exactly that. It answers the only question a
-driver actually has of a picture — am I near the stop I think I am near — and
-it does not imply roads it cannot draw.
+Google Maps, through `maps-compose`. The run screen draws the route line,
+numbered stop markers and a bus arrow on it, heading-up with the bus in the
+lower third while a run is on, north-up with the whole route in frame from
+the yard. The map's own blue dot is off: the app's location pipeline is the
+one source of the bus's position.
 
-Longitude is scaled by cos(latitude) so the arrangement of stops is not
-stretched, and both axes share one scale, so the sketch cannot lie about
-distance.
+The key is `MAPS_API_KEY` in `secrets.properties` at the project root
+(git-ignored; the Secrets Gradle Plugin puts it in the manifest). A checkout
+without that file builds against the empty key in `local.defaults.properties`
+and draws a blank map. A night style in `res/raw/map_style_night.json` is
+applied when the phone is in dark mode.
+
+The earlier **stops-to-scale sketch** (`RouteSketch`) is still in the tree
+for a phone with no signal: longitude is scaled by cos(latitude) so the
+arrangement of stops is not stretched, and both axes share one scale, so the
+sketch cannot lie about distance.
 
 ## The honest limits
 

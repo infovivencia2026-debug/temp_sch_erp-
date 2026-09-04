@@ -15,6 +15,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.secrets.gradle.plugin)
 }
 
 android {
@@ -30,6 +31,11 @@ android {
         versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // The secrets plugin fills MAPS_API_KEY on the app variants only. The
+        // unit-test manifest merge (Robolectric reads it) sees this default,
+        // so the test build does not fail on an unfilled placeholder.
+        manifestPlaceholders["MAPS_API_KEY"] = ""
     }
 
     signingConfigs {
@@ -143,6 +149,19 @@ android {
     }
 }
 
+/* THE MAPS KEY.
+
+   secrets.properties at the project root holds MAPS_API_KEY and is
+   git-ignored; the plugin copies it into the manifest placeholder the Maps
+   SDK reads. local.defaults.properties IS committed and carries an empty
+   key, so a checkout without the secret still builds -- it draws a blank
+   map with Google's authorisation failure in logcat, rather than failing
+   at the manifest merge. */
+secrets {
+    propertiesFileName = "secrets.properties"
+    defaultPropertiesFileName = "local.defaults.properties"
+}
+
 // The exported Room schema is committed. A future version bump then has a real
 // "before" to write a migration against, instead of a guess -- and the "before"
 // here holds a bus's unuploaded history.
@@ -180,7 +199,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.security.crypto)
     implementation(libs.zxing.embedded)
-    implementation(libs.osmdroid)
+    implementation(libs.play.services.maps)
+    implementation(libs.maps.compose)
 
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.work)

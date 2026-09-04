@@ -84,6 +84,13 @@
         android:theme="@style/Theme.BusTracker"
         android:usesCleartextTraffic="false">
 
+        <!-- The Google Maps key. The secrets plugin fills the placeholder
+             from the untracked secrets.properties, or with the empty value in
+             local.defaults.properties when that file is absent. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

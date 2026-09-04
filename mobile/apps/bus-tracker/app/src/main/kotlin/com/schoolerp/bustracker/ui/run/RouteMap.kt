@@ -1,70 +1,84 @@
 package com.schoolerp.bustracker.ui.run
 
-import android.content.Context
-import android.widget.FrameLayout
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.DashPathEffect
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.Point
-import android.view.MotionEvent
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.Dash
+import com.google.android.gms.maps.model.Gap
+import com.google.android.gms.maps.model.JointType
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.android.gms.maps.model.RoundCap
+import com.google.maps.android.compose.CameraMoveStartedReason
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.MarkerComposable
+import com.google.maps.android.compose.Polyline
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberUpdatedMarkerState
 import com.schoolerp.bustracker.R
 import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.navigation.Guidance
-import com.schoolerp.bustracker.ui.theme.BusType
 import com.schoolerp.bustracker.navigation.LatLng
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.BoundingBox
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.Projection
-import org.osmdroid.views.overlay.Overlay
-import java.io.File
+import com.schoolerp.bustracker.ui.theme.BusType
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import com.google.android.gms.maps.model.LatLng as GmsLatLng
 
 /**
  * The map under the bus.
  *
- * OpenStreetMap tiles through osmdroid, which is the same imagery the school's
- * own web map draws: no key, no billing, and a driver and the office looking
- * at the same roads. It replaced [RouteSketch], whose caption admitted it
- * carried no map data -- honest, and no use to a driver put on a route he
- * has never driven, which is the case navigation exists for.
+ * Google Maps, through the maps-compose bindings: the stops, the bus and the
+ * route are composables on the map rather than a canvas overlay, and the map
+ * engine does the rotation, the clipping and the labels. It replaced the
+ * OpenStreetMap view, which in turn replaced [RouteSketch], whose caption
+ * admitted it carried no map data.
  *
  * Two cameras. FOLLOW is the driving view: zoomed to the street, turned so
  * the way the bus is going is up, and the bus in the lower third so most of
@@ -73,6 +87,10 @@ import java.io.File
  * on the map stops the camera moving until Recentre is pressed: a map that
  * snaps back the moment the driver looks at the next junction is a map that
  * fights him.
+ *
+ * The app's own location pipeline feeds the bus position, so the map's blue
+ * dot is off; a second, differently-filtered position under the bus arrow
+ * would be two answers to one question.
  */
 @Composable
 fun RouteMap(
@@ -87,75 +105,73 @@ fun RouteMap(
     controlsBottomPadding: Dp = 0.dp,
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val density = LocalDensity.current
     val scheme = MaterialTheme.colorScheme
     val palette = remember(scheme) {
         Palette(
-            done = scheme.outline.toArgb(),
-            pending = scheme.secondary.toArgb(),
-            next = scheme.primary.toArgb(),
-            label = scheme.onPrimary.toArgb(),
-            bus = scheme.error.toArgb(),
+            done = scheme.outline,
+            pending = scheme.secondary,
+            next = scheme.primary,
+            label = scheme.onPrimary,
+            bus = scheme.error,
         )
     }
 
     var mode by remember { mutableStateOf(Camera.FOLLOW) }
     var panned by remember { mutableStateOf(false) }
-    var fitStamp by remember { mutableStateOf(0) }
+    var fitStamp by remember { mutableIntStateOf(0) }
+    /** Which "fit the route" request has been honoured. */
+    var fitted by remember { mutableIntStateOf(-1) }
+    var mapSize by remember { mutableStateOf(IntSize.Zero) }
+    var bannerHeightPx by remember { mutableIntStateOf(0) }
 
-    val map = remember {
-        osmdroidReady(context)
-        MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
-            isTilesScaledToDpi = true
-            minZoomLevel = 4.0
-            maxZoomLevel = 20.0
-            isHorizontalMapRepetitionEnabled = false
-            isVerticalMapRepetitionEnabled = false
-        }
-    }
-    val overlay = remember { RunOverlay(palette, context.resources.displayMetrics.density) }
-    val touch = remember { TouchOverlay { panned = true } }
+    val cameraPositionState = rememberCameraPositionState()
 
-    DisposableEffect(map, lifecycleOwner) {
-        map.overlays.add(overlay)
-        map.overlays.add(touch)
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> map.onResume()
-                Lifecycle.Event.ON_PAUSE -> map.onPause()
-                else -> Unit
+    /* A finger on the map. The camera reports why it started moving; only a
+       gesture counts, so the app's own animations never lock themselves out. */
+    LaunchedEffect(cameraPositionState) {
+        snapshotFlow { cameraPositionState.isMoving to cameraPositionState.cameraMoveStartedReason }
+            .collect { (moving, reason) ->
+                if (moving && reason == CameraMoveStartedReason.GESTURE) panned = true
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            map.onDetach()
-        }
+    }
+
+    val dark = isSystemInDarkTheme()
+    val properties = remember(dark) {
+        MapProperties(
+            isMyLocationEnabled = false,
+            isTrafficEnabled = false,
+            isIndoorEnabled = false,
+            isBuildingEnabled = false,
+            minZoomPreference = 4f,
+            maxZoomPreference = 20f,
+            // Google's day style at night is a white screen a metre from the
+            // driver's face; the bundled style dims it to the dashboard.
+            mapStyleOptions = if (dark) MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style_night) else null,
+        )
+    }
+    val uiSettings = remember {
+        MapUiSettings(
+            // The compass is the one control kept: it is how a driver gets
+            // back to north-up after the map has turned with the bus.
+            compassEnabled = true,
+            zoomControlsEnabled = false,
+            myLocationButtonEnabled = false,
+            mapToolbarEnabled = false,
+            indoorLevelPickerEnabled = false,
+            tiltGesturesEnabled = false,
+        )
     }
 
     val located = stops.filter { it.latitude != null && it.longitude != null }.sortedBy { it.sequence }
     val nextId = stops.firstOrNull { it.arrivedAtMillis == null }?.stopId
     val bus = guidance?.bus
+    val headingDeg = guidance?.headingDeg
     val description = "Map: ${located.size} stops" +
         (nextId?.let { id -> located.firstOrNull { it.stopId == id }?.let { ", next ${it.name}" } } ?: "") +
         (if (bus != null) ", bus shown" else ", waiting for the bus's position")
 
-    /* CLIPPED, TWICE.
-
-       osmdroid rotates the whole canvas to turn the map heading-up, and it
-       draws the rotated square without clipping it to its own bounds: it
-       relies on whoever holds it to do that. Nothing did. The tiles and the
-       route line painted over the banner above, the route heading above
-       that, and down across the next-stop card -- a tilted square of map
-       bleeding across the screen. Compose clips the Box to the card shape
-       and to its bounds, and the FrameLayout on the View side clips its
-       child as well, because Compose's clip does not reach into a View's
-       own canvas the way a ViewGroup's clipChildren does.
-
-       Most of the screen, and never less than the height that fits a
+    /* Most of the screen, and never less than the height that fits a
        junction: this is the navigator, and a map the height of a card is a
        map the driver zooms out of to see anything. */
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
@@ -167,45 +183,70 @@ fun RouteMap(
             .height((screenHeight * 0.55f).coerceAtLeast(360.dp))
             .clip(shape)
     }
+
+    /* The banner and the sheet both sit on the map. Telling the map so
+       keeps its own furniture (compass, Google's logo) out from under them,
+       and makes "the centre of the map" mean the centre of the part the
+       driver can see, which is what the camera arithmetic below works in. */
+    val bannerHeight = with(density) { bannerHeightPx.toDp() }
+    val contentPadding = PaddingValues(top = bannerHeight, bottom = controlsBottomPadding)
+    val bottomPaddingPx = with(density) { controlsBottomPadding.roundToPx() }
+
+    /* The camera. Runs again on every fix in FOLLOW, so the bus stays in
+       frame; runs once per request in OVERVIEW, so a fit does not repeat
+       under the driver's finger every time a stop is ticked. */
+    LaunchedEffect(mode, fitStamp, panned, bus, headingDeg, located, mapSize, bannerHeightPx, bottomPaddingPx) {
+        if (panned || mapSize == IntSize.Zero) return@LaunchedEffect
+        val visibleHeight = (mapSize.height - bannerHeightPx - bottomPaddingPx).takeIf { it > 0 } ?: return@LaunchedEffect
+        when (mode) {
+            Camera.FOLLOW -> if (bus != null) {
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newCameraPosition(followCamera(bus, headingDeg ?: 0.0, visibleHeight)),
+                    FOLLOW_ANIMATION_MS,
+                )
+            } else if (fitted != fitStamp) {
+                // Nothing to follow yet: show the route until there is.
+                fitAll(cameraPositionState, located, null, mapSize)
+                fitted = fitStamp
+            }
+            Camera.OVERVIEW -> if (fitted != fitStamp) {
+                fitAll(cameraPositionState, located, bus, mapSize)
+                fitted = fitStamp
+            }
+        }
+    }
+
     Box(sized.clipToBounds()) {
-        AndroidView(
-            factory = { ctx ->
-                FrameLayout(ctx).apply {
-                    clipChildren = true
-                    clipToPadding = true
-                    addView(map, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-                }
-            },
+        GoogleMap(
             modifier = Modifier
                 .fillMaxSize()
-                .clipToBounds()
-                .semantics { contentDescription = description },
-            update = { _ ->
-                val view = map
-                overlay.stops = located
-                overlay.nextStopId = nextId
-                overlay.line = guidance?.line ?: located.map { LatLng(it.latitude!!, it.longitude!!) }
-                overlay.roadFollowing = guidance?.roadFollowing ?: false
-                overlay.bus = bus
-                overlay.headingDeg = guidance?.headingDeg
-                view.invalidate()
-
-                if (panned) return@AndroidView
-                when (mode) {
-                    Camera.FOLLOW -> if (bus != null) {
-                        followCamera(view, bus, guidance?.headingDeg ?: 0.0)
-                    } else if (fitStamp != overlay.fitted) {
-                        // Nothing to follow yet: show the route until there is.
-                        fitAll(view, located, null)
-                        overlay.fitted = fitStamp
-                    }
-                    Camera.OVERVIEW -> if (fitStamp != overlay.fitted) {
-                        fitAll(view, located, bus)
-                        overlay.fitted = fitStamp
-                    }
+                .onSizeChanged { mapSize = it },
+            cameraPositionState = cameraPositionState,
+            contentDescription = description,
+            properties = properties,
+            uiSettings = uiSettings,
+            contentPadding = contentPadding,
+        ) {
+            RouteLine(
+                line = guidance?.line ?: located.map { LatLng(it.latitude!!, it.longitude!!) },
+                roadFollowing = guidance?.roadFollowing ?: false,
+                density = density.density,
+            )
+            located.forEachIndexed { index, stop ->
+                key(stop.stopId) {
+                    StopMarker(
+                        stop = stop,
+                        number = index + 1,
+                        done = stop.arrivedAtMillis != null,
+                        isNext = stop.stopId == nextId,
+                        palette = palette,
+                    )
                 }
-            },
-        )
+            }
+            if (bus != null) {
+                BusMarker(bus = bus, headingDeg = headingDeg, palette = palette)
+            }
+        }
 
         /* The banner sits on the map, at its top edge, the way a car's
            navigator draws it: one view, not a card and then a map. */
@@ -215,6 +256,9 @@ fun RouteMap(
             onMuteChange = onMuteChange,
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                // Measured outside the paddings below, so the figure is the
+                // whole strip the banner takes off the top of the map.
+                .onSizeChanged { bannerHeightPx = it.height }
                 // Edge to edge when it fills the screen: keep the banner out
                 // from under the status bar.
                 .then(if (fillScreen) Modifier.statusBarsPadding() else Modifier)
@@ -269,203 +313,180 @@ fun RouteMap(
 
 private enum class Camera { FOLLOW, OVERVIEW }
 
-private class Palette(val done: Int, val pending: Int, val next: Int, val label: Int, val bus: Int)
+private class Palette(val done: Color, val pending: Color, val next: Color, val label: Color, val bus: Color)
 
-private const val FOLLOW_ZOOM = 17.0
+private const val FOLLOW_ZOOM = 17f
+private const val FOLLOW_ANIMATION_MS = 700
+private const val FIT_PADDING_DP = 64
+private const val EARTH_RADIUS_M = 6_371_000.0
 
 /**
  * Heading up, bus in the lower third.
  *
- * osmdroid has no tilt, so rotation does the work a tilted camera does in a
- * car's navigator: the road ahead is up the screen whichever way the bus is
- * pointing. The centre is set a sixth of the view *ahead* of the bus along
- * its heading, which puts the bus two thirds of the way down.
+ * Rotation does the work a tilted camera does in a car's navigator: the road
+ * ahead is up the screen whichever way the bus is pointing. The centre is
+ * set a sixth of the visible height *ahead* of the bus along its heading,
+ * which puts the bus two thirds of the way down. Metres per pixel at the
+ * follow zoom is Web Mercator's, which is what the map draws in.
  */
-private fun followCamera(map: MapView, bus: LatLng, headingDeg: Double) {
-    val here = GeoPoint(bus.latitude, bus.longitude)
-    val orientation = ((360.0 - headingDeg) % 360.0).toFloat()
-    val height = map.height.takeIf { it > 0 } ?: return
-    // Set the zoom first so the metres-per-pixel below is the one the frame
-    // will actually be drawn at.
-    if (map.zoomLevelDouble != FOLLOW_ZOOM) map.controller.setZoom(FOLLOW_ZOOM)
-    val pixelsPerMetre = map.projection.metersToPixels(1f).takeIf { it > 0f } ?: return
-    val aheadMetres = (height / 6.0) / pixelsPerMetre
-    val centre = here.destinationPoint(aheadMetres, headingDeg)
-    map.controller.animateTo(centre, FOLLOW_ZOOM, 700L, orientation)
+private fun followCamera(bus: LatLng, headingDeg: Double, visibleHeightPx: Int): CameraPosition {
+    val metresPerPixel = 156_543.03392 * cos(Math.toRadians(bus.latitude)) / 2.0.pow(FOLLOW_ZOOM.toDouble())
+    val aheadMetres = (visibleHeightPx / 6.0) * metresPerPixel
+    val centre = destination(bus, aheadMetres, headingDeg)
+    return CameraPosition.Builder()
+        .target(centre.gms())
+        .zoom(FOLLOW_ZOOM)
+        .bearing(((headingDeg % 360.0) + 360.0).rem(360.0).toFloat())
+        .tilt(0f)
+        .build()
 }
 
-private fun fitAll(map: MapView, stops: List<StopEntity>, bus: LatLng?) {
-    val points = stops.map { GeoPoint(it.latitude!!, it.longitude!!) } +
-        listOfNotNull(bus?.let { GeoPoint(it.latitude, it.longitude) })
+/** The point [metres] along [bearingDeg] from [from], on a spherical earth. */
+private fun destination(from: LatLng, metres: Double, bearingDeg: Double): LatLng {
+    val d = metres / EARTH_RADIUS_M
+    val brng = Math.toRadians(bearingDeg)
+    val lat1 = Math.toRadians(from.latitude)
+    val lon1 = Math.toRadians(from.longitude)
+    val lat2 = asin(sin(lat1) * cos(d) + cos(lat1) * sin(d) * cos(brng))
+    val lon2 = lon1 + atan2(sin(brng) * sin(d) * cos(lat1), cos(d) - sin(lat1) * sin(lat2))
+    return LatLng(Math.toDegrees(lat2), Math.toDegrees(lon2))
+}
+
+private suspend fun fitAll(
+    camera: com.google.maps.android.compose.CameraPositionState,
+    stops: List<StopEntity>,
+    bus: LatLng?,
+    size: IntSize,
+) {
+    val points = stops.map { GmsLatLng(it.latitude!!, it.longitude!!) } +
+        listOfNotNull(bus?.gms())
     if (points.isEmpty()) return
-    map.setMapOrientation(0f, false)
     if (points.size == 1) {
-        map.controller.setZoom(16.0)
-        map.controller.setCenter(points.first())
+        camera.move(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder().target(points.first()).zoom(16f).bearing(0f).tilt(0f).build(),
+            ),
+        )
         return
     }
-    val box = BoundingBox.fromGeoPointsSafe(points)
-    if (map.width > 0 && map.height > 0) {
-        map.zoomToBoundingBox(box, false, 64)
-    } else {
-        // Before layout there is no view to fit; do it on the first one.
-        map.addOnFirstLayoutListener { _, _, _, _, _ -> map.zoomToBoundingBox(box, false, 64) }
-    }
+    val box = LatLngBounds.builder().apply { points.forEach { include(it) } }.build()
+    // North-up first: a bounds fit keeps whatever bearing the camera had, and
+    // the overview is the yard's map, not the driver's.
+    val now = camera.position
+    camera.move(
+        CameraUpdateFactory.newCameraPosition(
+            CameraPosition.Builder().target(now.target).zoom(now.zoom).bearing(0f).tilt(0f).build(),
+        ),
+    )
+    // The sized variant: the plain one throws before the map has laid out.
+    camera.move(CameraUpdateFactory.newLatLngBounds(box, size.width, size.height, FIT_PADDING_DP))
+}
+
+private fun LatLng.gms() = GmsLatLng(latitude, longitude)
+
+/**
+ * The route: a light casing under a blue road line, the pair Google's own
+ * navigator draws. Straight lines between stops are dashed, so the driver
+ * can see the difference between "this road" and "that way".
+ */
+@Composable
+private fun RouteLine(line: List<LatLng>, roadFollowing: Boolean, density: Float) {
+    if (line.size < 2) return
+    val points = remember(line) { line.map { it.gms() } }
+    val dashes = if (roadFollowing) null else listOf(Dash(14f * density), Gap(10f * density))
+    Polyline(
+        points = points,
+        color = Color(0xFFA8C7FA),
+        width = 13f * density,
+        pattern = dashes,
+        startCap = RoundCap(),
+        endCap = RoundCap(),
+        jointType = JointType.ROUND,
+        zIndex = 0f,
+    )
+    Polyline(
+        points = points,
+        color = Color(0xFF1A73E8),
+        width = 8f * density,
+        pattern = dashes,
+        startCap = RoundCap(),
+        endCap = RoundCap(),
+        jointType = JointType.ROUND,
+        zIndex = 1f,
+    )
 }
 
 /**
- * osmdroid's global configuration, set before the first MapView exists.
- *
- * The user agent is the load-bearing line: OpenStreetMap's tile servers refuse
- * osmdroid's default one outright, and the map is then a grey grid with no
- * error anywhere a driver would see it. The package name identifies this app
- * the way OSM's usage policy asks. The cache goes under the app's own cache
- * directory rather than osmdroid's default on external storage, which on
- * modern Android is either unwritable or a permission prompt.
+ * A numbered disc. Not flat, so it faces the screen and the number stays
+ * upright when the map turns with the bus; a "3" lying on its side is a "3"
+ * the driver has to think about. The next stop is bigger and in the primary
+ * colour; a stop already called is greyed.
  */
-private fun osmdroidReady(context: Context) {
-    Configuration.getInstance().apply {
-        userAgentValue = context.packageName
-        osmdroidBasePath = File(context.filesDir, "osmdroid").apply { mkdirs() }
-        osmdroidTileCache = File(context.cacheDir, "osmdroid-tiles").apply { mkdirs() }
-        // A road tile cached this morning is right this afternoon; keep them.
-        expirationExtendedDuration = 7L * 24 * 60 * 60 * 1000
+@Composable
+private fun StopMarker(stop: StopEntity, number: Int, done: Boolean, isNext: Boolean, palette: Palette) {
+    val state = rememberUpdatedMarkerState(GmsLatLng(stop.latitude!!, stop.longitude!!))
+    val fill = when {
+        done -> palette.done
+        isNext -> palette.next
+        else -> palette.pending
     }
-}
-
-/**
- * Sees every touch before the map does, and does two things with it.
- *
- * A finger moving on the map means the driver is looking at something, so
- * the camera is told to leave it alone. And the parent Compose column is told
- * not to intercept: this map sits inside a scrolling screen, and without that
- * a drag across the map scrolled the page instead of panning the map.
- */
-private class TouchOverlay(private val onPan: () -> Unit) : Overlay() {
-    override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> mapView.parent?.requestDisallowInterceptTouchEvent(true)
-            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN -> onPan()
-        }
-        return false
-    }
-}
-
-/**
- * Everything drawn over the tiles, in one pass: the route, the stops, the bus.
- *
- * One overlay rather than osmdroid's Marker and Polyline classes because those
- * want drawables, and the whole of what is drawn here is circles, a number and
- * a line. Labels are counter-rotated so they stay upright when the map turns
- * with the bus; a "3" lying on its side is a "3" the driver has to think about.
- */
-private class RunOverlay(private val palette: Palette, private val density: Float) : Overlay() {
-    var stops: List<StopEntity> = emptyList()
-    var nextStopId: String? = null
-    var line: List<LatLng> = emptyList()
-    var roadFollowing: Boolean = false
-    var bus: LatLng? = null
-    var headingDeg: Double? = null
-
-    /** Which "fit the route" request has been honoured; see RouteMap. */
-    var fitted: Int = -1
-
-    private val casing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#A8C7FA")
-    }
-    private val road = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#1A73E8")
-    }
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        color = Color.WHITE
-    }
-    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = palette.label
-        textAlign = Paint.Align.CENTER
-        isFakeBoldText = true
-    }
-    private val path = Path()
-    private val point = Point()
-
-    override fun draw(canvas: Canvas, projection: Projection) {
-        // Not Canvas.density: a hardware canvas reports zero for it.
-        drawLine(canvas, projection, density)
-        drawStops(canvas, projection, density)
-        drawBus(canvas, projection, density)
-    }
-
-    private fun drawLine(canvas: Canvas, projection: Projection, density: Float) {
-        if (line.size < 2) return
-        path.rewind()
-        line.forEachIndexed { i, p ->
-            projection.toPixels(GeoPoint(p.latitude, p.longitude), point)
-            if (i == 0) path.moveTo(point.x.toFloat(), point.y.toFloat())
-            else path.lineTo(point.x.toFloat(), point.y.toFloat())
-        }
-        casing.strokeWidth = 13f * density
-        road.strokeWidth = 8f * density
-        // Straight lines between stops are drawn as a dashed line, so the
-        // driver can see the difference between "this road" and "that way".
-        val dashes = if (roadFollowing) null else DashPathEffect(floatArrayOf(14f * density, 10f * density), 0f)
-        casing.pathEffect = dashes
-        road.pathEffect = dashes
-        canvas.drawPath(path, casing)
-        canvas.drawPath(path, road)
-    }
-
-    private fun drawStops(canvas: Canvas, projection: Projection, density: Float) {
-        val orientation = projection.orientation
-        stops.forEachIndexed { index, stop ->
-            projection.toPixels(GeoPoint(stop.latitude!!, stop.longitude!!), point)
-            val x = point.x.toFloat()
-            val y = point.y.toFloat()
-            val done = stop.arrivedAtMillis != null
-            val isNext = stop.stopId == nextStopId
-            val radius = (if (isNext) 16f else 12f) * density
-            fill.color = when {
-                done -> palette.done
-                isNext -> palette.next
-                else -> palette.pending
+    val diameter = if (isNext) 32.dp else 24.dp
+    MarkerComposable(
+        number, done, isNext, fill, palette.label,
+        state = state,
+        title = stop.name,
+        anchor = Offset(0.5f, 0.5f),
+        zIndex = if (isNext) 3f else 2f,
+    ) {
+        Box(
+            modifier = Modifier.size(diameter + 4.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.size(diameter)) {
+                drawCircle(fill)
+                drawCircle(Color.White, style = Stroke(width = 2.5.dp.toPx()))
             }
-            ring.strokeWidth = 2.5f * density
-            canvas.drawCircle(x, y, radius, fill)
-            canvas.drawCircle(x, y, radius, ring)
-            text.textSize = (if (isNext) 15f else 12f) * density
-            canvas.save()
-            canvas.rotate(-orientation, x, y)
-            canvas.drawText("${index + 1}", x, y - (text.ascent() + text.descent()) / 2, text)
-            canvas.restore()
+            Text(
+                text = number.toString(),
+                color = palette.label,
+                fontSize = if (isNext) 15.sp else 12.sp,
+                lineHeight = if (isNext) 15.sp else 12.sp,
+                textAlign = TextAlign.Center,
+                style = BusType.small,
+            )
         }
     }
+}
 
-    private fun drawBus(canvas: Canvas, projection: Projection, density: Float) {
-        val here = bus ?: return
-        projection.toPixels(GeoPoint(here.latitude, here.longitude), point)
-        val x = point.x.toFloat()
-        val y = point.y.toFloat()
-        val size = 14f * density
-        fill.color = palette.bus
-        ring.strokeWidth = 3f * density
-        canvas.save()
-        // Points where the bus points, in the map's own frame: the canvas is
-        // already turned with the map, so heading is applied on top of it.
-        canvas.rotate(headingDeg?.toFloat() ?: 0f, x, y)
-        path.rewind()
-        path.moveTo(x, y - size * 1.4f)
-        path.lineTo(x + size, y + size)
-        path.lineTo(x, y + size * 0.45f)
-        path.lineTo(x - size, y + size)
-        path.close()
-        canvas.drawPath(path, fill)
-        canvas.drawPath(path, ring)
-        canvas.restore()
+/**
+ * The bus: an arrowhead in the error colour, nothing like a stop. Flat on
+ * the map and rotated by the heading, so it points where the bus points in
+ * the map's own frame -- which, in FOLLOW, is straight up the screen.
+ */
+@Composable
+private fun BusMarker(bus: LatLng, headingDeg: Double?, palette: Palette) {
+    val state = rememberUpdatedMarkerState(bus.gms())
+    MarkerComposable(
+        palette.bus,
+        state = state,
+        anchor = Offset(0.5f, 0.5f),
+        flat = true,
+        rotation = (headingDeg ?: 0.0).toFloat(),
+        zIndex = 4f,
+    ) {
+        Canvas(Modifier.size(40.dp)) {
+            val x = size.width / 2
+            val y = size.height / 2
+            val unit = 14.dp.toPx()
+            val path = Path().apply {
+                moveTo(x, y - unit * 1.4f)
+                lineTo(x + unit, y + unit)
+                lineTo(x, y + unit * 0.45f)
+                lineTo(x - unit, y + unit)
+                close()
+            }
+            drawPath(path, palette.bus)
+            drawPath(path, Color.White, style = Stroke(width = 3.dp.toPx(), join = StrokeJoin.Round))
+        }
     }
 }

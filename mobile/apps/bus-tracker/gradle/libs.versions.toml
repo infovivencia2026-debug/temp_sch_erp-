@@ -22,15 +22,19 @@ androidxTestRunner = "1.7.0"
 androidxTestCore = "1.7.0"
 robolectric = "4.16.1"
 mockk = "1.14.11"
-osmdroid = "6.1.20"
+playServicesMaps = "20.0.0"
+mapsCompose = "8.6.0"
+secretsGradlePlugin = "2.0.1"
 
 [libraries]
 # The bus sticker in the windscreen. Its own activity, so no camera
 # plumbing lands in this app beyond one permission and one launcher.
 zxing-embedded = { module = "com.journeyapps:zxing-android-embedded", version = "4.3.0" }
-# The map under the driver. OpenStreetMap tiles, which is what the school's
-# own web map draws, so there is no key to issue and nothing to bill.
-osmdroid = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroid" }
+# The map under the driver. Google Maps, keyed by MAPS_API_KEY in the
+# untracked secrets.properties; the Compose bindings draw the markers and the
+# route as composables rather than drawables.
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
+maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
@@ -86,3 +90,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+# Reads secrets.properties into the manifest placeholder the Maps SDK looks for.
+secrets-gradle-plugin = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
