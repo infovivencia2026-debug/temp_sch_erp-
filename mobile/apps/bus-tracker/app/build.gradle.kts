@@ -75,6 +75,15 @@ android {
     val osrmBaseUrl = (project.findProperty("osrmBaseUrl") as String?)
         ?: "https://router.project-osrm.org"
 
+    /* THE OFFICE'S NUMBER.
+
+       Every error sentence on the sign-in screen ends with "ask the office";
+       the screen can also offer to dial it, if the deployment says what it
+       is. Empty means the line is shown without a number:
+         ./gradlew assembleRelease -PofficePhone=+919876543210
+    */
+    val officePhone = (project.findProperty("officePhone") as String?) ?: ""
+
     buildTypes {
         debug {
             /* No .debug suffix, so a debug build REPLACES the app rather than
@@ -94,6 +103,7 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "true")
             buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
             buildConfigField("String", "OSRM_BASE_URL", "\"$osrmBaseUrl\"")
+            buildConfigField("String", "OFFICE_PHONE", "\"$officePhone\"")
         }
         release {
             isMinifyEnabled = true
@@ -102,6 +112,7 @@ android {
             buildConfigField("boolean", "ALLOW_INSECURE_HTTP", "false")
             buildConfigField("String", "DEFAULT_BASE_URL", "\"$trackerBaseUrl\"")
             buildConfigField("String", "OSRM_BASE_URL", "\"$osrmBaseUrl\"")
+            buildConfigField("String", "OFFICE_PHONE", "\"$officePhone\"")
             signingConfig = signingConfigs.findByName("release")
         }
     }

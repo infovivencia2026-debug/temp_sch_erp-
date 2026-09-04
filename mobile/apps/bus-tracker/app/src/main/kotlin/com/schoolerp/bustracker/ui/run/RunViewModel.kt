@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.graphics.Bitmap
+import com.schoolerp.bustracker.R
 import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.data.local.StudentEntity
 import com.schoolerp.bustracker.data.remote.Notice
@@ -70,6 +71,8 @@ class RunViewModel @Inject constructor(
     private val osrm: OsrmApi,
     private val voice: VoiceGuide,
 ) : ViewModel() {
+
+    private fun str(id: Int): String = context.getString(id)
 
     val status: StateFlow<TrackerStatus> = aggregator.status
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TrackerStatus())
@@ -244,14 +247,15 @@ class RunViewModel @Inject constructor(
             engine.events.collect { event ->
                 when (event) {
                     is EngineEvent.TripClosedByServer -> _alert.value = DriverAlert(
-                        "The school closed this run",
-                        "This phone has stopped reporting. If you are still on the route, " +
-                            "start the run again.",
+                        str(R.string.alert_closed_title),
+                        str(R.string.alert_closed_body),
                     )
                     is EngineEvent.ClockWrong -> _alert.value = DriverAlert(
-                        "This phone's clock is wrong",
-                        "The school's server says the time is ${event.serverTime ?: "different"}. " +
-                            "Nothing can be recorded until the phone's date and time are corrected.",
+                        str(R.string.alert_clock_title),
+                        context.getString(
+                            R.string.alert_clock_body,
+                            event.serverTime ?: str(R.string.alert_clock_different),
+                        ),
                     )
                     /* The token is dead and the pairing has already been
                        cleared by the engine, so this screen is on its way out
@@ -259,11 +263,8 @@ class RunViewModel @Inject constructor(
                        what happened before that swap, so the driver does not
                        read a sudden login form as the app having crashed. */
                     is EngineEvent.Unpaired -> _alert.value = DriverAlert(
-                        "This phone has been signed out",
-                        "The school's server no longer accepts it, either the office took this " +
-                            "phone off the bus, or you signed in on another handset. It has " +
-                            "stopped reporting. Sign in again with your number and password to " +
-                            "carry on the run.",
+                        str(R.string.alert_signed_out_title),
+                        str(R.string.alert_signed_out_body),
                     )
                     is EngineEvent.StopReached -> {
                         _lastArrival.value = event.stopName
@@ -313,16 +314,16 @@ class RunViewModel @Inject constructor(
                     // know it.
                     engine.credentialAccepted()
                     _alert.value = DriverAlert(
-                        "Signed in as ${outcome.name}",
-                        "Runs you start will be recorded against your name until you sign out.",
+                        context.getString(R.string.alert_signed_in_title, outcome.name),
+                        str(R.string.alert_signed_in_body),
                     )
                 }
                 is SignInOutcome.Rejected -> _alert.value = DriverAlert(
-                    "Could not sign in", outcome.message,
+                    str(R.string.alert_cannot_signin), outcome.message,
                 )
                 SignInOutcome.NotPaired -> _alert.value = DriverAlert(
-                    "This phone is not paired",
-                    "Ask the office for a pairing code before signing in.",
+                    str(R.string.alert_not_paired_title),
+                    str(R.string.alert_not_paired_body),
                 )
             }
             _busy.value = false
@@ -410,16 +411,14 @@ class RunViewModel @Inject constructor(
                     TrackerServiceLauncher.start(context)
                     if (outcome.stopCount == 0) {
                         _alert.value = DriverAlert(
-                            "This route has no stops set up",
-                            "The bus will still show on the map, but the school cannot be told " +
-                                "which stop it has reached. Mention it to the office.",
+                            str(R.string.alert_no_stops_title),
+                            str(R.string.alert_no_stops_body),
                         )
                     }
                 }
                 is StartOutcome.AlreadyOpen -> _alert.value = DriverAlert(
-                    "This bus already has a run open",
-                    outcome.message + "\n\nTaking it over closes the other run. Do that only if " +
-                        "you are sure the other phone is finished.",
+                    str(R.string.alert_already_open_title),
+                    context.getString(R.string.alert_already_open_body, outcome.message),
                     supersedeOffer = PendingStart(route.routeId, route.label, direction),
                 )
                 /* Paired, but nobody has signed in this shift. The server
@@ -428,19 +427,16 @@ class RunViewModel @Inject constructor(
                    request, so this can say what to do instead of showing a
                    number. */
                 is StartOutcome.NotSignedIn -> _alert.value = DriverAlert(
-                    "Sign in before starting the run",
-                    "The school records who drove each run, so the phone needs your number and " +
-                        "PIN before it can open one. Use Sign in on this screen. The office " +
-                        "issued the PIN with your login.",
+                    str(R.string.alert_sign_in_first_title),
+                    str(R.string.alert_sign_in_first_body),
                 )
                 is StartOutcome.Failed -> _alert.value = DriverAlert(
-                    "Could not start the run",
-                    "The school's server refused: ${outcome.reason}. Try again; if it keeps " +
-                        "failing, call the office.",
+                    str(R.string.alert_start_failed_title),
+                    context.getString(R.string.alert_start_failed_body, outcome.reason),
                 )
                 StartOutcome.NotPaired -> _alert.value = DriverAlert(
-                    "This phone is no longer paired",
-                    "Ask the office for a new pairing code.",
+                    str(R.string.alert_no_longer_paired_title),
+                    str(R.string.alert_no_longer_paired_body),
                 )
             }
             _busy.value = false
@@ -465,15 +461,12 @@ class RunViewModel @Inject constructor(
                         // quarter-hour tick.
                         com.schoolerp.bustracker.service.TripFlushWorker.enqueueOnce(context)
                         _alert.value = DriverAlert(
-                            "Run ended, but the school was not told yet",
-                            "There was no signal. This phone will tell the school as soon as it " +
-                                "has one, and will send " +
-                                if (outcome.keptFixes > 0) {
-                                    "the ${outcome.keptFixes} positions from the end of the route " +
-                                        "with it. Leave the app installed and the phone switched on."
-                                } else {
-                                    "the end of the run. Leave the app installed and the phone switched on."
-                                },
+                            str(R.string.alert_end_offline_title),
+                            if (outcome.keptFixes > 0) {
+                                context.getString(R.string.alert_end_offline_fixes, outcome.keptFixes)
+                            } else {
+                                str(R.string.alert_end_offline_body)
+                            },
                         )
                     }
                 }

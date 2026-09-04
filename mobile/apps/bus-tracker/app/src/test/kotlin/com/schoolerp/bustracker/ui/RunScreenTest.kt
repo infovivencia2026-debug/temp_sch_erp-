@@ -5,9 +5,9 @@ import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.schoolerp.bustracker.data.prefs.ActiveTrip
@@ -42,12 +42,9 @@ import org.robolectric.Shadows.shadowOf
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 
-/* A realistic handset, and every press scrolled into view first.
- *
- * Robolectric's default screen is 320x470px. Both screens are taller than that
- * and scroll, so a button below the fold is present in the semantics tree but
- * outside the viewport, and an injected touch lands on nothing -- the press
- * silently does not happen and the assertion that follows blames the app. */
+/* A realistic handset. Robolectric's default screen is 320x470px; the run
+ * screen is a lazy list with the one button that matters in a bottom bar,
+ * and on a screen that small the bar would cover most of the list. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp")
 class RunScreenTest {
@@ -93,12 +90,9 @@ class RunScreenTest {
     /* THE GAP BETWEEN PAIRING AND DRIVING.
      *
      * A handset can be paired, showing its bus and its routes, and still have
-     * no driver session -- the server refuses trip start without one and
-     * answers 401. The screen used to draw Start anyway and explain the 401
-     * after the tap; now the sign-in is the step in front and Start is not
-     * offered until it is done. This pins that: nobody signed in means a
-     * sign-in form and no Start button, so the run can never be attempted in
-     * a state the server will refuse.
+     * no driver session -- the server refuses trip start without one. The
+     * sign-in is the step in front and Start is not offered until it is done,
+     * so the run can never be attempted in a state the server will refuse.
      */
     @Test
     fun `with nobody signed in the screen asks for the sign-in and offers no Start`() {
@@ -106,7 +100,7 @@ class RunScreenTest {
         show(repository)
 
         compose.onNodeWithText("Sign in to start a run").assertExists()
-        compose.onAllNodesWithText("Start Run, Morning — Anna Nagar").assertCountEquals(0)
+        compose.onAllNodesWithText("Start run").assertCountEquals(0)
     }
 
     @Test
@@ -115,11 +109,11 @@ class RunScreenTest {
         coEvery { repository.signIn(any(), any()) } returns SignInOutcome.SignedIn("R. Kumar")
         show(repository)
 
-        compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
-        compose.onNodeWithText("Password").performTextInput("4321")
-        compose.onNodeWithText("Sign in").performScrollTo().performClick()
+        compose.onNodeWithTag("Mobile number").performTextInput("9876543210")
+        compose.onNodeWithTag("PIN").performTextInput("432112")
+        compose.onNodeWithText("Sign in").performClick()
 
-        coVerify { repository.signIn("9876543210", "4321") }
+        coVerify { repository.signIn("9876543210", "432112") }
         compose.onNodeWithText("Signed in as R. Kumar").assertExists()
     }
 
@@ -131,9 +125,9 @@ class RunScreenTest {
         )
         show(repository)
 
-        compose.onNodeWithText("Mobile number or email").performTextInput("9876543210")
-        compose.onNodeWithText("Password").performTextInput("0000")
-        compose.onNodeWithText("Sign in").performScrollTo().performClick()
+        compose.onNodeWithTag("Mobile number").performTextInput("9876543210")
+        compose.onNodeWithTag("PIN").performTextInput("000000")
+        compose.onNodeWithText("Sign in").performClick()
 
         compose.onNodeWithText("Could not sign in").assertExists()
         compose.onNodeWithText(
@@ -141,10 +135,22 @@ class RunScreenTest {
         ).assertExists()
     }
 
-    /* The card is the whole product in one line: it must never say the school
-       can see the bus when it cannot. */
+    /* Signed in, one route on the phone: nothing to choose, and the one big
+       button at the bottom starts that route. */
     @Test
-    fun `a run with the service up reads as visible to the school`() {
+    fun `with one route the Start button is ready and starts it`() {
+        val repository = fakeRepository(settings(routeBook = listOf(route)), signedIn = true)
+        show(repository)
+
+        compose.onNodeWithText("Start run").performClick()
+
+        coVerify { repository.startTrip("route-1", "Morning — Anna Nagar", DIRECTION_PICKUP, false, "") }
+    }
+
+    /* The status word is the whole product in one line: it must never say
+       "Tracking" when the school cannot see the bus. */
+    @Test
+    fun `a run with the service up reads as Tracking and visible to the school`() {
         show(
             fakeRepository(settings(routeBook = listOf(route)), signedIn = true),
             TrackerStatus(
@@ -154,13 +160,14 @@ class RunScreenTest {
             ),
         )
 
+        compose.onNodeWithText("Tracking").assertExists()
         compose.onNodeWithText("The school can see this bus").assertExists()
         compose.onNodeWithText("Reporting every 20s").assertExists()
-        compose.onNodeWithText("End Run").assertExists()
+        compose.onNodeWithText("End run").assertExists()
     }
 
     @Test
-    fun `a revoked location permission reads as not visible, however healthy the rest is`() {
+    fun `a revoked location permission reads as Location off, however healthy the rest is`() {
         show(
             fakeRepository(settings(routeBook = listOf(route)), signedIn = true),
             TrackerStatus(
@@ -171,14 +178,16 @@ class RunScreenTest {
             ),
         )
 
+        compose.onNodeWithText("Location off").assertExists()
         compose.onNodeWithText("The school cannot see this bus").assertExists()
         // The blocker is what the one-line summary reports, because a blocked
         // phone has nothing more useful to say about itself.
         compose.onNodeWithText(LocationBlocker.FOREGROUND_ONLY.headline).assertExists()
         // The explanation and the button that fixes it live on the settings
-        // screen behind the one underlined line, which must say something is
-        // wrong rather than the quiet "Tracker settings".
-        compose.onNodeWithText("1 phone setting could thin out the tracking").performClick()
+        // screen; the line to it must say something is wrong, in the warning
+        // colour, rather than the quiet "Settings".
+        compose.onNodeWithText("1 phone setting needs attention").assertExists()
+        compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText(LocationBlocker.FOREGROUND_ONLY.detail).assertExists()
         compose.onNodeWithText("App permissions").assertExists()
     }
@@ -198,10 +207,10 @@ class RunScreenTest {
             ),
         )
 
+        compose.onNodeWithText("No signal").assertExists()
         compose.onNodeWithText("No signal, holding 42 fixes").assertExists()
         compose.onNodeWithText(
-            "42 positions are saved on this phone and will be sent when there is signal. " +
-                "Nothing has been lost.",
+            "42 positions are saved on this phone and will be sent when there is signal. Nothing is lost.",
         ).assertExists()
     }
 }

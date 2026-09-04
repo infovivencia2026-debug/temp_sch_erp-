@@ -410,6 +410,17 @@ object ErrorCodes {
     const val TRIP_ALREADY_OPEN = "trip_already_open"
     const val SKEWED_CLOCK = "skewed_clock"
     const val TOO_FAST = "too_fast"
+
+    /* The sign-in endpoints' own refusals. They arrive as 401 like a dead
+       token does, but they are the driver's mistake, not the phone's, and
+       each needs its own sentence on the screen. */
+    const val BAD_PIN = "bad_pin"
+    const val NO_LOGIN_YET = "no_login_yet"
+    const val NOT_A_DRIVER = "not_a_driver"
+    const val NO_VEHICLE = "no_vehicle"
+    const val NO_SUCH_BUS = "no_such_bus"
+    const val PIN_LOCKED = "pin_locked"
+    const val RATE_LIMITED = "rate_limited"
 }
 
 /**

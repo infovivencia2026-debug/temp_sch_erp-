@@ -12,8 +12,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.schoolerp.bustracker.R
 import com.schoolerp.bustracker.core.Geo
+import com.schoolerp.bustracker.ui.theme.BusType
 import com.schoolerp.bustracker.data.local.StopEntity
 import kotlin.math.cos
 import kotlin.math.max
@@ -113,10 +116,9 @@ fun RouteSketch(
         }
 
         Text(
-            "Stops to scale, about ${humanMetres(spanMetresX)} across, " +
-                "${humanMetres(spanMetresY)} top to bottom. " +
-                "There are no roads drawn here: this app carries no map data.",
-            style = MaterialTheme.typography.bodySmall,
+            stringResource(R.string.sketch_caption, humanMetres(maxOf(spanMetresX, spanMetresY))),
+            style = BusType.small,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

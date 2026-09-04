@@ -3,5 +3,5 @@
     <!-- Material 3's dark surface, which is what Compose draws once it is up.
          Without this a dark-mode phone flashed white on every launch and put
          dark status-bar icons over a dark screen. -->
-    <color name="window_background">#1C1B1F</color>
+    <color name="window_background">#0F1311</color>
 </resources>

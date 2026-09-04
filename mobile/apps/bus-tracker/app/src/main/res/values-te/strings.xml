@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">స్కూల్ బస్ ట్రాకర్</string>
+
+    <string name="notification_channel_run">ట్రిప్ నడుస్తోంది</string>
+    <string name="notification_channel_run_desc">ట్రిప్ నడుస్తున్నప్పుడు కనిపించే శాశ్వత నోటీసు. దీన్ని తీసేస్తే బస్సు స్కూల్ మ్యాప్‌లో కనిపించదు.</string>
+    <string name="notification_channel_problem">ట్రాకింగ్ సమస్యలు</string>
+    <string name="notification_channel_problem_desc">ఫోన్ లొకేషన్ పంపలేనప్పుడు — లొకేషన్ ఆఫ్, అనుమతి తీసేయడం, లేదా ఆఫీసు ట్రిప్ మూసివేయడం.</string>
+
+    <!-- Shared -->
+    <string name="action_ok">సరే</string>
+    <string name="action_cancel">రద్దు</string>
+    <string name="action_back">వెనక్కి</string>
+    <string name="please_wait">కొంచెం ఆగండి</string>
+    <string name="office_help">ఇబ్బందిగా ఉందా? స్కూల్ ఆఫీసును అడగండి.</string>
+    <string name="office_call">ఆఫీసుకు కాల్ చేయండి</string>
+
+    <!-- Sign in and pairing -->
+    <string name="signin_title">సైన్ ఇన్</string>
+    <string name="signin_phone">మొబైల్ నంబర్</string>
+    <string name="signin_login">ఈమెయిల్ లేదా యూజర్‌నేమ్</string>
+    <string name="signin_pin">పిన్</string>
+    <string name="signin_pin_hint">ఆఫీసు ఇచ్చిన ఆరు అంకెల పిన్</string>
+    <string name="signin_password">పాస్‌వర్డ్</string>
+    <string name="signin_button">సైన్ ఇన్</string>
+    <string name="signin_use_email">నా లాగిన్ ఈమెయిల్ లేదా పెద్ద పాస్‌వర్డ్</string>
+    <string name="signin_use_phone">మొబైల్ నంబర్ మరియు పిన్ వాడండి</string>
+    <string name="pair_title">ఈ ఫోన్‌ను జత చేయండి</string>
+    <string name="pair_code_label">జత చేసే కోడ్</string>
+    <string name="pair_code_hint">ఆఫీసు చూపించే ఆరు అంకెల కోడ్</string>
+    <string name="pair_button">ఈ ఫోన్‌ను జత చేయండి</string>
+    <string name="pair_switch_to_signin">బదులుగా మీ నంబర్‌తో సైన్ ఇన్ చేయండి</string>
+    <string name="pair_switch_to_code">నాకు జత చేసే కోడ్ ఇచ్చారు</string>
+    <string name="choose_bus_title">మీరు ఏ బస్సులో ఉన్నారు?</string>
+    <string name="scanned_bus">బస్సు %1$s</string>
+    <string name="pair_no_bus_yet">మీరు సైన్ ఇన్ అయ్యారు, కానీ ఈ స్కూల్‌లో ఇంకా బస్సు పెట్టలేదు. ఆఫీసును ఒకటి చేర్చమని అడగండి.</string>
+    <string name="pair_unpaired">జత తీసేశారు. సరైన బస్సు కోడ్ కోసం ఆఫీసును అడగండి.</string>
+
+    <!-- What the server refused, in one sentence each -->
+    <string name="err_bad_pin">ఆ నంబర్, పిన్ సరిపోలడం లేదు. రెండూ చూసి మళ్ళీ ప్రయత్నించండి, లేదా మీ నంబర్ చూడమని ఆఫీసును అడగండి.</string>
+    <string name="err_pin_locked">చాలా సార్లు తప్పు పిన్ వేశారు. పదిహేను నిమిషాలు ఆగి మళ్ళీ ప్రయత్నించండి, లేదా రీసెట్ చేయమని ఆఫీసును అడగండి.</string>
+    <string name="err_no_login_yet">ఈ నంబర్‌కు ఇంకా పిన్ ఇవ్వలేదు. ఆఫీసును పిన్ ఇవ్వమని అడగండి.</string>
+    <string name="err_not_a_driver">ఈ లాగిన్ డ్రైవర్‌ది కాదు. మిమ్మల్ని బస్సుకు పెట్టమని ఆఫీసును అడిగి, మళ్ళీ సైన్ ఇన్ చేయండి.</string>
+    <string name="err_rate_limited">ఈ ఫోన్ నుంచి చాలా ప్రయత్నాలు జరిగాయి. కొన్ని నిమిషాలు ఆగి మళ్ళీ ప్రయత్నించండి.</string>
+    <string name="err_no_vehicle">మీకు ఇంకా బస్సు కేటాయించలేదు. మిమ్మల్ని బస్సుకు పెట్టమని ఆఫీసును అడగండి.</string>
+    <string name="err_no_such_bus">ఈ స్కూల్‌లో ఆ కోడ్ ఉన్న బస్సు లేదు. స్టిక్కర్ చూడండి, లేదా మీరు ఏ బస్సో ఆఫీసును అడగండి.</string>
+    <string name="err_network">స్కూల్‌కు కనెక్షన్ లేదు. ఫోన్ సిగ్నల్ చూసి మళ్ళీ ప్రయత్నించండి.</string>
+    <string name="err_pair_code_invalid">ఆ కోడ్ సరైనది కాదు లేదా గడువు ముగిసింది. ఆఫీసును కొత్త కోడ్ అడగండి.</string>
+    <string name="err_app_outdated">ఈ యాప్ అప్‌డేట్ చేయాలి. ఆఫీసుకు చెప్పండి.</string>
+    <string name="err_signin_generic">సైన్ ఇన్ కాలేదు. మళ్ళీ ప్రయత్నించండి, లేదా ఆఫీసుకు కాల్ చేయండి.</string>
+    <string name="err_pair_generic">జత చేయలేకపోయాం. మళ్ళీ ప్రయత్నించండి, లేదా ఆఫీసుకు కాల్ చేయండి.</string>
+    <string name="err_bad_address">ఆ చిరునామా పనిచేయదు.</string>
+    <string name="err_run_already_open">ఈ బస్సుకు ఇప్పటికే ఒక ట్రిప్ నడుస్తోంది. దాన్ని మూసేయండి, లేదా మీరు తీసుకోండి.</string>
+
+    <!-- Status, in words -->
+    <string name="status_tracking">ట్రాకింగ్ జరుగుతోంది</string>
+    <string name="status_no_signal">సిగ్నల్ లేదు</string>
+    <string name="status_no_run">ట్రిప్ లేదు</string>
+    <string name="status_paused">స్కూల్ ఆపింది</string>
+    <string name="status_location_off">లొకేషన్ ఆఫ్</string>
+    <string name="status_stopped">ట్రాకింగ్ ఆగింది</string>
+    <string name="status_behind">మ్యాప్ వెనుకబడింది</string>
+    <string name="school_can_see">స్కూల్‌కు ఈ బస్సు కనిపిస్తోంది</string>
+    <string name="school_cannot_see">స్కూల్‌కు ఈ బస్సు కనిపించడం లేదు</string>
+    <string name="status_saved_fixes">%1$d లొకేషన్లు ఈ ఫోన్‌లో దాచి ఉన్నాయి, సిగ్నల్ రాగానే పంపబడతాయి. ఏదీ పోలేదు.</string>
+    <string name="status_last_problem">చివరి సమస్య: %1$s</string>
+
+    <!-- The run screen before a run -->
+    <string name="signin_intro">ట్రిప్ మొదలుపెట్టడానికి సైన్ ఇన్ చేయండి</string>
+    <string name="signin_who">ఏ ట్రిప్ ఎవరు నడిపారో స్కూల్ నమోదు చేస్తుంది.</string>
+    <string name="driving_as">డ్రైవర్: %1$s</string>
+    <string name="sign_out">సైన్ అవుట్</string>
+    <string name="start_title">ట్రిప్ మొదలుపెట్టండి</string>
+    <string name="bus_label">బస్సు</string>
+    <string name="bus_scan">బస్సు స్టిక్కర్ స్కాన్ చేయండి</string>
+    <string name="bus_scan_prompt">బస్సు స్టిక్కర్ వైపు చూపండి</string>
+    <string name="bus_default">బస్సు: ఈ ఫోన్‌కు జత చేసినది</string>
+    <string name="direction_pickup">పికప్</string>
+    <string name="direction_drop">డ్రాప్</string>
+    <string name="route_pick">రూట్</string>
+    <string name="route_remove">తీసేయండి</string>
+    <string name="route_remove_title">%1$s తీసేయాలా?</string>
+    <string name="route_remove_body">ఈ ఫోన్ జాబితా నుంచి పోతుంది. ఆఫీసు మళ్ళీ పెట్టగలదు.</string>
+    <string name="route_keep">ఉంచండి</string>
+    <string name="route_none">ఈ బస్సుకు ఇంకా రూట్ లేదు. ఆఫీసును ఒకటి చేర్చమని అడిగి, మళ్ళీ సైన్ ఇన్ చేయండి.</string>
+    <string name="start_run">ట్రిప్ మొదలు</string>
+
+    <!-- The run screen during a run -->
+    <string name="run_heading">%1$s, %2$s</string>
+    <string name="route_fallback">రూట్</string>
+    <string name="end_run">ట్రిప్ ముగించు</string>
+    <string name="end_run_note">ట్రిప్ ముగించడం అంటే పిల్లలు బస్సు దిగారని స్కూల్‌కు చెప్పడం.</string>
+    <string name="end_run_title">ఈ ట్రిప్ ముగించాలా?</string>
+    <string name="end_run_body">పిల్లలు బస్సు దిగారని స్కూల్‌కు చెప్పబడుతుంది, ఈ ఫోన్ లొకేషన్ పంపడం ఆపేస్తుంది.</string>
+    <string name="end_run_confirm">ట్రిప్ ముగించు</string>
+    <string name="end_run_keep">నడుపుతూ ఉండండి</string>
+    <string name="next_stop">తర్వాతి స్టాప్</string>
+    <string name="all_stops_done">అన్ని స్టాప్‌లు అయ్యాయి</string>
+    <string name="back_to_school">బస్సును స్కూల్‌కు తీసుకెళ్ళండి</string>
+    <string name="stops_progress">%2$d స్టాప్‌లలో %1$d</string>
+    <string name="reached">%1$s చేరుకున్నారు</string>
+    <string name="navigate_maps">మ్యాప్స్ యాప్‌లో తెరవండి</string>
+    <string name="no_maps_app">ఈ ఫోన్‌లో మ్యాప్స్ యాప్ లేదు</string>
+    <string name="nobody_at_stop">ఈ స్టాప్‌లో ఎవరూ లేరు</string>
+    <string name="take_over">నేను తీసుకుంటాను</string>
+
+    <!-- The roster -->
+    <string name="children_title">పిల్లలు</string>
+    <string name="children_none">ఈ రూట్‌లో ఇంకా ఎవరూ లేరు, లేదా స్కూల్ జవాబు ఇవ్వలేదు. ట్రాకింగ్ నడుస్తూనే ఉంటుంది.</string>
+    <string name="marks_pending">%1$d మార్కులు సిగ్నల్ కోసం వేచి ఉన్నాయి. ఏదీ పోలేదు.</string>
+    <string name="mark_on">ఎక్కారు</string>
+    <string name="mark_off">దిగారు</string>
+    <string name="mark_absent">రాలేదు</string>
+    <string name="mark_not_here">రాలేదు</string>
+    <string name="mark_absent_undo">రాలేదు. వస్తే ఎక్కారు నొక్కండి.</string>
+    <string name="absent_word">రాలేదు</string>
+    <string name="absent_do_not_wait">ఆగకండి</string>
+    <string name="count_on">%2$dలో %1$d ఎక్కారు</string>
+    <string name="count_off">%2$dలో %1$d దిగారు</string>
+    <string name="count_absent">%1$d రాలేదు</string>
+    <string name="count_reported_absent">%1$d రారని చెప్పారు</string>
+    <string name="other_stop">వేరే స్టాప్</string>
+    <string name="no_stop_set">స్టాప్ పెట్టలేదు</string>
+    <string name="arrival_mark_on">ఒక్కో పిల్లవాడు ఎక్కగానే మార్క్ చేయండి.</string>
+    <string name="arrival_mark_off">ఒక్కో పిల్లవాడు దిగగానే మార్క్ చేయండి.</string>
+    <string name="done_drive_on">అయింది, ముందుకు వెళ్ళండి</string>
+
+    <!-- The office's message -->
+    <string name="notice_title">స్కూల్ నుంచి సందేశం</string>
+    <string name="notice_title_n">స్కూల్ నుంచి సందేశం (%1$d)</string>
+    <string name="notice_ok">సరే, చూశాను</string>
+
+    <!-- Settings -->
+    <string name="settings_line">సెట్టింగ్‌లు</string>
+    <string name="settings_problem_one">1 ఫోన్ సెట్టింగ్ చూడాలి</string>
+    <string name="settings_problem_many">%1$d ఫోన్ సెట్టింగ్‌లు చూడాలి</string>
+    <string name="settings_title">సెట్టింగ్‌లు</string>
+    <string name="phone_setup">ఫోన్ సెటప్</string>
+    <string name="phone_setup_ok">లొకేషన్, బ్యాటరీ, నోటిఫికేషన్‌లు సరిగ్గా ఉన్నాయి.</string>
+    <string name="app_permissions">యాప్ అనుమతులు</string>
+    <string name="location_settings">లొకేషన్ సెట్టింగ్‌లు</string>
+    <string name="battery_title">బ్యాటరీ సేవింగ్ ట్రాకింగ్‌ను తగ్గిస్తుంది</string>
+    <string name="battery_body">స్క్రీన్ కొంతసేపు ఆఫ్ అయ్యాక ఫోన్ ఈ యాప్‌ను నెమ్మది చేస్తుంది, బస్సు మ్యాప్‌లో కదలకుండా దూకుతుంది.</string>
+    <string name="battery_button">పరిమితి లేకుండా అనుమతించండి</string>
+    <string name="notif_title">నోటిఫికేషన్‌లు ఆఫ్‌లో ఉన్నాయి</string>
+    <string name="notif_body">స్కూల్ ట్రిప్ మూసినా, ఫోన్ లొకేషన్ పంపడం ఆగినా ఈ యాప్ నోటిఫికేషన్ ద్వారా చెబుతుంది. అవి ఆఫ్‌లో ఉంటే మీకు తెలియదు.</string>
+    <string name="notif_button">నోటిఫికేషన్‌లు ఆన్ చేయండి</string>
+    <string name="tracking_section">ట్రాకింగ్</string>
+    <string name="tracking_stop">ట్రాకింగ్ ఆపండి</string>
+    <string name="tracking_start">ట్రాకింగ్ మొదలుపెట్టండి</string>
+    <string name="tracking_stop_note_run">ట్రిప్ తెరిచే ఉంటుంది, స్కూల్‌కు బస్సు ఆగినట్టు కనిపిస్తుంది. బస్సు పార్క్ చేశాకే ఇది చేయండి.</string>
+    <string name="tracking_stop_note_idle">ఇప్పుడు ఏమీ నడవడం లేదు. ఇది మిగిలిన ట్రాకర్‌ను మాత్రమే ఆపుతుంది.</string>
+    <string name="tracking_stopped_note">ట్రాకింగ్ ఆగింది. మళ్ళీ ఆన్ చేసేవరకు స్కూల్‌కు ఈ బస్సు కనిపించదు.</string>
+    <string name="tracking_stop_title">ట్రాకింగ్ ఆపాలా?</string>
+    <string name="tracking_stop_body_run">ట్రిప్ తెరిచే ఉంటుంది, కానీ ఈ ఫోన్ లొకేషన్ పంపడం ఆపేస్తుంది. స్కూల్ మ్యాప్‌లో బస్సు చివరిగా ఉన్న చోటే కనిపిస్తుంది.</string>
+    <string name="tracking_stop_body_idle">ఈ ఫోన్ లొకేషన్ పంపడం ఆపేస్తుంది.</string>
+    <string name="driver_section">డ్రైవర్</string>
+    <string name="change_driver">వేరే డ్రైవర్‌గా సైన్ ఇన్ చేయండి</string>
+    <string name="change_driver_note">ఈ ఫోన్‌ను బస్సు నుంచి తీసేసి, మళ్ళీ నంబర్, పిన్ అడుగుతుంది. ఈలోగా ఏమీ పంపబడదు.</string>
+    <string name="unpair_title">ఈ ఫోన్‌ను బస్సు నుంచి తీసేయాలా?</string>
+    <string name="unpair_body">ఫోన్ ఏ బస్సో మర్చిపోతుంది, లొకేషన్ పంపడం ఆపేస్తుంది. మీరు మళ్ళీ నంబర్, పిన్‌తో సైన్ ఇన్ చేయాలి.</string>
+    <string name="unpair_confirm">తీసేయండి</string>
+
+    <!-- Alerts from the run -->
+    <string name="alert_closed_title">స్కూల్ ఈ ట్రిప్ మూసేసింది</string>
+    <string name="alert_closed_body">ఈ ఫోన్ లొకేషన్ పంపడం ఆగింది. మీరు ఇంకా రూట్‌లో ఉంటే, ట్రిప్ మళ్ళీ మొదలుపెట్టండి.</string>
+    <string name="alert_clock_title">ఈ ఫోన్ సమయం తప్పుగా ఉంది</string>
+    <string name="alert_clock_body">స్కూల్ సర్వర్ ప్రకారం సమయం %1$s. ఫోన్ తేదీ, సమయం సరిచేసేవరకు ఏమీ నమోదు కాదు.</string>
+    <string name="alert_clock_different">వేరుగా ఉంది</string>
+    <string name="alert_signed_out_title">ఈ ఫోన్ సైన్ అవుట్ అయింది</string>
+    <string name="alert_signed_out_body">ఆఫీసు ఈ ఫోన్‌ను బస్సు నుంచి తీసేసింది, లేదా మీరు వేరే ఫోన్‌లో సైన్ ఇన్ చేశారు. లొకేషన్ పంపడం ఆగింది. కొనసాగించడానికి మీ నంబర్, పిన్‌తో మళ్ళీ సైన్ ఇన్ చేయండి.</string>
+    <string name="alert_signed_in_title">%1$s గా సైన్ ఇన్ అయ్యారు</string>
+    <string name="alert_signed_in_body">మీరు సైన్ అవుట్ చేసేవరకు మీరు మొదలుపెట్టే ట్రిప్‌లు మీ పేరుపై నమోదవుతాయి.</string>
+    <string name="alert_cannot_signin">సైన్ ఇన్ కాలేదు</string>
+    <string name="alert_not_paired_title">ఈ ఫోన్ జత చేయలేదు</string>
+    <string name="alert_not_paired_body">సైన్ ఇన్ చేసే ముందు ఆఫీసును జత చేసే కోడ్ అడగండి.</string>
+    <string name="alert_no_stops_title">ఈ రూట్‌కు స్టాప్‌లు పెట్టలేదు</string>
+    <string name="alert_no_stops_body">బస్సు మ్యాప్‌లో కనిపిస్తుంది, కానీ ఏ స్టాప్ చేరిందో స్కూల్‌కు చెప్పలేం. ఆఫీసుకు చెప్పండి.</string>
+    <string name="alert_already_open_title">ఈ బస్సుకు ఇప్పటికే ట్రిప్ నడుస్తోంది</string>
+    <string name="alert_already_open_body">%1$s\n\nమీరు తీసుకుంటే ఆ ట్రిప్ మూసివేయబడుతుంది. ఆ ఫోన్ పని అయిపోయిందని ఖచ్చితంగా తెలిస్తేనే చేయండి.</string>
+    <string name="alert_sign_in_first_title">ట్రిప్ మొదలుపెట్టే ముందు సైన్ ఇన్ చేయండి</string>
+    <string name="alert_sign_in_first_body">ఏ ట్రిప్ ఎవరు నడిపారో స్కూల్ నమోదు చేస్తుంది, కాబట్టి ట్రిప్ తెరవడానికి ఫోన్‌కు మీ నంబర్, పిన్ కావాలి.</string>
+    <string name="alert_start_failed_title">ట్రిప్ మొదలుపెట్టలేకపోయాం</string>
+    <string name="alert_start_failed_body">స్కూల్ సర్వర్ తిరస్కరించింది: %1$s. మళ్ళీ ప్రయత్నించండి; మళ్ళీ మళ్ళీ అయితే ఆఫీసుకు కాల్ చేయండి.</string>
+    <string name="alert_no_longer_paired_title">ఈ ఫోన్ ఇక జత చేసి లేదు</string>
+    <string name="alert_no_longer_paired_body">ఆఫీసును కొత్త జత చేసే కోడ్ అడగండి.</string>
+    <string name="alert_end_offline_title">ట్రిప్ ముగిసింది, కానీ స్కూల్‌కు ఇంకా చెప్పలేదు</string>
+    <string name="alert_end_offline_body">సిగ్నల్ లేదు. సిగ్నల్ రాగానే ఈ ఫోన్ స్కూల్‌కు చెబుతుంది. యాప్ తీసేయకండి, ఫోన్ ఆన్‌లో ఉంచండి.</string>
+    <string name="alert_end_offline_fixes">సిగ్నల్ లేదు. సిగ్నల్ రాగానే ఈ ఫోన్ స్కూల్‌కు చెబుతుంది, రూట్ చివరి %1$d లొకేషన్లు కూడా పంపుతుంది. యాప్ తీసేయకండి, ఫోన్ ఆన్‌లో ఉంచండి.</string>
+
+    <!-- Directions -->
+    <string name="nav_finding">దారి వెతుకుతోంది</string>
+    <string name="nav_waiting">GPS కోసం వేచి ఉంది</string>
+    <string name="nav_arriving">చేరుతున్నారు</string>
+    <string name="nav_in">%1$s లో</string>
+    <string name="nav_ahead">ముందుకు</string>
+    <string name="nav_next">తర్వాతి స్టాప్ %1$s</string>
+    <string name="nav_off_route">దారి తప్పారు, కొత్త దారి వెతుకుతోంది</string>
+    <string name="nav_no_directions">దిశలు లేవు, నేరుగా గీతలు మాత్రమే</string>
+    <string name="nav_no_signal">దిశలకు సిగ్నల్ కావాలి</string>
+    <string name="nav_minutes">%1$d నిమి</string>
+    <string name="nav_hours_minutes">%1$d గం %2$d నిమి</string>
+    <string name="mute">మ్యూట్</string>
+    <string name="unmute">అన్‌మ్యూట్</string>
+    <string name="map_recentre">మధ్యకు</string>
+    <string name="map_whole">మొత్తం రూట్</string>
+    <string name="map_follow">బస్సును అనుసరించు</string>
+    <string name="sketch_caption">స్టాప్‌లు కొలతకు తగ్గట్టు, సుమారు %1$s వెడల్పు. రోడ్లు గీయలేదు.</string>
+
+    <!-- Location permission -->
+    <string name="perm_title">ఈ యాప్‌కు మీ లొకేషన్ కావాలి</string>
+    <string name="perm_where_h">బస్సు ఎక్కడ ఉంది</string>
+    <string name="perm_where_b">స్కూల్ మ్యాప్, బస్సు దగ్గరకు వచ్చినప్పుడు తల్లిదండ్రులకు వెళ్ళే సందేశం, ఈ ఫోన్ లొకేషన్ నుంచే వస్తాయి.</string>
+    <string name="perm_only_run_h">ట్రిప్ సమయంలో మాత్రమే</string>
+    <string name="perm_only_run_b">ట్రిప్ మొదలు ముందు, ట్రిప్ ముగించాక ఏమీ నమోదు కాదు. సాయంత్రం మీరు ఎక్కడికి వెళ్తారో సేకరించబడదు.</string>
+    <string name="perm_precise_h">ఖచ్చితమైనది, సుమారు కాదు</string>
+    <string name="perm_precise_b">సుమారు లొకేషన్‌తో బస్సు స్టాప్ చేరిందని తల్లిదండ్రులకు చెప్పలేం. దయచేసి ఖచ్చితమైన లొకేషన్ అనుమతించండి.</string>
+    <string name="perm_continue">కొనసాగించు</string>
+    <string name="perm_not_now">ఇప్పుడు కాదు</string>
+    <string name="perm_bg_title">ఇంకో సెట్టింగ్: "ఎప్పుడూ అనుమతించు"</string>
+    <string name="perm_bg_why_h">ఎందుకు</string>
+    <string name="perm_bg_why_b">"ఎప్పుడూ అనుమతించు" ఎంచుకోకపోతే స్క్రీన్ ఆఫ్ అయినప్పుడు ఆండ్రాయిడ్ ఈ యాప్‌కు లొకేషన్ ఇవ్వదు. అప్పుడు ఫోన్ కింద పెట్టిన ప్రతిసారీ బస్సు మ్యాప్ నుంచి మాయమవుతుంది.</string>
+    <string name="perm_bg_next_h">తర్వాత ఏమవుతుంది</string>
+    <string name="perm_bg_next_b">ఆండ్రాయిడ్ ఈ యాప్ సెట్టింగ్‌ల పేజీ తెరుస్తుంది. లొకేషన్, తర్వాత "ఎప్పుడూ అనుమతించు" ఎంచుకోండి.</string>
+    <string name="perm_open_settings">సెట్టింగ్‌లు తెరవండి</string>
+</resources>

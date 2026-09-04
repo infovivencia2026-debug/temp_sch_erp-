@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -41,8 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.res.stringResource
+import com.schoolerp.bustracker.R
 import com.schoolerp.bustracker.data.local.StopEntity
 import com.schoolerp.bustracker.navigation.Guidance
+import com.schoolerp.bustracker.ui.theme.BusType
 import com.schoolerp.bustracker.navigation.LatLng
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -211,6 +215,9 @@ fun RouteMap(
             onMuteChange = onMuteChange,
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                // Edge to edge when it fills the screen: keep the banner out
+                // from under the status bar.
+                .then(if (fillScreen) Modifier.statusBarsPadding() else Modifier)
                 .padding(8.dp),
         )
 
@@ -223,8 +230,13 @@ fun RouteMap(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            val buttonColors = ButtonDefaults.outlinedButtonColors(containerColor = scheme.surface)
-            val small = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            // Opaque on the tiles, and never under 48dp: these are pressed
+            // with the bus moving.
+            val buttonColors = ButtonDefaults.outlinedButtonColors(
+                containerColor = scheme.surface,
+                contentColor = scheme.onSurface,
+            )
+            val small = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
             if (panned) {
                 OutlinedButton(
                     onClick = {
@@ -233,8 +245,8 @@ fun RouteMap(
                     },
                     colors = buttonColors,
                     contentPadding = small,
-                    modifier = Modifier.height(36.dp),
-                ) { Text("Recentre", style = MaterialTheme.typography.labelLarge) }
+                    modifier = Modifier.height(48.dp),
+                ) { Text(stringResource(R.string.map_recentre), style = BusType.small) }
             }
             OutlinedButton(
                 onClick = {
@@ -244,11 +256,11 @@ fun RouteMap(
                 },
                 colors = buttonColors,
                 contentPadding = small,
-                modifier = Modifier.height(36.dp),
+                modifier = Modifier.height(48.dp),
             ) {
                 Text(
-                    if (mode == Camera.FOLLOW) "Whole route" else "Follow bus",
-                    style = MaterialTheme.typography.labelLarge,
+                    stringResource(if (mode == Camera.FOLLOW) R.string.map_whole else R.string.map_follow),
+                    style = BusType.small,
                 )
             }
         }

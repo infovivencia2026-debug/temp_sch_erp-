@@ -78,6 +78,16 @@ object ApiFailures {
         val code = parsed?.error?.code?.takeIf { it.isNotBlank() }
 
         return when {
+            /* A WRONG PIN IS NOT A DEAD TOKEN.
+
+               Both come back as 401, and folding them together left the
+               screen unable to say which: "no PIN issued yet" and "wrong PIN"
+               read as the same sentence. Only the sign-in endpoints answer
+               with these codes, so carrying them through as a Rejected with
+               the code changes nothing for the heartbeat or the push, whose
+               401 is still Unauthorized. */
+            status == 401 && (code == ErrorCodes.BAD_PIN || code == ErrorCodes.NO_LOGIN_YET) ->
+                ApiFailure.Rejected(status, code, parsed?.error?.message)
             status == 401 || status == 403 -> ApiFailure.Unauthorized
             code == ErrorCodes.NO_SUCH_TRIP -> ApiFailure.NoSuchTrip
             code == ErrorCodes.TRIP_ALREADY_OPEN -> ApiFailure.TripAlreadyOpen(parsed?.error?.message)

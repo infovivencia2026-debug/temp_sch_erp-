@@ -8,7 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,8 +22,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.schoolerp.bustracker.R
+import com.schoolerp.bustracker.ui.theme.BusType
 
 /**
  * Location has to be asked for in two steps, and the order is not a style
@@ -77,19 +82,13 @@ fun LocationPermissionPrompt(onFinished: () -> Unit = {}) {
 
     when {
         !hasForeground && stage == Stage.EXPLAIN_FOREGROUND -> Explain(
-            title = "This app needs your location",
+            title = stringResource(R.string.perm_title),
             lines = listOf(
-                "Where the bus is" to
-                    "The school's map, and the message a parent gets when the bus is near " +
-                    "their stop, are this phone's position and nothing else.",
-                "Only during a run" to
-                    "Nothing is recorded before you press Start Run or after you press End " +
-                    "Run. Where you go in the evening is not collected and cannot be seen.",
-                "Precise, not approximate" to
-                    "An approximate position cannot tell a parent the bus has reached their " +
-                    "stop. Please allow precise location.",
+                stringResource(R.string.perm_where_h) to stringResource(R.string.perm_where_b),
+                stringResource(R.string.perm_only_run_h) to stringResource(R.string.perm_only_run_b),
+                stringResource(R.string.perm_precise_h) to stringResource(R.string.perm_precise_b),
             ),
-            confirmLabel = "Continue",
+            confirmLabel = stringResource(R.string.perm_continue),
             onConfirm = {
                 foregroundLauncher.launch(
                     arrayOf(
@@ -105,17 +104,12 @@ fun LocationPermissionPrompt(onFinished: () -> Unit = {}) {
         )
 
         hasForeground && !hasBackground -> Explain(
-            title = "One more setting: \"Allow all the time\"",
+            title = stringResource(R.string.perm_bg_title),
             lines = listOf(
-                "Why" to
-                    "Android stops giving this app your position when the screen goes off, " +
-                    "unless you choose \"Allow all the time\". That is most of a run, the " +
-                    "bus would vanish from the school's map every time you put the phone down.",
-                "What happens next" to
-                    "Android will open its own settings page for this app. Choose Location, " +
-                    "then \"Allow all the time\".",
+                stringResource(R.string.perm_bg_why_h) to stringResource(R.string.perm_bg_why_b),
+                stringResource(R.string.perm_bg_next_h) to stringResource(R.string.perm_bg_next_b),
             ),
-            confirmLabel = "Open settings",
+            confirmLabel = stringResource(R.string.perm_open_settings),
             onConfirm = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     backgroundLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -149,22 +143,31 @@ private fun Explain(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(title, style = BusType.display) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 lines.forEach { (heading, detail) ->
                     Column {
-                        Text(heading, style = MaterialTheme.typography.titleSmall)
-                        Text(detail, style = MaterialTheme.typography.bodySmall)
+                        Text(heading, style = BusType.bodyStrong)
+                        Text(detail, style = BusType.small, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+        // The one the driver should press is a filled button, the other is a word.
+        confirmButton = {
+            Button(onClick = onConfirm, modifier = Modifier.heightIn(min = 56.dp)) {
+                Text(confirmLabel, style = BusType.bodyStrong)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 56.dp)) {
+                Text(stringResource(R.string.perm_not_now), style = BusType.small)
+            }
+        },
     )
 }
 

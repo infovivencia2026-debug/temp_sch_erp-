@@ -1,7 +1,11 @@
 package com.schoolerp.bustracker.data.repo
 
+import android.content.Context
 import com.schoolerp.bustracker.BuildConfig
+import com.schoolerp.bustracker.R
 import com.schoolerp.bustracker.core.BaseUrl
+import com.schoolerp.bustracker.data.remote.ErrorCodes
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.schoolerp.bustracker.core.BtLog
 import com.schoolerp.bustracker.core.Rfc3339
 import com.schoolerp.bustracker.core.TimeSource
@@ -61,7 +65,12 @@ class TrackerRepository @Inject constructor(
     private val locationPermissions: LocationPermissions,
     private val time: TimeSource,
     @param:AllowInsecureHttpBuild private val allowInsecureHttpBuild: Boolean,
+    /* For the sentences the screens show, so they live in strings.xml with
+       their Telugu beside them rather than in Kotlin here. */
+    @param:ApplicationContext private val context: Context,
 ) {
+
+    private fun str(id: Int): String = context.getString(id)
 
     val paired: StateFlow<Boolean> = tokenStore.paired
 
@@ -132,7 +141,7 @@ class TrackerRepository @Inject constructor(
     ): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
-            .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
+            .getOrElse { return PairOutcome.Rejected(it.message ?: str(R.string.err_bad_address)) }
         return try {
             val response = api.enrol(
                 baseUrl,
@@ -171,7 +180,7 @@ class TrackerRepository @Inject constructor(
     ): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
-            .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
+            .getOrElse { return PairOutcome.Rejected(it.message ?: str(R.string.err_bad_address)) }
 
         return try {
             val response = api.driverSignIn(
@@ -230,25 +239,36 @@ class TrackerRepository @Inject constructor(
         }
     }
 
+    /* ONE SENTENCE PER REFUSAL, and what to do next in the same breath.
+
+       The code decides the sentence; the server's own message is the
+       fallback for a code this app has not met. 429 arrives as TooFast, not
+       as a Rejected with status 429, which is why the old 429 branch under
+       Rejected never ran and a locked PIN read as "Could not sign in
+       (too_fast)". On the sign-in endpoints a 429 is the PIN lock; on the
+       public pairing endpoint it is the network rate limit. */
     private fun driverSignInMessage(failure: ApiFailure): String = when (failure) {
-        is ApiFailure.Unauthorized ->
-            "That login and password did not match. Type the login exactly as the office " +
-            "wrote it, which may be an email, a username or a mobile number."
-        is ApiFailure.Rejected -> when (failure.status) {
-            409 -> failure.detail
-                ?: "No bus is assigned to you yet. Ask the office to put you against a vehicle."
-            429 -> "Too many wrong attempts. Wait a few minutes, or ask the office to unlock it."
-            else -> failure.detail ?: "Could not sign in."
+        is ApiFailure.Unauthorized -> str(R.string.err_bad_pin)
+        is ApiFailure.TooFast -> str(R.string.err_pin_locked)
+        is ApiFailure.Rejected -> when (failure.code) {
+            ErrorCodes.BAD_PIN -> str(R.string.err_bad_pin)
+            ErrorCodes.NO_LOGIN_YET -> str(R.string.err_no_login_yet)
+            ErrorCodes.PIN_LOCKED -> str(R.string.err_pin_locked)
+            ErrorCodes.NOT_A_DRIVER -> str(R.string.err_not_a_driver)
+            ErrorCodes.NO_VEHICLE -> str(R.string.err_no_vehicle)
+            ErrorCodes.NO_SUCH_BUS -> str(R.string.err_no_such_bus)
+            ErrorCodes.RATE_LIMITED -> str(R.string.err_rate_limited)
+            else -> failure.detail ?: str(R.string.err_signin_generic)
         }
-        is ApiFailure.Malformed ->
-            "The server answered in a way this app did not understand. Tell the office the app needs updating."
-        else -> "Could not sign in (${failure.reason})."
+        is ApiFailure.Network -> str(R.string.err_network)
+        is ApiFailure.Malformed -> str(R.string.err_app_outdated)
+        else -> str(R.string.err_signin_generic)
     }
 
     suspend fun pair(rawBaseUrl: String, pairCode: String): PairOutcome {
         val settings = settingsStore.settings.first()
         val baseUrl = BaseUrl.parse(rawBaseUrl, allowInsecureHttpBuild && settings.allowInsecureHttp)
-            .getOrElse { return PairOutcome.Rejected(it.message ?: "That address is not usable.") }
+            .getOrElse { return PairOutcome.Rejected(it.message ?: str(R.string.err_bad_address)) }
 
         val request = ClaimRequest(
             pairCode = pairCode,
@@ -294,13 +314,15 @@ class TrackerRepository @Inject constructor(
     }
 
     private fun pairingMessage(failure: ApiFailure): String = when (failure) {
-        is ApiFailure.Network ->
-            "Could not reach the school's server. Check the address and the phone's data connection."
-        is ApiFailure.Unauthorized ->
-            "That pairing code is not valid. Ask the office for a new one, codes expire after ten minutes."
-        is ApiFailure.Malformed ->
-            "The server answered in a way this app did not understand. Tell the office the app needs updating."
-        else -> "Pairing failed (${failure.reason})."
+        is ApiFailure.Network -> str(R.string.err_network)
+        is ApiFailure.Unauthorized -> str(R.string.err_pair_code_invalid)
+        is ApiFailure.TooFast -> str(R.string.err_rate_limited)
+        is ApiFailure.Rejected -> when (failure.code) {
+            ErrorCodes.RATE_LIMITED -> str(R.string.err_rate_limited)
+            else -> failure.detail ?: str(R.string.err_pair_generic)
+        }
+        is ApiFailure.Malformed -> str(R.string.err_app_outdated)
+        else -> str(R.string.err_pair_generic)
     }
 
     // -------------------------------------------------------------- the shift
@@ -484,23 +506,9 @@ class TrackerRepository @Inject constructor(
         tokenStore.clearSession()
     }
 
-    private fun signInMessage(failure: ApiFailure): String = when (failure) {
-        is ApiFailure.Unauthorized ->
-            "That login and password did not match. Type the login exactly as the office " +
-            "wrote it, which may be an email, a username or a mobile number."
-        /* 429 pin_locked: the server counts failed PINs and locks the number
-           for a while. Rejected carries the status, so this reads it rather
-           than inventing a case ApiFailure does not have. */
-        is ApiFailure.Rejected ->
-            if (failure.status == 429) {
-                "Too many wrong PINs. Wait a few minutes, or ask the office to unlock it."
-            } else {
-                failure.detail ?: "Could not sign in."
-            }
-        is ApiFailure.Malformed ->
-            "The server answered in a way this app did not understand. Tell the office the app needs updating."
-        else -> "Could not sign in (${failure.reason})."
-    }
+    /* The shift sign-in on a paired handset refuses for the same reasons
+       the public one does, and says the same things. */
+    private fun signInMessage(failure: ApiFailure): String = driverSignInMessage(failure)
 
     // ----------------------------------------------------------------- trips
 
@@ -566,7 +574,7 @@ class TrackerRepository @Inject constructor(
             when (failure) {
                 is ApiFailure.TripAlreadyOpen -> StartOutcome.AlreadyOpen(
                     failure.detail
-                        ?: "This bus already has a run open. Close it, or take it over.",
+                        ?: str(R.string.err_run_already_open),
                 )
                 // A 409 with a code this app does not know now arrives as
                 // Rejected rather than TripAlreadyOpen. On trip start the only
@@ -577,7 +585,7 @@ class TrackerRepository @Inject constructor(
                 is ApiFailure.Rejected -> if (failure.status == 409) {
                     StartOutcome.AlreadyOpen(
                         failure.detail
-                            ?: "This bus already has a run open. Close it, or take it over.",
+                            ?: str(R.string.err_run_already_open),
                     )
                 } else {
                     StartOutcome.Failed(failure.reason)

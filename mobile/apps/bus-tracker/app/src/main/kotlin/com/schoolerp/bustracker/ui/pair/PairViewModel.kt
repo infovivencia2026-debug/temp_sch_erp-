@@ -1,8 +1,11 @@
 package com.schoolerp.bustracker.ui.pair
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.schoolerp.bustracker.BuildConfig
+import com.schoolerp.bustracker.R
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.schoolerp.bustracker.core.PairCode
 import com.schoolerp.bustracker.data.prefs.SettingsStore
 import com.schoolerp.bustracker.data.repo.PairOutcome
@@ -79,6 +82,7 @@ class PairViewModel @Inject constructor(
     private val repository: TrackerRepository,
     private val settingsStore: SettingsStore,
     private val engine: com.schoolerp.bustracker.engine.TripEngine,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PairUiState())
@@ -253,8 +257,7 @@ class PairViewModel @Inject constructor(
                             // Signed in, and the school has no active bus at
                             // all. That is the office's to fix, and saying so
                             // is better than an empty list he can only stare at.
-                            "You are signed in, but this school has no active bus yet. " +
-                                "Ask the office to add one in Transport."
+                            context.getString(R.string.pair_no_bus_yet)
                         } else {
                             null
                         },
@@ -282,7 +285,7 @@ class PairViewModel @Inject constructor(
             _state.value = _state.value.copy(
                 pairedVehicle = null,
                 pairedInstitution = null,
-                error = "Unpaired. Ask the office for a code for the right bus.",
+                error = context.getString(R.string.pair_unpaired),
             )
         }
     }

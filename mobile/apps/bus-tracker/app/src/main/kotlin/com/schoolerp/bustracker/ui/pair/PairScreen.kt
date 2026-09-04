@@ -2,206 +2,163 @@ package com.schoolerp.bustracker.ui.pair
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.schoolerp.bustracker.R
+import com.schoolerp.bustracker.core.PairCode
+import com.schoolerp.bustracker.ui.theme.BusType
+import com.schoolerp.bustracker.ui.theme.CodeBoxes
+import com.schoolerp.bustracker.ui.theme.ErrorSentence
+import com.schoolerp.bustracker.ui.theme.ListRow
+import com.schoolerp.bustracker.ui.theme.OfficeHelp
+import com.schoolerp.bustracker.ui.theme.PrimaryButton
+import com.schoolerp.bustracker.ui.theme.QuietLink
+import com.schoolerp.bustracker.ui.theme.SectionLabel
 
-/* THE DRIVER SIGNS IN. HE DOES NOT PAIR.
- *
- * The whole credential path was already here and had been for weeks: the view
- * model holds `phone` and `pin`, `canSubmit` validates them, `pair()` branches
- * to `repository.driverSignIn`, and the server grew a public
- * /bus-tracker/driver-signin endpoint to answer it. None of it could ever run,
- * because this screen rendered one field — the pairing code — and offered no
- * way to reach the other branch. `usePairCode` defaulted to true and nothing
- * on screen could set it to false.
- *
- * That is the same defect this codebase keeps producing: code that reads
- * correctly and can never take effect. A driver opening the app was asked for
- * a code that only somebody sitting in the office at six in the morning could
- * give him, when what he was actually handed was a login.
- *
- * So the screen is the login now: the number or email the school issued, the
- * password, sign in. The pairing code stays reachable behind one line of text
- * for a bus with no driver assigned to it yet, which is the case it was
- * genuinely for.
- */
+/* THE FIRST SCREEN, AT TEN TO SEVEN.
+
+   Two fields and one button. The number goes on a phone keypad, the PIN into
+   six boxes on the same keypad, and the button is the whole width of the
+   screen at the bottom where a thumb already is. What went wrong is one
+   sentence in the warning colour, followed by who to ring.
+
+   The rarer ways in -- an email login with a long password, and the office's
+   six-digit pairing code for a bus nobody is assigned to yet -- are each one
+   quiet line under the button, never a second form on the same screen.
+
+   Nothing the view model does has changed: the same fields, the same
+   `canSubmit`, the same three branches in `pair()`. */
 @Composable
 fun PairScreen(viewModel: PairViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Screen-only: which keyboard the login wants. The view model accepts
+    // either shape and the server matches email, username or phone.
+    var emailLogin by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            when {
-                state.buses.isNotEmpty() -> "Which bus are you on?"
-                state.usePairCode -> "Pair this phone"
-                else -> "Sign in to drive"
-            },
-            style = MaterialTheme.typography.headlineSmall,
-        )
+    val choosingBus = state.buses.isNotEmpty()
 
-        /* HE IS SIGNED IN. HE PICKS THE BUS HIMSELF.
-         *
-         * This screen used to end here with "no bus is assigned to you yet,
-         * ask the office" -- a refusal, at ten to seven, that only somebody
-         * sitting at a desk could clear. The office still decides routes and
-         * assignments; it simply is not in the way of a man who has his login
-         * and is standing next to a bus with its registration painted on it.
-         *
-         * Registration in full size because that is what he reads off the
-         * back; the model underneath only where the school recorded one. */
-        if (state.buses.isNotEmpty()) {
-            state.buses.forEachIndexed { index, bus ->
-                if (index > 0) HorizontalDivider()
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            if (!choosingBus) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(enabled = !state.submitting) { viewModel.chooseBus(bus.id) }
-                        .padding(vertical = 12.dp),
+                        .imePadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(bus.registrationNo, style = MaterialTheme.typography.titleLarge)
-                    val detail = listOf(bus.model, bus.busCode).filter { it.isNotBlank() }
-                    if (detail.isNotEmpty()) {
-                        Text(
-                            detail.joinToString(" \u00b7 "),
-                            style = MaterialTheme.typography.bodyMedium,
+                    PrimaryButton(
+                        text = stringResource(if (state.usePairCode) R.string.pair_button else R.string.signin_button),
+                        onClick = viewModel::pair,
+                        enabled = state.canSubmit,
+                        busy = state.submitting,
+                    )
+                    if (state.pairCodeAvailable) {
+                        QuietLink(
+                            text = stringResource(
+                                if (state.usePairCode) R.string.pair_switch_to_signin else R.string.pair_switch_to_code,
+                            ),
+                            onClick = { viewModel.usePairCode(!state.usePairCode) },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
             }
-            state.error?.let { message ->
-                Text(
-                    message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            return@Column
-        }
-
-        if (state.usePairCode) {
-            OutlinedTextField(
-                value = state.pairCode,
-                onValueChange = viewModel::onPairCodeChanged,
-                label = { Text("Pairing code") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 4.sp,
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                // fillMaxWidth, not a fixed width: the letter-spaced monospace
-                // above is what pushed this off the side of a narrow handset.
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            OutlinedTextField(
-                value = state.phone,
-                onValueChange = viewModel::onPhoneChanged,
-                label = { Text("Mobile number or email") },
-                singleLine = true,
-                /* Email, not Phone. The school issues drivers the same login
-                   everybody else gets and it is as often an address as a
-                   number; a numeric keypad on an email field is a dead end the
-                   driver cannot get out of. */
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = state.pin,
-                onValueChange = viewModel::onPinChanged,
-                label = { Text("Password") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (state.scannedBus.isNotBlank()) {
-                Text(
-                    "Bus ${state.scannedBus}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-
-        state.error?.let { message ->
-            Text(
-                message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                // Wraps rather than running off the edge: a server sentence is
-                // longer than a phone is wide.
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        Button(
-            onClick = viewModel::pair,
-            enabled = state.canSubmit,
-            modifier = Modifier.fillMaxWidth(),
+        },
+    ) { insets ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(insets)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (state.submitting) {
-                // On the button's own colour, or it is invisible: the default
-                // is `primary`, which is the filled button's background.
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Text(if (state.usePairCode) "Pair this phone" else "Sign in")
-            }
-        }
+            Text(
+                stringResource(
+                    when {
+                        choosingBus -> R.string.choose_bus_title
+                        state.usePairCode -> R.string.pair_title
+                        else -> R.string.signin_title
+                    },
+                ),
+                style = BusType.display,
+            )
 
-        /* One line, at the bottom, in the quietest thing on the screen. The
-           driver with a login never has to read it; the one standing beside a
-           bus nobody has assigned him to can still get moving. */
-        if (state.pairCodeAvailable) {
-            TextButton(
-                onClick = { viewModel.usePairCode(!state.usePairCode) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    if (state.usePairCode) "Sign in with your school login instead"
-                    else "I was given a pairing code instead",
-                )
+            when {
+                /* Signed in, and the office has not said which bus. He is
+                   standing next to it: the registration is what he reads off
+                   the back, so it is the row's title. */
+                choosingBus -> {
+                    state.buses.forEach { bus ->
+                        val detail = listOf(bus.model, bus.busCode).filter { it.isNotBlank() }
+                        ListRow(
+                            title = bus.registrationNo,
+                            subtitle = detail.takeIf { it.isNotEmpty() }?.joinToString(" · "),
+                            enabled = !state.submitting,
+                            onClick = { viewModel.chooseBus(bus.id) },
+                        )
+                    }
+                }
+
+                state.usePairCode -> {
+                    SectionLabel(stringResource(R.string.pair_code_hint))
+                    CodeBoxes(
+                        value = state.pairCode,
+                        onValueChange = { viewModel.onPairCodeChanged(PairCode.normalise(it)) },
+                        label = stringResource(R.string.pair_code_label),
+                        onDone = { if (state.canSubmit) viewModel.pair() },
+                    )
+                }
+
+                else -> {
+                    DriverCredentials(
+                        phone = state.phone,
+                        onPhoneChanged = viewModel::onPhoneChanged,
+                        pin = state.pin,
+                        onPinChanged = viewModel::onPinChanged,
+                        emailLogin = emailLogin,
+                        onEmailLoginChanged = { emailLogin = it },
+                        onDone = { if (state.canSubmit) viewModel.pair() },
+                    )
+                    if (state.scannedBus.isNotBlank()) {
+                        Text(
+                            stringResource(R.string.scanned_bus, state.scannedBus),
+                            style = BusType.small,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
+
+            state.error?.let { message ->
+                ErrorSentence(message)
+                OfficeHelp()
+            }
+
+            // Room under the last field so the bottom bar never covers it.
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

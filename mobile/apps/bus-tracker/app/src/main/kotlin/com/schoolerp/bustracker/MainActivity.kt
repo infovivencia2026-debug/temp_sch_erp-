@@ -4,10 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -36,13 +35,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/* Each screen carries its own Scaffold, because each has a bottom bar with
+   the one button that matters and needs to place it against the keyboard
+   and the navigation bar itself. This only paints the background. */
 @Composable
 private fun TrackerApp(viewModel: RootViewModel = hiltViewModel()) {
     val paired by viewModel.paired.collectAsStateWithLifecycle()
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { insets ->
-        Box(Modifier.padding(insets)) {
-            if (paired) RunScreen() else PairScreen()
-        }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        if (paired) RunScreen() else PairScreen()
     }
 }
