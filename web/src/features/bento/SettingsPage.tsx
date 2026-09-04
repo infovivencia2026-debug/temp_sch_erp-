@@ -217,7 +217,19 @@ export default function SettingsPage() {
       <div
         className={cn(
           'flex flex-col overflow-hidden rounded-none border-x-0 border-t-0',
-          'sm:rounded-[16px] sm:border-x sm:border-t border-b',
+          /* THE CARD REACHES THE BOTTOM ON A PHONE.
+
+             It was sized to its contents, so a short list left the work area's
+             own colour showing under it as a band of dead grey between the
+             last row and the dock: the page looked unfinished rather than
+             short. min-h-full makes the surface the height of the screen and
+             the list simply ends where it ends, which is what a phone settings
+             screen does. The bottom border goes with it, because a border
+             across the foot of a full-height sheet is a line under nothing.
+
+             From sm up the panel is a card again and both come back. */
+          'min-h-full border-b-0 sm:min-h-0 sm:border-b',
+          'sm:rounded-[16px] sm:border-x sm:border-t',
           'bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
           EDGE,

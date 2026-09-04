@@ -173,6 +173,10 @@ export interface SessionResponse {
     platform_admin: boolean
     /** Still on the password the office issued — their own phone number. */
     must_change_password?: boolean
+    /** The file id of their photograph, absent if they have none. Carried on
+        the session so every surface that shows who is signed in can draw it,
+        rather than each one fetching /profile for a single string. */
+    avatar_key?: string
   }
   institution?: {
     id: string; name: string; short_name: string; slug: string

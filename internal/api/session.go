@@ -24,10 +24,22 @@ type sessionResponse struct {
 }
 
 type sessionUser struct {
-	ID            string   `json:"id"`
-	FullName      string   `json:"full_name"`
-	Roles         []string `json:"roles"`
-	PlatformAdmin bool     `json:"platform_admin"`
+	ID       string   `json:"id"`
+	FullName string   `json:"full_name"`
+	Roles    []string `json:"roles"`
+	/* THE PICTURE, SO EVERY SURFACE CAN DRAW IT.
+
+	   It was readable only from /profile, which one screen calls, so a person
+	   who set a photo saw it on the settings card and nowhere else: the top
+	   bar, the account screen and every other place that shows who is signed
+	   in went on drawing initials. A photograph that appears in one place out
+	   of five reads as not having saved.
+
+	   On the session because that is the payload every surface already has.
+	   The alternative is each of them fetching /profile, which is five
+	   requests for one string and five caches to fall out of step. */
+	AvatarKey     *string `json:"avatar_key,omitempty"`
+	PlatformAdmin bool    `json:"platform_admin"`
 	// Still on the password the office issued. The client renders one screen
 	// and nothing else until this is false; the API enforces the same thing,
 	// because a client is not a gate.
@@ -133,6 +145,17 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(perms)
 
+	/* Read here rather than carried on the identity, because the identity is
+	   built from the session token on every request and a picture is not part
+	   of authenticating anybody. A failed read leaves it absent, which draws
+	   the initials, so a slow or broken lookup costs a photograph and never a
+	   sign-in. */
+	var avatar *string
+	_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(),
+			`SELECT avatar_key FROM users WHERE id = $1`, id.UserID).Scan(&avatar)
+	})
+
 	resp := sessionResponse{
 		Authenticated: true,
 		Permissions:   perms,
@@ -142,6 +165,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			PlatformAdmin:      id.PlatformAdmin,
 			MustChangePassword: id.MustChangePassword,
 			Roles:              []string{},
+			AvatarKey:          avatar,
 		},
 	}
 

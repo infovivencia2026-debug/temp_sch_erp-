@@ -192,7 +192,11 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
   const name = profile.data?.full_name ?? session.user?.full_name ?? 'Signed in'
   const school = session.institution?.name
   const role = session.user?.roles?.[0]?.replace(/_/g, ' ')
-  const avatar = profile.data?.avatar_key
+  /* The session's copy is the one every other surface uses, so preferring the
+     freshly fetched one here and falling back to it keeps this card correct
+     immediately after an upload without waiting for the session to be read
+     again. */
+  const avatar = profile.data?.avatar_key ?? session.user?.avatar_key
 
   const initials = name
     .split(/\s+/)
