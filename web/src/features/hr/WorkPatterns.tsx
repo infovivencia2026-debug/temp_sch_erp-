@@ -61,11 +61,11 @@ export default function WorkPatterns() {
 
   const q = useQuery({
     queryKey: ['work-patterns'],
-    queryFn: () => api.get<Pattern[]>('/api/v1/setup/work-patterns'),
+    queryFn: () => api.get<{ items: Pattern[] }>('/api/v1/setup/work-patterns'),
   })
   const depts = useQuery({
     queryKey: ['departments'],
-    queryFn: () => api.get<Dept[]>('/api/v1/setup/departments'),
+    queryFn: () => api.get<{ items: Dept[] }>('/api/v1/setup/departments'),
   })
 
   const done = (ok: string) => {
@@ -231,11 +231,11 @@ export default function WorkPatterns() {
                   </Field>
                 </FormGrid>
 
-                {depts.data && depts.data.length > 0 && (
+                {depts.data && depts.data.items.length > 0 && (
                   <div className="mt-5">
                     <div className="text-sm font-medium">Departments on these hours</div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {depts.data.map((d) => {
+                      {depts.data.items.map((d) => {
                         const on = draft.department_ids.includes(d.id)
                         return (
                           <button
@@ -285,14 +285,14 @@ export default function WorkPatterns() {
             <SkeletonTable rows={3} />
           ) : q.error ? (
             <ErrorState error={q.error} />
-          ) : q.data!.length === 0 ? (
+          ) : q.data!.items.length === 0 ? (
             <EmptyState
               title="No hours set"
               body="Until a set of hours exists, the readers record punches that are compared to nothing."
             />
           ) : (
             <Table head={['Name', 'Hours', 'Days', 'When a day is lost', 'On these hours', '']}>
-              {q.data!.map((p) => (
+              {q.data!.items.map((p) => (
                 <tr key={p.id}>
                   <Td className="font-medium">
                     {p.name} {p.is_default && <Badge tone="neutral">Default</Badge>}

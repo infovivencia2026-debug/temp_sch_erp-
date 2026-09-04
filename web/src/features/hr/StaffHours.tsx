@@ -43,10 +43,10 @@ export default function StaffHours() {
 
   const q = useQuery({
     queryKey: ['staff-hours', month],
-    queryFn: () => api.get<Row[]>(`/api/v1/setup/staff-hours?month=${month}`),
+    queryFn: () => api.get<{ items: Row[] }>(`/api/v1/setup/staff-hours?month=${month}`),
   })
 
-  const rows = q.data ?? []
+  const rows = q.data?.items ?? []
   const noPattern = rows.filter((r) => r.pattern === 'None').length
   const totalLOP = rows.reduce((n, r) => n + (r.lop_paise ?? 0), 0)
 
