@@ -108,6 +108,10 @@ type summaryStat struct {
 	// Never "bad": what is wrong belongs in the attention panel above, and a
 	// strip that alarms is the dashboard this replaced.
 	Tone string `json:"tone,omitempty"`
+	// Columns the tile takes on a phone's three-across strip: 2 or 3 for a
+	// figure that needs the room, 0 or 1 for an ordinary one. The strip
+	// fills a stranded last tile itself, so most figures leave this alone.
+	Span int `json:"span,omitempty"`
 }
 
 /*

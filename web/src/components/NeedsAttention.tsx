@@ -37,6 +37,10 @@ interface SummaryStat {
   /* 'good' where the hint is the answer somebody wanted. Never 'bad' — what
      is wrong belongs in the attention panel above this strip. */
   tone?: string
+  /* Columns this tile takes on a phone: 1 (default), 2 or 3 of the three.
+     Set by the server for a figure that needs the room; a tile with no
+     span still fills the rest of its row when it would be stranded. */
+  span?: number
 }
 
 interface AttentionResponse {
@@ -85,11 +89,35 @@ export default function NeedsAttention({ name }: { name?: string }) {
     },
   })
 
+  /* ONE REQUEST, NOT ONE PER PANEL THAT WANTS IT.
+   *
+   * This asked for `/api/v1/attention?role=<key>` under the key
+   * ['attention', role.key], and the bento principal board asked for
+   * `/api/v1/attention` under ['attention', 'bento-principal'] — whose own
+   * comment says the key is chosen so that "a board and the classic attention
+   * panel share a single cached response rather than racing for the same
+   * rows". They never shared it: two different keys are two cache entries, and
+   * two different URLs are two requests. Both mount on Home together, so every
+   * visit to the dashboard ran the whole probe set twice, which the probe
+   * measured as `x2 231ms GET /attention`.
+   *
+   * The role went out of the URL rather than into the other caller's, because
+   * the server never used it: getAttention in internal/api/attention.go copies
+   * the parameter straight back into the response's `role` field and decides
+   * what to run from the caller's own permissions and scope. Nothing on this
+   * screen reads that field either — the role rendered here is useActiveRole()
+   * — so the parameter's only effect in the product's life was to keep two
+   * identical requests from looking identical.
+   *
+   * The key is now the bare ['attention'], which is also what the twelve or so
+   * `invalidateQueries({ queryKey: ['attention'] })` calls across the finance,
+   * HR and admissions screens have always been aiming at. */
   const q = useQuery({
-    queryKey: ['attention', role?.key],
-    queryFn: () => api.get<AttentionResponse>(`/api/v1/attention?role=${role?.key ?? ''}`),
+    queryKey: ['attention'],
+    queryFn: () => api.get<AttentionResponse>('/api/v1/attention'),
     // A school day moves; a panel that answers "what needs me now" should not
-    // be answering it from ten minutes ago.
+    // be answering it from ten minutes ago. One of the three queries that keep
+    // focus refetching now that App.tsx's default is off.
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   })
@@ -310,6 +338,26 @@ export default function NeedsAttention({ name }: { name?: string }) {
 
                 Written out rather than computed because Tailwind only ships
                 the classes it can see in the source. */}
+            {/* NO STRANDED TILE.
+
+                Four tiles on a three-column phone grid put the fourth alone
+                on a second row beside two thirds of nothing, drawn in the
+                border colour: a grey block that looked like a tile that had
+                failed to load. The grid stays three across, and a last tile
+                that would be stranded takes the rest of its row, so the grid
+                always ends on a full line. Phone only: the wider grids below
+                have their own counts. */}
+            {(() => {
+              // Written out: Tailwind only ships the classes it can read.
+              const SPAN: Record<number, string> = {
+                2: 'col-span-2 sm:col-span-1',
+                3: 'col-span-3 sm:col-span-1',
+              }
+              const spanOf = (s: SummaryStat) => Math.min(3, Math.max(1, Math.round(s.span ?? 1)))
+              const used = summary.reduce((n, s) => n + spanOf(s), 0)
+              const stranded = used % 3
+              const lastSpan = stranded === 0 ? '' : SPAN[3 - stranded + spanOf(summary[summary.length - 1])] ?? ''
+              return (
             <div
               className={cn(
                 'grid gap-px overflow-hidden rounded-md border bg-border',
@@ -319,8 +367,14 @@ export default function NeedsAttention({ name }: { name?: string }) {
                 summary.length === 2 && 'grid-cols-2 sm:grid-cols-2',
               )}
             >
-              {summary.map((s) => (
-                <div key={s.label} className="bg-card px-3 py-3 text-center sm:px-4 sm:text-left">
+              {summary.map((s, i) => (
+                <div
+                  key={s.label}
+                  className={cn(
+                    'bg-card px-3 py-3 text-center sm:px-4 sm:text-left',
+                    i === summary.length - 1 ? lastSpan || SPAN[spanOf(s)] : SPAN[spanOf(s)],
+                  )}
+                >
                   <p className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[24px]">
                     {s.value}
                   </p>
@@ -336,6 +390,8 @@ export default function NeedsAttention({ name }: { name?: string }) {
                 </div>
               ))}
             </div>
+              )
+            })()}
           </section>
         )}
       </div>
