@@ -495,14 +495,18 @@ function AccountForm({
   const [resetNote, setResetNote] = useState<string | null>(null)
   const reset = useMutation({
     mutationFn: (pw: string) =>
-      api.post<{ temporary_password?: string; sent_by?: string; sent_to?: string }>(
+      api.post<{ temporary_password?: string; note?: string; sent_by?: string; sent_to?: string }>(
         `/api/v1/admin/users/${user!.id}/reset-password`,
         pw ? { new_password: pw } : {},
       ),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['school-logins'] })
       if (res?.temporary_password) {
-        setSent(sentLine(res))
+        /* The server now echoes a typed password as well as a generated one,
+           so this is the ordinary path rather than the generated-only one. Its
+           own sentence is preferred over ours, because only it knows which of
+           the two happened. */
+        setSent(sentLine(res) ?? res.note ?? null)
         setTempPassword(res.temporary_password)
         return
       }

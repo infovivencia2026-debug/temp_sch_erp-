@@ -146,19 +146,32 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/* A password the administrator typed is not echoed back. They already
-	   have it, and the screen that shows a one-time value is a screen left
-	   open on a desk. */
+	/* WHATEVER IS NOW IN EFFECT COMES BACK, TYPED OR GENERATED.
+
+	   A password the administrator had typed was deliberately not echoed, on
+	   the grounds that they already knew it and a value on screen is a value
+	   left open on a desk. In an office that is wrong twice over: the person
+	   who presses the button is often not the person who typed it -- a clerk
+	   resetting a parent's login while the head reads it out -- and a screen
+	   that says only "that password is in effect" cannot be read down a phone
+	   to the parent who is waiting for it. They were resetting a second time
+	   with a generated one just to get something they could read.
+
+	   The value is only ever shown to somebody who already holds
+	   users.write on that account and who has just changed it, so nothing is
+	   disclosed here that they could not have set themselves a moment ago. */
 	out := resetPasswordResponse{
-		UserID: target.String(),
-		Note: "The password you set is in effect. All their existing sessions have " +
-			"been signed out.",
+		UserID:            target.String(),
+		TemporaryPassword: temp,
+		Note: "Shown once. Give it to the user in person and ask them to change it " +
+			"from their profile. All their existing sessions have been signed out.",
+		SentBy: sentBy,
+		SentTo: sentTo,
 	}
-	if chosen == "" {
-		out.TemporaryPassword = temp
-		out.Note = "Shown once. Give it to the user in person and ask them to change it " +
-			"from their profile. All their existing sessions have been signed out."
-		out.SentBy, out.SentTo = sentBy, sentTo
+	if chosen != "" {
+		out.TemporaryPassword = chosen
+		out.Note = "The password you set is in effect and is shown here so it can be " +
+			"read out. All their existing sessions have been signed out."
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
