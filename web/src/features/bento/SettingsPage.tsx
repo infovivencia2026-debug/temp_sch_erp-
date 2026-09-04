@@ -284,7 +284,12 @@ export default function SettingsPage() {
              short cards, puts who is signed in at the top, and shows the value
              a row already has. Only the landing changes: open a section and it
              is the same pane the dialog draws. */
-          <div className="px-3 py-3">
+          /* 16px, the same inset the header above uses.
+
+             Measured at 390px: the cards sat 9px from the edge and the header
+             text 30px, so the screen had two left edges 21px apart and nothing
+             on it lined up with anything else. One number for both. */
+          <div className="px-4 py-3">
             {tab === null && <FullScreenOffer />}
             {tab === null
               ? <SettingsGroups items={items} onOpen={open} values={values} />
