@@ -166,7 +166,16 @@ export function cssHsl({ h, s, l }: Hsl): string {
     someone already coloured takes the same measured strength without touching
     their saved choice. */
 export function softTintBg(tint: Hsl): string {
-  return `color-mix(in srgb, ${cssHsl(tint)} var(--tint-mix, 40%), var(--bento-card))`
+  /* Mixed against --bento-card-base, NOT --bento-card.
+
+     A tinted card sets --bento-card to this very expression so that a card
+     with no domain follows the colour too. Mixing against --bento-card would
+     therefore make the token reference itself, and a cyclic custom property
+     is invalid at computed-value time: the background resolves to nothing and
+     the card comes out its untinted colour, which is exactly what it looked
+     like. --bento-card-base is the theme's own card colour and nothing
+     rewrites it. */
+  return `color-mix(in srgb, ${cssHsl(tint)} var(--tint-mix, 40%), var(--bento-card-base, #fff))`
 }
 
 /** The columns and rows a named default occupies. */

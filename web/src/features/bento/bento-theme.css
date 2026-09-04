@@ -27,7 +27,8 @@
   --tint-mix: 55%;
 
   --bento-bg: #f5f6f8;
-  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card: var(--bento-card-base);
   --bento-card-2: #eef0f4;
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 0%));
   --bento-muted: var(--bento-ink);
@@ -340,7 +341,8 @@ html.dark[data-layout='bento'] {
   --tint-mix: 40%;
 
   --bento-bg: #0d0f14;
-  --bento-card: hsl(var(--paint-cards-bg, 228 15% 13%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 228 15% 13%));
+  --bento-card: var(--bento-card-base);
   --bento-card-2: #2a2c35;
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   --bento-muted: var(--bento-ink);          /* 5.03:1 on the card */
@@ -734,7 +736,8 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 html[data-skin='focus'][data-layout='bento'],
 html[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #f6f7f9;
-  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card: var(--bento-card-base);
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 0%));
   --bento-muted: var(--bento-ink);
   /* Focus keeps a slightly softer corner than the classic board -- it is the
@@ -780,7 +783,8 @@ html[data-skin='focus'][data-layout='bento']::before {
 html.dark[data-skin='focus'][data-layout='bento'],
 html.dark[data-skin='focus'] [data-layout='bento'] {
   --bento-bg: #0e121b;
-  --bento-card: hsl(var(--paint-cards-bg, 220 28% 13%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 220 28% 13%));
+  --bento-card: var(--bento-card-base);
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   --bento-muted: var(--bento-ink);
   --bento-line: #30394a;
@@ -2513,7 +2517,8 @@ html[data-layout='bento'] body {
 html.dark[data-layout='bento'],
 html:not(.dark)[data-layout='bento'][data-force-dark] {
   --bento-bg: #0a0b0d;
-  --bento-card: hsl(var(--paint-cards-bg, 216 13% 8%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 216 13% 8%));
+  --bento-card: var(--bento-card-base);
   --bento-card-2: #171a1e;
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   /* WAS #7c7d7f, AND THE MEASUREMENT ABOVE WAS TAKEN ON THE WRONG PANEL.
@@ -2629,7 +2634,8 @@ html:not(.dark)[data-layout='bento'] {
   --bento-edge: inset 0 -1px 0 rgb(10 11 13 / 0.06);
 
   --bento-bg: #f4f5f7;
-  --bento-card: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card-base: hsl(var(--paint-cards-bg, 0 0% 100%));
+  --bento-card: var(--bento-card-base);
   --bento-card-2: #eceef2;
   --bento-ink: hsl(var(--paint-cards-text, 220 13% 5%));
   --bento-muted: #63656a;
