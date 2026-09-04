@@ -1115,6 +1115,25 @@
      Every container in that chain is released: heights become auto, overflow
      becomes visible, and the content is allowed to be as long as it is and
      to break across sheets. */
+  /* THE SHELL IS A FLEX COLUMN OF FIXED HEIGHT, and that is the shape of a
+     window, not of a sheet. `html, body, #root` are height:100%, the shell
+     inside them is `flex h-full`, and the work area is the flex child that
+     scrolls. Printed, "100%" is one page: the first screenful goes on the
+     paper and the flex column simply has no more sheets to give.
+
+     Released as plain blocks, so the content is a document again and the
+     printer paginates it the way it paginates any long page. */
+  #root > div,
+  #root > div > div,
+  #root > div > div > div {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    flex: none !important;
+  }
+
   html,
   body,
   #root,
