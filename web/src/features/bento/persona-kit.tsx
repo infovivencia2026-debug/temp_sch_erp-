@@ -133,13 +133,24 @@ export function PersonaPage({
      which a surface taller than it does not prevent. */
   return (
     <div className="bento-surface flex h-full w-full flex-col p-3 sm:p-4 text-[var(--bento-ink)]">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      {/* On a phone the header is one small line, because every pixel it
+          takes is a pixel off three cards that already share the screen with
+          the dock. The name is the reader's own child or self — they know
+          it — so it does not need to be the biggest thing on the page.
+          Desktop keeps the eyebrow, the title and the sentence under it. */}
+      <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] opacity-70">
+          <p className="hidden text-[11px] font-medium uppercase tracking-[0.06em] opacity-70 sm:block">
             {eyebrow}
           </p>
-          <h1 className="mt-1 truncate text-[22px] font-semibold text-[var(--bento-ink)]">{title}</h1>
-          {description && <p className="mt-1 text-[13px] opacity-70">{description}</p>}
+          <h1 className="truncate text-[15px] font-semibold text-[var(--bento-ink)] sm:mt-1 sm:text-[22px]">
+            {title}
+          </h1>
+          {description && (
+            <p className="truncate text-[12px] opacity-70 sm:mt-1 sm:whitespace-normal sm:text-[13px]">
+              {description}
+            </p>
+          )}
         </div>
         {actions}
       </div>
