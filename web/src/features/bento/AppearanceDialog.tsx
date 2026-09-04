@@ -483,11 +483,64 @@ function LinkRow({ link }: { link: ResolvedLink }) {
   return <NavRow label={link.name} helper={link.explain ? link.note : undefined} href={link.href} />
 }
 
-function LinkSection({ links }: { group: LinkGroup; links: ResolvedLink[] }) {
+/* THE WORKSPACE SWITCH, WHICH FOCUS HAD TAKEN AWAY.
+
+   Switching role is the sidebar button at the top of the classic shell, and
+   Focus hides the sidebar. The dock's own source says the header is where
+   sign-out and the role switch live and that a Focus with no door is a bug --
+   and then only half of it was moved: My profile and Sign out came here, the
+   role switch did not. So somebody working in Focus could reach every office
+   in the building from the address bar and from nowhere on the screen.
+
+   It belongs in Account, beside the other two doors that came out of the same
+   header, and it renders for everybody: a person with one workspace sees the
+   one they are in and learns what the row is for, which is better than a
+   control that appears one day without explanation.
+
+   A hard navigation, like every other row here. A role is the first segment
+   of the address and the whole shell -- sidebar, dock, catalogue, home board
+   -- is built from it, so a router push would leave half the app describing
+   the workspace somebody just left. */
+function WorkspaceRows() {
+  const catalog = useCatalog()
+  const active = useActiveRole()
+  const roles = catalog.roles ?? []
+  if (roles.length === 0) return null
   return (
     <Rows>
-      {links.map((l) => <LinkRow key={l.href} link={l} />)}
+      {roles.map((r) => {
+        const here = r.key === active?.key
+        /* Its own first section and feature, not a fixed path: a workspace
+           does not necessarily have a dashboard, and sending somebody to one
+           that does not exist is a role switch that lands on a blank page. */
+        const first = r.sections?.[0]
+        const feature = first?.features?.[0]
+        const href = first && feature
+          ? featurePath(r.key, first.slug, feature.slug)
+          : `/${r.key}`
+        return (
+          <NavRow
+            key={r.key}
+            label={r.name}
+            /* `current` is this component's own word for where you are: a
+               wash and no chevron, because it opens nothing. */
+            current={here}
+            href={here ? undefined : href}
+          />
+        )
+      })}
     </Rows>
+  )
+}
+
+function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[] }) {
+  return (
+    <>
+      {group.id === 'account' && <WorkspaceRows />}
+      <Rows>
+        {links.map((l) => <LinkRow key={l.href} link={l} />)}
+      </Rows>
+    </>
   )
 }
 
