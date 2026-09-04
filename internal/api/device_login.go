@@ -249,8 +249,7 @@ func (s *Server) authenticatePIN(ctx context.Context, phone, pin string) (staffI
 			SELECT EXISTS (
 			  SELECT 1 FROM user_roles ur
 			    JOIN role_permissions rp ON rp.role_id = ur.role_id
-			    JOIN permissions p ON p.id = rp.permission_id
-			   WHERE ur.user_id = $1 AND p.key = 'integrations.write')`,
+			   WHERE ur.user_id = $1 AND rp.permission_key = 'integrations.write')`,
 			out.UserID).Scan(&out.Approver)
 	})
 

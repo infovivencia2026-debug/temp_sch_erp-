@@ -494,8 +494,7 @@ func requireTransportDriver(ctx context.Context, tx pgx.Tx, who staffIdentity) e
 		    OR EXISTS (
 		    SELECT 1 FROM user_roles ur
 		      JOIN role_permissions rp ON rp.role_id = ur.role_id
-		      JOIN permissions p ON p.id = rp.permission_id
-		     WHERE ur.user_id = $1 AND p.key = 'transport.write')
+		     WHERE ur.user_id = $1 AND rp.permission_key = 'transport.write')
 		    OR EXISTS (
 		    /* The Driver role itself. It was the one way of saying "this
 		       person drives" that this check did not count: the role holds
