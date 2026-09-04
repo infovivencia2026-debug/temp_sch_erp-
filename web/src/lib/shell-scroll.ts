@@ -29,6 +29,9 @@ interface ErpShell {
   appLockEnabled?(): boolean
   /* Whether the phone can actually ask for a fingerprint or face. */
   biometricsAvailable?(): boolean
+  /* The handset's own haptic click (lib/haptics.ts). Absent in older builds
+     of the app and in every browser. */
+  haptic?(kind: string): void
 }
 
 declare global {

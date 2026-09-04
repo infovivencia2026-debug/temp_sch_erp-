@@ -424,7 +424,9 @@ export function WidgetLayer({
         from = null
         // A short buzz, where the platform offers one. Entering a mode with no
         // physical acknowledgement is how a long press feels like a bug.
-        navigator.vibrate?.(10)
+        // Through buzz(), so the app's own haptic click is used when there is
+        // one; a bare vibrate() is silent on the first press after a load.
+        buzz('open')
         swallowNextClick()
         setArranging(true)
       }, HOLD)

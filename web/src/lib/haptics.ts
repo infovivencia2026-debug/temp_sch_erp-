@@ -32,8 +32,25 @@ const PATTERNS: Record<Haptic, number | number[]> = {
 
 let quiet = false
 
+/* THE SHELL'S OWN CLICK, WHEN THERE IS A SHELL.
+
+   Inside the Android app navigator.vibrate is two disappointments: Chromium
+   refuses it until the document has been tapped once, so the first press
+   after every load is silent, and what it does play is a bare 8 to 12ms
+   motor pulse that a thumb on a modern handset cannot feel. Measured on a
+   Galaxy S23: the call returned true and nothing perceptible happened. The
+   shell exposes performHapticFeedback, which plays the phone's own tuned
+   click and honours its touch-feedback setting, so it is asked first; the
+   Vibration API remains for a browser, where there is nothing else. */
+function shellHaptic(): ((kind: string) => void) | null {
+  if (typeof window === 'undefined') return null
+  const h = window.ErpShell?.haptic
+  return typeof h === 'function' ? (kind) => h.call(window.ErpShell, kind) : null
+}
+
 function canBuzz(): boolean {
   if (quiet) return false
+  if (shellHaptic()) return true
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false
   try {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false
@@ -47,6 +64,11 @@ function canBuzz(): boolean {
 export function buzz(kind: Haptic) {
   if (!canBuzz()) return
   try {
+    const shell = shellHaptic()
+    if (shell) {
+      shell(kind)
+      return
+    }
     navigator.vibrate(PATTERNS[kind])
   } catch {
     /* A browser that has the function and refuses it: the page is not

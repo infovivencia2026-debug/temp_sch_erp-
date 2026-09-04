@@ -275,6 +275,44 @@ class MainActivity : Activity() {
 
         @android.webkit.JavascriptInterface
         fun biometricsAvailable(): Boolean = canLock
+
+        /* THE PHONE ANSWERS A PRESS, FROM THE PHONE.
+
+           The site asks for a tick under the thumb through navigator.vibrate,
+           and in a WebView that is two disappointments. Chromium refuses the
+           call until the document has been tapped once, so the first press
+           after every load is silent; and what it does play is a bare motor
+           pulse of 8 to 12 milliseconds, which on this class of handset is
+           below what a thumb can feel. Measured on the S23: the call returned
+           true and nothing happened that anybody would call a vibration.
+
+           performHapticFeedback is what every native control uses. It plays
+           the handset's own tuned click through the haptic engine, honours
+           the person's touch-feedback setting, and needs no prior tap. The
+           site calls this when it is present and falls back to the Vibration
+           API in a browser. Bridge methods run on a WebView thread; a view
+           is touched only from its own thread, hence the post. */
+        @Volatile var target: View? = null
+
+        @android.webkit.JavascriptInterface
+        fun haptic(kind: String) {
+            val view = target ?: return
+            val constant = when (kind) {
+                "warn" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    android.view.HapticFeedbackConstants.REJECT
+                } else {
+                    android.view.HapticFeedbackConstants.LONG_PRESS
+                }
+                "open" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    android.view.HapticFeedbackConstants.CONFIRM
+                } else {
+                    android.view.HapticFeedbackConstants.CONTEXT_CLICK
+                }
+                "select", "snap" -> android.view.HapticFeedbackConstants.CONTEXT_CLICK
+                else -> android.view.HapticFeedbackConstants.CLOCK_TICK
+            }
+            view.post { view.performHapticFeedback(constant) }
+        }
     }
 
     private val shell = Shell
@@ -314,6 +352,8 @@ class MainActivity : Activity() {
          * Same-origin is enforced elsewhere — shouldOverrideUrlLoading sends
          * every foreign URL to a real browser — so the only code that can reach
          * this is the school's own bundle. */
+        view.isHapticFeedbackEnabled = true
+        Shell.target = view
         view.addJavascriptInterface(shell, "ErpShell")
 
         view.webViewClient = object : WebViewClient() {
