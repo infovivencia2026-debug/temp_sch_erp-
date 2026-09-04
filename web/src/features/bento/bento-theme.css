@@ -1187,6 +1187,27 @@ html[data-shadow='deep'][data-layout='bento'] {
   background-attachment: fixed;
 }
 
+/* WHERE THE GROUND STOPS, THE SAME COLOUR CARRIES ON.
+
+   .bento-ground paints --bento-bg and everything behind it -- the scrolling
+   <main>, the document -- keeps the classic theme's page colour. So the ground
+   is a panel: wherever it ends, a different colour begins, and the join reads
+   as a boundary line drawn under the last row of cards and down the side of
+   the board. Nothing draws it. It is two colours meeting.
+
+   Removing the board's outline and then its background took away two real
+   lines and could never have taken this one, because this one is not a line.
+
+   Painted on the elements behind instead, so the join has nothing to show.
+   The document as well as <main>: a rubber-band scroll on a phone pulls the
+   page past the end of the work area, and the colour underneath that is the
+   document's. */
+html[data-layout='bento'],
+html[data-layout='bento'] body,
+[data-layout='bento'] main[data-app-scroll] {
+  background-color: var(--bento-bg);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    FOCUS ANSWERS TO THE APPEARANCE SETTINGS.
 
