@@ -2,7 +2,26 @@
 <html lang="en-IN" class="h-full">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- NO PINCH ZOOM, AND THE REASON IT IS DEFENSIBLE HERE.
+
+         Blocking zoom is normally an accessibility fault: it takes away the
+         one way a person with poor sight can read a page. This product has the
+         alternative built in and better than the browser's, which is why the
+         trade is worth making. App text size is a slider in Settings that
+         reflows the layout rather than magnifying it, so text gets bigger and
+         still fits the screen, where a pinch leaves somebody dragging a
+         too-wide page sideways to read one line.
+
+         What it buys: the board is a paged home screen with cards that are
+         dragged and a strip that swipes. Pinch and pan on top of that means a
+         two-finger scroll leaves the board at 1.4x with no way back that
+         anybody discovers, and a drag that starts a fraction off becomes a
+         pan. Measured on the phone: this is the fault behind "it zooms and
+         moves". -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>EDU CLOUD</title>
 
     <!-- INSTALLABLE, RATHER THAN A SECOND APP TO MAINTAIN.

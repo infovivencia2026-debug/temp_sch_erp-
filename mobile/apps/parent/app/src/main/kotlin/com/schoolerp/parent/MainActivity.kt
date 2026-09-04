@@ -474,6 +474,21 @@ class MainActivity : Activity() {
             // parent still gets the last map they were shown rather than a
             // white screen.
             cacheMode = WebSettings.LOAD_DEFAULT
+            /* NO PINCH ZOOM IN THE APP EITHER.
+
+               The page asks for it with user-scalable=no, and a WebView
+               obeys that only until something turns zoom on: setSupportZoom
+               defaults to true, so a two-finger gesture could still leave the
+               board at 1.4x with no way back that anybody finds. Turned off
+               here as well so the page's own instruction is not the only thing
+               holding the line.
+
+               The product's answer to small text is the App text size slider
+               in Settings, which reflows rather than magnifies, so this takes
+               nothing away that is not replaced by something better. */
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
             /* THE CACHE IS ONLY USEFUL IF SOMETHING ASKS FOR A STALE COPY.
                LOAD_DEFAULT obeys the response headers, and the portal serves
                its HTML no-cache, so a parent in a dead spot gets a white
