@@ -119,7 +119,16 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
     // clipped by it. min-height rather than height for the same reason: a
     // two-line label at 116% has to be allowed to be two lines.
     'relative flex min-h-[calc(36px*var(--font-scale,1))] items-center gap-2 rounded-[7px] pr-2',
-    'py-1 text-[calc(13.5px*var(--font-scale,1))]',
+    /* THE SAME SIZE AS THE PAGE IT NAVIGATES.
+
+       13.5 against a 14px body is not a hierarchy, it is a half-pixel nobody
+       chose: the sidebar simply read as slightly squinted next to the screen
+       beside it, and at the default scale on a wide monitor the names of the
+       school's own sections were the smallest ordinary text in the product.
+
+       A navigation item is a destination, not a caption. It carries the same
+       weight as the words it takes you to. */
+    'py-1 text-[calc(14px*var(--font-scale,1))]',
     'transition-colors',
     depth === 0 ? 'pl-2.5' : 'pl-7',
     /* A NAV ITEM IS TEXT UNTIL IT IS POINTED AT.
@@ -832,8 +841,14 @@ export function Shell({
                         /* Smaller and wider-tracked than an item, and short of
                            full weight: a heading is a label for what follows,
                            not a thing to be pressed, and at 11px semibold it
-                           was competing with the row under it. */
-                        <p className="px-2.5 pb-1.5 text-[calc(10.5px*var(--font-scale,1))] font-medium uppercase tracking-[0.1em] text-muted-foreground/60">
+                           was competing with the row under it.
+
+                           Lifted from 10.5 to 11.5 and from 60% to 75%: below
+                           that it had stopped being a heading and become
+                           decoration, and "GETTING STARTED" is exactly what
+                           somebody scans for when they do not yet know where
+                           anything is. */
+                        <p className="px-2.5 pb-1.5 text-[calc(11.5px*var(--font-scale,1))] font-medium uppercase tracking-[0.09em] text-muted-foreground/75">
                           {section.name}
                         </p>
                       )}
