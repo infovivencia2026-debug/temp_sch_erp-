@@ -221,7 +221,7 @@ type LinkGroup = {
   always?: boolean
 }
 
-type LinkTab = 'school' | 'messaging' | 'account' | 'security'
+type LinkTab = 'school' | 'messaging' | 'account' | 'roles' | 'security'
 
 /* THE NAME OF A PAGE, SAID ONCE FOR BOTH SURFACES.
 
@@ -352,6 +352,17 @@ const LINK_GROUPS: LinkGroup[] = [
         note: 'End this session on this device. Nothing you have set up is lost.',
       },
     ],
+  },
+  {
+    id: 'roles',
+    note: 'The workspaces this account holds. Changing one changes every menu, board and screen in the product.',
+    label: 'Role switch',
+    icon: UserCircle,
+    blurb: 'Which office you are working in. Everything else follows from it.',
+    /* Never empty -- the rows are the roles on the account, which are not
+       catalogue features and so cannot resolve to nothing. */
+    always: true,
+    rows: [],
   },
   {
     id: 'security',
@@ -485,6 +496,12 @@ function LinkRow({ link }: { link: ResolvedLink }) {
 
 /* THE WORKSPACE SWITCH, WHICH FOCUS HAD TAKEN AWAY.
 
+   On its own tab rather than under Account. Account is the rows about your own
+   record -- your profile, your leave, your pay, the door out -- and which
+   office you are working in is not one of those: it is the setting every other
+   screen in the product is drawn from. Filed beside them it read as a fifth
+   personal detail.
+
    Switching role is the sidebar button at the top of the classic shell, and
    Focus hides the sidebar. The dock's own source says the header is where
    sign-out and the role switch live and that a Focus with no door is a bug --
@@ -536,7 +553,7 @@ function WorkspaceRows() {
 function LinkSection({ group, links }: { group: LinkGroup; links: ResolvedLink[] }) {
   return (
     <>
-      {group.id === 'account' && <WorkspaceRows />}
+      {group.id === 'roles' && <WorkspaceRows />}
       <Rows>
         {links.map((l) => <LinkRow key={l.href} link={l} />)}
       </Rows>
