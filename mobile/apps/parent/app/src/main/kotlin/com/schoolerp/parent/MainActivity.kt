@@ -1,15 +1,23 @@
 package com.schoolerp.parent
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.DownloadManager
 import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.graphics.PorterDuff
 import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -34,6 +42,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -76,8 +85,51 @@ class MainActivity : Activity() {
     private lateinit var pull: PullToRefresh
     private lateinit var web: WebView
     private lateinit var offline: View
+    private lateinit var offlineTitle: TextView
     private lateinit var offlineBody: TextView
+    private lateinit var offlineHint: TextView
+    private lateinit var banner: TextView
     private lateinit var progress: ProgressBar
+
+    /* The app's own loading screen, in front of the WebView until the page
+       paints. See buildSplashView for what it carries and why it exists on
+       top of the system splash the platform already gives us. */
+    private lateinit var splash: View
+    private lateinit var splashShot: ImageView
+
+    /* WHAT WENT WRONG, KEPT APART FROM WHAT TO SAY ABOUT IT.
+
+       A parent whose wifi is switched off and a parent whose school server is
+       rebuilding are two different people with two different next actions, and
+       the old panel told both of them the same sentence. Telling somebody with
+       no signal that the school is down sends them to ring the office about a
+       fault that does not exist; telling somebody in a 502 to check their data
+       has them toggling aeroplane mode in a queue. So the failure is
+       classified once, here, and every other decision reads the class. */
+    private enum class Failure { NO_NETWORK, UNREACHABLE, SERVER }
+
+    /* The last address that actually painted. Retry goes here rather than to
+       the front door, and the cache fallback needs something to ask the cache
+       for. */
+    private var lastGoodUrl: String? = null
+
+    /* True while a load has been deliberately aimed at the HTTP cache. The
+       flag is what keeps the fallback from looping: a cache load that fails
+       too comes back through onReceivedError with this set, and that is the
+       point where there is genuinely nothing to show and the panel is right. */
+    private var servingCache = false
+
+    /* True once something out of the cache is on screen. It means the page in
+       front of the parent is a snapshot from earlier, so when the network
+       returns it is worth reloading under them rather than leaving them
+       reading this morning's bus position as though it were live. */
+    private var showingCached = false
+
+    private var bannerAt = 0L
+
+    /* Held so it can be unregistered. A callback left registered against a
+       destroyed activity is a leak the system logs and then keeps calling. */
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
 
     /* The page is waiting on this. Every path out of the chooser has to call
        it exactly once, including every failure and the plain cancel, or the
@@ -85,6 +137,36 @@ class MainActivity : Activity() {
        cannot even try again. */
     private var pendingFiles: ValueCallback<Array<Uri>>? = null
     private var pendingCapture: Uri? = null
+
+    /* A download held over a permission prompt, and the ones already running.
+       Kept because the completion broadcast carries an id and nothing else:
+       without this the app would know a download had finished and not what it
+       was called, where it was put, or whether the parent wanted to read it. */
+    private class Pending(
+        val url: String,
+        val userAgent: String?,
+        val disposition: String?,
+        val mime: String?,
+    )
+
+    private class Started(
+        val name: String,
+        val mime: String,
+        val toRead: Boolean,
+        val public: Boolean,
+    )
+
+    /* Whether the app is on screen when a download finishes. Since Android 10
+       an app in the background may not start an activity, so handing a
+       finished PDF straight to a reader from a parent who has already switched
+       to WhatsApp would be dropped by the system without a word. Backgrounded,
+       the download provider's own notification is the right handover and this
+       falls back to it. */
+    private var foreground = false
+
+    private var pending: Pending? = null
+    private val started = mutableMapOf<Long, Started>()
+    private var downloadWatcher: BroadcastReceiver? = null
 
     /* False until the web content has actually painted something. The system
        splash is held up against it; see holdSplash. */
@@ -138,6 +220,7 @@ class MainActivity : Activity() {
         lock = buildLockView()
         lock.visibility = View.GONE
         Shell.prefs = getSharedPreferences("shell", MODE_PRIVATE)
+        Shell.files = filesDir
         Shell.canLock = canLock()
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
@@ -170,24 +253,60 @@ class MainActivity : Activity() {
             canScrollUp = { !shell.atTop }
             onRefresh = { web.reload() }
         }
+        splash = buildSplashView()
         web = buildWebView()
         pull.addView(web, FrameLayout.LayoutParams(-1, -1))
         root.addView(pull, FrameLayout.LayoutParams(-1, -1))
         root.addView(offline, FrameLayout.LayoutParams(-1, -1))
+        /* Above the page and the offline panel, below the lock: a parent who
+           has asked for a fingerprint must not be shown a loading screen with
+           yesterday's fees sitting behind it. */
+        root.addView(splash, FrameLayout.LayoutParams(-1, -1))
+        banner = buildBanner()
+        root.addView(banner, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         root.addView(lock, FrameLayout.LayoutParams(-1, -1))
         root.addView(
             progress,
             FrameLayout.LayoutParams(-1, (4 * resources.displayMetrics.density).toInt(), Gravity.TOP),
         )
+        allowCutout()
         setContentView(root)
         registerBack()
+        watchNetwork()
         holdSplash()
+        restoreLastScreen()
 
         /* restoreState hands back null when the saved bundle is unusable,
            which it is after the process was killed for long enough. Treating
            that as restored left a blank rectangle with no way out. */
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) {
             load(deepLink(intent) ?: BuildConfig.PORTAL_URL)
+        }
+    }
+
+    /* THE NOTCH, WHICH OTHERWISE COSTS A BLACK BAR.
+
+       Left unstated, a phone with a cutout letterboxes this window in
+       landscape: the whole page is pushed inboard of the notch and the strip
+       beside it is painted black by the system, so a parent turning the phone
+       sideways to read a wide fee table loses a centimetre of screen to a bar
+       that carries nothing. SHORT_EDGES lets the window own that strip.
+
+       This is only safe because the root already pads itself from the system
+       window insets, and the cutout inset is one of them: the window extends
+       under the notch, the content does not. The two lines belong together,
+       and taking fitsSystemWindows off the root without taking this off would
+       put the site's header behind the camera.
+
+       The attribute could be set in the theme instead, but the theme is four
+       files (light, dark, and the v31 pair) and this would have to be repeated
+       in every one of them or silently not apply on the versions that matter
+       most. One line here applies to all four. */
+    private fun allowCutout() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode =
+                android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
     }
 
@@ -212,12 +331,21 @@ class MainActivity : Activity() {
        The timeout is not decoration. Holding the splash on a condition that a
        slow or dead network never satisfies is how this technique turns into an
        app that appears to hang on a black screen with no way out, so the hold
-       is capped: after four seconds the shell gives up and shows whatever it
-       has, which will be the offline panel if the load failed. Better a
-       truthful error than a splash forever. */
+       is capped.
+
+       THE CAP USED TO BE FOUR SECONDS AND IS NOW A FIFTH OF THAT, because
+       what the splash hands over to has changed. It used to hand over to an
+       empty rectangle, so the longer it could be held the better; there is
+       now an in-app loading screen behind it carrying the same mark, the last
+       screen the parent was on, and a spinner that says the app is working.
+       Holding a frozen system icon for four seconds when something better is
+       ready underneath is not patience, it is a stall. Half a second is
+       enough to swallow the handover on a warm start, where the page paints
+       almost at once and an intermediate screen would be a flash of nothing;
+       past that the parent is better served by the screen that moves. */
     private fun holdSplash() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-        val giveUpAt = System.currentTimeMillis() + 4000
+        val giveUpAt = System.currentTimeMillis() + 500
         root.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
                 if (!painted && System.currentTimeMillis() < giveUpAt) return false
@@ -228,7 +356,7 @@ class MainActivity : Activity() {
         // Nothing draws while the listener is refusing, so the flag has to be
         // released by something other than a frame. A posted message on the
         // main looper still runs.
-        root.postDelayed({ painted = true; root.invalidate() }, 4100)
+        root.postDelayed({ painted = true; root.invalidate() }, 600)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -265,9 +393,18 @@ class MainActivity : Activity() {
         lateinit var prefs: SharedPreferences
         @Volatile var canLock: Boolean = false
 
+        /* The bridge runs off the UI thread and has no Context of its own;
+           the activity hands it the private directory the picture lives in. */
+        @Volatile var files: java.io.File? = null
+
         @android.webkit.JavascriptInterface
         fun setAppLock(on: Boolean) {
             prefs.edit().putBoolean("app_lock", on).apply()
+            /* Turning the lock on has to take away the picture of the portal
+               that is already on disk, not merely stop writing new ones.
+               Otherwise the very next cold start shows, behind the unlock
+               panel, the screen the lock was turned on to hide. */
+            if (on) files?.let { LastScreen.clear(it) }
         }
 
         @android.webkit.JavascriptInterface
@@ -337,8 +474,19 @@ class MainActivity : Activity() {
             // parent still gets the last map they were shown rather than a
             // white screen.
             cacheMode = WebSettings.LOAD_DEFAULT
+            /* THE CACHE IS ONLY USEFUL IF SOMETHING ASKS FOR A STALE COPY.
+               LOAD_DEFAULT obeys the response headers, and the portal serves
+               its HTML no-cache, so a parent in a dead spot gets a white
+               rectangle even though the whole bundle is sitting on the disk a
+               centimetre away. Nothing here can change what the server sends,
+               but the failure path can ask a different question: see
+               fallBackToCache, which reloads under LOAD_CACHE_ELSE_NETWORK and
+               so accepts entries that have expired. That is the difference
+               between this morning's bus screen and nothing at all. */
         }
         view.setBackgroundColor(pageColor())
+        applyDarkMode(view)
+        suppressPointlessSelection(view)
 
         /* The one thing the page is allowed to tell the app.
          *
@@ -381,9 +529,18 @@ class MainActivity : Activity() {
                 request: WebResourceRequest,
                 error: WebResourceError,
             ) {
-                // Only the page itself. A tile that failed to load is not a
-                // reason to replace a working screen with an error.
-                if (request.isForMainFrame) showOffline(R.string.offline_body)
+                /* A tile or an avatar that failed is not a reason to replace a
+                   working screen with an error, but it is worth a word: a
+                   parent looking at a map with no tiles on it should be told
+                   the phone is offline rather than left deciding the bus has
+                   vanished. The banner goes away by itself. */
+                if (!request.isForMainFrame) {
+                    if (!hasNetwork() && web.visibility == View.VISIBLE) {
+                        showBanner(getString(R.string.banner_offline))
+                    }
+                    return
+                }
+                failed(classify(error.errorCode))
             }
 
             /* The server answering with its own failure page is a deploy in
@@ -396,7 +553,7 @@ class MainActivity : Activity() {
                 errorResponse: WebResourceResponse,
             ) {
                 if (request.isForMainFrame && errorResponse.statusCode >= 500) {
-                    showOffline(R.string.server_body)
+                    failed(Failure.SERVER)
                 }
             }
 
@@ -407,13 +564,17 @@ class MainActivity : Activity() {
                over to an empty frame. */
             override fun onPageCommitVisible(view: WebView, url: String?) {
                 painted = true
+                hideSplash()
+                committed(url)
                 if (offline.visibility != View.VISIBLE) web.visibility = View.VISIBLE
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 painted = true
+                hideSplash()
                 progress.visibility = View.GONE
                 pull.stopRefreshing()
+                committed(url)
                 if (offline.visibility != View.VISIBLE) web.visibility = View.VISIBLE
             }
 
@@ -539,35 +700,419 @@ class MainActivity : Activity() {
             }
         }
 
-        /* Receipts, circulars and homework attachments come down as
-           attachments, and a WebView does nothing at all with an attachment:
-           the tap lands and nothing happens. Hand the URL to the download
-           manager with the session cookie, since the file is behind the login,
-           and let the phone's own notification open it. */
+        /* THE TAP THAT DID NOTHING, AND THE ONE THAT SHOWED A BLANK PAGE.
+
+           Two different failures arrive at this one callback and they need
+           different endings.
+
+           An attachment is the receipt and the circular: the server sends
+           Content-Disposition attachment, Chromium refuses to render it, and a
+           WebView with no DownloadListener drops it on the floor without a
+           sound. The parent taps the receipt, nothing happens, they tap it
+           again, and eventually they ring the office.
+
+           An inline PDF is the same silence wearing a different coat. The
+           portal frames attachments with ?inline=1 so a worksheet can be read
+           without saving a copy of a school record forever, which is right in
+           a browser and impossible here: Android's WebView carries no PDF
+           renderer at all, so Chromium cannot paint it and turns the
+           navigation into a download instead. That lands here too, and if it
+           is only filed away the parent is left staring at an empty frame
+           where their child's circular should be.
+
+           So the disposition decides the ending. Attachment: save it and say
+           where it went. Inline: save it and then hand it to whatever on the
+           phone can actually show a PDF, because the parent asked to read it,
+           not to keep it. */
         view.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
-            val uri = Uri.parse(url)
-            if (uri.host != PORTAL_HOST) {
-                runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-                return@setDownloadListener
-            }
-            val name = URLUtil.guessFileName(url, contentDisposition, mimeType)
-            val request = DownloadManager.Request(uri).apply {
-                setMimeType(mimeType)
-                addRequestHeader("User-Agent", userAgent)
-                CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("Cookie", it) }
-                setTitle(name)
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalFilesDir(this@MainActivity, Environment.DIRECTORY_DOWNLOADS, name)
-            }
-            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val ok = runCatching { dm.enqueue(request) }.isSuccess
-            Toast.makeText(
-                this,
-                getString(if (ok) R.string.download_started else R.string.download_failed, name),
-                Toast.LENGTH_SHORT,
-            ).show()
+            startDownload(url, userAgent, contentDisposition, mimeType)
         }
         return view
+    }
+
+    /* THE PAGE FOLLOWS THE PHONE'S DARK SETTING, WHICH IT DID NOT.
+
+       The portal styles itself from prefers-color-scheme and gets it right in
+       a browser. Inside a WebView that media query does not read the phone's
+       setting at all: it reads whether the WebView believes it is being drawn
+       on a dark ground, and nothing here had ever told it. So a parent whose
+       phone had been in dark mode all evening opened this and got a white fee
+       screen inside a black frame, which is both a glare in a dark room and
+       the most obvious possible tell that the app is a page in a box.
+
+       Two different mechanisms, because the platform changed the answer under
+       us and this app still runs on Android 7.
+
+       From Android 13 the WebView derives prefers-color-scheme from the host
+       theme's android:isLightTheme, so the fix there is in themes.xml and
+       values-night/themes.xml rather than here, and it is stated explicitly in
+       both rather than inherited from the Material parent: inheriting it
+       happens to be correct today and would stop being correct the moment
+       somebody changed a parent theme, with nothing to connect the two.
+
+       Before that, the only lever is FORCE_DARK. The name is alarming and the
+       usual objection to it is right in general and wrong here: it only
+       inverts colours algorithmically on a page that has NOT said it can do
+       dark itself. This page has, through color-scheme and the media query, so
+       what FORCE_DARK_ON buys on those versions is exactly the one thing
+       wanted, the query matching, and none of the mangling. Set only when the
+       phone is actually in dark mode, so a light phone is never darkened.
+
+       WebSettingsCompat.setAlgorithmicDarkeningAllowed is the AndroidX way to
+       say all of this in one line. It costs androidx.webkit and the version
+       train behind it, for a line that is already covered by the two branches
+       here on every version this app supports. */
+    private fun applyDarkMode(view: WebView) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return
+        val night = resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        @Suppress("DEPRECATION")
+        view.settings.forceDark =
+            if (night) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF
+    }
+
+    /* LONG PRESS ON A BUS PIN SHOULD NOT OFFER TO COPY IT.
+
+       A WebView's default long press is the browser's, minus the browser. Hold
+       a finger anywhere and it raises the text selection handles and the
+       Copy/Share/Web-search bar, including on things that are not text at all:
+       the map on the bus screen, an avatar, a fee row's icon, the dock. On the
+       bus screen in particular this is a real cost rather than an untidiness,
+       because holding a finger on the map is how a person drags it, and every
+       drag that started as a hold came back with a selection bar over the top
+       of the thing they were trying to look at.
+
+       What makes it worse in a shell is that the callout's actions largely go
+       nowhere here: there is no tab to open a link in, and the search action
+       leaves the app entirely. So the press is refused for the cases where the
+       result cannot be useful, and allowed for the two where it plainly is.
+
+       Refused: images, and links, whose long press in a bare WebView offers a
+       menu this app does not implement. Allowed: an editable field, where the
+       handles are the only way to fix a mis-typed phone number, and the plain
+       text case, which the hit test reports as UNKNOWN because a paragraph is
+       not a distinct element to it. That last one is why this is not simply
+       isLongClickable = false: switching selection off wholesale would take
+       with it the ability to copy a receipt number or a circular out of the
+       page, which parents do. */
+    private fun suppressPointlessSelection(view: WebView) {
+        view.setOnLongClickListener {
+            when (view.hitTestResult.type) {
+                WebView.HitTestResult.IMAGE_TYPE,
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE,
+                WebView.HitTestResult.SRC_ANCHOR_TYPE,
+                -> true
+                else -> false
+            }
+        }
+    }
+
+    /* THE DOWNLOAD, FROM THE TAP TO THE FILE THE PARENT CAN STILL FIND
+       NEXT MONTH.
+
+       WHY THE COOKIE IS ATTACHED BY HAND. DownloadManager is a separate system
+       service with its own network stack and its own cookie jar, which is
+       empty. Every file worth downloading here is behind the login, so a
+       request sent without the session cookie comes back as the sign in page,
+       and the parent ends up with a receipt-shaped file containing HTML. The
+       cookie has to be lifted out of the WebView's jar and put on the request.
+
+       WHY THE PUBLIC DOWNLOADS FOLDER RATHER THAN THE APP'S OWN. A fee receipt
+       is kept in order to be produced later: forwarded on WhatsApp, shown at
+       the office, attached to something. A file in the app's private external
+       directory is invisible to the Files app, invisible to every share sheet,
+       and deleted when the app is uninstalled. That is not keeping a receipt,
+       it is holding one until the phone changes its mind. */
+    private fun startDownload(
+        url: String,
+        userAgent: String?,
+        contentDisposition: String?,
+        mimeType: String?,
+    ) {
+        val uri = runCatching { Uri.parse(url) }.getOrNull()
+        val scheme = uri?.scheme?.lowercase()
+
+        /* blob: and data: are not addresses, they are content the page is
+           holding in memory, and DownloadManager cannot fetch either: handing
+           it one fails with an exception rather than a file. The portal does
+           not generate them today, so rather than carry a JavaScript bridge to
+           haul bytes back out of the page for a case that does not exist, this
+           says so out loud. A sentence the parent can act on beats the silence
+           this whole listener exists to end. */
+        if (uri == null || (scheme != "https" && scheme != "http")) {
+            Toast.makeText(this, R.string.download_unsupported, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        /* Anything not the school goes to a real browser, for the same reason
+           shouldOverrideUrlLoading sends foreign pages there: the session
+           cookie is this origin's and must not be posted to another host, and
+           a download the parent did not expect is better explained by a
+           browser that has an address bar. */
+        if (uri.host != PORTAL_HOST) {
+            val opened = runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)); true }
+                .getOrDefault(false)
+            if (!opened) Toast.makeText(this, R.string.download_unsupported, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val name = fileName(url, contentDisposition, mimeType)
+        /* "inline" is the portal asking for this to be READ rather than kept:
+           see the note on the listener. Anything else, including a header we
+           could not parse, is treated as a keepsake, which is the safer of the
+           two mistakes: an unwanted file in Downloads is a nuisance, an
+           unwanted app launch is a hijacked phone. */
+        val toRead = contentDisposition?.trimStart()?.startsWith("inline", ignoreCase = true) == true
+
+        /* Asked for only at the moment it is needed and only where it is still
+           a real permission: see the manifest note. A parent who says no is
+           not asked again and is not blocked, the file simply lands somewhere
+           less useful and the wording at the end says so rather than promising
+           a Downloads folder that has nothing in it. */
+        if (needsStoragePermission() && !hasStoragePermission()) {
+            pending = Pending(url, userAgent, contentDisposition, mimeType)
+            runCatching {
+                requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQUEST_STORAGE)
+            }.onFailure { enqueue(uri, userAgent, name, mimeType, toRead) }
+            return
+        }
+        enqueue(uri, userAgent, name, mimeType, toRead)
+    }
+
+    private fun enqueue(
+        uri: Uri,
+        userAgent: String?,
+        name: String,
+        mimeType: String?,
+        toRead: Boolean,
+    ) {
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+        if (dm == null) {
+            Toast.makeText(this, getString(R.string.download_failed, name), Toast.LENGTH_LONG).show()
+            return
+        }
+        val type = mimeType?.takeIf { it.isNotBlank() } ?: guessMime(name)
+        val request = DownloadManager.Request(uri).apply {
+            setMimeType(type)
+            userAgent?.let { addRequestHeader("User-Agent", it) }
+            CookieManager.getInstance().getCookie(uri.toString())
+                ?.let { addRequestHeader("Cookie", it) }
+            setTitle(name)
+            setDescription(getString(R.string.app_name))
+            /* The system's own notification is the parent's way back to the
+               file after the toast has gone, and it opens the file when
+               tapped. It is posted by the download provider under its own
+               identity, which is why POST_NOTIFICATIONS is not declared here:
+               see the manifest. */
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        }
+
+        /* Two destinations and one fallback. The public folder is the point;
+           it throws when external storage is not mounted, and on the phones
+           where the permission above was refused it produces a file nobody
+           can read. Falling back to the app's own external directory keeps the
+           download working in both cases, and `saved` records which of the two
+           happened so the parent is told the truth about where to look. */
+        var public = true
+        runCatching {
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+        }.onFailure {
+            public = false
+            request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, name)
+        }
+        if (public && needsStoragePermission() && !hasStoragePermission()) {
+            public = false
+            request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, name)
+        }
+
+        val id = runCatching { dm.enqueue(request) }.getOrNull()
+        if (id == null) {
+            Toast.makeText(this, getString(R.string.download_failed, name), Toast.LENGTH_LONG).show()
+            return
+        }
+        started[id] = Started(name, type, toRead, public)
+        watchDownloads()
+        /* Said at the start as well as at the end, because on the mobile data
+           this app is built for the two are half a minute apart and a tap that
+           acknowledges nothing for half a minute is a tap that gets repeated. */
+        Toast.makeText(this, getString(R.string.download_started, name), Toast.LENGTH_SHORT).show()
+    }
+
+    /* WHERE IT WENT, ONCE IT IS ACTUALLY THERE.
+
+       The toast at the start is a promise and this is the receipt for it. It
+       matters most in the case the start toast cannot cover: a download that
+       fails halfway, on a connection that drops, would otherwise leave the
+       parent believing they have a copy of a fee receipt that does not exist.
+
+       Registered lazily and only once, because a parent who never downloads
+       anything should not be paying for a registered receiver, and torn down
+       in onDestroy so it does not outlive the activity it toasts from. */
+    private fun watchDownloads() {
+        if (downloadWatcher != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
+                val record = started.remove(id) ?: return
+                finished(id, record)
+            }
+        }
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        runCatching {
+            /* The broadcast comes from the download provider, so on Android 14
+               and up the receiver has to say it accepts broadcasts from other
+               apps. Without the flag the platform throws at registration
+               rather than merely never delivering, which would take the app
+               down on the first download. */
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(receiver, filter)
+            }
+        }.onSuccess { downloadWatcher = receiver }
+    }
+
+    private fun finished(id: Long, record: Started) {
+        val dm = getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager ?: return
+        val status = runCatching {
+            dm.query(DownloadManager.Query().setFilterById(id)).use { c ->
+                if (c != null && c.moveToFirst()) {
+                    c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                } else {
+                    DownloadManager.STATUS_FAILED
+                }
+            }
+        }.getOrDefault(DownloadManager.STATUS_FAILED)
+
+        if (status != DownloadManager.STATUS_SUCCESSFUL) {
+            Toast.makeText(
+                this,
+                getString(R.string.download_failed, record.name),
+                Toast.LENGTH_LONG,
+            ).show()
+            return
+        }
+
+        // The parent asked to read this, not to file it. Try to show it.
+        if (record.toRead && foreground && openDownloaded(dm, id, record)) return
+
+        Toast.makeText(
+            this,
+            getString(
+                if (record.public) R.string.download_saved else R.string.download_saved_app,
+                record.name,
+            ),
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
+    /* A PDF handed to something that can draw one.
+
+       getUriForDownloadedFile answers with a content:// Uri from the downloads
+       provider rather than a path, which is the only shape another app may be
+       given since Android 7, and the read grant travels with the intent. False
+       when there is nothing on the phone that will take it, and the caller
+       then falls back to saying where the file is, because a parent who can be
+       told "it is in Downloads" can still open it from the Files app. */
+    private fun openDownloaded(dm: DownloadManager, id: Long, record: Started): Boolean {
+        val uri = runCatching { dm.getUriForDownloadedFile(id) }.getOrNull() ?: return false
+        val view = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, record.mime)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return runCatching { startActivity(view); true }.getOrDefault(false)
+    }
+
+    /* WRITE_EXTERNAL_STORAGE IS ONLY A PERMISSION ON THE OLD HALF OF THE RANGE.
+
+       This app runs from API 24 to 36. On API 28 and below, writing into the
+       shared Downloads folder is a genuine permission and DownloadManager will
+       refuse without it. From API 29 the folder is not the app's to write at
+       all: DownloadManager files it through MediaStore on the app's behalf and
+       the permission was removed from the platform, so asking for it there
+       would raise a dialog the system then ignores. Hence the ceiling here and
+       the matching maxSdkVersion in the manifest: on a modern phone the parent
+       is asked for nothing whatever. */
+    private fun needsStoragePermission(): Boolean =
+        Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+
+    private fun hasStoragePermission(): Boolean =
+        checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+            PackageManager.PERMISSION_GRANTED
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_STORAGE) return
+        /* Granted or refused, the download goes ahead: enqueue reads the
+           permission again and picks the destination it can actually write.
+           Dropping the tap on a refusal would put us back where this whole
+           change started, with a control that does nothing. */
+        val next = pending ?: return
+        pending = null
+        val uri = runCatching { Uri.parse(next.url) }.getOrNull() ?: return
+        enqueue(
+            uri,
+            next.userAgent,
+            fileName(next.url, next.disposition, next.mime),
+            next.mime,
+            next.disposition?.trimStart()?.startsWith("inline", ignoreCase = true) == true,
+        )
+    }
+
+    /* WHAT TO CALL THE FILE.
+
+       URLUtil.guessFileName is the obvious answer and it is not enough here,
+       because its Content-Disposition parser matches "attachment" and nothing
+       else. The portal's inline responses say `inline; filename="..."`, so
+       every circular a parent opened to read would fall back to the URL, and
+       the URL for an attachment on this site is /api/v1/files/<uuid>: the
+       parent's Downloads folder would fill with files named after uuids.
+
+       filename* comes first because that is the encoded form and the one that
+       carries a name in Telugu or Hindi correctly; a school circular is
+       routinely titled in the local language. */
+    private fun fileName(url: String, disposition: String?, mime: String?): String {
+        val header = disposition?.let { d ->
+            EXTENDED.find(d)?.groupValues?.get(1)?.let { raw ->
+                runCatching { java.net.URLDecoder.decode(raw, "UTF-8") }.getOrNull()
+            } ?: QUOTED.find(d)?.groupValues?.get(1) ?: PLAIN.find(d)?.groupValues?.get(1)
+        }
+        val name = header?.takeIf { it.isNotBlank() }
+            ?: runCatching { URLUtil.guessFileName(url, disposition, mime) }.getOrNull()
+            ?: "download"
+        return safeName(name, mime)
+    }
+
+    /* A NAME THE FILE SYSTEM WILL TAKE AND THE HEADER CANNOT AIM.
+
+       The name arrives from a response header, which means it is server input
+       and, on a system that stores uploaded filenames, ultimately something
+       somebody typed. A slash in it would send the write out of the Downloads
+       folder, so the path separators are stripped before anything else and
+       what is left is reduced to characters a phone will display and a share
+       sheet will not mangle. */
+    private fun safeName(raw: String, mime: String?): String {
+        val base = raw.substringAfterLast('/').substringAfterLast('\\')
+            .replace(Regex("""[^A-Za-z0-9._ ()\u0080-\uFFFF-]"""), "_")
+            .trimStart('.')
+            .trim()
+            .take(100)
+        val name = base.ifBlank { "download" }
+        if (name.contains('.')) return name
+        // A file with no extension is one the phone offers no app for, which
+        // after all this work is a saved receipt the parent cannot open.
+        val ext = mime?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+        return if (ext != null) "$name.$ext" else name
+    }
+
+    private fun guessMime(name: String): String {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
     }
 
     /* A phone with no document picker and no camera is rare but real, and on
@@ -722,9 +1267,8 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         val url = deepLink(intent) ?: return
-        offline.visibility = View.GONE
-        web.visibility = View.VISIBLE
-        web.loadUrl(url)
+        hideBanner()
+        load(url)
     }
 
     /* Only ever a link into the portal itself. An activity is reachable by any
@@ -743,6 +1287,11 @@ class MainActivity : Activity() {
     private fun load(url: String) {
         offline.visibility = View.GONE
         web.visibility = View.VISIBLE
+        /* showOffline switches the gesture off while its panel is up. Every
+           path back to a live page has to switch it on again, or a parent who
+           met one error keeps a page they can no longer pull to refresh for
+           the rest of the session. */
+        pull.pullEnabled = true
         web.loadUrl(url)
     }
 
@@ -752,11 +1301,96 @@ class MainActivity : Activity() {
         offline.visibility = View.GONE
         web.visibility = View.VISIBLE
         pull.pullEnabled = true
-        if (web.url != null) web.reload() else load(BuildConfig.PORTAL_URL)
+        servingCache = false
+        showingCached = false
+        web.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        val url = lastGoodUrl ?: web.url
+        if (url != null) web.loadUrl(url) else load(BuildConfig.PORTAL_URL)
     }
 
-    private fun showOffline(body: Int) {
+    /* A load that painted. Worth recording where it was, and worth clearing
+       whatever the last failure put on screen. */
+    private fun committed(url: String?) {
+        if (url != null && url != "about:blank") lastGoodUrl = url
+        /* A live page clears the stale flag.
+
+           It was only ever cleared inside the servingCache branch below, so
+           once a cached copy had been shown the app went on believing it was
+           still showing one: every later navigation, on a perfectly good
+           connection, was treated as stale, and the network callback kept
+           reloading pages a parent was reading. The flag describes what is on
+           screen now, and what is on screen now is this page. */
+        if (!servingCache) showingCached = false
+        if (servingCache) {
+            /* The cached copy is what is now in front of the parent. Say so:
+               a stale fee balance presented as current is worse than no fee
+               balance, because it is believed. */
+            servingCache = false
+            showingCached = true
+            web.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            showBanner(
+                getString(if (hasNetwork()) R.string.banner_slow else R.string.banner_offline),
+            )
+        }
+    }
+
+    /* WHICH OF THE THREE THINGS WENT WRONG.
+
+       The WebView reports a transport level code and nothing about the phone,
+       so the code alone cannot tell "the wifi is off" from "the school's box
+       is not answering": both arrive as a failure to connect or to resolve a
+       name. The connectivity manager is the other half of the question, and it
+       is asked first, because a phone with no network explains every code
+       there is and is the one case where the parent can actually do
+       something. */
+    private fun classify(errorCode: Int): Failure {
+        if (!hasNetwork()) return Failure.NO_NETWORK
+        /* Everything that reaches here happened with a network present, so it
+           is the site that could not be had: a name that would not resolve, a
+           connection refused, a request that timed out. They are one sentence
+           to a parent, who cannot act differently on any of them, so they are
+           one class. The code is kept in the signature because the log line
+           below is the only place the distinction has ever been useful. */
+        android.util.Log.i("ParentShell", "main frame failed, code " + errorCode)
+        return Failure.UNREACHABLE
+    }
+
+    /* THE MAIN FRAME FAILED, AND THE PANEL IS THE LAST ANSWER RATHER THAN THE
+       FIRST.
+
+       Order matters here and it is the whole point of this change. Replacing a
+       screen the parent can read with a full page error is a worse outcome
+       than the error, so the first thing tried is the disk: reload the same
+       address through the HTTP cache, which on a phone that opened the bus
+       screen this morning still holds the bundle. Only when that comes back
+       empty as well is there genuinely nothing to show, and only then does the
+       panel appear. */
+    private fun failed(kind: Failure) {
+        if (!servingCache && lastGoodUrl != null) {
+            fallBackToCache()
+            return
+        }
+        showOffline(kind)
+    }
+
+    private fun fallBackToCache() {
+        val url = lastGoodUrl ?: return
+        servingCache = true
         progress.visibility = View.GONE
+        pull.stopRefreshing()
+        /* ELSE_NETWORK rather than CACHE_ONLY: it serves entries whose
+           freshness has expired, which is nearly all of them given the portal
+           sends its HTML no-cache, and still reaches the network for anything
+           missing when there is a network to reach. CACHE_ONLY would fail
+           outright the moment one sub resource had been evicted. */
+        web.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+        web.loadUrl(url)
+    }
+
+    private fun showOffline(kind: Failure) {
+        progress.visibility = View.GONE
+        // An error the parent can act on beats a spinner that will not end.
+        hideSplash()
         // Whatever was holding the splash, this is the thing worth showing.
         painted = true
         /* A pull that started this load has to be released here as well as on
@@ -766,9 +1400,208 @@ class MainActivity : Activity() {
         // The panel has its own retry button; a second, invisible way to do
         // the same thing behind it is not an improvement.
         pull.pullEnabled = false
-        offlineBody.text = getString(body)
+        servingCache = false
+        showingCached = false
+        web.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        hideBanner()
+        offlineTitle.text = getString(
+            when (kind) {
+                Failure.NO_NETWORK -> R.string.offline_title
+                Failure.UNREACHABLE -> R.string.unreachable_title
+                Failure.SERVER -> R.string.server_title
+            },
+        )
+        offlineBody.text = getString(
+            when (kind) {
+                Failure.NO_NETWORK -> R.string.offline_body
+                Failure.UNREACHABLE -> R.string.unreachable_body
+                Failure.SERVER -> R.string.server_body
+            },
+        )
+        /* Only promised where it can be kept. The network callback fires when
+           a network appears, so a parent who has switched their data off will
+           see this reload itself the moment they switch it back; a parent
+           whose school server is down has a network already and nothing will
+           fire, so they are not told to wait for something that will not
+           happen. */
+        offlineHint.visibility = if (kind == Failure.NO_NETWORK) View.VISIBLE else View.GONE
         web.visibility = View.GONE
         offline.visibility = View.VISIBLE
+    }
+
+    /* THE BANNER, WHICH IS THE POINT OF NOT USING THE PANEL.
+
+       One line over the top of a page that still works, gone in a few seconds.
+       It is dismissible by tapping because it sits over the site's own header,
+       and four seconds of a covered header on a screen the parent is trying to
+       read is its own small annoyance. */
+    private fun showBanner(text: String) {
+        banner.text = text
+        banner.visibility = View.VISIBLE
+        val shownAt = SystemClock.elapsedRealtime()
+        bannerAt = shownAt
+        banner.postDelayed({ if (bannerAt == shownAt) hideBanner() }, BANNER_MS)
+    }
+
+    private fun hideBanner() {
+        bannerAt = 0L
+        banner.visibility = View.GONE
+    }
+
+    private fun buildBanner(): TextView {
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        return TextView(this).apply {
+            visibility = View.GONE
+            setPadding(pad, pad, pad, pad)
+            textSize = 14f
+            setBackgroundColor(getColor(R.color.banner_bg))
+            setTextColor(getColor(R.color.banner_text))
+            // Otherwise the tap goes through to whatever the site has under
+            // the banner, which on the bus screen is the map.
+            isClickable = true
+            setOnClickListener { hideBanner() }
+        }
+    }
+
+    /* NOBODY SHOULD HAVE TO KEEP PRESSING A BUTTON.
+
+       The parent this app is for is on mobile data in Hanumakonda, which comes
+       and goes on its own several times in a thirty second visit. The old
+       panel sat there until somebody tapped it, so the common shape of the
+       failure was: signal returns, app still shows an error, parent concludes
+       the app is broken rather than the network was.
+
+       registerDefaultNetworkCallback fires when a usable default network
+       appears, which is the exact moment the retry is worth making. It is
+       registered for the life of the activity rather than per failure: the
+       callback is cheap, and registering it only after a failure means missing
+       the network that came back while the panel was being built. */
+    private fun watchNetwork() {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                // Callbacks arrive on a binder thread; every view below is the
+                // UI thread's.
+                runOnUiThread { networkReturned() }
+            }
+        }
+        runCatching { cm.registerDefaultNetworkCallback(callback) }
+            .onSuccess { netCallback = callback }
+    }
+
+    private fun networkReturned() {
+        if (isFinishing || isDestroyed) return
+        if (offline.visibility == View.VISIBLE) {
+            retry()
+            return
+        }
+        /* A stale snapshot with the network back is worth quietly replacing:
+           the whole reason it is on screen is that the live page could not be
+           had. Anything else that is already live is left alone, because
+           reloading a page a parent is reading to tell them nothing new is
+           worse than saying nothing. */
+        if (showingCached) {
+            showingCached = false
+            showBanner(getString(R.string.banner_back))
+            web.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            web.reload()
+        }
+    }
+
+    private fun hasNetwork(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return true
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        /* VALIDATED is deliberately not required. A captive portal or a cell
+           connection the system has not finished probing reports INTERNET
+           without it, and calling that "no connection" sends a parent to
+           check a wifi switch that is already on. */
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    /* THE TEN SECONDS THIS APP IS ACTUALLY JUDGED ON.
+
+       The system splash covers the launch and nothing else. Everything after
+       it, which on the mobile data in Hanumakonda is most of the wait, was a
+       flat coloured rectangle: the React bundle has to come down the wire,
+       parse and boot before the WebView has a single pixel to show. A parent
+       cannot tell that rectangle from an app that has hung, and the thing
+       they do about an app that has hung is press it again.
+
+       So the rectangle carries three things instead. The school's mark, which
+       is the same mark the system splash just showed and the same one on the
+       home screen, so the handover looks like one screen rather than three.
+       A spinner, because a still picture cannot say "working" and motion can.
+       And, behind both, the last screen this parent was on, dimmed: see
+       LastScreen for what that is and when it is refused.
+
+       All of it is drawn on the page's own background colour, so whichever of
+       these is up there is never a change of colour anywhere in the sequence.
+       That is the whole trick: the eye reads a colour change as a new screen
+       and reads no colour change as one screen filling in.
+
+       Native rather than an HTML file loaded first, which is the other way to
+       do this. A local page would still need the WebView to start, parse and
+       paint, which is a good part of the delay being covered, and it would put
+       a second loading screen in the repository to keep in step with the
+       first. */
+    private fun buildSplashView(): View {
+        val density = resources.displayMetrics.density
+        splashShot = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            /* Faint on purpose. It has to read as the memory of a screen
+               rather than as the screen: nothing on it responds to a tap, and
+               a parent who believed it was live would tap a fee row and get
+               nothing. At a third of its opacity it is scenery. */
+            alpha = 0.3f
+            visibility = View.GONE
+        }
+        val mark = ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher_foreground)
+            /* The launcher foreground is white line art drawn to sit on its
+               own dark ground. Dropped unchanged onto the light page colour
+               it is invisible, so it is tinted to the ink of whichever theme
+               is up. */
+            setColorFilter(getColor(R.color.splash_mark), PorterDuff.Mode.SRC_IN)
+        }
+        val markSize = (128 * density).toInt()
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(mark, LinearLayout.LayoutParams(markSize, markSize))
+            addView(
+                ProgressBar(context).apply { isIndeterminate = true },
+                LinearLayout.LayoutParams(
+                    (32 * density).toInt(),
+                    (32 * density).toInt(),
+                ).apply { topMargin = (8 * density).toInt() },
+            )
+        }
+        return FrameLayout(this).apply {
+            setBackgroundColor(pageColor())
+            /* Swallows touches. Without this a tap aimed at the dimmed
+               picture lands on the live page underneath, which is a page the
+               parent cannot see and may not be the one in the picture. */
+            isClickable = true
+            contentDescription = getString(R.string.splash_loading)
+            addView(splashShot, FrameLayout.LayoutParams(-1, -1))
+            addView(column, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        }
+    }
+
+    /* Faded rather than switched off. The page arriving underneath is a
+       different picture in the same colours, and a hard cut between them reads
+       as a flicker; a short cross fade reads as the page resolving. Short
+       enough that nobody waits on it. */
+    private fun hideSplash() {
+        if (splash.visibility != View.VISIBLE) return
+        splash.animate().alpha(0f).setDuration(160).withEndAction {
+            splash.visibility = View.GONE
+            splash.alpha = 1f
+            // The snapshot is the largest thing this app holds in memory and
+            // it has no further use once the live page is up.
+            splashShot.setImageDrawable(null)
+        }.start()
     }
 
     /* Built in code rather than as a layout file, because it is nine views and
@@ -780,11 +1613,12 @@ class MainActivity : Activity() {
             setPadding(pad, pad, pad, pad)
             setBackgroundColor(pageColor())
             gravity = Gravity.CENTER
-            addView(TextView(context).apply {
+            offlineTitle = TextView(context).apply {
                 text = getString(R.string.offline_title)
                 textSize = 22f
                 setTextColor(getColor(R.color.page_text))
-            })
+            }
+            addView(offlineTitle)
             offlineBody = TextView(context).apply {
                 text = getString(R.string.offline_body)
                 textSize = 15f
@@ -797,6 +1631,14 @@ class MainActivity : Activity() {
                 minimumHeight = (48 * resources.displayMetrics.density).toInt()
                 setOnClickListener { retry() }
             })
+            offlineHint = TextView(context).apply {
+                text = getString(R.string.waiting_for_network)
+                textSize = 13f
+                setTextColor(getColor(R.color.page_muted))
+                setPadding(0, pad / 2, 0, 0)
+                visibility = View.GONE
+            }
+            addView(offlineHint)
         }
     }
 
@@ -829,6 +1671,7 @@ class MainActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        foreground = true
         if (!Shell.appLockEnabled()) return
         // A cold start is "away for ever"; a switch to another app and back
         // inside a minute is not away at all.
@@ -838,7 +1681,53 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         super.onStop()
+        foreground = false
         leftAt = SystemClock.elapsedRealtime()
+        /* Only when there is something worth keeping.
+
+           Drawing the WebView into a bitmap is main-thread work on the way out
+           of the app, which is the one moment a cheap phone is already busy
+           tearing down a window. Skipping it when the page is not visible --
+           the error panel is up, or the view never painted -- costs nothing
+           and removes the case where the snapshot is a picture of an error
+           panel, which is the last thing worth showing on the next start. */
+        if (web.visibility == View.VISIBLE && web.width > 0 && web.height > 0) {
+            keepLastScreen()
+        }
+    }
+
+    /* Kept from onStop rather than onPause, because onPause also fires for the
+       file picker and the biometric prompt, and drawing the WebView underneath
+       one of those would file a picture of a dialog as the last screen.
+       Nothing is kept while the app lock is on, and nothing is kept from a
+       screen that never painted or is showing an error. */
+    private fun keepLastScreen() {
+        if (Shell.appLockEnabled()) return
+        if (!painted || offline.visibility == View.VISIBLE) return
+        if (splash.visibility == View.VISIBLE) return
+        LastScreen.save(web, filesDir)
+    }
+
+    /* Decoding is a few milliseconds and this runs during the launch, which is
+       the one stretch of time this whole change is about, so it happens off
+       the main thread and drops in when it arrives. Arriving after the page
+       has already painted is fine and common on wifi: the splash is gone by
+       then and the picture is never shown at all. */
+    private fun restoreLastScreen() {
+        if (Shell.appLockEnabled()) {
+            LastScreen.clear(filesDir)
+            return
+        }
+        val dir = filesDir
+        Thread {
+            val shot = LastScreen.load(dir) ?: return@Thread
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (splash.visibility != View.VISIBLE) return@runOnUiThread
+                splashShot.setImageBitmap(shot)
+                splashShot.visibility = View.VISIBLE
+            }
+        }.start()
     }
 
     private fun canLock(): Boolean {
@@ -948,6 +1837,12 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        netCallback?.let { cb ->
+            runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) }
+        }
+        netCallback = null
+        downloadWatcher?.let { runCatching { unregisterReceiver(it) } }
+        downloadWatcher = null
         /* Last chance. If the activity is going away with a chooser still
            unanswered, the callback is about to be leaked along with the page
            that is waiting on it. */
@@ -961,6 +1856,21 @@ class MainActivity : Activity() {
         val PORTAL_HOST: String? = Uri.parse(BuildConfig.PORTAL_URL).host
         const val REQUEST_FILES = 1001
         const val REQUEST_UNLOCK = 1002
+        const val REQUEST_STORAGE = 1003
+
+        /* RFC 6266: `filename*=UTF-8''name%20here` for anything not plain
+           ASCII, `filename="name"` or a bare token otherwise. All three are
+           seen in the wild from the same server depending on the name, and a
+           circular titled in Telugu arrives as the first. */
+        val EXTENDED = Regex("""filename\*\s*=\s*[^']*'[^']*'([^;\s]+)""", RegexOption.IGNORE_CASE)
+        // Not a raw string: a Kotlin raw string cannot end in a quote.
+        val QUOTED = Regex("filename\\s*=\\s*\"([^\"]*)\"", RegexOption.IGNORE_CASE)
+        val PLAIN = Regex("""filename\s*=\s*([^;\s"]+)""", RegexOption.IGNORE_CASE)
         const val LOCK_AFTER_MS = 60_000L
+
+        /* Long enough to read one line while glancing at a bus map, short
+           enough that it is not still covering the site's header when the
+           parent goes to tap it. */
+        const val BANNER_MS = 4000L
     }
 }

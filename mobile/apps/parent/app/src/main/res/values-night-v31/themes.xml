@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- The dark counterpart. Without this file the v31 light theme above
          would win over values-night on Android 12 and up, because a version
          qualifier outranks a night qualifier, and every parent with a dark
@@ -7,6 +7,10 @@
         <item name="android:statusBarColor">@color/page_bg</item>
         <item name="android:navigationBarColor">@color/page_bg</item>
         <item name="android:windowBackground">@color/page_bg</item>
+        <!-- The dark half of the pair. See the note in values/themes.xml:
+             this is what tells the portal's prefers-color-scheme rules to
+             fire on Android 13 and up. -->
+        <item name="android:isLightTheme" tools:targetApi="q">false</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowSplashScreenBackground">@color/page_bg</item>

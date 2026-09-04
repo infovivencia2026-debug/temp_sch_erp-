@@ -3,4 +3,10 @@
     <color name="page_bg">#0A0A0A</color>
     <color name="page_text">#FFFFFF</color>
     <color name="page_muted">#9AA0A6</color>
+    <!-- Lighter than the page in dark mode, for the same reason the light
+         one is darker: the banner has to read as a strip laid over the page
+         rather than as part of it. -->
+    <color name="banner_bg">#2E3742</color>
+    <color name="banner_text">#FFFFFF</color>
+    <color name="splash_mark">#F7F8FA</color>
 </resources>

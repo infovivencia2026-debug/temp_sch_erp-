@@ -1,8 +1,0 @@
-com.schoolerp.parent.app-pngs-0 /home/qb/temp_sch_erp-/mobile/apps/parent/app/build/generated/res/pngs/release
-com.schoolerp.parent.app-updated_navigation_xml-1 /home/qb/temp_sch_erp-/mobile/apps/parent/app/build/generated/updated_navigation_xml/release
-com.schoolerp.parent.app-packageReleaseResources-2 /home/qb/temp_sch_erp-/mobile/apps/parent/app/build/intermediates/incremental/release/packageReleaseResources/merged.dir
-com.schoolerp.parent.app-packageReleaseResources-3 /home/qb/temp_sch_erp-/mobile/apps/parent/app/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
-com.schoolerp.parent.app-release-4 /home/qb/temp_sch_erp-/mobile/apps/parent/app/build/intermediates/merged_res/release/mergeReleaseResources
-com.schoolerp.parent.app-main-5 /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/main/res
-com.schoolerp.parent.app-release-6 /home/qb/temp_sch_erp-/mobile/apps/parent/app/src/release/res
-gradleHome-0 /home/qb/.gradle

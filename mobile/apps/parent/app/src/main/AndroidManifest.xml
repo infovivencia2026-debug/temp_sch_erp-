@@ -9,6 +9,30 @@
     <!-- The app lock: the phone's own fingerprint or face prompt. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- KEEPING A RECEIPT, ON THE OLD HALF OF THE RANGE ONLY.
+
+         A fee receipt is downloaded in order to be produced again later:
+         forwarded on WhatsApp, shown at the office, attached to a form. That
+         means the shared Downloads folder, not this app's private directory,
+         which no Files app and no share sheet can see and which the system
+         deletes with the app.
+
+         On API 28 and below writing there is a real permission and
+         DownloadManager refuses without it, so MainActivity asks for it at the
+         moment of the first download rather than at launch. From API 29 the
+         folder stopped being any app's to write: DownloadManager files the
+         result through MediaStore on this app's behalf and the platform
+         ignores the permission entirely. maxSdkVersion is what keeps a modern
+         phone from listing a storage permission this app cannot use and would
+         never be granted anyway.
+
+         NOT POST_NOTIFICATIONS. The download's notification is posted by the
+         system download provider under its own identity, not by this app, so
+         declaring it would prompt a parent for nothing. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <!-- DELIBERATELY NOT android.permission.CAMERA.
 
          Taking the photograph is the camera app's act, not this app's: the
@@ -32,6 +56,15 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <!-- A downloaded PDF is handed to whatever can draw one, because the
+             WebView cannot. Without this the same package visibility rule
+             makes startActivity throw ActivityNotFoundException on a phone
+             that does have a PDF reader installed, and the circular the
+             parent tapped to read would end as an error. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="*/*" />
         </intent>
     </queries>

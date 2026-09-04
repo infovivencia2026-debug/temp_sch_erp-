@@ -1,7 +1,0 @@
-com.schoolerp.parent
-mipmap ic_launcher
-string app_name
-string offline_body
-string offline_title
-string retry
-style Theme_Parent
