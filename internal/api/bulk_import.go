@@ -2699,6 +2699,15 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			}
 			if i, ok := index[normaliseHeader(theirs)]; ok {
 				remapped[normaliseHeader(ours)] = i
+				continue
+			}
+			// A column named by position rather than by header: see the
+			// students importer, where the same rule is spelled out. Blank
+			// and repeated headers are real and cannot be named any other way.
+			t := strings.TrimSpace(theirs)
+			if n, err := strconv.Atoi(strings.TrimPrefix(t, "#")); err == nil &&
+				strings.HasPrefix(t, "#") && n >= 0 && n < len(head) {
+				remapped[normaliseHeader(ours)] = n
 			}
 		}
 		index = remapped

@@ -726,8 +726,25 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			}
 			key := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(theirs, "\ufeff")))
 			i, ok := col[key]
+			/* A COLUMN CAN BE NAMED BY POSITION AS WELL AS BY HEADER.
+
+			   Mapping by header name cannot address two columns a school's
+			   export produces all the time: one whose header cell is empty --
+			   the admission-number column in the file this was found in -- and
+			   two carrying the same word. Both are perfectly good columns of
+			   perfectly good data, and neither could be pointed at, because the
+			   only way to say which you meant was to say its name.
+
+			   "#0" is the first column. Sent by the screen only where a header
+			   is blank or repeated, and tried only after the name has failed, so
+			   a real header beginning with a hash still wins. */
 			if !ok {
-				continue
+				n, err := strconv.Atoi(strings.TrimPrefix(strings.TrimSpace(theirs), "#"))
+				if err != nil || !strings.HasPrefix(strings.TrimSpace(theirs), "#") ||
+					n < 0 || n >= len(header) {
+					continue
+				}
+				i, ok = n, true
 			}
 			if label, isCustom := strings.CutPrefix(ours, "custom:"); isCustom {
 				if label = strings.TrimSpace(label); label != "" {

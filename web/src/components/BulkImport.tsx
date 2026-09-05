@@ -111,6 +111,20 @@ interface Result {
   problems: Problem[]
 }
 
+
+/* Which column a mapping points at.
+
+   A mapping holds either a header name or "#3", the position, for the columns
+   that have no usable name. Both resolve to an index here so the preview under
+   each row shows the right cell either way. */
+function columnIndexOf(choice: string, headers: string[]): number {
+  if (choice.startsWith('#')) {
+    const n = Number(choice.slice(1))
+    return Number.isInteger(n) ? n : -1
+  }
+  return headers.indexOf(choice)
+}
+
 export default function BulkImport({
   entity,
   title,
@@ -184,6 +198,32 @@ export default function BulkImport({
   })
 
   const theirHeaders = grid.length ? grid[0] : []
+
+  /* EVERY COLUMN IN THE FILE, INCLUDING THE ONES WITH NOTHING AT THE TOP.
+
+     A column is chosen here by its header, and two kinds of column have no
+     usable one: the header cell is empty -- which is how the admission-number
+     column arrived in the file that turned this up -- or two columns carry the
+     same word. A blank header rendered as an empty line in the list,
+     indistinguishable from "Not in my file" and impossible to click with any
+     effect; a repeated one always resolved to whichever came first.
+
+     Both are named by position instead, "#0" for the first column, which the
+     server resolves after trying the name. The label says which column it is
+     and what is in it, because "(column 1)" alone is not something anybody
+     knows the answer to. */
+  const headerChoices = theirHeaders.map((h, i) => {
+    const name = (h ?? '').trim()
+    const repeated = name !== '' && theirHeaders.filter((x) => (x ?? '').trim() === name).length > 1
+    const sample = (grid[1]?.[i] ?? '').trim()
+    if (name && !repeated) return { value: name, label: name }
+    return {
+      value: `#${i}`,
+      label: name
+        ? `${name} — column ${i + 1}${sample ? ` (${sample})` : ''}`
+        : `Column ${i + 1} — no heading${sample ? ` (${sample})` : ''}`,
+    }
+  })
   const fieldList = fields.data?.fields ?? []
   const missing = fieldList
     .filter((f) => f.required && !colMap[f.name])
@@ -539,8 +579,8 @@ export default function BulkImport({
                     }}
                   >
                     <option value="">Not in my file</option>
-                    {theirHeaders.map((h, i) => (
-                      <option key={`${h}-${i}`} value={h}>{h}</option>
+                    {headerChoices.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
                   {/* The first row's value under the chosen column, because a
@@ -548,7 +588,7 @@ export default function BulkImport({
                       header does. */}
                   <span className="w-40 flex-none truncate text-[12px] text-muted-foreground">
                     {colMap[f.name] && grid[1]
-                      ? grid[1][theirHeaders.indexOf(colMap[f.name])] ?? ''
+                      ? grid[1][columnIndexOf(colMap[f.name], theirHeaders)] ?? ''
                       : ''}
                   </span>
                 </div>
