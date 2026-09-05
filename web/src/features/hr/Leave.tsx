@@ -139,6 +139,31 @@ export default function Leave() {
   const [apply, setApply] = useState(false)
   const [form, setForm] = useState({
     from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '',
+    employee_id: '',
+  })
+
+  /* Approving on the self-service screen would be the same confusion the other
+   * way round: this door is "my leave", and deciding somebody else's belongs
+   * behind the entry that says so. */
+  const mayDecide = canDecide && !mine
+
+  /* FILING SOMEBODY ELSE'S LEAVE.
+
+     Leave could only ever be applied for by the person taking it, and most
+     staff at a school have no login: the driver, the ayah, half the office.
+     Their leave is a slip of paper handed over the counter, and the office had
+     nowhere to put it -- so the register marked them absent, the loss-of-pay
+     engine charged the absence, and the payslip deducted a day the school had
+     actually granted.
+
+     Offered on the HR door only, and only to somebody who may decide leave.
+     Filing it is the same authority as approving it, which is also what the
+     server checks. */
+  const staff = useQuery({
+    queryKey: ['work-pattern-staff'],
+    queryFn: () => api.get<{ items: { id: string; full_name: string; employee_code: string }[] }>(
+      '/api/v1/setup/work-patterns/staff'),
+    enabled: mayDecide,
   })
 
   /* Which kind of leave this is.
@@ -167,10 +192,16 @@ export default function Leave() {
       api.post('/api/v1/workflow/leave', {
         ...form,
         leave_type_id: form.leave_type_id || undefined,
+        // Omitted entirely when blank, so the server keeps its "the applicant
+        // is the signed-in employee" path rather than being handed an empty id.
+        employee_id: form.employee_id || undefined,
       }),
     onSuccess: () => {
       setApplied('Sent. Whoever approves leave here will see it — the head of department or the principal, whichever gets there first.')
-      setForm({ from_date: '', to_date: '', reason: '', is_half_day: false, leave_type_id: '' })
+      setForm({
+        from_date: '', to_date: '', reason: '', is_half_day: false,
+        leave_type_id: '', employee_id: '',
+      })
       setApply(false)
       qc.invalidateQueries({ queryKey: ['leave'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
@@ -192,10 +223,6 @@ export default function Leave() {
      person's, and read again at the end of term to count them. */
   const { q: term, setQ: setTerm, shown } = useSearch(items,
     (l) => [l.who, l.leave_type, l.reason, l.status])
-  /* Approving on the self-service screen would be the same confusion the other
-   * way round: this door is "my leave", and deciding somebody else's belongs
-   * behind the entry that says so. */
-  const mayDecide = canDecide && !mine
 
   return (
     <>
@@ -301,6 +328,22 @@ export default function Leave() {
           {apply && (
             <div className="px-5 pb-5">
               <FormGrid>
+                {mayDecide && (
+                  <Field
+                    label="Whose leave"
+                    hint="Leave blank to apply for your own."
+                  >
+                    <Select
+                      value={form.employee_id}
+                      onChange={(v) => setForm({ ...form, employee_id: v })}
+                      placeholder="Mine"
+                      options={(staff.data?.items ?? []).map((e) => ({
+                        value: e.id,
+                        label: e.full_name || e.employee_code,
+                      }))}
+                    />
+                  </Field>
+                )}
                 <Field label="From" required>
                   <Input
                     type="date"

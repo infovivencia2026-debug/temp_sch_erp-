@@ -26,6 +26,8 @@ import (
 // --- leave --------------------------------------------------------------------
 
 var errLeaveKindMissing = errors.New("leave kind is required")
+var errNotYoursToFile = errors.New("not yours to file")
+var errNoSuchEmployee = errors.New("no such employee")
 
 type leaveApplyRequest struct {
 	LeaveTypeID string `json:"leave_type_id,omitempty"`
@@ -36,6 +38,19 @@ type leaveApplyRequest struct {
 	// StudentID lets a guardian apply on a child's behalf. Omitted, the
 	// applicant is the signed-in employee.
 	StudentID string `json:"student_id,omitempty"`
+	/* EmployeeID lets HR or the principal file leave FOR a member of staff.
+
+	   Leave could only ever be applied for by the person taking it, and most
+	   staff at a school have no login at all -- the driver, the ayah, half the
+	   office. Their leave is a slip of paper handed to the office, and the
+	   office had nowhere to put it. So the register showed them absent, the
+	   LOP engine charged the absence, and the payslip deducted a day the
+	   school had actually granted.
+
+	   Gated on the permission to decide staff leave, not on holding an
+	   employee record: filing somebody's leave is the same authority as
+	   approving it. */
+	EmployeeID string `json:"employee_id,omitempty"`
 }
 
 // applyForLeave records a leave request from a staff member or a guardian.
@@ -107,6 +122,28 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 				return errNotYourChild
 			}
 			studentID = sid
+		} else if strings.TrimSpace(req.EmployeeID) != "" {
+			/* Filed by the office, for somebody else.
+
+			   Checked inside the tenant transaction, so naming an employee id
+			   from another school finds nothing rather than filing leave into
+			   it. Active only: leave for somebody who has left is a correction
+			   to a closed record, which is a different act with a different
+			   trail. */
+			if !id.Can(rbac.LeaveApprove) && !id.Can(rbac.EmployeesWrite) {
+				return errNotYoursToFile
+			}
+			eid, perr := uuid.Parse(strings.TrimSpace(req.EmployeeID))
+			if perr != nil {
+				return errNoSuchEmployee
+			}
+			var ok bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT true FROM employees WHERE id = $1 AND status = 'active'`,
+				eid).Scan(&ok); err != nil {
+				return errNoSuchEmployee
+			}
+			employeeID = eid
 		} else {
 			var eid uuid.UUID
 			if err := tx.QueryRow(r.Context(),
@@ -222,6 +259,16 @@ func (s *Server) applyForLeave(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errNotAnEmployee) {
 		httpx.BadRequest(w, r,
 			"your account is not linked to an employee record, so it cannot apply for staff leave")
+		return
+	}
+	if errors.Is(err, errNotYoursToFile) {
+		httpx.Forbidden(w, r,
+			"filing leave for somebody else is the same authority as approving it, "+
+				"and this account does not have it")
+		return
+	}
+	if errors.Is(err, errNoSuchEmployee) {
+		httpx.BadRequest(w, r, "no member of staff on the roll with that id")
 		return
 	}
 	if err != nil {
