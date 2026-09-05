@@ -23,6 +23,7 @@ import {
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
+import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -251,6 +252,7 @@ export default function StudentProfile() {
      name that does not have exactly two words -- the record is fetched for the
      fields the form actually edits. */
   const [editing, setEditing] = useState(false)
+  const [moving, setMoving] = useState(false)
   const [admitting, setAdmitting] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
@@ -734,10 +736,9 @@ export default function StudentProfile() {
       // matches on the trailing slug across whichever the reader holds.
       disabled: !can('institution_admin.communication.messages'),
       disabledReason: 'Needs the messaging permission' },
-    /* "Change section" was here, permanently disabled with "Not built yet"
-       for its reason. A menu item that can never be clicked is not a control,
-       it is an announcement; it comes back when moving a child between
-       sections is something this screen can actually do. */
+    { label: 'Move to another section', onClick: () => setMoving(true),
+      disabled: !can('institution_admin.students.students'),
+      disabledReason: 'Needs the students permission' },
     /* The child's own way in. Nothing outside the demo seeder had ever given
        a student an account, so the whole student workspace was unreachable in
        a real school. The admission number becomes the username. */
@@ -1726,6 +1727,18 @@ export default function StudentProfile() {
             { k: 'Previous school', v: p.prior_school, field: 'prior_school' },
           ]),
         ]}
+      />
+    )}
+    {moving && record.data && (
+      <MoveSection
+        student={record.data}
+        onCancel={() => setMoving(false)}
+        onDone={(where) => {
+          setMoving(false)
+          toast.ok(`Moved to ${where}`)
+          qc.invalidateQueries({ queryKey: ['student-record', selected] })
+          qc.invalidateQueries({ queryKey: ['students'] })
+        }}
       />
     )}
     {updating && (

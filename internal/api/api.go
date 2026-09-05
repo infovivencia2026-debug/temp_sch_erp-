@@ -156,6 +156,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/fee-preview", s.admissionFeePreview)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/section", s.moveStudentSection)
 			/* Erasing a record, as against taking a child off the roll.
 
 			   Almost every departure is a leaver and keeps the record; this is
