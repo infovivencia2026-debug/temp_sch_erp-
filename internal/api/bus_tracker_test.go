@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -199,6 +200,55 @@ func busTrackerDeviceRouter(s *Server) http.Handler {
 // the guard let the request through.
 func busTrackerCall(t *testing.T, h http.Handler, method, path, token, body string) (int, map[string]any) {
 	t.Helper()
+	return busTrackerCallFrom(t, h, busTestCallerAddress(t), method, path, token, body)
+}
+
+/*
+busTestCallerAddress is the network a test's handset calls from.
+
+	The claim is limited per caller address, six in ten minutes, and
+	httptest.NewRequest gives every request the same 192.0.2.1. While the
+	limiter was a package variable that meant the seventh claim in a `go test`
+	process — the third test to call pairAndClaim, or the second -count run of
+	the first — was refused with a 429 that had nothing to do with the test
+	asserting it. The limiter now counts in the Server's own store (see
+	ratelimits.go), which isolates tests that build their own Server; this
+	isolates the key as well, so a shared Server, a repeated run in one
+	process, or a store that outlives the process (RATE_LIMIT_STORE=postgres)
+	still cannot hand one test another's attempts.
+
+	Each *testing.T gets its own address, made up once and forgotten when the
+	test ends. The limiter itself is not disabled:
+	TestBusTrackerClaimIsRateLimitedPerAddress below still proves it bites.
+*/
+var busTestCallers sync.Map // *testing.T -> string
+
+func busTestCallerAddress(t *testing.T) string {
+	if v, ok := busTestCallers.Load(t); ok {
+		return v.(string)
+	}
+	// callerAddress only splits host from port, so the host need not parse
+	// as an IP; a fresh token per test is what matters.
+	v, loaded := busTestCallers.LoadOrStore(t, "test-"+uuid.NewString()[:8]+":1234")
+	if !loaded {
+		t.Cleanup(func() { busTestCallers.Delete(t) })
+	}
+	return v.(string)
+}
+
+// busTrackerCallFrom is busTrackerCall with the caller's address chosen by
+// the test, for the one test that wants the limiter to see the same network
+// more than six times.
+func busTrackerCallFrom(t *testing.T, h http.Handler, remoteAddr, method, path, token, body string) (int, map[string]any) {
+	t.Helper()
+	return busTrackerCallWith(t, h, remoteAddr, nil, method, path, token, body)
+}
+
+// busTrackerCallWith is the one that builds the request; headers beyond the
+// bearer token -- the driver's X-Staff-Session -- are the caller's to add.
+func busTrackerCallWith(t *testing.T, h http.Handler, remoteAddr string, headers map[string]string,
+	method, path, token, body string) (int, map[string]any) {
+	t.Helper()
 	type result struct {
 		code int
 		out  map[string]any
@@ -211,9 +261,13 @@ func busTrackerCall(t *testing.T, h http.Handler, method, path, token, body stri
 			}
 		}()
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.RemoteAddr = remoteAddr
 		req.Header.Set("Content-Type", "application/json")
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
 		}
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, req)
@@ -276,6 +330,39 @@ func TestBusTrackerDeviceRoutesRefuseAnUnauthenticatedCaller(t *testing.T) {
 	}
 	if walked == 0 {
 		t.Fatal("no device routes were walked; the mount is empty or the router changed shape")
+	}
+}
+
+/*
+The public claim is limited per caller network, and the limit is the SMS
+gateway's: six attempts in ten minutes, every attempt counted.
+
+	No database: a bad code is refused before the handler needs one, and a
+	refusal counts exactly as a success would, because a flood of wrong codes
+	is the flood the limiter exists for. The address is this test's own, so the
+	count starts at zero here and no other test inherits what it spends.
+*/
+func TestBusTrackerClaimIsRateLimitedPerAddress(t *testing.T) {
+	h := busTrackerDeviceRouter(&Server{})
+	addr := busTestCallerAddress(t)
+	for i := 1; i <= smsGatewayClaimBurst; i++ {
+		code, _ := busTrackerCallFrom(t, h, addr, http.MethodPost, "/public/bus-tracker/claim", "", `{}`)
+		if code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: got %d, want 401 (not yet limited)", i, code)
+		}
+	}
+	code, body := busTrackerCallFrom(t, h, addr, http.MethodPost, "/public/bus-tracker/claim", "", `{}`)
+	if code != http.StatusTooManyRequests {
+		t.Fatalf("attempt %d: got %d, want 429", smsGatewayClaimBurst+1, code)
+	}
+	if e, _ := body["error"].(map[string]any); e == nil || e["code"] != "rate_limited" {
+		t.Errorf("the refusal answered %v, not rate_limited", body["error"])
+	}
+	// Another network is not punished for this one's attempts.
+	code, _ = busTrackerCallFrom(t, h, "198.51.100.7:1234", http.MethodPost,
+		"/public/bus-tracker/claim", "", `{}`)
+	if code != http.StatusUnauthorized {
+		t.Errorf("a different address: got %d, want 401", code)
 	}
 }
 
@@ -529,10 +616,44 @@ func (sc *busSchool) pairAndClaim(t *testing.T, s *Server) (code, token string) 
 	return code, token
 }
 
-// startTrip opens a pickup run and returns its id.
+/*
+signInDriver opens a driver session on the paired handset and returns the
+X-Staff-Session token the app would carry.
+
+	Since the driver sign-in of 2026-08-29, starting or ending a run needs a
+	person as well as a phone (requireBusTrackerDriver), so the trip row can
+	say who drove. The session is opened the way signInBusDriver opens it,
+	minus the phone-number-and-PIN check that proves the person: this test
+	school has no PINs, and the clerk is as good a driver as anyone here. The
+	sealed secret needs CREDENTIAL_KEY, which newBusSchool sets.
+*/
+func (sc *busSchool) signInDriver(t *testing.T, s *Server, deviceToken string) string {
+	t.Helper()
+	device, _, ok := splitBusTrackerToken(deviceToken)
+	if !ok {
+		t.Fatalf("device token %q does not split", deviceToken)
+	}
+	var session string
+	err := s.DB.AsPlatform(context.Background(), func(tx pgx.Tx) error {
+		var err error
+		session, _, _, err = s.openStaffSession(context.Background(), tx,
+			staffIdentity{UserID: sc.clerkUser, Institution: sc.inst, Name: "Ravi"},
+			"bus_tracker", device)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("driver sign-in: %v", err)
+	}
+	return session
+}
+
+// startTrip signs the driver in on the handset, opens a pickup run and
+// returns its id.
 func (sc *busSchool) startTrip(t *testing.T, s *Server, token string) string {
 	t.Helper()
-	status, body := busTrackerCall(t, busTrackerDeviceRouter(s), http.MethodPost,
+	session := sc.signInDriver(t, s, token)
+	status, body := busTrackerCallWith(t, busTrackerDeviceRouter(s), busTestCallerAddress(t),
+		map[string]string{"X-Staff-Session": session}, http.MethodPost,
 		"/bus-tracker/trips", token, fmt.Sprintf(`{"route_id":%q,"direction":"pickup"}`, sc.route))
 	if status != http.StatusCreated {
 		t.Fatalf("start trip: %d %v", status, body)

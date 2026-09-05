@@ -255,16 +255,26 @@ func newSchool(t *testing.T) *school {
 			return err
 		}
 
+		// Periods belong to a bell schedule (migration 00162), the way the
+		// setup panel writes them: one default "Standard day" for the campus.
+		var bell uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+			VALUES ($1,$2,'Standard day',true) RETURNING id`,
+			sc.inst, sc.campus).Scan(&bell); err != nil {
+			return err
+		}
+
 		// Six teaching periods and one break, so the break is proved to be
 		// excluded from the grid rather than assumed to be.
 		for i := 1; i <= 7; i++ {
 			isBreak := i == 4
 			var pid uuid.UUID
 			if err := tx.QueryRow(ctx, `
-				INSERT INTO periods (institution_id, campus_id, name, sequence,
+				INSERT INTO periods (institution_id, campus_id, bell_schedule_id, name, sequence,
 				        starts_at, ends_at, is_break)
-				VALUES ($1,$2,$3,$4,$5::time,$6::time,$7) RETURNING id`,
-				sc.inst, sc.campus, fmt.Sprintf("P%d", i), i,
+				VALUES ($1,$2,$3,$4,$5,$6::time,$7::time,$8) RETURNING id`,
+				sc.inst, sc.campus, bell, fmt.Sprintf("P%d", i), i,
 				fmt.Sprintf("%02d:00", 7+i), fmt.Sprintf("%02d:45", 7+i), isBreak).Scan(&pid); err != nil {
 				return err
 			}

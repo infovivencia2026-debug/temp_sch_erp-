@@ -74,12 +74,21 @@ func seedPlanWorld(t *testing.T, db *database.DB) planWorld {
 			VALUES ($1,$2,$3,$4,$5,'A')`, w.section, inst, w.campus, class, w.year); err != nil {
 			return err
 		}
+		// Periods belong to a bell schedule (migration 00162); one default
+		// "Standard day" is what the setup panel would have written.
+		var bell uuid.UUID
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+			VALUES ($1,$2,'Standard day',true) RETURNING id`,
+			inst, w.campus).Scan(&bell); err != nil {
+			return err
+		}
 		for i := 1; i <= 3; i++ {
 			id := uuid.New()
 			if _, err := tx.Exec(ctx, `
-				INSERT INTO periods (id, institution_id, campus_id, name, sequence, starts_at, ends_at)
-				VALUES ($1,$2,$3,$4,$5, make_time(8+$5,0,0), make_time(8+$5,45,0))`,
-				id, inst, w.campus, "P", i); err != nil {
+				INSERT INTO periods (id, institution_id, campus_id, bell_schedule_id, name, sequence, starts_at, ends_at)
+				VALUES ($1,$2,$3,$4,$5,$6, make_time(8+$6,0,0), make_time(8+$6,45,0))`,
+				id, inst, w.campus, bell, "P", i); err != nil {
 				return err
 			}
 			w.periods = append(w.periods, id)

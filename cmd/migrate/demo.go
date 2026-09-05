@@ -454,14 +454,24 @@ func seedDemoData(ctx context.Context, db *database.DB, institution string) erro
 				       ($1,$2,'Physical Education','PE',false)
 				ON CONFLICT DO NOTHING`, []any{inst, campus}},
 
+			// Periods hang off a bell schedule (migration 00162), so the
+			// campus's default is seeded first and every period points at it.
+			{"bell schedule", `
+				INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+				VALUES ($1,$2,'Standard day',true)
+				ON CONFLICT DO NOTHING`, []any{inst, campus}},
+
 			{"periods", `
-				INSERT INTO periods (institution_id, campus_id, name, sequence, starts_at, ends_at, is_break)
-				VALUES ($1,$2,'P1',1,'08:00','08:45',false),
-				       ($1,$2,'P2',2,'08:45','09:30',false),
-				       ($1,$2,'Break',3,'09:30','09:50',true),
-				       ($1,$2,'P3',4,'09:50','10:35',false),
-				       ($1,$2,'P4',5,'10:35','11:20',false),
-				       ($1,$2,'P5',6,'11:20','12:05',false)
+				INSERT INTO periods (institution_id, campus_id, bell_schedule_id, name, sequence, starts_at, ends_at, is_break)
+				SELECT $1,$2,b.id,v.name,v.seq,v.starts::time,v.ends::time,v.brk
+				  FROM bell_schedules b
+				 CROSS JOIN (VALUES ('P1',1,'08:00','08:45',false),
+				                    ('P2',2,'08:45','09:30',false),
+				                    ('Break',3,'09:30','09:50',true),
+				                    ('P3',4,'09:50','10:35',false),
+				                    ('P4',5,'10:35','11:20',false),
+				                    ('P5',6,'11:20','12:05',false)) v(name,seq,starts,ends,brk)
+				 WHERE b.campus_id = $2 AND b.is_default
 				ON CONFLICT DO NOTHING`, []any{inst, campus}},
 
 			{"sections", `

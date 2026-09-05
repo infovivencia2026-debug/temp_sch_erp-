@@ -300,26 +300,33 @@ The limiter counts per key and forgets at the window edge.
 	on the key precisely so the two can differ.
 */
 func TestAPIKeyLimiterCountsPerKeyAndResets(t *testing.T) {
-	l := &apiKeyLimiter{windows: map[uuid.UUID]*apiKeyWindow{}, maxEntries: 100}
-	a, b := uuid.New(), uuid.New()
+	// A Server with nothing set counts in its own in-memory store, and its
+	// Clock is what the limiter reads, so the minute is walked by hand.
 	now := time.Now()
+	s := &Server{Clock: func() time.Time { return now }}
+	ctx := context.Background()
+	l := func(id uuid.UUID, perMinute int, at time.Time) (bool, time.Duration) {
+		now = at
+		return s.allowAPIKeyRequest(ctx, id, perMinute)
+	}
+	a, b := uuid.New(), uuid.New()
 
 	for i := 0; i < 3; i++ {
-		if ok, _ := l.allow(a, 3, now); !ok {
+		if ok, _ := l(a, 3, now); !ok {
 			t.Fatalf("request %d of 3 was refused", i+1)
 		}
 	}
-	ok, retry := l.allow(a, 3, now)
+	ok, retry := l(a, 3, now)
 	if ok {
 		t.Fatal("the fourth request in a minute was allowed against a limit of 3")
 	}
 	if retry <= 0 || retry > time.Minute {
 		t.Errorf("retry-after %v is not inside the window", retry)
 	}
-	if ok, _ := l.allow(b, 3, now); !ok {
+	if ok, _ := l(b, 3, now); !ok {
 		t.Error("a second key was refused because the first had spent its budget")
 	}
-	if ok, _ := l.allow(a, 3, now.Add(time.Minute)); !ok {
+	if ok, _ := l(a, 3, now.Add(time.Minute)); !ok {
 		t.Error("the window did not reset after a minute")
 	}
 }
@@ -360,6 +367,30 @@ func TestAPIKeyIsConfinedToItsOwnSchool(t *testing.T) {
 	}
 	t.Cleanup(db.Close)
 	s := &Server{DB: db}
+
+	/* The connection must be one the policies bind.
+
+	   Postgres exempts a superuser, and any role with BYPASSRLS, from every
+	   row-level policy; FORCE ROW LEVEL SECURITY reaches the table owner but
+	   not those. Run against such a role, the visibility assertion below
+	   fails and reports a tenant breach that does not exist, which is a bad
+	   way to spend an afternoon. The production pools connect as the
+	   unprivileged app_user (internal/database/db.go), and this test needs
+	   the same: a failure here is the harness pointing at the wrong role,
+	   not the schema. */
+	var bypasses bool
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT rolsuper OR rolbypassrls FROM pg_roles
+			 WHERE rolname = current_user`).Scan(&bypasses)
+	}); err != nil {
+		t.Fatalf("inspect the connection role: %v", err)
+	}
+	if bypasses {
+		t.Fatal("TEST_DATABASE_URL connects as a superuser or BYPASSRLS role, which " +
+			"Postgres exempts from row-level security; point it at the unprivileged " +
+			"app role (app_user) so the tenant policies under test actually apply")
+	}
 
 	newSchool := func(label string) *apiKeySchool {
 		sc := &apiKeySchool{}

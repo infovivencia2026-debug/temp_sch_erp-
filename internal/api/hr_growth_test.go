@@ -628,11 +628,19 @@ func TestRosteringRefusesDoubleBookingAndLeaveButReportsTeaching(t *testing.T) {
 	wednesday := nextWeekday(time.Wednesday)
 	sc.tx(t, func(tx pgx.Tx) error {
 		ctx := context.Background()
-		var period, class, section, subject, classSubject uuid.UUID
+		var bell, period, class, section, subject, classSubject uuid.UUID
+		// A period hangs off a bell schedule (migration 00162), as the setup
+		// panel writes it.
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO periods (institution_id, campus_id, name, sequence, starts_at, ends_at)
-			VALUES ($1,$2,'P1',1,'07:30','08:10') RETURNING id`,
-			sc.inst, sc.campus).Scan(&period); err != nil {
+			INSERT INTO bell_schedules (institution_id, campus_id, name, is_default)
+			VALUES ($1,$2,'Standard day',true) RETURNING id`,
+			sc.inst, sc.campus).Scan(&bell); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO periods (institution_id, campus_id, bell_schedule_id, name, sequence, starts_at, ends_at)
+			VALUES ($1,$2,$3,'P1',1,'07:30','08:10') RETURNING id`,
+			sc.inst, sc.campus, bell).Scan(&period); err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, `
