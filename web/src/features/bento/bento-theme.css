@@ -4057,3 +4057,18 @@ body:has(.bento-frost) [data-assistant-orb] {
 .bento-board:has([data-card][data-quiet]):not(:has([data-card]:not([data-quiet]))) .card-nothing {
   display: none;
 }
+
+/* NO GLASS ON A PHONE. A backdrop blur re-samples everything behind it on
+   every frame, and behind the launcher is a board of cards; on a phone GPU
+   that is the difference between the panel sliding and the panel stuttering.
+   The dock already gives up its blur at this width for the same reason. A
+   solid ground is what a phone's own sheets use. */
+@media (max-width: 767px) {
+  .bento-frost,
+  .dark .bento-frost,
+  :root[data-theme='dark'] .bento-frost {
+    background: var(--bento-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

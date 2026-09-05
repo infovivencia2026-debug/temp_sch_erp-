@@ -632,3 +632,13 @@
 @media (min-width: 640px) {
   [data-role='parent'] .parent-switch-small { display: none; }
 }
+
+/* The sticky head's blur was drawn over every list on every scrolled frame;
+   a near-solid ground reads the same and costs nothing. */
+@media (max-width: 767px) {
+  [data-role='parent'] .pb-6.pt-5 {
+    background: color-mix(in srgb, var(--bento-bg, hsl(var(--background))) 97%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
