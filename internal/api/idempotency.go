@@ -2,12 +2,14 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -104,6 +106,20 @@ func (s *Server) Idempotent(next http.Handler) http.Handler {
 			   no row when the key is already there, which is exactly the
 			   signal needed -- and it is atomic, so two requests racing under
 			   one key cannot both believe they are the first. */
+			/* A claim with no answer behind it and no one still working on
+			   it is wreckage, not a request in flight. The server can be
+			   stopped mid-write -- a restart, a deploy, a kill -- and then
+			   nothing ever settles the claim, and the key blocks its own
+			   retry for good. Two minutes is longer than any write here
+			   takes, so clearing an older one cannot race a live request. */
+			if _, err := tx.Exec(r.Context(), `
+                DELETE FROM idempotency_keys
+                 WHERE institution_id = $1 AND key = $2
+                   AND completed_at IS NULL
+                   AND created_at < now() - interval '2 minutes'`,
+				id.InstitutionID, key); err != nil {
+				return err
+			}
 			err := tx.QueryRow(r.Context(), `
                 INSERT INTO idempotency_keys
                        (institution_id, key, user_id, method, path, request_hash)
@@ -175,17 +191,29 @@ func (s *Server) Idempotent(next http.Handler) http.Handler {
 		   never be re-attempted. Releasing the claim lets the next retry try
 		   for real. 4xx IS settled -- the request was wrong and will be wrong
 		   again -- so it is stored like any other outcome. */
+		/* Settling the claim must outlive the request it belongs to. When a
+		   browser walks away mid-write -- a tab closed, a screen left, a
+		   fetch aborted by a re-render -- r.Context() is already cancelled by
+		   the time we get here, and every statement written on it is refused
+		   before it reaches the database. The claim would then be left
+		   standing with no answer behind it, and the honest retry that
+		   follows is told "still being processed" forever by a request that
+		   stopped existing. So the last word is written on a context of our
+		   own, with its own short deadline. */
+		fin, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 10*time.Second)
+		defer cancel()
+
 		if rec.status >= 500 {
-			_ = s.DB.InTenant(r.Context(), scope, func(tx pgx.Tx) error {
-				_, err := tx.Exec(r.Context(),
+			_ = s.DB.InTenant(fin, scope, func(tx pgx.Tx) error {
+				_, err := tx.Exec(fin,
 					`DELETE FROM idempotency_keys WHERE institution_id = $1 AND key = $2`,
 					id.InstitutionID, key)
 				return err
 			})
 			return
 		}
-		_ = s.DB.InTenant(r.Context(), scope, func(tx pgx.Tx) error {
-			_, err := tx.Exec(r.Context(), `
+		_ = s.DB.InTenant(fin, scope, func(tx pgx.Tx) error {
+			_, err := tx.Exec(fin, `
                 UPDATE idempotency_keys
                    SET status_code = $3, response_body = $4, completed_at = now()
                  WHERE institution_id = $1 AND key = $2`,
