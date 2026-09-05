@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
+import { Upload, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Table, Td, Badge,
@@ -182,6 +182,26 @@ export default function StudentPhotos() {
     )
   }
 
+  /* Taking a file back out of the batch.
+
+     Somebody drags a folder in and it contains the photographer's contact
+     sheet, or a picture of a dog. Without this the only way out is to choose
+     the whole folder again, which loses every child already pointed at by
+     hand. The object URL goes with the row -- nothing else is holding it. */
+  function drop(file: File) {
+    setReady((old) => {
+      const gone = old.find((x) => x.file === file)
+      if (gone) URL.revokeObjectURL(gone.preview)
+      return old.filter((x) => x.file !== file)
+    })
+  }
+
+  function cancelAll() {
+    ready.forEach((r) => URL.revokeObjectURL(r.preview))
+    setReady([])
+    setResult(null)
+  }
+
   function point(file: File, typed: string) {
     const adm = admissionOfLabel(typed)
     setReady((old) => old.map((x) => (x.file === file ? { ...x, admissionNo: adm } : x)))
@@ -215,6 +235,11 @@ export default function StudentPhotos() {
                 onChange={(e) => { choose(e.target.files); e.target.value = '' }}
               />
             </label>
+            {ready.length > 0 && (
+              <Button variant="secondary" disabled={busy} onClick={cancelAll}>
+                Cancel
+              </Button>
+            )}
             {sendable.length > 0 && (
               <Button disabled={busy} onClick={() => send.mutate()}>
                 {busy ? 'Uploading…' : `Import ${sendable.length}`}
@@ -300,15 +325,27 @@ export default function StudentPhotos() {
                         {child ? whereTheyAre(child) : ''}
                       </Td>
                       <Td>
-                        {r.done ? (
-                          <Badge tone="success">attached</Badge>
-                        ) : result?.unmatched.includes(r.admissionNo) ? (
-                          <Badge tone="danger">did not attach</Badge>
-                        ) : child ? (
-                          <Badge tone="neutral">ready</Badge>
-                        ) : (
-                          <Badge tone="warning">no child yet</Badge>
-                        )}
+                        <div className="flex items-center justify-between gap-3">
+                          {r.done ? (
+                            <Badge tone="success">attached</Badge>
+                          ) : result?.unmatched.includes(r.admissionNo) ? (
+                            <Badge tone="danger">did not attach</Badge>
+                          ) : child ? (
+                            <Badge tone="neutral">ready</Badge>
+                          ) : (
+                            <Badge tone="warning">no child yet</Badge>
+                          )}
+                          <button
+                            type="button"
+                            title={r.done ? 'Take off this list' : 'Do not import this one'}
+                            aria-label={`Remove ${r.file.name}`}
+                            disabled={busy}
+                            onClick={() => drop(r.file)}
+                            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+                          >
+                            <X className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        </div>
                       </Td>
                     </tr>
                   )
