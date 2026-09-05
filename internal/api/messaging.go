@@ -1667,11 +1667,25 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			if channel == "in_app" {
 				if _, e := tx.Exec(ctx, `
 					INSERT INTO notifications (institution_id, user_id, student_id,
-					        kind, title, body, source_kind, source_id)
+					        kind, title, body, source_kind, source_id, link)
 					SELECT m.institution_id, m.user_id, m.student_id,
 					       COALESCE(m.template_code, 'message'),
 					       COALESCE(NULLIF(m.subject,''), 'Message from school'),
-					       m.body, 'message', m.id
+					       m.body, 'message', m.id,
+					       /* Where a tap should land. A bus notification that
+					          only closed the drawer was the parent app's most
+					          reported dead end. Parent screens only, and only
+					          for a parent: a clerk's payroll note is not sent
+					          to the family's fee page. */
+					       CASE WHEN EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+					                          WHERE ur.user_id = m.user_id AND r.key = 'parent') THEN
+					         CASE WHEN m.template_code LIKE 'transport.%' THEN '/parent/my_childs_bus/live_bus_tracking'
+					              WHEN m.template_code LIKE 'fee%' THEN '/parent/fees/fees_payments'
+					              WHEN m.template_code LIKE 'attendance%' OR m.template_code LIKE 'absen%' THEN '/parent/attendance/attendance'
+					              WHEN m.template_code LIKE 'homework%' THEN '/parent/academics/homework_academics'
+					              WHEN m.template_code LIKE 'report_card%' OR m.template_code LIKE 'result%' THEN '/parent/academics/results_report_cards'
+					              ELSE NULL END
+					       ELSE NULL END
 					  FROM message_log m
 					 WHERE m.id = $1 AND m.user_id IS NOT NULL
 					   AND NOT EXISTS (

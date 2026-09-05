@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { useFeatureHref } from '@/features/bento/bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -141,9 +142,31 @@ export default function Notifications() {
    * staff message meant knowing that Communication has a Messages screen. The
    * one action a notification exists to prompt was the one thing it did not
    * do. */
+  /* Rows written before links were, and any kind the server does not map,
+     still land somewhere sensible for a parent: the kind names the screen.
+     Each href is undefined for a reader who does not hold that screen, so
+     staff see nothing they cannot open. */
+  const fallback: Record<string, string | undefined> = {
+    transport: useFeatureHref('parent.my_childs_bus.live_bus_tracking'),
+    fee: useFeatureHref('parent.fees.fees_payments'),
+    attendance: useFeatureHref('parent.attendance.attendance'),
+    homework: useFeatureHref('parent.academics.homework_academics'),
+    result: useFeatureHref('parent.academics.results_report_cards'),
+  }
+  const linkFor = (n: Note): string | undefined => {
+    if (n.link) return n.link
+    const k = n.kind.toLowerCase()
+    if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
+    if (k.startsWith('fee')) return fallback.fee
+    if (k.startsWith('attendance') || k.startsWith('absen')) return fallback.attendance
+    if (k.startsWith('homework')) return fallback.homework
+    if (k.startsWith('report_card') || k.startsWith('result')) return fallback.result
+    return undefined
+  }
   const openNote = (n: Note) => {
     dismiss()
-    if (n.link) navigate(n.link)
+    const link = linkFor(n)
+    if (link) navigate(link)
     // Read on open rather than on sight: a count that clears because somebody
     // glanced at the bell is a count that stops meaning anything.
     if (!n.read_at) readAll.mutate()
