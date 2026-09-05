@@ -878,21 +878,31 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 				"Category", get(rec, "category"), knownCategory(get(rec, "category")) == ""),
 			// Optional, like every column but the name: a school that keeps
 			// none of this imports exactly as well without them.
-			AdmissionDate:    normaliseDate(get(rec, "admission_date")),
-			PreviousClass:    get(rec, "previous_class"),
-			PreviousYear:     get(rec, "previous_year"),
-			IsRTE:            isTruthy(get(rec, "is_rte")),
-			IsCWSN:           isTruthy(get(rec, "is_cwsn")),
-			GuardianName:     get(rec, "guardian_name"),
-			GuardianPhone:    get(rec, "guardian_phone"),
-			GuardianEmail:    get(rec, "guardian_email"),
-			GuardianRelation: strings.ToLower(get(rec, "guardian_relation")),
+			AdmissionDate: normaliseDate(get(rec, "admission_date")),
+			PreviousClass: get(rec, "previous_class"),
+			PreviousYear:  get(rec, "previous_year"),
+			IsRTE:         isTruthy(get(rec, "is_rte")),
+			IsCWSN:        isTruthy(get(rec, "is_cwsn")),
+			/* father_* as well as guardian_*, because that is what a school's
+			   own sheet calls the column -- and a file that names both parents
+			   should not have to decide which of them is "the guardian". The
+			   father takes the first slot where the file has one; the relation
+			   follows from the column it came out of rather than having to be
+			   spelled again in a column of its own. */
+			GuardianName:  firstNonEmpty(get(rec, "guardian_name"), get(rec, "father_name")),
+			GuardianPhone: firstNonEmpty(get(rec, "guardian_phone"), get(rec, "father_phone")),
+			GuardianEmail: firstNonEmpty(get(rec, "guardian_email"), get(rec, "father_email")),
+			GuardianRelation: strings.ToLower(firstNonEmpty(
+				get(rec, "guardian_relation"),
+				relationIfNamed(get(rec, "father_name"), "father"))),
 			// mother_* as well as guardian2_*, because that is what a school's
 			// own sheet calls the column.
-			Guardian2Name:     firstNonEmpty(get(rec, "guardian2_name"), get(rec, "mother_name")),
-			Guardian2Phone:    firstNonEmpty(get(rec, "guardian2_phone"), get(rec, "mother_phone")),
-			Guardian2Email:    firstNonEmpty(get(rec, "guardian2_email"), get(rec, "mother_email")),
-			Guardian2Relation: strings.ToLower(get(rec, "guardian2_relation")),
+			Guardian2Name:  firstNonEmpty(get(rec, "guardian2_name"), get(rec, "mother_name")),
+			Guardian2Phone: firstNonEmpty(get(rec, "guardian2_phone"), get(rec, "mother_phone")),
+			Guardian2Email: firstNonEmpty(get(rec, "guardian2_email"), get(rec, "mother_email")),
+			Guardian2Relation: strings.ToLower(firstNonEmpty(
+				get(rec, "guardian2_relation"),
+				relationIfNamed(get(rec, "mother_name"), "mother"))),
 			Guardian3Name:     firstNonEmpty(get(rec, "guardian3_name"), get(rec, "guardian_name_3")),
 			Guardian3Phone:    firstNonEmpty(get(rec, "guardian3_phone"), get(rec, "guardian_phone_3")),
 			Guardian3Email:    firstNonEmpty(get(rec, "guardian3_email"), get(rec, "guardian_email_3")),
@@ -1348,6 +1358,21 @@ func customValues(rec []string, cols map[string]int) map[string]string {
 // a school reads them. Only the name is required -- every other column is
 // optional by design, so a sheet with six columns imports as well as one with
 // eighteen.
+/*
+relationIfNamed says what somebody is, when the column they came from said it.
+
+	A file with a Father Name column has already told us the relation; making
+	the school map a second column that says "father" on every row is asking
+	them to repeat themselves, and leaving it blank files a parent as an
+	unnamed guardian.
+*/
+func relationIfNamed(name, relation string) string {
+	if strings.TrimSpace(name) == "" {
+		return ""
+	}
+	return relation
+}
+
 func studentImportFields() []map[string]any {
 	f := func(name, example string, required bool) map[string]any {
 		return map[string]any{"name": name, "example": example, "required": required}
@@ -1360,7 +1385,16 @@ func studentImportFields() []map[string]any {
 		f("blood_group", "B+", false),
 		f("medium", "english", false),
 		f("mother_tongue", "Malayalam", false),
-		f("section", "Class 6-A", false),
+		/* CLASS AND SECTION, SEPARATELY.
+
+		   The writer has always read both -- ours writes one cell, "Class 6-A",
+		   and every export from another system writes two -- but only `section`
+		   was offered here. So a school whose file has Class "Nursery" in one
+		   column and Section "A" in the next could point at one of them and
+		   not the other, and every child imported with no placement: on the
+		   roll, in no class, invisible to a register. */
+		f("class", "Grade 6", false),
+		f("section", "A, or Class 6-A in one cell", false),
 		f("roll_no", "1", false),
 		f("address", "12 Green Park", false),
 		f("city", "Hyderabad", false),
@@ -1370,10 +1404,24 @@ func studentImportFields() []map[string]any {
 		f("admission_date", "12/06/2021", false),
 		f("previous_class", "Grade 5", false),
 		f("previous_year", "2025-26", false),
-		f("guardian_name", "Suresh Menon", false),
-		f("guardian_relation", "father", false),
-		f("guardian_phone", "9845012345", false),
-		f("guardian_email", "suresh@example.com", false),
+		/* FATHER AND MOTHER, NAMED.
+
+		   The writer has read mother_* and guardian2_* for a while and this
+		   list offered neither, so a sheet with both parents on it could only
+		   ever have one of them mapped -- and "guardian" is not what a school's
+		   own file calls the column. Both parents, said in the school's words,
+		   and the generic guardian kept underneath for the child whose file
+		   names an aunt or a grandfather. */
+		f("father_name", "Suresh Menon", false),
+		f("father_phone", "9845012345", false),
+		f("father_email", "suresh@example.com", false),
+		f("mother_name", "Latha Menon", false),
+		f("mother_phone", "9845067890", false),
+		f("mother_email", "latha@example.com", false),
+		f("guardian_name", "Anyone else on the record", false),
+		f("guardian_relation", "grandfather", false),
+		f("guardian_phone", "9845011111", false),
+		f("guardian_email", "guardian@example.com", false),
 	}
 }
 
