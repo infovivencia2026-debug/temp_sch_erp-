@@ -18,7 +18,7 @@ import {
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { Rows, Row, NavRow, SegmentRow, SelectRow, SliderRow, SwitchRow } from './SettingsRows'
-import { featurePath, useActiveRole, useCatalog, usable } from '@/lib/catalog'
+import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
 import { useFullScreen } from '@/lib/fullscreen'
@@ -458,8 +458,25 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
       return undefined
     }
 
+    /* WHO IS OFFERED A WORKSPACE TO SWITCH TO.
+
+       The tab was shown to everybody, on the reasoning that somebody who
+       later gains a second office would already recognise the control. That
+       is wrong for the people who will never gain one: a parent holds a
+       single workspace and can hold no other, so the row named it back to
+       them and the tab beside Account asked a question with one answer.
+
+       Offered where there is a choice to make -- the principal, who may look
+       into every office in the building, and anybody whose account carries
+       more than one workspace. A parent has neither and does not see it. */
+    const mayChangeWorkspace =
+      allRolesOn() ||
+      (catalog.roles ?? []).length > 1 ||
+      (catalog.roles ?? []).some((r) => r.key === 'institution_admin')
+
     const out: { group: LinkGroup; links: ResolvedLink[] }[] = []
     for (const group of LINK_GROUPS) {
+      if (group.id === 'roles' && !mayChangeWorkspace) continue
       const links: ResolvedLink[] = []
       const seen = new Set<string>()
       for (const spec of group.rows) {
