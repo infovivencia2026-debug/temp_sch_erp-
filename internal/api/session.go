@@ -117,6 +117,13 @@ func (s *Server) requirePasswordChanged(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		/* And the way past it. The school has decided the first password is
+		   not to be forced on a family: the screen offers to skip, and this
+		   is the one other call the screen makes. See skipPasswordChange. */
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/profile/password/skip") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		/* Reading the session, for the same reason: the screen has to know who
 		   it is talking to. It is registered outside this group today and so
 		   never arrives here, which is exactly why it stays listed — the day

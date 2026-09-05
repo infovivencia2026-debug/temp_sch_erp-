@@ -35,6 +35,10 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
     // screen. Nothing here navigates: the app appears underneath.
     onSuccess: () => qc.invalidateQueries({ queryKey: ['session'] }),
   })
+  const skip = useMutation({
+    mutationFn: () => api.post('/api/v1/profile/password/skip', {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['session'] }),
+  })
 
   return (
     <div className="grid h-full place-items-center p-6">
@@ -95,6 +99,28 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
           <p className="text-[13px] text-muted-foreground">
             Every other device signed in as you is signed out when you do this.
           </p>
+
+          {/* THE WAY PAST, ADDED ON THE SCHOOL'S INSTRUCTION.
+
+              This screen was written with no skip on purpose, and the note
+              above the component still says why. The school running it has
+              decided otherwise: a parent handed a login and then told they
+              cannot see their child's fees until they have invented a
+              twelve-character password is a parent who puts the phone down.
+              So the change stays offered, the risk is stated in one line,
+              and the parent may go on with the number they were given. The
+              server clears the flag on this call and refuses nothing after
+              it; the screen goes away by the same session re-read as a
+              successful change. */}
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={skip.isPending || change.isPending}
+            onClick={() => skip.mutate()}
+          >
+            {skip.isPending ? 'One moment…' : 'Skip for now, keep the password I was given'}
+          </Button>
+          <FormNotice error={skip.error} />
         </div>
 
         <a href="/logout" className="mt-6 inline-block text-[13px] text-muted-foreground underline">

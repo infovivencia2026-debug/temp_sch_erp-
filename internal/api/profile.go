@@ -276,3 +276,35 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"changed": true, "other_sessions_revoked": true})
 }
+
+/*
+skipPasswordChange lets a family keep the password the school gave them.
+
+	The first password is the person's own mobile number, and the screen that
+	asked them to replace it had no way past: no skip, no cancel, and the API
+	refused every other call while the flag stood. That was a deliberate rule,
+	and the school running this has now decided against it: a parent who is
+	handed a login and then told they cannot see their child's fees until they
+	have invented and remembered a twelve-character password is a parent who
+	puts the phone down. The number on the class list is a weak password and
+	the family may keep it; the screen says so once, and offers the change
+	beside the skip so the choice is theirs.
+
+	Clears the flag and nothing else. No session is revoked and no password is
+	touched, so a skip cannot lock anybody out of anything. Reached only while
+	the flag is set: for everybody else it is a no-op that answers the same.
+*/
+func (s *Server) skipPasswordChange(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(),
+			`UPDATE users SET must_change_password = false, updated_at = now() WHERE id = $1`,
+			id.UserID)
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"skipped": true})
+}

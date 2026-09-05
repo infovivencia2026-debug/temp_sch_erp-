@@ -106,6 +106,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Post("/password", s.changePassword)
+			// Keeps the school-issued password. Exempted from
+			// requirePasswordChanged beside /password; see skipPasswordChange.
+			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Post("/password/skip", s.skipPasswordChange)
 		})
 
 		/* Finding a person, as against finding a screen.
