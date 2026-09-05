@@ -122,30 +122,51 @@ export type CellSpan = 'anchor' | 'wide' | 'one' | 'tall' | 'full'
    page, and the grid it was supposed to belong to has one member. Anything
    asking for more is clamped rather than refused, so a wrong number is a
    slightly small card instead of a broken layout. */
-export const MAX_SPAN = 2
+/* THE CEILING IS THE BOARD, NOT TWO.
 
+   The paragraph above argued that a three-wide card stops being a cell and
+   becomes a band, and clamped every width to 2. Then the board became a
+   fixed five-by-three grid with a size picker, and the clamp turned into a
+   bug report: "there is empty space beside my card and it will not grow
+   into it". The `spotlight` preset asks for a 3-wide hero and was silently
+   handed a 2. A card can now be as wide as the board and as tall as the
+   page; whether a given size FITS is decided where the whole layout is
+   known (`fitsAt` in WidgetLayer), not by a constant here. */
+export const MAX_SPAN = 5
+export const MAX_ROWS = 3
+
+/* Literal class names, one per span, because Tailwind only emits a class it
+   can read in the source. */
 export const COL: Record<number, string> = {
   1: '',
   2: 'sm:col-span-2',
+  3: 'sm:col-span-3',
+  4: 'sm:col-span-4',
+  5: 'sm:col-span-5',
 }
 
 export const ROW: Record<number, string> = {
   1: '',
   2: 'sm:row-span-2',
+  3: 'sm:row-span-3',
 }
 
-/** Clamp to the 2x2 ceiling. */
-export const clampSpan = (n: number) => Math.min(Math.max(1, Math.round(n || 1)), MAX_SPAN)
+/** Clamp a width to the board. */
+export const clampSpan = (n: number, max = MAX_SPAN) => Math.min(Math.max(1, Math.round(n || 1)), max)
+/** Clamp a height to the page. */
+export const clampRows = (n: number) => clampSpan(n, MAX_ROWS)
 
 /** The span name a cell should style itself as, given its dimensions. Cells use
     this for typography — the anchor draws a bigger figure — not for geometry,
     which the wrapper owns. */
 export function spanFor(w: number, h: number): CellSpan {
   const cw = clampSpan(w)
-  const ch = clampSpan(h)
-  if (cw === 2 && ch === 2) return 'anchor'
-  if (cw === 2) return 'wide'
-  if (ch === 2) return 'tall'
+  const ch = clampRows(h)
+  // Typography has three registers, not one per size: anything at least two
+  // by two draws like the hero, anything wide draws wide, anything tall tall.
+  if (cw >= 2 && ch >= 2) return 'anchor'
+  if (cw >= 2) return 'wide'
+  if (ch >= 2) return 'tall'
   return 'one'
 }
 

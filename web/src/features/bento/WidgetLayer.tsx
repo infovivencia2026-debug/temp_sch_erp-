@@ -4,16 +4,16 @@ import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
 import { buzz } from '@/lib/haptics'
 import { openLauncher } from './launcher-open'
-import { Check, Pencil, Plus, RotateCcw, Undo2, X } from 'lucide-react'
+import { Check, LayoutGrid, Pencil, Plus, RotateCcw, Sparkles, Undo2, X } from 'lucide-react'
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, BOARD_ROWS,
+  rowsNeeded, BOARD_ROWS, PRESETS,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
-  type WidgetSize, type BoardWidget, type Spot,
+  type WidgetSize, type BoardWidget, type Spot, type Preset,
 } from '@/lib/widgets'
 import { usePhone, useTextZoom } from '@/lib/viewport'
-import { COL, ROW, spanFor, clampSpan, type CellSpan } from './bento-kit'
+import { COL, ROW, spanFor, clampSpan, clampRows, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
 import { ArrangeSheet } from './ArrangeSheet'
@@ -82,17 +82,66 @@ const DOMAINS = [
 
 const Ctx = createContext<LayerValue | null>(null)
 
-/* THE SHAPES THE BOARD CAN ACTUALLY DRAW.
+/* THE SHAPES THE BOARD CAN DRAW, WHICH IS ANY THAT FIT.
 
-   `clampSpan` folds everything above 2 back to 2 on the way to `COL`/`ROW`,
-   which only have entries for 1 and 2. So the picker offers exactly the
-   three shapes the renderer paints: a unit, a wide card, and the hero. A
-   control that offered a 3 would be offering a width the board throws away. */
-const SHAPES: readonly { w: number; h: number; key: '1x1' | '2x1' | '2x2' }[] = [
+   The picker used to stop at 2x2 because the renderer did; a person with two
+   empty columns beside a card was told it would not fit, which was untrue.
+   The board is five by three, so the list runs to a full-width band, and
+   each button is enabled or not by `fitsAt`, which packs the WHOLE board at
+   that size and asks whether it still fits the page. The list is what is
+   worth offering, not every one of the fifteen legal rectangles: a 4x1 and a
+   5x2 are shapes nobody asked for that would double the row of buttons. */
+type ShapeKey = '1x1' | '1x2' | '2x1' | '2x2' | '3x1' | '3x2' | '4x2' | '5x1'
+const SHAPES: readonly { w: number; h: number; key: ShapeKey }[] = [
   { w: 1, h: 1, key: '1x1' },
+  { w: 1, h: 2, key: '1x2' },
   { w: 2, h: 1, key: '2x1' },
   { w: 2, h: 2, key: '2x2' },
+  { w: 3, h: 1, key: '3x1' },
+  { w: 3, h: 2, key: '3x2' },
+  { w: 4, h: 2, key: '4x2' },
+  { w: 5, h: 1, key: '5x1' },
 ]
+
+/* A five-by-three thumbnail of what a preset does, so the menu shows the
+   shape rather than asking somebody to imagine "Spotlight". Drawn from the
+   same rule the preset applies, on a board of six cards. */
+function PresetGlyph({ preset }: { preset: Preset }) {
+  const cells: { c: number; r: number; w: number; h: number }[] = []
+  const put = (w: number, h: number, n: number) => {
+    // Dense first-fit, the way the board packs.
+    const used = Array.from({ length: 3 }, () => Array(5).fill(false))
+    let placed = 0
+    for (let r = 0; r < 3 && placed < n; r++) {
+      for (let c = 0; c < 5 && placed < n; c++) {
+        const cw = Math.min(w, 5 - c)
+        if (c + cw > 5 || r + h > 3) continue
+        let free = true
+        for (let y = r; y < r + h; y++) for (let x = c; x < c + cw; x++) if (used[y][x]) free = false
+        if (!free) continue
+        for (let y = r; y < r + h; y++) for (let x = c; x < c + cw; x++) used[y][x] = true
+        cells.push({ c, r, w: cw, h })
+        placed++
+      }
+    }
+  }
+  switch (preset) {
+    case 'compact': put(1, 1, 8); break
+    case 'spotlight': cells.push({ c: 0, r: 0, w: 3, h: 2 }); cells.push({ c: 3, r: 0, w: 1, h: 1 }, { c: 4, r: 0, w: 1, h: 1 }, { c: 3, r: 1, w: 1, h: 1 }, { c: 4, r: 1, w: 1, h: 1 }); break
+    case 'banner': cells.push({ c: 0, r: 0, w: 5, h: 1 }); for (let c = 0; c < 5; c++) cells.push({ c, r: 1, w: 1, h: 1 }); break
+    case 'even': put(2, 1, 6); break
+    case 'columns': put(1, 2, 5); break
+    default: cells.push({ c: 0, r: 0, w: 2, h: 2 }, { c: 2, r: 0, w: 1, h: 1 }, { c: 3, r: 0, w: 2, h: 1 }, { c: 2, r: 1, w: 1, h: 2 }, { c: 3, r: 1, w: 1, h: 1 }, { c: 4, r: 1, w: 1, h: 1 })
+  }
+  return (
+    <svg viewBox="0 0 50 30" width="40" height="24" aria-hidden="true" className="shrink-0">
+      {cells.map((x, i) => (
+        <rect key={i} x={x.c * 10 + 1} y={x.r * 10 + 1} width={x.w * 10 - 2} height={x.h * 10 - 2}
+          rx="1.5" fill="currentColor" opacity={i === 0 ? 0.9 : 0.45} />
+      ))}
+    </svg>
+  )
+}
 
 /** The size a placement is DRAWN at, which is the only size any of the
     fit arithmetic below may use. `dimsOf` returns what is stored, and what is
@@ -103,7 +152,7 @@ function drawnDims(
   fallback: WidgetSize,
 ): { w: number; h: number } {
   const d = dimsOf(layout, id, fallback)
-  return { w: clampSpan(d.w), h: clampSpan(d.h) }
+  return { w: clampSpan(d.w), h: clampRows(d.h) }
 }
 
 /* Not exported, and that is load-bearing rather than tidiness.
@@ -139,7 +188,7 @@ export function WidgetLayer({
      whether or not anybody is arranging. */
   const markRef = useRef<HTMLSpanElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, place, reset, undo, canUndo } = useLayout(dashboard)
+  const { layout, place, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
   const t = useT()
   const [dropTarget, setDropTarget] = useState<string | null>(null)
 
@@ -410,6 +459,49 @@ export function WidgetLayer({
               {t('bento.widgets.reset')}
             </button>
           )}
+          {/* THE LAYOUTS, AND TIDY. The model has had these rules for a
+              while (lib/widgets.ts applyPreset, tidy) and nothing on screen
+              called them, so arranging a board meant dragging every card.
+              Six rules over whatever the board declares, so the same buttons
+              work on every dashboard and keep working when a card is added. */}
+          <details className="relative">
+            <summary className="bento-bar__btn list-none cursor-pointer">
+              <LayoutGrid className="size-3.5" aria-hidden="true" />
+              {t('bento.widgets.layouts')}
+            </summary>
+            <div
+              className="absolute left-0 top-full z-30 mt-1.5 flex w-[260px] flex-col gap-1
+                         rounded-[10px] border p-2 shadow-lg"
+              style={{
+                background: 'var(--bento-card)',
+                color: 'var(--bento-ink)',
+                borderColor: 'color-mix(in srgb, var(--bento-ink) 22%, transparent)',
+              }}
+            >
+              {PRESETS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => applyPreset(p, declared)}
+                  className="flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left
+                             text-[12px] transition-colors
+                             hover:bg-[color-mix(in_srgb,currentColor_10%,transparent)]"
+                >
+                  <PresetGlyph preset={p} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{t(`bento.widgets.preset.${p}`)}</span>
+                    <span className="block truncate text-[11px] opacity-60">
+                      {t(`bento.widgets.preset.${p}.hint`)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </details>
+          <button type="button" onClick={() => tidy(declared)} className="bento-bar__btn">
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            {t('bento.widgets.tidy')}
+          </button>
           {off.length > 0 && (
             /* A disclosure, not a wall: `<details>` is closed by default,
                toggles with the keyboard, and needs no state to be correct. */
@@ -431,7 +523,7 @@ export function WidgetLayer({
                   const room =
                     rowsNeeded([
                       ...visible.map((v) => drawnDims(layout, v.id, v.size)),
-                      { w: clampSpan(DIMS[d.size].w), h: clampSpan(DIMS[d.size].h) },
+                      { w: clampSpan(DIMS[d.size].w), h: clampRows(DIMS[d.size].h) },
                     ]) <= maxRows
                   return (
                     <button
@@ -440,7 +532,7 @@ export function WidgetLayer({
                       disabled={!room}
                       title={room ? undefined : t('bento.widgets.full')}
                       onClick={() =>
-                        place(d.id, clampSpan(DIMS[d.size].w), clampSpan(DIMS[d.size].h))
+                        place(d.id, clampSpan(DIMS[d.size].w), clampRows(DIMS[d.size].h))
                       }
                       className="flex w-full items-center gap-1.5 rounded-[7px] px-2 py-1.5 text-left
                                  text-[12px] transition-colors
@@ -594,8 +686,9 @@ function PageDots({ pages, mark, onEdit }: { pages: number; mark: { current: HTM
 
 /** The colour control: a swatch that opens the product's own wheel.
     Portaled and fixed-positioned because the card it belongs to may be one
-    grid cell across. */
-function ColourPick({
+    grid cell across. Exported for the phone's ArrangeSheet, which had every
+    other per-card decision and not this one. */
+export function ColourPick({
   value,
   onPick,
 }: {
@@ -772,7 +865,7 @@ export function Widget({
   const editing = layer?.editing ?? false
   const desk = editing && !(layer?.phone ?? false)
   const cw = clampSpan(w)
-  const ch = clampSpan(h)
+  const ch = clampRows(h)
   const span = spanFor(cw, ch)
   const spot = layer?.spots?.get(id)
   const pos = layer ? layer.visible.findIndex((v) => v.id === id) : 0
@@ -786,7 +879,7 @@ export function Widget({
     if (!layer) return true
     if (layer.phone) return true
     const pw = clampSpan(nw)
-    const ph = clampSpan(nh)
+    const ph = clampRows(nh)
     if (pw === cw && ph === ch) return true
     const items = layer.visible.map((v) =>
       v.id === id ? { w: pw, h: ph } : drawnDims(layout, v.id, v.size),

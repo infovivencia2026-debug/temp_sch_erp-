@@ -59,9 +59,10 @@ export interface Placed {
 /** A few places to start from, so the wheel does not open on nothing. Not a
     fixed menu — every one of them is a starting point you then move. */
 /** The layouts somebody picks instead of building one. */
-export type Preset = 'default' | 'compact' | 'spotlight' | 'even'
+export type Preset = 'default' | 'compact' | 'spotlight' | 'banner' | 'even' | 'columns'
 
-export const PRESETS: readonly Preset[] = ['default', 'compact', 'spotlight', 'even'] as const
+export const PRESETS: readonly Preset[] =
+  ['default', 'compact', 'spotlight', 'banner', 'even', 'columns'] as const
 
 export const TINT_STARTS: Hsl[] = [
   { h: 217, s: 91, l: 60 },
@@ -428,8 +429,22 @@ export function useLayout(dashboard: string) {
           )
           break
         }
+        case 'banner':
+          // The first card as a band across the whole board, the rest in a
+          // row of units beneath it: a headline and its supporting figures.
+          placed = keep.map((x, i) =>
+            i === 0
+              ? { id: x.id, w: 5, h: 1, ...tint(x.id) }
+              : { id: x.id, w: 1, h: 1, ...tint(x.id) },
+          )
+          break
         case 'even':
           placed = keep.map((x) => ({ id: x.id, w: 2, h: 1, ...tint(x.id) }))
+          break
+        case 'columns':
+          // Every card tall and narrow: five columns read top to bottom, the
+          // shape for a board of lists rather than of figures.
+          placed = keep.map((x) => ({ id: x.id, w: 1, h: 2, ...tint(x.id) }))
           break
         case 'default':
         default:

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Check, GripVertical, RotateCcw } from 'lucide-react'
-import { useLayout, dimsOf, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
+import { useLayout, dimsOf, tintOf, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
+import { ColourPick } from './WidgetLayer'
 import { buzz } from '@/lib/haptics'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -45,7 +46,10 @@ export function ArrangeSheet({
   onDone: () => void
 }) {
   const t = useT()
-  const { layout, place, remove, resize, move, reset } = useLayout(dashboard)
+  const { layout, place, remove, resize, recolour, move, reset, applyPreset } = useLayout(dashboard)
+  /* The three layouts that mean something in one column. Spotlight, Banner
+     and Even are shapes of width, and a phone has none to give. */
+  const PHONE_PRESETS = ['default', 'compact', 'columns'] as const
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
   const hidden = declared.filter((d) => !visible.some((v) => v.id === d.id))
 
@@ -136,6 +140,20 @@ export function ArrangeSheet({
             {t('bento.widgets.done')}
           </button>
         </div>
+        {/* A layout in one tap, before the list of cards: most people opening
+            this sheet want a good board, not to build one row by row. */}
+        <div className="flex flex-wrap gap-2 px-4 pb-2 pt-1" role="group" aria-label={t('bento.widgets.layouts')}>
+          {PHONE_PRESETS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => applyPreset(p, declared)}
+              className={cn('bento-sheet__btn', seg())}
+            >
+              {t(`bento.widgets.preset.${p}`)}
+            </button>
+          ))}
+        </div>
 
         <ul ref={listRef} className="bento-sheet__list" style={{ '--row-h': `${ROW_H}px` } as CSSProperties}>
           {rows.map((w, i) => {
@@ -175,6 +193,14 @@ export function ArrangeSheet({
                     {t('bento.widgets.size_tall')}
                   </button>
                 </span>
+                {/* The fourth decision a card admits, and the one this sheet
+                    left out: its colour. The same swatch-and-wheel the desk
+                    editor uses, so a colour picked on a phone and one picked
+                    on a laptop are the same colour in the same place. */}
+                <ColourPick
+                  value={tintOf(layout, w.id)}
+                  onPick={(c) => recolour(w.id, c, cw, ch)}
+                />
                 <button
                   type="button"
                   role="switch"
