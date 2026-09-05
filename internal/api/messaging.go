@@ -796,6 +796,19 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "{{student_name}}'s bus is nearly at {{stop_name}}",
 		Body:    "{{student_name}}'s bus is about {{distance_m}} m from {{stop_name}}.\n\n{{school_name}}",
 	},
+	/* THE TWO ARRIVALS. The morning's ends at the school gate, and the message
+	   a parent waits for is that the child got there; the afternoon's is at
+	   the family's own stop, and the message is to be at the gate now. Raised
+	   by the geofence walk the instant the arrival is filed, once per child
+	   per run. See notifyArrived. */
+	"transport.bus_reached_school": {
+		Subject: "{{student_name}}'s bus has reached school",
+		Body:    "{{student_name}}'s bus has reached {{school_name}}.",
+	},
+	"transport.bus_at_stop": {
+		Subject: "{{student_name}}'s bus is at {{stop_name}}",
+		Body:    "{{student_name}}'s bus has arrived at {{stop_name}}.\n\n{{school_name}}",
+	},
 	"attendance.absent": {
 		Subject: "{{student_name}} was marked absent",
 		Body:    "Dear parent,\n\n{{student_name}} was marked absent on {{on_date}} at {{school_name}}.\n\nIf this is unexpected, please contact the school office.",

@@ -365,12 +365,12 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 				-- it needs an explicit type or Postgres deduces two.
 				INSERT INTO route_stops (institution_id, route_id, name, sequence,
 				                         pickup_time, drop_time, fare_paise,
-				                         latitude, longitude, geofence_m)
+				                         latitude, longitude, geofence_m, is_school)
 				VALUES ($1,$2,$3,$4::int,
 				        ('07:00'::time + ($4::int * INTERVAL '8 min')),
-				        ('15:30'::time + ($4::int * INTERVAL '8 min')), $5, $6, $7, $8)`,
+				        ('15:30'::time + ($4::int * INTERVAL '8 min')), $5, $6, $7, $8, $9)`,
 				inst, routeID, stop.name, i+1, int64(90000+i*10000),
-				stop.lat, stop.lng, stop.fence); err != nil {
+				stop.lat, stop.lng, stop.fence, stop.name == "School"); err != nil {
 				return n, err
 			}
 		}

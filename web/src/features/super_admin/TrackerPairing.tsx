@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { AlertTriangle, BusFront, MapPinOff, Radio, Smartphone } from 'lucide-react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button,
@@ -11,6 +11,10 @@ import {
   trackerHealth, healthLabel, healthTone, elapsed, when, secondsUntil, countdown,
   type TrackerRow, type PairCode, type TrackingPolicy,
 } from './tracker-lib'
+
+// Loaded only when the office reaches for it: the map library is the largest
+// thing this screen could pull in, and most visits are to read a table.
+const MapPointPicker = lazy(() => import('@/components/MapPointPicker'))
 
 /**
  * Bus tracker pairing — a driver's own phone as the vehicle's GPS unit.
@@ -502,6 +506,7 @@ function PolicyForm() {
   const query = useTrackingPolicy()
   const save = useSaveTrackingPolicy()
   const [draft, setDraft] = useState<TrackingPolicy | null>(null)
+  const [schoolPicker, setSchoolPicker] = useState(false)
 
   // Seeded from the server rather than from constants: a school that has never
   // opened this screen still has a row, created on first read, and the defaults
@@ -558,6 +563,71 @@ function PolicyForm() {
             />
           </div>
         </div>
+
+        {/* WHERE THE SCHOOL IS. Every run ends here, and until the office says
+            where "here" is, no route has an end the tracker can name and no
+            parent can be told the bus reached it. Picked on the map once;
+            the server pins the gate as the last stop of every route. */}
+        <div className="rounded-[10px] border border-border p-5">
+          <p className="text-[14px] font-medium">Where the school is</p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+            Every route ends at the school. Once this is set, the school gate is pinned as the
+            last stop of every route, the afternoon run starts from it, and parents are told the
+            moment the morning bus reaches it.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="font-mono text-[13px]">
+              {draft.school_latitude != null && draft.school_longitude != null
+                ? `${draft.school_latitude}, ${draft.school_longitude}`
+                : 'Not set yet'}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => setSchoolPicker(true)}>
+              {draft.school_latitude != null ? 'Move on map' : 'Pick on map'}
+            </Button>
+            {draft.school_latitude != null && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => set({ school_latitude: undefined, school_longitude: undefined })}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="mt-3 max-w-xs">
+            <Field
+              label="Gate circle"
+              hint="Metres. Wider than a kerb: a bus turning into a compound is inside long before it stops. Blank uses the stop circle below."
+            >
+              <Input
+                value={draft.school_geofence_m != null ? String(draft.school_geofence_m) : ''}
+                onChange={(v) =>
+                  set({
+                    school_geofence_m:
+                      v.trim() === '' ? undefined : num(v, draft.school_geofence_m ?? 200),
+                  })
+                }
+              />
+            </Field>
+          </div>
+        </div>
+        {schoolPicker && (
+          <Suspense fallback={null}>
+            <MapPointPicker
+              value={
+                draft.school_latitude != null && draft.school_longitude != null
+                  ? { lat: draft.school_latitude, lng: draft.school_longitude }
+                  : null
+              }
+              fallback={null}
+              onPick={(p) => {
+                set({ school_latitude: p.lat, school_longitude: p.lng })
+                setSchoolPicker(false)
+              }}
+              onClose={() => setSchoolPicker(false)}
+            />
+          </Suspense>
+        )}
 
         <FormGrid>
           <Field

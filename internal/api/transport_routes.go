@@ -281,8 +281,10 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 				kept = append(kept, made)
 				out.Stops++
 			}
+			// The school stop is the server's, not the list's: a list that
+			// leaves it out has not removed it. See ensureSchoolStops.
 			if _, err := tx.Exec(r.Context(),
-				`DELETE FROM route_stops WHERE route_id = $1 AND id <> ALL($2)`,
+				`DELETE FROM route_stops WHERE route_id = $1 AND id <> ALL($2) AND NOT is_school`,
 				rid, kept); err != nil {
 				return err
 			}
@@ -293,7 +295,14 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		return nil
+		/* THE SCHOOL IS THE LAST STOP, whatever the list said. Pinned after
+		   the office's own stops have been renumbered, so it is n+1 and the
+		   afternoon run, which reads the sequence backwards, starts from it. */
+		policy, err := trackingPolicyFor(r.Context(), tx, id.InstitutionID)
+		if err != nil {
+			return err
+		}
+		return ensureSchoolStops(r.Context(), tx, id.InstitutionID, policy, &rid)
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):

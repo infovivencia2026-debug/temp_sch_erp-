@@ -323,6 +323,11 @@ type trackingPolicyBody struct {
 	ParentsMayWatch  bool `json:"parents_may_watch"`
 	WatchWindowMins  int  `json:"watch_window_mins"`
 	RetainDays       int  `json:"retain_days"`
+	// The school gate. All three absent until the office picks the point;
+	// once set, every route ends at it. See ensureSchoolStops.
+	SchoolLatitude  *float64 `json:"school_latitude,omitempty"`
+	SchoolLongitude *float64 `json:"school_longitude,omitempty"`
+	SchoolGeofenceM *int     `json:"school_geofence_m,omitempty"`
 }
 
 func policyBodyOf(p *trackingPolicy) trackingPolicyBody {
@@ -335,6 +340,9 @@ func policyBodyOf(p *trackingPolicy) trackingPolicyBody {
 		ParentsMayWatch:  p.ParentsMayWatch,
 		WatchWindowMins:  p.WatchWindowMins,
 		RetainDays:       p.RetainDays,
+		SchoolLatitude:   p.SchoolLat,
+		SchoolLongitude:  p.SchoolLon,
+		SchoolGeofenceM:  p.SchoolGeofenceM,
 	}
 }
 
@@ -462,22 +470,37 @@ func (s *Server) saveTrackingPolicy(w http.ResponseWriter, r *http.Request) {
 		if _, err := trackingPolicyFor(r.Context(), tx, id.InstitutionID); err != nil {
 			return err
 		}
+		/* The school's position is a pair or nothing. One coordinate without
+		   the other is a form half filled, and a gate with no position is a
+		   circle around nowhere. */
+		if (req.SchoolLatitude == nil) != (req.SchoolLongitude == nil) {
+			return errors.New("school_latitude and school_longitude go together: pick the school on the map")
+		}
+		if req.SchoolGeofenceM != nil && (*req.SchoolGeofenceM < 30 || *req.SchoolGeofenceM > 2000) {
+			return errors.New("school_geofence_m must be between 30 and 2000: the gate's circle in metres")
+		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE transport_tracking_policy
 			   SET default_geofence_m = $2, speed_limit_kmph = $3,
 			       speeding_hold_secs = $4, trip_timeout_mins = $5,
 			       ping_seconds = $6, parents_may_watch = $7,
 			       watch_window_mins = $8, retain_days = $9,
+			       school_latitude = $11, school_longitude = $12, school_geofence_m = $13,
 			       updated_at = now(), updated_by = $10
 			 WHERE institution_id = $1`,
 			id.InstitutionID, req.DefaultGeofenceM, req.SpeedLimitKmph,
 			req.SpeedingHoldSecs, req.TripTimeoutMins, req.PingSeconds,
 			req.ParentsMayWatch, req.WatchWindowMins, req.RetainDays,
-			id.UserID); err != nil {
+			id.UserID, req.SchoolLatitude, req.SchoolLongitude, req.SchoolGeofenceM); err != nil {
 			return err
 		}
 		p, err := trackingPolicyFor(r.Context(), tx, id.InstitutionID)
 		if err != nil {
+			return err
+		}
+		// The gate goes onto every route the moment it is known, so the
+		// office does not have to re-save each route to get it.
+		if err := ensureSchoolStops(r.Context(), tx, id.InstitutionID, p, nil); err != nil {
 			return err
 		}
 		saved = policyBodyOf(p)

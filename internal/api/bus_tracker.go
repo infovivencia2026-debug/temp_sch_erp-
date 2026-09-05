@@ -188,6 +188,12 @@ type trackingPolicy struct {
 	ParentsMayWatch  bool
 	WatchWindowMins  int
 	RetainDays       int
+	// Where the school is, and how wide its gate. Nil until the office sets
+	// it; then every route gets the school pinned as its last stop. See
+	// ensureSchoolStops.
+	SchoolLat       *float64
+	SchoolLon       *float64
+	SchoolGeofenceM *int
 }
 
 /*
@@ -204,11 +210,13 @@ func trackingPolicyFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (*trackin
 		return tx.QueryRow(ctx, `
 			SELECT default_geofence_m, speed_limit_kmph, speeding_hold_secs,
 			       trip_timeout_mins, ping_seconds, parents_may_watch,
-			       watch_window_mins, retain_days
+			       watch_window_mins, retain_days,
+			       school_latitude::float8, school_longitude::float8, school_geofence_m
 			  FROM transport_tracking_policy WHERE institution_id = $1`, inst).
 			Scan(&p.DefaultGeofenceM, &p.SpeedLimitKmph, &p.SpeedingHoldSecs,
 				&p.TripTimeoutMins, &p.PingSeconds, &p.ParentsMayWatch,
-				&p.WatchWindowMins, &p.RetainDays)
+				&p.WatchWindowMins, &p.RetainDays,
+				&p.SchoolLat, &p.SchoolLon, &p.SchoolGeofenceM)
 	}
 	if err := scan(); errors.Is(err, pgx.ErrNoRows) {
 		if _, err := tx.Exec(ctx, `
@@ -1298,6 +1306,7 @@ func (s *Server) walkGeofences(ctx context.Context, tx pgx.Tx, dev *busTracker,
 		scheduled *time.Time
 		arrived   bool
 		departed  bool
+		school    bool
 	}
 
 	/* Scheduled time is a time-of-day; the deviation needs an instant. Anchored
@@ -1312,7 +1321,8 @@ func (s *Server) walkGeofences(ctx context.Context, tx pgx.Tx, dev *busTracker,
 		       EXISTS (SELECT 1 FROM transport_stop_events e
 		                WHERE e.trip_id = $4 AND e.stop_id = rs.id AND e.kind = 'arrived'),
 		       EXISTS (SELECT 1 FROM transport_stop_events e
-		                WHERE e.trip_id = $4 AND e.stop_id = rs.id AND e.kind = 'departed')
+		                WHERE e.trip_id = $4 AND e.stop_id = rs.id AND e.kind = 'departed'),
+		       rs.is_school
 		  FROM route_stops rs
 		 WHERE rs.route_id = $1
 		   AND rs.latitude IS NOT NULL AND rs.longitude IS NOT NULL`,
@@ -1324,7 +1334,7 @@ func (s *Server) walkGeofences(ctx context.Context, tx pgx.Tx, dev *busTracker,
 	for rows.Next() {
 		var st stop
 		if err := rows.Scan(&st.id, &st.lat, &st.lon, &st.radius, &st.scheduled,
-			&st.arrived, &st.departed); err != nil {
+			&st.arrived, &st.departed, &st.school); err != nil {
 			rows.Close()
 			return err
 		}
@@ -1356,15 +1366,25 @@ func (s *Server) walkGeofences(ctx context.Context, tx pgx.Tx, dev *busTracker,
 					mins := int(local.Sub(want).Round(time.Minute) / time.Minute)
 					deviation = &mins
 				}
-				if _, err := tx.Exec(ctx, `
+				/* RETURNING says whether this fix was the arrival or a replay
+				   of one already filed. Only the first tells the family: a
+				   flushed buffer can carry the same crossing twice. */
+				var filed bool
+				if err := tx.QueryRow(ctx, `
 					INSERT INTO transport_stop_events (institution_id, trip_id, stop_id,
 					    kind, occurred_at, latitude, longitude, deviation_mins)
 					VALUES ($1,$2,$3,'arrived',$4,$5,$6,$7)
-					ON CONFLICT (trip_id, stop_id, kind) DO NOTHING`,
-					dev.Institution, trip, st.id, p.At, p.Lat, p.Lon, deviation); err != nil {
-					return err
+					ON CONFLICT (trip_id, stop_id, kind) DO NOTHING
+					RETURNING true`,
+					dev.Institution, trip, st.id, p.At, p.Lat, p.Lon, deviation).Scan(&filed); err != nil {
+					if !errors.Is(err, pgx.ErrNoRows) {
+						return err
+					}
 				}
 				st.arrived = true
+				if filed {
+					s.notifyArrived(ctx, tx, dev.Institution, trip, route, st.id, direction, st.school)
+				}
 
 			case !inside && st.arrived && !st.departed:
 				if _, err := tx.Exec(ctx, `

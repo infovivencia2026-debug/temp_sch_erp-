@@ -62,6 +62,11 @@ export interface TrackingPolicy {
   parents_may_watch: boolean
   watch_window_mins: number
   retain_days: number
+  /* The school gate. Absent until the office picks the point on the map;
+     once set, the server pins the school as the last stop of every route. */
+  school_latitude?: number
+  school_longitude?: number
+  school_geofence_m?: number
 }
 
 export interface TrackingPolicyResponse {
