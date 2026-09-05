@@ -61,6 +61,14 @@ type Config struct {
 	// FCMServiceAccountFile is the Firebase service-account JSON that lets the
 	// worker push to the parent app. Empty means push is switched off.
 	FCMServiceAccountFile string
+
+	// WebDist is the built SPA (web/dist) for the web binary to serve itself.
+	//
+	// Empty on the nginx deployment, where nginx owns the bundle and this
+	// process never sees a request for it. Set in the container image, where
+	// there is no nginx in front and one process has to answer for both the
+	// API and the shell -- see cmd/web.
+	WebDist string
 }
 
 type R2Config struct {
@@ -90,7 +98,7 @@ func Load() (*Config, error) {
 
 	c := &Config{
 		AppEnv:                env("APP_ENV", "development"),
-		HTTPAddr:              env("HTTP_ADDR", "127.0.0.1:8090"),
+		HTTPAddr:              env("HTTP_ADDR", defaultHTTPAddr()),
 		BaseURL:               env("BASE_URL", "http://localhost:8090"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		DBMaxConns:            int32(envInt("DB_MAX_CONNS", 10)),
@@ -104,6 +112,7 @@ func Load() (*Config, error) {
 		FileStoreDir:          env("FILE_STORE_DIR", "/var/lib/temperp/files"),
 		APKDir:                env("APK_DIR", "/var/lib/temperp/apk"),
 		FCMServiceAccountFile: os.Getenv("FCM_SERVICE_ACCOUNT_FILE"),
+		WebDist:               os.Getenv("WEB_DIST"),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
@@ -135,6 +144,22 @@ func Load() (*Config, error) {
 		c.GatewaySecret = string(c.SessionSecret)
 	}
 	return c, nil
+}
+
+// defaultHTTPAddr is what HTTP_ADDR falls back to when it is not set.
+//
+// Cloud Run does not let the container choose its port: it sets PORT and
+// expects the process to listen on it, on every interface, because the request
+// arrives from outside the container. Loopback on 8090 is the right default
+// behind nginx on the box, where only the proxy should reach this process; it
+// is the wrong default in a container, where nothing would reach it at all.
+// An explicit HTTP_ADDR still wins over both, so nothing already deployed
+// changes.
+func defaultHTTPAddr() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return ":" + port
+	}
+	return "127.0.0.1:8090"
 }
 
 func (c *Config) IsProduction() bool { return strings.EqualFold(c.AppEnv, "production") }

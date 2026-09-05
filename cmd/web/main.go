@@ -1,16 +1,23 @@
 // Command web serves the JSON API and the server-rendered auth pages.
 //
-// It listens on loopback only; nginx terminates TLS and proxies to it. The
-// React SPA is served by nginx directly from /var/www, not from this process.
+// On the box it listens on loopback only; nginx terminates TLS and proxies to
+// it, and the React SPA is served by nginx directly from /var/www, not from
+// this process. In a container (Cloud Run, deploy/cloudrun/Dockerfile) there
+// is no nginx: WEB_DIST names the built bundle and this process serves it
+// too, with the same routing rules nginx applied -- see spaHandler.
 package main
 
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -191,6 +198,21 @@ func run() error {
 		r.Mount("/", apiServer.Routes())
 	})
 
+	// The SPA, only where nothing in front of this process serves it. Set as
+	// the NotFound handler rather than as a route so that everything
+	// registered above keeps precedence: chi tries every route first and only
+	// then falls through here, which is exactly the try_files order nginx had.
+	// Unset, the router answers unknown paths with its plain 404 as it always
+	// has, and nginx never sends it one.
+	if cfg.WebDist != "" {
+		spa, err := newSPAHandler(cfg.WebDist)
+		if err != nil {
+			return err
+		}
+		r.NotFound(spa.ServeHTTP)
+		slog.Info("serving the SPA from this process", "dir", cfg.WebDist)
+	}
+
 	srv := &http.Server{
 		Addr:    cfg.HTTPAddr,
 		Handler: r,
@@ -230,4 +252,121 @@ func setupLogging(cfg *config.Config) {
 	}
 	// JSON to stdout; systemd captures it and journald indexes the fields.
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+}
+
+// THE SPA, SERVED FROM THIS PROCESS.
+//
+// Mirrors the nginx site in scripts/deploy.sh, which is the reference for what
+// the shell expects: hashed files under /assets/ are immutable for a year, the
+// shell itself must always revalidate, and any other GET falls back to
+// index.html so that BrowserRouter deep links work on a cold load. The three
+// things nginx had to learn the hard way are kept:
+//
+//   - The Go service's own prefixes never fall through to the shell. chi's
+//     NotFound handler is inherited by the mounted /api/v1 router, so an
+//     unknown API path would otherwise come back as 200 text/html -- the
+//     failure mode every JSON client reports as "unexpected token <".
+//   - A request with a file extension that does not exist is a 404, not the
+//     shell. /apps/bus-tracker.apk falling through once meant a phone saved
+//     3 KB of HTML as the app.
+//   - /.well-known/assetlinks.json is served from well-known/ (no dot), as
+//     application/json, because Vite drops dot directories from the build
+//     and Android refuses any other type.
+type spaHandler struct {
+	root  http.FileSystem
+	files fs.FS
+}
+
+// serverPaths are the paths the Go service answers itself, each also owning
+// everything beneath it. A request under one of them that reached the fallback
+// is a genuine 404 and is answered as one; the shell is only for paths the SPA
+// router might own. Whole segments, not string prefixes: nginx's "location
+// /apps" also swallowed /apps-something, and the sibling deploy lost its
+// /admin-portal module to exactly that.
+var serverPaths = []string{
+	"/api", "/iclock", "/static", "/apps",
+	"/login", "/logout", "/healthz", "/buy", "/signup", "/forgot", "/reset",
+}
+
+func newSPAHandler(dir string) (*spaHandler, error) {
+	if _, err := os.Stat(path.Join(dir, "index.html")); err != nil {
+		return nil, errors.New("WEB_DIST=" + dir + " has no index.html; is the bundle built?")
+	}
+	// Go's table does not know the PWA manifest's type, and a browser served
+	// application/octet-stream for it declines to install the app.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	return &spaHandler{root: http.Dir(dir), files: os.DirFS(dir)}, nil
+}
+
+func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.NotFound(w, r)
+		return
+	}
+	p := path.Clean("/" + r.URL.Path)
+	for _, own := range serverPaths {
+		if p == own || strings.HasPrefix(p, own+"/") {
+			http.NotFound(w, r)
+			return
+		}
+	}
+
+	if p == "/.well-known/assetlinks.json" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		h.serveFile(w, r, "well-known/assetlinks.json")
+		return
+	}
+
+	// A real file under the bundle is served as itself. path.Clean has
+	// already removed any "..", and fs.ValidPath refuses the rest.
+	name := strings.TrimPrefix(p, "/")
+	if name != "" && fs.ValidPath(name) {
+		if st, err := fs.Stat(h.files, name); err == nil && !st.IsDir() {
+			switch {
+			case strings.HasPrefix(p, "/assets/"):
+				// Vite hashes the file name on content; a changed file is a
+				// new URL, so the old one can be cached for as long as the
+				// browser likes.
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			case name == "index.html":
+				// Asked for by name rather than by route; the same shell,
+				// the same rule as below.
+				w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+			}
+			h.serveFile(w, r, name)
+			return
+		}
+		// Something with an extension that is not in the bundle is a missing
+		// file, not a route: a 404 tells the caller so, where the shell would
+		// tell it nothing.
+		if ext := path.Ext(name); ext != "" && ext != ".html" {
+			http.NotFound(w, r)
+			return
+		}
+	}
+
+	// Everything else is a route the SPA owns. The shell must always
+	// revalidate: cached, the browser pins to a bundle whose hashed chunks are
+	// gone after the next deploy.
+	w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+	h.serveFile(w, r, "index.html")
+}
+
+// serveFile answers with one file from the bundle. Not http.ServeFile: that
+// redirects any path ending in /index.html to its directory, which would send
+// the shell round in a loop.
+func (h *spaHandler) serveFile(w http.ResponseWriter, r *http.Request, name string) {
+	f, err := h.root.Open("/" + name)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeContent(w, r, path.Base(name), st.ModTime(), f)
 }

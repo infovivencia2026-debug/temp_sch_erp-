@@ -1,0 +1,36 @@
+# What the Cloud Run image build (deploy/cloudrun/Dockerfile) must not upload.
+#
+# The context is the repository root, and without this it is a gigabyte of
+# node_modules and Android sources for a build that installs its own
+# dependencies from the lockfile. Anything the Dockerfile produces itself is
+# excluded too, so a stale local build cannot leak into the image.
+.git
+.github
+.githooks
+.claude
+
+# Installed and built inside the image, from the lockfile.
+node_modules
+web/node_modules
+web/dist
+
+# Local build outputs and cross-compiled binaries.
+bin
+dist
+spa
+web/tsconfig.tsbuildinfo
+
+# Not part of the server: the Android apps, the documentation, a stray Redis
+# snapshot, the archived original deploy and the parked scaffold.
+mobile
+docs
+dump.rdb
+web/dump.rdb
+deployed-snapshot
+_local-scaffold
+ui-pass
+ui-parent
+
+# Secrets and local state never belong in a build context.
+.env
+*.log
