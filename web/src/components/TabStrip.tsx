@@ -57,10 +57,20 @@ export default function TabStrip() {
      * existed for one paint and then pointed at a page nobody can return to,
      * which is how a strip fills up with entries that do nothing when pressed.
      * A screen is role/section/feature: three segments. */
-    const segments = here.split('?')[0].split('/').filter(Boolean)
+    const key = here.split('?')[0]
+    const segments = key.split('/').filter(Boolean)
     if (here.startsWith('/go/')) return
-    if (segments.length !== 3 && here !== '/account') return
-    open(here, titleFor(here), here)
+    if (segments.length !== 3 && key !== '/account') return
+    /* The tab is the screen, not the screen plus whatever was in its query
+       string. Keyed on the full URL, the parent's home opened a second
+       "Dashboard" tab every time the child switcher changed ?child=, and a
+       list opened one per filter. One screen, one tab.
+
+       The home board gets no tab at all: it is one press away on the dock
+       from everywhere, so a tab for it is a line of chrome that only ever
+       restates where the dock already points. */
+    if (isHomeBoard(key)) return
+    open(key, titleFor(key), key)
   }, [here, catalog.roles.length])
 
   /* Splitting is offered from the strip, so it follows the strip's own rule
