@@ -538,7 +538,21 @@ class MainActivity : Activity() {
                but the failure path can ask a different question: see
                fallBackToCache, which reloads under LOAD_CACHE_ELSE_NETWORK and
                so accepts entries that have expired. That is the difference
-               between this morning's bus screen and nothing at all. */
+               between this morning's bus screen and nothing at all.
+
+               THAT IS THE SECOND LINE OF DEFENCE, NOT THE FIRST. The site
+               ships its own service worker (web/src/sw-src.js), and a
+               WebView runs it exactly as Chrome does: it registers on the
+               first signed-in load, keeps the shell and the last API answers
+               on the device, and answers an offline navigation itself, so
+               the load never fails and none of the error handling below is
+               reached. No ServiceWorkerController setup is needed for that;
+               the controller exists to intercept the worker's requests, and
+               nothing here wants to. Its one weakness is the first visit:
+               the worker installs after the page has loaded and pulls a
+               megabyte before it counts, so a phone that opened the app once
+               on a bad line and then lost the signal has no worker yet. The
+               HTTP-cache path is for that phone. */
         }
         view.setBackgroundColor(pageColor())
         applyDarkMode(view)
@@ -595,7 +609,7 @@ class MainActivity : Activity() {
                     }
                     return
                 }
-                failed(classify(error.errorCode))
+                failed(classify(error.errorCode), request.url.toString())
             }
 
             /* The server answering with its own failure page is a deploy in
@@ -608,7 +622,7 @@ class MainActivity : Activity() {
                 errorResponse: WebResourceResponse,
             ) {
                 if (request.isForMainFrame && errorResponse.statusCode >= 500) {
-                    failed(Failure.SERVER)
+                    failed(Failure.SERVER, request.url.toString())
                 }
             }
 
@@ -1367,6 +1381,31 @@ class MainActivity : Activity() {
             showBanner(
                 getString(if (hasNetwork()) R.string.banner_slow else R.string.banner_offline),
             )
+            return
+        }
+        /* A PAGE THAT PAINTED WITH NO NETWORK CAME OFF THE DISK, AND THIS
+           WAS THE ONLY PLACE NOBODY SAID SO.
+
+           The site's own service worker answers an offline navigation with
+           the copy of the shell it keeps, and it does that inside the WebView
+           exactly as it does in Chrome: the navigation never fails, so none
+           of the error callbacks above fire, servingCache is never set, and
+           this method saw a perfectly ordinary commit. The parent was reading
+           this morning's bus position with nothing to say it was this
+           morning's, and when the signal came back nothing reloaded, because
+           the flag that drives that reload was never raised.
+
+           The phone knows what the WebView does not. If the page committed
+           while there was no network at all, the network did not serve it;
+           it is a snapshot, and it is marked as one so the callback in
+           networkReturned replaces it the moment there is something to
+           replace it with. Only when there was no network: a captive portal
+           or a slow cell reports INTERNET, and the worker serves a live page
+           through it whenever it can, so a page under those is left as the
+           live page it probably is. */
+        if (!hasNetwork()) {
+            if (!showingCached) showBanner(getString(R.string.banner_offline))
+            showingCached = true
         }
     }
 
@@ -1400,17 +1439,27 @@ class MainActivity : Activity() {
        address through the HTTP cache, which on a phone that opened the bus
        screen this morning still holds the bundle. Only when that comes back
        empty as well is there genuinely nothing to show, and only then does the
-       panel appear. */
-    private fun failed(kind: Failure) {
-        if (!servingCache && lastGoodUrl != null) {
-            fallBackToCache()
+       panel appear.
+
+       THE COLD START NEVER GOT THAT FAR. lastGoodUrl is a field on this
+       activity, so on every cold open it is null, and the fallback was gated
+       on it: a parent who opened the app in a basement got the panel at once,
+       with the entire bundle sitting in the WebView's HTTP cache and never
+       asked for. The address that failed is right there in the callback, and
+       it is the one to ask the cache about when nothing has painted yet.
+       Retry still prefers the last page that painted, because after a
+       navigation that failed mid-session that is the screen the parent was
+       on. */
+    private fun failed(kind: Failure, failedUrl: String?) {
+        val url = lastGoodUrl ?: failedUrl
+        if (!servingCache && url != null) {
+            fallBackToCache(url)
             return
         }
         showOffline(kind)
     }
 
-    private fun fallBackToCache() {
-        val url = lastGoodUrl ?: return
+    private fun fallBackToCache(url: String) {
         servingCache = true
         progress.visibility = View.GONE
         pull.stopRefreshing()
