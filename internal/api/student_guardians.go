@@ -246,7 +246,36 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 			// ON CONFLICT rather than a fresh row: one parent has several
 			// children here, and a duplicate means the mother of three is told
 			// about one of them.
+			/* The same number or address is the same parent. A mother added to
+			   her second child under a slightly different spelling used to get
+			   a second guardian row, and the second row could never have a
+			   login because the first already answered to that number. So the
+			   contact is looked up first: a match links this child to the
+			   parent already on file, keeps that parent's name and login, and
+			   fills in only what the file was missing. Nothing is inserted. */
+			var existing string
 			if err := tx.QueryRow(r.Context(), `
+				SELECT id::text FROM guardians
+				 WHERE institution_id = $1
+				   AND ((NULLIF($2,'') IS NOT NULL AND phone = $2)
+				     OR (NULLIF($3,'') IS NOT NULL AND email = $3::citext))
+				 ORDER BY (user_id IS NOT NULL) DESC, created_at LIMIT 1`,
+				id.InstitutionID, phone, email).Scan(&existing); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			if existing != "" {
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE guardians
+					   SET email = COALESCE(email, NULLIF($2,'')::citext),
+					       phone = COALESCE(phone, NULLIF($3,'')),
+					       occupation = COALESCE(occupation, NULLIF($4,'')),
+					       annual_income = COALESCE(annual_income, $5)
+					 WHERE id = $1::uuid`,
+					existing, email, phone, req.Occupation, req.AnnualIncome); err != nil {
+					return err
+				}
+				guardianID = existing
+			} else if err := tx.QueryRow(r.Context(), `
 				INSERT INTO guardians (institution_id, full_name, relation, phone,
 				                       email, occupation, annual_income)
 				VALUES ($1,$2,$3,NULLIF($4,''),NULLIF($5,'')::citext,NULLIF($6,''),$7)
