@@ -310,12 +310,13 @@ export function BentoDock() {
      of identical cells can, so the phone rules own the grid and this leaves
      only the corner radius and the hit area's own padding. */
   const tab = phone ? 'h-auto w-auto rounded-[8px]' : ''
+  /* ICONS ONLY ON THE PHONE. The owner asked for the dock to be five glyphs
+     and no words, on both apps. The name is still there for a screen reader
+     and for the tooltip a long press shows, but it is not painted: five
+     icons a parent already knows do not need captions, and the captions were
+     what made the bar as tall as it was. */
   const tabLabel = (text: string) =>
-    phone ? (
-      <span className="dock-tab-label max-w-full truncate text-[length:var(--dock-label,10px)] font-medium leading-[1.2] opacity-80">
-        {text}
-      </span>
-    ) : null
+    phone ? <span className="sr-only">{text}</span> : null
 
   /* THE ONE CONTROL IN HERE THAT IS NOT OURS.
 
