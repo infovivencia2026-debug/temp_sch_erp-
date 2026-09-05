@@ -12,7 +12,8 @@
 #   caches       /root/.cache/go-build (17G), npm/uv/pip caches, apt cache,
 #                journal beyond 100M, rotated logs, /tmp leftovers
 # It keeps: temperp-web/worker/backup, ragbot + ollama (temperp proxies /assistant/ to it),
-#   postgres, redis, nginx, certbot, /opt/temperp-src (server-side builds), /root/go,
+#   postgres, redis (unused by temperp since the queue moved to Postgres; kept
+#   because it is not ours to judge), nginx, certbot, /opt/temperp-src (server-side builds), /root/go,
 #   /root/backups, existing temperp dumps, /root/ONROL and /root/code (not hosting;
 #   may hold uncommitted work -- delete by hand if you are sure).
 # Databases school_erp and divvy are DUMPED and KEPT (15 MB + 11 MB); drop them

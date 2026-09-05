@@ -36,8 +36,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_hash text;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_set_at timestamptz;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_set_by uuid REFERENCES users(id) ON DELETE SET NULL;
 
--- Lockout state. Counted on the row rather than in Redis: a lockout that
--- evaporates when the cache restarts is not a lockout, and this is the one
+-- Lockout state. Counted on the row rather than in a process-local or cache
+-- counter: a lockout that evaporates on restart is not a lockout, and this is the one
 -- credential in the product short enough to be worth guessing.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_failed integer NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_locked_until timestamptz;

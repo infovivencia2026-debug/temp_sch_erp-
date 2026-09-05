@@ -32,13 +32,11 @@ RUN_USER="${SERVICE}"
 # Port is derived rather than fixed so a second deployment does not silently
 # fight the first one for 8090.
 HTTP_PORT="${HTTP_PORT:-8091}"
-# Redis logical database, likewise separated from any neighbour.
-REDIS_DB="${REDIS_DB:-1}"
 
 say() { printf '\n=== %s ===\n' "$1"; }
 
 say "Preflight"
-for cmd in nginx psql redis-cli systemctl; do
+for cmd in nginx psql systemctl; do
     command -v "$cmd" >/dev/null || { echo "missing required command: $cmd" >&2; exit 1; }
 done
 if ss -ltn | grep -q "127.0.0.1:${HTTP_PORT} "; then
@@ -57,17 +55,9 @@ install -d -o "$RUN_USER" -g "$RUN_USER" -m 0755 "$APP_DIR"
 install -d -o "$RUN_USER" -g "$RUN_USER" -m 0750 "/var/log/${SERVICE}"
 install -d -m 0755 "$WEBROOT"
 
-say "Redis"
-# Sessions and the job queue share the instance already on the box. noeviction
-# matters: silently dropping a queued fee reminder is worse than a loud enqueue
-# error, and the default policy would evict queue keys under memory pressure.
-if ! redis-cli ping >/dev/null 2>&1; then
-    echo "redis is not responding" >&2; exit 1
-fi
-current_policy="$(redis-cli config get maxmemory-policy | tail -1)"
-if [ "$current_policy" != "noeviction" ]; then
-    echo "  warning: maxmemory-policy is '${current_policy}', expected noeviction"
-fi
+# No Redis step. The job queue is River: jobs are rows in river_job, created
+# by the migrations below, in the same database as everything else. A Redis
+# left on the box from the asynq days is not used and may be removed.
 
 say "Database roles and database"
 if [ -f "$ENV_FILE" ]; then
@@ -110,7 +100,8 @@ SQL
 # Postgres ships tuned for a machine from 2005: 128MB of shared buffers, a
 # spinning-disk random_page_cost of 4, one outstanding I/O. On a 4GB VPS with
 # an SSD every one of those is wrong in the direction of slower. These are
-# modest -- the box also runs nginx, Redis, the Go services and an assistant
+# modest -- the box also runs nginx and the Go services, and the queue is in
+# this database too
 # -- and idempotent. Everything but shared_buffers applies on reload;
 # shared_buffers waits for the next Postgres restart, which a reboot or
 # `systemctl restart postgresql` supplies.
@@ -163,12 +154,10 @@ APP_DB_PASSWORD=${APP_PW}
 DATABASE_URL=postgres://${DB_APP_USER}:${APP_PW}@127.0.0.1:5432/${DB_NAME}?sslmode=disable
 # Migrations need the owner, which the app role deliberately is not.
 MIGRATE_DATABASE_URL=postgres://${DB_OWNER}:${OWNER_PW}@127.0.0.1:5432/${DB_NAME}?sslmode=disable
-# 1 vCPU shared with nginx, Postgres and Redis; a large pool would just queue.
+# 1 vCPU shared with nginx and Postgres; a large pool would just queue. The
+# queue (River) is in this database, and the worker holds one LISTEN plus a
+# connection per job slot out of the same pool.
 DB_MAX_CONNS=10
-
-# Kept for older units that still read it; the queue is in Postgres (River)
-# and the server logs once at boot that this is ignored.
-REDIS_URL=redis://127.0.0.1:6379/${REDIS_DB}
 
 # The scheduler's shared secret: /api/v1/cron accepts a tick only with header
 # X-Cron-Key equal to this. The worker on this box ticks in-process
@@ -240,7 +229,7 @@ write_unit() {
     cat > "/etc/systemd/system/${name}.service" <<UNIT
 [Unit]
 Description=${desc}
-After=network-online.target postgresql.service redis-server.service
+After=network-online.target postgresql.service
 Wants=network-online.target
 Requires=postgresql.service
 
@@ -363,6 +352,13 @@ server {
 
     location = /.well-known/assetlinks.json {
         alias ${WEBROOT}/well-known/assetlinks.json;
+        default_type application/json;
+        add_header Cache-Control "public, max-age=300";
+    }
+    # The iPhone app's claim, same rules. The file has no extension, so
+    # default_type is what actually sets the type here.
+    location = /.well-known/apple-app-site-association {
+        alias ${WEBROOT}/well-known/apple-app-site-association;
         default_type application/json;
         add_header Cache-Control "public, max-age=300";
     }

@@ -82,7 +82,7 @@ func OpenShard(ctx context.Context, name, url string, maxConns int32) (*Shard, e
 		return nil, fmt.Errorf("parse DSN for shard %s: %w", name, err)
 	}
 	cfg.MaxConns = maxConns
-	// A 1 vCPU box shares this pool with nginx and Redis; idle connections cost
+	// A 1 vCPU box shares this pool with nginx and Postgres itself; idle connections cost
 	// backend memory for no benefit, so retire them fairly aggressively.
 	cfg.MinConns = 1
 	cfg.MaxConnIdleTime = 5 * time.Minute

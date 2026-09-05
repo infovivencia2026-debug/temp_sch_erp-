@@ -19,19 +19,9 @@ HOSTNAME_FQDN=erp.187-127-178-100.sslip.io
 
 say() { printf '\n=== %s ===\n' "$1"; }
 
-say "Installing Redis"
-if ! command -v redis-server >/dev/null; then
-    apt-get update -qq
-    apt-get install -y -qq redis-server
-fi
-# Sessions and the job queue share this instance. noeviction because silently
-# dropping a queued fee reminder is worse than an enqueue error.
-sed -i 's/^# *maxmemory .*/maxmemory 256mb/; s/^# *maxmemory-policy .*/maxmemory-policy noeviction/' \
-    /etc/redis/redis.conf
-grep -q '^maxmemory ' /etc/redis/redis.conf || echo 'maxmemory 256mb' >> /etc/redis/redis.conf
-grep -q '^maxmemory-policy ' /etc/redis/redis.conf || echo 'maxmemory-policy noeviction' >> /etc/redis/redis.conf
-systemctl enable --now redis-server
-systemctl restart redis-server
+# No Redis. The job queue is River (github.com/riverqueue/river): jobs are rows
+# in river_job, in the same Postgres as everything else, so there is nothing
+# to install for it and nothing to keep from evicting queued work.
 
 say "Creating service user and directories"
 id -u schoolerp >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin schoolerp
@@ -114,10 +104,8 @@ APP_DB_USER=${DB_APP_USER}
 APP_DB_PASSWORD=${APP_PW}
 
 DATABASE_URL=postgres://${DB_APP_USER}:${APP_PW}@127.0.0.1:5432/${DB_NAME}?sslmode=disable
-# 1 vCPU box shared with nginx and Redis; a large pool would just queue.
+# 1 vCPU box shared with nginx and Postgres; a large pool would just queue.
 DB_MAX_CONNS=10
-
-REDIS_URL=redis://127.0.0.1:6379/0
 
 SESSION_SECRET=$(openssl rand -base64 48 | tr -d '\n')
 SESSION_TTL=12h

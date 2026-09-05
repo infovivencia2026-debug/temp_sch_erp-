@@ -553,8 +553,9 @@ export interface HealthRow {
 }
 
 export interface QueueStat {
-  /** asynq's own total: pending + active + scheduled + retry + aggregating +
-      archived. Not "waiting" — it counts jobs that have given up as well. */
+  /** The whole backlog: pending + active + scheduled + retry + archived
+      (River's states in the old asynq names, see internal/queue/inspect.go).
+      Not "waiting" — it counts jobs that have given up as well. */
   size: number
   pending: number
   active: number
@@ -563,7 +564,8 @@ export interface QueueStat {
   /** Jobs that gave up. A backlog, and the number worth acting on. */
   archived: number
   completed: number
-  /** asynq's DAILY counter, which resets. Not a backlog, despite the name. */
+  /** Under asynq this was a DAILY counter that reset; under River the server
+      sets it equal to `archived` (jobs that gave up, kept a week). */
   failed: number
   paused: boolean
 }

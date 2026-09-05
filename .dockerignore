@@ -21,7 +21,8 @@ spa
 web/tsconfig.tsbuildinfo
 
 # Not part of the server: the Android apps, the documentation, a stray Redis
-# snapshot, the archived original deploy and the parked scaffold.
+# snapshot left from before the queue moved to Postgres, the archived original
+# deploy and the parked scaffold.
 mobile
 docs
 dump.rdb

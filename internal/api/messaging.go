@@ -1365,7 +1365,7 @@ func (s *Server) QueueOutbound(ctx context.Context, inst uuid.UUID, req queue.Ou
 		if res.Duplicate {
 			// Not a failure. The one-per-occurrence index refused a second
 			// copy, which on a task retry is exactly the outcome wanted --
-			// reporting it as an error would make asynq retry it again.
+			// reporting it as an error would make River retry it again.
 			slog.Info("outbound message already queued for this occurrence",
 				"institution_id", inst, "template", req.TemplateCode)
 		}

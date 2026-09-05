@@ -76,80 +76,76 @@ app reads), [cmd/web/main.go](../cmd/web/main.go),
 [cmd/worker/main.go](../cmd/worker/main.go) and the VPS provisioning in
 [scripts/deploy.sh](../scripts/deploy.sh).
 
-### (a) Redis is required, and the plan has none
+### (a) Redis was required; River removed the requirement
 
-`REDIS_URL` has a default (`redis://127.0.0.1:6379/0`) that points at a Redis
-which will not exist on Cloud Run. Both processes open it at boot and fail
-without it: the web process creates an asynq client and inspector
-(`queue.NewClient`, `queue.NewInspector`) to enqueue jobs and read queue
-depth, and the worker is an asynq server. Sessions themselves are in Postgres
-(`auth.NewStore(db, …)`); the README's "sessions cache" label is historical,
-and the login throttle is deliberately in-memory. So Redis carries exactly one
-thing: the job queue and its cron schedule. That one thing is the fee
-reminders, the message dispatch, the attendance rollup and the bus-tracker
-sweeps.
+*Superseded by commit a45d9ca (2026-09-05), kept as the record of a decision.*
 
-Recommendation: **Upstash Redis**, region `ap-south-1` (Mumbai) so the round
-trip from asia-south1 is a few milliseconds. Requirements the VPS meets today
-and Upstash must too:
+When this was written, `REDIS_URL` defaulted to `redis://127.0.0.1:6379/0`,
+both processes opened it at boot and failed without it: the web process
+created an asynq client and inspector to enqueue jobs and read queue depth,
+and the worker was an asynq server. Sessions were already in Postgres, the
+login throttle in memory, so Redis carried exactly one thing -- the job queue
+and its cron schedule -- and the recommendation here was an Upstash Redis in
+`ap-south-1` on a fixed-price plan, with `noeviction` and TLS, because asynq
+polled several hundred thousand commands a day even when idle.
 
-- `maxmemory-policy noeviction`. deploy.sh checks this and warns; asynq stores
-  task payloads in Redis and the default eviction policy would silently drop a
-  queued fee reminder under memory pressure. Upstash databases are
-  `noeviction` unless you switch on their "Eviction" toggle — leave it off.
-- TLS. Upstash gives a `rediss://` URL; asynq v0.25.0 (the pinned version)
-  parses that scheme in `asynq.ParseRedisURI`, so `REDIS_URL=rediss://…`
-  works with no code change. Keep the logical database at `/0` — Upstash
-  exposes one database per instance.
-- Lua scripting and the commands asynq uses (`ZADD`, `LMOVE`, `EVALSHA`,
-  `SCAN`). Upstash supports all of them; asynq on Upstash is a documented
-  combination.
+That is no longer the situation. The queue is
+[River](https://github.com/riverqueue/river): jobs are rows in `river_job`,
+in the same database as everything else (migration `00250_river_queue.sql`),
+the web process holds an insert-only client, the worker holds the producers,
+and `REDIS_URL` is read by `internal/config` and ignored, with one log line at
+boot if it is set. No Redis account, no eviction policy, no per-command bill.
+The manifests carry no `temperp-redis-url` secret.
 
-The cost the plan does not have: asynq polls. A worker with four queues
-dequeues about once a second per queue, the scheduler heartbeats, and the
-web's inspector answers queue-status calls, so an idle system issues on the
-order of 300–500 K commands a day. On Upstash pay-as-you-go pricing
-(≈ $0.2 per 100 K commands) that is ₹2,000+/month for an empty queue, more
-than the whole plan. Take a **fixed-price plan** (the 250 MB tier is around
-$10/month with no per-command charge) rather than pay-as-you-go. Memorystore
-is the alternative inside Google, but its smallest instance is several times
-that and it needs a Serverless VPC connector, which is another line item.
+### (b) The worker must be always-on -- so there is no worker
 
-### (b) The worker must be always-on
+When this was written, `cmd/worker/main.go` ran the asynq **scheduler** in the
+same process as the consumer, so the worker had to stay up for cron to happen.
+Under River the schedule ([internal/queue/cron.go](../internal/queue/cron.go);
+entries every minute for message dispatch, every five for diary reminders and
+the message_log flush, every fifteen for reminder plans, the nightly and weekly
+ones, and `RegisterBusTrackerJobs`' trip-closing sweeps) is evaluated by
+`GET /api/v1/cron` with `X-Cron-Key`, remembering each entry's last run in
+`cron_runs`; Cloud Scheduler calls it every minute and the worker only works
+jobs. On the VPS the worker still ticks in-process (`CRON_INPROCESS=1`).
 
-`cmd/worker/main.go` runs the asynq **scheduler** in the same process as the
-consumer. The schedule in
-[internal/queue/scheduler.go](../internal/queue/scheduler.go) has entries
-every minute (message dispatch), every five (diary reminders, message_log
-flush), every fifteen (reminder plans), plus the nightly and weekly ones, and
-`RegisterBusTrackerJobs` adds the trip-closing sweeps. A cron that only ticks
-while an HTTP request is in flight never fires, so the worker cannot be a
-scale-to-zero, CPU-throttled service.
+What would still keep a worker always-on is not cron but wake-up: River hands
+jobs to a worker over Postgres `LISTEN/NOTIFY` (with polling as fallback), and
+Cloud Run does not start a container for a database notification. A worker
+service at `minScale: 0` works nothing; at `minScale: 1` with CPU always
+allocated it is ~2.6 M vCPU-seconds a month, roughly $45–50 ≈ ₹4,000 before
+the free tier — several times the plan's entire Cloud Run estimate.
 
-Therefore [service-worker.yaml](../deploy/cloudrun/service-worker.yaml) sets
-`minScale: 1`, `maxScale: 1` and `run.googleapis.com/cpu-throttling: "false"`.
-Two consequences:
+So the default design deploys **no worker**. The web service sets
+`QUEUE_INPROCESS=1` ([cmd/web/main.go](../cmd/web/main.go)): it registers the
+same handlers `cmd/worker` does and runs River's producers, so whichever
+instance is awake works the queue. What keeps one awake is the same thing that
+ticks cron: Cloud Scheduler calls `/api/v1/cron` every minute, and that request
+is when the queue is looked at overnight; during the day the bus-position
+polls do it. The trade-off, spelled out in the header of
+[service-web.yaml](../deploy/cloudrun/service-web.yaml): with
+`cpu-throttling: "true"` a job that outlives the request that woke the
+instance runs on a throttled CPU until the next request — acceptable for a
+queue whose handlers are a few SQL statements and a few gateway calls, with
+the minute tick bounding the stall — and a heavy job shares the instance with
+users' requests (the fee fan-out is already chunked). Every instance is also a
+worker and opens River's own pool (12 workers + 4), which is why `maxScale` is
+3 and `DB_MAX_CONNS` 8: 3 × (8 + 16) = 72 connections at full fan-out, under
+Neon's ~100. The limiters are shared through Postgres
+(`RATE_LIMIT_STORE=postgres`) so three instances agree on a login throttle.
 
-1. **This is the biggest line in the bill.** One vCPU allocated for the whole
-   month is ~2.6 M vCPU-seconds; at instance-based pricing that is roughly
-   $45–50 ≈ ₹4,000/month before the free tier — several times the plan's
-   entire Cloud Run estimate, which assumed request-based billing. The owner
-   chose to run it on Cloud Run regardless rather than keep anything on the
-   VPS. Two ways to shrink the line later: run it at `cpu: "0.5"` (it is
-   Postgres-bound at Concurrency 4 and would barely notice), or convert the
-   schedule into Cloud Scheduler → Cloud Run Job invocations so nothing is
-   always on. The second is a code change and is what "later" in the plan
-   should mean.
-2. **Cloud Run needs the worker to listen on `$PORT`.** Every Cloud Run
-   service container must accept a TCP connection on its port within the
-   startup window. Done: when `PORT` is set, `cmd/worker` opens a small
-   listener whose `/healthz` reports the database's health, so the probe
-   means "the worker can reach Postgres". With `PORT` unset (systemd on the
-   VPS) it opens nothing, as before.
-
-`maxScale: 1` is safe rather than merely cheap: asynq elects one active
-scheduler through Redis, so a second replica would consume tasks but add no
-schedule, and Concurrency is 4 because the bottleneck is Postgres.
+[service-worker.yaml](../deploy/cloudrun/service-worker.yaml) is kept as the
+**optional, paid** second service, applied only by `deploy.sh --with-worker`.
+Its header says when to pay for it; today there is exactly one reason: the
+push pump to the parent app (`RunPushPump`, FCM) runs in `cmd/worker` and not
+in `cmd/web`, so notifications exist only while that service does. Until push
+moves into the web process or a cron entry, a school that wants push pays the
+₹4,000, and a school that does not, does not. It is safe beside the in-process
+workers — River leases each job to one consumer, and cron serialises on an
+advisory lock — and `CRON_INPROCESS` is unset on it, so it is a second
+consumer and never a second clock. When `PORT` is set it answers `/healthz`
+with the database's and the queue's health, which Cloud Run requires of every
+service container.
 
 ### (c) Files: R2 is already the design; the tiles need a home too
 
@@ -202,8 +198,10 @@ Use Neon's **direct** endpoint, not the `-pooler` one: `internal/database`
 sets per-transaction GUCs with `SET LOCAL` and relies on pgx's own pool;
 PgBouncer in transaction mode is compatible with `SET LOCAL` but adds a hop
 and hides connection counts from the arithmetic below. Neon's smallest
-compute allows roughly 100 direct connections; the manifests set the web pool
-to 10 × maxScale 5 = 50 and the worker to 4, which leaves room.
+compute allows roughly 100 direct connections, and the web manifest is sized
+to it: per instance the app pool (8) plus the
+in-process River pool (16), times maxScale 3 = 72, plus 20 for the optional
+worker, which leaves room.
 
 **Roles.** The app connects as an unprivileged role so `FORCE ROW LEVEL
 SECURITY` applies and so it has no DDL; migrations run as the owner. The
@@ -299,7 +297,8 @@ which the worker manifest carries commented-out until the secret exists.
 ### (f) Cold starts and the school-day traffic pattern
 
 A cold start of the web container is: pull the image (cached per region),
-start a static Go binary, `pgxpool` connect and ping Neon, open Redis, parse
+start a static Go binary, `pgxpool` connect and ping Neon, build River's
+insert-only client (no connection of its own), parse
 the embedded templates. Expect **1–3 s** with `startup-cpu-boost` on, plus
 Neon's own resume if its compute has suspended (Neon suspends after five
 minutes idle on the free/Launch tier; resume is a few hundred ms to a couple
@@ -322,12 +321,19 @@ about:
 - `httpx.RealIP` used to take the **first** address in `X-Forwarded-For`,
   which a client can forge; every proxy in front of this service (nginx,
   Google's front end) appends the address it saw, so it now takes the
-  **last**. Done. Before cut-over,
-  take the last hop instead (a one-line change in
-  [internal/httpx/middleware.go](../internal/httpx/middleware.go)).
-- The login throttle is per process by design, so with `maxScale: 5` an
-  attacker gets up to five times the failed attempts. Acceptable at this
-  scale; noted so nobody is surprised.
+  **last**. Done. With Cloudflare Pages in front, the last hop is a
+  Cloudflare edge, so `CF-Connecting-IP` wins when present — and because
+  anyone who finds the `run.app` URL can send that header too, it is believed
+  only when the request also carries `X-Origin-Secret` equal to
+  `ORIGIN_SHARED_SECRET`, which the Pages Function adds from its own variable
+  of the same name ([internal/httpx/middleware.go](../internal/httpx/middleware.go)).
+  Both sides optional: unset on the Go side means "believe the header", which
+  is right for the VPS where Cloudflare is not in the path. Set it on Cloud
+  Run (secret `temperp-origin-shared-secret`, block commented in
+  `service-web.yaml`) and on the Pages project before cut-over.
+- The login throttle was per process by design; `RATE_LIMIT_STORE=postgres`
+  on the web service puts the counts in a shared table so `maxScale: 3` does
+  not triple the allowance. `memory` remains the VPS default.
 
 ### (g) What stays on the VPS until cut-over
 
@@ -336,7 +342,7 @@ Cloud Run has no equivalent for:
 
 | Stays | Why |
 |---|---|
-| `temperp-backup.timer` / `scripts/backup-db.sh` | Nightly `pg_dump` to local disk. Neon has point-in-time restore (7 days on Launch), but an off-provider dump is still the one copy Google or Neon cannot lose for you. Point the script at Neon's URL and keep it running on the VPS, or on any box. |
+| `temperp-backup.timer` / `scripts/backup-db.sh` | Nightly `pg_dump -Fc` to R2 under `backups/<db>/`, 30 days kept (`scripts/install-backup-timer.sh` installs the timer; `scripts/backup-check.sh` + `.github/workflows/nightly-backup.yml` are the Actions version for the Neon phase). Neon has point-in-time restore (7 days on Launch), but an off-provider dump is still the one copy Google or Neon cannot lose for you. Point the script at Neon's URL and keep it running on the VPS, or on any box. |
 | The assistant (`ragbot.service`, `/assistant/`) | Python + Gemini/ollama on the same host; a separate service with its own hosting decision. `VITE_ASSISTANT_URL` in the SPA build points wherever it lands. |
 | The `erp.` sibling deployment | Unrelated to this move. |
 | DNS for `temperp.187-127-178-100.sslip.io` | sslip.io encodes the VPS IP; the Cloud Run service needs a real hostname (`BASE_URL`), mapped with a Cloud Run domain mapping or a load balancer. The old hostname can 301 from nginx during the overlap. |
@@ -357,8 +363,14 @@ browser ── app.school.in (Pages) ── static files from the edge
 ```
 
 `web/functions/[[path]].ts` is a Pages Function that forwards those paths to
-`API_ORIGIN` and streams the answer back, adding `X-Forwarded-Host`, and
-`X-Forwarded-For` in the appending form `httpx.RealIP` expects.
+`API_ORIGIN` and streams the answer back, adding `X-Forwarded-Host`,
+`X-Forwarded-For` in the appending form `httpx.RealIP` expects, and
+`X-Origin-Secret` when `ORIGIN_SHARED_SECRET` is set (above, (f)). One path the
+server owns is **not** forwarded: `/api/v1/cron` answers 404 at the edge. The
+key already makes the endpoint safe anywhere (the Go handler 401s without
+`X-Cron-Key`, in constant time); refusing it at Pages is one fewer public
+door to that lock, and Cloud Scheduler calls the `run.app` URL directly, so
+nothing legitimate ever needed it there.
 `web/public/_routes.json` limits the Function to exactly those paths, so
 static files never invoke it and never count against the Functions free
 tier (100,000 requests a day; the API traffic of one school is well under).
@@ -375,9 +387,13 @@ code changes for this.
 1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect the
    GitHub repository. Root directory `web`, build command
    `npm ci --no-audit --no-fund && npm run build`, output directory `dist`,
-   Node version 20 (`NODE_VERSION=20` as a build env var).
+   Node version 22 (`NODE_VERSION=22` as a build env var — the same major the
+   Dockerfile and the LAN build box use; the lockfile has packages that
+   declare node ^22.13).
 2. Environment variable `API_ORIGIN` = the Cloud Run web service URL, no
-   trailing slash. Set it for Production and Preview.
+   trailing slash. Set it for Production and Preview. Optionally
+   `ORIGIN_SHARED_SECRET` (mark it secret), the same value uploaded by
+   `secrets.sh` and uncommented in `service-web.yaml`.
 3. Custom domain (e.g. `app.<school>.in`) on the Pages project; the DNS is a
    CNAME Cloudflare adds itself when the zone is on Cloudflare.
 4. `BASE_URL` on the Cloud Run web service must be the **Pages** URL, not the
@@ -405,7 +421,7 @@ In order. Each step is reversible until step 9.
    code change. Merge to `main`.
 2. **Accounts.** GCP project with billing, Neon project in `ap-southeast-1`
    (Singapore; Neon has no Mumbai region — ~40 ms from asia-south1, fine for
-   this workload), Upstash Redis in `ap-south-1` on a fixed plan, R2 bucket
+   this workload), R2 bucket
    with CORS and a public custom domain.
 3. **Neon roles and grants.** Run the SQL in (d) as the Neon owner. Create
    the `temperp` database owned by `temperp_owner`.
@@ -422,16 +438,19 @@ In order. Each step is reversible until step 9.
    R2_PUBLIC_HOST=files.myschool.in
    DATABASE_URL=postgres://temperp_app:…@…neon.tech/temperp?sslmode=require
    MIGRATE_DATABASE_URL=postgres://temperp_owner:…@…neon.tech/temperp?sslmode=require
-   REDIS_URL=rediss://default:…@…upstash.io:6379/0
    SESSION_SECRET=<copied from VPS>
    PASSWORD_PEPPER=<copied from VPS>
    CREDENTIAL_KEY=<copied from VPS>
    PAYMENT_GATEWAY_SECRET=<Razorpay key secret, or copy CREDENTIAL_KEY until wired>
    R2_ACCESS_KEY_ID=…
    R2_SECRET_ACCESS_KEY=…
+   CRON_KEY=<openssl rand -hex 32; Cloud Scheduler sends it as X-Cron-Key>
+   # optional; also set on the Pages project, then uncomment in service-web.yaml
+   ORIGIN_SHARED_SECRET=<openssl rand -hex 32>
    ```
 
-   Then `bash deploy/cloudrun/secrets.sh`.
+   Then `bash deploy/cloudrun/secrets.sh`. `CRON_KEY` is required: without
+   it the endpoint answers 401 to everyone and no reminder is ever sent.
 5. **Data.** `pg_dump -Fc` the VPS database at a quiet hour with the app in
    maintenance (stop `temperp-web`), `pg_restore --no-owner --role=temperp_owner`
    into Neon as `temperp_owner`. Verify `SELECT count(*) FROM institutions`
@@ -442,22 +461,32 @@ In order. Each step is reversible until step 9.
    institution-prefixed keys and rewrite the `files` rows. Upload the tiles
    archive, fonts and sprites to the public host and confirm a range request
    returns `206`.
-7. **First deploy.** `bash deploy/cloudrun/deploy.sh --dry-run`, read it,
-   then without the flag. It builds, migrates (`up`, `seed-permissions`),
-   replaces worker then web, and curls `/healthz` on the `run.app` URL.
+7. **First deploy.** `gcloud services enable run.googleapis.com
+   cloudbuild.googleapis.com artifactregistry.googleapis.com
+   secretmanager.googleapis.com cloudscheduler.googleapis.com` once, then
+   `bash deploy/cloudrun/deploy.sh --scheduler --dry-run`, read it, then
+   without `--dry-run`. It builds, migrates (`up`, `seed-permissions`) and
+   only then replaces the web service, curls `/healthz` on the `run.app`
+   URL, creates or updates the Cloud Scheduler job `temperp-cron` (every
+   minute, `X-Cron-Key`, 60 s deadline, no retries — the next minute is the
+   retry) and fires one tick, printing the counts it answered with. Add
+   `--with-worker` only if push notifications are wanted now (see (b)).
 8. **Smoke test on the `run.app` URL** with every demo role: sign in, load
    the catalog, open a bus on the live map (tiles from R2), upload a file
-   (presign to R2), enqueue something and watch the worker log consume it,
-   and wait one minute for a `TypeMessageDispatch` tick in the worker log to
-   prove the scheduler is alive.
+   (presign to R2), enqueue something and watch the web service's log
+   consume it (`queue workers running in-process` at boot, then the job),
+   and confirm in the admin queue screen or `cron_runs` that
+   `message_dispatch` has a `last_run` within the last minute.
 9. **DNS.** Map `BASE_URL`'s hostname to the web service. Point the VPS
    nginx at a 301 to the new host. Sessions do not survive the hostname
    change (the cookie is host-bound); tell the school to expect one sign-in.
 10. **Stop the VPS services** — `systemctl disable --now temperp-web
     temperp-worker` — but leave the box, its database and the nightly backup
     running for two weeks. A stopped worker is what makes the rollback below
-    clean: the queue is on Upstash now, and two workers on two Redises would
-    each run the schedule.
+    clean: the queue is rows in whichever database the worker points at, and
+    a VPS worker still running against the VPS database would keep ticking
+    the VPS's cron (`CRON_INPROCESS=1`) and sending yesterday's reminders from
+    the old copy.
 11. **After two weeks:** repoint `backup-db.sh` at Neon (or accept Neon PITR
     plus a weekly manual dump), then decommission the VPS database.
 
@@ -475,14 +504,17 @@ exactly as it was:
    same migrations. Files uploaded meanwhile are in R2 and stay reachable
    from the VPS as soon as its `/etc/temperp.env` gets the same R2
    credentials, which it should have anyway.
-4. Scale Cloud Run down rather than deleting it: `gcloud run services update
-   temperp-worker --min-instances 0` stops the always-on charge, and the
-   web service costs nothing at zero traffic. Delete when the second attempt
-   is scheduled.
+4. Scale Cloud Run down rather than deleting it: `gcloud scheduler jobs
+   pause temperp-cron --location asia-south1` stops the minute tick, after
+   which the web service costs nothing at zero traffic (and works no jobs —
+   the VPS worker is doing that again). If the optional worker was deployed,
+   `gcloud run services update temperp-worker --min-instances 0` stops its
+   always-on charge. Delete when the second attempt is scheduled.
 
 Rolling back a **single bad deploy** on Cloud Run, as opposed to the whole
 move, is the platform's strong suit: `gcloud run services update-traffic
-temperp-web --to-revisions PREVIOUS=100` in asia-south1, same for the worker.
+temperp-web --to-revisions PREVIOUS=100` in asia-south1 (same for the worker,
+if deployed).
 The image tag is the commit hash, so "which revision" has the same answer it
 does on the VPS (`make deploy-server COMMIT=…`). Migrations are the exception,
 as they are everywhere: `migrate down` exists, but a downgrade after data has

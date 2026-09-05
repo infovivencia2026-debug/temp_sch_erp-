@@ -18,7 +18,8 @@
 --   no second sender        queueWith and DispatchMessages stay the only road
 --                           out of the building, so the recipient allowlist
 --                           added in 00101 still guards every message.
---   no second scheduler     the asynq entry added in 3233b89 drains the queue;
+--   no second scheduler     the cron entry added in 3233b89 (under asynq then;
+--                           River's schedule now) drains the queue;
 --                           this adds one cron entry that fills it.
 --
 -- So what this migration adds is five columns describing an operating policy

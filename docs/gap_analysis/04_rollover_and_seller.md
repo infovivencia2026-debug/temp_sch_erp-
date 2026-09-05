@@ -362,7 +362,7 @@ login recency.
 
 `getInstanceHealth` (`platform_config.go:3603`) is more useful — failing integrations with a
 `failing_providers` array, failed messages and payments in 24h, open vendor tickets, today's
-attendance rows, sessions in 24h, plus Asynq queue depths — and it is candid about its limits: a
+attendance rows, sessions in 24h, plus queue depths (asynq's when this was written; River's now, in the same columns) — and it is candid about its limits: a
 `not_measured` field at `:3612` states that *"Per-endpoint error rates and response times are written
 to the structured log and are not stored, so they cannot be reported here."* No CPU/memory/disk, no DB
 or replication metrics, no uptime, no alerting.

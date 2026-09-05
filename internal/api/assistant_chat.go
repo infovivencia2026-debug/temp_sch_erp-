@@ -92,7 +92,8 @@ THE HISTORY, IN MEMORY AND DELIBERATELY FORGETFUL.
 
 	One process serves this app, so a map is enough. Two would each hold half the
 	conversations and a follow-up would land on the wrong one; that is the day
-	this moves to Redis, which the app already runs.
+	this moves into Postgres, which already holds everything else the app
+	shares between processes (there is no Redis).
 */
 type assistantMemory struct {
 	mu   sync.Mutex

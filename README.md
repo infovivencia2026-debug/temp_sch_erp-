@@ -10,9 +10,8 @@ nginx :443 ── TLS, static bundle, reverse proxy
   └── everything else                             →  SPA (/var/www/temperp)
 
 temperp-web      Go, chi, pgx — JSON API + server-rendered auth pages
-temperp-worker   Go, asynq    — queue consumer + cron scheduler
-PostgreSQL 16    85 tables, RLS on every tenant table
-Redis (db 1)     sessions cache + job queue, maxmemory-policy noeviction
+temperp-worker   Go, River    — queue consumer; ticks the cron schedule in-process (CRON_INPROCESS=1)
+PostgreSQL 16    85 tables, RLS on every tenant table; also the job queue (river_job) and cron_runs
 ```
 
 ## Where this came from
@@ -220,7 +219,7 @@ tests/        integration tests (need a database)
 
 ## Local development
 
-Needs Go 1.25+, Node 22+, PostgreSQL, Redis.
+Needs Go 1.25+, Node 22+, PostgreSQL. (No Redis: the job queue is in Postgres.)
 
 ```bash
 createdb -O erp_owner school_erp        # see .env.example for the roles
@@ -271,7 +270,8 @@ plenty) cuts a fresh archive from the daily Protomaps build of OpenStreetMap.
 other client still loads OpenFreeMap until the rollout widens.
 
 **Cloud Run.** The planned move off the VPS — Cloud Run in Mumbai, Neon
-Postgres, Upstash Redis, files and map tiles on R2 — is written up in
+Postgres, files and map tiles on R2; the plan once included Upstash Redis for
+the queue, which River made unnecessary — is written up in
 [docs/hosting-cloud-run.md](docs/hosting-cloud-run.md), with the manifests and
 scripts under [deploy/cloudrun/](deploy/cloudrun/). Nothing there is live yet;
 the doc lists what the code still needs (an always-on worker that listens on
@@ -290,11 +290,13 @@ the doc lists what the code still needs (an always-on worker that listens on
    `ALLOW_OFF_BRANCH=1` overrides it for a genuine emergency.
 3. **Migrations run before the binaries swap.** A failed migration leaves the
    old binaries serving: a failed deploy rather than an outage.
-4. **A deploy owns the queue it disturbs.** Restarting the worker orphans
-   whatever it was running — those tasks sit in asynq's `active` list with a
-   dead lease and are never picked up again. The deploy requeues them and then
-   reports queue health; a queue that was already unhealthy is printed loudly
-   but does not fail the run, because by then the new binaries are live.
+4. **A deploy owns the queue it disturbs.** Restarting the worker leaves
+   whatever it was running as `running` rows in `river_job` with no worker
+   behind them. River's own rescuer returns them to `available` after 45
+   minutes (`RescueStuckJobsAfter`); the deploy does not wait for that — it
+   requeues them at once and then reports queue health. A queue that was
+   already unhealthy is printed loudly but does not fail the run, because by
+   then the new binaries are live.
 
 ### Queue maintenance
 
@@ -302,7 +304,7 @@ The deploy repairs what it broke. Everything else is
 [scripts/queue-maint.sh](scripts/queue-maint.sh), run over ssh:
 
 ```bash
-make queue-status              # depths per queue: pending/active/scheduled/retry/archived
+make queue-status              # depths per queue: pending/active/scheduled/retry/archived (River states, in the SPA's names)
 make queue-doctor              # health verdict; non-zero exit if unhealthy
 make queue-failed N=50         # archived tasks and the errors that killed them
 make queue-retry Q=bulk        # archived + retrying -> pending
@@ -310,8 +312,9 @@ make queue-unstick             # tasks orphaned by a worker restart -> pending
 make queue-restart             # restart the worker, then report
 ```
 
-Reads are safe; anything that mutates needs `--yes`. `retry` is preferred over
-`purge` — purge deletes payloads that are the only copy of the job.
+Reads are safe; anything that mutates needs `--yes`. Everything is SQL against
+`river_job` through `psql` with the app's `DATABASE_URL`. `retry` is preferred
+over `purge` — purge deletes the row, which holds the only copy of the job.
 
 `make deploy FQDN=erp.yourschool.com SERVICE=yourschool` retargets it.
 Everything is namespaced by `$SERVICE` — port, database, roles, unit names,

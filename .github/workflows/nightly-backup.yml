@@ -1,0 +1,90 @@
+# Nightly pg_dump of the Neon database to Cloudflare R2 (docs/arch_lowcost.txt,
+# Stage 6), run by GitHub Actions so it does not depend on any one box.
+#
+# DISABLED until the repository is on GitHub and the secrets below exist: this
+# repo had no .github/ directory when the workflow was written, so `if: false`
+# keeps it inert. To turn it on, delete the `if: ${{ false }}` line and add
+# these repository secrets (Settings -> Secrets and variables -> Actions):
+#
+#   DATABASE_URL          Neon connection string of the database OWNER
+#                         (postgres://...@ep-xxx.neon.tech/temperp?sslmode=require);
+#                         the owner has BYPASSRLS via neon_superuser, which the
+#                         dump needs -- the app role cannot dump under FORCE RLS
+#   R2_BUCKET             e.g. temperp
+#   R2_ACCOUNT_ID         Cloudflare account id (or set R2_ENDPOINT instead)
+#   R2_ACCESS_KEY_ID      an R2 API token with Object Read & Write on the bucket
+#   R2_SECRET_ACCESS_KEY
+#   R2_PREFIX             optional; objects land under <prefix>/backups/<db>/
+#   RESTORE_URL           optional; a Neon *branch* used as the scratch database
+#                         for the restore check (its schema public is dropped)
+#
+# 20:00 UTC is 01:30 IST. Actions cron is UTC only and may start late by some
+# minutes under load; it is a backup, not a bell.
+name: nightly-backup
+
+on:
+  schedule:
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: "Only check that last night's backup exists in R2"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: ${{ false }}   # remove this line to enable; see the header
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner's own postgresql-client is older than Neon's server and
+      # pg_dump refuses a newer server. Install the PGDG client that matches;
+      # backup-check.sh still compares the two before dumping.
+      - name: Install pg_dump
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-${PG_MAJOR}
+          pg_dump --version
+        env:
+          PG_MAJOR: "17"   # match `SHOW server_version` on Neon
+
+      - name: Back up to R2
+        if: ${{ !inputs.verify_only }}
+        run: bash scripts/backup-check.sh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PREFIX: ${{ secrets.R2_PREFIX }}
+          RESTORE_URL: ${{ secrets.RESTORE_URL }}
+          RESTORE_CHECK_RESET: "1"
+          RETAIN_DAYS: "30"
+
+      - name: Verify last night's backup exists
+        if: ${{ inputs.verify_only }}
+        run: bash scripts/backup-check.sh --verify-only
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PREFIX: ${{ secrets.R2_PREFIX }}

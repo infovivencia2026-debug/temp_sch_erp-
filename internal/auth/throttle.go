@@ -9,8 +9,9 @@ import (
 
 // Throttle rate-limits failed sign-ins per identifier.
 //
-// In memory rather than in Redis on purpose: this is one web process behind
-// nginx, and the failure mode of a shared store — an outage locking everyone
+// In memory rather than in a shared store on purpose (the app runs no Redis;
+// the alternative would be a table): this is one web process behind nginx,
+// and the failure mode of a shared store — an outage locking everyone
 // out — is worse than the failure mode of a local one, which is that a
 // restart clears the counters. Successful logins reset immediately, so a
 // legitimate user who mistypes twice is never delayed.

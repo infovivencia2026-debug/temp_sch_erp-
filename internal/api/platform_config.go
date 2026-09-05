@@ -3591,8 +3591,8 @@ type platHealthRow struct {
 
 type platHealthResponse struct {
 	Items []platHealthRow `json:"items"`
-	// Queue depth is per installation, not per school: one Redis serves them
-	// all and a job carries no tenant in its name.
+	// Queue depth is per installation, not per school: one river_job table
+	// serves them all and a job carries no tenant in its name.
 	Queues map[string]any `json:"queues"`
 	// Request error rates and slow endpoints are not persisted anywhere — they
 	// go to the structured log and nothing reads them back. Said plainly so
@@ -3719,11 +3719,13 @@ func (s *Server) getInstanceHealth(w http.ResponseWriter, r *http.Request) {
 				   finished.
 
 				   Archived is the one that matters most and was the one
-				   missing: an archived job is a job that gave up. Under asynq
-				   "failed" was a daily counter that reset at midnight while
-				   twenty-one dead message:send jobs sat archived all day; now
-				   failed is the archived count itself, held for a week, so
-				   the two columns can no longer disagree. */
+				   missing: an archived job is a job that gave up. Under the
+				   old queue (asynq, before River) "failed" was a daily
+				   counter that reset at midnight while twenty-one dead
+				   message:send jobs sat archived all day; now failed is the
+				   archived count itself -- River's discarded and cancelled
+				   jobs, held for a week -- so the two columns can no longer
+				   disagree. */
 				out.Queues[name] = map[string]any{
 					"size": q.Size, "pending": q.Pending, "active": q.Active,
 					"scheduled": q.Scheduled, "retry": q.Retry,

@@ -8,8 +8,11 @@ and the pipeline that gets there.
 WHAT THE SYSTEM IS
 ------------------
   Front end   React 18 + Vite SPA (web/), 5 MB JS, service worker, one origin
-  API         Go 1.25, chi, pgx; server-rendered /login /logout /buy /signup
-  Jobs/cron   asynq on Redis today (queue only; sessions are in Postgres)
+  API         Go 1.26, chi, pgx; server-rendered /login /logout /buy /signup
+  Jobs/cron   River (github.com/riverqueue/river): jobs are rows in river_job;
+              cron is GET /api/v1/cron (X-Cron-Key) with last-run memory in
+              cron_runs, ticked in-process on the VPS (CRON_INPROCESS=1).
+              Was asynq on Redis until a45d9ca; Redis is no longer used
   Database    PostgreSQL 16, 85 tables, RLS on every tenant table, two roles
   Files       FILE_STORE_DIR on local disk today; R2 presign exists, unused
   Static      APKs (/apps, APK_DIR on disk), map tiles (/tiles, 527 MB PMTiles)
@@ -50,7 +53,8 @@ COST, HONESTLY
 SURVEY FINDINGS (3 read-only agent surveys, 2026-09-05)
 -------------------------------------------------------
 Fits as is
-  - No Redis use outside the asynq queue; sessions, locks, idempotency in SQL
+  - (at survey time) no Redis use outside the asynq queue; sessions, locks,
+    idempotency already in SQL -- which is what made Stage 3 a queue swap only
   - No SSE/WebSocket/streaming; everything is short request/response
   - Cold start = one Postgres ping; no migrations at boot (cmd/migrate is separate)
   - No PDF generation; CSV exports stream; heavy queue handlers are stubs
@@ -114,35 +118,95 @@ Stage 2  Get off the disk                            DONE 2026-09-05, live on th
   needs: R2 public domain
   gate: upload->download round trip via R2 on the VPS; old files open; maps draw
 
-Stage 3  Queue without Redis                         CODE WRITTEN 2026-09-05, uncommitted; being exercised against Postgres 18 on a LAN box before it goes anywhere
+Stage 3  Queue without Redis                         DONE in code (a45d9ca, 2026-09-05); Redis still to be switched off on the VPS
   Go: River replaces asynq (same task types/handlers)
   Go: GET /api/v1/cron runs due schedules; job status reads River's table
   Go: 24 h job-status contract kept; admin queue-depth screen on River
   VPS: systemd timer hits /api/v1/cron every minute (stand-in for Scheduler)
-  Redis removed from the VPS
+  Redis removed from the VPS (pending: the binaries ignore REDIS_URL, so it can go any time)
   gate: every job type observed running; nightly cron fires; Redis off, nothing breaks
 
-Stage 4  Stand up the new home (parallel with 3)     ~0.5 day
+Stage 4  Stand up the new home (parallel with 3)     ARTEFACTS READY 2026-09-05; nothing deployed (no GCP/Neon/Pages accounts yet)
   you: GCP project + billing + gcloud login; Neon free project; Pages project; hostname
-  me: secrets.sh -> Secret Manager; deploy.sh -> migrate job + Cloud Run web
-  Cloud Scheduler -> /api/v1/cron every minute
-  Pages: API_ORIGIN = Cloud Run URL; preview live against a Neon branch
-  maxScale 1 until limiters are shared (or Cloudflare WAF rule)
+  me: secrets.sh -> Secret Manager (CRON_KEY required, no REDIS_URL);
+      deploy.sh -> migrate job, then Cloud Run web, then --scheduler
+  One service: temperp-web with QUEUE_INPROCESS=1 works the River queue itself;
+    minScale 0, maxScale 3, cpu-throttling on. No worker service by default --
+    a Cloud Run worker only works jobs if always-on (~Rs 4,000/mo), so
+    service-worker.yaml is opt-in (deploy.sh --with-worker) and today only
+    buys FCM push (RunPushPump lives in cmd/worker, not cmd/web)
+  Cloud Scheduler -> /api/v1/cron every minute on the run.app URL with
+    X-Cron-Key (deploy.sh --scheduler creates/updates job temperp-cron);
+    the tick is also what keeps an instance looking at the queue overnight
+  Pages: API_ORIGIN = Cloud Run URL; /api/v1/cron 404s at the edge; optional
+    ORIGIN_SHARED_SECRET on both sides so CF-Connecting-IP is believed only
+    behind our Function (httpx.RealIP); NODE_VERSION=22; preview against a Neon branch
+  Limiters shared via RATE_LIMIT_STORE=postgres, so maxScale > 1 is safe
+  Dockerfile: golang:1.26 (matches go.mod), node:22; one image -> /app/web,
+    /app/worker, /app/migrate; validated by running its commands on thinky
   gate: sign in on the Pages preview against copied data; bus map, downloads, SMS outbox work
 
 Stage 5  Cut over                                    ~0.5 day, short read-only window
   freeze writes on the VPS (banner); pg_dump VPS -> Neon; verify counts
   DNS: new hostname -> Pages
   VPS nginx: proxy old sslip.io hostname -> Pages origin
+    scripts/proxy-old-host.sh https://<new host>      (root, on the VPS; --dry-run first)
+    - rewrites /etc/nginx/sites-available/temperp so every path on the old
+      name is proxied to the new origin, Host rewritten, bodies streamed,
+      300 s timeouts, no caching of /api or /iclock; TLS cert, renewal and
+      the acme webroot are untouched; the local-upstream site is kept as
+      /etc/nginx/sites-available/temperp.local-upstream
+    - rollback (one command, also printed by the script):
+      cp /etc/nginx/sites-available/temperp.local-upstream \
+         /etc/nginx/sites-available/temperp && nginx -t && systemctl reload nginx
+    - client IP: Cloudflare sees the VPS connect, so CF-Connecting-IP (which
+      RealIP trusts) is 187.127.178.100 for every old-host request; the true
+      device is the first XFF hop and is deliberately ignored. IP rate
+      limiters share one bucket for old-host devices during the overlap.
+    - sessions do NOT carry across hostnames: cookies are host-only (no
+      Domain), so a sign-in on the old name is invisible on the new one and
+      the user signs in again. Devices use bearer tokens and are unaffected.
+    - do not re-run scripts/deploy.sh on the VPS afterwards; it rewrites the
+      site file with the local upstream (re-run proxy-old-host.sh if it must)
   publish assetlinks.json and apple-app-site-association on the new host
   unfreeze; watch /healthz, error rate, job runs for 48 h
-  rollback: DNS back to the VPS; nothing there was changed
+  rollback: DNS back to the VPS; proxy-old-host rollback above; nothing else there was changed
 
 Stage 6  Aftercare                                   following weeks
   rebuild the 4 apps with the new host; re-pair SMS handsets and bus trackers
   push notifications (APNs/FCM) -> remove the remaining polling
   Neon Launch tier the day fee data is live (PITR)
-  nightly pg_dump -> R2; free uptime monitor on /healthz
+  nightly pg_dump -> R2:
+    VPS now:   scripts/backup-db.sh, installed as a systemd timer (01:30 IST)
+               by scripts/install-backup-timer.sh; reads /etc/temperp.env, so
+               the only setup is filling in the R2_* block deploy.sh left there
+               (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)
+               and `apt install rclone` (or awscli). Objects land at
+               backups/<db>/<YYYY-MM-DD>T<HHMM>.dump, kept RETAIN_DAYS=30.
+    Neon later: scripts/backup-check.sh from GitHub Actions
+               (.github/workflows/nightly-backup.yml, shipped with `if: false`;
+               enable it once the repo is on GitHub and the secrets exist) or
+               from any laptop with pg_dump + aws cli. Point it at the Neon
+               OWNER url (BYPASSRLS); the app role cannot dump under FORCE RLS.
+    monthly:   `backup-db.sh --restore-check` with RESTORE_URL = a scratch db
+               (Neon branch); it restores and compares table counts.
+  free uptime monitor on /healthz:
+    URL        https://temperp.187-127-178-100.sslip.io/healthz today, then
+               https://<new hostname>/healthz after Stage 5. GET, expect HTTP
+               200 and body {"status":"ok"}; a database fault returns 503 with
+               {"status":"degraded",...}, so a keyword check on `"ok"` catches
+               both a dead box and a dead database. Check every 5 min; alert
+               after 2 consecutive failures; alert email infovivencia2026@gmail.com.
+    UptimeRobot free tier: 50 monitors, 5-minute interval, e-mail alerts
+               (unverified for 2026; the tier has been stable for years).
+    Better Stack (Uptime) free tier: 10 monitors, 3-minute checks, e-mail
+               alerts, status page (unverified for 2026).
+    Cloudflare Health Checks: NO -- standalone health checks require the paid
+               Load Balancing add-on, so not free on this account.
+    Google Cloud Monitoring uptime checks: an option once on Cloud Run
+               (1M check executions/month free, unverified for 2026), but it
+               alerts inside GCP's console/e-mail, which nobody reads; use it
+               as the second monitor, not the first.
   retire the old VPS after 30 days with no hits on the old hostname
 
 EFFORT

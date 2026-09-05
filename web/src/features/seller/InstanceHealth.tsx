@@ -114,8 +114,9 @@ export default function InstanceHealth() {
           />
           {/* WAITING, NOT `size`.
 
-              asynq's Size is pending + active + scheduled + retry +
-              aggregating + ARCHIVED, so this tile read "Queued jobs 3,852" on
+              Size is pending + active + scheduled + retry + ARCHIVED (the
+              definition the old asynq queue had, kept by River's Inspector),
+              so this tile read "Queued jobs 3,852" on
               a platform where pending, active and retry were all zero. Nothing
               was queued; most of that number had already finished or given up.
               A vendor seeing it has no way to tell which. */}
@@ -191,7 +192,7 @@ export default function InstanceHealth() {
         <Card>
           <CardHeader
             title="Job queues"
-            description="One Redis serves every school, so queue depth is per installation and not per tenant"
+            description="One river_job table serves every school, so queue depth is per installation and not per tenant"
           />
           {queueError ? (
             <div className="p-5">
@@ -204,13 +205,16 @@ export default function InstanceHealth() {
             /* GAVE UP replaces Size, and Failed keeps its name but not its
                place at the end.
 
-               Size is asynq's total and includes finished and abandoned work,
-               so a column of 3,811 beside four zeroes told an operator
-               nothing. What they need is the two facts that mean action:
-               how much is still going to run, and how much has stopped
-               trying. `failed` stays because it is real, but it is asynq's
-               DAILY counter and resets — it read 0 while twenty-one jobs sat
-               archived, which is why archived is now its own column. */
+               Size is the whole backlog and includes abandoned work, so a
+               column of 3,811 beside four zeroes told an operator nothing.
+               What they need is the two facts that mean action: how much is
+               still going to run, and how much has stopped trying. `failed`
+               stays because it is real; under the old asynq queue it was a
+               DAILY counter that reset — it read 0 while twenty-one jobs sat
+               archived, which is why archived became its own column. Under
+               River the server sets failed to the archived count (discarded
+               + cancelled jobs within their week of retention), so the two
+               agree. */
             <Table
               head={['Queue', 'Waiting', 'Pending', 'Active', 'Scheduled', 'Retrying', 'Gave up', 'Failed today', 'State']}
               empty={!queues.length}

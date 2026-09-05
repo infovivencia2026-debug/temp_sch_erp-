@@ -1,9 +1,9 @@
 # /etc/systemd/system/school-erp-web.service
 [Unit]
 Description=School ERP web server (Go)
-After=network-online.target postgresql.service redis-server.service
+After=network-online.target postgresql.service
 Wants=network-online.target
-Requires=postgresql.service redis-server.service
+Requires=postgresql.service
 
 [Service]
 Type=simple
@@ -45,9 +45,9 @@ WantedBy=multi-user.target
 # /etc/systemd/system/school-erp-worker.service
 [Unit]
 Description=School ERP background worker (Go)
-After=network-online.target postgresql.service redis-server.service
+After=network-online.target postgresql.service
 Wants=network-online.target
-Requires=postgresql.service redis-server.service
+Requires=postgresql.service
 
 [Service]
 Type=simple

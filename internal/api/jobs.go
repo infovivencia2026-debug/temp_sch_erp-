@@ -144,8 +144,8 @@ func (s *Server) queueStats(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	// QueueStats already carries every column this answered with under
-	// asynq, in the same names, so the SPA's table did not change.
+	// QueueStats carries every column this answered with before the move to
+	// River, in the same names, so the SPA's table did not change.
 	httpx.JSON(w, http.StatusOK, map[string]any{"queues": stats})
 }
 
