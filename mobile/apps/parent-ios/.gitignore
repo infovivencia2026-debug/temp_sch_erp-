@@ -1,0 +1,18 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Signing material and account details never go in the tree; see
+# Config/Portal.xcconfig for where DEVELOPMENT_TEAM is meant to be set.
+*.mobileprovision
+*.p12
+*.cer
+Config/Local.xcconfig
+
+# OS
+.DS_Store

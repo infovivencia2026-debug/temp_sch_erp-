@@ -1,0 +1,24 @@
+// ONE DEPLOYMENT, ONE ADDRESS, COMPILED IN.
+//
+// The Android shell reads portalUrl from a Gradle property and defaults to the
+// live host; this is the same setting for Xcode. Change it here and nowhere
+// else: Info.plist, the universal-link entitlement and the Swift code all read
+// PORTAL_URL / PORTAL_HOST from this file, so the WebView, the link filter and
+// the deep-link claim cannot drift apart.
+//
+// The `$()` in the middle of the scheme is not a typo. xcconfig treats `//`
+// as the start of a comment even inside a value, and an empty variable
+// reference is the documented way to break the pair without changing the
+// string that comes out.
+PORTAL_HOST = temperp.187-127-178-100.sslip.io
+PORTAL_URL = https:/$()/$(PORTAL_HOST)
+
+PRODUCT_BUNDLE_IDENTIFIER = com.schoolerp.parent
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+// Left empty on purpose. Set DEVELOPMENT_TEAM in Xcode (Signing &
+// Capabilities) or on the command line; a team id is an account detail, not
+// source. The Android side keeps its keystore out of the tree for the same
+// reason.
+DEVELOPMENT_TEAM =

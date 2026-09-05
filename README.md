@@ -166,6 +166,8 @@ internal/
   templates   embedded server-rendered pages
 migrations/   goose SQL, embedded into cmd/migrate
 web/          Vite + React 18 + Tailwind SPA
+mobile/apps/  parent (Android shell), parent-ios (SwiftUI shell),
+              bus-tracker, sms-gateway
 scripts/      deploy.sh (runs on the server)
 tests/        integration tests (need a database)
 ```
@@ -213,6 +215,14 @@ make deploy-server BRANCH=hotfix      # a different branch
 make logs                             # tail both units
 make status                           # unit status + https health probe
 ```
+
+**Map tiles.** The bus map's street tiles are self-hosted: one PMTiles
+archive of Andhra Pradesh and Telangana under `/var/www/temperp-tiles/`,
+served by nginx at `/tiles/` with range requests, plus the Protomaps fonts and
+sprites beside it. `scripts/refresh-tiles.sh` (run on the server, monthly is
+plenty) cuts a fresh archive from the daily Protomaps build of OpenStreetMap.
+`web/src/components/FleetMap.tsx` uses it inside the iPhone app first; every
+other client still loads OpenFreeMap until the rollout widens.
 
 **Deploy rules**
 

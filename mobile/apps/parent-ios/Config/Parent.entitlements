@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- A LINK IN AN SMS THAT LANDS ON THE RIGHT SCREEN.
+
+	     The iOS half of what AndroidManifest.xml's autoVerify intent filter
+	     does. iOS opens the app for links on this host only once the server
+	     serves /.well-known/apple-app-site-association naming this bundle and
+	     the team id; until then the link goes to Safari, which handles it
+	     correctly today. The paths the app accepts are checked again in
+	     DeepLink.swift — the entitlement claims the host, the code keeps the
+	     narrow slice (/, /account, /go/) the Android manifest claims. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:$(PORTAL_HOST)</string>
+	</array>
+</dict>
+</plist>
