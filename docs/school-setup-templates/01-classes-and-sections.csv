@@ -1,7 +1,7 @@
-Class,Sections,Capacity
-Pre Nursery,(none),30
-Nursery,A,30
-Jr KG,A,30
-Sr KG,A,30
-Class 1,"A, B",40
-Class 2,"A, B",40
+Class,Sections,Capacity,Strength
+Pre Nursery,(none),30,28
+Nursery,A,30,28
+Jr KG,A,30,28
+Sr KG,A,30,28
+Class 1,"A, B",40,38
+Class 2,"A, B",40,38

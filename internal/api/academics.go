@@ -34,6 +34,14 @@ type section struct {
 	Room           *string `json:"room,omitempty"`
 	ClassTeacher   *string `json:"class_teacher,omitempty"`
 	Enrolled       int     `json:"enrolled"`
+	/* What the school said this section holds, at import.
+
+	   Never the roll -- Enrolled above is the roll, counted from the children
+	   themselves. This is the figure the setup sheet declared, kept so the two
+	   can be compared: a section where the school wrote 42 and 39 arrived is
+	   three children short, and without this it looks finished. Null where
+	   nobody has declared anything, which is most schools most of the time. */
+	StatedStrength *int `json:"stated_strength,omitempty"`
 }
 
 type subject struct {
@@ -142,7 +150,7 @@ func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
 
 	items, err := collect(s, r, `
 		SELECT sec.id::text, sec.class_id::text, c.name, sec.academic_year_id::text,
-		       sec.name, sec.capacity, sec.room, u.full_name,
+		       sec.name, sec.capacity, sec.room, u.full_name, sec.stated_strength,
 		       (SELECT count(*) FROM enrollments e
 		         WHERE e.section_id = sec.id AND e.status = 'active')
 		  FROM sections sec
@@ -154,7 +162,7 @@ func (s *Server) listSections(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (section, error) {
 			var v section
 			return v, rows.Scan(&v.ID, &v.ClassID, &v.ClassName, &v.AcademicYearID,
-				&v.Name, &v.Capacity, &v.Room, &v.ClassTeacher, &v.Enrolled)
+				&v.Name, &v.Capacity, &v.Room, &v.ClassTeacher, &v.StatedStrength, &v.Enrolled)
 		})
 	respond(w, r, items, err)
 }

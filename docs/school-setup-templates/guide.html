@@ -293,10 +293,10 @@
       <p class="lede">One row per class, with its sections written beside it. This
         used to be two sheets and the second only worked after the first had
         landed &mdash; so doing them the wrong way round rejected everything.</p>
-      <div class="header-strip"><pre><span class="req">Class</span>,Sections,Capacity
-<span class="ex">Pre Nursery,(none),30
-Nursery,A,30
-Class 1,"A, B",40</span></pre></div>
+      <div class="header-strip"><pre><span class="req">Class</span>,Sections,Capacity,Strength
+<span class="ex">Pre Nursery,(none),30,28
+Nursery,A,30,28
+Class 1,"A, B",40,38</span></pre></div>
       <dl class="cols">
         <dt>Class</dt>
         <dd>The class as the school says it. The year is read from it, so
@@ -310,6 +310,14 @@ Class 1,"A, B",40</span></pre></div>
         <dt>Capacity</dt>
         <dd>Seats per section. Defaults to 40. A section with no capacity can
             never be full, so admissions can never warn you.</dd>
+        <dt>Strength</dt>
+        <dd>How many children are on the roll today &mdash; a different question
+            from how many desks there are. It is <em>not</em> used as the roll;
+            the roll is counted from the children themselves. It is kept so the
+            two can be compared once the students are imported, and a section
+            where you said 42 and 39 arrived says so instead of looking
+            finished. Blank if you have not counted. Zero is a real answer for a
+            section opened for next year.</dd>
       </dl>
     </article>
 

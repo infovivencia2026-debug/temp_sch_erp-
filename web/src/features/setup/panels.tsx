@@ -3479,6 +3479,28 @@ function EditableSection({ section }: { section: Section }) {
         >
           {section.class_name}-{section.name} · {section.enrolled}/{section.capacity}
         </button>
+        {/* THE ROLL THE SCHOOL SAID, WHERE IT DISAGREES WITH THE ONE WE HAVE.
+
+            The setup sheet asks for strength -- how many children are on the
+            roll -- and that figure is never used as the roll: the roll is
+            counted from the children. It is kept so this row can say when the
+            two differ, which is the first thing anybody checks after moving a
+            school across. A section that is three children short otherwise
+            looks exactly like a section that is finished.
+
+            Silent when they agree, and silent when nothing was declared. A
+            number that is right needs no annotation. */}
+        {section.stated_strength != null
+          && section.stated_strength !== section.enrolled && (
+          <span
+            className="text-[11px] text-amber-700"
+            title={`The setup sheet said ${section.stated_strength} on the roll here`}
+          >
+            {section.enrolled < section.stated_strength
+              ? `${section.stated_strength - section.enrolled} short of the ${section.stated_strength} stated`
+              : `${section.enrolled - section.stated_strength} more than the ${section.stated_strength} stated`}
+          </span>
+        )}
         {/* Only while it is empty. A section with children in it is refused by
             the server anyway, and a cross that always refuses is worse than no
             cross -- it reads as the product being broken rather than the

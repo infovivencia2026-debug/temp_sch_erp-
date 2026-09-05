@@ -373,9 +373,9 @@ var importSpecs = map[string]importSpec{
 		   Both are still read where a file happens to carry them, so a sheet
 		   written against the old template still imports. They are simply not
 		   asked for. */
-		Columns:  []string{"name", "sections", "capacity"},
+		Columns:  []string{"name", "sections", "capacity", "strength"},
 		Required: []string{"name"},
-		Sample:   []string{"Grade 6", "A, B", "40"},
+		Sample:   []string{"Grade 6", "A, B", "40", "38"},
 		Check: func(row map[string]string) error {
 			/* Capacity, checked here so a bad one fails during the dry run
 			   rather than at the commit. */
@@ -383,6 +383,21 @@ var importSpecs = map[string]importSpec{
 				n, err := strconv.Atoi(strings.ReplaceAll(cap, ",", ""))
 				if err != nil || n <= 0 {
 					return errors.New("capacity must be a whole number of seats above zero")
+				}
+			}
+			/* Strength is how many children are on the roll today, which is a
+			   different question from how many desks there are. Zero is a real
+			   answer -- a section opened for next year has none -- so it is
+			   allowed where capacity is not. */
+			if st := strings.TrimSpace(row["strength"]); st != "" {
+				n, err := strconv.Atoi(strings.ReplaceAll(st, ",", ""))
+				if err != nil || n < 0 {
+					return errors.New("strength must be a whole number of children, or blank")
+				}
+				if cap := strings.TrimSpace(row["capacity"]); cap != "" {
+					if c, cerr := strconv.Atoi(strings.ReplaceAll(cap, ",", "")); cerr == nil && n > c {
+						return errors.New("more children than seats: strength is above capacity")
+					}
 				}
 			}
 			// One resolver for the level, shared with the writer below, so the
@@ -2546,6 +2561,21 @@ func (c *importCtx) writeSections(row map[string]string, classID uuid.UUID) erro
 			capacity = n
 		}
 	}
+	/* The roll the school says this section has.
+
+	   A pointer, so "not stated" and "stated as zero" stay different answers:
+	   a section opened for next year genuinely has none, and blanking the
+	   column on a re-upload should not record that as a claim of nought.
+
+	   The strength on the class row applies to every section named on it,
+	   which is right for the common sheet -- one line per class with its
+	   sections listed -- and is why it is compared, never trusted. */
+	var strength *int
+	if v := strings.TrimSpace(strings.ReplaceAll(row["strength"], ",", "")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			strength = &n
+		}
+	}
 
 	var yearID uuid.UUID
 	if err := c.tx.QueryRow(c.r.Context(), `
@@ -2565,14 +2595,19 @@ func (c *importCtx) writeSections(row map[string]string, classID uuid.UUID) erro
 		var fresh bool
 		if err := c.tx.QueryRow(c.r.Context(), `
 			INSERT INTO sections (institution_id, campus_id, class_id,
-			                      academic_year_id, name, capacity)
-			VALUES ($1,$2,$3,$4,$5,$6)
+			                      academic_year_id, name, capacity, stated_strength)
+			VALUES ($1,$2,$3,$4,$5,$6,$7)
 			-- A re-upload corrects the capacity rather than failing, which is
-			-- what somebody expects from editing a row they can see.
+			-- what somebody expects from editing a row they can see. The
+			-- stated strength is only overwritten when the sheet carries one,
+			-- so a later upload that leaves the column out does not erase what
+			-- the school declared the first time.
 			ON CONFLICT (class_id, academic_year_id, name)
-			DO UPDATE SET capacity = EXCLUDED.capacity
+			DO UPDATE SET capacity = EXCLUDED.capacity,
+			              stated_strength = COALESCE(EXCLUDED.stated_strength,
+			                                         sections.stated_strength)
 			RETURNING id, xmax = 0`,
-			c.inst, c.campus, classID, yearID, name, capacity).Scan(&secID, &fresh); err != nil {
+			c.inst, c.campus, classID, yearID, name, capacity, strength).Scan(&secID, &fresh); err != nil {
 			return err
 		}
 		c.noteCreated("sections", secID, fresh)

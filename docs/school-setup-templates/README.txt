@@ -29,12 +29,20 @@ Everything else can go in any order.
 THE SHEETS
 ----------
 
-01-classes-and-sections.csv        Class, Sections, Capacity
+01-classes-and-sections.csv        Class, Sections, Capacity, Strength
     Only the class is required. Sections are written as you say them -- "A, B"
     or "Rose, Newton". "(none)" is read as empty, because that is what an
     export writes for a class with none. Capacity is seats per section and
     defaults to 40; a section with no capacity can never be full, so the
     admissions screen can never warn you.
+
+    Strength is how many children are on the roll today -- a different
+    question from how many desks there are. It is not used as the roll: the
+    roll is counted from the children themselves. It is held so that after
+    the students are imported the two can be compared, and a section where
+    the school said 42 and 39 arrived says so instead of looking finished.
+    Leave it blank if you have not counted. Zero is a real answer for a
+    section opened for next year.
 
 02-staff.csv                       Staff Code, Staff Name, Mobile No, Email,
                                    Role / Designation, Department,

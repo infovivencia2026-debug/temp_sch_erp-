@@ -221,6 +221,10 @@ export interface Klass { id: string; name: string; level: number; stream?: strin
 export interface Section {
   id: string; class_id: string; class_name: string; academic_year_id: string
   name: string; capacity: number; room?: string; class_teacher?: string; enrolled: number
+  /* What the setup sheet declared this section holds. Never the roll --
+     `enrolled` is the roll. Kept so the two can be compared after an
+     import, and absent where nobody declared anything. */
+  stated_strength?: number
 }
 export interface Subject { id: string; name: string; code: string; is_scholastic: boolean }
 
