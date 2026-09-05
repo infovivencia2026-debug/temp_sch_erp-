@@ -8,5 +8,4 @@
          rather than as part of it. -->
     <color name="banner_bg">#2E3742</color>
     <color name="banner_text">#FFFFFF</color>
-    <color name="splash_mark">#F7F8FA</color>
 </resources>

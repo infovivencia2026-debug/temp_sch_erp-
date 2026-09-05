@@ -15,9 +15,8 @@
          icon, and a school rebranding the portal must not silently restyle
          the home screen. -->
     <color name="launcher_background">#0B0C0E</color>
-    <!-- The mark on the in-app loading screen. The launcher foreground is
-         white line art drawn for its own dark ground, so it is invisible on
-         the light page colour and has to be tinted to the ink of whichever
-         theme is up. -->
-    <color name="splash_mark">#0B0C0E</color>
+    <!-- The mark on the in-app loading screen used to be tinted from a
+         splash_mark colour here. It is now inked from the luminance of the
+         ground actually being drawn (SystemBars.ink), because that ground is
+         the page's last reported colour and may not be this theme's. -->
 </resources>

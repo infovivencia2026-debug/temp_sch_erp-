@@ -47,7 +47,6 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import android.window.OnBackInvokedDispatcher
 
 /* A SHELL AROUND THE SCHOOL'S OWN SITE, AND NOTHING MORE.
 
@@ -271,6 +270,10 @@ class MainActivity : Activity() {
         )
         allowCutout()
         setContentView(root)
+        /* SHELL-FEEL: the frame takes the colour the page last reported, and
+           follows every later report. See SystemBars for the whole story. */
+        SystemBars.apply(this, root, web, pageColor())
+        Shell.onPageColor = { css -> runOnUiThread { applyPageColor(css) } }
         registerBack()
         startPush()
         watchNetwork()
@@ -420,6 +423,18 @@ class MainActivity : Activity() {
         @android.webkit.JavascriptInterface
         fun pushToken(): String? = prefs.getString("push_token", null)
 
+        /* SHELL-FEEL: the page reports its ground colour so the status and
+           gesture bars can match it (SystemBars). Still a one-way channel:
+           a CSS colour string in, nothing out. Called by the script the
+           shell injects, so a bundle that has never heard of this method
+           still gets the right bars, and a browser has no bridge to call. */
+        @Volatile var onPageColor: ((String) -> Unit)? = null
+
+        @android.webkit.JavascriptInterface
+        fun setPageColor(css: String) {
+            onPageColor?.invoke(css)
+        }
+
         /* THE PHONE ANSWERS A PRESS, FROM THE PHONE.
 
            The site asks for a tick under the thumb through navigator.vibrate,
@@ -468,8 +483,15 @@ class MainActivity : Activity() {
 
     private val shell = Shell
 
+    /* SHELL-FEEL: back is claimed only while the page has history; see
+       BackNav for why the system must be left to animate the exit itself. */
+    private val backNav = BackNav(this) { back() }
+
     private fun buildWebView(): WebView {
-        val view = WebView(this)
+        /* SHELL-FEEL: ShellWebView is a WebView with the browser habits taken
+           out (scrollbar, overscroll, long-press selection, unbounded text
+           scale). Everything below is unchanged by the subclass. */
+        val view = ShellWebView(this)
         with(view.settings) {
             // The site is a React app. Without this it is a blank rectangle.
             javaScriptEnabled = true
@@ -520,7 +542,6 @@ class MainActivity : Activity() {
         }
         view.setBackgroundColor(pageColor())
         applyDarkMode(view)
-        suppressPointlessSelection(view)
 
         /* The one thing the page is allowed to tell the app.
          *
@@ -534,10 +555,6 @@ class MainActivity : Activity() {
          * Same-origin is enforced elsewhere — shouldOverrideUrlLoading sends
          * every foreign URL to a real browser — so the only code that can reach
          * this is the school's own bundle. */
-        /* The stretch-and-glow at the top edge is drawn by PullToRefresh's
-           indicator already; the WebView's own on top of it was two answers to
-           one gesture. */
-        view.overScrollMode = View.OVER_SCROLL_NEVER
         view.isHapticFeedbackEnabled = true
         Shell.target = view
         view.addJavascriptInterface(shell, "ErpShell")
@@ -603,6 +620,7 @@ class MainActivity : Activity() {
             override fun onPageCommitVisible(view: WebView, url: String?) {
                 painted = true
                 hideSplash()
+                SystemBars.watch(view) // SHELL-FEEL
                 committed(url)
                 if (offline.visibility != View.VISIBLE) web.visibility = View.VISIBLE
             }
@@ -610,10 +628,17 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String?) {
                 painted = true
                 hideSplash()
+                SystemBars.watch(view) // SHELL-FEEL
                 progress.visibility = View.GONE
                 pull.stopRefreshing()
                 committed(url)
                 if (offline.visibility != View.VISIBLE) web.visibility = View.VISIBLE
+            }
+
+            /* SHELL-FEEL: every history entry, pushState included, decides
+               whether back is ours or the system's. */
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                backNav.sync(view.canGoBack())
             }
 
             /* The renderer is a separate process and the system kills it under
@@ -632,6 +657,7 @@ class MainActivity : Activity() {
                 deliverFiles(null)
                 pull.removeView(view)
                 view.destroy()
+                backNav.sync(false) // SHELL-FEEL: the dead view's history went with it
                 web = buildWebView()
                 pull.addView(web, 0, FrameLayout.LayoutParams(-1, -1))
                 if (url != null) web.loadUrl(url) else load(BuildConfig.PORTAL_URL)
@@ -811,41 +837,11 @@ class MainActivity : Activity() {
             if (night) WebSettings.FORCE_DARK_ON else WebSettings.FORCE_DARK_OFF
     }
 
-    /* LONG PRESS ON A BUS PIN SHOULD NOT OFFER TO COPY IT.
-
-       A WebView's default long press is the browser's, minus the browser. Hold
-       a finger anywhere and it raises the text selection handles and the
-       Copy/Share/Web-search bar, including on things that are not text at all:
-       the map on the bus screen, an avatar, a fee row's icon, the dock. On the
-       bus screen in particular this is a real cost rather than an untidiness,
-       because holding a finger on the map is how a person drags it, and every
-       drag that started as a hold came back with a selection bar over the top
-       of the thing they were trying to look at.
-
-       What makes it worse in a shell is that the callout's actions largely go
-       nowhere here: there is no tab to open a link in, and the search action
-       leaves the app entirely. So the press is refused for the cases where the
-       result cannot be useful, and allowed for the two where it plainly is.
-
-       Refused: images, and links, whose long press in a bare WebView offers a
-       menu this app does not implement. Allowed: an editable field, where the
-       handles are the only way to fix a mis-typed phone number, and the plain
-       text case, which the hit test reports as UNKNOWN because a paragraph is
-       not a distinct element to it. That last one is why this is not simply
-       isLongClickable = false: switching selection off wholesale would take
-       with it the ability to copy a receipt number or a circular out of the
-       page, which parents do. */
-    private fun suppressPointlessSelection(view: WebView) {
-        view.setOnLongClickListener {
-            when (view.hitTestResult.type) {
-                WebView.HitTestResult.IMAGE_TYPE,
-                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE,
-                WebView.HitTestResult.SRC_ANCHOR_TYPE,
-                -> true
-                else -> false
-            }
-        }
-    }
+    /* Long press and text selection are handled in ShellWebView, which
+       replaced suppressPointlessSelection here. The earlier version allowed
+       selection on plain text so a receipt number could be copied; the
+       user asked for no copy handles anywhere outside a field, and that
+       file records the change of mind. */
 
     /* THE DOWNLOAD, FROM THE TAP TO THE FILE THE PARENT CAN STILL FIND
        NEXT MONTH.
@@ -1602,7 +1598,7 @@ class MainActivity : Activity() {
                own dark ground. Dropped unchanged onto the light page colour
                it is invisible, so it is tinted to the ink of whichever theme
                is up. */
-            setColorFilter(getColor(R.color.splash_mark), PorterDuff.Mode.SRC_IN)
+            setColorFilter(SystemBars.ink(pageColor()), PorterDuff.Mode.SRC_IN) // SHELL-FEEL
         }
         val markSize = (128 * density).toInt()
         val column = LinearLayout(this).apply {
@@ -1651,18 +1647,21 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
+            /* SHELL-FEEL: the page's colour, with the text inked for it, so
+               the panel and the bars around it are one colour whichever
+               theme the parent chose inside the portal. */
             setBackgroundColor(pageColor())
             gravity = Gravity.CENTER
             offlineTitle = TextView(context).apply {
                 text = getString(R.string.offline_title)
                 textSize = 22f
-                setTextColor(getColor(R.color.page_text))
+                setTextColor(SystemBars.ink(pageColor()))
             }
             addView(offlineTitle)
             offlineBody = TextView(context).apply {
                 text = getString(R.string.offline_body)
                 textSize = 15f
-                setTextColor(getColor(R.color.page_muted))
+                setTextColor(SystemBars.muted(pageColor()))
                 setPadding(0, pad / 2, 0, pad)
             }
             addView(offlineBody)
@@ -1674,7 +1673,7 @@ class MainActivity : Activity() {
             offlineHint = TextView(context).apply {
                 text = getString(R.string.waiting_for_network)
                 textSize = 13f
-                setTextColor(getColor(R.color.page_muted))
+                setTextColor(SystemBars.muted(pageColor()))
                 setPadding(0, pad / 2, 0, 0)
                 visibility = View.GONE
             }
@@ -1682,7 +1681,24 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun pageColor(): Int = getColor(R.color.page_bg)
+    /* SHELL-FEEL: the ground the page last reported in this phone mode, so
+       the loading screen and the frame start in the page's own colour rather
+       than the theme's guess at it. The theme's colour until it has said. */
+    private fun pageColor(): Int = SystemBars.remembered(this)
+
+    private fun applyPageColor(css: String) {
+        if (isFinishing || isDestroyed) return
+        val colour = SystemBars.parse(css) ?: return
+        SystemBars.remember(this, colour)
+        SystemBars.apply(this, root, web, colour)
+        /* The native panels follow too, so a parent who switches the portal
+           to dark and then loses signal is not shown a light panel. */
+        offline.setBackgroundColor(colour)
+        splash.setBackgroundColor(colour)
+        offlineTitle.setTextColor(SystemBars.ink(colour))
+        offlineBody.setTextColor(SystemBars.muted(colour))
+        offlineHint.setTextColor(SystemBars.muted(colour))
+    }
 
     /* Back goes back through the site, and only leaves the app when there is
        nowhere left to go. Without this, back from the fee screen closes the app
@@ -1717,12 +1733,11 @@ class MainActivity : Activity() {
         }
     }
 
+    /* SHELL-FEEL: registration now follows the WebView's history rather
+       than being permanent; BackNav explains why. Nothing to claim at
+       creation, since a fresh view has no history. */
     private fun registerBack() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            onBackInvokedDispatcher.registerOnBackInvokedCallback(
-                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-            ) { back() }
-        }
+        backNav.sync(web.canGoBack())
     }
 
     @Deprecated("Kept for phones before Android 13; see registerBack.")
@@ -1863,18 +1878,18 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, pad)
-            setBackgroundColor(pageColor())
+            setBackgroundColor(pageColor()) // SHELL-FEEL: as the offline panel
             gravity = Gravity.CENTER
             isClickable = true
             addView(TextView(context).apply {
                 text = getString(R.string.lock_title)
                 textSize = 22f
-                setTextColor(getColor(R.color.page_text))
+                setTextColor(SystemBars.ink(pageColor()))
             })
             addView(TextView(context).apply {
                 text = getString(R.string.lock_body)
                 textSize = 15f
-                setTextColor(getColor(R.color.page_muted))
+                setTextColor(SystemBars.muted(pageColor()))
                 setPadding(0, pad / 2, 0, pad)
             })
             addView(Button(context).apply {
@@ -1909,6 +1924,7 @@ class MainActivity : Activity() {
            unanswered, the callback is about to be leaked along with the page
            that is waiting on it. */
         deliverFiles(null)
+        Shell.onPageColor = null // SHELL-FEEL: Shell is static; do not keep this activity through it
         pull.removeView(web)
         web.destroy()
         super.onDestroy()
