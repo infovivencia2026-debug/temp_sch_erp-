@@ -11,14 +11,26 @@
 # the same commit rebuilds the same tag and re-applies identical manifests,
 # and Cloud Run only cuts a new revision when something actually changed.
 #
-#   bash deploy/cloudrun/deploy.sh                  # build HEAD, migrate, deploy
+#   bash deploy/cloudrun/deploy.sh                  # build HEAD, migrate, deploy web
+#   bash deploy/cloudrun/deploy.sh --scheduler      # ...and (re)create the cron tick
+#   bash deploy/cloudrun/deploy.sh --with-worker    # ...and the PAID always-on worker
 #   bash deploy/cloudrun/deploy.sh --dry-run        # print every command, run none
 #   SEED_ROLES=1 bash deploy/cloudrun/deploy.sh     # also reseed roles (see job-migrate.yaml)
 #
+# What is deployed by default is one service, temperp-web, which also works
+# the queue (QUEUE_INPROCESS=1). Cron is Cloud Scheduler calling its
+# /api/v1/cron every minute with X-Cron-Key; --scheduler creates or updates
+# that job and is needed once per project and again whenever CRON_KEY or the
+# service URL changes (it is idempotent, so passing it every time is fine).
+# The worker service costs ~₹4,000/month and is only for push notifications
+# or a job that must not share CPU with requests -- service-worker.yaml.
+#
 # Needs: gcloud authenticated against PROJECT_ID, the secrets created by
 # secrets.sh, and deploy/cloudrun/.env.cloudrun (gitignored) holding the plain
-# configuration values substituted into the manifests. Never run this against
-# the VPS; it does not know the VPS exists.
+# configuration values substituted into the manifests. --scheduler also needs
+# the Cloud Scheduler API enabled (gcloud services enable
+# cloudscheduler.googleapis.com) and CRON_KEY in the env file. Never run this
+# against the VPS; it does not know the VPS exists.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,10 +38,14 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 ENV_FILE="${ENV_FILE:-$HERE/.env.cloudrun}"
 
 DRY_RUN=0
+WITH_WORKER=0
+SCHEDULER=0
 for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
-        -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --with-worker) WITH_WORKER=1 ;;
+        --scheduler) SCHEDULER=1 ;;
+        -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "unknown argument: $arg" >&2; exit 2 ;;
     esac
 done
@@ -86,11 +102,21 @@ if [ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ] && [ "${AL
     fi
 fi
 
+# The Scheduler job carries CRON_KEY as a header, so it needs the value, and
+# needs it before anything is built: a deploy that fails at the last step
+# over a missing key has already cut a revision.
+if [ "$SCHEDULER" = "1" ] && [ -z "${CRON_KEY:-}" ] && [ "$DRY_RUN" != "1" ]; then
+    echo "--scheduler needs CRON_KEY in $ENV_FILE (the same value secrets.sh uploaded)" >&2
+    exit 1
+fi
+
 say "Target"
 echo "  project  $PROJECT_ID"
 echo "  region   $REGION"
 echo "  image    $IMAGE"
 echo "  base url $BASE_URL"
+echo "  worker   $([ "$WITH_WORKER" = "1" ] && echo 'yes (paid, always-on)' || echo 'no (jobs run in temperp-web)')"
+echo "  cron     $([ "$SCHEDULER" = "1" ] && echo 'Cloud Scheduler job will be created/updated' || echo 'left as is (pass --scheduler)')"
 [ "$DRY_RUN" = "1" ] && echo "  (dry run: nothing will be executed)"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/temperp-cloudrun.XXXXXXXX")"
@@ -167,15 +193,20 @@ render() {
     echo "  rendered $1"
 }
 render job-migrate.yaml
-render service-worker.yaml
 render service-web.yaml
+[ "$WITH_WORKER" = "1" ] && render service-worker.yaml
 
 say "Migrate"
 # Job first, then two executions, each waited on. `up` is the schema;
 # `seed-permissions` is the additive half of seeding that every VPS deploy
 # runs. Full `seed` rewrites role grants and is opt-in -- job-migrate.yaml
 # says why. --wait makes a failed migration a failed deploy: nothing below
-# this line runs if the schema is not where the new binaries expect it.
+# this line runs if the schema is not where the new binaries expect it, and
+# `services replace` -- the only step that moves traffic -- comes after, so
+# the revision that receives traffic is the one whose migrations succeeded,
+# and the old revision serves throughout (a River or schema change lands in
+# the table before any binary that reads it starts). The job image is the
+# new commit, exactly as build-on-server.sh migrates with the new binary.
 run gcloud run jobs replace "$TMP/job-migrate.yaml" \
     --project "$PROJECT_ID" --region "$REGION"
 run gcloud run jobs execute temperp-migrate \
@@ -189,15 +220,21 @@ run gcloud run jobs execute temperp-migrate \
     --project "$PROJECT_ID" --region "$REGION" --wait --args=seed-permissions
 
 say "Services"
-# Worker before web, as the VPS restarts both together: the worker on the
-# new schema must be consuming before the new web starts enqueueing tasks
-# whose payloads the old worker would not understand.
-run gcloud run services replace "$TMP/service-worker.yaml" \
-    --project "$PROJECT_ID" --region "$REGION"
+# The optional worker before web, as the VPS restarts both together: a worker
+# on the new schema must be consuming before the new web starts enqueueing
+# jobs whose payloads the old worker would not understand. Without the flag
+# the web service is the only consumer and there is no ordering to get right.
+if [ "$WITH_WORKER" = "1" ]; then
+    run gcloud run services replace "$TMP/service-worker.yaml" \
+        --project "$PROJECT_ID" --region "$REGION"
+else
+    echo "  temperp-worker not deployed (jobs run inside temperp-web; --with-worker to change)"
+fi
 run gcloud run services replace "$TMP/service-web.yaml" \
     --project "$PROJECT_ID" --region "$REGION"
 
 say "Health"
+URL="https://temperp-web-PLACEHOLDER-el.a.run.app"
 if [ "$DRY_RUN" = "1" ]; then
     echo "+ gcloud run services describe temperp-web --project $PROJECT_ID --region $REGION --format 'value(status.url)'"
     echo "+ curl -fsS \$URL/healthz"
@@ -221,6 +258,72 @@ else
         fi
         sleep 5
     done
+fi
+
+say "Cron"
+# Cloud Scheduler is the clock; the schedule itself lives in Postgres
+# (internal/queue/cron.go) and this job only asks "anything due?" once a
+# minute. The request goes to the run.app URL, not the Pages host: the Pages
+# Function refuses /api/v1/cron (web/functions/[[path]].ts), and there is no
+# reason for a tick to cross Cloudflare. Authentication is the X-Cron-Key
+# header rather than OIDC because the service is public (ingress all, no IAM
+# invoker check), so an OIDC token would be minted and never verified; the
+# Go handler compares the key in constant time and 401s everything else.
+#
+# Every minute because the finest entry in the schedule (message_dispatch)
+# is every minute; a tick that finds nothing due is one indexed query under
+# an advisory lock. --attempt-deadline 60s so a slow tick is abandoned
+# before the next one, and retries are off: the next minute IS the retry,
+# and two ticks racing serialise on the lock anyway.
+#
+# The header value is the secret, and `gcloud scheduler jobs describe` shows
+# it to anyone with roles/cloudscheduler.viewer -- the same people who can
+# read the manifest's secret refs, so nothing new is exposed, but do not
+# paste describe output into a ticket.
+SCHED_JOB="${SCHED_JOB:-temperp-cron}"
+SCHED_LOCATION="${SCHED_LOCATION:-$REGION}"
+if [ "$SCHEDULER" = "1" ]; then
+    cron_args=(
+        --project "$PROJECT_ID" --location "$SCHED_LOCATION"
+        --schedule "* * * * *" --time-zone "Asia/Kolkata"
+        --uri "${URL}/api/v1/cron" --http-method GET
+        --attempt-deadline 60s
+        --max-retry-attempts 0
+        --description "Ticks the ERP schedule (internal/queue/cron.go); created by deploy/cloudrun/deploy.sh"
+    )
+    # The header flag differs between the two verbs: create takes --headers,
+    # update takes --update-headers (and would reject --headers).
+    cron_header="X-Cron-Key=${CRON_KEY:-CRON_KEY_VALUE}"
+    if [ "$DRY_RUN" = "1" ]; then
+        echo "+ gcloud scheduler jobs describe $SCHED_JOB --project $PROJECT_ID --location $SCHED_LOCATION  (update if present, else create)"
+        # The key is redacted here and only here: a dry run is what gets pasted around.
+        printf '+ gcloud scheduler jobs create|update http %s' "$SCHED_JOB"
+        printf ' %q' "${cron_args[@]}"
+        printf ' %q\n' "--headers|--update-headers X-Cron-Key=<CRON_KEY>"
+    elif gcloud scheduler jobs describe "$SCHED_JOB" \
+            --project "$PROJECT_ID" --location "$SCHED_LOCATION" >/dev/null 2>&1; then
+        gcloud scheduler jobs update http "$SCHED_JOB" "${cron_args[@]}" --update-headers "$cron_header" >/dev/null
+        echo "  updated $SCHED_JOB -> ${URL}/api/v1/cron every minute"
+    else
+        gcloud scheduler jobs create http "$SCHED_JOB" "${cron_args[@]}" --headers "$cron_header" >/dev/null
+        echo "  created $SCHED_JOB -> ${URL}/api/v1/cron every minute"
+    fi
+    if [ "$DRY_RUN" != "1" ]; then
+        # Fire one now rather than wait a minute, and read the answer: a 200
+        # with counts proves the key matches and the queue is reachable, which
+        # is the whole point of the endpoint. Only the run.app URL is asked;
+        # the Pages host would 404 by design.
+        gcloud scheduler jobs run "$SCHED_JOB" --project "$PROJECT_ID" --location "$SCHED_LOCATION" >/dev/null || true
+        if body="$(curl -fsS --max-time 30 -H "X-Cron-Key: ${CRON_KEY}" "$URL/api/v1/cron" 2>/dev/null)"; then
+            echo "  cron tick: $body"
+        else
+            echo "  !! $URL/api/v1/cron did not answer 200 with the key from $ENV_FILE" >&2
+            echo "  !! is temperp-cron-key in Secret Manager the same value? (secrets.sh)" >&2
+            exit 1
+        fi
+    fi
+else
+    echo "  Cloud Scheduler job untouched; without one the schedule never runs (pass --scheduler)"
 fi
 
 say "Deployed $COMMIT"

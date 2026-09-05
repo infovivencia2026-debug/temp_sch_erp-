@@ -1,5 +1,8 @@
-# temperp-web on Cloud Run: the Go API, the server-rendered auth pages and
-# (with WEB_DIST set) the React SPA, all from one container.
+# temperp-web on Cloud Run: the whole ERP in one service -- the Go API, the
+# server-rendered auth pages, (with WEB_DIST set) the React SPA, the River
+# queue workers (QUEUE_INPROCESS=1) and the cron endpoint Cloud Scheduler
+# ticks. There is no always-on process anywhere in this design; that is what
+# makes the Cloud Run line of the bill ₹0 at this school's traffic.
 #
 # Applied with `gcloud run services replace` by deploy.sh, which first
 # substitutes the ALL-CAPS placeholder tokens (the project id, the image tag,
@@ -12,6 +15,36 @@
 # The region is carried by the cloud.googleapis.com/location label, which is
 # how a Knative manifest names a Cloud Run region -- there is no --region on
 # `services replace` that overrides it.
+#
+# ONE SERVICE OR TWO -- the trade-off, so nobody re-derives it:
+#
+#   Jobs are worked in this process. River wakes a worker over Postgres
+#   LISTEN/NOTIFY or by polling, and Cloud Run starts a container for an HTTP
+#   request and for nothing else -- so a separate worker service can only
+#   work jobs if it is always on (minScale 1, CPU always allocated), which is
+#   ~₹4,000/month, more than everything else in the plan together. Working
+#   the queue here instead costs nothing extra: the instance is awake anyway
+#   while a request is in flight, and Cloud Scheduler's tick every minute
+#   (deploy.sh --scheduler) is a request, so the queue is looked at at least
+#   once a minute and drained while the tick and the day's polling hold the
+#   instance open.
+#
+#   What is given up: (1) with cpu-throttling on, a job that outlives the
+#   request that woke the instance runs on a throttled CPU until the next
+#   request arrives -- fine for the SQL-bound sweeps this queue holds (every
+#   handler is a few queries and a few HTTP calls to an SMS gateway), and the
+#   minute tick bounds the stall; (2) a heavy job shares the instance with
+#   the users' requests -- the fee-reminder fan-out is the largest and it is
+#   already chunked (HeavyOptions); (3) maxScale instances each run the full
+#   worker set, so River's per-queue concurrency is multiplied by however
+#   many instances are up. River is built for several workers on one table,
+#   and DB_MAX_CONNS below is sized for it. If a job ever needs guaranteed
+#   CPU, the knob is service-worker.yaml (paid), not a change here.
+#
+#   The push pump (FCM to the parent app) is the one thing still worker-only:
+#   cmd/worker runs RunPushPump and cmd/web does not. Until push is wired
+#   into the web process or into a cron entry, notifications need the
+#   optional worker service -- see the header of service-worker.yaml.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -27,16 +60,32 @@ spec:
     metadata:
       annotations:
         # Scale to zero. The plan is explicit about not paying for a warm
-        # instance yet; the school-hours traffic pattern (see
-        # docs/hosting-cloud-run.md) keeps one warm during the day anyway.
+        # instance; the school-hours traffic pattern (see
+        # docs/hosting-cloud-run.md) keeps one warm during the day anyway,
+        # and the Scheduler tick keeps one around every minute, which is
+        # request-billed for the milliseconds a tick takes. Overnight the
+        # tick still arrives, so the instance is never idle for the fifteen
+        # minutes Cloud Run waits before retiring it -- that is the point:
+        # the queue is looked at all night, for the price of 1,440 tiny
+        # requests a day, well inside the 2M free.
         autoscaling.knative.dev/minScale: "0"
-        autoscaling.knative.dev/maxScale: "5"
+        # Three, not the plan's five: every instance is also a River worker
+        # and opens a second pool for it (internal/queue/queue.go: the sum of
+        # the queue weights, 12, plus 4), so the connection arithmetic on
+        # DB_MAX_CONNS below is what caps this, not CPU. The limiters are
+        # shared through Postgres (RATE_LIMIT_STORE) so more than one
+        # instance is safe.
+        autoscaling.knative.dev/maxScale: "3"
         # CPU only while a request is in flight -- the request-based billing
-        # model the plan's ₹0-300 estimate assumes. The worker is the process
-        # that needs CPU between requests, and it has its own manifest.
+        # the plan's ₹0-300 estimate assumes, and the reason the in-process
+        # worker has the stall described in the header. Flipping this to
+        # "false" buys background CPU and switches the whole service to
+        # instance-based billing, at which point the minute tick makes it an
+        # always-on instance and the bill becomes service-worker.yaml's. Do
+        # not flip it here; deploy the worker instead if that day comes.
         run.googleapis.com/cpu-throttling: "true"
         # More CPU during start-up so a cold start (Go binary + pgx pool +
-        # Redis client + template parse) is a second, not three.
+        # River client + template parse) is a second, not three.
         run.googleapis.com/startup-cpu-boost: "true"
         # Gen2 for a full Linux syscall surface; distroless runs fine on it.
         run.googleapis.com/execution-environment: gen2
@@ -46,9 +95,12 @@ spec:
       # so requests beyond the pool queue in-process rather than opening more
       # Neon connections. Matches the upper end of the plan's 40-80.
       containerConcurrency: 80
-      # Uploads to the local file store stream through this process (see the
-      # FILE_STORE_DIR note in the doc) and Cloud Run's default is 300 s; keep
-      # it there rather than lowering it and cutting off a slow upload.
+      # Cloud Run's default. Uploads that still stream through this process
+      # (the FILE_STORE_DIR fallback) need it; /api/v1/cron does not -- a tick
+      # only enqueues and answers in well under a second, and Cloud Scheduler
+      # gives up on it after its own --attempt-deadline (60 s, deploy.sh),
+      # which is the number that actually bounds a tick. Nothing here waits
+      # for the jobs a tick enqueued; they run after the response.
       timeoutSeconds: 300
       serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
       containers:
@@ -93,12 +145,34 @@ spec:
               value: 12h
             - name: SESSION_IDLE_TTL
               value: 2h
-            # Neon's free/launch compute allows ~100 direct connections, but
-            # this pool is per instance and maxScale is 5, so 5 x 10 = 50 at
-            # full fan-out, plus the worker's. Leave headroom; do not raise
-            # this without doing that arithmetic again.
+            # This process is also the queue's worker: it registers every job
+            # handler and River's producers, so a job enqueued by a request
+            # is picked up by whichever instance is awake. cmd/web/main.go
+            # says why it is off by default (the VPS has its own worker unit).
+            - name: QUEUE_INPROCESS
+              value: "1"
+            # Deliberately absent: CRON_INPROCESS. The schedule is evaluated
+            # by /api/v1/cron when Cloud Scheduler calls it (CRON_KEY below),
+            # not by a goroutine that needs a process that never stops. A
+            # ticker here would run only while an instance happened to be up
+            # and would race the Scheduler for the same advisory lock: harmless
+            # but pointless.
+            # Rate limiters (login throttle, API-key and gateway limits) keep
+            # their counts in Postgres so five instances agree. "memory" is
+            # what the VPS runs with and is per process; on a service that can
+            # be more than one process it would multiply the allowance.
+            - name: RATE_LIMIT_STORE
+              value: postgres
+            # Neon's smallest compute allows ~100 direct connections, and
+            # they are all ceilings on lazily-opened pools, so this is the
+            # worst case, not the idle state. Per instance: this pool (8) plus
+            # River's own (16 with QUEUE_INPROCESS: 12 workers + 4 for its
+            # producers, notifier and maintenance) = 24; times maxScale 3 =
+            # 72; plus the optional worker's 4 + 16 = 20 and a migrate job's
+            # handful = under 100. Raise maxScale or this number only after
+            # redoing that sum, or after moving to a bigger Neon compute.
             - name: DB_MAX_CONNS
-              value: "10"
+              value: "8"
             # R2: the bucket, account and public host are configuration, not
             # secrets. The two keys are, and come from Secret Manager below.
             - name: R2_ACCOUNT_ID
@@ -125,11 +199,30 @@ spec:
                 secretKeyRef:
                   name: temperp-migrate-database-url
                   key: latest
-            - name: REDIS_URL
+            # The shared secret Cloud Scheduler sends as X-Cron-Key. Unset,
+            # /api/v1/cron answers 401 to everyone and nothing is ever
+            # scheduled -- so this one is required, not optional, and
+            # secrets.sh refuses to run without it. The Scheduler job is
+            # created from the same value by deploy.sh --scheduler.
+            - name: CRON_KEY
               valueFrom:
                 secretKeyRef:
-                  name: temperp-redis-url
+                  name: temperp-cron-key
                   key: latest
+            # Optional: with this set, RealIP believes CF-Connecting-IP only
+            # on requests that also carry X-Origin-Secret with the same value,
+            # which the Pages Function adds from its own ORIGIN_SHARED_SECRET.
+            # Without it a caller who finds the run.app URL can forge the
+            # visitor address the rate limiters key on. Commented because a
+            # manifest that references a secret which does not exist fails
+            # the whole revision: add ORIGIN_SHARED_SECRET to .env.cloudrun,
+            # run secrets.sh, set the same value on the Pages project, then
+            # uncomment.
+            # - name: ORIGIN_SHARED_SECRET
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: temperp-origin-shared-secret
+            #       key: latest
             - name: SESSION_SECRET
               valueFrom:
                 secretKeyRef:

@@ -44,14 +44,18 @@ done
 set -a; source "$ENV_FILE"; set +a
 : "${PROJECT_ID:?PROJECT_ID must be set in $ENV_FILE}"
 
-# The runtime identity for web, worker and the migrate job. A dedicated
+# The runtime identity for web, the migrate job and the optional worker. A dedicated
 # account rather than the project's default compute account, which carries
 # Editor on everything; this one can read these secrets and nothing else.
 SA_NAME="${SA_NAME:-temperp-run}"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Required secrets: config.Load refuses to start without the first four, and
-# the Redis URL has no sensible default off the VPS. The optional ones are
+# Required secrets: config.Load refuses to start without the first four. There
+# is no Redis URL: the queue is River, in the Postgres DATABASE_URL names, and
+# the binaries ignore REDIS_URL if set. CRON_KEY is required because without
+# it /api/v1/cron answers 401 to everyone and no schedule ever runs -- a
+# deployment with no cron is a deployment that sends no reminders, and that
+# should fail here, loudly, not in a month. The optional ones are
 # uploaded only when the env file has a non-empty value, because a manifest
 # that references a secret which does not exist fails to deploy -- so the
 # manifests reference only the required set plus the ones committed as always
@@ -61,7 +65,7 @@ SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 SECRET_KEYS=(
     DATABASE_URL
     MIGRATE_DATABASE_URL
-    REDIS_URL
+    CRON_KEY
     SESSION_SECRET
     PASSWORD_PEPPER
     CREDENTIAL_KEY
@@ -71,8 +75,10 @@ SECRET_KEYS=(
 )
 # Read directly with os.Getenv outside internal/config, or consumed as a file:
 # uploaded when present, referenced from a manifest only once you uncomment
-# the matching block (see service-worker.yaml for FCM).
+# the matching block (service-worker.yaml for FCM, service-web.yaml for
+# ORIGIN_SHARED_SECRET, which must also be set on the Pages project).
 OPTIONAL_KEYS=(
+    ORIGIN_SHARED_SECRET
     ANTHROPIC_API_KEY
     FCM_SERVICE_ACCOUNT_JSON
 )
@@ -168,10 +174,19 @@ case "${DATABASE_URL:-}" in
     *sslmode=require*|*sslmode=verify-full*) echo "  DATABASE_URL has sslmode -- good" ;;
     *) echo "  warning: DATABASE_URL lacks sslmode=require; Neon refuses plaintext" ;;
 esac
-case "${REDIS_URL:-}" in
-    rediss://*) echo "  REDIS_URL is TLS (rediss://) -- good" ;;
-    *) echo "  warning: REDIS_URL is not rediss://; Upstash expects TLS from outside" ;;
-esac
+if [ -n "${REDIS_URL:-}" ]; then
+    echo "  note: REDIS_URL is set; the queue is in Postgres (River) and the app ignores it"
+fi
+# The cron key is compared in constant time against a header on a public
+# endpoint; a short one is guessable and the worst case is somebody running
+# the housekeeping early, all day. Generate it, never type it:
+#   CRON_KEY=$(openssl rand -hex 32)
+if [ "${#CRON_KEY}" -lt 32 ]; then
+    echo "  warning: CRON_KEY is shorter than 32 characters; use openssl rand -hex 32"
+fi
+if [ -n "${ORIGIN_SHARED_SECRET:-}" ] && [ "${#ORIGIN_SHARED_SECRET}" -lt 32 ]; then
+    echo "  warning: ORIGIN_SHARED_SECRET is shorter than 32 characters; use openssl rand -hex 32"
+fi
 if [ "${PASSWORD_PEPPER:-}" = "REPLACE_ME" ]; then
     echo "  warning: PASSWORD_PEPPER is a placeholder; copy the VPS value or nobody can sign in"
 fi

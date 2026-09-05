@@ -81,8 +81,3 @@ spec:
                     secretKeyRef:
                       name: temperp-credential-key
                       key: latest
-                - name: REDIS_URL
-                  valueFrom:
-                    secretKeyRef:
-                      name: temperp-redis-url
-                      key: latest

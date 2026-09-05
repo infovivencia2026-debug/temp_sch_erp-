@@ -17,7 +17,11 @@
 #   web       (Cloud Run service)   ENTRYPOINT as is; set WEB_DIST=/app/web so
 #                                   the binary serves the SPA itself -- there is
 #                                   no nginx here. PORT is honoured automatically.
-#   worker    (Cloud Run worker pool / always-on service)
+#                                   With QUEUE_INPROCESS=1 (service-web.yaml) it
+#                                   also works the River queue, and Cloud
+#                                   Scheduler ticks its /api/v1/cron, so this one
+#                                   process is the whole ERP at min-instances 0.
+#   worker    (optional, paid always-on service; see service-worker.yaml)
 #                                   --command=/app/worker
 #   migrate   (Cloud Run job, before each web/worker rollout)
 #                                   --command=/app/migrate --args=up
@@ -30,7 +34,14 @@
 # ---- SPA -------------------------------------------------------------------
 # npm ci rather than install: the lockfile is what was tested. The bundle is
 # built before Go so a TypeScript error fails fast, before the longer compile.
-FROM node:20-alpine AS spa
+#
+# Node 22, not 20: vite 6 and tsc would build on 20, but the lockfile pins
+# packages that declare node ^22.13 (jsdom, undici, whatwg-url -- test-only,
+# yet npm ci installs them and warns), the LAN build box runs 22, and the
+# Pages build (NODE_VERSION=22, docs/hosting-cloud-run.md) should compile the
+# same bundle from the same toolchain. package.json has no engines field, so
+# the version is pinned here and nowhere else.
+FROM node:22-alpine AS spa
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -40,9 +51,12 @@ RUN npm run build
 # ---- Go --------------------------------------------------------------------
 # Static binaries: CGO off, so nothing in the final image needs libc, and the
 # same -trimpath/-ldflags as build-on-server.sh so the two builds are
-# byte-for-byte the same code. COMMIT is stamped into main.version, which the
-# binaries print and log; "dev" means somebody built without passing it.
-FROM golang:1.25-alpine AS build
+# byte-for-byte the same code. COMMIT is passed as -X main.version, the same
+# flag build-on-server.sh uses; "dev" means somebody built without passing it.
+# The Go version must be at least the `go` line in go.mod (1.26.0), or the
+# toolchain download kicks in mid-build and the "static, reproducible" claim
+# above is quietly untrue.
+FROM golang:1.26-alpine AS build
 ARG COMMIT=dev
 WORKDIR /src
 # Modules first, on their own layer: go.mod changes far less often than the
@@ -55,8 +69,8 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${COMMIT}" 
  && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${COMMIT}" -o /out/migrate ./cmd/migrate
 
 # ---- Runtime ---------------------------------------------------------------
-# distroless/static: CA certificates and a timezone database (the worker's cron
-# runs in Asia/Kolkata) and nothing else -- no shell, no package manager, so
+# distroless/static: CA certificates and a timezone database (cron schedules
+# are read in each institution's timezone, Asia/Kolkata) and nothing else -- no shell, no package manager, so
 # there is nothing on the image to exploit and nothing to patch. The nonroot
 # tag runs as uid 65532, which is fine: the binaries write only to what the
 # environment points them at.

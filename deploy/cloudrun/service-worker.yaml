@@ -1,22 +1,35 @@
-# temperp-worker on Cloud Run: the asynq consumer and the cron scheduler.
+# temperp-worker on Cloud Run: OPTIONAL, and PAID. Not deployed by default.
 #
-# A Cloud Run *service*, not a job, and pinned to exactly one always-on
-# instance. The reasons are in cmd/worker/main.go: the asynq scheduler runs
-# in-process and fires cron entries every minute (message dispatch), every
-# five (diary reminders, message_log flush) and nightly; a process that is
-# only awake while a request is in flight would never fire any of them. Hence
-# minScale 1 and cpu-throttling off -- this is the one place we pay for idle
-# CPU, and it is the largest line in the Cloud Run bill. maxScale 1 because
-# asynq elects a single active scheduler through Redis, so a second replica
-# would consume queues but add nothing to the schedule, and the Postgres-bound
-# Concurrency of 4 does not need it.
+# The default design has no worker service at all. service-web.yaml runs the
+# River workers inside the web process (QUEUE_INPROCESS=1) and Cloud Scheduler
+# ticks /api/v1/cron, so one scale-to-zero service is the whole ERP and the
+# Cloud Run line is ₹0. deploy.sh applies this manifest only with --with-worker.
 #
-# THE CATCH, read before applying: Cloud Run requires every service container
-# to listen on $PORT and answer the startup probe, and cmd/worker opens no
-# socket today. Until it grows a small /healthz listener (a few lines, tied to
-# asynq's own HealthCheckFunc), this revision will be reported unhealthy and
-# never receive traffic -- see "What this codebase needs" in
-# docs/hosting-cloud-run.md. The probe below is written for that listener.
+# Why it still exists: a worker on Cloud Run is only useful always-on. River
+# wakes a worker over Postgres LISTEN/NOTIFY or by polling, and Cloud Run
+# starts a container for an HTTP request and for nothing else -- so minScale 0
+# on this service is a worker that works nothing, and minScale 1 with CPU
+# always allocated is ~₹4,000/month (one vCPU for a month at instance-based
+# pricing, before the free tier), several times the whole plan. That is the
+# price of this file. Pay it in exactly two situations:
+#
+#   1. Push notifications to the parent app. cmd/worker runs RunPushPump
+#      (FCM); cmd/web does not, so until push is moved into the web process
+#      or a cron entry, notifications exist only while this service runs.
+#   2. A job that must have unthrottled CPU or must not share an instance with
+#      users' requests -- nothing in the current queue qualifies; see the
+#      trade-off note in service-web.yaml.
+#
+# It is safe to run beside the in-process workers: River is built for several
+# workers on one river_job table, jobs are leased to one of them, and cron
+# serialises on an advisory lock whoever calls it. CRON_INPROCESS is unset
+# here on purpose -- the schedule is the Scheduler's -- so a worker running
+# next to the web service is only a second consumer, never a second clock.
+#
+# maxScale 1 because a second replica adds nothing the Postgres-bound
+# Concurrency of 4 needs. Cloud Run requires every service container to
+# listen on $PORT and answer the startup probe; cmd/worker does, when PORT is
+# set, with a /healthz that reports the database's and the queue's health.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -33,8 +46,8 @@ spec:
       annotations:
         autoscaling.knative.dev/minScale: "1"
         autoscaling.knative.dev/maxScale: "1"
-        # CPU allocated between requests: the queue consumer and the scheduler
-        # do all their work with no request in flight.
+        # CPU allocated between requests: the queue consumer does all its
+        # work with no request in flight. This annotation is the whole bill.
         run.googleapis.com/cpu-throttling: "false"
         run.googleapis.com/execution-environment: gen2
     spec:
@@ -101,11 +114,6 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: temperp-migrate-database-url
-                  key: latest
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: temperp-redis-url
                   key: latest
             - name: SESSION_SECRET
               valueFrom:

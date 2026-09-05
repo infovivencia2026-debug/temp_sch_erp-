@@ -1,9 +1,11 @@
 package httpx
 
 import (
+	"crypto/subtle"
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -171,10 +173,14 @@ func RealIP(next http.Handler) http.Handler {
 
 		   The security note: a caller who reaches the origin directly, past
 		   Cloudflare, can forge CF-Connecting-IP just as easily as the first
-		   XFF entry. That is why the Cloud Run service should later restrict
-		   ingress to Cloudflare's published ranges, or require a shared secret
-		   header the Function adds -- not done yet, only noted here. */
-		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" && net.ParseIP(cf) != nil {
+		   XFF entry. So the header is believed only when the request proves
+		   it came through our Function: ORIGIN_SHARED_SECRET, when set, must
+		   equal X-Origin-Secret (the Function adds it from its own env of the
+		   same name). Unset -- the VPS, where Cloudflare is not in the path
+		   and nginx strips nothing -- keeps today's behaviour. A request that
+		   fails the check is not refused, it is simply attributed to the last
+		   XFF hop, which is what the trusted proxy vouched for. */
+		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" && net.ParseIP(cf) != nil && originVouched(r) {
 			r.RemoteAddr = cf
 			next.ServeHTTP(w, r)
 			return
@@ -195,4 +201,17 @@ func RealIP(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// originVouched reports whether CF-Connecting-IP may be believed: always when
+// ORIGIN_SHARED_SECRET is unset, otherwise only when X-Origin-Secret matches
+// it. Read per request rather than once so a test can set it; the cost is one
+// getenv on requests that carry the Cloudflare header, which is nothing.
+func originVouched(r *http.Request) bool {
+	want := os.Getenv("ORIGIN_SHARED_SECRET")
+	if want == "" {
+		return true
+	}
+	got := r.Header.Get("X-Origin-Secret")
+	return subtle.ConstantTimeCompare([]byte(want), []byte(got)) == 1
 }
