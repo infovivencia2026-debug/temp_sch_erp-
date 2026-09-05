@@ -521,7 +521,10 @@ export function ColourPanel({
               <p className={cn('mb-1.5 text-[11px]', INK)}>
                 {t(`bento.colour.mode.${mode}`)}
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              {/* A grid, not a wrap: eight names of different lengths wrapped into rows
+                  of two and three and one, and read as a jumble. Two equal columns
+                  put every set in the same-sized chip. */}
+              <div className="grid grid-cols-2 gap-1.5">
                 {BUILT_IN_PALETTES.filter((p) => p.mode === mode).map((p) => {
                   const on = active === p.name
                   return (
@@ -531,7 +534,7 @@ export function ColourPanel({
                       aria-pressed={on}
                       onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
                       className={cn(
-                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+                        'flex w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
                         RING,
                         on ? `${CHOSEN} font-medium` : cn(EDGE, WASH, INK),
                       )}
@@ -555,7 +558,7 @@ export function ColourPanel({
                           />
                         ))}
                       </span>
-                      {p.name}
+                      <span className="min-w-0 truncate">{p.name}</span>
                     </button>
                   )
                 })}
