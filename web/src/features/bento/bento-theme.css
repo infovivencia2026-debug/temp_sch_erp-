@@ -3936,7 +3936,7 @@ html:not(.dark)[data-layout='bento'] {
    bigger" moved the setting and not the bar. On a phone, where the tabs are
    glyphs with no captions, every glyph in the dock takes the variable. */
 @media (max-width: 767px) {
-  [data-layout='bento'] .bento-dock button svg.lucide {
+  [data-layout='bento'] .bento-dock svg.lucide {
     width: var(--dock-icon, 26px);
     height: var(--dock-icon, 26px);
   }
