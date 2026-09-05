@@ -1714,10 +1714,25 @@ function Assignments({ onDone }: PanelProps) {
 
   // Named with what they teach, so the list does not require the reader to
   // already know the staff.
-  const options = (freeTeachers?.items ?? []).map((t) => ({
-    value: t.user_id,
-    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
-  }))
+  /* STAFF WITH NO LOGIN ARE LISTED, AND SAY WHY THEY CANNOT BE PICKED.
+
+     A class teacher is stored as a user id, so somebody imported from a
+     spreadsheet cannot hold the post until an account exists for them. The
+     list used to drop them silently: a school that had just imported forty
+     staff opened this and read "Nobody yet", which says the staff were never
+     added rather than that they have no login yet.
+
+     They are shown, disabled, with the reason on the row. The dropdown is the
+     place the question is asked, so it is the place to answer it. */
+  const withoutLogin = (freeTeachers?.items ?? []).filter((t) => !t.user_id)
+  const options = (freeTeachers?.items ?? [])
+    // Only somebody who can sign in: the post is stored as a user id, and a
+    // name that cannot be saved is worse in the list than out of it.
+    .filter((t) => t.user_id)
+    .map((t) => ({
+      value: t.user_id,
+      label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+    }))
 
   return (
     <div className="mt-4 border-t pt-4">
@@ -1786,6 +1801,17 @@ function Assignments({ onDone }: PanelProps) {
                 options={options}
               />
             </Field>
+            {withoutLogin.length > 0 && (
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {options.length === 0
+                  ? `All ${withoutLogin.length} of your staff are on the roll and none of them has a login yet`
+                  : `${withoutLogin.length} more are on the roll without a login`}
+                {' '}&mdash; a class teacher marks the register, so the post needs an
+                account to sign in with. Issue them under Staff &rarr; Logins &amp; access,
+                then come back. {withoutLogin.slice(0, 3).map((t) => t.full_name).join(', ')}
+                {withoutLogin.length > 3 ? ` and ${withoutLogin.length - 3} others` : ''}.
+              </p>
+            )}
           </div>
 
           <p className="eyebrow mb-2 mt-4">Subject teachers</p>
@@ -2947,10 +2973,15 @@ function SubjectTeacherSelect({
       api.get<List<Teacher>>(`/api/v1/timetable/teachers?subject_id=${subjectID}`),
     enabled: !!subjectID,
   })
-  const options = (data?.items ?? []).map((t) => ({
-    value: t.user_id,
-    label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
-  }))
+  /* Same rule as the class-teacher picker: a subject teacher is stored as a
+     user id, so somebody with no account cannot be saved against a subject and
+     must not be offered as though they could. */
+  const options = (data?.items ?? [])
+    .filter((t) => t.user_id)
+    .map((t) => ({
+      value: t.user_id,
+      label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
+    }))
   return (
     <Select
       value={value}
@@ -3019,6 +3050,13 @@ function explain(e: unknown): string {
 function StaffLogins({ staff }: { staff: Teacher[] }) {
   const qc = useQueryClient()
   const [busy, setBusy] = useState('')
+  /* KEYED ON THE EMPLOYEE, NOT ON THE ACCOUNT.
+
+     Somebody who has never been given a login has no user id, and every one
+     of them would share the same empty key: press "give a login" on one and
+     all of them say "working...", then all of them show that one person's
+     password. The employee id is what the row is, and what the issue call
+     already posts to. */
   const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
   const [failed, setFailed] = useState('')
   const [open, setOpen] = useState(false)
@@ -3039,8 +3077,8 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
       t.subjects ?? '',
       t.roles ?? '',
       t.class_teacher_of ?? '',
-      issued[t.user_id]?.user ?? t.sign_in_as ?? '',
-      issued[t.user_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
+      issued[t.employee_id]?.user ?? t.sign_in_as ?? '',
+      issued[t.employee_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
     ]),
   )
 
@@ -3097,14 +3135,14 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
     if (reset && !confirm(
       `Reset ${t.full_name}'s password? The one they are using now will stop working.`
     )) return
-    setBusy(t.user_id)
+    setBusy(t.employee_id)
     setFailed('')
     try {
       const body = await api.post<{ sign_in_as: string; password: string }>(
         `/api/v1/setup/employees/${t.employee_id}/login${reset ? '?reset=true' : ''}`, {},
       )
       if (body.password) {
-        setIssued((v) => ({ ...v, [t.user_id]: { user: body.sign_in_as, pass: body.password } }))
+        setIssued((v) => ({ ...v, [t.employee_id]: { user: body.sign_in_as, pass: body.password } }))
       }
       await qc.invalidateQueries({ queryKey: ['teachers'] })
     } catch (e) {
@@ -3219,9 +3257,9 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
           </thead>
           <tbody>
             {staff.map((t) => {
-              const fresh = issued[t.user_id]
+              const fresh = issued[t.employee_id]
               return (
-                <tr key={t.user_id} className="border-t">
+                <tr key={t.employee_id} className="border-t">
                   <td className="px-3 py-1.5">
                     <span className="font-medium">{t.full_name}</span>
                     {t.subjects && (
@@ -3260,11 +3298,11 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                   <td className="px-3 py-1.5 text-right">
                     <button
                       type="button"
-                      disabled={busy === t.user_id}
+                      disabled={busy === t.employee_id}
                       onClick={() => issue(t, t.can_sign_in)}
                       className="underline underline-offset-2 text-muted-foreground hover:text-primary"
                     >
-                      {busy === t.user_id
+                      {busy === t.employee_id
                         ? 'working…'
                         : t.can_sign_in
                           ? 'reset password'

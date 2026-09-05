@@ -219,7 +219,23 @@ func (s *Server) listTimetableEntries(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 	mayPlan := httpx.IdentityFrom(r.Context()).Can(rbac.AcademicsWrite)
 	items, err := collect(s, r, `
-		SELECT u.id::text, u.full_name, e.employee_code, e.id::text,
+		/* AN INNER JOIN ON users HID EVERY MEMBER OF STAFF WITHOUT A LOGIN.
+
+		   A class teacher is stored as a user id, so this listed employees
+		   joined to their account -- and an employee imported from a
+		   spreadsheet has no account until somebody issues one. A school that
+		   had just imported its whole staff therefore opened the class-teacher
+		   picker and was told "Nobody yet", with every one of them on the roll
+		   and none of them offered.
+
+		   Left join now, so they appear. u.id is null for them and the picker
+		   cannot assign one -- that part is real, a class teacher marks a
+		   register and needs somewhere to sign in -- but being told who exists
+		   and why they cannot be chosen is a different thing from an empty
+		   list, which reads as staff not having been added at all. */
+		SELECT COALESCE(u.id::text, ''),
+		       COALESCE(u.full_name, btrim(concat_ws(' ', e.first_name, e.last_name))),
+		       e.employee_code, e.id::text,
 		       /* What they sign in with, and whether they can.
 		
 		          The staff list showed names and nothing else, so the only way
@@ -261,7 +277,7 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		                  WHERE sec.class_teacher_id = u.id
 		                  LIMIT 1), '')
 		  FROM employees e
-		  JOIN users u ON u.id = e.user_id
+		  LEFT JOIN users u ON u.id = e.user_id
 		 WHERE e.status = 'active'
 		   /* Narrowed to the people who teach the subject, when one is named.
 
@@ -289,7 +305,8 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		        OR NOT EXISTS (SELECT 1 FROM sections sec
 		                        WHERE sec.class_teacher_id = u.id
 		                          AND ($3::uuid IS NULL OR sec.id <> $3)))
-		 ORDER BY u.full_name`,
+		 ORDER BY COALESCE(u.full_name,
+		                   btrim(concat_ws(' ', e.first_name, e.last_name)))`,
 		[]any{
 			nullString(r.URL.Query().Get("subject_id")),
 			r.URL.Query().Get("free_class_teacher") == "true",
