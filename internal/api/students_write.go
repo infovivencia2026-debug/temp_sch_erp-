@@ -1013,6 +1013,113 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 	}
 	good = kept
 
+	/* TWO CHILDREN CANNOT HOLD THE SAME ROLL NUMBER IN ONE SECTION.
+
+	   The database says so, and said it in the only way it can: at row 125 of
+	   a 399-row file, in the middle of the commit, as "duplicate key value
+	   violates unique constraint enrollments_roll_no_unique". That aborted the
+	   transaction, so three hundred and ninety-eight good children were rolled
+	   back over one repeated number, and the message named an index rather
+	   than the two rows that clash.
+
+	   Found here instead, before anything is written, and reported like every
+	   other row problem: the file is checked against itself and against the
+	   children already enrolled. A clerk sees which row, which section and
+	   which number, alongside whatever else the dry run found, and fixes the
+	   sheet once rather than one collision per upload.
+
+	   Blank roll numbers are not compared. The index ignores them, and a
+	   school that does not number its children must not be told its rows
+	   collide. */
+	type rollKey struct {
+		section string
+		roll    int
+	}
+	seenRoll := map[rollKey]int{}
+	kept = kept[:0]
+	for _, g := range good {
+		if g.req.RollNo == 0 {
+			kept = append(kept, g)
+			continue
+		}
+		k := rollKey{strings.ToLower(g.req.SectionID), g.req.RollNo}
+		if first, clash := seenRoll[k]; clash {
+			out.Valid--
+			out.Rejected++
+			out.Problems = append(out.Problems, importRow{
+				Row: g.row,
+				Problem: fmt.Sprintf(
+					"roll number %d is already used by row %d in %s. Two children "+
+						"in one section cannot share a roll number — change one of "+
+						"them, or leave the column blank and none will be set.",
+					g.req.RollNo, first, g.req.SectionID),
+			})
+			continue
+		}
+		seenRoll[k] = g.row
+		kept = append(kept, g)
+	}
+	good = kept
+
+	/* And against the children who are already here, which the file cannot
+	   know about: a second upload adding thirty new children to a section
+	   that already has forty would otherwise fail at the commit exactly as
+	   the first one did. */
+	if len(seenRoll) > 0 {
+		taken := map[rollKey]string{}
+		err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+			rows, qerr := tx.Query(r.Context(), `
+				SELECT lower(c.name || '-' || sec.name), e.roll_no,
+				       btrim(concat_ws(' ', st.first_name, st.last_name))
+				  FROM enrollments e
+				  JOIN sections sec ON sec.id = e.section_id
+				  JOIN classes c    ON c.id = sec.class_id
+				  JOIN students st  ON st.id = e.student_id
+				 WHERE e.roll_no IS NOT NULL AND e.status = 'active'`)
+			if qerr != nil {
+				return qerr
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var label, who string
+				var roll int
+				if serr := rows.Scan(&label, &roll, &who); serr != nil {
+					return serr
+				}
+				taken[rollKey{label, roll}] = who
+			}
+			return rows.Err()
+		})
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		kept = kept[:0]
+		for _, g := range good {
+			k := rollKey{strings.ToLower(g.req.SectionID), g.req.RollNo}
+			/* Somebody being re-uploaded keeps their own number. Matching on
+			   the name is rough, but the alternative is telling a school its
+			   own children clash with themselves every time it corrects a
+			   spelling and uploads the sheet again. */
+			if who, clash := taken[k]; clash && g.req.RollNo != 0 &&
+				!strings.EqualFold(strings.TrimSpace(who),
+					strings.TrimSpace(strings.Join(strings.Fields(
+						g.req.FirstName+" "+g.req.LastName), " "))) {
+				out.Valid--
+				out.Rejected++
+				out.Problems = append(out.Problems, importRow{
+					Row: g.row,
+					Problem: fmt.Sprintf(
+						"roll number %d in %s already belongs to %s. Change it, or "+
+							"leave the column blank.", g.req.RollNo, g.req.SectionID, who),
+				})
+				continue
+			}
+			kept = append(kept, g)
+		}
+		good = kept
+	}
+
 	if !commit {
 		httpx.JSON(w, http.StatusOK, out)
 		return
@@ -1034,6 +1141,20 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 			}
 			sid, _, err := upsertStudent(r, tx, id.InstitutionID, good[i].req)
 			if err != nil {
+				/* A rule of the school's own, said in the school's words.
+
+				   Everything above is checked before a single row is written,
+				   so this should not be reachable -- but if it ever is, the
+				   thing a clerk must not be shown is the name of an index.
+				   The whole file is still rolled back, because a half-imported
+				   sheet is worse than none: what changes is that they are told
+				   which row and why. */
+				if strings.Contains(err.Error(), "enrollments_roll_no_unique") {
+					return fmt.Errorf(
+						"row %d: another child in that section already has roll "+
+							"number %d. Change it, or leave the column blank",
+						good[i].row, good[i].req.RollNo)
+				}
 				return fmt.Errorf("row %d: %w", good[i].row, err)
 			}
 			/* Only the children this file brought into existence.
