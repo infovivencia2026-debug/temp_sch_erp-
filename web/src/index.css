@@ -638,8 +638,17 @@
   }
   /* The hover tint has to reach the frozen cell too, or the row looks broken
      in half as the pointer crosses it. */
-  .responsive-table.is-wide tbody tr:hover td:first-child {
-    background: hsl(var(--surface-hover));
+  /* HOVER IS FOR THINGS THAT CAN HOVER. A touchscreen has no pointer to lift
+     off, so a tapped element keeps matching :hover until the next tap lands
+     somewhere else -- the last row or button you touched sits there wearing
+     its hover face. Every :hover rule in this file is therefore gated on
+     `(hover: hover)`, the test Tailwind's `hover:` utilities already use via
+     `hoverOnlyWhenSupported`. Where a rule paired :hover with a keyboard
+     selector, the pair is split so only the hover half is gated. */
+  @media (hover: hover) {
+    .responsive-table.is-wide tbody tr:hover td:first-child {
+      background: hsl(var(--surface-hover));
+    }
   }
 
   /* On a narrow screen EVERY table is a wide one.
@@ -759,8 +768,10 @@
   .responsive-table tbody tr {
     transition: background-color 0.1s ease;
   }
-  .responsive-table tbody tr:hover {
-    background: hsl(var(--surface-hover) / 0.6);
+  @media (hover: hover) {
+    .responsive-table tbody tr:hover {
+      background: hsl(var(--surface-hover) / 0.6);
+    }
   }
 
   /* A row of metrics sharing one outline, separated by 1px of the border
@@ -780,7 +791,9 @@
     padding: 20px;
     transition: background-color 0.15s ease;
   }
-  a.cell:hover, button.cell:hover { background: hsl(var(--accent)); }
+  @media (hover: hover) {
+    a.cell:hover, button.cell:hover { background: hsl(var(--accent)); }
+  }
 
   .chrome {
     background: hsl(var(--background) / 0.9);
@@ -843,7 +856,9 @@
     color: hsl(var(--foreground));
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .field:hover { border-color: hsl(var(--muted-foreground) / 0.4); }
+  @media (hover: hover) {
+    .field:hover { border-color: hsl(var(--muted-foreground) / 0.4); }
+  }
   .field:focus {
     outline: none;
     border-color: hsl(var(--primary));
@@ -1328,11 +1343,17 @@
   z-index: 60;
   transition: opacity 90ms ease 0ms, transform 90ms ease 0ms;
 }
-.rail-item:hover::after,
 .rail-item:focus-visible::after {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
   transition-delay: 120ms;
+}
+@media (hover: hover) {
+  .rail-item:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+    transition-delay: 120ms;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .rail-item::after { transition: none; }
@@ -2105,7 +2126,9 @@ dialog,
   background-clip: content-box;
   border-radius: 9999px;
 }
-.scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
+@media (hover: hover) {
+  .scroll-x:hover::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); background-clip: content-box; }
+}
 
 /* A PANEL IS NOT A PAGE, so its vertical bar has to be drawn too.
 
@@ -2138,9 +2161,11 @@ dialog,
   background-clip: content-box;
   border-radius: 9999px;
 }
-.scroll-y:hover::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.5);
-  background-clip: content-box;
+@media (hover: hover) {
+  .scroll-y:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.5);
+    background-clip: content-box;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

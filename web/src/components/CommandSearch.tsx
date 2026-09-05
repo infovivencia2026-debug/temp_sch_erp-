@@ -232,6 +232,10 @@ export function CommandSearch() {
            that something else can flatten. It also keeps the 1rem gutter on a
            narrow window, which the width calc was already trying to hold. */
         className="fixed inset-x-4 top-[12vh] z-50 mx-auto w-auto max-w-[640px]"
+        /* Fixed elements escape the body's notch padding; 12vh from the top
+           edge is not always 12vh below the clock. Zero in a browser and on
+           Android. */
+        style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="overflow-hidden rounded-md border bg-popover shadow-pop">
           <div className="flex items-center gap-2.5 border-b px-4">

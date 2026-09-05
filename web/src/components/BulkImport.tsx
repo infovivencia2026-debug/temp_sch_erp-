@@ -1325,6 +1325,18 @@ export function SheetViewer({
           ? 'fixed inset-0 z-50 bg-background'
           : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
       }
+      /* Only the full-screen variant: fixed elements escape the body's notch
+         padding, so on the iPhone its toolbar would sit under the clock and
+         its bottom under the home indicator. The centred dialog floats clear
+         of both. Zero in a browser and on Android. */
+      style={
+        full
+          ? {
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }
+          : undefined
+      }
       /* Clicking the dark surround closes it -- unless a drag ended there.
 
          Reading a sheet means selecting cells, and a selection that runs off

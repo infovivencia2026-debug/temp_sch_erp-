@@ -151,6 +151,13 @@ export default function FirstRunTour() {
   return (
     <div
       className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4"
+      /* Fixed elements escape the body's notch padding; the card should
+         centre within the safe area, not the glass. Zero in a browser and on
+         Android. */
+      style={{
+        paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))',
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-title"

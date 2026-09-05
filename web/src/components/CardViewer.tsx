@@ -70,6 +70,13 @@ export default function CardViewer({
     <div
       id="rc-viewer"
       className="fixed inset-0 z-[100] flex flex-col bg-background"
+      /* Fixed elements escape the body's notch padding, so on the iPhone the
+         toolbar would sit under the clock and the bottom under the home
+         indicator. Zero in a browser and on Android. */
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
       role="dialog"
       aria-label="Report card"
     >

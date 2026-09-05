@@ -129,7 +129,18 @@ export default function FileView({
   }, [close])
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-background" role="dialog" aria-label={file.name}>
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-background"
+      /* Fixed elements escape the body's notch padding, so on the iPhone the
+         header would sit under the clock and the bottom under the home
+         indicator. Zero in a browser and on Android. */
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
+      role="dialog"
+      aria-label={file.name}
+    >
       <div className="flex items-center justify-between gap-3 border-b px-4 py-2">
         <span className="flex min-w-0 items-center gap-2 text-[14px] font-medium">
           <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />

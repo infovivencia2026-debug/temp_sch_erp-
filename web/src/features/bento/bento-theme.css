@@ -245,11 +245,24 @@
      the rule below brings it fully up — discoverable, not decorative. */
   opacity: 0.4;
 }
-[data-layout='bento'] .bento-cue:hover,
 [data-layout='bento'] .bento-cue:focus-visible {
   background: color-mix(in srgb, currentColor 16%, transparent);
   border-color: color-mix(in srgb, currentColor 45%, transparent);
   opacity: 1;
+}
+/* HOVER IS FOR THINGS THAT CAN HOVER. A touchscreen has no pointer to lift
+   off, so a tapped element keeps matching :hover until the next tap lands
+   somewhere else -- the last card or button you touched sits there wearing
+   its hover face. Every :hover rule in this file is therefore gated on
+   `(hover: hover)`, the test Tailwind's `hover:` utilities already use via
+   `hoverOnlyWhenSupported`. Where a rule paired :hover with a keyboard, press
+   or base selector, the pair is split so only the hover half is gated. */
+@media (hover: hover) {
+  [data-layout='bento'] .bento-cue:hover {
+    background: color-mix(in srgb, currentColor 16%, transparent);
+    border-color: color-mix(in srgb, currentColor 45%, transparent);
+    opacity: 1;
+  }
 }
 
 /* TEXT ON A TINTED CARD IS FULL INK.
@@ -540,13 +553,15 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 
 /* The action itself comes forward with its card, so the eye is led to the
    thing that is actually clickable rather than to the card's edge. */
-[data-layout='bento'] .bento-cell:hover .bento-cue {
-  /* Only the border moves. This used to wash the face with a currentColor mix,
-     which outranked the button's own white and let the card's ground show
-     through — on a dark or anchor cell that put black text on a dark
-     translucent field the moment the pointer touched the card. The button
-     keeps one face; coming forward is the border's job. */
-  border-color: color-mix(in srgb, var(--bento-ink) 35%, var(--bento-line));
+@media (hover: hover) {
+  [data-layout='bento'] .bento-cell:hover .bento-cue {
+    /* Only the border moves. This used to wash the face with a currentColor mix,
+       which outranked the button's own white and let the card's ground show
+       through — on a dark or anchor cell that put black text on a dark
+       translucent field the moment the pointer touched the card. The button
+       keeps one face; coming forward is the border's job. */
+    border-color: color-mix(in srgb, var(--bento-ink) 35%, var(--bento-line));
+  }
 }
 
 /* EVERY cell answers the pointer, not just the ones that go somewhere.
@@ -602,13 +617,21 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
    No lift, no wash, no scale. A tinted ground shifting under the pointer
    competes with the card's own colour, which carries meaning here, and a card
    that grows in a packed grid moves the thing the cursor is on. */
-[data-layout='bento'] .bento-cell:hover,
 [data-layout='bento'] .bento-cell:focus-within {
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
     var(--bento-edge, none),
     var(--bento-shadow-sm, none);
   border-color: color-mix(in srgb, currentColor 75%, transparent);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .bento-cell:hover {
+    box-shadow:
+      inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+      var(--bento-edge, none),
+      var(--bento-shadow-sm, none);
+    border-color: color-mix(in srgb, currentColor 75%, transparent);
+  }
 }
 
 /* AND IT GOES DOWN WHEN YOU PUSH IT.
@@ -656,8 +679,10 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 /* Browsers without :has get the hover on every cell rather than none. Better
    to over-signal than to leave the interface inert for them. */
 @supports not selector(:has(*)) {
-  [data-layout='bento'] .bento-cell:hover {
-    border-color: color-mix(in srgb, var(--bento-ink) 22%, var(--bento-line));
+  @media (hover: hover) {
+    [data-layout='bento'] .bento-cell:hover {
+      border-color: color-mix(in srgb, var(--bento-ink) 22%, var(--bento-line));
+    }
   }
 }
 
@@ -842,11 +867,13 @@ html.dark[data-skin='focus'] .bento-dock {
   border-color: var(--bento-line);
 }
 
-html[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
-  border-color: color-mix(in srgb, var(--bento-ink) 32%, var(--bento-line));
-}
-html.dark[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
-  border-color: color-mix(in srgb, var(--bento-ink) 38%, var(--bento-line));
+@media (hover: hover) {
+  html[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
+    border-color: color-mix(in srgb, var(--bento-ink) 32%, var(--bento-line));
+  }
+  html.dark[data-skin='focus'] .bento-cell:has(.bento-cue):hover {
+    border-color: color-mix(in srgb, var(--bento-ink) 38%, var(--bento-line));
+  }
 }
 
 /* Focus wrote its own cue when the cue was a pill, so that it could be an
@@ -859,10 +886,12 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue {
   opacity: 0.45;
 }
 
-html[data-skin='focus'] [data-layout='bento'] .bento-cue:hover,
-html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  opacity: 1;
+@media (hover: hover) {
+  html[data-skin='focus'] [data-layout='bento'] .bento-cue:hover,
+  html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -879,10 +908,12 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   box-shadow: var(--bento-depth-lg);
   transition: box-shadow 140ms ease, filter 140ms ease;
 }
-[data-layout='bento'] .launcher-tile:hover {
-  /* A tint of its own colour rather than a shadow: the panel is already a
-     coloured field, and a grey shadow under it reads as dirt. */
-  filter: saturate(1.12);
+@media (hover: hover) {
+  [data-layout='bento'] .launcher-tile:hover {
+    /* A tint of its own colour rather than a shadow: the panel is already a
+       coloured field, and a grey shadow under it reads as dirt. */
+    filter: saturate(1.12);
+  }
 }
 
 /* The dock's items already have a background hover from the utility classes.
@@ -920,10 +951,15 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   box-shadow: var(--bento-depth-sm);
   transition: box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
 }
-[data-layout='bento'] .launcher-app:hover,
 [data-layout='bento'] .launcher-app-on {
   border-color: color-mix(in srgb, var(--bento-ink) 18%, transparent);
   box-shadow: var(--bento-depth);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .launcher-app:hover {
+    border-color: color-mix(in srgb, var(--bento-ink) 18%, transparent);
+    box-shadow: var(--bento-depth);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -980,10 +1016,15 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   transition: opacity 90ms ease 0ms;
   z-index: 60;
 }
-[data-layout='bento'] .bento-dock [data-tip]:hover::after,
 [data-layout='bento'] .bento-dock [data-tip]:focus-visible::after {
   opacity: 1;
   transition-delay: 120ms;
+}
+@media (hover: hover) {
+  [data-layout='bento'] .bento-dock [data-tip]:hover::after {
+    opacity: 1;
+    transition-delay: 120ms;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1121,17 +1162,23 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
   transition: opacity 90ms var(--ease-out) 0ms, transform 90ms var(--ease-out) 0ms;
   transform: translateX(-50%) translateY(-3px);
 }
-[data-layout='bento'] .bento-dock [data-tip]:hover::after,
 [data-layout='bento'] .bento-dock [data-tip]:focus-visible::after {
   transform: translateX(-50%) translateY(0);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .bento-dock [data-tip]:hover::after {
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-layout='bento'] .pop-down,
   [data-layout='bento'] .pop-up,
   [data-layout='bento'] .fade-in { animation: none; }
-  [data-layout='bento'] .bento-dock button:hover,
   [data-layout='bento'] .bento-dock button:active { transform: none; }
+  @media (hover: hover) {
+    [data-layout='bento'] .bento-dock button:hover { transform: none; }
+  }
 }
 
 
@@ -1673,11 +1720,17 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      ring has no relationship to whether the cell is elevated. Both are
      restated here only because the resting rule above is more specific than
      the plain .bento-cell rule they were written against. */
-  [data-layout='bento'] .bento-board .bento-cell:hover,
   [data-layout='bento'] .bento-board .bento-cell:focus-within {
     box-shadow:
       inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
       var(--bento-edge, none);
+  }
+  @media (hover: hover) {
+    [data-layout='bento'] .bento-board .bento-cell:hover {
+      box-shadow:
+        inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
+        var(--bento-edge, none);
+    }
   }
 
   [data-layout='bento'] .bento-board .bento-cell:has(.bento-cue):active {
@@ -1895,9 +1948,13 @@ html[style*='--shadow-scale'] .dark {
 [data-layout='bento'] .text-foreground,
 [data-layout='bento'] .text-card-foreground,
 [data-layout='bento'] .text-popover-foreground,
-[data-layout='bento'] .text-accent-foreground,
-[data-layout='bento'] .hover\:text-foreground:hover {
+[data-layout='bento'] .text-accent-foreground {
   color: var(--bento-ink);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .hover\:text-foreground:hover {
+    color: var(--bento-ink);
+  }
 }
 
 /* The ground used as ink: the inverted cell prints its text in the page's own
@@ -1925,12 +1982,16 @@ html[style*='--shadow-scale'] .dark {
 [data-layout='bento'] .bg-popover {
   background-color: var(--bento-card);
 }
-[data-layout='bento'] .bg-popover\/90,
-[data-layout='bento'] .hover\:bg-popover\/90:hover {
+[data-layout='bento'] .bg-popover\/90 {
   background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
 }
-[data-layout='bento'] .disabled\:hover\:bg-popover\/90:hover:disabled {
-  background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
+@media (hover: hover) {
+  [data-layout='bento'] .hover\:bg-popover\/90:hover {
+    background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
+  }
+  [data-layout='bento'] .disabled\:hover\:bg-popover\/90:hover:disabled {
+    background-color: color-mix(in srgb, var(--bento-card) 90%, transparent);
+  }
 }
 [data-layout='bento'] .bg-popover\/80 {
   background-color: color-mix(in srgb, var(--bento-card) 80%, transparent);
@@ -1964,14 +2025,20 @@ html[style*='--shadow-scale'] .dark {
    correct on a light palette and a dark one — a fixed grey would be a smudge
    on one of the two whichever grey was chosen. */
 [data-layout='bento'] .bg-accent,
-[data-layout='bento'] .bg-surface-hover,
-[data-layout='bento'] .hover\:bg-accent:hover,
-[data-layout='bento'] .hover\:bg-surface-hover:hover {
+[data-layout='bento'] .bg-surface-hover {
   background-color: color-mix(in srgb, var(--bento-ink) 8%, transparent);
 }
-[data-layout='bento'] .bg-accent\/50,
-[data-layout='bento'] .hover\:bg-accent\/50:hover {
+[data-layout='bento'] .bg-accent\/50 {
   background-color: color-mix(in srgb, var(--bento-ink) 4%, transparent);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .hover\:bg-accent:hover,
+  [data-layout='bento'] .hover\:bg-surface-hover:hover {
+    background-color: color-mix(in srgb, var(--bento-ink) 8%, transparent);
+  }
+  [data-layout='bento'] .hover\:bg-accent\/50:hover {
+    background-color: color-mix(in srgb, var(--bento-ink) 4%, transparent);
+  }
 }
 
 /* ---- lines --------------------------------------------------------------
@@ -2047,16 +2114,24 @@ html[style*='--shadow-scale'] .dark {
    and inks in every palette, all measured on the card, and pink / orange /
    mint / purple carry error / caution / good / informational without anyone
    having to be told. */
-[data-layout='bento'] .bg-destructive,
-[data-layout='bento'] .hover\:bg-destructive:hover {
+[data-layout='bento'] .bg-destructive {
   background-color: var(--bento-pink);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .hover\:bg-destructive:hover {
+    background-color: var(--bento-pink);
+  }
 }
 [data-layout='bento'] .text-destructive {
   color: var(--bento-pink);
 }
-[data-layout='bento'] .text-destructive-foreground,
-[data-layout='bento'] .hover\:text-destructive-foreground:hover {
+[data-layout='bento'] .text-destructive-foreground {
   color: var(--bento-card);
+}
+@media (hover: hover) {
+  [data-layout='bento'] .hover\:text-destructive-foreground:hover {
+    color: var(--bento-card);
+  }
 }
 [data-layout='bento'] .border-destructive\/40 {
   border-color: color-mix(in srgb, var(--bento-pink) 40%, transparent);
@@ -3819,7 +3894,10 @@ html:not(.dark)[data-layout='bento'] {
   opacity: 0.8;
   cursor: pointer;
 }
-.bento-edit-pill:hover, .bento-edit-pill:focus-visible { opacity: 1; }
+.bento-edit-pill:focus-visible { opacity: 1; }
+@media (hover: hover) {
+  .bento-edit-pill:hover { opacity: 1; }
+}
 @media (max-width: 767px), print {
   .bento-edit-pill { display: none; }
 }
@@ -3837,7 +3915,9 @@ html:not(.dark)[data-layout='bento'] {
   font-size: 12.5px;
   cursor: pointer;
 }
-.bento-bar__btn:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+@media (hover: hover) {
+  .bento-bar__btn:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+}
 .bento-bar__btn.is-primary {
   border-color: currentColor;
   background: color-mix(in srgb, currentColor 12%, transparent);
@@ -3878,7 +3958,10 @@ html:not(.dark)[data-layout='bento'] {
   opacity: 0.75;
   cursor: pointer;
 }
-.bento-edit__hide:hover, .bento-edit__hide:focus-visible { opacity: 1; }
+.bento-edit__hide:focus-visible { opacity: 1; }
+@media (hover: hover) {
+  .bento-edit__hide:hover { opacity: 1; }
+}
 .bento-edit__tools {
   position: absolute;
   left: 8px;
@@ -3889,8 +3972,10 @@ html:not(.dark)[data-layout='bento'] {
   opacity: 0;
   transition: opacity 120ms ease;
 }
-.bento-edit:hover .bento-edit__tools,
 .bento-edit:focus-within .bento-edit__tools { opacity: 1; }
+@media (hover: hover) {
+  .bento-edit:hover .bento-edit__tools { opacity: 1; }
+}
 .bento-sizepick {
   display: inline-flex;
   overflow: hidden;

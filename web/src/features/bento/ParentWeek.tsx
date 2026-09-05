@@ -59,7 +59,27 @@ import { ChildSwitch } from '../portal/ChildSwitch'
    reports w=2,h=2 on a 390px phone even though it is drawn one column wide
    and a third of the screen tall. Every drawing here therefore asks
    `shape()` below, which answers 1x1 on a phone regardless, so nothing lays
-   out a four-panel split into a box the height of a thumb. */
+   out a four-panel split into a box the height of a thumb.
+
+   ─── WHICH CARD IS LARGE ON THE PHONE ────────────────────────────────────
+   The phone page is two rows, every card the full width, and the ONE thing
+   a declared size still decides there is the height: h=1 is Small (the top
+   half of a page), h=2 is Large (a whole page). So a desktop 2x1 'medium' is
+   a phone Small and a desktop 2x2 'large' is a phone Large, and a card
+   should ask for two rows only when it has a drawing that fills them.
+
+   Seen on the simulator, one child: "Needs you" as a whole page holding the
+   figure 1 and "₹0 due", with the fee bars and the result squeezed into half
+   pages. A figure and a sentence do not improve by being 700px tall; a
+   strip of sixty school days and a fee track with its totals do. So the two
+   cards with a drawing — fees and the attendance strip — are the 2x2s, and
+   everything that is a figure with a fact or two under it stays one row.
+
+   The desk has fifteen slots and drops what does not fit into the add tray,
+   so the declared areas are budgeted to it: 1 + 4 + 4 + 2 + 1 + 1 + 1 + 1 =
+   15 with the bus card present, which is why results and homework stay
+   1x1 rather than 'tall' — a sixteenth slot would push a card off the board
+   for every parent whose child rides a bus. */
 
 interface PortalChild {
   student_id: string
@@ -331,14 +351,21 @@ export default function ParentWeek() {
         )}
       </Widget>
 
-      <Widget id="fees" label={t('bento.parent_week.fees_label')} size="small" index={1}>
+      {/* 2x2: the fee track and its totals are the densest drawing here, and
+          a desktop 2x2 is what reads as Large — a whole page — on the phone. */}
+      <Widget id="fees" label={t('bento.parent_week.fees_label')} size="large" index={1}>
         {(span) => <FeesCell span={span} who={who} s={s} fees={fees} to={withChild(toFees)} />}
       </Widget>
 
-      <Widget id="week" label={t('bento.parent_week.week_label')} size="medium" index={2}>
+      {/* 2x2 for the same reason: sixty days of register as a strip, with the
+          months under it, is a chart, and a chart gets the page on a phone. */}
+      <Widget id="week" label={t('bento.parent_week.week_label')} size="large" index={2}>
         {(span) => <WeekCell span={span} who={who} s={s} days={days} to={withChild(toAttendance)} />}
       </Widget>
 
+      {/* 2x1 on the desk, which is a phone Small: now-and-next is two lines.
+          Attention, homework, bus, messages and results are 1x1 for the same
+          reason — a figure and a fact or two, not a drawing. */}
       <Widget id="today" label={t('bento.parent_week.today_label')} size="medium" index={3}>
         {(span) => <TodayCell span={span} who={who} s={s} to={withChild(toAttendance)} />}
       </Widget>

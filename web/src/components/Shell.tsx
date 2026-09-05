@@ -540,6 +540,18 @@ export function Shell({
           railHidden ? 'lg:!hidden' : '',
           chromeless ? '!hidden' : ''
         )}
+        /* Only while it is the phone drawer: a fixed element escapes the
+           body's notch padding, so the top of the rail would sit under the
+           clock and the bottom under the home indicator. In flow (tablet,
+           desktop) the body already pads. Zero in a browser and on Android. */
+        style={
+          phoneDrawer
+            ? {
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              }
+            : undefined
+        }
       >
         {/* --- the rail: one mark per workspace ---------------------------
 
