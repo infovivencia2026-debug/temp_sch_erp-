@@ -551,7 +551,11 @@ export function CardShell({
            already been said and draw the measure alone. */
         <CardNote.Provider value={note && typeof said === 'string' ? said : null}>
           <CardZero.Provider value={setZero}>
-            <div className={cn('min-h-0 min-w-0 overflow-hidden', quiet && 'hidden')}>
+            {/* `card-drawing`: on the phone pager this row measures itself
+                and sheds its contents — a list row at a time, then the whole
+                drawing — before any of it is cut through the middle of a
+                glyph. See DRAWINGS GIVE WAY WHOLE in bento-theme.css. */}
+            <div className={cn('card-drawing min-h-0 min-w-0 overflow-hidden', quiet && 'hidden')}>
               {children}
             </div>
           </CardZero.Provider>

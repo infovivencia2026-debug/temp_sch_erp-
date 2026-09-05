@@ -2833,7 +2833,10 @@ html:not(.dark)[data-layout='bento'] {
        off the page. Four rows leaves each card about 80px tall on a 390x844
        device once the dock and the dots are out, which is shorter than the
        text inside it. */
-    grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+    /* `--pager-rows` is written by WidgetLayer from the same number it packs
+       with, so the two cannot drift. Three, or two once the platform's text
+       setting has made every card a third taller — see TWO_ROWS_FROM. */
+    grid-template-rows: repeat(var(--pager-rows, 3), minmax(0, 1fr)) !important;
     grid-auto-rows: minmax(0, 1fr);
     grid-auto-flow: column;
     gap: var(--bento-gap) !important;
@@ -3550,4 +3553,369 @@ html:not(.dark)[data-layout='bento'] {
    a compensating negative number. */
 [data-layout='bento'] .bento-cell [data-card]:has(> .bento-cue) {
   position: static;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   THE PHONE PAGER AT THE PLATFORM'S TEXT SIZE.
+
+   Android's font setting reaches a WebView as textZoom: every computed
+   font-size is multiplied and nothing else is. Measured on the owner's phone
+   at 1.3: "Instalment 1 · due 5 Sept" cut through its own descenders at the
+   card's bottom edge, the attendance strip's title half-drawn, the timetable
+   list sliced mid-row. No card was wrong; each was a third taller than its
+   slot. Three answers, in the order they apply:
+
+     1. The pager turns two rows a page from 1.25 (WidgetLayer, --pager-rows),
+        so a card at Largest has the half-again height its text took.
+     2. The type is a fraction of the CELL where the cell is short — a small
+        phone, a split view — with the same floors as before, so nothing here
+        gets smaller than it is today on a 390x844 screen.
+     3. DRAWINGS GIVE WAY WHOLE. The drawing row is the one that yields, and
+        it used to yield by being cut. It now measures itself and drops a
+        list row at a time, then the whole drawing, before anything in it is
+        clipped mid-glyph. The sentence above it is never touched.
+   ═════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  [data-layout='bento'] .bento-board[data-pager] .bento-cell {
+    --card-title: calc(clamp(13px, 7.5cqh, 15px) * var(--bento-text, 1));
+    --card-sub: calc(clamp(11px, 6cqh, 12px) * var(--bento-text, 1));
+    --card-note: calc(clamp(12px, 6.5cqh, 13px) * var(--bento-text, 1));
+    --card-change: calc(clamp(12px, 6.5cqh, 13px) * var(--bento-text, 1));
+    --card-fig: calc(clamp(28px, 20cqh, 44px) * var(--bento-text, 1));
+  }
+
+  /* The drawing row measures itself. `contain: size` costs nothing here: the
+     row is `minmax(0, 1fr)` and never asked its contents how tall to be. */
+  [data-layout='bento'] .bento-board[data-pager] .card-drawing {
+    container-type: size;
+    container-name: drawing;
+    overflow: clip;
+  }
+  /* Rows, from the end. A fact line is ~1.55em (13px at 1.35, a rule and 4px
+     of padding); the thresholds are that pitch times the rows kept, in em so
+     the platform's multiplier moves them with the text. The list drops its
+     LAST rows, the facts theirs, so the first — the one nearest the sentence
+     — is what survives. */
+  @container drawing (max-height: 7.8em) {
+    .bento-board[data-pager] .parent-list > li:nth-child(n + 5), .bento-board[data-pager] .card-facts > div:nth-child(n + 5) { display: none; }
+  }
+  @container drawing (max-height: 6.2em) {
+    .bento-board[data-pager] .parent-list > li:nth-child(n + 4), .bento-board[data-pager] .card-facts > div:nth-child(n + 4) { display: none; }
+  }
+  @container drawing (max-height: 4.65em) {
+    .bento-board[data-pager] .parent-list > li:nth-child(n + 3), .bento-board[data-pager] .card-facts > div:nth-child(n + 3) { display: none; }
+  }
+  @container drawing (max-height: 3.1em) {
+    .bento-board[data-pager] .parent-list > li:nth-child(n + 2), .bento-board[data-pager] .card-facts > div:nth-child(n + 2) { display: none; }
+  }
+  /* Under about two lines nothing drawn here is legible: a bar track with
+     no label, half a strip, one truncated fact. Nothing, cleanly. */
+  @container drawing (max-height: 2.9em) {
+    /* Outweighs `[data-role='parent'] .parent-list { display: flex }`,
+       which is what kept a lone list row drawn 5px past the card. */
+    .bento-board[data-pager] .card-drawing > * { display: none; }
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   EDITING THE BOARD. Two compositions, one store.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── The phone: a sheet over the pager ──────────────────────────────────── */
+.bento-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  background: transparent;
+}
+.bento-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  max-height: min(68vh, 620px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -8px 32px rgb(0 0 0 / 0.18), 0 -1px 0 color-mix(in srgb, var(--bento-ink, #000) 12%, transparent);
+}
+.bento-sheet__grip {
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+.bento-sheet__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 8px 8px;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+.bento-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--row-h, 52px);
+  padding: 0 4px 0 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  background: var(--bento-card, #fff);
+  touch-action: pan-y;
+}
+.bento-sheet__row:first-child { border-top-color: transparent; }
+.bento-sheet__row.is-dragging {
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.16);
+  border-radius: 10px;
+  border-top-color: transparent;
+}
+.bento-sheet__row.is-hidden { opacity: 0.85; }
+.bento-sheet__handle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: grab;
+  touch-action: none;
+}
+.bento-sheet__handle:active { cursor: grabbing; opacity: 1; }
+.bento-sheet__seg {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 10px;
+}
+.bento-sheet__seg > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.bento-sheet__seg > button[aria-checked='true'] {
+  background: var(--bento-ink, #111);
+  color: var(--bento-card, #fff);
+}
+.bento-sheet__seg > button + button {
+  border-left: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+}
+.bento-sheet__switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.bento-sheet__switch::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}
+.bento-sheet__switch[aria-checked='true']::before {
+  background: var(--bento-ink, #111);
+}
+.bento-sheet__knob {
+  position: absolute;
+  left: calc(50% - 18px);
+  top: calc(50% - 10px);
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bento-card, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 140ms ease;
+}
+.bento-sheet__switch[aria-checked='true'] .bento-sheet__knob { transform: translateX(16px); }
+.bento-sheet__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 12px;
+  background: var(--bento-ink, #111);
+  color: var(--bento-card, #fff);
+  font-size: 14px;
+  cursor: pointer;
+}
+.bento-sheet__btn.is-quiet {
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  justify-content: center;
+}
+/* While the sheet is up the cards are read-only and say so quietly. */
+[data-layout='bento'] .bento-board[data-arranging='sheet'] .bento-cue { opacity: 0.3; }
+
+/* The pencil on the page-dot strip: the left end, because the assistant's
+   round button owns the right. 44px, like the dots' own hit area. */
+.bento-dots__edit {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.bento-dots__edit:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; opacity: 1; }
+
+/* ── The desktop: outlines, a slim bar, a pill ─────────────────────────── */
+.bento-edit-pill {
+  position: fixed;
+  right: 84px;
+  bottom: 28px;
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+  border-radius: 999px;
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+  font-size: 12.5px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.08);
+  opacity: 0.8;
+  cursor: pointer;
+}
+.bento-edit-pill:hover, .bento-edit-pill:focus-visible { opacity: 1; }
+@media (max-width: 767px), print {
+  .bento-edit-pill { display: none; }
+}
+
+.bento-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.bento-bar__btn:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.bento-bar__btn.is-primary {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.bento-bar__btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* The card in edit mode: a hairline outline inside its own edge, the
+   pointer says it can be moved, and its contents do not answer clicks. */
+[data-layout='bento'] .bento-widget[data-editing] > :first-child { pointer-events: none; }
+/* The corner arrow opens the card; while editing nothing opens, and the ×
+   sits where the arrow was. */
+[data-layout='bento'] .bento-widget[data-editing] .bento-cue { visibility: hidden; }
+.bento-edit {
+  outline: 1.5px dashed color-mix(in srgb, currentColor 40%, transparent);
+  outline-offset: -3px;
+  cursor: grab;
+  touch-action: none;
+}
+.bento-widget[data-dragging] .bento-edit { cursor: grabbing; }
+.bento-widget[data-dragging] { opacity: 0.85; }
+.bento-widget[data-drop-target] .bento-edit {
+  outline: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.bento-edit__hide {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 999px;
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+  opacity: 0.75;
+  cursor: pointer;
+}
+.bento-edit__hide:hover, .bento-edit__hide:focus-visible { opacity: 1; }
+.bento-edit__tools {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.bento-edit:hover .bento-edit__tools,
+.bento-edit:focus-within .bento-edit__tools { opacity: 1; }
+.bento-sizepick {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
+  border-radius: 8px;
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+}
+.bento-sizepick__btn {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.bento-sizepick__btn + .bento-sizepick__btn { border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+.bento-sizepick__btn.is-on { background: var(--bento-ink, #111); color: var(--bento-card, #fff); }
+.bento-sizepick__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.bento-sizepick__swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento-sheet__knob, .bento-edit__tools, .bento-edit-pill { transition: none; }
 }

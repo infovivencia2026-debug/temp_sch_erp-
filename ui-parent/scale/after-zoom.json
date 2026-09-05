@@ -1,0 +1,18 @@
+{
+  "after-zoom-x1-light": {
+    "pages": 3,
+    "clipped": []
+  },
+  "after-zoom-x1.15-light": {
+    "pages": 3,
+    "clipped": []
+  },
+  "after-zoom-x1.3-light": {
+    "pages": 4,
+    "clipped": []
+  },
+  "after-zoom-x1.3-dark": {
+    "pages": 4,
+    "clipped": []
+  }
+}

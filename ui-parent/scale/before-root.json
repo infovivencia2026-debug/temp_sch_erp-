@@ -1,0 +1,126 @@
+{
+  "before-root-x1-light": {
+    "pages": 3,
+    "clipped": []
+  },
+  "before-root-x1.15-light": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 3,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 3,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 3,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  },
+  "before-root-x1.3-light": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  },
+  "before-root-x1.3-dark": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Fees",
+        "over": 4,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 10,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  }
+}

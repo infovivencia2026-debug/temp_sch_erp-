@@ -156,7 +156,11 @@ function shortDate(iso?: string) {
 function useCellShape() {
   const shape = useShape()
   const phone = usePhone()
-  return phone ? { ...shape, w: 1, h: 1, wide: false, tall: false, anchor: false } : shape
+  /* One column always; the height is the one thing a phone card can be
+     given. A card set to Tall in the edit sheet takes two of the page's three
+     rows, and the drawing may use that depth the way a tall desktop cell does.
+     Never wide: nothing on a phone has a neighbour. */
+  return phone ? { ...shape, w: 1, h: shape.h >= 2 ? 2 : 1, wide: false, tall: shape.h >= 2, anchor: false } : shape
 }
 
 /** "Class 5-A" — the form, without the roll number, for the card label. */
@@ -398,29 +402,49 @@ function AttentionCell({
   const { tall, wide } = useCellShape()
   const phone = usePhone()
   const top = items[0]
-  const lines = phone ? 1 : tall ? 6 : wide ? 3 : 2
+  const lines = phone ? (tall ? 4 : 1) : tall ? 6 : wide ? 3 : 2
+  /* THE SENTENCE IS NEVER BLANK.
+
+     Seen on a phone: the figure "1" and nothing under it. The one item had
+     a headline with nothing in it, and a card whose sentence is an empty
+     string is a card that has said its number and stopped. So the first
+     item's headline is used when it has words, its detail when it does not,
+     and the count-in-words when neither does. */
+  const first = top?.headline?.trim() || top?.detail?.trim() || ''
+  const sentence = failed
+    ? t('bento.parent_week.attention_unread')
+    : items.length === 0
+      ? t('bento.parent_week.attention_none')
+      : first || t('bento.parent_week.attention_count', { count: items.length })
+  /* THE LOWER HALF SAYS SOMETHING TOO.
+
+     With two or more items the drawing lists the rest. With exactly one, it
+     used to list nothing, and a card with a figure, a sentence and half a
+     tile of air under them reads as unfinished. The one item's detail —
+     "Due by 05 Sep" — is the line that belongs there, when it is not already
+     the sentence. */
+  const rest =
+    items.length > 1
+      ? items.slice(1, lines + 1).map((i) => ({ key: i.key, text: i.headline?.trim() || i.detail || '', high: i.severity === 'high' || i.severity === 'critical' }))
+      : top?.detail && top.detail.trim() !== first
+        ? [{ key: top.key, text: top.detail, high: false }]
+        : []
   return (
     <PersonaCard
       span={span}
       title={t('bento.parent_week.attention_label')}
       who={who}
       value={loading ? '…' : failed ? '—' : items.length}
-      change={
-        failed
-          ? t('bento.parent_week.attention_unread')
-          : items.length === 0
-            ? t('bento.parent_week.attention_none')
-            : top?.headline
-      }
+      change={sentence}
       to={top?.href ?? to}
       cueLabel={top?.action ?? t('bento.parent_week.attention_cue')}
     >
-      {items.length > 1 ? (
+      {rest.length > 0 ? (
         <ul className="parent-list" aria-label={t('bento.parent_week.attention_sr')}>
-          {items.slice(1, lines + 1).map((i) => (
+          {rest.filter((i) => i.text).map((i) => (
             <li key={i.key} className="parent-list__row">
-              <span className={cn('parent-list__dot', i.severity === 'high' && 'is-high')} aria-hidden="true" />
-              <span className="parent-list__text">{i.headline}</span>
+              <span className={cn('parent-list__dot', i.high && 'is-high')} aria-hidden="true" />
+              <span className="parent-list__text">{i.text}</span>
             </li>
           ))}
         </ul>
@@ -452,9 +476,20 @@ export function FeesCell({
   const due = fees ? fees.outstanding_paise : s.outstanding_paise
   const open = invoices.filter((i) => i.due_paise > 0).sort((a, b) => b.days_overdue - a.days_overdue)
   const worst = open[0]
+  /* OWED MEANS A RUPEE OR MORE, OR A DAY OR MORE LATE.
+
+     Seen on a phone: the card tinted as money owed, headed "Fees
+     outstanding", showing ₹0 — an instalment due that same day and a balance
+     that rounds to nothing. The tint is the board's one coloured cell and it
+     is for the morning something is actually wrong. A remainder under a rupee
+     is not that, and neither is a bill that is not late yet, so the card
+     stays plain, keeps its "Fees" title, and still names the instalment and
+     its date in the sentence — which is the fact worth reading. */
+  const overdue = !!worst && worst.days_overdue > 0
+  const owed = due >= 100 || overdue
 
   let change: string
-  if (due <= 0) change = t('bento.parent_week.fees_settled_short')
+  if (!owed && !worst) change = t('bento.parent_week.fees_settled_short')
   else if (worst && worst.days_overdue > 0)
     change = t('bento.parent_week.fees_overdue', {
       n: worst.instalment_no ?? '',
@@ -504,13 +539,13 @@ export function FeesCell({
   return (
     <PersonaCard
       span={span}
-      ground={due > 0 ? 'finance' : undefined}
-      title={due > 0 ? t('bento.parent_week.fees_label') : t('bento.parent_week.fees_label_clear')}
+      ground={owed ? 'finance' : undefined}
+      title={owed ? t('bento.parent_week.fees_label') : t('bento.parent_week.fees_label_clear')}
       who={who}
       value={formatPaise(due)}
       change={change}
       to={to}
-      cueLabel={due > 0 ? t('bento.parent_week.fees_pay_cue') : t('bento.parent_week.fees_cue')}
+      cueLabel={owed ? t('bento.parent_week.fees_pay_cue') : t('bento.parent_week.fees_cue')}
     >
       {drawing}
     </PersonaCard>

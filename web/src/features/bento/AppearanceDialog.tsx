@@ -25,7 +25,8 @@ import { useFullScreen } from '@/lib/fullscreen'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
 import { useLayout as useFrameLayout, LAYOUTS, type Layout } from '@/lib/layout'
-import { useBoard, useLayout, isRemoved, DIMS } from '@/lib/widgets'
+import { useBoard, useLayout, isRemoved, DIMS, requestArrange } from '@/lib/widgets'
+import { useNavigate } from 'react-router-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
 
 /* Choosing a typeface by looking at it.
@@ -1414,21 +1415,51 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
 function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
   const { dashboard, widgets, setArranging } = useBoard()
   const { layout, place, remove, reset } = useLayout(dashboard ?? 'none')
+  const navigate = useNavigate()
+  const role = useActiveRole()
+  const t = useT()
+  /* THE DOOR WORKS FROM ANYWHERE.
+
+     On a phone, Settings is a route and the board is unmounted underneath
+     it, so "Arrange" had nothing to arrange and this section said "open a
+     dashboard first" — from the one screen a person goes to looking for the
+     control. Edit home now goes to the home screen and parks the intent,
+     which the board picks up the moment it publishes (requestArrange). With
+     the board already mounted, in the desktop dialog, it simply switches on. */
+  const home = (() => {
+    if (!role) return null
+    const h = role.sections.find((s) => s.slug === 'home')
+    const f = h?.features.find(usable)
+    return h && f ? featurePath(role.key, h.slug, f.slug) : null
+  })()
+  const editHome = (
+    <NavRow
+      label={t('bento.widgets.edit_home')}
+      onClick={() => {
+        if (dashboard) {
+          setArranging(true)
+          onArrange()
+        } else {
+          // Leaving for the home screen IS the way out of settings here;
+          // `onArrange` would step back into it.
+          if (home) navigate(home)
+          requestArrange()
+        }
+      }}
+    />
+  )
   if (!dashboard || widgets.length === 0) {
     return (
-      <Row label="Cards" helper="Open a dashboard first; its cards are listed here." />
+      <>
+        {home && editHome}
+        <Row label="Cards" helper="Open a dashboard first; its cards are listed here." />
+      </>
     )
   }
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
   return (
     <>
-      <NavRow
-        label="Arrange on the dashboard"
-        onClick={() => {
-          setArranging(true)
-          onArrange()
-        }}
-      />
+      {editHome}
       {arranged && <NavRow label="Reset layout" onClick={reset} />}
       {widgets.map((w) => {
         const off = isRemoved(layout, w.id)

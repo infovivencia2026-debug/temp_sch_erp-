@@ -750,6 +750,9 @@ export function paginate(
   items: { id: string; w: number; h: number }[],
   cols = PHONE_COLS,
   rows = PHONE_ROWS,
+  /** The ids whose height was chosen by a person, not declared by the
+      dashboard. Only those may take a second row — see below. */
+  tallOk?: Set<string>,
 ): Spot[] {
   const out: Spot[] = []
   let page = 0
@@ -786,8 +789,18 @@ export function paginate(
        height these cards are built for and roughly what an iPhone home screen
        gives a widget. The stored layout is untouched — this is how the phone
        READS it, and the desktop board still honours every two-row card. */
-    const h = 1
-    void item.h
+    /* TWO ROWS, WHEN ASKED FOR, AND NEVER MORE.
+
+       The paragraph above was written against a 2x2 that nobody chose: the
+       card's DECLARED size, read on a phone that draws one column. That is
+       still refused — a phone reads a declared 'large' as one row. What it
+       now honours is a height somebody picked on the phone itself: the edit
+       sheet offers Small and Tall, and Tall means two of the page's three
+       rows, which is where a list card gets to show its list. Capped at two
+       so a card can never take a whole page and leave the pager with nothing
+       to page. `tallOk` is how the caller says which heights were chosen here
+       rather than declared elsewhere. */
+    const h = tallOk?.has(item.id) ? Math.min(2, Math.max(1, item.h), rows) : 1
     let spot: { row: number; col: number } | null = null
     for (let r = 0; !spot && r <= rows - h; r++) {
       for (let c = 0; c <= cols - w; c++) {

@@ -291,7 +291,7 @@ export interface Fact {
 export function Facts({ items, srLabel }: { items: Fact[]; srLabel: string }) {
   if (!items.length) return null
   return (
-    <dl className="flex h-full flex-col justify-end gap-0.5" role="group" aria-label={srLabel}>
+    <dl className="card-facts flex h-full flex-col justify-end gap-0.5" role="group" aria-label={srLabel}>
       {items.map((f) => (
         <div
           key={f.label}

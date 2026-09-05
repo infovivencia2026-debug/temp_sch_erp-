@@ -1,0 +1,189 @@
+{
+  "before-zoom-x1-light": {
+    "pages": 3,
+    "clipped": []
+  },
+  "before-zoom-x1.15-light": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Fees",
+        "over": 6,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 18,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Fees",
+        "over": 6,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 18,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Fees",
+        "over": 6,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 18,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  },
+  "before-zoom-x1.3-light": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 1,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 2,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 3,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  },
+  "before-zoom-x1.3-dark": {
+    "pages": 3,
+    "clipped": [
+      {
+        "page": 1,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 1,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 1,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 2,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 2,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 2,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      },
+      {
+        "page": 3,
+        "card": "Fees",
+        "over": 17,
+        "tall": 0,
+        "text": "Still due"
+      },
+      {
+        "page": 3,
+        "card": "Attendance this year",
+        "over": 6,
+        "tall": 0,
+        "text": "Last 30 school days"
+      },
+      {
+        "page": 3,
+        "card": "Today",
+        "over": 39,
+        "tall": 0,
+        "text": "09:50"
+      }
+    ]
+  }
+}

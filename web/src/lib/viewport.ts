@@ -109,3 +109,69 @@ export function useViewport(): Viewport {
 export function usePhone(): boolean {
   return useViewport() === 'phone'
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HOW MUCH BIGGER THE PLATFORM HAS MADE THE TEXT.
+
+   Android's font size setting reaches a WebView as `textZoom`: every computed
+   font-size is multiplied — px-specified ones included — and nothing else is.
+   Padding, gaps and container-relative clamps stay where they were, so a card
+   that was measured to hold a header, a figure and a sentence at 1.0 holds
+   them at 1.3 only by pushing its drawing out through the bottom, cut mid
+   glyph. No stylesheet can see the multiplier: `cqh` is multiplied too.
+
+   The DOM can. A probe set to 10px reports its ZOOMED size from
+   getComputedStyle, so the ratio is the platform's factor, and the pager can
+   answer it the way a home screen does — fewer, taller tiles per page.
+
+   Measured once per mount and again on resize (the setting cannot change
+   without the activity being recreated, but a window can). 1 wherever the
+   measurement is impossible, which is every environment with no zoom.
+   ───────────────────────────────────────────────────────────────────────── */
+let zoomCache: number | null = null
+const zoomListeners = new Set<() => void>()
+
+function measureZoom(): number {
+  if (typeof document === 'undefined' || !document.body) return 1
+  const probe = document.createElement('span')
+  probe.setAttribute('aria-hidden', 'true')
+  probe.style.cssText =
+    'position:absolute;left:-9999px;top:0;font-size:10px;line-height:1;visibility:hidden;pointer-events:none'
+  probe.textContent = 'x'
+  document.body.appendChild(probe)
+  const px = parseFloat(getComputedStyle(probe).fontSize)
+  probe.remove()
+  const z = px > 0 ? px / 10 : 1
+  // Two decimals: 12.999 is 1.3, not a third distinct value that re-renders.
+  return Math.round(z * 100) / 100
+}
+
+function zoomSnapshot(): number {
+  if (zoomCache === null) zoomCache = measureZoom()
+  return zoomCache
+}
+
+function subscribeZoom(fn: () => void): () => void {
+  zoomListeners.add(fn)
+  const again = () => {
+    const next = measureZoom()
+    if (next !== zoomCache) {
+      zoomCache = next
+      for (const l of zoomListeners) l()
+    }
+  }
+  window.addEventListener('resize', again)
+  // A late re-read, for a platform that applies its zoom after first paint.
+  const t = window.setTimeout(again, 600)
+  return () => {
+    zoomListeners.delete(fn)
+    window.removeEventListener('resize', again)
+    window.clearTimeout(t)
+  }
+}
+
+/** The platform's text multiplier: 1 on a desktop, 1.15 or 1.3 on a phone
+    whose owner set the system font to Large or Largest. */
+export function useTextZoom(): number {
+  return useSyncExternalStore(subscribeZoom, zoomSnapshot, () => 1)
+}
