@@ -1891,13 +1891,32 @@ var importSpecs = map[string]importSpec{
 			   unknown subject fails the row by name rather than being
 			   skipped: silently dropping half of "MATH; PHYSICS" leaves
 			   somebody believing a fact that is not recorded. */
-			// userID is empty for a member of staff imported without an email:
-			// they have a personnel record and no account, so there is no user
-			// to attach a subject to. Their subjects go in when they are given
-			// a login.
+			/* WHAT A TEACHER TEACHES IS RECORDED AGAINST THEIR ACCOUNT.
+
+			   teacher_subjects keys on user_id, so a member of staff with no
+			   account has nowhere to put it. That used to return quietly, and
+			   the note above promised the subjects would go in "when they are
+			   given a login" -- nothing does that, and by then the sheet is
+			   gone. One school imported fifty-eight teachers with a subjects
+			   column filled in and finished with none recorded, told nothing.
+
+			   An account is created during the import wherever there is an
+			   email and a role to give, and the role is now read off the post,
+			   so this is rare. Where it still happens it is said out loud and
+			   the row is refused, because a silently dropped column is a fact
+			   somebody believes is recorded. */
 			list := strings.TrimSpace(row["subjects"])
-			if list == "" || strings.TrimSpace(userID) == "" {
+			if list == "" {
 				return nil
+			}
+			if strings.TrimSpace(userID) == "" {
+				return fmt.Errorf(
+					"%q teaches %s, and what somebody teaches is held against their "+
+						"login. This row has no email, or no role to give, so no "+
+						"account was made and the subjects would be lost. Add an "+
+						"email and a role, or leave the subjects column out and set "+
+						"them on the allocation sheet",
+					strings.TrimSpace(row["first_name"]), list)
 			}
 			for _, want := range splitSubjects(list) {
 				var subjectID uuid.UUID

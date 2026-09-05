@@ -334,15 +334,15 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			if berr != nil {
 				return berr
 			}
-			insert := func(tx pgx.Tx, email string) error {
+			insert := func(tx pgx.Tx, email, phone string) error {
 				return tx.QueryRow(r.Context(), `
 					INSERT INTO users (institution_id, username, email, phone, full_name,
 					                   password_hash, status, must_change_password)
 					VALUES ($1,$2::citext,NULLIF($3,'')::citext,NULLIF($4,''),$5,$6,'active',$7)
 					RETURNING id`,
-					id.InstitutionID, username, email, p.phone, p.name, hash, known).Scan(&newID)
+					id.InstitutionID, username, email, phone, p.name, hash, known).Scan(&newID)
 			}
-			err = insert(sp, p.email)
+			err = insert(sp, p.email, p.phone)
 
 			/* A shared email must not cost a family their account.
 
@@ -369,7 +369,40 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 					return berr
 				}
 				sp = sp2
-				err = insert(sp, "")
+				err = insert(sp, "", p.phone)
+			}
+
+			/* AND A SHARED PHONE MUST NOT COST A TEACHER THEIR ACCOUNT.
+
+			   The same argument, the other way round. A staff sheet carries
+			   one office number against six people, a husband and wife on one
+			   handset, a department line -- and the second of them was refused
+			   an account outright.
+
+			   The difference from a parent is what they sign in with. A parent
+			   signs in with their phone, so dropping it would take away their
+			   way in and this must never do it for them. A member of staff
+			   signs in with a username, built from their staff code, which is
+			   unique by construction. The number is a way to reach them, not a
+			   way in, so where it collides the account is created without it
+			   and nothing is lost that was being used. */
+			if err != nil && req.Kind == "staff" && p.phone != "" && isUniqueViolation(err) {
+				_ = sp.Rollback(r.Context())
+				sp3, berr := tx.Begin(r.Context())
+				if berr != nil {
+					return berr
+				}
+				sp = sp3
+				err = insert(sp, p.email, "")
+				if err != nil && p.email != "" && isUniqueViolation(err) {
+					_ = sp.Rollback(r.Context())
+					sp4, berr2 := tx.Begin(r.Context())
+					if berr2 != nil {
+						return berr2
+					}
+					sp = sp4
+					err = insert(sp, "", "")
+				}
 			}
 
 			if err != nil {
@@ -378,6 +411,13 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				detail := "that phone number already belongs to another account"
 				if p.phone == "" {
 					detail = "no phone number on record, and the email is already in use"
+				}
+				if req.Kind == "staff" {
+					// Neither contact detail was the obstacle by this point --
+					// both are dropped rather than allowed to block a staff
+					// account -- so what is left is the username itself.
+					detail = "another account already signs in with that username; " +
+						"give this person a different staff code"
 				}
 				out.Rows = append(out.Rows, bulkLoginRow{Name: p.name, Detail: detail})
 				continue
