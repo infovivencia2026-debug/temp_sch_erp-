@@ -956,6 +956,7 @@ export const te: Partial<Messages> = {
     '{name} వివరాలు రాలేదు. అవి వచ్చేవరకు ఇక్కడి సంఖ్యలను నమ్మవద్దు.',
   'bento.parent_week.no_link': 'ఈ ఖాతాకు ఇంకా విద్యార్థి రికార్డు జతచేయలేదు.',
   'bento.parent_week.switcher_sr': 'ఈ డాష్‌బోర్డు ఏ పిల్లవాడి గురించి',
+  'bento.parent_week.switch_child': 'పిల్లవాడిని మార్చు',
   'bento.parent_week.one_of_many': '{name} · {form} — మీ {count} మంది పిల్లల్లో ఒకరు',
   'bento.parent_week.week_label': 'ఈ సంవత్సరం హాజరు',
   'bento.parent_week.week_cue': 'పూర్తి హాజరు రికార్డు',

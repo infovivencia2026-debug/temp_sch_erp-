@@ -2037,6 +2037,7 @@ export const en = {
     '{name}’s week did not load. Nothing here is a figure you can rely on until it does.',
   'bento.parent_week.no_link': 'No student record is linked to this account yet.',
   'bento.parent_week.switcher_sr': 'Which child this dashboard is about',
+  'bento.parent_week.switch_child': 'Switch child',
   'bento.parent_week.one_of_many': '{name} · {form}. One of your {count} children',
   'bento.parent_week.week_label': 'Attendance this year',
   'bento.parent_week.week_cue': 'The full register',

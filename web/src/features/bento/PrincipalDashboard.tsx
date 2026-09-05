@@ -4101,11 +4101,14 @@ export default function BentoPrincipalDashboard() {
     queryKey: ['attendance-trend'],
     queryFn: () => api.get<List<TrendPoint>>('/api/v1/principal/attendance-trend'),
   })
-  /* One request behind fifteen cells. The query key is the panel's own, so a
-     board and the classic attention panel share a single cached response
-     rather than racing for the same rows. */
+  /* One request behind fifteen cells, and behind the classic panel above them
+     too — which is what the key here was always meant to achieve and did not.
+     'bento-principal' made this a cache entry of its own, so the board and
+     components/NeedsAttention, which mount together on Home, each fetched the
+     whole probe set. The shared key is the bare ['attention']; see the long
+     note in NeedsAttention.tsx for why the role parameter went with it. */
   const attention = useQuery({
-    queryKey: ['attention', 'bento-principal'],
+    queryKey: ['attention'],
     queryFn: () => api.get<AttentionResponse>('/api/v1/attention'),
   })
 

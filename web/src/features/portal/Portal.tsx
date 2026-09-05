@@ -8,6 +8,7 @@ import {
   Loading, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { ChildSwitch } from './ChildSwitch'
 import { formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -349,25 +350,17 @@ export default function Portal() {
            say. */
         description={childLine(kids.find((c) => c.student_id === activeId)) ?? t('portal.portal.description')}
         actions={
-          kids.length > 1 ? (
-            /* The same small segmented control the home board uses, so the
-               switcher is one thing across the parent's screens rather than a
-               row of buttons here and a pill there. Styled in parent.css;
-               only a guardian of several ever sees it. */
-            <div role="group" aria-label={t('portal.portal.title')} className="parent-switch">
-              {kids.map((c) => (
-                <button
-                  key={c.student_id}
-                  type="button"
-                  aria-pressed={c.student_id === activeId}
-                  onClick={() => chooseChild(c.student_id)}
-                  className={cn('parent-switch__item', c.student_id === activeId && 'is-on')}
-                >
-                  {c.full_name.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-          ) : undefined
+          /* The same control the home board uses, so the switcher is one
+             thing across the parent's screens: pills on a desk, one small
+             "Switch child" button on a phone. Only a guardian of several
+             ever sees it. */
+          <ChildSwitch
+            kids={kids}
+            activeId={activeId}
+            onChoose={chooseChild}
+            label={t('portal.portal.title')}
+            switchLabel={t('bento.parent_week.switch_child')}
+          />
         }
       />
       <PageBody>

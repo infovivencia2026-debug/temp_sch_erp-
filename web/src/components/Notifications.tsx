@@ -98,11 +98,28 @@ export default function Notifications() {
   const feed = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<{ items: Note[]; unread: number }>('/api/v1/portal/notifications'),
-    /* Ten seconds. Not a socket, and honest about it: the bell is the one
-       thing people watch after being told "I have sent it", and a minute of
-       nothing is what makes somebody reload the page. */
-    refetchInterval: 10_000,
+    /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
+     *
+     * This was `refetchInterval: 10_000` — precisely the per-screen interval
+     * lib/live.ts opens by arguing against, and the bell is mounted in the
+     * header, so it was on every screen at once. Measured: two independent
+     * ten-second timers, twelve requests a minute out of an idle tab that
+     * nobody was looking at, for ever.
+     *
+     * The revision poll already answers "has anything changed?" for the whole
+     * app and invalidates everything when it has, which refetches this query
+     * because it is mounted. So a notification still arrives without anybody
+     * reloading — it arrives by the one mechanism the product already has,
+     * rather than by a second one that duplicated it.
+     *
+     * `refetchOnWindowFocus` is kept, and is now one of the few queries that
+     * asks for it (see App.tsx): the bell is the thing people watch after
+     * being told "I have sent it", so coming back to the tab must not show a
+     * stale count. */
     refetchOnWindowFocus: true,
+    // The count on the bell is the freshest thing on the page; nothing else
+    // should be serving it out of a cache the revision poll has not touched.
+    staleTime: 10_000,
     retry: false,
   })
   const readAll = useMutation({

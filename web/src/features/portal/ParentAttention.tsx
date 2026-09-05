@@ -32,7 +32,10 @@ const TONE: Record<string, 'danger' | 'warning' | 'info' | 'neutral'> = {
 
 export default function ParentAttention() {
   const q = useQuery({
-    queryKey: ['attention', 'self'],
+    // The bare key, shared with every other reader of this one endpoint.
+    // 'self' was a third cache entry for a response the server already scopes
+    // to the caller. See NeedsAttention.tsx.
+    queryKey: ['attention'],
     queryFn: () => api.get<{ items: Item[] }>('/api/v1/attention'),
   })
 

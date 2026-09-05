@@ -13,6 +13,7 @@ import {
 } from './persona-kit'
 import { Widget } from './WidgetLayer'
 import type { ChildBusFeed, ChildBusRow } from '../portal/child-bus'
+import { ChildSwitch } from '../portal/ChildSwitch'
 
 /* THE PARENT'S HOME: one child at a time, the important number first.
 
@@ -265,26 +266,15 @@ export default function ParentWeek() {
      and the relation — "Kabir Gupta · Mother" twice across the top of the
      screen was the loudest thing on the page and said the least. The name is
      in the title; the switcher only has to say "the other one". */
-  const switcher =
-    kids.length > 1 ? (
-      <div
-        role="group"
-        aria-label={t('bento.parent_week.switcher_sr')}
-        className="parent-switch"
-      >
-        {kids.map((c) => (
-          <button
-            key={c.student_id}
-            type="button"
-            aria-pressed={c.student_id === activeId}
-            onClick={() => chooseChild(c.student_id)}
-            className={cn('parent-switch__item', c.student_id === activeId && 'is-on')}
-          >
-            {c.full_name.split(' ')[0]}
-          </button>
-        ))}
-      </div>
-    ) : undefined
+  const switcher = (
+    <ChildSwitch
+      kids={kids}
+      activeId={activeId}
+      onChoose={chooseChild}
+      label={t('bento.parent_week.switcher_sr')}
+      switchLabel={t('bento.parent_week.switch_child')}
+    />
+  )
 
   const header = (body: ReactNode, arrange = false) => (
     <PersonaPage

@@ -19,19 +19,29 @@ import { api } from '@/lib/api'
    point every mounted query refetches itself because that is what react-query
    already does with a stale cache.
 
-   So the cost of nothing happening is one small request every ten seconds, and
-   the cost of something happening is exactly the screens that are on show.
+   So the cost of nothing happening is one small request every thirty seconds,
+   and the cost of something happening is exactly the screens that are on show.
 
    NOT WHILE NOBODY IS LOOKING
 
    A tab in the background is a tab nobody is reading. Polling it wastes a
    phone's battery and a school's bandwidth for a screen that will be refreshed
    the moment it is looked at again — which the visibility handler below does,
-   immediately, so coming back to a tab shows the current answer rather than
-   one up to ten seconds old.
+   immediately, so coming back to a tab shows the current answer rather than a
+   stale one. That claim was only half true until this file stopped merely
+   skipping the work on a hidden tab and started stopping the timer as well.
 */
 
-const EVERY = 10_000
+/* Thirty seconds, not ten.
+
+   Ten was chosen when this was the only poll in the product; it was not, and
+   the pair of them cost twelve requests a minute from every open tab, all day,
+   for a school where most tabs are open and nobody is looking at them. What
+   this poll actually buys is "the register a colleague marked appears without
+   anybody reloading", and nobody notices the difference between hearing that
+   ten seconds late and thirty. Coming back to a tab is still immediate, since
+   the visibility handler asks straight away rather than waiting for a tick. */
+const EVERY = 30_000
 
 /* A tab open across a deploy is running yesterday's app.
 
@@ -41,34 +51,33 @@ const EVERY = 10_000
    so a fix shipped at noon reaches somebody's open phone at bedtime, if ever.
    Every "you need to reload once" in this product's life has been this.
 
-   index.html names the bundle with a content hash, so asking for it and
-   comparing that name to the one this tab is running is the whole test. Only
-   when somebody comes back to the tab: a deploy landing mid-sentence should
-   not reload the page under a person's hands, and a background tab has nobody
-   to inconvenience anyway.
+   THERE WERE TWO MECHANISMS FOR THIS, AND ONLY ONE OF THEM CAN WIN.
 
-   Guarded by a session flag, because a reload that does not fix the mismatch
-   — a cached index, a half-finished deploy — would otherwise loop. */
-const RELOADED = 'erp.build_reloaded'
+   This function used to fetch `/` on every focus, read the hashed bundle name
+   out of the returned index.html, compare it to its own, and call
+   `location.reload()` itself — while main.tsx was independently reloading on
+   the service worker's `controllerchange`. Two reloads, two session flags,
+   racing over the same event, and an extra document fetch every time anybody
+   alt-tabbed back. Worse, the reload here could land while the old worker was
+   still the controller, which serves the page the old build again and burns
+   the guard flag on a reload that fixed nothing.
 
-async function reloadIfStale() {
-  // The bundle this tab is running, from its own module URL.
-  const here = /assets\/(index-[^./]+)\.js/.exec(import.meta.url)?.[1]
-  if (!here) return
-  try {
-    const html = await fetch('/', { cache: 'no-store' }).then((r) => r.text())
-    const live = /assets\/(index-[^./"]+)\.js/.exec(html)?.[1]
-    if (!live || live === here) {
-      // Back in step: a later deploy may reload again.
-      sessionStorage.removeItem(RELOADED)
-      return
-    }
-    if (sessionStorage.getItem(RELOADED) === live) return
-    sessionStorage.setItem(RELOADED, live)
-    window.location.reload()
-  } catch {
-    /* Offline, or the server is mid-restart. The next visit asks again. */
-  }
+   So the deciding is left where it belongs — the worker knows what it has
+   installed, and main.tsx owns the single reload — and all this does is give
+   the browser the nudge it would otherwise not get: an open tab never asks for
+   sw.js again on its own, which is exactly why a long-lived tab used to sit on
+   an old build for ever. `update()` re-fetches the worker; if it is byte-
+   different a new one installs, main.tsx tells it to take over, and its
+   controllerchange handler does the one reload. If it is the same build, this
+   costs one conditional request and nothing happens. */
+function checkForNewBuild() {
+  if (!('serviceWorker' in navigator)) return
+  navigator.serviceWorker
+    .getRegistration()
+    .then((reg) => reg?.update())
+    .catch(() => {
+      /* Offline, or the server is mid-restart. The next focus asks again. */
+    })
 }
 
 export function useLiveUpdates() {
@@ -104,30 +113,54 @@ export function useLiveUpdates() {
           qc.invalidateQueries()
         }
       } catch {
-        /* A failed poll is not worth a message. The next one is ten seconds
+        /* A failed poll is not worth a message. The next one is thirty seconds
            away, and a signed-out session is about to be redirected anyway. */
       }
     }
 
+    /* THE TIMER NOW ACTUALLY STOPS WHEN NOBODY IS LOOKING.
+
+       The comment at the top of this file has always said a background tab is
+       not polled, and `check` did return early on document.hidden — but the
+       timer it returned into went on rescheduling itself for ever, so a tab
+       left open overnight still woke up every ten seconds to decide to do
+       nothing. On a phone that is the timer keeping the radio and the process
+       alive, which is most of what the claim was meant to avoid. So the chain
+       ends on hide and is started again on show, and the visibility handler
+       asks its question immediately rather than waiting out a full interval. */
+    const stop = () => {
+      if (timer.current !== null) window.clearTimeout(timer.current)
+      timer.current = null
+    }
     const tick = () => {
+      timer.current = null
+      if (stopped || document.hidden) return
       void check()
       timer.current = window.setTimeout(tick, EVERY)
     }
-    timer.current = window.setTimeout(tick, EVERY)
+    const start = () => {
+      if (stopped || document.hidden || timer.current !== null) return
+      timer.current = window.setTimeout(tick, EVERY)
+    }
+    start()
 
     // Back to the tab: answer now, not on the next tick — and take the
     // opportunity to notice that the app itself has moved on.
     const onVisible = () => {
-      if (document.hidden) return
+      if (document.hidden) {
+        stop()
+        return
+      }
       void check()
-      void reloadIfStale()
+      checkForNewBuild()
+      start()
     }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', onVisible)
 
     return () => {
       stopped = true
-      if (timer.current) window.clearTimeout(timer.current)
+      stop()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', onVisible)
     }

@@ -40,6 +40,24 @@ startHaptics()
    console message could do. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    /* THE FIRST VISIT USED TO BOOT THE APPLICATION TWICE.
+     *
+     * The worker's `activate` calls `clients.claim()`, so on a first install
+     * it takes control of the page that just registered it — and that fires
+     * `controllerchange`, and the handler below reloaded. Measured on a cold
+     * sign-in: a second document navigation 2,266ms in, re-parsing 498kB of
+     * JavaScript and asking /session, /catalog, /tour and /notifications all
+     * over again, for nothing. There was no old build to get out of; the
+     * worker had only just been installed.
+     *
+     * `navigator.serviceWorker.controller` is exactly that distinction, read
+     * before the registration can change it: null means this page loaded
+     * uncontrolled, so a controller arriving is the FIRST one and the page is
+     * already running the build that installed it. A controller arriving when
+     * there was one before is a different build taking over, which is the case
+     * the reload exists for. Every user paid the first one on every install
+     * and after every deploy that retired the worker. */
+    const hadController = !!navigator.serviceWorker.controller
     navigator.serviceWorker.register('/sw.js').then((reg) => {
       if (!reg) return
 
@@ -84,6 +102,9 @@ if ('serviceWorker' in navigator) {
        * which ten seconds catches; two deploys ten seconds apart is not a
        * thing that happens, and if it did, taking the second is right. */
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // The first install claiming this page is not a build being replaced.
+        // See `hadController` above: this is the whole of that fix.
+        if (!hadController) return
         let last = 0
         try {
           last = Number(sessionStorage.getItem('erp.sw.reloaded') ?? 0)

@@ -23,17 +23,46 @@ import { I18nProvider } from '@/lib/i18n'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Reference data (classes, sections, subjects) changes a few times a
-      // year, so a short stale time is still right — what keeps a screen
-      // current is the revision poll in lib/live.ts, which invalidates
-      // everything the moment something actually moves.
-      staleTime: 30_000,
-      /* Back on. It was off because refetching a dozen queries every time
-         somebody alt-tabbed was noise — but the alternative was a tab open
-         since breakfast showing yesterday's register, which is worse. The
-         revision poll makes most of these refetches free anyway: a cache that
-         is already current has nothing to fetch. */
-      refetchOnWindowFocus: true,
+      /* Five minutes, because thirty seconds was answering a question this
+         default does not have to answer.
+
+         Almost everything behind these queries is reference data — classes,
+         sections, subjects, fee heads, the catalogue — which changes a few
+         times a year. Thirty seconds meant that any refetch trigger at all
+         found the whole page stale and refetched the whole page. What keeps a
+         screen current is not this number: it is the revision poll in
+         lib/live.ts, which invalidates on the server saying something moved,
+         and invalidation ignores staleTime entirely. So a longer default
+         costs no freshness and stops the cache being thrown away on a timer
+         nobody chose.
+
+         Anything genuinely time-sensitive sets its own, and now has to: see
+         the queries listed under refetchOnWindowFocus below. */
+      staleTime: 5 * 60_000,
+      /* OFF BY DEFAULT, ON WHERE IT IS EARNED.
+       *
+       * This was on for every query in the product, paired with the thirty-
+       * second staleTime above, which made one alt-tab back into the window a
+       * burst of refetches: /session, /catalog, /tour, /principal/dashboard,
+       * /attention and whatever else the screen had mounted, measured at ten
+       * requests for one focus event. Somebody switching between this and
+       * their email a dozen times an hour paid that a dozen times, to learn
+       * that the list of classes was still the list of classes.
+       *
+       * It was turned on for a real defect — a tab open since breakfast
+       * showing yesterday's register — but that defect is what the revision
+       * poll fixes, and it fixes it for a tab nobody has touched, which
+       * focusing never would. What is left for focus to do is the handful of
+       * things a person is watching in the moment and would notice being a
+       * minute old, and those ask for it themselves:
+       *
+       *   ['notifications']   the bell, watched right after "I have sent it"
+       *   ['attention']       "what needs me now", the first thing on Home
+       *   ['transport-live']  where the buses are, right now
+       *
+       * Everything else is reference data, or carries its own refetchInterval
+       * because it is a job or a queue, and neither needs this. */
+      refetchOnWindowFocus: false,
       /* One retry, and none for a refusal. A 404 or 403 is an answer, not a
          blip: retrying it only holds the screen on its loading line for the
          backoff, which on a slow day was the whole difference between a

@@ -44,7 +44,10 @@ const TONE: Record<string, 'danger' | 'warning' | 'neutral'> = {
 export default function Reminders() {
   const t = useT()
   const q = useQuery({
-    queryKey: ['attention', 'self'],
+    // The bare key, shared with every other reader of this one endpoint —
+    // ParentAttention draws the same rows in a card and used to hold its own
+    // copy of them. See NeedsAttention.tsx.
+    queryKey: ['attention'],
     queryFn: () => api.get<Attention>('/api/v1/attention'),
   })
 

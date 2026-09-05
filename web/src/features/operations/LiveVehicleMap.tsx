@@ -139,6 +139,14 @@ export default function LiveVehicleMap() {
   const live = useQuery({
     queryKey: ['transport-live'],
     queryFn: () => api.get<LiveFeed>('/api/v1/transport/live'),
+    /* One of the three queries that still refetch on focus, now that the
+       default is off (see App.tsx). The interval below is deliberately
+       stopped while the tab is hidden, so without this, coming back to a map
+       left open shows the last positions from before it was hidden until the
+       next tick — up to a ping later. On a screen whose entire subject is
+       where a bus is at this second, that is the wrong thing to draw. */
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   })
 
   const stops = useQuery({
