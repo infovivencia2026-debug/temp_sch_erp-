@@ -9,6 +9,15 @@ import { useEffect, useState } from 'react'
    answers to one question, and will believe the wrong one. So the state
    sentences and the poll live here, once. */
 
+export interface ChildBusStop {
+  id: string
+  name: string
+  sequence: number
+  latitude: number
+  longitude: number
+  geofence_m?: number
+}
+
 export interface ChildBusRow {
   student_id: string
   student_name: string
@@ -25,6 +34,11 @@ export interface ChildBusRow {
   longitude?: number
   stop_latitude?: number
   stop_longitude?: number
+  /* Every stop on the route with a position, in order, and which is ours.
+     Drawn on the map so the bus is seen against the whole run. */
+  route_id: string
+  stop_id?: string
+  stops: ChildBusStop[]
   age_seconds?: number
   metres_away?: number
   /* Minutes to the stop. Absent when the bus is not moving on a run, or when

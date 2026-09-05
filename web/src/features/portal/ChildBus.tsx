@@ -134,17 +134,37 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
                 : []
             }
             stops={
-              row.stop_latitude != null && row.stop_longitude != null
-                ? [
-                    {
-                      id: 'stop',
-                      name: row.stop ?? 'Your stop',
-                      latitude: row.stop_latitude,
-                      longitude: row.stop_longitude,
-                      geofence_m: row.proximity_m,
-                    },
-                  ]
-                : []
+              /* THE WHOLE ROUTE, WITH OURS SINGLED OUT.
+
+                 One stop and a bus on a blank field said how far and nothing
+                 about where the bus was on its way. Every stop on the route
+                 is drawn, numbered in running order, and the child's own is
+                 the big green one with its alert circle. A route whose stops
+                 carry no positions falls back to the one stop it did before. */
+              (row.stops ?? []).length > 0
+                ? row.stops.map((s) => {
+                    const mine = s.id === row.stop_id
+                    return {
+                      id: s.id,
+                      name: mine ? `${s.sequence}. ${s.name} · your stop` : `${s.sequence}. ${s.name}`,
+                      latitude: s.latitude,
+                      longitude: s.longitude,
+                      geofence_m: mine ? row.proximity_m : undefined,
+                      mine,
+                    }
+                  })
+                : row.stop_latitude != null && row.stop_longitude != null
+                  ? [
+                      {
+                        id: 'stop',
+                        name: row.stop ?? 'Your stop',
+                        latitude: row.stop_latitude,
+                        longitude: row.stop_longitude,
+                        geofence_m: row.proximity_m,
+                        mine: true,
+                      },
+                    ]
+                  : []
             }
             link={
               hasPlot(row) && row.stop_latitude != null && row.stop_longitude != null

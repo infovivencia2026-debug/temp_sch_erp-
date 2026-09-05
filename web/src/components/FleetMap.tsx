@@ -104,6 +104,8 @@ export interface MapStop {
   latitude: number
   longitude: number
   geofence_m?: number
+  /** The stop the viewer cares about: the parent's own, drawn larger and in colour. */
+  mine?: boolean
 }
 
 export interface MapLink {
@@ -276,7 +278,7 @@ export function FleetMap({
       type: 'FeatureCollection' as const,
       features: stops.map((s) => ({
         type: 'Feature' as const,
-        properties: { name: s.name },
+        properties: { name: s.name, mine: !!s.mine },
         geometry: { type: 'Point' as const, coordinates: [s.longitude, s.latitude] },
       })),
     }
@@ -300,10 +302,12 @@ export function FleetMap({
         type: 'circle',
         source: 'fleet-stops',
         paint: {
-          'circle-radius': 4,
-          'circle-color': '#0f172a',
-          'circle-opacity': 0.65,
-          'circle-stroke-width': 1.5,
+          // The parent's own stop among the route's others: bigger, green,
+          // solid. The rest stay the small grey landmarks they always were.
+          'circle-radius': ['case', ['get', 'mine'], 7, 4],
+          'circle-color': ['case', ['get', 'mine'], '#15803d', '#0f172a'],
+          'circle-opacity': ['case', ['get', 'mine'], 1, 0.65],
+          'circle-stroke-width': ['case', ['get', 'mine'], 2.5, 1.5],
           'circle-stroke-color': '#ffffff',
         },
       })

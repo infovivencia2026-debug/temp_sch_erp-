@@ -164,8 +164,17 @@ type childBusRow struct {
 	Longitude   *float64 `json:"longitude,omitempty"`
 	StopLat     *float64 `json:"stop_latitude,omitempty"`
 	StopLon     *float64 `json:"stop_longitude,omitempty"`
-	AgeSeconds  *int     `json:"age_seconds,omitempty"`
-	MetresAway  *int     `json:"metres_away,omitempty"`
+	/* The whole route, for the map.
+
+	   The parent's map drew their own stop and the bus and nothing else, so
+	   a bus two stops away sat in a blank field with no sense of where it was
+	   on its way. Every stop on the route with a position, in order, and the
+	   id of the child's own so the screen can single it out. */
+	RouteID    string         `json:"route_id"`
+	StopID     *string        `json:"stop_id,omitempty"`
+	Stops      []childBusStop `json:"stops"`
+	AgeSeconds *int           `json:"age_seconds,omitempty"`
+	MetresAway *int           `json:"metres_away,omitempty"`
 	/* Minutes to the stop, and how it was arrived at.
 
 	   A parent watching a dot move asks one question and this product could
@@ -177,6 +186,16 @@ type childBusRow struct {
 	RefreshSecs int      `json:"refresh_seconds"`
 	ProximityM  int      `json:"proximity_m"`
 	Watchable   bool     `json:"watchable"`
+}
+
+type childBusStop struct {
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Sequence  int     `json:"sequence"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	GeofenceM *int    `json:"geofence_m,omitempty"`
+	routeID   string
 }
 
 /*
@@ -216,6 +235,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		     WHERE g.user_id = $1
 		)
 		SELECT m.student_id::text, m.student_name, rt.name, COALESCE(v.registration_no, ''),
+		       rt.id::text, rs.id::text,
 		       t.direction,
 		       concat_ws(' ', e.first_name, e.last_name),
 		       CASE WHEN t.id IS NOT NULL THEN e.phone END,
@@ -265,6 +285,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (childBusRow, error) {
 			var v childBusRow
 			return v, rows.Scan(&v.StudentID, &v.StudentName, &v.Route, &v.Registration,
+				&v.RouteID, &v.StopID,
 				&v.Direction, &v.Driver, &v.DriverPhone, &v.StopName, &v.ScheduledAt,
 				&v.ArrivedAt, &v.Latitude, &v.Longitude, &v.SpeedKmph, &v.StopLat, &v.StopLon,
 				&v.AgeSeconds, &v.RefreshSecs, &v.ProximityM)
@@ -272,6 +293,46 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
+	}
+
+	/* Every stop on each child's route, one query for all of them. Stops
+	   without a position are left out: the map cannot draw them and the
+	   list on the screen is not this feed's job. Empty, not null, so the
+	   screen can map over it without a guard. */
+	routeIDs := []string{}
+	seen := map[string]bool{}
+	for i := range items {
+		if !seen[items[i].RouteID] {
+			seen[items[i].RouteID] = true
+			routeIDs = append(routeIDs, items[i].RouteID)
+		}
+		items[i].Stops = []childBusStop{}
+	}
+	if len(routeIDs) > 0 {
+		stops, err := collect(s, r, `
+			SELECT id::text, route_id::text, name, sequence,
+			       latitude::float8, longitude::float8, geofence_m
+			  FROM route_stops
+			 WHERE route_id = ANY($1::uuid[])
+			   AND latitude IS NOT NULL AND longitude IS NOT NULL
+			 ORDER BY route_id, sequence`,
+			[]any{routeIDs},
+			func(rows pgx.Rows) (childBusStop, error) {
+				var st childBusStop
+				return st, rows.Scan(&st.ID, &st.routeID, &st.Name, &st.Sequence,
+					&st.Latitude, &st.Longitude, &st.GeofenceM)
+			})
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		for i := range items {
+			for _, st := range stops {
+				if st.routeID == items[i].RouteID {
+					items[i].Stops = append(items[i].Stops, st)
+				}
+			}
+		}
 	}
 
 	stale := int(staleAfter(policy.PingSeconds).Seconds())
