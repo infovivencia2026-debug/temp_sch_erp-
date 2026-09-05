@@ -29,6 +29,7 @@ import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { markFor, hueFor } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
+import ScrollBox from '@/components/ScrollBox'
 
 /* The "pulse" shell: a narrow inverted icon rail, a timeline column whose
    vertical hairline threads the section's features, and the content column
@@ -719,6 +720,14 @@ export function Shell({
                 role="menu"
                 className="absolute left-3 right-3 z-50 mt-1 overflow-hidden rounded-[10px] border bg-popover py-1 shadow-[var(--lift-float)]"
               >
+                {/* Bounded, because "View every role" turns thirteen rows
+                    into twenty-odd and the menu then runs off the bottom of
+                    the screen with no way down. ScrollBox rather than a plain
+                    overflow so the fact there is more shows as a control,
+                    which is the same reason the student Actions menu uses it.
+                    The footer stays outside: the one row somebody opens this
+                    menu to reach must not be the row that scrolled away. */}
+                <ScrollBox className="max-h-[min(60vh,24rem)] overflow-y-auto overscroll-contain">
                 {catalog.roles.map((r) => (
                   <button
                     key={r.key}
@@ -742,6 +751,7 @@ export function Shell({
                     {r.key === role?.key && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
                   </button>
                 ))}
+                </ScrollBox>
                 {/* The head looking at the whole school.
 
                     A principal already holds every permission this product
