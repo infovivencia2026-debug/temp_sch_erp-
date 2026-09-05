@@ -270,6 +270,13 @@ export default function Notifications() {
                into 38.5px elsewhere in this product. A length that has to
                clear a device edge is stated in pixels here for that reason. */
             className="flex h-full w-full flex-col border-l bg-card shadow-[var(--lift-float)] sm:w-[416px]"
+            /* Fixed to the viewport, so the body's notch padding does not reach it:
+               in the iPhone app the header sat under the clock and the list ran
+               under the home indicator. Zero in a browser and on Android. */
+            style={{
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
           >
             <header className="flex shrink-0 items-center gap-3 border-b px-5 py-4">
               <div className="min-w-0 flex-1">
