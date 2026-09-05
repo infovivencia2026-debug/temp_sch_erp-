@@ -1021,8 +1021,17 @@ var importSpecs = map[string]importSpec{
 						return err
 					}
 				}
-				if ct := optional(row, "class_teacher", "class_teacher_email"); ct != "" {
-					ctID, err := c.teacherByEmail(ct)
+				/* Named, or ticked. A sheet either says who the class
+				   teacher is, or says Yes on the line of the teacher who is
+				   one -- and the second is the natural thing to write when a
+				   teacher column already sits beside it. */
+				named, ticked := classTeacherIs(
+					optional(row, "class_teacher", "class_teacher_email"))
+				if ticked {
+					named = optional(row, "teacher", "teacher_email")
+				}
+				if named != "" {
+					ctID, err := c.teacherByEmail(named)
 					if err != nil {
 						return err
 					}
@@ -1091,10 +1100,14 @@ var importSpecs = map[string]importSpec{
 			if _, err := c.sectionIDFor(row["class"], row["section"]); err != nil {
 				return err
 			}
-			for _, who := range []string{
-				optional(row, "class_teacher", "class_teacher_email"),
-				optional(row, "teacher", "teacher_email"),
-			} {
+			/* The tick is not a name and must not be looked up as one. This
+			   is the check that produced "no member of staff called Yes" on
+			   fifteen rows of a hundred and seventy-one -- and because a
+			   rejected row stops the whole file, the other hundred and
+			   fifty-six did not go in either. */
+			ctName, _ := classTeacherIs(
+				optional(row, "class_teacher", "class_teacher_email"))
+			for _, who := range []string{ctName, optional(row, "teacher", "teacher_email")} {
 				if who == "" {
 					continue
 				}
@@ -1123,8 +1136,14 @@ var importSpecs = map[string]importSpec{
 				}
 			}
 
-			if email := optional(row, "class_teacher", "class_teacher_email"); email != "" {
-				teacher, err := c.teacherByEmail(email)
+			// Named, or ticked on the line of the teacher who is one.
+			ctName, ticked := classTeacherIs(
+				optional(row, "class_teacher", "class_teacher_email"))
+			if ticked {
+				ctName = optional(row, "teacher", "teacher_email")
+			}
+			if ctName != "" {
+				teacher, err := c.teacherByEmail(ctName)
 				if err != nil {
 					return err
 				}
@@ -2481,6 +2500,30 @@ func staffRoleKey(role, designation string) string {
 		}
 	}
 	return ""
+}
+
+/*
+classTeacherIs reads the class-teacher column, which schools fill in two ways.
+
+	Some name the person: an email, a staff code, "KODARI DIVYA". Others tick
+	the row -- Yes, Y, TRUE, 1 -- meaning "the teacher named on this line is the
+	class teacher of this section", which is the natural thing to write on a
+	sheet that already has a teacher column beside it.
+
+	The second was read as a name and looked up: "no member of staff called
+	Yes". Fifteen rows of a hundred and seventy-one, and because a rejected row
+	stops the whole file, none of the other hundred and fifty-six went in either.
+
+	Returns the name to look up, and whether the row was ticked instead.
+*/
+func classTeacherIs(v string) (name string, ticked bool) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "yes", "y", "true", "1", "class teacher", "class-teacher":
+		return "", true
+	case "no", "n", "false", "0", "":
+		return "", false
+	}
+	return strings.TrimSpace(v), false
 }
 
 func isStaffStatusWord(v string) bool {
