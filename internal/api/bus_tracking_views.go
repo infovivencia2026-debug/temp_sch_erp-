@@ -215,7 +215,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		      JOIN guardians g ON g.id = sg.guardian_id
 		     WHERE g.user_id = $1
 		)
-		SELECT m.student_id::text, m.student_name, rt.name, v.registration_no,
+		SELECT m.student_id::text, m.student_name, rt.name, COALESCE(v.registration_no, ''),
 		       t.direction,
 		       concat_ws(' ', e.first_name, e.last_name),
 		       CASE WHEN t.id IS NOT NULL THEN e.phone END,
