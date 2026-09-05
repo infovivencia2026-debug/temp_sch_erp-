@@ -213,6 +213,16 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 		   So: a stop carrying an id is updated in place, one without an id is
 		   new, and only the stops missing from the list are removed. */
 		if req.Stops != nil {
+			/* Positions are unique per route, and the list is saved in its new
+			   order one row at a time. A stop added above the first one took
+			   position 1 while the old first stop still held it, and the save
+			   died on that constraint — reported, wrongly, as a duplicate route
+			   code. Park every existing position out of the way first, so the
+			   pass below only ever writes into empty positions. */
+			if _, err := tx.Exec(r.Context(),
+				`UPDATE route_stops SET sequence = sequence + 1000000 WHERE route_id = $1`, rid); err != nil {
+				return err
+			}
 			kept := make([]uuid.UUID, 0, len(req.Stops))
 			for i, st := range req.Stops {
 				name := strings.TrimSpace(st.Name)
@@ -294,8 +304,13 @@ func (s *Server) saveRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	case err != nil:
 		if isUniqueViolation(err) {
+			if strings.Contains(err.Error(), "route_stops") {
+				httpx.Error(w, r, http.StatusConflict, "duplicate_stop",
+					"two stops landed on the same position; reorder them and save again")
+				return
+			}
 			httpx.Error(w, r, http.StatusConflict, "duplicate_route",
-				"a route with that code already exists")
+				"a route with that name already exists on this campus")
 			return
 		}
 		httpx.BadRequest(w, r, err.Error())
