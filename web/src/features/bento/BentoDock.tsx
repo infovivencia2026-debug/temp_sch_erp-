@@ -408,7 +408,13 @@ export function BentoDock() {
                sits on the bottom edge, so the home indicator runs straight
                through it unless the bar gives that strip back. */
             ...(phone
-              ? { paddingBottom: 'calc(var(--dock-pad, 8px) + env(safe-area-inset-bottom, 0px))' }
+              ? {
+                  /* The strip is 34px on every modern iPhone and the row sat a full
+                     pad above it: icons floating over a deep empty band. Half the
+                     strip is enough to keep the glyphs off the indicator, and
+                     the row drops to where a tab bar's icons sit. */
+                  paddingBottom: 'max(var(--dock-pad, 8px), calc(env(safe-area-inset-bottom, 0px) * 0.5))',
+                }
               : null),
             '--ink-here': 'var(--bento-dock-ink, var(--bento-ink))',
           } as CSSProperties
