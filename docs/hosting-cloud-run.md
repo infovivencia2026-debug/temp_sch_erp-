@@ -133,20 +133,19 @@ Two consequences:
 1. **This is the biggest line in the bill.** One vCPU allocated for the whole
    month is ~2.6 M vCPU-seconds; at instance-based pricing that is roughly
    $45–50 ≈ ₹4,000/month before the free tier — several times the plan's
-   entire Cloud Run estimate, which assumed request-based billing. Options,
-   cheapest first: keep the worker on the VPS until cut-over is otherwise
-   complete (the VPS is already paid for); run it at `cpu: "0.5"` (it is
-   Postgres-bound at Concurrency 4 and would barely notice); or convert the
+   entire Cloud Run estimate, which assumed request-based billing. The owner
+   chose to run it on Cloud Run regardless rather than keep anything on the
+   VPS. Two ways to shrink the line later: run it at `cpu: "0.5"` (it is
+   Postgres-bound at Concurrency 4 and would barely notice), or convert the
    schedule into Cloud Scheduler → Cloud Run Job invocations so nothing is
-   always on. The last is a code change and is what "later" in the plan
+   always on. The second is a code change and is what "later" in the plan
    should mean.
 2. **Cloud Run needs the worker to listen on `$PORT`.** Every Cloud Run
    service container must accept a TCP connection on its port within the
-   startup window, and the worker opens no socket today. Before the worker
-   manifest can go green, `cmd/worker` needs a minimal HTTP listener on
-   `HTTP_ADDR`/`PORT` answering `/healthz` — ideally reporting the asynq
-   `HealthCheckFunc` result so the probe means something. A few lines; not
-   done in this change because it touches Go source.
+   startup window. Done: when `PORT` is set, `cmd/worker` opens a small
+   listener whose `/healthz` reports the database's health, so the probe
+   means "the worker can reach Postgres". With `PORT` unset (systemd on the
+   VPS) it opens nothing, as before.
 
 `maxScale: 1` is safe rather than merely cheap: asynq elects one active
 scheduler through Redis, so a second replica would consume tasks but add no
@@ -311,10 +310,10 @@ last afternoon drop, so the mid-day trough will not cause cold starts. With
 Two things scale-out changes that a single VPS process never had to think
 about:
 
-- `httpx.RealIP` takes the **first** address in `X-Forwarded-For`, correct
-  behind nginx which sets the header, wrong on Cloud Run where the platform
-  *appends* the client address to whatever the client sent. A caller can
-  forge its logged IP and the per-IP login throttle key. Before cut-over,
+- `httpx.RealIP` used to take the **first** address in `X-Forwarded-For`,
+  which a client can forge; every proxy in front of this service (nginx,
+  Google's front end) appends the address it saw, so it now takes the
+  **last**. Done. Before cut-over,
   take the last hop instead (a one-line change in
   [internal/httpx/middleware.go](../internal/httpx/middleware.go)).
 - The login throttle is per process by design, so with `maxScale: 5` an
@@ -340,9 +339,9 @@ In order. Each step is reversible until step 9.
 
 1. **Code prerequisites** (Go/TS changes, out of scope for the manifests).
    Done alongside the Dockerfile: `cmd/web` serves the SPA from `WEB_DIST`
-   and `internal/config` falls back to `PORT`. Still to do: the worker
-   listens on `$PORT` with `/healthz`; `RealIP` takes the last hop;
-   `TILES_BASE` points at the R2 public host. Merge to `main`.
+   and `internal/config` falls back to `PORT`; the worker listens on `$PORT`
+   with `/healthz`; `RealIP` takes the last hop. Still to do: `TILES_BASE`
+   points at the R2 public host. Merge to `main`.
 2. **Accounts.** GCP project with billing, Neon project in `ap-southeast-1`
    (Singapore; Neon has no Mumbai region — ~40 ms from asia-south1, fine for
    this workload), Upstash Redis in `ap-south-1` on a fixed plan, R2 bucket
