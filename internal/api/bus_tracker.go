@@ -471,12 +471,9 @@ claimBusTrackerPairCode turns a code into a paired phone.
    product is — which is a million possibilities against a ten-minute life,
    and an unlimited public endpoint would make that a race a script could
    win. Every attempt counts, valid or not. */
-var publicBusTrackerLimiter = &smsGatewayClaimLimiter{hits: map[string][]time.Time{}}
-
 func (s *Server) claimBusTrackerPairCode(w http.ResponseWriter, r *http.Request) {
-	if !publicBusTrackerLimiter.allow(callerAddress(r), time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many pairing attempts from this network. Wait a few minutes and try again")
+	if s.rateLimited(w, r, scopeBusTrackerPair, pairCodePolicy, callerAddress(r),
+		"too many pairing attempts from this network. Wait a few minutes and try again") {
 		return
 	}
 	var req busTrackerClaimRequest

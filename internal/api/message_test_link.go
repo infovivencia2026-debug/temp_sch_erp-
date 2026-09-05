@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -78,37 +76,10 @@ func messageTestKey(inst uuid.UUID) string {
 	return hex.EncodeToString(mac.Sum(nil))[:32]
 }
 
-type testLinkLimiter struct {
-	mu   sync.Mutex
-	hits map[string][]time.Time
-}
-
-var messageTestLimiter = &testLinkLimiter{hits: map[string][]time.Time{}}
-
 // errTestLinkClosed is the sentinel for a school whose guard has been opened.
 // Mapped to 404 rather than 403: a 403 confirms the link is real to somebody
 // who should not know that.
 var errTestLinkClosed = errors.New("test link is closed on this school")
-
-// allow permits ten sends an hour per key. Enough to test every channel
-// several times; far too few to be worth stealing.
-func (l *testLinkLimiter) allow(key string, now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	cut := now.Add(-time.Hour)
-	kept := l.hits[key][:0]
-	for _, t := range l.hits[key] {
-		if t.After(cut) {
-			kept = append(kept, t)
-		}
-	}
-	if len(kept) >= 10 {
-		l.hits[key] = kept
-		return false
-	}
-	l.hits[key] = append(kept, now)
-	return true
-}
 
 type publicTestSendRequest struct {
 	Key     string `json:"key"`
@@ -165,9 +136,10 @@ func (s *Server) sendPublicTestMessage(w http.ResponseWriter, r *http.Request) {
 		httpx.NotFound(w, r)
 		return
 	}
-	if !messageTestLimiter.allow(key, time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"ten test messages an hour is the limit on this link")
+	// Ten sends an hour per key, on the scopeMessageTestLink limiter. Enough
+	// to test every channel several times; far too few to be worth stealing.
+	if s.rateLimited(w, r, scopeMessageTestLink, messageTestLinkPolicy, key,
+		"ten test messages an hour is the limit on this link") {
 		return
 	}
 

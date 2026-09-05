@@ -3,6 +3,7 @@ package api
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/queue"
+	"github.com/school-erp/erp/internal/ratelimit"
 	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
 	"github.com/school-erp/erp/internal/storage"
@@ -30,6 +32,15 @@ type Server struct {
 	// path is fine on a page the browser is already on and useless in an SMS,
 	// so anything that leaves the building has to carry this.
 	BaseURL string
+
+	// RateLimits is where this Server's four rate limiters count. Nil means a
+	// private in-memory store, which is what every test that writes
+	// &Server{} gets; main sets it from RATE_LIMIT_STORE. See ratelimits.go.
+	RateLimits ratelimit.Store
+	// Clock is what the limiters read the time from. Nil means time.Now; a
+	// test sets it to walk a limiter through its window.
+	Clock      ratelimit.Clock
+	limitsOnce sync.Once
 }
 
 // Routes returns the /api/v1 subtree.

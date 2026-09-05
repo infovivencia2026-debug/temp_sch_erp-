@@ -701,9 +701,8 @@ func (s *Server) enrolSMSGateway(w http.ResponseWriter, r *http.Request) {
 	// Rate limited on the same bucket as the pair-code claim, because it is
 	// the same thing being protected: an unauthenticated endpoint that turns
 	// input into a credential.
-	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many attempts from this network. Wait a few minutes and try again")
+	if s.rateLimited(w, r, scopeSMSGatewayPair, pairCodePolicy, callerAddress(r),
+		"too many attempts from this network. Wait a few minutes and try again") {
 		return
 	}
 
@@ -1118,9 +1117,8 @@ enrolBusTracker attaches a driver's own phone to the bus they are standing next 
 	approval is the principal's or the platform's.
 */
 func (s *Server) enrolBusTracker(w http.ResponseWriter, r *http.Request) {
-	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many attempts from this network. Wait a few minutes and try again")
+	if s.rateLimited(w, r, scopeSMSGatewayPair, pairCodePolicy, callerAddress(r),
+		"too many attempts from this network. Wait a few minutes and try again") {
 		return
 	}
 

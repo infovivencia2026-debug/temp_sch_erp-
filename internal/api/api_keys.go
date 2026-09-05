@@ -9,10 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -162,15 +162,14 @@ func apiKeyPermissionForbidden(key string) bool {
 // --- the limiter -------------------------------------------------------------
 
 /*
-apiKeyLimiter is an in-process fixed-window counter, and it is honest about it.
+The per-key limit is a fixed-window counter on the scopeAPIKey limiter.
 
-	Stated plainly: this counts requests per key per minute inside ONE server
-	process. Two app processes behind the load balancer means a key gets up to
-	twice its limit, and a restart forgets every window. A distributed limiter
-	in Redis would fix both, and is deliberately not built here: this
-	installation runs a single web process, the queue's Redis is not on the
-	request path today, and putting it there would make every API call depend
-	on a second service being up.
+	The counting lives in internal/ratelimit. Per process by default, which
+	means two app processes hand a key twice its limit and a restart forgets
+	every window; RATE_LIMIT_STORE=postgres moves the windows into the
+	database so every instance counts the same minute. That costs each API
+	call a short transaction, which is why it is opt-in and why the one-process
+	VPS does not pay it.
 
 	What this is for is the accident, not the attacker: an integration stuck
 	in a retry loop, a nightly job that forgot its pagination, a script
@@ -184,48 +183,17 @@ apiKeyLimiter is an in-process fixed-window counter, and it is honest about it.
 	matter for a limit whose purpose is "stop a runaway loop", and a bucket is
 	more moving parts to be wrong about.
 */
-type apiKeyLimiter struct {
-	mu      sync.Mutex
-	windows map[uuid.UUID]*apiKeyWindow
-	// Cleared wholesale when the map grows past this, rather than with a
-	// timer or a sweeping goroutine. The map holds one small struct per key
-	// seen this minute; a school has a handful of keys, and a process serving
-	// thousands would rather drop the counters than run a reaper.
-	maxEntries int
-}
-
-type apiKeyWindow struct {
-	started time.Time
-	count   int
-}
-
-var apiKeyRequests = &apiKeyLimiter{
-	windows:    map[uuid.UUID]*apiKeyWindow{},
-	maxEntries: 10000,
-}
-
-// allow reports whether this request is within the key's limit, and how long
-// the caller should wait if it is not.
-func (l *apiKeyLimiter) allow(id uuid.UUID, perMinute int, now time.Time) (bool, time.Duration) {
-	if perMinute <= 0 {
-		perMinute = 1
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	if len(l.windows) > l.maxEntries {
-		l.windows = map[uuid.UUID]*apiKeyWindow{}
-	}
-	w := l.windows[id]
-	if w == nil || now.Sub(w.started) >= time.Minute {
-		l.windows[id] = &apiKeyWindow{started: now, count: 1}
+// allowAPIKeyRequest reports whether this request is within the key's limit,
+// and how long the caller should wait if it is not. A store that cannot
+// answer lets the request through, logged: the request is about to use the
+// same database, so refusing here would only change which error it reads.
+func (s *Server) allowAPIKeyRequest(ctx context.Context, id uuid.UUID, perMinute int) (bool, time.Duration) {
+	ok, retry, err := s.limiter(scopeAPIKey, apiKeyPerMinutePolicy).AllowBurst(ctx, id.String(), perMinute)
+	if err != nil {
+		slog.Error("rate limiter unavailable; allowing", "scope", scopeAPIKey, "error", err)
 		return true, 0
 	}
-	if w.count >= perMinute {
-		return false, time.Minute - now.Sub(w.started)
-	}
-	w.count++
-	return true, 0
+	return ok, retry
 }
 
 // --- authentication ----------------------------------------------------------
@@ -298,7 +266,7 @@ func (s *Server) APIKeyAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		if ok, retry := apiKeyRequests.allow(id.APIKeyID, id.rate, time.Now()); !ok {
+		if ok, retry := s.allowAPIKeyRequest(r.Context(), id.APIKeyID, id.rate); !ok {
 			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retry.Seconds())+1))
 			httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
 				"this API key has made too many requests; wait a moment and retry")

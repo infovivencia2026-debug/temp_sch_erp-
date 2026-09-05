@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -230,9 +229,9 @@ Send makes one message available to a paired handset.
 	sent with provider 'sms:phone', and the outbox selects on exactly that.
 	What Send does do is refuse when there is no live phone, which is the whole
 	safety property -- and sweep expired leases, because it runs inside
-	DispatchMessages, which the asynq scheduler already calls every five minutes
-	per institution. That is an existing scheduled path rather than a second
-	one.
+	DispatchMessages, which the cron schedule (internal/queue/cron.go) already
+	enqueues every five minutes per institution. That is an existing scheduled
+	path rather than a second one.
 */
 func (p phoneGatewayProvider) Send(ctx context.Context, _ OutboundMessage) (string, error) {
 	if !p.Configured() {
@@ -379,8 +378,8 @@ func humanSilence(d time.Duration) string {
 sweepSMSGatewayLeases returns abandoned claims to the queue, and gives up on the
 ones that have been abandoned too often.
 
-	Runs on three paths, all of them existing ones: inside Send, which the asynq
-	scheduler drives every five minutes per institution; and on the outbox and
+	Runs on three paths, all of them existing ones: inside Send, which the cron
+	schedule drives every five minutes per institution; and on the outbox and
 	heartbeat polls, which is where it matters most, because a phone coming back
 	from an outage should find its own unfinished work waiting rather than
 	needing a scheduler tick to release it. No new schedule was added.
@@ -736,10 +735,10 @@ func smsGatewayUnauthorized(w http.ResponseWriter, r *http.Request) {
 /*
 The claim endpoint is unauthenticated, so it is rate limited.
 
-	Reusing the shape admissions_growth.go established for the public admission
-	form rather than inventing a second one: an in-process per-address bucket,
-	declared as exactly what it is. Behind more than one process it limits per
-	process. That is honest and it is enough here, because the thing being
+	Per caller address, on the scopeSMSGatewayPair limiter, which the two
+	device enrolments in device_login.go share because they protect the same
+	thing. The counting lives in internal/ratelimit: per process by default,
+	shared through Postgres where more than one instance runs. The thing being
 	defended is a forty-bit code with a ten-minute life, and a bucket this size
 	makes exhausting it take longer than the code exists for.
 
@@ -750,44 +749,10 @@ The claim endpoint is unauthenticated, so it is rate limited.
 	eight-character code off a screen into a phone. Three fat-fingered attempts
 	and a retry is four; six leaves room without leaving the door open.
 */
-type smsGatewayClaimLimiter struct {
-	mu   sync.Mutex
-	hits map[string][]time.Time
-}
-
-var publicSMSGatewayLimiter = &smsGatewayClaimLimiter{hits: map[string][]time.Time{}}
-
 const (
 	smsGatewayClaimWindow = 10 * time.Minute
 	smsGatewayClaimBurst  = 6
 )
-
-// allow mirrors formLimiter.allow, including the opportunistic single-bucket
-// sweep that keeps the map bounded over a long-running process without ever
-// walking it under load.
-func (l *smsGatewayClaimLimiter) allow(key string, now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	cutoff := now.Add(-smsGatewayClaimWindow)
-	kept := l.hits[key][:0]
-	for _, t := range l.hits[key] {
-		if t.After(cutoff) {
-			kept = append(kept, t)
-		}
-	}
-	if len(kept) >= smsGatewayClaimBurst {
-		l.hits[key] = kept
-		return false
-	}
-	l.hits[key] = append(kept, now)
-	for k, v := range l.hits {
-		if len(v) == 0 || v[len(v)-1].Before(cutoff) {
-			delete(l.hits, k)
-			break
-		}
-	}
-	return true
-}
 
 // --- mounting ----------------------------------------------------------------
 
@@ -964,9 +929,8 @@ claimSMSGatewayPairCode exchanges a code for a device token, with no credential.
 	  believe they are the gateway.
 */
 func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request) {
-	if !publicSMSGatewayLimiter.allow(callerAddress(r), time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many pairing attempts from this network. Wait a few minutes and try again")
+	if s.rateLimited(w, r, scopeSMSGatewayPair, pairCodePolicy, callerAddress(r),
+		"too many pairing attempts from this network. Wait a few minutes and try again") {
 		return
 	}
 

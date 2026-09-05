@@ -29,6 +29,7 @@ import (
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/queue"
+	"github.com/school-erp/erp/internal/ratelimit"
 	"github.com/school-erp/erp/internal/static"
 	"github.com/school-erp/erp/internal/storage"
 	"github.com/school-erp/erp/internal/templates"
@@ -93,8 +94,17 @@ func run() error {
 	hasher := auth.NewHasher(cfg.PasswordPepper)
 	authHandler := auth.NewHandler(db, sessions, hasher, tpl, cfg.IsProduction())
 
+	// Where the four rate limiters keep their counts. Memory is what the VPS
+	// has always had; postgres is what lets more than one instance agree.
+	var limits ratelimit.Store = ratelimit.NewMemory()
+	if cfg.RateLimitStore == "postgres" {
+		limits = ratelimit.NewPostgres(db.AsPlatform)
+	}
+	slog.Info("rate limiters", "store", cfg.RateLimitStore)
+
 	apiServer := &api.Server{
 		DB: db, Sessions: sessions, Hasher: hasher,
+		RateLimits:   limits,
 		Storage:      store,
 		FileStoreDir: cfg.FileStoreDir,
 		BaseURL:      cfg.BaseURL,
@@ -310,9 +320,10 @@ func setupLogging(cfg *config.Config) {
 //   - A request with a file extension that does not exist is a 404, not the
 //     shell. /apps/bus-tracker.apk falling through once meant a phone saved
 //     3 KB of HTML as the app.
-//   - /.well-known/assetlinks.json is served from well-known/ (no dot), as
-//     application/json, because Vite drops dot directories from the build
-//     and Android refuses any other type.
+//   - /.well-known/assetlinks.json and /.well-known/apple-app-site-association
+//     are served from well-known/ (no dot), as application/json, because Vite
+//     drops dot directories from the build, both platforms refuse any other
+//     type, and Apple's file has no extension for the MIME table to go on.
 type spaHandler struct {
 	root  http.FileSystem
 	files fs.FS
@@ -327,6 +338,13 @@ type spaHandler struct {
 var serverPaths = []string{
 	"/api", "/iclock", "/static", "/apps",
 	"/login", "/logout", "/healthz", "/buy", "/signup", "/forgot", "/reset",
+}
+
+// wellKnown maps the app-association URLs onto the files in the bundle. See
+// web/public/well-known/README.md for why the directory has no dot.
+var wellKnown = map[string]string{
+	"/.well-known/assetlinks.json":            "well-known/assetlinks.json",
+	"/.well-known/apple-app-site-association": "well-known/apple-app-site-association",
 }
 
 func newSPAHandler(dir string) (*spaHandler, error) {
@@ -352,10 +370,10 @@ func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if p == "/.well-known/assetlinks.json" {
+	if name, ok := wellKnown[p]; ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=300")
-		h.serveFile(w, r, "well-known/assetlinks.json")
+		h.serveFile(w, r, name)
 		return
 	}
 

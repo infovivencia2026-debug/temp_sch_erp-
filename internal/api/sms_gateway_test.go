@@ -452,8 +452,20 @@ The rate limit counts every attempt, not every success.
 	unaffected by the first one's spending.
 */
 func TestSMSGatewayClaimLimiterCountsFailures(t *testing.T) {
-	l := &smsGatewayClaimLimiter{hits: map[string][]time.Time{}}
+	// The limiter is the Server's, on the pair-code scope, read through the
+	// Server's clock so the window can be rolled by hand.
 	now := time.Now()
+	s := &Server{Clock: func() time.Time { return now }}
+	l := struct {
+		allow func(key string, at time.Time) bool
+	}{func(key string, at time.Time) bool {
+		now = at
+		ok, _, err := s.limiter(scopeSMSGatewayPair, pairCodePolicy).Allow(context.Background(), key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}}
 
 	for i := 0; i < smsGatewayClaimBurst; i++ {
 		if !l.allow("198.51.100.4", now) {

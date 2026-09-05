@@ -23,6 +23,9 @@ type Config struct {
 	DatabaseURL string
 	DBMaxConns  int32
 
+	// RedisURL is read for as long as the env files carry it and used by
+	// nothing: the queue moved from asynq on Redis to River in Postgres
+	// (internal/queue). Both binaries log once at boot that it is ignored.
 	RedisURL string
 
 	SessionSecret  []byte
@@ -69,6 +72,13 @@ type Config struct {
 	// there is no nginx in front and one process has to answer for both the
 	// API and the shell -- see cmd/web.
 	WebDist string
+
+	// RateLimitStore is where the rate limiters keep their counts: "memory"
+	// (the default -- per process, as it has always been) or "postgres", a
+	// shared table every instance reads and writes. Set postgres wherever
+	// more than one process may be running at once, which on Cloud Run is
+	// anywhere max-instances is above one. See internal/ratelimit.
+	RateLimitStore string
 }
 
 type R2Config struct {
@@ -113,6 +123,7 @@ func Load() (*Config, error) {
 		APKDir:                env("APK_DIR", "/var/lib/temperp/apk"),
 		FCMServiceAccountFile: os.Getenv("FCM_SERVICE_ACCOUNT_FILE"),
 		WebDist:               os.Getenv("WEB_DIST"),
+		RateLimitStore:        strings.ToLower(env("RATE_LIMIT_STORE", "memory")),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
@@ -142,6 +153,14 @@ func Load() (*Config, error) {
 	}
 	if c.GatewaySecret == "" {
 		c.GatewaySecret = string(c.SessionSecret)
+	}
+	// Refused at boot rather than read as memory: an operator who typed
+	// "postgress" on a multi-instance service must not get a per-process
+	// limiter and a clean log.
+	switch c.RateLimitStore {
+	case "memory", "postgres":
+	default:
+		return nil, fmt.Errorf("RATE_LIMIT_STORE must be memory or postgres, got %q", c.RateLimitStore)
 	}
 	return c, nil
 }

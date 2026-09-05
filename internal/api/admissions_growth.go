@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -1136,21 +1135,14 @@ func (s *Server) getApplicationAnswers(w http.ResponseWriter, r *http.Request) {
 // ==============================================================================
 
 /*
-formLimiter is a per-address submission limit, in process.
+The form is rate limited per caller address, on the scopePublicForm limiter.
 
-	Deliberately small and deliberately declared as what it is. There is no
-	shared rate limiter in this codebase, and introducing a Redis-backed one
-	here would be a second piece of infrastructure to operate for one endpoint.
-	This stops the accidental flood and the casual script; behind more than one
-	process it limits per process, and applications carry submitted_from so a
-	burst is visible to the office rather than merely absorbed.
+	Deliberately small. This stops the accidental flood and the casual script;
+	applications carry submitted_from so a burst is visible to the office
+	rather than merely absorbed. The counting lives in internal/ratelimit,
+	which is per process by default and shared through Postgres where more
+	than one instance runs; see ratelimits.go.
 */
-type formLimiter struct {
-	mu   sync.Mutex
-	hits map[string][]time.Time
-}
-
-var publicFormLimiter = &formLimiter{hits: map[string][]time.Time{}}
 
 /*
 The budget, and why it is this size.
@@ -1167,34 +1159,6 @@ const (
 	formSubmitWindow = 10 * time.Minute
 	formSubmitBurst  = 12
 )
-
-// allow reports whether this address may submit again, and prunes as it goes so
-// the map does not grow without bound over a long-running process.
-func (l *formLimiter) allow(key string, now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	cutoff := now.Add(-formSubmitWindow)
-	kept := l.hits[key][:0]
-	for _, t := range l.hits[key] {
-		if t.After(cutoff) {
-			kept = append(kept, t)
-		}
-	}
-	if len(kept) >= formSubmitBurst {
-		l.hits[key] = kept
-		return false
-	}
-	l.hits[key] = append(kept, now)
-	// Opportunistic sweep: one expired bucket per call is enough to keep a map
-	// of transient addresses bounded without ever walking it under load.
-	for k, v := range l.hits {
-		if len(v) == 0 || v[len(v)-1].Before(cutoff) {
-			delete(l.hits, k)
-			break
-		}
-	}
-	return true
-}
 
 func callerAddress(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -1343,9 +1307,8 @@ func (s *Server) submitPublicAdmissionForm(w http.ResponseWriter, r *http.Reques
 		httpx.NotFound(w, r)
 		return
 	}
-	if !publicFormLimiter.allow(callerAddress(r), time.Now()) {
-		httpx.Error(w, r, http.StatusTooManyRequests, "rate_limited",
-			"too many applications from this connection. Please wait a few minutes and try again.")
+	if s.rateLimited(w, r, scopePublicForm, publicFormPolicy, callerAddress(r),
+		"too many applications from this connection. Please wait a few minutes and try again.") {
 		return
 	}
 	var req publicSubmission
