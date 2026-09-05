@@ -19,7 +19,15 @@ struct ShellView: View {
             /* Hidden, never removed, while the panel or the lock is up: the
                page and its session are left exactly where they were, so a
                retry or an unlock shows the screen the parent was on. */
+            /* EDGE TO EDGE. Laid inside the safe area, the page ended above
+               the home indicator and started below the clock, and the strips
+               left over read as a web page in a frame rather than an app. The
+               page is told the insets instead (viewport-fit=cover is in its
+               head, and WebKit fills env(safe-area-inset-*) from this view's
+               own safe area), and it pads its dock and its top for them, so
+               the ground runs under the notch and the controls stay clear. */
             WebContainer(shell: shell)
+                .ignoresSafeArea()
                 .opacity(shell.failure == nil && !shell.locked ? 1 : 0)
                 .allowsHitTesting(shell.failure == nil && !shell.locked)
 

@@ -472,6 +472,13 @@
   body {
     background: hsl(var(--ground));
     color: hsl(var(--foreground));
+    /* UNDER THE NOTCH, NOT BESIDE IT. The iPhone app lays the page edge to
+       edge (viewport-fit=cover is in index.html), so the ground runs behind
+       the clock the way a native screen's does, and the content starts below
+       it. Zero everywhere else: a browser and the Android shell report no
+       inset, so this line costs nothing there. The dock does the same for the
+       bottom in bento-theme.css. */
+    padding-top: env(safe-area-inset-top, 0px);
     font-size: calc(14px * var(--font-scale));
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;

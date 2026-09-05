@@ -81,6 +81,11 @@ body.auth {
   display: grid;
   place-items: center;
   padding: 1.5rem;
+  /* The iPhone app draws this page under the clock and the home indicator;
+     the insets keep the card and the theme button clear of both. Zero in a
+     browser and on Android. */
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   background: var(--ground);
   color: var(--fg);
   font-family: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -618,7 +623,7 @@ body.pricing .enquire { margin-top: 40px; }
 
 /* The sign-in card is centred on an otherwise empty page, so its appearance
    control sits in the corner rather than in a bar that does not exist there. */
-.auth-top { position: fixed; top: 16px; right: 16px; z-index: 10; }
+.auth-top { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 10; }
 
 /* Showing a password you are typing.
 
