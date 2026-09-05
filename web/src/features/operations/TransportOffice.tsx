@@ -20,6 +20,24 @@ const MapPointPicker = lazy(() => import('@/components/MapPointPicker'))
 const BusSticker = lazy(() => import('@/components/BusSticker'))
 
 /** A stop's coordinates as a point, or null while either box is empty or junk. */
+/* One box for the place, because that is how a place arrives: "18.00933,
+   79.55919" copied out of Google Maps, or the whole share link. Two boxes
+   asked the office to split a pair it had just copied, and the pair got
+   pasted whole into the first one every time. Accepts "lat, lng", "lat lng",
+   and a maps URL carrying @lat,lng or q=lat,lng. */
+function parseLocation(raw: string): { lat: string; lng: string } | null {
+  const t = raw.trim()
+  if (!t) return null
+  const url = t.match(/[@?&](?:q=|ll=)?(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/)
+  const pair = url ?? t.match(/^(-?\d{1,2}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/)
+  if (!pair) return null
+  const lat = Number(pair[1])
+  const lng = Number(pair[2])
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
+  return { lat: pair[1], lng: pair[2] }
+}
+
 function pointOf(s: { latitude: string; longitude: string }): { lat: number; lng: number } | null {
   const lat = Number(s.latitude)
   const lng = Number(s.longitude)
@@ -1299,6 +1317,8 @@ interface StopForm {
   drop_time: string
   latitude: string
   longitude: string
+  /** What the office typed or pasted; latitude/longitude are parsed from it. */
+  location?: string
   /* How near the bus has to be for the school to call it arrived. Blank means
      the school-wide default, which is what every stop in the product used to
      be stuck with: there was nowhere to widen the circle for the one stop on a
@@ -1526,11 +1546,32 @@ function Routes() {
                     <Field label="Drop time">
                       <Input type="time" value={s.drop_time} onChange={setStop(i, 'drop_time')} />
                     </Field>
-                    <Field label="Latitude">
-                      <Input value={s.latitude} onChange={setStop(i, 'latitude')} placeholder="17.4933" />
-                    </Field>
-                    <Field label="Longitude">
-                      <Input value={s.longitude} onChange={setStop(i, 'longitude')} placeholder="78.3915" />
+                    <Field
+                      label="Location"
+                      hint={
+                        s.location && !parseLocation(s.location)
+                          ? 'Paste the pair as it comes from Google Maps: 17.4933, 78.3915'
+                          : undefined
+                      }
+                    >
+                      <Input
+                        value={s.location ?? (s.latitude && s.longitude ? `${s.latitude}, ${s.longitude}` : '')}
+                        onChange={(v) =>
+                          setStops((list) =>
+                            list.map((row, n) => {
+                              if (n !== i) return row
+                              const p = parseLocation(v)
+                              return {
+                                ...row,
+                                location: v,
+                                latitude: p ? p.lat : v.trim() ? row.latitude : '',
+                                longitude: p ? p.lng : v.trim() ? row.longitude : '',
+                              }
+                            }),
+                          )
+                        }
+                        placeholder="17.4933, 78.3915"
+                      />
                     </Field>
                     {/* Left blank for almost every stop. It exists for the one
                         on a dual carriageway where the bus pulls in fifty
@@ -1578,7 +1619,7 @@ function Routes() {
                           setStops((l) =>
                             l.map((row, n) =>
                               n === i
-                                ? { ...row, latitude: String(p.lat), longitude: String(p.lng) }
+                                ? { ...row, latitude: String(p.lat), longitude: String(p.lng), location: `${p.lat}, ${p.lng}` }
                                 : row,
                             ),
                           )
