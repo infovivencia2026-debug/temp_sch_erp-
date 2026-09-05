@@ -322,6 +322,44 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 			return errNoFamilyContact
 		}
 
+		/* The number already signs somebody in: that is this parent, with a
+		   login issued from a sibling's record. The guardian row on this
+		   child is attached to that account and the parent sees both children
+		   under the one login; nothing new is made and no password changes
+		   unless a reset was asked for. Making a second account failed on the
+		   unique number and told the office to go and find the sibling, which
+		   is the search this code can do itself. */
+		var attach *uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
+			SELECT u.id FROM users u
+			 WHERE u.institution_id = $1
+			   AND ((NULLIF($2,'') IS NOT NULL AND u.email = $2::citext)
+			     OR (NULLIF($3,'') IS NOT NULL AND u.phone = $3))
+			   AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+			                WHERE ur.user_id = u.id AND r.key = 'parent')
+			 ORDER BY u.created_at LIMIT 1`,
+			id.InstitutionID, strVal(email), strVal(phone)).Scan(&attach); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if attach != nil {
+			if _, err := tx.Exec(r.Context(),
+				`UPDATE guardians SET user_id = $2 WHERE id = $1`, guardianID, *attach); err != nil {
+				return err
+			}
+			out.Existing = true
+			if reset {
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE users
+					   SET password_hash = $2, status = 'active', must_change_password = $3
+					 WHERE id = $1`, *attach, hash, known); err != nil {
+					return err
+				}
+			}
+			return tx.QueryRow(r.Context(),
+				`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
+				*attach).Scan(&out.SignInAs)
+		}
+
 		base := fullName
 		if hasPhone {
 			base = *phone
@@ -340,8 +378,8 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 			id.InstitutionID, username, email, phone, fullName, hash, known).Scan(&newID); err != nil {
 			if isUniqueViolation(err) {
 				return errors.New(
-					"that email or phone already belongs to another account - " +
-						"if this parent already has a login for a sibling, use that one")
+					"that email or phone is already the sign-in of a staff account here; " +
+						"give this parent a different number or address")
 			}
 			return err
 		}
