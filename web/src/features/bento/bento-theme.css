@@ -3929,3 +3929,15 @@ html:not(.dark)[data-layout='bento'] {
   background-clip: padding-box;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
 }
+
+/* THE ICON SIZE SETTING REACHES THE TABS. --dock-icon was read by the
+   workspace marks in the launcher and by nothing else: Home, Browse, Alerts
+   and Settings carried fixed 15px and 17px classes, so "make the icons
+   bigger" moved the setting and not the bar. On a phone, where the tabs are
+   glyphs with no captions, every glyph in the dock takes the variable. */
+@media (max-width: 767px) {
+  [data-layout='bento'] .bento-dock button svg.lucide {
+    width: var(--dock-icon, 26px);
+    height: var(--dock-icon, 26px);
+  }
+}
