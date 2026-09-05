@@ -103,6 +103,7 @@ func (s *Server) mountParentSchoolLife(r chi.Router) {
 	r.Get("/notifications", s.listFamilyNotifications)
 	r.Post("/notifications/{id}/read", s.markNotificationRead)
 	r.Post("/notifications/read-all", s.markAllNotificationsRead)
+	r.Post("/notifications/clear", s.clearNotifications)
 
 	// The canteen till.
 	r.Get("/cafeteria/purchases", s.listCafeteriaPurchases)
@@ -2003,6 +2004,7 @@ func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request)
 			  FROM notifications n
 			  LEFT JOIN students st ON st.id = n.student_id
 			 WHERE n.user_id = $1
+			   AND n.dismissed_at IS NULL
 			   /* Expressed in SQL rather than by swapping the predicate, so
 			      the parameter list stays the same shape either way: a $2 the
 			      statement no longer mentions is a bind error, not a filter. */
@@ -2072,6 +2074,36 @@ func (s *Server) markNotificationRead(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
+clearNotifications empties the feed.
+
+	Dismissed, not deleted: the family alerts are re-materialised from the
+	facts they describe on every read, against the rows that exist, so a
+	deleted circular would be back on the next poll. A dismissed row stays for
+	the conflict to see and leaves the feed. Read as well, so the badge and the
+	list agree that there is nothing here.
+*/
+func (s *Server) clearNotifications(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var n int64
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE notifications
+			   SET dismissed_at = now(), read_at = COALESCE(read_at, now())
+			 WHERE user_id = $1 AND dismissed_at IS NULL`, id.UserID)
+		if err != nil {
+			return err
+		}
+		n = tag.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"cleared": n})
+}
+
 // markAllNotificationsRead clears the badge.
 func (s *Server) markAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -2079,7 +2111,7 @@ func (s *Server) markAllNotificationsRead(w http.ResponseWriter, r *http.Request
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		tag, err := tx.Exec(r.Context(), `
 			UPDATE notifications SET read_at = now()
-			 WHERE user_id = $1 AND read_at IS NULL`, id.UserID)
+			 WHERE user_id = $1 AND read_at IS NULL AND dismissed_at IS NULL`, id.UserID)
 		if err != nil {
 			return err
 		}

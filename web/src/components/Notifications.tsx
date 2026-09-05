@@ -109,6 +109,13 @@ export default function Notifications() {
     mutationFn: () => api.post('/api/v1/portal/notifications/read-all', {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   })
+  /* Clear empties the list; Mark all read only quiets the badge. Both were
+     asked for by name: a feed a fortnight long that can only be marked read
+     is a feed that has to be scrolled past every time. */
+  const clearAll = useMutation({
+    mutationFn: () => api.post('/api/v1/portal/notifications/clear', {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  })
 
   const navigate = useNavigate()
 
@@ -261,6 +268,17 @@ export default function Notifications() {
                              hover:bg-surface-hover hover:text-foreground"
                 >
                   Mark all read
+                </button>
+              )}
+              {items.length > 0 && (
+                <button
+                  onClick={() => clearAll.mutate()}
+                  disabled={clearAll.isPending}
+                  aria-label="Clear all notifications"
+                  className="shrink-0 rounded-[7px] px-2 py-1 text-[12px] text-muted-foreground
+                             hover:bg-surface-hover hover:text-foreground disabled:opacity-50"
+                >
+                  {clearAll.isPending ? 'Clearing…' : 'Clear all'}
                 </button>
               )}
               <button
