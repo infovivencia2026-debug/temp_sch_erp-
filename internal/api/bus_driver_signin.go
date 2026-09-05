@@ -96,10 +96,13 @@ type driverSignInRequest struct {
 	VehicleID string `json:"vehicle_id,omitempty"`
 }
 
-/* One of the school's buses, offered to a driver the office has not yet put
-   against one. Registration first because that is what is painted on the back
-   of it; the code is only useful where somebody has stuck one in the
-   windscreen. */
+/*
+One of the school's buses, offered to a driver the office has not yet put
+
+	against one. Registration first because that is what is painted on the back
+	of it; the code is only useful where somebody has stuck one in the
+	windscreen.
+*/
 type busChoice struct {
 	ID             string `json:"id"`
 	RegistrationNo string `json:"registration_no"`
