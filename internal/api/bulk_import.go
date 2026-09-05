@@ -943,13 +943,51 @@ var importSpecs = map[string]importSpec{
 				   target it cannot match, so this raised a raw 42P10 at the
 				   school rather than creating anything. The campus was
 				   missing from both the target and the insert. */
+				/* THE CODE IS SIX LETTERS, AND SIX LETTERS ARE NOT ENOUGH.
+
+				   The code was the first six letters of the name, and
+				   ON CONFLICT then kept whichever subject got there first. So
+				   two different subjects whose names begin alike became one,
+				   silently, under the earlier one's name -- and every later
+				   row naming the second was told the class does not study it,
+				   which is the only symptom anybody sees.
+
+				   Real collisions, in one school's own sheet: COMPUTER &
+				   ROBOTICS, COMPUTERS and COMPUTER all reduce to COMPUT;
+				   SOCIAL and SOCIAL STUDIES both to SOCIAL. PHYSICS and
+				   PHYSICAL EDUCATION are the same trap waiting for the next
+				   school.
+
+				   The code is still short, because it is what a report card
+				   prints. It is now made distinct instead of merged: if those
+				   six letters already belong to a subject of another name, a
+				   digit is added until they do not. A subject that genuinely
+				   already exists still matches by name above and never
+				   reaches here. */
+				base := subjectCodeFrom(want)
+				code := base
+				for n := 2; n < 100; n++ {
+					var taken bool
+					if err := c.tx.QueryRow(c.r.Context(), `
+						SELECT EXISTS (SELECT 1 FROM subjects
+						                WHERE institution_id = $1 AND campus_id = $2
+						                  AND upper(code) = upper($3)
+						                  AND lower(name) <> lower($4))`,
+						c.inst, c.campus, code, want).Scan(&taken); err != nil {
+						return err
+					}
+					if !taken {
+						break
+					}
+					code = fmt.Sprintf("%s%d", strings.TrimRight(base, "0123456789"), n)
+				}
 				if err := c.tx.QueryRow(c.r.Context(), `
 					INSERT INTO subjects (institution_id, campus_id, name, code)
-					VALUES ($1,$2,$3,upper(left(regexp_replace($3,'[^A-Za-z]','','g'),6)))
+					VALUES ($1,$2,$3,$4)
 					ON CONFLICT (institution_id, campus_id, code)
 					DO UPDATE SET name = subjects.name
 					RETURNING id, xmax = 0`,
-					c.inst, c.campus, want).Scan(&subjectID, &fresh); err != nil {
+					c.inst, c.campus, want, code).Scan(&subjectID, &fresh); err != nil {
 					return err
 				}
 				c.noteCreated("subjects", subjectID, fresh)
@@ -2481,6 +2519,29 @@ func staffRoleKey(role, designation string) string {
 		}
 	}
 	return ""
+}
+
+/*
+subjectCodeFrom is the short code a report card prints for a subject.
+
+	Letters only, upper case, six of them -- long enough to be recognised on a
+	mark sheet and short enough to fit a column. Blank names cannot reach here:
+	the caller has already refused them.
+*/
+func subjectCodeFrom(name string) string {
+	letters := make([]rune, 0, 6)
+	for _, r := range strings.ToUpper(name) {
+		if r >= 'A' && r <= 'Z' {
+			letters = append(letters, r)
+			if len(letters) == 6 {
+				break
+			}
+		}
+	}
+	if len(letters) == 0 {
+		return "SUBJ"
+	}
+	return string(letters)
 }
 
 func isStaffStatusWord(v string) bool {
