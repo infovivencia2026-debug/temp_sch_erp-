@@ -729,7 +729,15 @@ export const BOARD_ROWS = 3
    a card that needs the width is set Wide, and Small is for the ones that
    are a figure and a name. */
 export const PHONE_COLS = 2
-export const PHONE_ROWS = 3
+/* FOUR ROWS, AND EVERY CARD TAKES TWO OF THEM. The owner's next request was
+   that a phone card be 1x2 or 2x2 and nothing else: a tall half-width tile
+   or a full-width panel, both two rows high, so a page is four tiles or two
+   panels or one of each. Three rows would leave a dead strip under every
+   pair; four divides evenly. The height floor is applied in paginate(), so
+   a dashboard's declared 1x1 becomes a tile and its 2x1 a panel without any
+   card knowing. */
+export const PHONE_ROWS = 4
+export const PHONE_CARD_ROWS = 2
 
 /** Where one widget ended up: which page, and where on it. */
 export interface Spot {
@@ -824,7 +832,14 @@ export function paginate(
        so a card can never take a whole page and leave the pager with nothing
        to page. `tallOk` is how the caller says which heights were chosen here
        rather than declared elsewhere. */
-    const h = tallOk?.has(item.id) ? Math.min(2, Math.max(1, item.h), rows) : 1
+    /* EVERY PHONE CARD IS TWO ROWS. The paragraph above chose heights per
+       card; the owner then asked for two shapes only, 1x2 and 2x2, so the
+       height is the page's card height for every card whatever was declared
+       or chosen, and `tallOk` is kept for its callers but no longer decides
+       anything. Capped at the page's rows so the two-row text setting, where a
+       page is two rows, still gets one card per band rather than none. */
+    void tallOk
+    const h = Math.min(PHONE_CARD_ROWS, rows)
     let spot: { row: number; col: number } | null = null
     for (let r = 0; !spot && r <= rows - h; r++) {
       for (let c = 0; c <= cols - w; c++) {

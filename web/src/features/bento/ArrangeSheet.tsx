@@ -160,9 +160,9 @@ export function ArrangeSheet({
         <ul ref={listRef} className="bento-sheet__list" style={{ '--row-h': `${ROW_H}px` } as CSSProperties}>
           {rows.map((w, i) => {
             const { w: cw, h: ch } = dimsOf(layout, w.id, w.size)
-            /* The two shapes a two-column phone page has: a small tile and a
-               wide one. Height is always one row here; a tall card on a phone
-               was the one-column answer to "make this bigger". */
+            /* The two shapes a phone page has: a tall half-width tile (1x2)
+               and a full-width panel (2x2). Both are two rows; the pager
+               enforces that, and the sheet only ever writes those two. */
             const wide = cw >= 2
             const dragging = drag?.id === w.id
             return (
@@ -190,12 +190,12 @@ export function ArrangeSheet({
                   className="bento-sheet__seg"
                 >
                   <button type="button" role="radio" aria-checked={!wide} className={seg()}
-                          onClick={() => resize(w.id, 1, 1)}>
+                          onClick={() => resize(w.id, 1, 2)}>
                     {t('bento.widgets.size_small')}
                   </button>
                   <button type="button" role="radio" aria-checked={wide} className={seg()}
-                          onClick={() => resize(w.id, 2, 1)}>
-                    {t('bento.widgets.size_wide')}
+                          onClick={() => resize(w.id, 2, 2)}>
+                    {t('bento.widgets.size_large')}
                   </button>
                 </span>
                 {/* The fourth decision a card admits, and the one this sheet
