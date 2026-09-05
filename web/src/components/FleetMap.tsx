@@ -3,7 +3,6 @@ import maplibregl, { type LngLatBoundsLike, type Map as MLMap } from 'maplibre-g
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
 import { layers, namedFlavor } from '@protomaps/basemaps'
-import { isIOSShell } from '@/lib/fullscreen'
 import { Maximize2, Minimize2, Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,34 +22,26 @@ import { cn } from '@/lib/utils'
    they already computed with drift applied; this component does not decide
    freshness and cannot disagree with the table beside it.
 
-   WHERE THE TILES COME FROM. OpenFreeMap, which serves OpenStreetMap without
-   an account, a key or a quota. That is the reason it was chosen: a key in a
-   public SPA bundle is a key that has leaked, and a per-school key is a thing
-   somebody has to buy and rotate. It is community-run and carries no SLA, so
-   the map says when the tiles did not load rather than presenting an empty
-   grey square as a place with nothing in it. Note what this costs: the tile
-   host sees the viewport, which is roughly where the school and its buses
-   are. That is the trade for not running a tile server. */
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+   WHERE THE TILES COME FROM. The map we host ourselves.
 
-/* THE MAP WE HOST OURSELVES, FOR THE IPHONE APP FIRST.
+   OpenFreeMap served this before: OpenStreetMap without an account, a key or
+   a quota, and somebody else's server with no promise attached, which saw
+   the viewport and so roughly where the school and its buses are. The
+   replacement is one file: a PMTiles archive of the region (Andhra Pradesh
+   and Telangana, cut from the daily Protomaps build of OpenStreetMap by
+   scripts/refresh-tiles.sh), served as a static file with range requests
+   from the ERP's own nginx under /tiles/, with the fonts and sprites the
+   style needs beside it. No third party sees where the buses are, nothing
+   can be revoked, and the hosting cost is a 200MB file on a disk that has
+   room for it. When R2 gets a public host the same file moves there and only
+   TILES_BASE changes.
 
-   OpenFreeMap above is free and needs no key, and it is somebody else's
-   server with no promise attached. The alternative is one file: a PMTiles
-   archive of the region (Andhra Pradesh and Telangana, cut from the daily
-   Protomaps build of OpenStreetMap by scripts/refresh-tiles.sh), served as a
-   static file with range requests from the ERP's own nginx under /tiles/,
-   with the fonts and sprites the style needs beside it. No third party sees
-   where the buses are, nothing can be revoked, and the hosting cost is a
-   200MB file on a disk that has room for it. When R2 gets a public host the
-   same file moves there and only TILES_BASE changes.
-
-   Rolled out to the iPhone parent app before anyone else: it is the newest
-   client and the smallest audience, it is detectable (only the shell exposes
-   the bridge handler, see isIOSShell), and a tile problem shows up in one app
-   rather than on every screen in the office. Browsers and the Android app
-   keep OpenFreeMap until this has been watched for a while; then the gate
-   goes and the constant above with it.
+   It went to the iPhone parent app first, gated on the shell's bridge, and
+   was watched there: the archive, the sprites and the fonts all answered
+   with range support from the box. The gate is gone and every client, the
+   office's screens, the Android parent app and the browser, draws the same
+   map from the same file. The tiles-failed notice below still says so when
+   the file is not being served, which is now the only way this can fail.
 
    The style is built in code from the Protomaps basemap layers rather than
    fetched as JSON, because the layer list has to name this origin's tile
@@ -60,7 +51,7 @@ const TILES_BASE = '/tiles'
 const TILES_ARCHIVE = `${TILES_BASE}/south-india.pmtiles`
 
 let pmtilesRegistered = false
-function selfHostedStyle(): maplibregl.StyleSpecification {
+export function selfHostedStyle(): maplibregl.StyleSpecification {
   if (!pmtilesRegistered) {
     // One protocol handler per page; MapLibre keeps it globally.
     maplibregl.addProtocol('pmtiles', new Protocol().tile)
@@ -82,8 +73,8 @@ function selfHostedStyle(): maplibregl.StyleSpecification {
   }
 }
 
-function mapStyle(): string | maplibregl.StyleSpecification {
-  return isIOSShell() ? selfHostedStyle() : STYLE_URL
+function mapStyle(): maplibregl.StyleSpecification {
+  return selfHostedStyle()
 }
 
 export interface MapVehicle {

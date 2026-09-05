@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type Map as MLMap, type Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Button } from '@/components/ui'
+import { selfHostedStyle } from '@/components/FleetMap'
 
 /* Putting a stop where it actually is.
 
@@ -17,10 +18,9 @@ import { Button } from '@/components/ui'
    coordinate read off a survey or pasted from elsewhere is still the fastest
    way in when you have one.
 
-   TILES: OpenFreeMap, as in FleetMap — OpenStreetMap without an account, a key
-   or a quota. A key in a public bundle is a leaked key. The trade is that the
-   tile host sees the viewport, which is roughly where the school is. */
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+   TILES: the same self-hosted archive FleetMap draws from, so the point the
+   office picks is picked on the map the parent will see it on. See the note
+   above selfHostedStyle in FleetMap for why it is ours and not a tile host's. */
 
 interface Props {
   /** Where to open. Null means "no point chosen yet" — see `fallback`. */
@@ -50,7 +50,7 @@ export default function MapPointPicker({ value, fallback, onPick, onClose }: Pro
     const start = value ?? fallback
     const m = new maplibregl.Map({
       container: host.current,
-      style: STYLE_URL,
+      style: selfHostedStyle(),
       center: start ? [start.lng, start.lat] : [78.9629, 20.5937],
       // Close enough to see which side of the road, when we know where to look.
       zoom: start ? 16 : 4,
