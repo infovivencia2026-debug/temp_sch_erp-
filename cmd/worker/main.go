@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -141,6 +142,39 @@ func run() error {
 		slog.Info("shutting down worker")
 		srv.Shutdown()
 	}()
+
+	/* A HEARTBEAT ON A PORT, FOR A HOST THAT INSISTS ON ONE.
+
+	   The worker has no HTTP surface of its own: it consumes a queue and runs
+	   the cron. Cloud Run only knows how to keep a service alive if it answers
+	   on $PORT, and kills one that does not within the start-up window. So
+	   when PORT is set -- and only then, the systemd deployment sets nothing
+	   -- a tiny listener answers /healthz with the database's own health, so
+	   the platform's probe means "the worker can reach Postgres" rather than
+	   "a process exists". Anything else on the port is 404: this is not an
+	   API, and the queue is not reachable through it. */
+	if port := os.Getenv("PORT"); port != "" {
+		health := http.NewServeMux()
+		health.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			if err := db.Health(r.Context()); err != nil {
+				http.Error(w, "degraded: "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte("ok"))
+		})
+		hs := &http.Server{Addr: ":" + port, Handler: health, ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			<-ctx.Done()
+			_ = hs.Close()
+		}()
+		go func() {
+			if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				slog.Error("health listener stopped", "err", err)
+			}
+		}()
+		slog.Info("health listener up", "addr", hs.Addr)
+	}
 
 	slog.Info("worker started", "concurrency", 4, "queues", queue.Priorities)
 	return srv.Run(mux)

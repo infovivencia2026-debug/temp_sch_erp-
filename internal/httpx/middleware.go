@@ -157,9 +157,16 @@ func RequirePermission(perm string) func(http.Handler) http.Handler {
 // host. Exposing this service directly would make the header attacker-controlled.
 func RealIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		/* THE LAST HOP, NOT THE FIRST. Every proxy in front of this service --
+		   nginx with $proxy_add_x_forwarded_for on the VPS, Google's front end
+		   on Cloud Run -- APPENDS the address it saw the connection come from.
+		   So the last entry is the one the proxy vouches for, and the first is
+		   whatever the client chose to send: a request that arrives with
+		   "X-Forwarded-For: 1.2.3.4" already set would have logged, rate
+		   limited and audited as 1.2.3.4. */
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			if i := strings.IndexByte(xff, ','); i > 0 {
-				r.RemoteAddr = strings.TrimSpace(xff[:i])
+			if i := strings.LastIndexByte(xff, ','); i >= 0 {
+				r.RemoteAddr = strings.TrimSpace(xff[i+1:])
 			} else {
 				r.RemoteAddr = strings.TrimSpace(xff)
 			}
