@@ -32,10 +32,6 @@ RUN_USER="${SERVICE}"
 # Port is derived rather than fixed so a second deployment does not silently
 # fight the first one for 8090.
 HTTP_PORT="${HTTP_PORT:-8091}"
-# The assistant. ragbot.service (uvicorn + ollama) answers the chat tab, and it
-# is deployed by hand rather than by this script -- so this only routes to it,
-# and never starts, stops or installs it.
-ASSISTANT_PORT="${ASSISTANT_PORT:-8001}"
 # Redis logical database, likewise separated from any neighbour.
 REDIS_DB="${REDIS_DB:-1}"
 
@@ -389,34 +385,9 @@ server {
     location /apps    { include /etc/nginx/snippets/${SERVICE}-proxy.conf; }
     location /static/ { include /etc/nginx/snippets/${SERVICE}-proxy.conf; expires 7d; access_log off; }
 
-    # ---- Assistant --------------------------------------------------------
-    # The chat tab's slow path: a local RAG service (ragbot.service, uvicorn on
-    # ASSISTANT_PORT, generating through ollama) which is NOT installed by this
-    # script and NOT in this repository.
-    #
-    # It lives here because it was added to nginx by hand once and this file
-    # rewrites the whole server block on every deploy, which silently removed
-    # it: the service kept running, unreachable, and /assistant/chat fell
-    # through to the SPA catch-all below -- so the browser was handed
-    # index.html with a 200 and the tab died on JSON.parse. Anything routed by
-    # hand is routed until the next deploy; this is the file that decides.
-    #
-    # A prefix match with the trailing slash, so it takes /assistant/chat and
-    # its siblings and nothing else. The long read timeout is the point of the
-    # block: a small model on one vCPU generates at around 13 tokens a second,
-    # so a paragraph is a minute, and the 60s the Go snippet uses would cut
-    # the answer off mid-sentence and report it as a gateway error.
-    location /assistant/ {
-        proxy_pass http://127.0.0.1:${ASSISTANT_PORT}/;
-        proxy_http_version 1.1;
-        proxy_set_header Host              \$host;
-        proxy_set_header X-Real-IP         \$remote_addr;
-        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Request-Id      \$request_id;
-        proxy_read_timeout 300s;
-        proxy_buffering off;
-    }
+    # The assistant (ragbot) that was routed at /assistant/ is archived: its
+    # service, index and env are in /root/backups/ragbot-archive-*, and the
+    # route goes back in here when it returns.
 
     # ---- SPA --------------------------------------------------------------
     location ~ ^/assets/.+\.(js|css|map|woff2?|ttf|eot|png|jpe?g|gif|svg|ico|webp)\$ {

@@ -20,7 +20,6 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
-import { AssistantTab } from '@/components/AssistantTab'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
@@ -1062,7 +1061,8 @@ export function Shell({
               what is already on screen, so an assistant that covers it makes
               somebody leave the thing they wanted to ask about. Mounted outside
               <main> so it stays put while a long register scrolls. */}
-          <AssistantTab />
+          {/* The assistant is archived: its service is off the server and its code
+             stays in components/AssistantTab.tsx for the day it returns. */}
           {/* Mounted here for the same reason as the tab: what is queued was
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
