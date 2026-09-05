@@ -621,3 +621,14 @@
     max-width: 1040px;
   }
 }
+
+/* ONE SWITCHER PER SCREEN. The pills carry `hidden sm:inline-flex` and the
+   phone button `sm:hidden`, and the two display rules above outrank both of
+   those utilities by specificity, so on a phone the pills showed beside the
+   button. The breakpoint is stated here, where the display is decided. */
+@media (max-width: 639px) {
+  [data-role='parent'] .parent-switch { display: none; }
+}
+@media (min-width: 640px) {
+  [data-role='parent'] .parent-switch-small { display: none; }
+}
