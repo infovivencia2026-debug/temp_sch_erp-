@@ -189,7 +189,20 @@ final class WebShell: NSObject, ObservableObject {
         pullGesture.onChange = { [weak self] travel, alpha, visible in
             self?.pull = Pull(travel: travel, alpha: alpha, visible: visible)
         }
-        webView.addGestureRecognizer(pullGesture.recognizer)
+        /* NOTHING THAT SAYS "BROWSER". The owner's instruction: nobody should
+           be able to tell this is a web page. So the gestures a page has and
+           an app does not are switched off here, at the view, where a bundle
+           cannot forget them: pinch zoom, the rubber-band bounce past the
+           edges, and pull-to-reload (its code stays for the day it is wanted
+           back, but the recogniser is never attached). The bridge script
+           handles the rest -- text-selection callouts, tap flashes, double
+           tap zoom -- inside the page. */
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
+        webView.scrollView.bounces = false
+        webView.scrollView.alwaysBounceVertical = false
+        webView.scrollView.alwaysBounceHorizontal = false
+        webView.scrollView.showsHorizontalScrollIndicator = false
+        pullGesture.pullEnabled = false
 
         downloads.onToast = { [weak self] text, file in self?.showToast(text, file: file) }
         downloads.isForeground = { [weak self] in self?.foreground ?? false }
@@ -248,6 +261,9 @@ final class WebShell: NSObject, ObservableObject {
     /* A load that painted. Worth recording where it was, and worth clearing
        whatever the last failure put on screen. */
     private func committed(_ url: URL?) {
+        // WebKit can hand the scroll view a fresh pinch recogniser on a new
+        // document; keep it off for every page, not only the first.
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
         if let url, url.scheme != "about" { lastGoodUrl = url }
         painted = true
         hideSplash()

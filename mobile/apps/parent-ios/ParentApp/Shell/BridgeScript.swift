@@ -50,7 +50,14 @@ enum BridgeScript {
              screen after it cropped at the right edge. The site carries the
              same rule; this copy is for a bundle that predates it. */
           style.textContent = 'img, a { -webkit-touch-callout: none; }\\n' +
-            'input, select, textarea { font-size: max(16px, 1em); }';
+            'input, select, textarea { font-size: max(16px, 1em); }\\n' +
+            /* The page must not read as a page: no text-selection handles on
+               labels and cards, no grey flash under a tap, no double-tap
+               zoom, no rubber band at the ends. Fields keep selection and the
+               normal caret, because typing is not browsing. */
+            'html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }\\n' +
+            'body { -webkit-user-select: none; user-select: none; touch-action: pan-x pan-y; }\\n' +
+            'input, textarea, [contenteditable], [data-selectable] { -webkit-user-select: text; user-select: text; }';
           (document.head || document.documentElement).appendChild(style);
         })();
         """
