@@ -5,9 +5,10 @@ import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState } from '@/compo
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import {
-  ageText, hasPlot, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
+  ageText, hasPlot, stateSentence, usePoll, useSecondsSince, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
 } from './child-bus'
+import { useTabVisible } from '@/lib/visible'
 
 
 export default function ChildBus() {

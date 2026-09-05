@@ -519,126 +519,9 @@ export function BentoLauncher({
     willChange: 'transform',
   }
 
-  const Tile = ({ r, i, context, step }: { r: Row; i?: number; context?: boolean; step?: number }) => {
-    const href = featurePath(role.key, r.sectionSlug, r.slug)
-    const here = pathname === href
-    const onCursor = i !== undefined && i === cursor
-    const Mark = markFor(r.workspace)
-    return (
-      <button
-        type="button"
-        onClick={() => go(r)}
-        onMouseEnter={() => i !== undefined && setCursor(i)}
-        data-cursor={onCursor ? 'true' : undefined}
-        aria-current={here ? 'page' : undefined}
-        /* Each feature is its own object now, not a line of a list.
-
-           A row of text is read; a box is aimed at. With sixty-five of them
-           the difference is the whole experience of the panel — the eye lands
-           on a shape and the hand goes there, rather than scanning a column
-           for a word. It is the home-screen arrangement, and it works for the
-           same reason: position and colour become memory, so the third visit
-           is faster than the first.
-
-           The box carries its own surface rather than sitting transparently on
-           the category tint. That is what makes it an object at all — on the
-           tint alone it is a hover state pretending to be a thing. */
-        className={cn(
-          /* min-w-0 is what keeps this inside the screen.
-
-             A grid item's min-width is `auto`, which means it refuses to be
-             narrower than its own content. "Parent Bus Proximity Radius
-             Customizer" is a wide piece of min-content, so the box grew, the
-             grid grew with it, and the whole launcher overflowed the phone by
-             36px -- every tile pushed off the right edge, and the truncation
-             on the label below never got a chance to fire because nothing was
-             ever narrower than the text. */
-          `launcher-app group flex w-full min-w-0 items-center gap-2.5 rounded-[10px] px-2.5 py-2
-           text-left focus-visible:outline-none focus-visible:ring-2
-           focus-visible:ring-[var(--ink-here)]`,
-          onCursor && 'launcher-app-on',
-          here && 'font-medium',
-        )}
-        /* Each box takes a tone from its category's own colour.
-
-           Not one tint repeated: the mix walks 5, 7, 9, 11 per cent down the
-           tile order and then repeats, so neighbours differ by a step small
-           enough to read as one family and large enough that the boxes are
-           separate objects rather than a striped field. It is the difference
-           between a shelf of books in a series and a shelf of identical books.
-
-           All of them stay lighter than the panel behind, which is at 13, so
-           the boxes lift off their category rather than sinking into it.
-
-           Mixed against the card token rather than white, so dark mode needs
-           no second rule: there the same expression tints a dark surface. */
-        /* THE TINT IS NOW ACTUALLY PAINTED.
-
-           `--tile-tint` was computed here and consumed nowhere: the stylesheet
-           says the background is "given inline", the inline style set only the
-           variable, and so every one of the sixty-five boxes was transparent.
-           The whole reason the box exists — an object you aim at rather than a
-           row you read — was never on screen, and its words were inheriting the
-           ink of whatever it happened to be sitting over.
-
-           With a surface it also gets an ink, chosen against that surface the
-           same way every other surface here chooses one. */
-        style={
-          {
-            '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
-              5 + ((step ?? 0) % 4) * 2
-            }%, var(--bento-card))`,
-            '--ink-here': 'hsl(from var(--tile-tint) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
-            background: 'var(--tile-tint)',
-            color: 'var(--ink-here)',
-          } as CSSProperties
-        }
-      >
-        {/* The row's glyph carries its group's colour, which is what ties a
-            tile to the heading it sits under once the eye has left it. Within
-            a group every glyph is the same, so it reads as grouping rather
-            than as sixty-five separate decisions.
-
-            It names itself on hover. A mark is only a landmark once you have
-            learnt it, and nothing here teaches it: a book means Academics to
-            whoever chose the book. The title is on a wrapping span rather than
-            the svg because a title inside an aria-hidden element is read by
-            neither the pointer nor the screen reader in some browsers. */}
-        <span
-          title={r.workspace}
-          className="grid shrink-0 place-items-center"
-          /* Neat domain colour on a surface mixed from that same domain colour
-             is a glyph you cannot see — 1.00:1 for Operations under the default
-             palette, where `--dom-operations` IS the paper the tile is made of.
-             Mixed toward the tile's own ink it keeps the hue that ties it to
-             its heading and gains a shape. */
-          style={{ color: `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) 45%, var(--ink-here))` }}
-        >
-          <Mark className="size-4" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px]">{r.name}</span>
-          {/* Where it belongs, said only where that is not already obvious.
-
-              Inside a category panel the heading has just said it: HOME, and
-              then three tiles each captioned "Home". Repeating the answer to a
-              question the block already answered is noise the eye has to
-              discard on every row.
-
-              Recents and search results are the cases where it earns its
-              place, because those are drawn from everywhere at once — and
-              there it names the category rather than the section, since the
-              category is the thing carrying a colour the reader has been
-              learning. */}
-          {context && (
-            <span className="block truncate text-[11.5px] opacity-80">
-              {r.workspace}
-            </span>
-          )}
-        </span>
-      </button>
-    )
-  }
+  /* What every tile needs from the launcher, handed down as props — see the
+     note on Tile for why it must not simply close over these. */
+  const tileProps = { roleKey: role.key, pathname, cursor, setCursor, go }
 
   /* The two header controls, and the reason they no longer name a semantic
      class. `hover:bg-accent` is a wash mixed from `--bento-ink` — the card's
@@ -865,7 +748,7 @@ export function BentoLauncher({
               <>
                 <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
                 <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context />)}
+                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context {...tileProps} />)}
                 </div>
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] opacity-80">
                   <CornerDownLeft className="size-3" aria-hidden="true" />
@@ -883,7 +766,7 @@ export function BentoLauncher({
                 <section className="mb-9">
                   <Heading icon={Clock} label={t('bento.launcher.recent')} />
                   <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {recents.map((r, i) => <Tile key={`recent-${r.key}`} r={r} step={i} context />)}
+                    {recents.map((r, i) => <Tile key={`recent-${r.key}`} r={r} step={i} context {...tileProps} />)}
                   </div>
                 </section>
               )}
@@ -942,7 +825,7 @@ export function BentoLauncher({
                     <Heading icon={Mark} label={g.name} hue={hue} onTint />
                     <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5', tileColumns(count))}>
                       {g.sections.flatMap((s) => s.rows).map((r, i) => (
-                        <Tile key={r.key} r={r} step={i} />
+                        <Tile key={r.key} r={r} step={i} {...tileProps} />
                       ))}
                     </div>
                   </section>
@@ -954,6 +837,158 @@ export function BentoLauncher({
         </div>
       </div>
     </div>
+  )
+}
+
+/* DECLARED HERE, AT MODULE SCOPE, AND NOT INSIDE THE LAUNCHER'S RENDER.
+
+   It used to be a const inside BentoLauncher's body, which made it a new
+   component TYPE on every render of the launcher. React does not reconcile
+   across a change of type: every tile was unmounted and a fresh one mounted
+   in its place, on every render.
+
+   That is why "Recently opened" did nothing on the iPhone. The band sits at
+   the top of the sheet, which is the one place the pull-down gesture is armed,
+   and a finger that is tapping still drifts a pixel between touchstart and
+   touchend. The pixel reached onSheetTouchMove, which set `pull`, which
+   re-rendered the launcher, which threw away the button under the finger. By
+   the time the browser went to dispatch the click, its target was no longer in
+   the document, and WebKit dispatches nothing to a detached node. Tiles further
+   down worked, because there the finger is scrolling and the pull gesture has
+   stood down — so it looked like a bug in the recents list specifically.
+
+   Everything the tile used to close over arrives as props instead, so the
+   type is stable and a re-render is a re-render. */
+function Tile({
+  r, i, context, step, roleKey, pathname, cursor, setCursor, go,
+}: {
+  r: Row
+  i?: number
+  context?: boolean
+  step?: number
+  roleKey: string
+  pathname: string
+  cursor: number
+  setCursor: (i: number) => void
+  go: (r: Row) => void
+}) {
+  const href = featurePath(roleKey, r.sectionSlug, r.slug)
+  const here = pathname === href
+  const onCursor = i !== undefined && i === cursor
+  const Mark = markFor(r.workspace)
+  return (
+    <button
+      type="button"
+      onClick={() => go(r)}
+      onMouseEnter={() => i !== undefined && setCursor(i)}
+      data-cursor={onCursor ? 'true' : undefined}
+      aria-current={here ? 'page' : undefined}
+      /* Each feature is its own object now, not a line of a list.
+
+         A row of text is read; a box is aimed at. With sixty-five of them
+         the difference is the whole experience of the panel — the eye lands
+         on a shape and the hand goes there, rather than scanning a column
+         for a word. It is the home-screen arrangement, and it works for the
+         same reason: position and colour become memory, so the third visit
+         is faster than the first.
+
+         The box carries its own surface rather than sitting transparently on
+         the category tint. That is what makes it an object at all — on the
+         tint alone it is a hover state pretending to be a thing. */
+      className={cn(
+        /* min-w-0 is what keeps this inside the screen.
+
+           A grid item's min-width is `auto`, which means it refuses to be
+           narrower than its own content. "Parent Bus Proximity Radius
+           Customizer" is a wide piece of min-content, so the box grew, the
+           grid grew with it, and the whole launcher overflowed the phone by
+           36px -- every tile pushed off the right edge, and the truncation
+           on the label below never got a chance to fire because nothing was
+           ever narrower than the text. */
+        `launcher-app group flex w-full min-w-0 items-center gap-2.5 rounded-[10px] px-2.5 py-2
+         text-left focus-visible:outline-none focus-visible:ring-2
+         focus-visible:ring-[var(--ink-here)]`,
+        onCursor && 'launcher-app-on',
+        here && 'font-medium',
+      )}
+      /* Each box takes a tone from its category's own colour.
+
+         Not one tint repeated: the mix walks 5, 7, 9, 11 per cent down the
+         tile order and then repeats, so neighbours differ by a step small
+         enough to read as one family and large enough that the boxes are
+         separate objects rather than a striped field. It is the difference
+         between a shelf of books in a series and a shelf of identical books.
+
+         All of them stay lighter than the panel behind, which is at 13, so
+         the boxes lift off their category rather than sinking into it.
+
+         Mixed against the card token rather than white, so dark mode needs
+         no second rule: there the same expression tints a dark surface. */
+      /* THE TINT IS NOW ACTUALLY PAINTED.
+
+         `--tile-tint` was computed here and consumed nowhere: the stylesheet
+         says the background is "given inline", the inline style set only the
+         variable, and so every one of the sixty-five boxes was transparent.
+         The whole reason the box exists — an object you aim at rather than a
+         row you read — was never on screen, and its words were inheriting the
+         ink of whatever it happened to be sitting over.
+
+         With a surface it also gets an ink, chosen against that surface the
+         same way every other surface here chooses one. */
+      style={
+        {
+          '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
+            5 + ((step ?? 0) % 4) * 2
+          }%, var(--bento-card))`,
+          '--ink-here': 'hsl(from var(--tile-tint) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
+          background: 'var(--tile-tint)',
+          color: 'var(--ink-here)',
+        } as CSSProperties
+      }
+    >
+      {/* The row's glyph carries its group's colour, which is what ties a
+          tile to the heading it sits under once the eye has left it. Within
+          a group every glyph is the same, so it reads as grouping rather
+          than as sixty-five separate decisions.
+
+          It names itself on hover. A mark is only a landmark once you have
+          learnt it, and nothing here teaches it: a book means Academics to
+          whoever chose the book. The title is on a wrapping span rather than
+          the svg because a title inside an aria-hidden element is read by
+          neither the pointer nor the screen reader in some browsers. */}
+      <span
+        title={r.workspace}
+        className="grid shrink-0 place-items-center"
+        /* Neat domain colour on a surface mixed from that same domain colour
+           is a glyph you cannot see — 1.00:1 for Operations under the default
+           palette, where `--dom-operations` IS the paper the tile is made of.
+           Mixed toward the tile's own ink it keeps the hue that ties it to
+           its heading and gains a shape. */
+        style={{ color: `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) 45%, var(--ink-here))` }}
+      >
+        <Mark className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13.5px]">{r.name}</span>
+        {/* Where it belongs, said only where that is not already obvious.
+
+            Inside a category panel the heading has just said it: HOME, and
+            then three tiles each captioned "Home". Repeating the answer to a
+            question the block already answered is noise the eye has to
+            discard on every row.
+
+            Recents and search results are the cases where it earns its
+            place, because those are drawn from everywhere at once — and
+            there it names the category rather than the section, since the
+            category is the thing carrying a colour the reader has been
+            learning. */}
+        {context && (
+          <span className="block truncate text-[11.5px] opacity-80">
+            {r.workspace}
+          </span>
+        )}
+      </span>
+    </button>
   )
 }
 

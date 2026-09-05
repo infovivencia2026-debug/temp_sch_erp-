@@ -174,15 +174,6 @@ export function ageText(secs?: number): string {
   return h < 24 ? `${h} h ago` : `${Math.floor(h / 24)} d ago`
 }
 
-/* Is this tab in front of somebody?
-
-   A parent leaves this screen open on a phone and walks away. Polling a
-   hidden tab spends their battery and the school's server on a picture nobody
-   is looking at, so the poll stops with the tab and resumes with it. */
-/* Moved to lib/visible.ts so every polling screen shares it; re-exported
-   here so the four callers that import it from this module keep working. */
-export { useTabVisible } from '@/lib/visible'
-
 /* Poll on the fastest interval any row asked for.
 
    refresh_seconds is per row because a family can set it per child, and the

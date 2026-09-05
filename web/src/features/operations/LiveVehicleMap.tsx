@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { FleetMap } from '@/components/FleetMap'
-import { useVisibleInterval } from '@/lib/visible'
+import { useTabVisible, useVisibleInterval } from '@/lib/visible'
 
 /* Where the fleet is, right now.
 
@@ -114,24 +114,6 @@ function withDrift(v: LiveVehicle, drift: number, staleAfter: number): LiveVehic
   return { ...v, age_seconds: age, state }
 }
 
-/* Is this tab in front of somebody?
-
-   A live map left open on a machine nobody is at is a poll every ten seconds
-   for the whole weekend, against a phone battery budget the school is paying
-   for. React Query's own refetchInterval keeps firing in a background tab, so
-   the visibility is read here and the interval turned off with it. */
-function useTabVisible(): boolean {
-  const [visible, setVisible] = useState(() =>
-    typeof document === 'undefined' ? true : !document.hidden,
-  )
-  useEffect(() => {
-    const onChange = () => setVisible(!document.hidden)
-    document.addEventListener('visibilitychange', onChange)
-    return () => document.removeEventListener('visibilitychange', onChange)
-  }, [])
-  return visible
-}
-
 export default function LiveVehicleMap() {
   const visible = useTabVisible()
   const [routeFilter, setRouteFilter] = useState('')
@@ -159,9 +141,12 @@ export default function LiveVehicleMap() {
   const feed = live.data
   const ping = feed?.ping_seconds ?? 15
 
-  /* Poll on the server's number. Kept as an effect over a refetchInterval
-     expression so the interval changes the moment the policy does, without
-     waiting for the component to be remounted. */
+  /* Poll on the server's number, only while the tab is visible. Kept as an
+     effect over `refetchInterval: useVisibleInterval(ms)` because the ms is
+     read out of this query's own response (`ping_seconds`), which does not
+     exist until after `useQuery` has been called; the shared hook only gives
+     the visibility half, and this is the one screen that wants the other half
+     from its data. */
   useEffect(() => {
     if (!visible) return
     const ms = Math.max(5, ping) * 1000

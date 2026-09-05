@@ -5,9 +5,10 @@ import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState, CellGrid, Stat
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import {
-  ageText, minutes, usePoll, useSecondsSince, useTabVisible, withDrift,
+  ageText, minutes, usePoll, useSecondsSince, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
 } from './child-bus'
+import { useTabVisible } from '@/lib/visible'
 import { walkText } from './transport-prefs'
 
 /* The at-a-glance answer, for the two minutes before the school run.

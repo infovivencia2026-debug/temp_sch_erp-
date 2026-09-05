@@ -5,9 +5,10 @@ import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState } from '@/compo
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import {
-  ageText, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
+  ageText, stateSentence, usePoll, useSecondsSince, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
 } from './child-bus'
+import { useTabVisible } from '@/lib/visible'
 
 /* Ringing the driver.
 
