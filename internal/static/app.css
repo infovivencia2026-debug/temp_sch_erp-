@@ -796,3 +796,13 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   .pw > button.pw-eye { width: 44px; }
   .pw > input { padding-right: 46px; }
 }
+
+/* THE PHONE THAT ZOOMED IN AND NEVER CAME BACK. iOS WebKit zooms the page in
+   when a focused field's text is under 16px and does not zoom back out on
+   blur, so one tap on this form left every screen after it cropped at the
+   right edge. Sixteen in the control is the documented off switch; scoped to
+   iOS by the one @supports test only its engine passes. Same rule as the SPA's
+   index.css. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: max(16px, 1em); }
+}

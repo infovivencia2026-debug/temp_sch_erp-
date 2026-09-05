@@ -456,6 +456,19 @@
      The previous 13px was a step too far and looked cramped. */
   html { font-size: calc(14px * var(--font-scale)); }
 
+  /* THE PHONE THAT ZOOMED IN AND NEVER CAME BACK.
+     iOS WebKit (Safari and the parent app's WKWebView alike) zooms the whole
+     page in when a focused field's text is under 16px, and does not zoom back
+     out when the field is left. With a 14px baseline that is every field, so
+     one tap on the sign-in form left every screen after it cropped at the
+     right edge. Sixteen in the control itself is the documented off switch;
+     max() keeps a deliberately larger field larger. Scoped to iOS with the
+     one @supports test only its engine passes, so the desktop density that
+     the 14px baseline exists for is untouched everywhere else. */
+  @supports (-webkit-touch-callout: none) {
+    input, select, textarea { font-size: max(16px, 1em); }
+  }
+
   body {
     background: hsl(var(--ground));
     color: hsl(var(--foreground));
