@@ -399,3 +399,42 @@ func (s *Server) listPatternStaff(w http.ResponseWriter, r *http.Request) {
 		})
 	respond(w, r, items, err)
 }
+
+/*
+listDepartments is the school's departments, by name.
+
+	Nothing served them. Departments are created by the staff importer and read
+	all over the product -- a work pattern is assigned to one, an employee
+	belongs to one, the rollups group by one -- and the only endpoint that ever
+	returned them was the department-students summary, which answers a
+	different question and costs five subqueries per row to answer it.
+
+	So the hours screen offered "Departments on these hours", asked for a list
+	that did not exist, got a 404, and rendered no chips at all: the whole
+	department level of the hierarchy was unreachable from the screen built to
+	set it.
+*/
+type departmentRow struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	People int    `json:"people"`
+	// The hours this department keeps, so the picker can say what it is about
+	// to change rather than only what it is setting.
+	Pattern string `json:"pattern"`
+}
+
+func (s *Server) listDepartments(w http.ResponseWriter, r *http.Request) {
+	items, err := collect(s, r, `
+		SELECT d.id::text, d.name,
+		       (SELECT count(*)::int FROM employees e
+		         WHERE e.department_id = d.id AND e.status = 'active'),
+		       COALESCE(p.name, '')
+		  FROM departments d
+		  LEFT JOIN work_patterns p ON p.id = d.work_pattern_id
+		 ORDER BY d.name`, nil,
+		func(rows pgx.Rows) (departmentRow, error) {
+			var v departmentRow
+			return v, rows.Scan(&v.ID, &v.Name, &v.People, &v.Pattern)
+		})
+	respond(w, r, items, err)
+}

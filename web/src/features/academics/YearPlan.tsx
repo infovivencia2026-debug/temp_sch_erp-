@@ -77,7 +77,7 @@ function PlanTimeline() {
   // The subjects this school runs, so the plan can be picked rather than typed.
   const subjects = useQuery({
     queryKey: ['year-plan-subjects'],
-    queryFn: () => api.get<SubjectOption[]>('/api/v1/academics/class-subjects'),
+    queryFn: () => api.get<SubjectOption[]>('/api/v1/setup/class-subjects'),
   })
 
   const plan = useQuery({

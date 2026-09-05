@@ -475,6 +475,10 @@ func (s *Server) Routes() http.Handler {
 				Get("/work-patterns", s.listWorkPatterns)
 			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
 				Get("/work-patterns/staff", s.listPatternStaff)
+			// The school's departments, by name. Nothing served them, so every
+			// screen that wanted to assign one had nothing to offer.
+			r.With(httpx.RequirePermission(rbac.EmployeesRead)).
+				Get("/departments", s.listDepartments)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).
 				Post("/work-patterns", s.saveWorkPattern)
 			r.With(httpx.RequirePermission(rbac.EmployeesWrite)).

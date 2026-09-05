@@ -91,7 +91,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
   // teacher.
   const school = useQuery({
     queryKey: ['institution-branding'],
-    queryFn: () => api.get<Branding>('/api/v1/institution'),
+    queryFn: () => api.get<Branding>('/api/v1/setup/institution'),
     retry: false,
   })
 
