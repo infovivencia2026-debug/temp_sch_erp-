@@ -330,6 +330,10 @@ func (s *Server) Routes() http.Handler {
 			// employee row whose user_id is the caller, so it cannot be aimed
 			// at somebody else's salary.
 			r.Get("/pay", s.getMyPay)
+			// The installed app's device token, for push. Any signed-in
+			// account may hold one; the token names a phone, not a right.
+			r.Put("/push-token", s.registerPushToken)
+			r.Delete("/push-token", s.forgetPushToken)
 		})
 
 		// Heavy work is never done inline; these hand off to the queue and

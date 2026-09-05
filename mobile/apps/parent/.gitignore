@@ -22,3 +22,6 @@ release/
 # OS
 .DS_Store
 secrets.properties
+
+# Per-deployment Firebase configuration from the console; drop it in app/ to enable push
+google-services.json

@@ -219,6 +219,17 @@ func (s *Store) touch(ctx context.Context, sessionID uuid.UUID) error {
 	})
 }
 
+// ForgetPushTokens withdraws every phone registered to a user. Called at
+// sign-out: the next person to sign in on this phone must not receive this
+// person's alerts, and a second phone re-registers itself the next time it
+// is opened, so nothing is lost that is not recovered.
+func (s *Store) ForgetPushTokens(ctx context.Context, userID uuid.UUID) error {
+	return s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `DELETE FROM push_tokens WHERE user_id = $1`, userID)
+		return err
+	})
+}
+
 func (s *Store) Revoke(ctx context.Context, sessionID uuid.UUID) error {
 	return s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx,

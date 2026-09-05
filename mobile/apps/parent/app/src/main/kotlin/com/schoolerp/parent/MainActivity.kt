@@ -272,6 +272,7 @@ class MainActivity : Activity() {
         allowCutout()
         setContentView(root)
         registerBack()
+        startPush()
         watchNetwork()
         holdSplash()
         restoreLastScreen()
@@ -413,6 +414,12 @@ class MainActivity : Activity() {
         @android.webkit.JavascriptInterface
         fun biometricsAvailable(): Boolean = canLock
 
+        /* The device's push token, for the site to hand to the server after
+           sign-in (web/src/lib/push.ts). Null until Firebase has issued one,
+           and always null on a build without google-services.json. */
+        @android.webkit.JavascriptInterface
+        fun pushToken(): String? = prefs.getString("push_token", null)
+
         /* THE PHONE ANSWERS A PRESS, FROM THE PHONE.
 
            The site asks for a tick under the thumb through navigator.vibrate,
@@ -481,6 +488,11 @@ class MainActivity : Activity() {
             // parent still gets the last map they were shown rather than a
             // white screen.
             cacheMode = WebSettings.LOAD_DEFAULT
+            /* FEEL. Tiles just off the bottom of the screen are rasterised
+               before they scroll in, so a fast flick down a long page shows
+               content rather than a checkerboard catching up. Costs memory
+               the phone has; the alternative was visible. */
+            offscreenPreRaster = true
             /* NO PINCH ZOOM IN THE APP EITHER.
 
                The page asks for it with user-scalable=no, and a WebView
@@ -522,6 +534,10 @@ class MainActivity : Activity() {
          * Same-origin is enforced elsewhere — shouldOverrideUrlLoading sends
          * every foreign URL to a real browser — so the only code that can reach
          * this is the school's own bundle. */
+        /* The stretch-and-glow at the top edge is drawn by PullToRefresh's
+           indicator already; the WebView's own on top of it was two answers to
+           one gesture. */
+        view.overScrollMode = View.OVER_SCROLL_NEVER
         view.isHapticFeedbackEnabled = true
         Shell.target = view
         view.addJavascriptInterface(shell, "ErpShell")
@@ -972,6 +988,8 @@ class MainActivity : Activity() {
        Registered lazily and only once, because a parent who never downloads
        anything should not be paying for a registered receiver, and torn down
        in onDestroy so it does not outlive the activity it toasts from. */
+    // The flagless call is the pre-Android-13 branch, where the flag does not exist.
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun watchDownloads() {
         if (downloadWatcher != null) return
         val receiver = object : BroadcastReceiver() {
@@ -1677,6 +1695,28 @@ class MainActivity : Activity() {
         if (web.canGoBack()) web.goBack() else finish()
     }
 
+    /* PUSH, IF THIS BUILD HAS IT.
+
+       Firebase initialises itself from the values google-services.json
+       generates at build time; on a build made without that file there is no
+       FirebaseApp and everything here is skipped, which is the intended state
+       for an installation that has not set up Firebase. With it, the token is
+       fetched and kept where the bridge can read it, and from Android 13 the
+       parent is asked, once, whether the app may notify them. */
+    private fun startPush() {
+        if (com.google.firebase.FirebaseApp.getApps(this).isEmpty()) return
+        Push.ensureChannel(this)
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token -> if (!token.isNullOrBlank()) Push.remember(this, token) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            !Shell.prefs.getBoolean("asked_notifications", false)
+        ) {
+            Shell.prefs.edit().putBoolean("asked_notifications", true).apply()
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+        }
+    }
+
     private fun registerBack() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
@@ -1879,6 +1919,7 @@ class MainActivity : Activity() {
         const val REQUEST_FILES = 1001
         const val REQUEST_UNLOCK = 1002
         const val REQUEST_STORAGE = 1003
+        const val REQUEST_NOTIFICATIONS = 1004
 
         /* RFC 6266: `filename*=UTF-8''name%20here` for anything not plain
            ASCII, `filename="name"` or a bare token otherwise. All three are

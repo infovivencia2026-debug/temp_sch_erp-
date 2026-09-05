@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -1796,13 +1797,13 @@ deliverFamilyAlerts turns facts the school already recorded into the caller's fe
 	panel; this is deliberately the other thing, a dated log of what happened,
 	which is why an alert survives the fact that produced it being resolved.
 */
-func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid.UUID,
+func (s *Server) deliverFamilyAlerts(ctx context.Context, tx pgx.Tx, inst, user uuid.UUID,
 	kids []uuid.UUID) error {
 
 	// Circulars addressed to parents. Not narrowed by child: a notice to the
 	// whole school is one alert, and one per child would deliver it three times
 	// to a family of three.
-	if _, err := tx.Exec(r.Context(), `
+	if _, err := tx.Exec(ctx, `
 		/* DATED WHEN IT HAPPENED, NOT WHEN IT WAS DELIVERED.
 
 		   These alerts are written the first time a family opens the app, so
@@ -1839,7 +1840,7 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	// A day the child was marked absent. Only the last fortnight: an alert
 	// about a Tuesday in July is not news, it is clutter, and the attendance
 	// screen is where a term's record is read.
-	if _, err := tx.Exec(r.Context(), `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
 		                           title, body, link, source_kind, source_id,
 		                           created_at)
@@ -1864,7 +1865,7 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 
 	// An invoice past its due date. Cancelled bills are excluded — a school
 	// that withdrew a charge must not keep chasing it.
-	if _, err := tx.Exec(r.Context(), `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
 		                           title, body, link, source_kind, source_id,
 		                           created_at)
@@ -1889,7 +1890,7 @@ func (s *Server) deliverFamilyAlerts(r *http.Request, tx pgx.Tx, inst, user uuid
 	}
 
 	// Homework due in the next week, for the child's own section.
-	_, err := tx.Exec(r.Context(), `
+	_, err := tx.Exec(ctx, `
 		INSERT INTO notifications (institution_id, user_id, student_id, kind,
 		                           title, body, link, source_kind, source_id,
 		                           created_at)
@@ -1972,7 +1973,7 @@ func (s *Server) listFamilyNotifications(w http.ResponseWriter, r *http.Request)
 		// self.profile.read reaches this route and must simply see nothing,
 		// rather than have alerts manufactured for a family that is not theirs.
 		if len(res.StudentIDs) > 0 {
-			if err := s.deliverFamilyAlerts(r, tx, id.InstitutionID, id.UserID, res.StudentIDs); err != nil {
+			if err := s.deliverFamilyAlerts(r.Context(), tx, id.InstitutionID, id.UserID, res.StudentIDs); err != nil {
 				return err
 			}
 		}

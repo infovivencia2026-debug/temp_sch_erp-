@@ -336,6 +336,7 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if id := httpx.IdentityFrom(r.Context()); id != nil {
 		_ = h.store.Revoke(r.Context(), id.SessionID)
+		_ = h.store.ForgetPushTokens(r.Context(), id.UserID)
 	}
 	h.store.Clear(w)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)

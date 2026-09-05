@@ -40,4 +40,6 @@
          using a screen reader is told the app is working rather than met
          with a screen that announces nothing. -->
     <string name="splash_loading">Loading the school app</string>
+    <string name="channel_alerts">School alerts</string>
+    <string name="channel_alerts_body">Circulars, the bus near your stop, fees due, homework and attendance.</string>
 </resources>

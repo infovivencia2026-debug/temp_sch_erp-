@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- The app lock: the phone's own fingerprint or face prompt. -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Push: the alerts PushService posts are this app's own, so from
+         Android 13 they need this and MainActivity asks for it once. The
+         download notification is still the system's and needs nothing. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- KEEPING A RECEIPT, ON THE OLD HALF OF THE RANGE ONLY.
 
@@ -145,6 +149,19 @@
              the capture intent carries, and it lapses with the task. See
              PickedFileProvider for why this is hand written rather than the
              androidx FileProvider. -->
+        <!-- Push. Firebase hands a data message to this service whether the
+             app is open or not; it posts the notification and the tap opens
+             MainActivity on the link. Inert until google-services.json is
+             built in: without it Firebase never initialises and this service
+             is never bound. -->
+        <service
+            android:name=".PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name=".PickedFileProvider"
             android:authorities="${applicationId}.picked"

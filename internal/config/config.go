@@ -57,6 +57,10 @@ type Config struct {
 	// the server to fix a bug in the driver's app. `make deploy-server` builds
 	// Go and the SPA; it does not build Android and should not start.
 	APKDir string
+
+	// FCMServiceAccountFile is the Firebase service-account JSON that lets the
+	// worker push to the parent app. Empty means push is switched off.
+	FCMServiceAccountFile string
 }
 
 type R2Config struct {
@@ -85,20 +89,21 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	c := &Config{
-		AppEnv:         env("APP_ENV", "development"),
-		HTTPAddr:       env("HTTP_ADDR", "127.0.0.1:8090"),
-		BaseURL:        env("BASE_URL", "http://localhost:8090"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		DBMaxConns:     int32(envInt("DB_MAX_CONNS", 10)),
-		RedisURL:       env("REDIS_URL", "redis://127.0.0.1:6379/0"),
-		SessionSecret:  []byte(os.Getenv("SESSION_SECRET")),
-		SessionTTL:     envDur("SESSION_TTL", 12*time.Hour),
-		SessionIdleTTL: envDur("SESSION_IDLE_TTL", 2*time.Hour),
-		PasswordPepper: os.Getenv("PASSWORD_PEPPER"),
-		CredentialKey:  os.Getenv("CREDENTIAL_KEY"),
-		GatewaySecret:  os.Getenv("PAYMENT_GATEWAY_SECRET"),
-		FileStoreDir:   env("FILE_STORE_DIR", "/var/lib/temperp/files"),
-		APKDir:         env("APK_DIR", "/var/lib/temperp/apk"),
+		AppEnv:                env("APP_ENV", "development"),
+		HTTPAddr:              env("HTTP_ADDR", "127.0.0.1:8090"),
+		BaseURL:               env("BASE_URL", "http://localhost:8090"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		DBMaxConns:            int32(envInt("DB_MAX_CONNS", 10)),
+		RedisURL:              env("REDIS_URL", "redis://127.0.0.1:6379/0"),
+		SessionSecret:         []byte(os.Getenv("SESSION_SECRET")),
+		SessionTTL:            envDur("SESSION_TTL", 12*time.Hour),
+		SessionIdleTTL:        envDur("SESSION_IDLE_TTL", 2*time.Hour),
+		PasswordPepper:        os.Getenv("PASSWORD_PEPPER"),
+		CredentialKey:         os.Getenv("CREDENTIAL_KEY"),
+		GatewaySecret:         os.Getenv("PAYMENT_GATEWAY_SECRET"),
+		FileStoreDir:          env("FILE_STORE_DIR", "/var/lib/temperp/files"),
+		APKDir:                env("APK_DIR", "/var/lib/temperp/apk"),
+		FCMServiceAccountFile: os.Getenv("FCM_SERVICE_ACCOUNT_FILE"),
 		R2: R2Config{
 			AccountID:       os.Getenv("R2_ACCOUNT_ID"),
 			AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),

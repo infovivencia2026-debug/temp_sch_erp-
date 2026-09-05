@@ -32,6 +32,9 @@ interface ErpShell {
   /* The handset's own haptic click (lib/haptics.ts). Absent in older builds
      of the app and in every browser. */
   haptic?(kind: string): void
+  /* The device's push token, or null until the app has one; lib/push.ts
+     hands it to the server after sign-in. */
+  pushToken?(): string | null
 }
 
 declare global {

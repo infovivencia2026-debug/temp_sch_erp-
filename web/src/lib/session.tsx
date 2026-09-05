@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
 import { forgetCachedDataOnUserChange } from './sw-data'
+import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { claimTabs } from './tabs'
 
@@ -86,6 +87,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      as another, to sections they may not even be scoped for. */
   setOutboxUser(data.user?.id)
   forgetCachedDataOnUserChange(data.user?.id)
+  /* And the phone's push token is pointed at this person, so alerts written
+     while the app is closed reach the phone that is signed in as them. */
+  registerPushToken(data.user?.id)
 
   return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
 }

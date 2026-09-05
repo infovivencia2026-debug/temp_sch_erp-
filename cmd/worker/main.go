@@ -20,6 +20,7 @@ import (
 	"github.com/school-erp/erp/internal/api"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
+	"github.com/school-erp/erp/internal/push"
 	"github.com/school-erp/erp/internal/queue"
 )
 
@@ -123,6 +124,17 @@ func run() error {
 		return err
 	}
 	defer scheduler.Shutdown()
+
+	/* Push to the parent app. Off unless the Firebase service account is
+	   configured, and says so once, so an installation without it is not
+	   silently mistaken for one that is failing. */
+	if sender, err := push.New(cfg.FCMServiceAccountFile); err != nil {
+		slog.Error("push disabled: service account unusable", "err", err)
+	} else if sender == nil {
+		slog.Info("push disabled: FCM_SERVICE_ACCOUNT_FILE not set")
+	} else {
+		go transport.RunPushPump(ctx, sender, cfg.BaseURL)
+	}
 
 	go func() {
 		<-ctx.Done()

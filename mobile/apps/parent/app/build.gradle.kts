@@ -24,6 +24,16 @@ plugins {
     // AGP 9 carries Kotlin support itself; adding the Kotlin plugin on top of
     // it is now an error rather than a redundancy.
     alias(libs.plugins.android.application)
+    /* Applied below, and only when google-services.json is present. The
+       plugin fails the build outright without that file, and the file is a
+       per-deployment artefact from the Firebase console that does not live in
+       this repository. A build without it is a build without push, which is
+       what an installation that has not set up Firebase should get. */
+    alias(libs.plugins.google.services) apply false
+}
+
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {
@@ -116,5 +126,15 @@ android {
 
    It also makes the honest point about what this app is. If it needed a
    dependency, it would be doing something, and it should not be. */
+/* ONE EXCEPTION, AND WHY.
+
+   Push is the one thing a WebView shell cannot do from the page: a closed app
+   has no page, and only the platform can wake it. Firebase Cloud Messaging is
+   how Android delivers that, and its client is a library. It brings androidx
+   in behind it, which the paragraph above was written to avoid; the trade is
+   a bus at the stop and a circular from the school reaching a phone in a
+   pocket. Nothing else has been added, and nothing else should be. */
 dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 }

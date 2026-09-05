@@ -1,4 +1,6 @@
 [versions]
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
 agp = "9.3.1"
 kotlin = "2.3.21"
 ksp = "2.3.11"
@@ -24,6 +26,8 @@ robolectric = "4.16.1"
 mockk = "1.14.11"
 
 [libraries]
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
@@ -73,6 +77,7 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 
 [plugins]
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
