@@ -1800,7 +1800,22 @@ var importSpecs = map[string]importSpec{
 				// words a school writes, mapped onto the five the column takes.
 				EmploymentType: normaliseEmployment(row["employment_type"]),
 				JoinedOn:       normaliseDate(row["joined_on"]),
-				RoleKey:        strings.ToLower(strings.TrimSpace(row["role"])),
+				/* The system role, from the role column or from the post.
+
+				   A school's staff sheet says Teacher, Librarian, Accountant.
+				   Those are what the school calls the post; they are not the
+				   keys this product grants permissions by, so a file mapped
+				   honestly to `role` matched nothing and fifty-eight teachers
+				   were imported holding no role at all -- able to sign in and
+				   see an empty product, which is indistinguishable from being
+				   broken.
+
+				   The key is taken where the sheet gives a real one, and read
+				   off the post otherwise. Only where the post says plainly
+				   what somebody is: an unrecognised title grants nothing
+				   rather than guessing, because a wrong role is worse than
+				   none -- it hands somebody a workspace that is not theirs. */
+				RoleKey: staffRoleKey(row["role"], row["designation"]),
 			}
 			// A login is minted only where there is an address to send it to.
 			// A teacher with no email is still a teacher; inventing a username
@@ -2375,6 +2390,78 @@ func staffStatusValue(v string) string {
 		return "suspended"
 	}
 	return "active"
+}
+
+/*
+staffRoleKey decides which workspace a member of staff is being given.
+
+	The `role` column where the school wrote one of ours. Otherwise the post,
+	which is the column every school's export actually carries: "Teacher",
+	"Librarian", "Accountant", "PET". Matched on the words a post is written
+	in rather than on the whole string, so "Sr. Teacher (Maths)" and "TGT
+	Teacher" both land on faculty.
+
+	Anything unrecognised returns nothing at all. A wrong role is worse than
+	no role: no role shows somebody an empty product and is obviously
+	unfinished, and a wrong one quietly hands them a workspace that is not
+	theirs.
+*/
+func staffRoleKey(role, designation string) string {
+	known := map[string]bool{
+		"faculty": true, "hod": true, "class_teacher": true, "vice_principal": true,
+		"institution_admin": true, "hr": true, "finance": true, "admissions": true,
+		"librarian": true, "nurse": true, "counsellor": true, "front_office": true,
+		"transport_manager": true, "driver": true, "hostel_warden": true,
+		"exam_controller": true, "it_admin": true, "operations": true,
+		"discipline_officer": true, "activity_coord": true, "board_member": true,
+	}
+	if k := strings.ToLower(strings.TrimSpace(role)); known[k] {
+		return k
+	}
+	// Longest first, so "vice principal" is not read as "principal" and
+	// "head of department" is not read as a plain teacher.
+	byPost := []struct{ word, key string }{
+		{"vice principal", "vice_principal"},
+		{"head of department", "hod"},
+		{"headmistress", "institution_admin"},
+		{"headmaster", "institution_admin"},
+		{"principal", "institution_admin"},
+		{"class teacher", "faculty"},
+		{"librarian", "librarian"},
+		{"library", "librarian"},
+		{"accountant", "finance"},
+		{"accounts", "finance"},
+		{"cashier", "finance"},
+		{"admission", "admissions"},
+		{"counsel", "counsellor"},
+		{"nurse", "nurse"},
+		{"warden", "hostel_warden"},
+		{"driver", "driver"},
+		{"transport", "transport_manager"},
+		{"exam", "exam_controller"},
+		{"receptionist", "front_office"},
+		{"front office", "front_office"},
+		{"clerk", "front_office"},
+		{"office assistant", "front_office"},
+		{"hr", "hr"},
+		{"human resource", "hr"},
+		{"system admin", "it_admin"},
+		{"it admin", "it_admin"},
+		{"teacher", "faculty"},
+		{"lecturer", "faculty"},
+		{"tutor", "faculty"},
+		{"tgt", "faculty"},
+		{"pgt", "faculty"},
+		{"prt", "faculty"},
+		{"pet", "faculty"},
+	}
+	post := strings.ToLower(strings.TrimSpace(designation))
+	for _, m := range byPost {
+		if strings.Contains(post, m.word) {
+			return m.key
+		}
+	}
+	return ""
 }
 
 func isStaffStatusWord(v string) bool {
