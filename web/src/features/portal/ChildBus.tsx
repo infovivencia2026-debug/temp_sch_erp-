@@ -87,7 +87,16 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
           <Fact label="Last position" value={ageText(row.age_seconds)} />
         </dl>
 
-        {hasPlot(row) ? (
+        {hasPlot(row) || (row.stop_latitude != null && row.stop_longitude != null) ? (
+          /* THE MAP IS THERE BEFORE THE BUS IS.
+
+             It used to appear only once the bus had a position, so on the
+             morning the driver's phone was still finding satellites a parent
+             opened "Live bus tracking" and found a card of words and no map
+             at all — which reads as the map being broken, not as the bus
+             being quiet. The stop is known before any bus moves, so the map
+             is drawn around the stop and the bus joins it when it reports.
+             The sentence above already says why there is no bus on it. */
           /* The streets, because that is the question.
 
              A parent knows their own road and not a pair of decimal degrees,
@@ -110,16 +119,20 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
              a window big enough to deserve it. */
           <FleetMap
             className="h-[min(38vh,460px)] sm:h-[460px]"
-            vehicles={[
-              {
-                id: 'bus',
-                label: row.registration_no || 'Bus',
-                latitude: row.latitude!,
-                longitude: row.longitude!,
-                state: row.state === 'stale' ? 'stale' : 'running',
-                note: `no fix · ${ageText(row.age_seconds)}`,
-              },
-            ]}
+            vehicles={
+              hasPlot(row)
+                ? [
+                    {
+                      id: 'bus',
+                      label: row.registration_no || 'Bus',
+                      latitude: row.latitude!,
+                      longitude: row.longitude!,
+                      state: row.state === 'stale' ? 'stale' : 'running',
+                      note: `no fix · ${ageText(row.age_seconds)}`,
+                    },
+                  ]
+                : []
+            }
             stops={
               row.stop_latitude != null && row.stop_longitude != null
                 ? [
@@ -134,7 +147,7 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
                 : []
             }
             link={
-              row.stop_latitude != null && row.stop_longitude != null
+              hasPlot(row) && row.stop_latitude != null && row.stop_longitude != null
                 ? {
                     from: { latitude: row.latitude!, longitude: row.longitude! },
                     to: { latitude: row.stop_latitude, longitude: row.stop_longitude },
