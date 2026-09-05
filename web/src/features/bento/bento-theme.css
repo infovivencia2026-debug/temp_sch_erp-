@@ -2821,12 +2821,11 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-board[data-pager] {
     display: grid !important;
     grid-template-columns: none !important;
-    /* ONE COLUMN, matching PHONE_COLS. Two columns meant a card was either
-       half a phone wide or all of it, and the full width ones kept their
-       content in the left half, so the board read as a column of tiles beside
-       a column of nothing. A figure, a name and a sentence are one measure and
-       do not want a neighbour. */
-    grid-auto-columns: 100%;
+    /* TWO COLUMNS, matching PHONE_COLS in web/src/lib/widgets.ts: a page is
+       two tracks, each half the scrollport less its share of the gap, so a
+       Small card is half a phone wide and a Wide one spans the page. The two
+       numbers must agree or the snap stride is wrong. */
+    grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
     /* THREE, matching PHONE_ROWS in web/src/lib/widgets.ts. The two numbers
        must agree: the pager's inline grid-row comes from PHONE_ROWS and the
        track count comes from here, and a mismatch silently drops the last row

@@ -2460,6 +2460,7 @@ export const en = {
   'bento.widgets.size': 'Size',
   'bento.widgets.size_small': 'Small',
   'bento.widgets.size_tall': 'Tall',
+  'bento.widgets.size_wide': 'Wide',
   'bento.widgets.size_of': 'Size of {label}',
   'bento.widgets.shape.1x1': '1×1',
   'bento.widgets.shape.1x2': '1×2',

@@ -718,8 +718,17 @@ export const BOARD_ROWS = 3
    THREE ROWS, which is what the old comment already asked for. Four gives
    tiles about 80px tall on a 390x844 device once the dock and the page dots
    are taken out, which is shorter than the text inside them. Three leaves a
-   card tall enough to hold its own sentence. */
-export const PHONE_COLS = 1
+   card tall enough to hold its own sentence.
+
+   TWO COLUMNS AGAIN, BY REQUEST. The paragraph above chose one column, and
+   the owner, having lived with it, asked for the two shapes a phone home
+   screen actually has: a small tile and a wide one. So the page is two
+   columns by three rows, a card is 1x1 or 2x1, and the sizes a card was
+   drawn at are clamped to that by paginate(). The argument about a sentence
+   breaking at half width still stands and is answered the other way round:
+   a card that needs the width is set Wide, and Small is for the ones that
+   are a figure and a name. */
+export const PHONE_COLS = 2
 export const PHONE_ROWS = 3
 
 /** Where one widget ended up: which page, and where on it. */
