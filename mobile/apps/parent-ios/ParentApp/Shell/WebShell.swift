@@ -198,9 +198,14 @@ final class WebShell: NSObject, ObservableObject {
            handles the rest -- text-selection callouts, tap flashes, double
            tap zoom -- inside the page. */
         webView.scrollView.pinchGestureRecognizer?.isEnabled = false
-        webView.scrollView.bounces = false
+        // The vertical bounce stays. It was switched off with the rest, and a
+        // list that stops dead at its end reads as a stutter, not as an app:
+        // every native list on the phone bounces. Sideways stays rigid, so the
+        // page can never be dragged off its own edge.
+        webView.scrollView.bounces = true
         webView.scrollView.alwaysBounceVertical = false
         webView.scrollView.alwaysBounceHorizontal = false
+        webView.scrollView.decelerationRate = .normal
         webView.scrollView.showsHorizontalScrollIndicator = false
         pullGesture.pullEnabled = false
 
