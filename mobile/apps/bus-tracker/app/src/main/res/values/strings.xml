@@ -75,6 +75,7 @@
     <string name="bus_scan">Scan bus sticker</string>
     <string name="bus_scan_prompt">Point at the bus sticker</string>
     <string name="bus_default">Bus: the one this phone is paired to</string>
+    <string name="bus_none">Scan the sticker, or type the bus code or number plate</string>
     <string name="direction_pickup">Pickup</string>
     <string name="direction_drop">Drop</string>
     <string name="route_pick">Route</string>
@@ -83,6 +84,7 @@
     <string name="route_remove_body">It goes off this phone\'s list. The office can put it back.</string>
     <string name="route_keep">Keep it</string>
     <string name="route_none">No route is on this bus yet. Ask the office to add one, then sign in again.</string>
+    <string name="route_scan_first">Choose the bus first. Scan the sticker on it, or type its code or number plate above, and its routes appear here.</string>
     <string name="start_run">Start run</string>
 
     <!-- The run screen during a run -->

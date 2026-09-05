@@ -75,6 +75,7 @@
     <string name="bus_scan">బస్సు స్టిక్కర్ స్కాన్ చేయండి</string>
     <string name="bus_scan_prompt">బస్సు స్టిక్కర్ వైపు చూపండి</string>
     <string name="bus_default">బస్సు: ఈ ఫోన్‌కు జత చేసినది</string>
+    <string name="bus_none">స్టిక్కర్ స్కాన్ చేయండి, లేదా బస్సు కోడ్ లేదా నంబర్ ప్లేట్ టైప్ చేయండి</string>
     <string name="direction_pickup">పికప్</string>
     <string name="direction_drop">డ్రాప్</string>
     <string name="route_pick">రూట్</string>
@@ -83,6 +84,7 @@
     <string name="route_remove_body">ఈ ఫోన్ జాబితా నుంచి పోతుంది. ఆఫీసు మళ్ళీ పెట్టగలదు.</string>
     <string name="route_keep">ఉంచండి</string>
     <string name="route_none">ఈ బస్సుకు ఇంకా రూట్ లేదు. ఆఫీసును ఒకటి చేర్చమని అడిగి, మళ్ళీ సైన్ ఇన్ చేయండి.</string>
+    <string name="route_scan_first">ముందుగా బస్సును ఎంచుకోండి. దానిపై ఉన్న స్టిక్కర్ స్కాన్ చేయండి, లేదా పైన దాని కోడ్ లేదా నంబర్ ప్లేట్ టైప్ చేయండి; దాని రూట్లు ఇక్కడ కనిపిస్తాయి.</string>
     <string name="start_run">ట్రిప్ మొదలు</string>
 
     <!-- The run screen during a run -->

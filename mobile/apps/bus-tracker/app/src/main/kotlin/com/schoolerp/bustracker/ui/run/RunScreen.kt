@@ -270,6 +270,7 @@ fun RunScreen(viewModel: RunViewModel = hiltViewModel()) {
                     } else {
                         startRunItems(
                             driverName = viewModel.driverName,
+                            pairedBus = status.vehicleRegistration?.takeIf { it.isNotBlank() },
                             routes = routes,
                             chosenRoute = chosenRoute,
                             direction = direction,
@@ -426,6 +427,8 @@ private fun StatusCard(status: TrackerStatus) {
  */
 private fun LazyListScope.startRunItems(
     driverName: String?,
+    /** The bus this handset is paired to, or null for a driver's own phone, which has none. */
+    pairedBus: String?,
     routes: List<SavedRoute>,
     chosenRoute: SavedRoute?,
     direction: String,
@@ -472,8 +475,12 @@ private fun LazyListScope.startRunItems(
                     value = bus,
                     onValueChange = onBusScanned,
                     placeholder = {
+                        /* A driver's own phone is paired to no bus, so "the
+                           one this phone is paired to" named nothing and the
+                           empty route list below told him to ring the office.
+                           The bus is chosen here, and the field says so. */
                         Text(
-                            stringResource(R.string.bus_default),
+                            stringResource(if (pairedBus == null) R.string.bus_none else R.string.bus_default),
                             style = BusType.small,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -527,8 +534,11 @@ private fun LazyListScope.startRunItems(
     item(key = "route-label") { SectionLabel(stringResource(R.string.route_pick)) }
     if (routes.isEmpty()) {
         item(key = "route-none") {
+            // No bus chosen yet is not "no route on this bus": the first asks
+            // the driver to scan, the second asks the office to assign.
+            val noBusYet = pairedBus == null && bus.isBlank()
             Text(
-                stringResource(R.string.route_none),
+                stringResource(if (noBusYet) R.string.route_scan_first else R.string.route_none),
                 style = BusType.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
