@@ -3092,7 +3092,19 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
   const [failed, setFailed] = useState('')
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
-  const withoutLogin = staff.filter((t) => !t.can_sign_in).length
+  /* COUNTED ON THE ROLL, NOT ON THE LIST.
+
+     The list carries the people who have left, so that they can be seen and
+     so that nobody is offered a login for them. Counting them here made the
+     opposite claim: "58 of them cannot sign in yet" against a school with
+     forty-eight staff, ten of whom are not supposed to sign in at all and
+     never will be. A number in red is a job to do, and ten of those were
+     nobody's job.
+
+     The button's own count follows for the same reason: "Staff logins (58)"
+     over a roll of forty-eight is the same overstatement one line up. */
+  const onRoll = staff.filter((t) => !t.status || t.status === 'active')
+  const withoutLogin = onRoll.filter((t) => !t.can_sign_in).length
   // The phone's Back closes this, like every overlay: see overlay-history.ts.
   const closeLogins = useCallback(() => setOpen(false), [])
   useOverlayHistory(open, closeLogins)
@@ -3109,7 +3121,13 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
       t.roles ?? '',
       t.class_teacher_of ?? '',
       issued[t.employee_id]?.user ?? t.sign_in_as ?? '',
-      issued[t.employee_id]?.pass ?? (t.can_sign_in ? 'already set' : 'no login yet'),
+      issued[t.employee_id]?.pass
+        ?? (t.can_sign_in
+          ? 'already set'
+          // The same wording as the screen. "no login yet" against somebody
+          // who has left reads as an outstanding job in a file that gets
+          // handed round an office.
+          : t.status && t.status !== 'active' ? 'not on the roll' : 'no login yet'),
     ]),
   )
 
@@ -3199,7 +3217,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
         <Button variant="secondary" onClick={() => setOpen(true)}>
           <KeyRound className="h-3.5 w-3.5" />
           Staff logins
-          <span className="ml-1 text-muted-foreground">({staff.length})</span>
+          <span className="ml-1 text-muted-foreground">({onRoll.length})</span>
         </Button>
         {withoutLogin > 0 && (
           <span className="ml-2 text-[12.5px] text-destructive">
