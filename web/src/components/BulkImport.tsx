@@ -939,7 +939,29 @@ function History({
                 </td>
                 <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '—'}</td>
                 <td className="py-1 pr-3 tabular-nums">
-                  {r.rows_imported} added
+                  {/* "ADDED" WAS TWO DIFFERENT NUMBERS WEARING ONE WORD.
+
+                      This counted every row the file got through, and the
+                      delete beside it counts the records the upload actually
+                      created -- which is smaller whenever a row corrected
+                      something that was already there. "168 added" next to
+                      "delete these 90" reads as seventy-eight rows lost, and
+                      the honest answer is that seventy-eight were updates:
+                      undo removes what this upload made, not what an earlier
+                      one did.
+
+                      Said plainly, and only where the two differ, so the
+                      ordinary case stays one number. */}
+                  {r.created_rows > 0 && r.created_rows < r.rows_imported ? (
+                    <>
+                      {r.rows_imported} rows
+                      <span className="text-muted-foreground">
+                        {' · '}{r.created_rows} new, {r.rows_imported - r.created_rows} updated
+                      </span>
+                    </>
+                  ) : (
+                    <>{r.rows_imported} added</>
+                  )}
                   {r.rows_rejected > 0 && (
                     <span className="text-destructive"> · {r.rows_rejected} rejected</span>
                   )}
