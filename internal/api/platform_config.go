@@ -3701,29 +3701,29 @@ func (s *Server) getInstanceHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redis being unreachable must not blank the whole screen: the database
-	// half of it is still true and still useful.
+	// The queue being unreachable must not blank the whole screen: the
+	// database half of it is still true and still useful. (The queue is in
+	// the same database now, so this is mostly a guard against a worker-less
+	// build with no Inspector wired.)
 	if s.Inspector != nil {
 		if stats, qerr := s.Inspector.Stats(r.Context()); qerr == nil {
 			for name, q := range stats {
 				/* SCHEDULED AND ARCHIVED, WHICH THIS USED TO HIDE.
 
-				   asynq documents Size as the sum of Pending, Active,
-				   Scheduled, Retry, Aggregating and Archived. Reporting Size
-				   beside only pending/active/retry/failed made the two
+				   Size is the sum of pending, active, scheduled, retry and
+				   archived -- the backlog -- and reporting it beside only
+				   pending/active/retry/failed once made the two
 				   irreconcilable: the vendor console showed 3,811 jobs on the
 				   default queue with pending 0, active 0, retry 0 and failed
 				   0, and no way to tell whether that was work stuck or work
-				   finished. The report's own note asked exactly that question
-				   and could not answer it from this response.
+				   finished.
 
 				   Archived is the one that matters most and was the one
-				   missing: an archived job is a job that gave up. Twenty-one
-				   message:send jobs have been sitting archived on this
-				   installation all day — the deploy script warns about them
-				   every time — while this endpoint reported failed: 0, because
-				   asynq's Failed is a daily counter that resets, not a
-				   backlog. */
+				   missing: an archived job is a job that gave up. Under asynq
+				   "failed" was a daily counter that reset at midnight while
+				   twenty-one dead message:send jobs sat archived all day; now
+				   failed is the archived count itself, held for a week, so
+				   the two columns can no longer disagree. */
 				out.Queues[name] = map[string]any{
 					"size": q.Size, "pending": q.Pending, "active": q.Active,
 					"scheduled": q.Scheduled, "retry": q.Retry,

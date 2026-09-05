@@ -18,30 +18,22 @@ button.
 */
 func TestSchedulerRegistersTheReminderPlanSweep(t *testing.T) {
 	inst := uuid.New()
-
-	var found bool
-	for _, e := range schedulerEntries(Envelope{InstitutionID: inst}) {
-		if e.typ != TypeMessagePlans {
-			continue
-		}
-		found = true
-		if e.spec != "*/15 * * * *" {
-			t.Errorf("plan sweep cron spec = %q, want every 15 minutes", e.spec)
-		}
-		p, ok := e.payload.(MessagePlansPayload)
-		if !ok {
-			t.Fatalf("plan sweep payload is %T, want MessagePlansPayload", e.payload)
-		}
-		// Without the institution the handler runs with no tenant scope, sees
-		// no rules, and reports success — the exact shape of a feature that is
-		// "on" and never fires.
-		if p.InstitutionID != inst {
-			t.Errorf("plan sweep institution = %v, want %v", p.InstitutionID, inst)
-		}
+	e := entryFor(t, TypeMessagePlans)
+	if e.Spec != "*/15 * * * *" {
+		t.Errorf("plan sweep cron spec = %q, want every 15 minutes", e.Spec)
 	}
-	if !found {
-		t.Fatal("no cron entry for TypeMessagePlans: fee reminders and absence alerts " +
-			"would only ever go out when somebody pressed Run now")
+	if !e.PerInstitution {
+		t.Error("plan sweep must be per institution")
+	}
+	p, ok := e.Payload(Envelope{InstitutionID: inst}).(MessagePlansPayload)
+	if !ok {
+		t.Fatalf("plan sweep payload is %T, want MessagePlansPayload", e.Payload(Envelope{}))
+	}
+	// Without the institution the handler runs with no tenant scope, sees
+	// no rules, and reports success — the exact shape of a feature that is
+	// "on" and never fires.
+	if p.InstitutionID != inst {
+		t.Errorf("plan sweep institution = %v, want %v", p.InstitutionID, inst)
 	}
 }
 
@@ -69,7 +61,7 @@ func TestPlanSweepRunsForTheInstitutionOnThePayload(t *testing.T) {
 }
 
 // A worker built without the messaging feature says so and moves on. Returning
-// an error would put the tick on asynq's retry schedule to fail identically
+// an error would put the tick on the retry schedule to fail identically
 // three more times.
 func TestPlanSweepWithoutMessagingIsQuietlySkipped(t *testing.T) {
 	h := &Handlers{}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 )
 
 /*
@@ -64,13 +63,25 @@ func (f *fakeMessaging) RunMessagePlans(_ context.Context, inst uuid.UUID) error
 	return f.plansErr
 }
 
-func task(t *testing.T, typ string, payload any) *asynq.Task {
+func task(t *testing.T, typ string, payload any) *Task {
 	t.Helper()
 	b, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	return asynq.NewTask(typ, b)
+	return &Task{Kind: typ, Payload: b, Attempt: 1}
+}
+
+// entryFor finds the built-in schedule entry for a task type, or fails.
+func entryFor(t *testing.T, kind string) Schedule {
+	t.Helper()
+	for _, e := range Schedules() {
+		if e.Kind == kind {
+			return e
+		}
+	}
+	t.Fatalf("no cron entry for %s", kind)
+	return Schedule{}
 }
 
 // The regression this whole task exists to prevent: a scheduler with no
@@ -78,63 +89,66 @@ func task(t *testing.T, typ string, payload any) *asynq.Task {
 // delivered anything.
 func TestSchedulerRegistersMessageDispatch(t *testing.T) {
 	inst := uuid.New()
-	env := Envelope{InstitutionID: inst}
-
-	var found bool
-	for _, e := range schedulerEntries(env) {
-		if e.typ != TypeMessageDispatch {
-			continue
-		}
-		found = true
-		if e.spec != "* * * * *" {
-			t.Errorf("dispatch cron spec = %q, want every 1 minute", e.spec)
-		}
-		p, ok := e.payload.(MessageDispatchPayload)
-		if !ok {
-			t.Fatalf("dispatch payload is %T, want MessageDispatchPayload", e.payload)
-		}
-		// Without the institution on the envelope the handler would run with
-		// no tenant scope and see zero rows -- a dispatch that silently does
-		// nothing, which is indistinguishable from the bug being fixed.
-		if p.InstitutionID != inst {
-			t.Errorf("dispatch payload institution = %v, want %v", p.InstitutionID, inst)
-		}
-		if p.Limit <= 0 {
-			t.Errorf("dispatch limit = %d, want a positive bound", p.Limit)
-		}
+	e := entryFor(t, TypeMessageDispatch)
+	if e.Spec != "* * * * *" {
+		t.Errorf("dispatch cron spec = %q, want every 1 minute", e.Spec)
 	}
-	if !found {
-		t.Fatal("no cron entry for TypeMessageDispatch: queued messages would never be flushed")
+	if !e.PerInstitution {
+		t.Error("dispatch must be per institution: the handler runs inside one tenant's RLS scope")
+	}
+	p, ok := e.Payload(Envelope{InstitutionID: inst}).(MessageDispatchPayload)
+	if !ok {
+		t.Fatalf("dispatch payload is %T, want MessageDispatchPayload", e.Payload(Envelope{}))
+	}
+	// Without the institution on the envelope the handler would run with
+	// no tenant scope and see zero rows -- a dispatch that silently does
+	// nothing, which is indistinguishable from the bug being fixed.
+	if p.InstitutionID != inst {
+		t.Errorf("dispatch payload institution = %v, want %v", p.InstitutionID, inst)
+	}
+	if p.Limit <= 0 {
+		t.Errorf("dispatch limit = %d, want a positive bound", p.Limit)
 	}
 }
 
-// Every scheduled entry must carry the tenant it runs for, or it runs against
-// no tenant at all. Guards the three that existed as well as the new one.
+// Every scheduled entry must be complete: a stable name for cron_runs, a spec
+// the parser accepts, a payload that marshals, and options of our own rather
+// than River's defaults. Names and types are unique, or one tick would run an
+// entry twice.
 func TestSchedulerEntriesAreWellFormed(t *testing.T) {
 	env := Envelope{InstitutionID: uuid.New()}
-	seen := map[string]bool{}
-	for _, e := range schedulerEntries(env) {
-		if seen[e.typ] {
-			t.Errorf("%s registered twice: asynq would run it twice per tick", e.typ)
+	seenKind, seenName := map[string]bool{}, map[string]bool{}
+	for _, e := range Schedules() {
+		if e.Name == "" {
+			t.Errorf("%s has no name: it could not be remembered in cron_runs", e.Kind)
 		}
-		seen[e.typ] = true
-		if _, err := json.Marshal(e.payload); err != nil {
-			t.Errorf("%s payload does not marshal: %v", e.typ, err)
+		if seenKind[e.Kind] {
+			t.Errorf("%s scheduled twice: it would run twice per tick", e.Kind)
 		}
-		if len(e.opts) == 0 {
-			t.Errorf("%s has no options: it would inherit asynq's defaults, not ours", e.typ)
+		if seenName[e.Name] {
+			t.Errorf("%s named twice: two entries would share one last-run row", e.Name)
+		}
+		seenKind[e.Kind], seenName[e.Name] = true, true
+		if _, err := parseSpec(e.Spec); err != nil {
+			t.Errorf("%s: %v", e.Kind, err)
+		}
+		if _, err := json.Marshal(e.Payload(env)); err != nil {
+			t.Errorf("%s payload does not marshal: %v", e.Kind, err)
+		}
+		if len(e.Opts) == 0 {
+			t.Errorf("%s has no options: it would inherit River's defaults, not ours", e.Kind)
 		}
 	}
 }
 
-// The mux is the other half of the join: an entry that enqueues a task type no
-// handler is registered for fails at run time, not at build time.
-func TestMuxHandlesEveryScheduledType(t *testing.T) {
+// The worker table is the other half of the join: an entry that enqueues a
+// task type no handler is registered for fails at run time, not at build time.
+func TestWorkerHandlesEveryScheduledType(t *testing.T) {
 	routes := (&Handlers{}).routes()
-	for _, e := range schedulerEntries(Envelope{InstitutionID: uuid.New()}) {
-		if _, ok := routes[e.typ]; !ok {
+	for _, e := range Schedules() {
+		if _, ok := routes[e.Kind]; !ok {
 			t.Errorf("scheduled type %s has no handler registered: every tick "+
-				"would fail with \"handler not found\"", e.typ)
+				"would fail as an unknown kind", e.Kind)
 		}
 	}
 }
@@ -164,7 +178,7 @@ func TestMessageDispatchUsesTenantScope(t *testing.T) {
 	}
 }
 
-// A dispatch error must propagate so asynq retries. Retrying is safe because
+// A dispatch error must propagate so River retries. Retrying is safe because
 // DispatchMessages claims rows with FOR UPDATE SKIP LOCKED and only ever
 // selects status = 'queued'.
 func TestMessageDispatchPropagatesError(t *testing.T) {
@@ -205,7 +219,7 @@ func TestMessageSendGoesThroughTheContract(t *testing.T) {
 	if got.Vars["student_name"] != "Asha" {
 		t.Errorf("vars lost in translation: %+v", got.Vars)
 	}
-	// The idempotency key. asynq redelivers an identical payload on retry, so
+	// The idempotency key. River redelivers an identical payload on retry, so
 	// a stable JobID here is what lets the one-per-occurrence index refuse the
 	// second copy rather than a parent getting the same SMS on every attempt.
 	if got.SourceKind == "" || got.SourceID != job {
@@ -253,8 +267,8 @@ func TestMessageTasksTolerateNoMessagingContract(t *testing.T) {
 // attempt either.
 func TestMessageDispatchSkipsRetryOnBadPayload(t *testing.T) {
 	h := &Handlers{Messaging: &fakeMessaging{}}
-	err := h.messageDispatch(context.Background(), asynq.NewTask(TypeMessageDispatch, []byte("{not json")))
-	if err == nil || !errors.Is(err, asynq.SkipRetry) {
+	err := h.messageDispatch(context.Background(), &Task{Kind: TypeMessageDispatch, Payload: []byte("{not json")})
+	if err == nil || !errors.Is(err, SkipRetry) {
 		t.Fatalf("error = %v, want SkipRetry", err)
 	}
 }

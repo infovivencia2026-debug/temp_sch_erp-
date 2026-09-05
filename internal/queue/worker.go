@@ -3,16 +3,40 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/database"
 )
+
+/*
+Task is one delivery of one job, as the handlers see it.
+
+	The shape asynq's *Task had, minus asynq: a kind, the payload bytes, and
+	which attempt this is. The handlers were written against exactly this much
+	and nothing about River is visible to them, which is what let the bodies
+	below survive the change of library untouched.
+*/
+type Task struct {
+	ID      int64
+	Kind    string
+	Payload []byte
+	Attempt int
+}
+
+// Handler is what every task type maps to.
+type Handler func(context.Context, *Task) error
+
+// SkipRetry marks an error that retrying cannot fix -- a payload that will
+// not parse now will not parse on the fifth attempt either. The worker
+// adapter turns it into a cancel, so the job is finalised on the first
+// attempt instead of burning the queue. Wrap it: fmt.Errorf("%w: ...", SkipRetry).
+var SkipRetry = errors.New("skip retry")
 
 // Handlers carries the dependencies every task needs. Jobs talk to Postgres
 // through the same RLS-scoped helper the HTTP layer uses, so a bug in a task
@@ -34,6 +58,74 @@ type Handlers struct {
 	   skips these tasks and says so in the log rather than panicking or
 	   reporting a success that did not happen. */
 	Messaging Messaging
+
+	// extra holds handlers registered from outside the package through Handle
+	// -- the bus-tracker sweeps in internal/api, which cannot be listed in
+	// routes because api imports queue and not the other way round. Filled
+	// before New is called; the worker is built from the union.
+	extra map[string]entry
+}
+
+// entry is one row of the task table: the handler and the deadline one
+// attempt gets when the enqueue named none.
+type entry struct {
+	fn      Handler
+	timeout time.Duration
+}
+
+/*
+Handle registers a task type declared outside this package.
+
+	Must run before New builds the worker: River takes its worker set at
+	construction and a kind registered later is a kind it has never heard of.
+	cmd/worker calls RegisterBusTrackerJobs, which calls this, and only then
+	opens the queue. Registering a kind twice is a programming error and says
+	so at once rather than letting the second silently win.
+*/
+func (h *Handlers) Handle(kind string, timeout time.Duration, fn Handler) error {
+	if _, dup := h.routes()[kind]; dup {
+		return fmt.Errorf("queue: %s is a built-in task type", kind)
+	}
+	if _, dup := h.extra[kind]; dup {
+		return fmt.Errorf("queue: %s registered twice", kind)
+	}
+	if h.extra == nil {
+		h.extra = map[string]entry{}
+	}
+	h.extra[kind] = entry{fn: fn, timeout: timeout}
+	return nil
+}
+
+// table is the full worker set: the built-in routes with their default
+// timeouts, plus everything Handle added.
+func (h *Handlers) table() map[string]entry {
+	out := map[string]entry{}
+	for kind, fn := range h.routes() {
+		out[kind] = entry{fn: fn, timeout: defaultTimeouts[kind]}
+	}
+	for kind, e := range h.extra {
+		out[kind] = e
+	}
+	return out
+}
+
+// defaultTimeouts are the per-type deadlines when an enqueue names none.
+// They mirror what the cron entries and the option profiles hand out, so a
+// job that arrives without metadata -- one inserted by hand in psql, say --
+// still gets the deadline its kind was designed for rather than River's
+// none.
+var defaultTimeouts = map[string]time.Duration{
+	TypeReportCardGenerate: 30 * time.Minute,
+	TypeInvoiceGenerate:    30 * time.Minute,
+	TypeFeeReminderFanout:  30 * time.Minute,
+	TypeMessageSend:        time.Minute,
+	TypeMessageDispatch:    10 * time.Minute,
+	TypeMessagePlans:       10 * time.Minute,
+	TypeBulkImport:         30 * time.Minute,
+	TypeExportBuild:        30 * time.Minute,
+	TypeAttendanceRollup:   10 * time.Minute,
+	TypeSessionPrune:       5 * time.Minute,
+	TypeDiaryReminders:     2 * time.Minute,
 }
 
 /*
@@ -79,8 +171,8 @@ type OutboundRequest struct {
 // that a test can ask which types are handled without executing any of them --
 // which is how a scheduled type with no handler is caught at test time instead
 // of as a "handler not found" in production at 00:30.
-func (h *Handlers) routes() map[string]func(context.Context, *asynq.Task) error {
-	return map[string]func(context.Context, *asynq.Task) error{
+func (h *Handlers) routes() map[string]Handler {
+	return map[string]Handler{
 		TypeReportCardGenerate: h.reportCardGenerate,
 		TypeInvoiceGenerate:    h.invoiceGenerate,
 		TypeFeeReminderFanout:  h.feeReminderFanout,
@@ -95,28 +187,23 @@ func (h *Handlers) routes() map[string]func(context.Context, *asynq.Task) error 
 	}
 }
 
-// Mux wires task types to handlers.
-func (h *Handlers) Mux() *asynq.ServeMux {
-	mux := asynq.NewServeMux()
-	mux.Use(h.logging)
-	for typ, fn := range h.routes() {
-		mux.HandleFunc(typ, fn)
-	}
-	return mux
-}
-
-func (h *Handlers) logging(next asynq.Handler) asynq.Handler {
-	return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
+// logging wraps every handler with the one log line per run that the
+// worker's logs are read by: the task, how long, which tenant, which request
+// started it. The River adapter applies it; nothing else needs to.
+func (h *Handlers) logging(next Handler) Handler {
+	return func(ctx context.Context, t *Task) error {
 		start := time.Now()
 		var env struct {
 			Envelope
 		}
-		_ = json.Unmarshal(t.Payload(), &env)
+		_ = json.Unmarshal(t.Payload, &env)
 
-		err := next.ProcessTask(ctx, t)
+		err := next(ctx, t)
 
 		attrs := []any{
-			"task", t.Type(),
+			"task", t.Kind,
+			"river_id", t.ID,
+			"attempt", t.Attempt,
 			"duration_ms", time.Since(start).Milliseconds(),
 			"institution_id", env.InstitutionID,
 			"job_id", env.JobID,
@@ -128,19 +215,19 @@ func (h *Handlers) logging(next asynq.Handler) asynq.Handler {
 			slog.Info("task", attrs...)
 		}
 		return err
-	})
+	}
 }
 
 // decode unmarshals the payload and rebuilds the tenant scope it must run in.
-func decode[T any](t *asynq.Task) (T, database.Scope, error) {
+func decode[T any](t *Task) (T, database.Scope, error) {
 	var p T
-	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+	if err := json.Unmarshal(t.Payload, &p); err != nil {
 		// SkipRetry: a payload that will not parse now will not parse on the
 		// fifth attempt either. Retrying it just burns the queue.
-		return p, database.Scope{}, fmt.Errorf("%w: %v", asynq.SkipRetry, err)
+		return p, database.Scope{}, fmt.Errorf("%w: %v", SkipRetry, err)
 	}
 	var env struct{ Envelope }
-	_ = json.Unmarshal(t.Payload(), &env)
+	_ = json.Unmarshal(t.Payload, &env)
 	return p, database.Scope{InstitutionID: env.InstitutionID}, nil
 }
 
@@ -151,7 +238,7 @@ func decode[T any](t *asynq.Task) (T, database.Scope, error) {
 // end-to-end; the business rules for each belong in their own package as the
 // modules are built out.
 
-func (h *Handlers) reportCardGenerate(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) reportCardGenerate(ctx context.Context, t *Task) error {
 	p, scope, err := decode[ReportCardGeneratePayload](t)
 	if err != nil {
 		return err
@@ -178,7 +265,7 @@ func (h *Handlers) reportCardGenerate(ctx context.Context, t *asynq.Task) error 
 	})
 }
 
-func (h *Handlers) invoiceGenerate(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) invoiceGenerate(ctx context.Context, t *Task) error {
 	p, scope, err := decode[InvoiceGeneratePayload](t)
 	if err != nil {
 		return err
@@ -195,7 +282,7 @@ func (h *Handlers) invoiceGenerate(ctx context.Context, t *asynq.Task) error {
 	})
 }
 
-func (h *Handlers) feeReminderFanout(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) feeReminderFanout(ctx context.Context, t *Task) error {
 	p, scope, err := decode[FeeReminderFanoutPayload](t)
 	if err != nil {
 		return err
@@ -229,12 +316,12 @@ messageSend queues one outbound message through the messaging contract.
 	here would mean rebuilding template resolution, address lookup and the
 	provider check beside it, and then maintaining two of each. It delegates.
 
-	Idempotency comes from the envelope's JobID. asynq redelivers the identical
+	Idempotency comes from the envelope's JobID. River redelivers the identical
 	payload on retry, so JobID is stable across attempts, and it names the
 	occurrence -- which makes the one-per-occurrence index the thing that stops
 	a parent being told twice, rather than this handler having to remember.
 */
-func (h *Handlers) messageSend(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) messageSend(ctx context.Context, t *Task) error {
 	p, _, err := decode[MessageSendPayload](t)
 	if err != nil {
 		return err
@@ -270,9 +357,9 @@ messageDispatch is the flush that had never been scheduled.
 	LOCKED and only ever selects status = 'queued', so two overlapping ticks --
 	a retry firing beside the next scheduled run -- divide the queue between
 	them instead of both sending it. That property lives in the SQL rather than
-	in a lock held here, which is what makes an asynq retry harmless.
+	in a lock held here, which is what makes a retry harmless.
 */
-func (h *Handlers) messageDispatch(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) messageDispatch(ctx context.Context, t *Task) error {
 	p, _, err := decode[MessageDispatchPayload](t)
 	if err != nil {
 		return err
@@ -306,7 +393,7 @@ messagePlans runs the reminder plans for one school.
 	A nil Messaging is a supported state, not a bug -- a worker built without
 	the messaging feature says so and moves on rather than panicking.
 */
-func (h *Handlers) messagePlans(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) messagePlans(ctx context.Context, t *Task) error {
 	p, _, err := decode[MessagePlansPayload](t)
 	if err != nil {
 		return err
@@ -319,7 +406,7 @@ func (h *Handlers) messagePlans(ctx context.Context, t *asynq.Task) error {
 	return h.Messaging.RunMessagePlans(ctx, p.InstitutionID)
 }
 
-func (h *Handlers) bulkImport(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) bulkImport(ctx context.Context, t *Task) error {
 	p, _, err := decode[BulkImportPayload](t)
 	if err != nil {
 		return err
@@ -328,7 +415,7 @@ func (h *Handlers) bulkImport(ctx context.Context, t *asynq.Task) error {
 	return nil
 }
 
-func (h *Handlers) exportBuild(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) exportBuild(ctx context.Context, t *Task) error {
 	p, _, err := decode[ExportBuildPayload](t)
 	if err != nil {
 		return err
@@ -337,7 +424,7 @@ func (h *Handlers) exportBuild(ctx context.Context, t *asynq.Task) error {
 	return nil
 }
 
-func (h *Handlers) attendanceRollup(ctx context.Context, t *asynq.Task) error {
+func (h *Handlers) attendanceRollup(ctx context.Context, t *Task) error {
 	p, scope, err := decode[AttendanceRollupPayload](t)
 	if err != nil {
 		return err
@@ -372,7 +459,7 @@ func (h *Handlers) attendanceRollup(ctx context.Context, t *asynq.Task) error {
    statement that selects the row, so two sweeps overlapping cannot both claim
    it — a reminder arriving twice is worse than one arriving four minutes late.
 */
-func (h *Handlers) diaryReminders(ctx context.Context, _ *asynq.Task) error {
+func (h *Handlers) diaryReminders(ctx context.Context, _ *Task) error {
 	var sent int
 
 	err := h.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
@@ -449,8 +536,7 @@ func (h *Handlers) diaryReminders(ctx context.Context, _ *asynq.Task) error {
 	return nil
 }
 
-
-func (h *Handlers) sessionPrune(ctx context.Context, _ *asynq.Task) error {
+func (h *Handlers) sessionPrune(ctx context.Context, _ *Task) error {
 	return h.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx,
 			`DELETE FROM sessions WHERE expires_at < now() - interval '7 days'`)

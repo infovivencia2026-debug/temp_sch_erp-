@@ -1,8 +1,12 @@
-// Command worker consumes the asynq queues and runs the cron scheduler.
+// Command worker consumes the job queue.
 //
 // It is a separate process from the web server on purpose: a report-card run
 // that pins the CPU must not be able to make health checks time out, and the
-// two can be scaled and restarted independently.
+// two can be scaled and restarted independently. It used to be the cron
+// scheduler as well, which is what made it the one process that could never
+// stop; the schedule now runs from a request (see internal/queue/cron.go),
+// and this process only keeps an in-process tick as a fallback for the box,
+// where CRON_INPROCESS=1 and nothing has changed.
 package main
 
 import (
@@ -13,10 +17,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/api"
 	"github.com/school-erp/erp/internal/config"
@@ -48,41 +48,13 @@ func run() error {
 	}
 	defer db.Close()
 
-	redisOpt, err := asynq.ParseRedisURI(cfg.RedisURL)
-	if err != nil {
-		return err
+	// REDIS_URL is read by config for as long as the env files carry it, and
+	// means nothing to this process any more. Said once so that an operator
+	// reading the boot log does not go looking for the Redis that is not
+	// being used.
+	if os.Getenv("REDIS_URL") != "" {
+		slog.Info("REDIS_URL is set and ignored: the queue is in Postgres now")
 	}
-
-	srv := asynq.NewServer(redisOpt, asynq.Config{
-		// One vCPU shared with nginx, Postgres and Redis. More goroutines here
-		// would not add throughput, they would just add contention -- the
-		// bottleneck for every task in this system is Postgres, not Go.
-		Concurrency: 4,
-		Queues:      queue.Priorities,
-		// StrictPriority off: low-priority housekeeping should still run even
-		// while a large import is draining.
-		StrictPriority: false,
-		ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
-			retried, _ := asynq.GetRetryCount(ctx)
-			max, _ := asynq.GetMaxRetry(ctx)
-			slog.Error("task error", "type", t.Type(), "retried", retried, "max_retry", max, "error", err)
-		}),
-		// Exponential with a floor, so a transient Postgres blip does not
-		// hammer a recovering database.
-		RetryDelayFunc: asynq.RetryDelayFunc(func(n int, _ error, _ *asynq.Task) time.Duration {
-			d := time.Duration(1<<uint(n)) * time.Second
-			if d > 10*time.Minute {
-				return 10 * time.Minute
-			}
-			return d
-		}),
-		ShutdownTimeout: 30 * time.Second,
-		HealthCheckFunc: func(err error) {
-			if err != nil {
-				slog.Error("queue health check failed", "error", err)
-			}
-		},
-	})
 
 	/* The one place that knows about both packages.
 
@@ -99,32 +71,42 @@ func run() error {
 	   nobody meant to deploy. */
 	transport := &api.Server{DB: db}
 	handlers := &queue.Handlers{DB: db, Messaging: transport}
-	mux := handlers.Mux()
 
-	scheduler, err := queue.NewScheduler(cfg.RedisURL, schedulerTimezone(ctx, db))
+	/* THE SWEEPS THAT CLOSE A RUN NOBODY IS ON.
+
+	   Registered before the queue is opened, because River takes its worker
+	   set at construction and a kind added afterwards is a kind it does not
+	   work. Missing this line was why a trip stayed open for two days with
+	   its last fix forty hours old: the office saw a bus mid-run that had
+	   finished, and the next driver was refused with "a run is already
+	   open". */
+	if err := transport.RegisterBusTrackerJobs(handlers); err != nil {
+		return err
+	}
+
+	qc, err := queue.New(ctx, cfg.DatabaseURL, handlers)
 	if err != nil {
 		return err
 	}
-	for _, inst := range institutions(ctx, db) {
-		if err := scheduler.Register(inst); err != nil {
-			return err
-		}
-	}
-	/* THE SWEEPS THAT CLOSE A RUN NOBODY IS ON.
+	defer qc.Close()
+	// The Server enqueues too -- a fan-out that produces one message:send per
+	// guardian goes through the same client the worker consumes from.
+	transport.Queue = qc
 
-	   Registered here, after the per-school entries and before Start, because
-	   both sweep every institution in a single pass -- putting them in
-	   scheduler.Register would run one identical global sweep per school on
-	   every tick. Missing this line was why a trip stayed open for two days
-	   with its last fix forty hours old: the office saw a bus mid-run that had
-	   finished, and the next driver was refused with "a run is already open". */
-	if err := transport.RegisterBusTrackerJobs(mux, scheduler.Raw()); err != nil {
-		return err
+	/* Cron, in-process, only where asked.
+
+	   The VPS has systemd and no external scheduler, so its worker keeps
+	   ticking every minute exactly as the asynq scheduler did, against the
+	   same schedule the /api/v1/cron endpoint evaluates. On the platform the
+	   variable is unset, a scheduler calls the endpoint, and this process
+	   does nothing but work jobs -- which is what lets it be stopped when
+	   there are none. */
+	if os.Getenv("CRON_INPROCESS") == "1" {
+		cron := &queue.Cron{DB: db, Queue: qc, Schedules: transport.CronSchedules()}
+		go cron.Run(ctx, time.Minute)
+	} else {
+		slog.Info("cron is external: expecting a scheduler to call /api/v1/cron")
 	}
-	if err := scheduler.Start(); err != nil {
-		return err
-	}
-	defer scheduler.Shutdown()
 
 	/* Push to the parent app. Off unless the Firebase service account is
 	   configured, and says so once, so an installation without it is not
@@ -137,27 +119,25 @@ func run() error {
 		go transport.RunPushPump(ctx, sender, cfg.BaseURL)
 	}
 
-	go func() {
-		<-ctx.Done()
-		slog.Info("shutting down worker")
-		srv.Shutdown()
-	}()
-
 	/* A HEARTBEAT ON A PORT, FOR A HOST THAT INSISTS ON ONE.
 
-	   The worker has no HTTP surface of its own: it consumes a queue and runs
-	   the cron. Cloud Run only knows how to keep a service alive if it answers
-	   on $PORT, and kills one that does not within the start-up window. So
-	   when PORT is set -- and only then, the systemd deployment sets nothing
-	   -- a tiny listener answers /healthz with the database's own health, so
-	   the platform's probe means "the worker can reach Postgres" rather than
-	   "a process exists". Anything else on the port is 404: this is not an
-	   API, and the queue is not reachable through it. */
+	   The worker has no HTTP surface of its own: it consumes a queue. Cloud
+	   Run only knows how to keep a service alive if it answers on $PORT, and
+	   kills one that does not within the start-up window. So when PORT is
+	   set -- and only then, the systemd deployment sets nothing -- a tiny
+	   listener answers /healthz with the database's own health, so the
+	   platform's probe means "the worker can reach Postgres" rather than "a
+	   process exists". Anything else on the port is 404: this is not an API,
+	   and the queue is not reachable through it. */
 	if port := os.Getenv("PORT"); port != "" {
 		health := http.NewServeMux()
 		health.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			if err := db.Health(r.Context()); err != nil {
 				http.Error(w, "degraded: "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			if err := qc.Health(r.Context()); err != nil {
+				http.Error(w, "degraded: queue: "+err.Error(), http.StatusServiceUnavailable)
 				return
 			}
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -176,39 +156,17 @@ func run() error {
 		slog.Info("health listener up", "addr", hs.Addr)
 	}
 
-	slog.Info("worker started", "concurrency", 4, "queues", queue.Priorities)
-	return srv.Run(mux)
-}
+	if err := qc.Start(ctx); err != nil {
+		return err
+	}
+	slog.Info("worker started", "queues", queue.Priorities)
 
-// schedulerTimezone reads the tenant timezone so nightly jobs fire at local
-// 00:30, not UTC 00:30 -- a five-and-a-half hour difference in India, which
-// would put the "yesterday" rollup in the middle of the school day.
-func schedulerTimezone(ctx context.Context, db *database.DB) string {
-	tz := "UTC"
-	_ = db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx,
-			`SELECT timezone FROM institutions WHERE status = 'active' ORDER BY created_at LIMIT 1`).
-			Scan(&tz)
-	})
-	return tz
-}
-
-func institutions(ctx context.Context, db *database.DB) []uuid.UUID {
-	var out []uuid.UUID
-	_ = db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id FROM institutions WHERE status = 'active'`)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var id uuid.UUID
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			out = append(out, id)
-		}
-		return rows.Err()
-	})
-	return out
+	<-ctx.Done()
+	slog.Info("shutting down worker")
+	// Thirty seconds for in-flight jobs to finish, matching the old
+	// ShutdownTimeout. A job still running after that is left "running" and
+	// River rescues it back to the queue once RescueStuckJobsAfter passes.
+	stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return qc.Stop(stopCtx)
 }

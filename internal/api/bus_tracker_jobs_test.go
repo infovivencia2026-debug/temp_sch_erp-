@@ -99,13 +99,16 @@ func TestBusTrackerCronEntries(t *testing.T) {
 	entries := busTrackerCronEntries()
 	seen := map[string]string{}
 	for _, e := range entries {
-		if e.spec == "" || e.typ == "" {
+		if e.Spec == "" || e.Kind == "" || e.Name == "" {
 			t.Fatalf("incomplete cron entry: %+v", e)
 		}
-		if prev, dup := seen[e.typ]; dup {
-			t.Fatalf("%s registered twice (%s and %s)", e.typ, prev, e.spec)
+		if prev, dup := seen[e.Kind]; dup {
+			t.Fatalf("%s registered twice (%s and %s)", e.Kind, prev, e.Spec)
 		}
-		seen[e.typ] = e.spec
+		if e.PerInstitution {
+			t.Errorf("%s is per institution: it would run one global sweep per school", e.Kind)
+		}
+		seen[e.Kind] = e.Spec
 	}
 	for _, typ := range []string{TypeTransportTripTimeout, TypeTransportPositionRetention} {
 		if _, ok := seen[typ]; !ok {

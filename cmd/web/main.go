@@ -58,17 +58,13 @@ func run() error {
 	}
 	defer db.Close()
 
-	qc, err := queue.NewClient(cfg.RedisURL)
-	if err != nil {
-		return err
+	// REDIS_URL is still read by config for as long as the env files carry
+	// it, and means nothing to this process any more: the queue is in
+	// Postgres. Said once so nobody goes looking for the Redis that is not
+	// being used.
+	if os.Getenv("REDIS_URL") != "" {
+		slog.Info("REDIS_URL is set and ignored: the queue is in Postgres now")
 	}
-	defer qc.Close()
-
-	inspector, err := queue.NewInspector(cfg.RedisURL)
-	if err != nil {
-		return err
-	}
-	defer inspector.Close()
 
 	// R2 is optional at boot. The deploy script ships REPLACE_ME placeholders
 	// and production is running with them, so refusing to start would take the
@@ -77,8 +73,10 @@ func run() error {
 	var store *storage.Store
 	if s, err := storage.New(cfg.R2); err != nil {
 		if errors.Is(err, storage.ErrNotConfigured) {
-			slog.Warn("R2 is not configured; file uploads will return 503",
-				"bucket", cfg.R2.Bucket)
+			// With FILE_STORE_DIR set the multipart handlers keep working
+			// off the disk; only the presign flow is lost.
+			slog.Warn("R2 is not configured; uploads use local disk or return 503",
+				"bucket", cfg.R2.Bucket, "file_store_dir", cfg.FileStoreDir)
 		} else {
 			return err
 		}
@@ -97,9 +95,44 @@ func run() error {
 
 	apiServer := &api.Server{
 		DB: db, Sessions: sessions, Hasher: hasher,
-		Queue: qc, Inspector: inspector, Storage: store,
+		Storage:      store,
 		FileStoreDir: cfg.FileStoreDir,
 		BaseURL:      cfg.BaseURL,
+	}
+
+	/* The queue: enqueue-only by default, a worker as well when asked.
+
+	   QUEUE_INPROCESS=1 makes this process consume jobs too, so a single
+	   Cloud Run service can drain its own queue while a request has it
+	   awake, without a second service to keep warm for it. Off by default
+	   because on the box the worker is its own unit, and two consumers of
+	   one queue on one vCPU is contention rather than throughput. Handlers
+	   are wired the same way cmd/worker wires them -- apiServer satisfies
+	   queue.Messaging and registers the bus-tracker sweeps -- so a job runs
+	   identically whichever process picks it up. */
+	var handlers *queue.Handlers
+	if os.Getenv("QUEUE_INPROCESS") == "1" {
+		handlers = &queue.Handlers{DB: db, Messaging: apiServer}
+		if err := apiServer.RegisterBusTrackerJobs(handlers); err != nil {
+			return err
+		}
+	}
+	qc, err := queue.New(ctx, cfg.DatabaseURL, handlers)
+	if err != nil {
+		return err
+	}
+	defer qc.Close()
+	apiServer.Queue, apiServer.Inspector = qc, qc.Inspector()
+	if handlers != nil {
+		if err := qc.Start(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			_ = qc.Stop(stopCtx)
+		}()
+		slog.Info("queue workers running in-process")
 	}
 
 	r := chi.NewRouter()
@@ -190,6 +223,14 @@ func run() error {
 	apiServer.MountDeviceProtocol(r)
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(static.FS))))
+
+	/* The scheduler's clock. Above the /api/v1 subtree on purpose: the
+	   caller is a scheduler with a shared secret, not a person with a
+	   session, and its tick is not a tenant's mutation for the audit log.
+	   Both verbs, because Cloud Scheduler and a systemd timer's curl do not
+	   agree on which one a tick is. See internal/api/jobs.go. */
+	r.Get("/api/v1/cron", apiServer.CronTick)
+	r.Post("/api/v1/cron", apiServer.CronTick)
 	// Audit every mutation below /api/v1. Applied as middleware rather than
 	// per handler, because per-handler auditing is the kind that ends up 80%
 	// complete and nobody notices until the missing record is needed.

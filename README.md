@@ -128,17 +128,35 @@ update, insert and scope-leak cases.
 Nothing whose cost is unbounded by user input runs inside a request. On a
 1 vCPU box, rendering 400 report cards inline stops health checks and nginx
 starts 502-ing everyone. `POST /api/v1/jobs` answers **202** with a job id and
-a `poll_url`.
+a `poll_url`; `GET /api/v1/jobs/{id}` answers for 24 hours after completion,
+then 404 `job_not_found`.
 
-Four weighted queues ([internal/queue](internal/queue/queue.go)) — priority is
-relative, not strict, so housekeeping still drains while a big import runs:
+The queue is [River](https://github.com/riverqueue/river), in Postgres — the
+`river_job` table, in the same database as everything else. It used to be
+asynq on Redis. The change was made so the last always-on process could go:
+Redis had to run for the queue to exist, and the worker had to run for cron
+to happen, and neither suits a platform that stops a container when nothing is
+happening. A queued job now survives whatever the processes do, and a worker
+that is not running is a backlog, not a loss. Redis is no longer needed by
+anything; `REDIS_URL` is ignored and logged once at boot if set.
 
-| Queue | Weight | For |
+Four queues ([internal/queue](internal/queue/queue.go)). Under asynq the
+weights were fetch ratios on a shared pool of four goroutines; under River
+each queue has its own producer and the weight is its ceiling of concurrent
+jobs. The property is the same — a long bulk backlog cannot starve
+`critical`, and `low` still drains — the arithmetic is not:
+
+| Queue | Slots | For |
 |---|---|---|
 | `critical` | 6 | auth mail, payment webhooks |
 | `default` | 3 | interactive work a user is waiting on |
 | `bulk` | 2 | imports, exports, report cards, fan-outs |
-| `low` | 1 | rollups, session pruning |
+| `low` | 1 | rollups, session pruning, tracker sweeps |
+
+Retries back off exponentially from a second, capped at ten minutes. Each
+task type has a default timeout and an enqueue may set its own; it travels in
+the job's metadata. Completed jobs are kept 24 h, failed ("archived") ones a
+week, so the ops screens can show what gave up.
 
 Task payloads carry the institution id, so the worker re-establishes the same
 RLS scope the request had, and the originating `request_id`, so one identifier
@@ -146,9 +164,37 @@ follows a request from nginx into the worker's logs. Fan-outs enqueue one task
 per message rather than sending inline — a single task sending 3,000 SMS loses
 all progress if it dies at message 2,900.
 
-Cron lives in the worker; asynq elects one active scheduler through Redis, so
-scaling to N workers does not produce N copies of every nightly job. Times are
-in the institution's timezone, not UTC.
+**Cron is a request.** `GET|POST /api/v1/cron` with header `X-Cron-Key:
+$CRON_KEY` evaluates every schedule against `cron_runs` (one row per entry,
+per institution where the entry is per-institution, in that institution's
+timezone), enqueues what has come due, and answers with counts:
+
+```
+{"checked": 26, "enqueued": 6, "started": 0, "institutions": 5,
+ "kinds": {"message:dispatch": 5, "transport:trip_timeout": 1}, "at": "..."}
+```
+
+Wrong or missing key is 401; unset `CRON_KEY` means the endpoint refuses
+everyone. Call it every minute from whatever owns the clock — Cloud Scheduler,
+a systemd timer, a crontab. Two callers in the same minute serialise on an
+advisory lock and the second finds nothing due. Missed time collapses: an
+entry due four times during an outage runs once, because every entry is a
+sweep over current state. On the VPS, `CRON_INPROCESS=1` makes the worker run
+the same tick every minute itself, so nothing there changed.
+
+**Processes.** `cmd/worker` consumes the queue (and answers `/healthz` on
+`$PORT` when one is set). `cmd/web` only enqueues unless `QUEUE_INPROCESS=1`,
+in which case it consumes too — one Cloud Run service can drain its own queue
+while a request has it awake.
+
+**Schema.** River's tables are created by
+[migrations/00250_river_queue.sql](migrations/00250_river_queue.sql), which is
+River's seven "main" migration steps collapsed to their v0.47.0 final state as
+ordinary goose SQL, so there is one migration system and one `status`. When
+River publishes an eighth step, copy
+`riverdriver/riverpgxv5/migration/main/008_*.up.sql` into the next goose file
+(drop the `/* TEMPLATE: schema */` markers) and insert its row into
+`river_migration`.
 
 ## Layout
 
@@ -161,7 +207,7 @@ internal/
   auth        pepper+bcrypt, sessions, login pages
   rbac        74 permission keys, 19 system roles
   api         /api/v1 handlers
-  queue       task types, worker, scheduler, inspector
+  queue       task types, River worker, cron tick, inspector
   storage     Cloudflare R2 presigned uploads
   templates   embedded server-rendered pages
 migrations/   goose SQL, embedded into cmd/migrate

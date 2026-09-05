@@ -166,7 +166,16 @@ MIGRATE_DATABASE_URL=postgres://${DB_OWNER}:${OWNER_PW}@127.0.0.1:5432/${DB_NAME
 # 1 vCPU shared with nginx, Postgres and Redis; a large pool would just queue.
 DB_MAX_CONNS=10
 
+# Kept for older units that still read it; the queue is in Postgres (River)
+# and the server logs once at boot that this is ignored.
 REDIS_URL=redis://127.0.0.1:6379/${REDIS_DB}
+
+# The scheduler's shared secret: /api/v1/cron accepts a tick only with header
+# X-Cron-Key equal to this. The worker on this box ticks in-process
+# (CRON_INPROCESS=1), so nothing external needs the key here yet; it exists so
+# a platform scheduler can take over without an env change.
+CRON_KEY=${CRON_KEY:-$(openssl rand -hex 32)}
+CRON_INPROCESS=1
 
 SESSION_SECRET=${SESSION_SECRET}
 SESSION_TTL=12h

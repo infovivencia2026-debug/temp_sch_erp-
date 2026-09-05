@@ -2,14 +2,13 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/queue"
 )
 
 /*
@@ -28,8 +27,8 @@ Background sweeps for live vehicle tracking.
 	inherit.
 */
 
-// Task type names are persisted in Redis, so they are a wire format: renaming
-// one strands whatever is already queued under the old name.
+// Task type names are persisted in river_job.kind, so they are a wire format:
+// renaming one strands whatever is already queued under the old name.
 const (
 	TypeTransportTripTimeout       = "transport:trip_timeout"
 	TypeTransportPositionRetention = "transport:position_retention"
@@ -45,14 +44,31 @@ const (
 	defaultRetainDays      = 90
 )
 
-// One DELETE may remove at most this many position rows, and one sweep at most
-// this many batches per institution. Twenty buses at a fifteen-second ping is
-// about thirteen million rows a school year, and a single unbounded DELETE
-// over that holds row locks and a growing WAL segment for minutes while the
-// ingest path -- which is a bus reporting where a child is -- waits behind it.
+/*
+One DELETE may remove at most this many position rows, and one sweep at most
+
+	this many batches -- per institution, and in total.
+
+	Twenty buses at a fifteen-second ping is about thirteen million rows a school
+	year, and a single unbounded DELETE over that holds row locks and a growing
+	WAL segment for minutes while the ingest path -- which is a bus reporting
+	where a child is -- waits behind it.
+
+	The run-wide cap and the time budget are newer than the per-institution one.
+	Two hundred batches per school was a bound on one school; with a dozen
+	schools it was a bound of 2,400 batches, and a first run after somebody cut
+	retain_days from 3650 to 90 would hold a worker slot for the better part of
+	an hour. The sweep now runs where a container may be stopped for idling and
+	a job is given five minutes, so one run does at most positionRetentionMaxRun
+	batches or positionRetentionBudget of wall clock, whichever comes first, and
+	leaves the rest for tomorrow. Tomorrow's run starts from the oldest rows
+	again, so nothing is skipped -- only deferred.
+*/
 const (
 	positionRetentionBatch    = 5000
 	positionRetentionMaxLoops = 200
+	positionRetentionMaxRun   = 60 // 300,000 rows; well inside five minutes on this box
+	positionRetentionBudget   = 4 * time.Minute
 )
 
 // --- timeout arithmetic ------------------------------------------------------
@@ -235,6 +251,8 @@ retain_days.
 */
 func (s *Server) SweepPositionRetention(ctx context.Context) (deleted int, err error) {
 	now := nowInIndia()
+	deadline := time.Now().Add(positionRetentionBudget)
+	runLoops := 0
 
 	type target struct {
 		inst   uuid.UUID
@@ -277,6 +295,17 @@ func (s *Server) SweepPositionRetention(ctx context.Context) (deleted int, err e
 	for _, t := range targets {
 		instDeleted := 0
 		for loop := 0; loop < positionRetentionMaxLoops; loop++ {
+			if runLoops >= positionRetentionMaxRun || time.Now().After(deadline) {
+				// Out of budget for this run. Logged once, at the point it
+				// happened, so an operator can tell "the sweep is behind" from
+				// "the sweep is not running" -- the two look identical from
+				// the table's size alone.
+				slog.Info("position retention sweep paused for today",
+					"batches", runLoops, "rows_deleted", deleted,
+					"institution_id", t.inst, "reason", "run budget")
+				return deleted, nil
+			}
+			runLoops++
 			var n int64
 			err := s.DB.AsPlatform(ctx, func(tx pgx.Tx) error {
 				/* One transaction per batch, deliberately. Holding all the
@@ -324,54 +353,55 @@ func (s *Server) SweepPositionRetention(ctx context.Context) (deleted int, err e
 // --- registration ------------------------------------------------------------
 
 /*
-RegisterBusTrackerJobs installs both sweeps: the handlers on the worker's mux
-and the cron entries on the scheduler.
+RegisterBusTrackerJobs installs both sweeps' handlers on the worker.
 
-	It takes the asynq objects rather than living in internal/queue for the
-	same reason queue.Messaging does not: internal/api already imports
-	internal/queue to enqueue, so queue cannot import api back to reach these
-	methods. cmd/worker is the one process that knows both, and one call there
-	is the whole splice.
+	It takes the queue's handler table rather than living in internal/queue
+	for the same reason queue.Messaging does not: internal/api already
+	imports internal/queue to enqueue, so queue cannot import api back to
+	reach these methods. cmd/worker is the one process that knows both, and
+	one call there -- before queue.New, which takes its worker set at
+	construction -- is the whole splice.
 
-	Both entries are QueueLow. They are housekeeping -- nobody is waiting on
-	either -- and asynq services the low queue less often rather than never,
-	which is the trade this schedule wants.
+	The schedule is registered separately, through CronSchedules, because the
+	worker is no longer where the schedule lives; see queue/cron.go.
 */
-func (s *Server) RegisterBusTrackerJobs(mux *asynq.ServeMux, sch *asynq.Scheduler) error {
-	mux.HandleFunc(TypeTransportTripTimeout, s.handleTripTimeoutTask)
-	mux.HandleFunc(TypeTransportPositionRetention, s.handlePositionRetentionTask)
-
-	for _, e := range busTrackerCronEntries() {
-		b, err := json.Marshal(e.payload)
-		if err != nil {
-			return fmt.Errorf("marshal %s: %w", e.typ, err)
-		}
-		if _, err := sch.Register(e.spec, asynq.NewTask(e.typ, b), e.opts...); err != nil {
-			return fmt.Errorf("register %s: %w", e.typ, err)
-		}
+func (s *Server) RegisterBusTrackerJobs(h *queue.Handlers) error {
+	if err := h.Handle(TypeTransportTripTimeout, 5*time.Minute, s.handleTripTimeoutTask); err != nil {
+		return err
 	}
-	return nil
+	return h.Handle(TypeTransportPositionRetention, 5*time.Minute, s.handlePositionRetentionTask)
 }
 
-type busTrackerCron struct {
-	spec    string
-	typ     string
-	payload any
-	opts    []asynq.Option
+/*
+CronSchedules is the whole installation's schedule: the queue's own entries
+and the bus-tracker sweeps together.
+
+	Both the cron endpoint and the worker's in-process fallback want the same
+	list, and neither should have to know that two of the entries are
+	declared here. api is the one package that sees both halves, so api
+	joins them.
+*/
+func (s *Server) CronSchedules() []queue.Schedule {
+	return append(queue.Schedules(), busTrackerCronEntries()...)
 }
 
 /*
 busTrackerCronEntries is the schedule as data, so a test can assert what runs
-without a Redis to register against.
+without a database to record it in.
 
-	Neither entry carries an institution, unlike every entry in
-	queue.schedulerEntries. Those are registered once per school; these are
-	registered once, full stop, because both sweep every institution in one
-	pass. Registering them per institution would run N identical global sweeps
-	on every tick, each one racing the others over the same rows.
+	Neither entry is PerInstitution, unlike most of queue.Schedules. Those run
+	once per school; these run once, full stop, because both sweep every
+	institution in one pass. Per institution they would run N identical
+	global sweeps on every tick, each one racing the others over the same
+	rows.
+
+	Both are QueueLow. They are housekeeping -- nobody is waiting on either
+	-- and the low queue has a single slot, which is the trade this schedule
+	wants: never starved, never crowding out the work somebody is waiting on.
 */
-func busTrackerCronEntries() []busTrackerCron {
-	return []busTrackerCron{
+func busTrackerCronEntries() []queue.Schedule {
+	empty := func(queue.Envelope) any { return map[string]any{} }
+	return []queue.Schedule{
 		/* Every 5 minutes — close trips nothing has been heard from.
 
 		   The timeout itself is the school's (default 20 minutes); this is
@@ -379,9 +409,8 @@ func busTrackerCronEntries() []busTrackerCron {
 		   parent can see a stale "the bus is on its way" past the school's own
 		   patience, and a tick that finds nothing is one indexed pass over the
 		   open trips, of which a school has at most a busful. */
-		{"*/5 * * * *", TypeTransportTripTimeout, map[string]any{},
-			[]asynq.Option{asynq.Queue(queueLowName), asynq.MaxRetry(3),
-				asynq.Timeout(5 * time.Minute), asynq.Retention(24 * time.Hour)}},
+		{Name: "transport_trip_timeout", Spec: "*/5 * * * *", Kind: TypeTransportTripTimeout,
+			Payload: empty, Opts: queue.Options(queue.QueueLow, 3, 5*time.Minute)},
 
 		/* 03:20 daily — drop position history past its retention.
 
@@ -391,21 +420,17 @@ func busTrackerCronEntries() []busTrackerCron {
 		   half-hour, so it does not start alongside the 03:00 Sunday session
 		   prune and put two housekeeping deletes on one vCPU at once.
 
-		   The timeout is generous because a school switching retain_days from
-		   3650 to 90 makes one enormous first run; the batch loop bounds each
-		   statement, and anything it does not reach is picked up tomorrow. */
-		{"20 3 * * *", TypeTransportPositionRetention, map[string]any{},
-			[]asynq.Option{asynq.Queue(queueLowName), asynq.MaxRetry(2),
-				asynq.Timeout(30 * time.Minute), asynq.Retention(24 * time.Hour)}},
+		   Five minutes, not the thirty it used to have: the sweep now budgets
+		   itself (positionRetentionMaxRun, positionRetentionBudget) and
+		   stops inside that, leaving the remainder for tomorrow. A school
+		   switching retain_days from 3650 to 90 is therefore caught up over
+		   a week or two of nights rather than in one enormous run. */
+		{Name: "transport_position_retention", Spec: "20 3 * * *", Kind: TypeTransportPositionRetention,
+			Payload: empty, Opts: queue.Options(queue.QueueLow, 2, 5*time.Minute)},
 	}
 }
 
-// The queue name is spelled here rather than imported as queue.QueueLow to
-// keep this file free of an import that would otherwise exist only for a
-// string constant; it is the same value and asynq matches it by name.
-const queueLowName = "low"
-
-func (s *Server) handleTripTimeoutTask(ctx context.Context, _ *asynq.Task) error {
+func (s *Server) handleTripTimeoutTask(ctx context.Context, _ *queue.Task) error {
 	trips, events, err := s.SweepTripTimeouts(ctx)
 	if trips > 0 || events > 0 {
 		slog.Info("trip timeout sweep", "trips_closed", trips, "safety_events_closed", events)
@@ -413,7 +438,7 @@ func (s *Server) handleTripTimeoutTask(ctx context.Context, _ *asynq.Task) error
 	return err
 }
 
-func (s *Server) handlePositionRetentionTask(ctx context.Context, _ *asynq.Task) error {
+func (s *Server) handlePositionRetentionTask(ctx context.Context, _ *queue.Task) error {
 	rows, err := s.SweepPositionRetention(ctx)
 	slog.Info("position retention sweep", "rows_deleted", rows)
 	return err
