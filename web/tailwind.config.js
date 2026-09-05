@@ -4,6 +4,11 @@ const token = (name) => `hsl(var(--${name}) / <alpha-value>)`
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
+  /* HOVER ONLY WHERE THERE IS A POINTER THAT HOVERS. On a touchscreen a :hover
+     style sticks to the last thing tapped until the next tap somewhere else,
+     so the dock's Browse tab kept its grey block after being pressed. This
+     wraps every hover: utility in @media (hover: hover). */
+  future: { hoverOnlyWhenSupported: true },
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   /* BREAKPOINTS ARE STOCK, AND THAT IS A DECISION.
 

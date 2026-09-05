@@ -251,7 +251,7 @@ export function AssistantTab() {
           puts its own text input directly on top of the dock's settings gear —
           two controls in the same pixels, and the one you hit is whichever
           happens to be painted last. */}
-      <button
+      <button data-assistant-orb=""
         type="button"
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => setHover(true)}

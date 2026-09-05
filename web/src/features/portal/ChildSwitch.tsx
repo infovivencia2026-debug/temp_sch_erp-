@@ -36,7 +36,10 @@ export function ChildSwitch({
   /** The one word on the phone button, e.g. "Switch child". */
   switchLabel: string
 }) {
-  if (kids.length < 2) return null
+  /* Shown with one child too, by request: the header then always carries the
+     same control in the same place, and a family that gains a second child
+     finds the switch where it already was rather than discovering a new one. */
+  if (kids.length < 1) return null
   const first = (name: string) => name.split(' ')[0]
   const current = kids.find((c) => c.student_id === activeId) ?? kids[0]
   return (

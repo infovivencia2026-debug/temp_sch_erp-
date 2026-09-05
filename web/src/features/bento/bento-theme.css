@@ -1094,8 +1094,12 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue:hover {
               color var(--dur-fast) var(--ease-out),
               transform var(--dur-fast) var(--ease-out);
 }
-[data-layout='bento'] .bento-dock button:hover {
-  transform: scale(1.12);
+/* Only for a pointer that hovers: on a touchscreen this stuck to the last
+   tapped tab. */
+@media (hover: hover) {
+  [data-layout='bento'] .bento-dock button:hover {
+    transform: scale(1.12);
+  }
 }
 [data-layout='bento'] .bento-dock button:active {
   transform: scale(0.96);
@@ -3944,4 +3948,14 @@ html:not(.dark)[data-layout='bento'] {
     width: var(--dock-icon, 26px);
     height: var(--dock-icon, 26px);
   }
+}
+
+/* WHILE THE LAUNCHER IS UP, THE BOARD'S FURNITURE IS NOT. The page dots and
+   the pencil are fixed to the body at z-45; the launcher is z-60 but lives
+   inside the dock, whose own z-50 makes a stacking context, so on a phone the
+   dots and the pencil drew straight through the launcher's list. A z-index
+   cannot cross that boundary; hiding them while the frost is present can. */
+body:has(.bento-frost) .bento-dots,
+body:has(.bento-frost) [data-assistant-orb] {
+  visibility: hidden;
 }
