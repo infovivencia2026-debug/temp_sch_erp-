@@ -3060,8 +3060,12 @@ html:not(.dark)[data-layout='bento'] {
   [data-layout='bento'] .bento-dock > button > svg,
   [data-layout='bento'] .bento-dock > .dock-tab > button > svg,
   [data-layout='bento'] .bento-dock > .dock-tab > div > button > svg {
-    width: 18px !important;
-    height: 18px !important;
+    /* From the Icon size setting, which the rule above once overrode with a
+       literal 18px: the setting moved the launcher marks and never the tabs.
+       The important stays, because it is what beats each glyph's own
+       size-[17px] class; the value is the person's. */
+    width: var(--dock-icon, 18px) !important;
+    height: var(--dock-icon, 18px) !important;
   }
 
   /* A workspace whose name runs long shortens rather than widening its cell:
