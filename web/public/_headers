@@ -12,6 +12,18 @@
 /sw.js
   Cache-Control: no-cache, must-revalidate
 
+# The app association files (see web/public/well-known/README.md). Android and
+# iOS both refuse anything that is not application/json, and Apple's file has
+# no extension for the edge to guess a type from. Both spellings, because the
+# rewrite in _redirects leaves the requested (dotted) path as the one matched.
+/.well-known/*
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+
+/well-known/*
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

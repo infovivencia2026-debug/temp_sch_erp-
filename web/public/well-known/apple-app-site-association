@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.schoolerp.parent"],
+        "components": [
+          { "/": "/", "comment": "the site root" },
+          { "/": "/account*", "comment": "where a fees-due message lands" },
+          { "/": "/go/*", "comment": "the portal's stable deep-link scheme" }
+        ]
+      }
+    ]
+  }
+}

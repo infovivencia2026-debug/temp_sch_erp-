@@ -4,3 +4,4 @@
 # visible redirect. The SPA fallback (any unknown path → index.html) is what
 # Pages does by default for a single-page app and needs no rule here.
 /.well-known/assetlinks.json  /well-known/assetlinks.json  200
+/.well-known/apple-app-site-association  /well-known/apple-app-site-association  200

@@ -211,7 +211,7 @@ rsync -a --delete "$SRC/web/dist/" "$WEBROOT/"
 # Exact match, and the type stated outright: Android refuses anything that is
 # not application/json and refuses a redirect.
 NGINX_SITE_AL="/etc/nginx/sites-available/${SERVICE}"
-if [ -f "$NGINX_SITE_AL" ] && ! grep -q "assetlinks.json" "$NGINX_SITE_AL"; then
+if [ -f "$NGINX_SITE_AL" ] && ! grep -q "apple-app-site-association" "$NGINX_SITE_AL"; then
     say "Asset links route"
     cp "$NGINX_SITE_AL" "${NGINX_SITE_AL}.bak.$(date +%s)"
     WEBROOT="$WEBROOT" python3 - "$NGINX_SITE_AL" <<'PYEOF'
@@ -230,10 +230,29 @@ block = """    # ---- Asset links ----------------------------------------------
         default_type application/json;
         add_header Cache-Control "public, max-age=300";
     }
+    # The iPhone app's claim, same rules; no extension, so default_type is
+    # what sets the type.
+    location = /.well-known/apple-app-site-association {
+        alias %s/well-known/apple-app-site-association;
+        default_type application/json;
+        add_header Cache-Control "public, max-age=300";
+    }
 
-""" % os.environ["WEBROOT"]
-open(path, "w").write(conf.replace(anchor, block + anchor, 1))
-print("  inserted /.well-known/assetlinks.json")
+""" % (os.environ["WEBROOT"], os.environ["WEBROOT"])
+# A site that already carries the Android block from an earlier run gets only
+# the iOS one; the guard above tested for the iOS file, so this is the case
+# where assetlinks.json is present and apple-app-site-association is not.
+if "assetlinks.json" in conf:
+    start = block.index("    # The iPhone app's claim")
+    block = block[start:]
+    anchor_al = "    location = /.well-known/assetlinks.json {"
+    tail = conf.index("}\n", conf.index(anchor_al)) + 2
+    conf = conf[:tail] + block.rstrip("\n") + "\n" + conf[tail:]
+    open(path, "w").write(conf)
+    print("  inserted /.well-known/apple-app-site-association")
+else:
+    open(path, "w").write(conf.replace(anchor, block + anchor, 1))
+    print("  inserted /.well-known/assetlinks.json and apple-app-site-association")
 PYEOF
     if nginx -t >/dev/null 2>&1; then
         systemctl reload nginx
@@ -309,8 +328,10 @@ systemctl is-active "${SERVICE}-web" "${SERVICE}-worker"
 
 say "Queue"
 # A deploy restarts the worker, and restarting the worker orphans whatever it
-# was running: those tasks stay in asynq's `active` list with an expired lease,
-# where nothing picks them up again. The old deploy ended one line above this
+# was running: those jobs sit in river_job as `running` with no worker behind
+# them until River's rescuer returns them to `available` (45 minutes,
+# RescueStuckJobsAfter). Before River it was worse -- asynq left them in its
+# `active` list for good. The old deploy ended one line above this
 # and called that success -- both units active, queue quietly holding a report
 # card run that will never finish.
 #
