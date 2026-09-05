@@ -463,7 +463,132 @@ export function ColourPanel({
   return (
     <div className={cn(picking && 'opacity-25')}>
 
+        {/* Palettes: saved sets and the shipped ones, first, because picking one
+            is the whole act for most people; the wheel below is for the few who
+            then want to change a region. */}
         <div className="px-5 py-4">
+          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>
+            {t('bento.colour.saved')}
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('bento.colour.name_placeholder')}
+              /* `bg-background` is the PAGE, and the page is now near-black
+                 while this field sits on paper: a black box with black text
+                 in it, in every palette that inverts the two. The field is a
+                 surface on the card, so it takes the card. */
+              className={cn(
+                'h-9 min-w-0 flex-1 rounded-[10px] border px-3 text-[13px]',
+                'bg-[var(--bento-card)] placeholder:text-[color-mix(in_srgb,var(--bento-ink)_60%,transparent)]',
+                EDGE, RING, INK,
+              )}
+            />
+            <button
+              type="button"
+              disabled={!name.trim() || painted === 0}
+              onClick={() => {
+                savePalette(name)
+                setName('')
+              }}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13px]',
+                'transition-colors disabled:opacity-40', EDGE, WASH, RING, INK,
+              )}
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              {t('bento.colour.save')}
+            </button>
+          </div>
+          {/* The shipped sets, grouped by the mode they were built for.
+
+              Four light and four dark, taken from VS Code's own themes (Light
+              Modern, Quiet Light, Solarized, High Contrast; Dark Modern,
+              Monokai, Solarized Dark, Abyss), because those are looks people
+              already know by name and have already chosen once. Grouped by
+              ground because a palette is designed against one: a dark set
+              applied in light mode is not a light theme, it is a dark board
+              sitting in a light window. Grouping says which is which before
+              it is clicked rather than after.
+
+              Read-only, so applying one and then editing a region saves a copy
+              under the person's own name rather than overwriting what ships.
+              The swatches are the palette's own ground, card, a domain tint,
+              its accent and its ink. */}
+          {(['light', 'dark'] as const).map((mode) => (
+            <div key={mode} className="mt-2">
+              <p className={cn('mb-1.5 text-[11px]', INK)}>
+                {t(`bento.colour.mode.${mode}`)}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {BUILT_IN_PALETTES.filter((p) => p.mode === mode).map((p) => {
+                  const on = active === p.name
+                  return (
+                    <button
+                      key={p.name}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+                        RING,
+                        on ? `${CHOSEN} font-medium` : cn(EDGE, WASH, INK),
+                      )}
+                    >
+                      <span className="flex" aria-hidden="true">
+                        {([
+                          '--bento-bg', '--bento-card', '--dom-students',
+                          '--bento-mint', '--bento-ink',
+                        ] as const).map((k) => (
+                          <span
+                            key={k}
+                            /* The chip shows a palette's own colour, so its
+                               ring cannot be one of them — and `ring-black/20`
+                               was a literal, invisible against every dark
+                               swatch it circled (measured 1.00-1.02:1). Mixed
+                               from the ink of the palette in force, which is
+                               the card's opposite by construction. */
+                            className="size-3 rounded-full -ml-1 first:ml-0 ring-1
+                                       ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
+                            style={{ background: p.tokens[k] }}
+                          />
+                        ))}
+                      </span>
+                      {p.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          {palettes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {palettes.map((p) => (
+                <span key={p.name} className={cn('flex items-center rounded-full border text-[12.5px]', EDGE)}>
+                  <button
+                    type="button"
+                    onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
+                    className={cn('rounded-l-full px-3 py-1.5 transition-colors', WASH, RING, INK)}
+                  >
+                    {p.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePalette(p.name)}
+                    aria-label={`${t('bento.colour.forget')} ${p.name}`}
+                    className={cn('rounded-r-full px-2 py-1.5 transition-colors', WASH, RING, INK)}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+
+        <div className={cn('border-t px-5 py-4', SEAM)}>
           {/* Channel.
 
               The track was `bg-muted` and the chosen tab `bg-popover` — the
@@ -672,124 +797,6 @@ export function ColourPanel({
             </div>
           </div>
         )}
-
-        {/* Palettes */}
-        <div className={cn('border-t px-5 py-4', SEAM)}>
-          <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>
-            {t('bento.colour.saved')}
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('bento.colour.name_placeholder')}
-              /* `bg-background` is the PAGE, and the page is now near-black
-                 while this field sits on paper: a black box with black text
-                 in it, in every palette that inverts the two. The field is a
-                 surface on the card, so it takes the card. */
-              className={cn(
-                'h-9 min-w-0 flex-1 rounded-[10px] border px-3 text-[13px]',
-                'bg-[var(--bento-card)] placeholder:text-[color-mix(in_srgb,var(--bento-ink)_60%,transparent)]',
-                EDGE, RING, INK,
-              )}
-            />
-            <button
-              type="button"
-              disabled={!name.trim() || painted === 0}
-              onClick={() => {
-                savePalette(name)
-                setName('')
-              }}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-[10px] border px-3 text-[13px]',
-                'transition-colors disabled:opacity-40', EDGE, WASH, RING, INK,
-              )}
-            >
-              <Plus className="size-3.5" aria-hidden="true" />
-              {t('bento.colour.save')}
-            </button>
-          </div>
-          {/* The shipped sets, grouped by the mode they were built for.
-
-              Two light and two dark, because a palette is designed against a
-              ground: a dark set applied in light mode is not a light theme, it
-              is a dark board sitting in a light window. Grouping says which is
-              which before it is clicked rather than after.
-
-              Read-only, so applying one and then editing a region saves a copy
-              under the person's own name rather than overwriting what ships.
-              The swatches are the palette's own ground, card, a domain tint,
-              its accent and its ink. */}
-          {(['light', 'dark'] as const).map((mode) => (
-            <div key={mode} className="mt-2">
-              <p className={cn('mb-1.5 text-[11px]', INK)}>
-                {t(`bento.colour.mode.${mode}`)}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {BUILT_IN_PALETTES.filter((p) => p.mode === mode).map((p) => {
-                  const on = active === p.name
-                  return (
-                    <button
-                      key={p.name}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
-                      className={cn(
-                        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
-                        RING,
-                        on ? `${CHOSEN} font-medium` : cn(EDGE, WASH, INK),
-                      )}
-                    >
-                      <span className="flex" aria-hidden="true">
-                        {([
-                          '--bento-bg', '--bento-card', '--dom-students',
-                          '--bento-mint', '--bento-ink',
-                        ] as const).map((k) => (
-                          <span
-                            key={k}
-                            /* The chip shows a palette's own colour, so its
-                               ring cannot be one of them — and `ring-black/20`
-                               was a literal, invisible against every dark
-                               swatch it circled (measured 1.00-1.02:1). Mixed
-                               from the ink of the palette in force, which is
-                               the card's opposite by construction. */
-                            className="size-3 rounded-full -ml-1 first:ml-0 ring-1
-                                       ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
-                            style={{ background: p.tokens[k] }}
-                          />
-                        ))}
-                      </span>
-                      {p.name}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-          {palettes.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {palettes.map((p) => (
-                <span key={p.name} className={cn('flex items-center rounded-full border text-[12.5px]', EDGE)}>
-                  <button
-                    type="button"
-                    onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
-                    className={cn('rounded-l-full px-3 py-1.5 transition-colors', WASH, RING, INK)}
-                  >
-                    {p.name}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deletePalette(p.name)}
-                    aria-label={`${t('bento.colour.forget')} ${p.name}`}
-                    className={cn('rounded-r-full px-2 py-1.5 transition-colors', WASH, RING, INK)}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
 
         <footer className={cn('flex items-center gap-3 border-t px-5 py-3', SEAM)}>
           <button
