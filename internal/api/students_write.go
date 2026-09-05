@@ -1604,22 +1604,36 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 			   exactly that. */
 			SELECT g.id::text, g.full_name, g.relation, COALESCE(g.phone,''),
 			       COALESCE(g.email::text,''), sg.is_primary,
-			       COALESCE(g.occupation,''), g.photo_file_id::text
+			       COALESCE(g.occupation,''), g.photo_file_id::text,
+			       g.annual_income,
+			       /* The parent's way in, as the office needs to know it: no
+			          login yet, issued and never used, or in use and when.
+			          It was the one thing the record did not say about a
+			          parent, and the thing the office is asked most. */
+			       CASE WHEN u.id IS NULL THEN 'none'
+			            WHEN u.status = 'active' AND u.last_login_at IS NOT NULL THEN 'active'
+			            WHEN u.status = 'active' THEN 'issued'
+			            ELSE u.status END,
+			       u.last_login_at
 			  FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
+			  LEFT JOIN users u ON u.id = g.user_id
 			 WHERE sg.student_id = '`+sid.String()+`'::uuid
 			 ORDER BY sg.is_primary DESC`,
 			func(rows pgx.Rows) error {
-				var gid, name, rel, ph, em, occ string
+				var gid, name, rel, ph, em, occ, login string
 				var primary bool
 				var photo *string
+				var income *int64
+				var lastLogin *time.Time
 				if err := rows.Scan(&gid, &name, &rel, &ph, &em, &primary,
-					&occ, &photo); err != nil {
+					&occ, &photo, &income, &login, &lastLogin); err != nil {
 					return err
 				}
 				guardians = append(guardians, map[string]any{
 					"id": gid, "full_name": name, "relation": rel, "phone": ph,
 					"email": em, "is_primary": primary, "occupation": occ,
-					"photo_file_id": photo})
+					"photo_file_id": photo, "annual_income": income,
+					"login": login, "last_login_at": lastLogin})
 				return nil
 			}); err != nil {
 			return err

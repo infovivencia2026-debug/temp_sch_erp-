@@ -45,6 +45,8 @@ type guardianWriteRequest struct {
 	Phone      string `json:"phone,omitempty"`
 	Email      string `json:"email,omitempty"`
 	Occupation string `json:"occupation,omitempty"`
+	// Rupees a year, as declared for concessions and RTE; nil leaves it as it was.
+	AnnualIncome *int64 `json:"annual_income,omitempty"`
 	// Who the school rings first, and whose consent the office records. One
 	// per child: setting it clears the flag on the others.
 	IsPrimary bool `json:"is_primary"`
@@ -130,7 +132,8 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 				UPDATE guardians g
 				   SET full_name = $2, relation = $3,
 				       phone = NULLIF($4,''), email = NULLIF($5,'')::citext,
-				       occupation = NULLIF($6,'')
+				       occupation = NULLIF($6,''),
+				       annual_income = COALESCE($8, g.annual_income)
 				  FROM (SELECT COALESCE(phone,'') AS old_phone,
 				               COALESCE(email::text,'') AS old_email, user_id
 				          FROM guardians WHERE id = $1) prev
@@ -138,7 +141,7 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 				   AND EXISTS (SELECT 1 FROM student_guardians sg
 				                WHERE sg.guardian_id = g.id AND sg.student_id = $7)
 				RETURNING g.id::text, prev.old_phone, prev.old_email, prev.user_id`,
-				gid, name, relation, phone, email, req.Occupation, sid).
+				gid, name, relation, phone, email, req.Occupation, sid, req.AnnualIncome).
 				Scan(&guardianID, &oldPhone, &oldEmail, &userID); err != nil {
 				if isUniqueViolation(err) {
 					return errGuardianDuplicate
@@ -245,14 +248,15 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 			// about one of them.
 			if err := tx.QueryRow(r.Context(), `
 				INSERT INTO guardians (institution_id, full_name, relation, phone,
-				                       email, occupation)
-				VALUES ($1,$2,$3,NULLIF($4,''),NULLIF($5,'')::citext,NULLIF($6,''))
+				                       email, occupation, annual_income)
+				VALUES ($1,$2,$3,NULLIF($4,''),NULLIF($5,'')::citext,NULLIF($6,''),$7)
 				ON CONFLICT (institution_id, phone, full_name)
 				DO UPDATE SET relation = EXCLUDED.relation,
 				              email = COALESCE(EXCLUDED.email, guardians.email),
-				              occupation = COALESCE(EXCLUDED.occupation, guardians.occupation)
+				              occupation = COALESCE(EXCLUDED.occupation, guardians.occupation),
+				              annual_income = COALESCE(EXCLUDED.annual_income, guardians.annual_income)
 				RETURNING id::text`,
-				id.InstitutionID, name, relation, phone, email, req.Occupation).
+				id.InstitutionID, name, relation, phone, email, req.Occupation, req.AnnualIncome).
 				Scan(&guardianID); err != nil {
 				return err
 			}

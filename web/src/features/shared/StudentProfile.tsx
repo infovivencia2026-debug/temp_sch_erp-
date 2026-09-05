@@ -64,6 +64,10 @@ interface Profile {
     id?: string; full_name: string; relation: string; phone: string
     email: string; is_primary: boolean; photo_file_id?: string
     occupation?: string
+    annual_income?: number | null
+    /** none | issued | active | invited | suspended … — the parent's own login. */
+    login?: string
+    last_login_at?: string | null
   }[]
   recent_attendance: { date: string; status: string }[]
   results: { exam: string; percentage: string; grade: string; rank: string }[]
@@ -1963,7 +1967,22 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                       {g.is_primary && <Badge tone="primary">primary</Badge>}
                     </p>
                     <p className="text-[13px] text-muted-foreground">
-                      {[g.relation, g.occupation].filter(Boolean).join(' · ')}
+                      {[
+                        g.relation,
+                        g.occupation,
+                        g.annual_income != null ? `₹${Number(g.annual_income).toLocaleString('en-IN')} a year` : null,
+                      ].filter(Boolean).join(' · ')}
+                      <span className="block text-muted-foreground">
+                        {g.login === 'active'
+                          ? `Uses the app · last seen ${g.last_login_at ? formatDate(g.last_login_at) : ''}`
+                          : g.login === 'issued'
+                            ? 'Login issued, not used yet'
+                            : g.login === 'invited'
+                              ? 'Login not issued yet'
+                              : g.login === 'none' || !g.login
+                                ? 'No login'
+                                : `Login ${g.login}`}
+                      </span>
                     </p>
                     {mayEdit && g.id && (
                       <GuardianPhoto studentID={p.id} guardian={g} />
@@ -2446,6 +2465,7 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
     phone: guardian?.phone ?? '',
     email: guardian?.email ?? '',
     occupation: guardian?.occupation ?? '',
+    annual_income: guardian?.annual_income != null ? String(guardian.annual_income) : '',
   })
   const [primary, setPrimary] = useState(guardian?.is_primary ?? false)
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
@@ -2479,6 +2499,9 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
         <FormField label="Occupation">
           <Input value={f.occupation} onChange={set('occupation')} />
         </FormField>
+        <FormField label="Annual income (₹)" hint="As declared; used for concessions and RTE.">
+          <Input value={f.annual_income} onChange={set('annual_income')} placeholder="3,60,000" />
+        </FormField>
       </FormGrid>
       <div className="mt-3">
         <Checkbox
@@ -2490,7 +2513,15 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
       <div className="mt-4 flex items-center gap-2">
         <Button
           disabled={saving || !f.full_name.trim() || !reachable}
-          onClick={() => onSave({ ...f, is_primary: primary })}
+          onClick={() =>
+            onSave({
+              ...f,
+              annual_income: f.annual_income.replace(/[^0-9]/g, '')
+                ? Number(f.annual_income.replace(/[^0-9]/g, ''))
+                : undefined,
+              is_primary: primary,
+            })
+          }
         >
           {saving ? 'Saving…' : guardian ? 'Save changes' : 'Add them'}
         </Button>
