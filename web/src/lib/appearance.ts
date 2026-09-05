@@ -350,7 +350,7 @@ export function applyAppearance(next: Appearance) {
   /* Larger on a phone: the dock there is icons with no captions, a thumb is
      the pointer, and 17px glyphs alone in a 60px bar read as decoration. */
   const iconPx  = onPhone()
-    ? { small: '24px', default: '32px', large: '38px' }[next.iconSize]
+    ? { small: '20px', default: '26px', large: '30px' }[next.iconSize]
     : { small: '14px', default: '17px', large: '22px' }[next.iconSize]
   root.style.setProperty('--dock-pad', dockPad)
   root.style.setProperty('--dock-btn', dockBtn)
