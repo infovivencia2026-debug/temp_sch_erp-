@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, type QueueStat, type JobStatus, type EnqueueResponse, type List, type Section } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, SkeletonTable, ErrorState } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import { useTabVisible, useVisibleInterval } from '@/lib/visible'
 
 const STATE_TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
   completed: 'success', active: 'primary', pending: 'neutral',
@@ -12,13 +13,16 @@ const STATE_TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> =
 export default function Jobs() {
   const can = useCan()
   const [tracked, setTracked] = useState<string[]>([])
+  // Polling is right here (see below), but a hidden tab was polling every
+  // five seconds for nobody; on a server billed per request that is the bill.
+  const queuesEvery = useVisibleInterval(5_000)
 
   const queues = useQuery({
     queryKey: ['queues'],
     queryFn: () => api.get<{ queues: Record<string, QueueStat> }>('/api/v1/jobs/queues'),
     // Queue depth is the thing you watch while a backlog drains, so this is
     // one of the few places polling is the right call.
-    refetchInterval: 5_000,
+    refetchInterval: queuesEvery,
   })
 
   if (queues.isLoading) return <SkeletonTable columns={9} />
@@ -135,11 +139,15 @@ function Enqueue({ onQueued }: { onQueued: (taskID: string) => void }) {
 }
 
 function JobRow({ id }: { id: string }) {
+  // Hidden tab, no poll: the job finishes without us and we catch up on the
+  // first tick after the tab is looked at again.
+  const visible = useTabVisible()
   const { data, error } = useQuery({
     queryKey: ['job', id],
     queryFn: () => api.get<JobStatus>(`/api/v1/jobs/${id}`),
     // Stop hammering the inspector once the task reaches a terminal state.
     refetchInterval: (q) => {
+      if (!visible) return false
       const s = q.state.data?.state
       return s === 'completed' || s === 'archived' ? false : 2_000
     },

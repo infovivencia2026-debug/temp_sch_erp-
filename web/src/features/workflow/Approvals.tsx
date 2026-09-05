@@ -4,6 +4,7 @@ import {
   CalendarDays, Check, CheckCheck, Inbox, IndianRupee, PencilLine, UserPlus,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Input, SkeletonTiles, ErrorState, EmptyState,
@@ -54,10 +55,12 @@ export default function Approvals() {
   const [note, setNote] = useState<Record<string, string>>({})
   const [filter, setFilter] = useState('')
 
+  // The inbox polls only while somebody is looking at it, not from a background tab.
+  const every = useVisibleInterval(60_000)
   const { data, isLoading, error } = useQuery({
     queryKey: ['approvals'],
     queryFn: () => api.get<Inboxed>('/api/v1/workflow/approvals'),
-    refetchInterval: 60_000,
+    refetchInterval: every,
   })
 
   const decide = useMutation({

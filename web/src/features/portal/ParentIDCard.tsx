@@ -5,6 +5,7 @@ import { PageHead, PageBody, Card, PrintButton } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
+import { useVisibleInterval } from '@/lib/visible'
 
 /* The guardian's own card for the school gate.
 
@@ -49,7 +50,8 @@ export default function ParentIDCard() {
       api.get<{ card: IDCard; children: Child[]; pass: Pass }>(
         '/api/v1/portal/profile/parent-id-card',
       ),
-    refetchInterval: 60_000,
+    // Paused while the tab is hidden: a background tab was polling for nobody.
+    refetchInterval: useVisibleInterval(60_000),
   })
 
   if (query.isLoading) return <ScreenSkeleton label={t('portal.parent_id_card.loading')} />

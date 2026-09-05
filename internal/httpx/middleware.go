@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -153,10 +154,31 @@ func RequirePermission(perm string) func(http.Handler) http.Handler {
 	}
 }
 
-// RealIP trusts X-Forwarded-For because the only ingress is nginx on the same
-// host. Exposing this service directly would make the header attacker-controlled.
+// RealIP trusts the proxy headers because the only ingress is a proxy we
+// control: nginx on the same host, Google's front end on Cloud Run, and
+// Cloudflare in front of that. Exposing this service directly would make every
+// one of these headers attacker-controlled.
 func RealIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		/* CLOUDFLARE FIRST. The planned topology puts Cloudflare Pages (a
+		   Function that proxies to Cloud Run) in FRONT of Google's front end.
+		   Then the last X-Forwarded-For entry is the address Google saw the
+		   connection come from -- a Cloudflare edge -- and every rate limiter
+		   and the sessions.ip column would key on Cloudflare, not the visitor.
+		   Cloudflare sets CF-Connecting-IP to the true client on every request
+		   it forwards, and web/functions/[[path]].ts passes headers through, so
+		   when it is present and parses as an address it wins.
+
+		   The security note: a caller who reaches the origin directly, past
+		   Cloudflare, can forge CF-Connecting-IP just as easily as the first
+		   XFF entry. That is why the Cloud Run service should later restrict
+		   ingress to Cloudflare's published ranges, or require a shared secret
+		   header the Function adds -- not done yet, only noted here. */
+		if cf := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); cf != "" && net.ParseIP(cf) != nil {
+			r.RemoteAddr = cf
+			next.ServeHTTP(w, r)
+			return
+		}
 		/* THE LAST HOP, NOT THE FIRST. Every proxy in front of this service --
 		   nginx with $proxy_add_x_forwarded_for on the VPS, Google's front end
 		   on Cloud Run -- APPENDS the address it saw the connection come from.

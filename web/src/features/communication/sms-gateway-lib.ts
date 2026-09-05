@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useVisibleInterval } from '@/lib/visible'
 
 /**
  * Types and hooks for the phone SMS gateway.
@@ -97,8 +98,9 @@ export function useSMSGateway(enabled = true) {
     /* A dead gateway is the thing this screen is for, so it must not need a
        reload to notice one. Thirty seconds against a twenty-second heartbeat
        means an administrator watching the screen sees a phone go quiet within
-       about a minute of it happening. */
-    refetchInterval: 30_000,
+       about a minute of it happening. Only while the tab is visible, though;
+       nobody sees a hidden screen notice anything. */
+    refetchInterval: useVisibleInterval(30_000),
   })
 }
 

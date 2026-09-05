@@ -8,6 +8,7 @@ import {
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT, type MessageKey } from '@/lib/i18n'
+import { useVisibleInterval } from '@/lib/visible'
 import { useChildren, childOptions } from './use-children'
 
 /* Everything the school has told you, in the order it happened.
@@ -81,8 +82,9 @@ export default function Alerts() {
         `/api/v1/portal/notifications${studentId ? `?student_id=${studentId}` : ''}`,
       ),
     // Near-real-time without a vendor. Half a minute is often enough for a
-    // circular and cheap enough not to matter.
-    refetchInterval: 30_000,
+    // circular and cheap enough not to matter. Paused while the tab is
+    // hidden: a background tab was polling for nobody.
+    refetchInterval: useVisibleInterval(30_000),
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['portal-alerts'] })

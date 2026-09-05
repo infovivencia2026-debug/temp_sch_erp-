@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Circle, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useVisibleInterval } from '@/lib/visible'
 import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -21,10 +22,12 @@ interface Status {
  * next, in the order the data depends on itself.
  */
 export default function Checklist() {
+  // Polls only while the tab is looked at; hidden, the status can wait.
+  const every = useVisibleInterval(30_000)
   const { data, isLoading, error } = useQuery({
     queryKey: ['setup-status'],
     queryFn: () => api.get<Status>('/api/v1/setup/status'),
-    refetchInterval: 30_000,
+    refetchInterval: every,
   })
 
   if (isLoading) return <SkeletonTiles count={3} />

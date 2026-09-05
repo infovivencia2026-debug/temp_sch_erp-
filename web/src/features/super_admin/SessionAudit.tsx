@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, FormNotice, SkeletonTable, ErrorState,
@@ -62,7 +63,9 @@ export default function SessionAudit() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-sessions', activeOnly],
     queryFn: () => api.get<List<SessionRow>>(`/api/v1/admin/sessions?active=${activeOnly}`),
-    refetchInterval: 30_000,
+    /* Sessions come and go while an administrator watches, so poll; but only
+       while the tab is visible, since a hidden audit screen audits nothing. */
+    refetchInterval: useVisibleInterval(30_000),
   })
 
   const revoke = useMutation({

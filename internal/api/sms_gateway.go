@@ -132,6 +132,13 @@ const (
 	smsGatewayDefaultPoll = 20
 	smsGatewayDefaultCap  = 6
 
+	// The school's waking hours, in local time. Inside them the phone polls at
+	// the rate the admin set; outside them it is slowed to at least
+	// smsGatewayNightPoll. See smsGatewayPollFor.
+	smsGatewayDayStartHour = 6
+	smsGatewayDayEndHour   = 20
+	smsGatewayNightPoll    = 300
+
 	// Most a single poll may take, whatever the phone asks for. A handset that
 	// requests a thousand is a handset that will hold a thousand leases and
 	// then die.
@@ -1091,6 +1098,39 @@ func nullIfBlank(s string) *string {
 
 // --- the polling loop --------------------------------------------------------
 
+/*
+smsGatewayPollFor is the interval the server hands a phone at this moment.
+
+	The handset polls around the clock, and the admin's poll_seconds is a
+	daytime number: twenty seconds is right when a fee receipt should reach a
+	parent before they have left the counter, and pointless at two in the
+	morning when nothing is queued and nothing will be. On a host that scales
+	to zero, a twenty-second poll all night is the one thing keeping an
+	instance awake, so outside 06:00-20:00 the phone is told to come back in
+	at least five minutes. An admin who has already set something slower keeps
+	it; the night floor only ever lengthens the interval.
+
+	The stored column is untouched -- what the admin screen shows and edits
+	stays the daytime rate -- and the phone re-reads the interval from every
+	outbox and heartbeat response, so dawn takes effect within one (night)
+	poll. The heartbeat cadence follows for free: the handset derives it as
+	five times poll_seconds, clamped to 60-300 s, so a night poll of 300
+	pins the heartbeat to its ceiling.
+
+	Hours are judged in the product's one timezone (see nowInIndia); the box
+	runs UTC and its clock would put dawn at half past eleven.
+*/
+func smsGatewayPollFor(now time.Time, configured int) int {
+	h := now.In(indiaTZ()).Hour()
+	if h >= smsGatewayDayStartHour && h < smsGatewayDayEndHour {
+		return configured
+	}
+	if configured > smsGatewayNightPoll {
+		return configured
+	}
+	return smsGatewayNightPoll
+}
+
 type smsGatewayOutboxMessage struct {
 	ID      string `json:"id"`
 	To      string `json:"to"`
@@ -1149,7 +1189,7 @@ func (s *Server) smsGatewayOutbox(w http.ResponseWriter, r *http.Request) {
 
 	out := smsGatewayOutboxResponse{
 		Messages:     []smsGatewayOutboxMessage{},
-		PollSeconds:  dev.PollSeconds,
+		PollSeconds:  smsGatewayPollFor(time.Now(), dev.PollSeconds),
 		PerMinuteCap: dev.PerMinuteCap,
 		Paused:       dev.Paused,
 	}
@@ -1501,7 +1541,7 @@ func (s *Server) smsGatewayHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out := smsGatewayHeartbeatResponse{
-		PollSeconds:  dev.PollSeconds,
+		PollSeconds:  smsGatewayPollFor(time.Now(), dev.PollSeconds),
 		PerMinuteCap: dev.PerMinuteCap,
 		Paused:       dev.Paused,
 	}

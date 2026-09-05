@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useVisibleInterval } from '@/lib/visible'
 
 /**
  * Types and hooks for tracker pairing and the school's tracking policy.
@@ -93,8 +94,9 @@ export function useTrackers() {
     /* A phone that has gone quiet is the thing this screen reports, so it must
        not need a reload to notice one. Thirty seconds against a fifteen-second
        ping means an office watching the screen sees a bus drop off within
-       about a minute. */
-    refetchInterval: 30_000,
+       about a minute. Only while the tab is visible; a hidden screen watches
+       nothing. */
+    refetchInterval: useVisibleInterval(30_000),
   })
 }
 

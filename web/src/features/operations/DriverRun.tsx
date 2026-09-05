@@ -5,6 +5,7 @@ import {
   Badge, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useVisibleInterval } from '@/lib/visible'
 
 /* My bus and route, for a driver.
 
@@ -54,6 +55,10 @@ interface LiveVehicle {
 }
 
 export default function DriverRun() {
+  // A driver's phone left on this screen in a pocket was polling for nobody;
+  // on a server billed per request that is the bill, so the poll stops with
+  // the tab.
+  const liveEvery = useVisibleInterval(30_000)
   const bus = useQuery({
     queryKey: ['my-bus'],
     queryFn: () => api.get<MyBus>('/api/v1/ops/transport/my-bus'),
@@ -62,7 +67,7 @@ export default function DriverRun() {
     queryKey: ['transport-live'],
     queryFn: () => api.get<List<LiveVehicle>>('/api/v1/transport/live'),
     enabled: Boolean(bus.data?.vehicle_id),
-    refetchInterval: 30_000,
+    refetchInterval: liveEvery,
   })
 
   if (bus.isLoading) return <SkeletonTiles count={4} label="Finding your bus…" />

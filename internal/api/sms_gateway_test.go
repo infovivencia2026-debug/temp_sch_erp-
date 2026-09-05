@@ -1433,3 +1433,43 @@ func TestSMSGatewayTablesNeverHoldAMessageBody(t *testing.T) {
 		t.Error("the dispatch ledger stored the recipient's number")
 	}
 }
+
+/*
+The night floor on the poll interval. Pure: a moment and the admin's number
+in, the number the phone is told out. Instants are given in UTC on purpose --
+the box runs UTC, and the point of the function is that it does not judge the
+hour by the box.
+*/
+func TestSMSGatewayPollSlowsAtNight(t *testing.T) {
+	ist := time.FixedZone("IST", 5*3600+1800)
+	at := func(h, m int) time.Time {
+		return time.Date(2026, time.September, 5, h, m, 0, 0, ist).UTC()
+	}
+	cases := []struct {
+		name       string
+		now        time.Time
+		configured int
+		want       int
+	}{
+		{"mid-morning keeps the admin's rate", at(10, 0), 20, 20},
+		{"dawn edge is daytime", at(6, 0), 20, 20},
+		{"a minute before dawn is night", at(5, 59), 20, 300},
+		{"last daytime minute", at(19, 59), 20, 20},
+		{"20:00 sharp is night", at(20, 0), 20, 300},
+		{"two in the morning is night", at(2, 0), 20, 300},
+		{"a slower admin setting survives the night", at(2, 0), 300, 300},
+		{"the floor never shortens", at(23, 0), 600, 600},
+		{"daytime with the fastest allowed rate", at(12, 30), 5, 5},
+	}
+	for _, c := range cases {
+		if got := smsGatewayPollFor(c.now, c.configured); got != c.want {
+			t.Errorf("%s: smsGatewayPollFor(%s, %d) = %d, want %d",
+				c.name, c.now.In(ist).Format("15:04"), c.configured, got, c.want)
+		}
+	}
+	// The daytime window is judged in India, not on the box: 00:30 UTC is
+	// 06:00 IST and must read as day.
+	if got := smsGatewayPollFor(time.Date(2026, time.September, 5, 0, 30, 0, 0, time.UTC), 20); got != 20 {
+		t.Errorf("00:30 UTC is 06:00 IST, want daytime rate 20, got %d", got)
+	}
+}

@@ -6,6 +6,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useVisibleInterval } from '@/lib/visible'
 import { useChildren, childOptions, readyFor } from './use-children'
 
 /* The child's identity card, rendered live.
@@ -64,7 +65,8 @@ export default function StudentIDCard() {
       ),
     // The gate accepts the neighbouring windows, so refreshing a little inside
     // the window keeps the screen honest without a countdown that races it.
-    refetchInterval: 60_000,
+    // Paused while the tab is hidden: a background tab was polling for nobody.
+    refetchInterval: useVisibleInterval(60_000),
     enabled: ready,
   })
 

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, type List } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { usePhone } from '@/lib/viewport'
+import { useVisibleInterval } from '@/lib/visible'
 import { cn, formatPaise } from '@/lib/utils'
 import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
 import { Compare } from './bento-cards'
@@ -257,10 +258,13 @@ export default function ParentWeek() {
     queryKey: ['attention', 'parent'],
     queryFn: () => api.get<{ items: AttentionItem[] }>('/api/v1/attention'),
   })
+  /* The bus poll stops with the tab hidden; a parent who leaves this open in
+     the background should not cost the server a request every 30 s. */
+  const every = useVisibleInterval(30_000)
   const bus = useQuery({
     queryKey: ['child-bus', 'home'],
     queryFn: () => api.get<ChildBusFeed>('/api/v1/me/child-bus'),
-    refetchInterval: 30_000,
+    refetchInterval: every,
   })
   const teachers = useQuery({
     queryKey: ['portal-teachers', activeId],

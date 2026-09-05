@@ -179,17 +179,9 @@ export function ageText(secs?: number): string {
    A parent leaves this screen open on a phone and walks away. Polling a
    hidden tab spends their battery and the school's server on a picture nobody
    is looking at, so the poll stops with the tab and resumes with it. */
-export function useTabVisible(): boolean {
-  const [visible, setVisible] = useState(() =>
-    typeof document === 'undefined' ? true : !document.hidden,
-  )
-  useEffect(() => {
-    const onChange = () => setVisible(!document.hidden)
-    document.addEventListener('visibilitychange', onChange)
-    return () => document.removeEventListener('visibilitychange', onChange)
-  }, [])
-  return visible
-}
+/* Moved to lib/visible.ts so every polling screen shares it; re-exported
+   here so the four callers that import it from this module keep working. */
+export { useTabVisible } from '@/lib/visible'
 
 /* Poll on the fastest interval any row asked for.
 
