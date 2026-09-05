@@ -5,6 +5,7 @@
 //	migrate status        show what is applied
 //	migrate seed          upsert permissions and system roles
 //	migrate create-admin  create the first institution admin
+//	migrate files-to-r2   copy FILE_STORE_DIR into the R2 bucket, key for key
 //
 // Migrations run as the owner role (POSTGRES_USER), not app_user: app_user is
 // deliberately stripped of CREATE on the public schema so a compromised web
@@ -73,6 +74,7 @@ func run() error {
 		"up": true, "down": true, "status": true, "seed": true,
 		"seed-permissions": true, "create-admin": true, "create-seller": true,
 		"demo-data": true, "demo-users": true, "set-passwords": true,
+		"files-to-r2": true,
 	}
 	cmd := ""
 	rest := make([]string, 0, len(args))
@@ -178,6 +180,8 @@ func run() error {
 		}
 		defer db.Close()
 		return createAdmin(ctx, db, cfg.PasswordPepper, *email, *password, *name, *instName)
+	case "files-to-r2":
+		return filesToR2(ctx, cfg)
 	case "set-passwords":
 		if *password == "" {
 			return fmt.Errorf("set-passwords requires -password")

@@ -176,12 +176,17 @@ sprites, served by nginx at `/tiles/` with range requests and
 the SPA is served from the same container as the API, so the archive must
 move to the R2 public host.
 [web/src/components/FleetMap.tsx](../web/src/components/FleetMap.tsx) reads
-everything from one constant, `TILES_BASE = '/tiles'`; the file's own comment
-says "when R2 gets a public host the same file moves there and only
-TILES_BASE changes". R2 supports range requests and CORS, which is all PMTiles
-needs. Uploading the archive is `rclone copy` or `wrangler r2 object put`;
-[scripts/refresh-tiles.sh](../scripts/refresh-tiles.sh) would then end with an
-upload instead of a rename.
+everything from one base, `TILES_BASE`, which is `VITE_TILES_BASE` at build
+time and `/tiles` when that is unset. For Cloud Run, build the SPA with
+`VITE_TILES_BASE=https://<R2_PUBLIC_HOST>/tiles` (there is a commented
+example in `web/.env.production`); an absolute base is used as-is for the
+archive, fonts and sprites. R2 supports range requests and CORS, which is all
+PMTiles needs; the bucket's CORS rule must allow `GET` from the site's origin
+as well as the `PUT` for uploads. Uploading is the optional last step of
+[scripts/refresh-tiles.sh](../scripts/refresh-tiles.sh): run it on the VPS
+with `TILES_R2=1 R2_BUCKET=<bucket>` and either an rclone remote (`R2_REMOTE`,
+default `r2`) or the aws cli with `R2_ENDPOINT` set, and it mirrors the
+archive, the `BUILD` stamp and `assets/` under `tiles/` in the bucket.
 
 ### (d) Neon: TLS in the URLs, and the two roles created by hand
 
@@ -282,10 +287,14 @@ would be silently lost**. There are three consequences:
 
 The same applies to `APK_DIR` (`/apps` serves the staff Android builds from
 `/var/lib/temperp/apk`) and `FCM_SERVICE_ACCOUNT_FILE` (a JSON file on disk).
-APKs can be baked into the image at build time or, better, served from the
-R2 public host with `/apps` redirecting; the FCM file becomes a Secret
-Manager volume, which the worker manifest carries commented-out until the
-secret exists.
+`APK_DIR` is handled: the three APKs are checked in under
+`web/public/download/` and ship with every web build, and when `APK_DIR` is
+unset or empty `/apps` links `/download/<slug>.apk` (served by the Go process
+from `WEB_DIST`, by Pages from the edge, or by nginx) and says the build is a
+static file, without a version, size or digest -- those come only from a disk
+build. `/apps/<slug>.apk` redirects to the static file in that state. Leave
+`APK_DIR` unset on Cloud Run. The FCM file becomes a Secret Manager volume,
+which the worker manifest carries commented-out until the secret exists.
 
 ### (f) Cold starts and the school-day traffic pattern
 
@@ -391,8 +400,9 @@ In order. Each step is reversible until step 9.
 1. **Code prerequisites** (Go/TS changes, out of scope for the manifests).
    Done alongside the Dockerfile: `cmd/web` serves the SPA from `WEB_DIST`
    and `internal/config` falls back to `PORT`; the worker listens on `$PORT`
-   with `/healthz`; `RealIP` takes the last hop. Still to do: `TILES_BASE`
-   points at the R2 public host. Merge to `main`.
+   with `/healthz`; `RealIP` takes the last hop. `TILES_BASE` reads
+   `VITE_TILES_BASE`, so the R2 public host is a build-time variable, not a
+   code change. Merge to `main`.
 2. **Accounts.** GCP project with billing, Neon project in `ap-southeast-1`
    (Singapore; Neon has no Mumbai region — ~40 ms from asia-south1, fine for
    this workload), Upstash Redis in `ap-south-1` on a fixed plan, R2 bucket

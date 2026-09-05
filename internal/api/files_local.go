@@ -1,12 +1,15 @@
 package api
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +18,7 @@ import (
 
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
+	"github.com/school-erp/erp/internal/storage"
 )
 
 /* Files, on the disk that is actually here.
@@ -26,9 +30,12 @@ import (
    does not have an object store; it has this server, with disk on it.
 
    So: multipart in, stream out, rows in the same files table the rest of the
-   product already reads. When R2 is configured this becomes the second choice
-   rather than the only one, and no caller has to know which is in use, because
-   both mint a file id and nothing downstream stores anything else.
+   product already reads. When R2 is configured the same handlers put the
+   bytes in the bucket instead -- the container host has no disk that
+   survives a deploy -- and no caller has to know which is in use, because
+   both mint a file id and nothing downstream stores anything else. The
+   object key is the path the file would have had on disk, so a directory
+   copied into the bucket (`migrate files-to-r2`) is read by the same rows.
 
    Three things this is careful about, all of them the same worry — a school
    ERP is a place where a stranger can persuade somebody to upload a file and
@@ -63,8 +70,12 @@ var blockedUploadExtensions = map[string]bool{
 
 var errNoFileStore = errors.New("file storage is not configured on this deployment")
 
-// storeDir is where uploads land, or "" when the deployment has none.
+// storeDir is where uploads land on disk, or "" when the deployment has none.
 func (s *Server) storeDir() string { return strings.TrimSpace(s.FileStoreDir) }
+
+// hasFileStore is the one question every file handler asks first: is there
+// anywhere at all -- bucket or directory -- for the bytes to live?
+func (s *Server) hasFileStore() bool { return s.Storage != nil || s.storeDir() != "" }
 
 /*
 uploadFile takes a multipart file and returns the id everything else uses.
@@ -81,7 +92,7 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	id := httpx.IdentityFrom(r.Context())
 	dir := s.storeDir()
-	if dir == "" {
+	if !s.hasFileStore() {
 		httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unconfigured",
 			errNoFileStore.Error())
 		return
@@ -132,49 +143,55 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	fileID := uuid.New()
 	rel := filepath.ToSlash(filepath.Join(id.InstitutionID.String(),
 		time.Now().Format("2006-01"), fileID.String()+ext))
-	full := filepath.Join(dir, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
-		/* Named, because nobody using the product can act on "refused".
 
-		   The store sat on a path the service was not permitted to write —
-		   systemd hardening listing only the log directory — so every upload
-		   in the product failed and every screen said the same four words. An
-		   internal error is opaque on purpose and this one is not the reader's
-		   fault to interpret: what they need is that it is the school's
-		   installation and not their file, so they stop trying other files. */
-		httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unwritable",
-			"the school's file storage cannot be written to. Nothing is wrong "+
-				"with your file — this needs whoever runs the server.")
-		httpx.LogError(r, err)
-		return
-	}
+	/* Bucket first when there is one; the disk is what remains otherwise.
 
-	dst, err := os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	sum := sha256.New()
-	written, copyErr := io.Copy(io.MultiWriter(dst, sum),
-		io.LimitReader(src, maxLocalUploadBytes+1))
-	closeErr := dst.Close()
-	switch {
-	case copyErr != nil:
-		os.Remove(full)
-		httpx.BadRequest(w, r, "the upload did not complete")
-		return
-	case closeErr != nil:
-		os.Remove(full)
-		httpx.Internal(w, r, closeErr)
-		return
-	case written > maxLocalUploadBytes:
-		os.Remove(full)
-		httpx.BadRequest(w, r, "that file is larger than 64 MB")
-		return
-	case written == 0:
-		os.Remove(full)
-		httpx.BadRequest(w, r, "that file is empty")
-		return
+	   Two code paths that end at the same INSERT. Each is responsible for
+	   its own cleanup on failure, because a row with no bytes behind it is a
+	   broken link on somebody's screen, and that is worse than either. */
+	var written int64
+	var sum []byte
+	var discard func()
+	if s.Storage != nil {
+		var msg string
+		written, sum, msg, err = putUploadInStore(r.Context(), s.Storage, rel, contentType, src)
+		if msg != "" {
+			httpx.BadRequest(w, r, msg)
+			return
+		}
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		discard = func() { _ = s.Storage.Delete(context.WithoutCancel(r.Context()), rel) }
+	} else {
+		var full string
+		var msg string
+		full, written, sum, msg, err = putUploadOnDisk(dir, rel, src)
+		if errors.Is(err, errStoreUnwritable) {
+			/* Named, because nobody using the product can act on "refused".
+
+			   The store sat on a path the service was not permitted to write —
+			   systemd hardening listing only the log directory — so every upload
+			   in the product failed and every screen said the same four words. An
+			   internal error is opaque on purpose and this one is not the reader's
+			   fault to interpret: what they need is that it is the school's
+			   installation and not their file, so they stop trying other files. */
+			httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unwritable",
+				"the school's file storage cannot be written to. Nothing is wrong "+
+					"with your file — this needs whoever runs the server.")
+			httpx.LogError(r, err)
+			return
+		}
+		if msg != "" {
+			httpx.BadRequest(w, r, msg)
+			return
+		}
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		discard = func() { os.Remove(full) }
 	}
 
 	// The row goes in last. An orphaned file with no row is a wasted byte of
@@ -186,11 +203,11 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 			                   purpose, uploaded_by)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 			fileID, id.InstitutionID, rel, original, contentType,
-			written, sum.Sum(nil), purpose, id.UserID)
+			written, sum, purpose, id.UserID)
 		return err
 	})
 	if err != nil {
-		os.Remove(full)
+		discard()
 		httpx.Internal(w, r, err)
 		return
 	}
@@ -202,6 +219,73 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 		"content_type": contentType,
 		"url":          "/api/v1/files/" + fileID.String(),
 	})
+}
+
+var errStoreUnwritable = errors.New("file store directory cannot be created")
+
+// putUploadOnDisk writes the part under dir/rel and returns the path, the
+// byte count and the checksum. A non-empty msg is a reason the uploader can
+// act on (too big, empty, cut off) and means the file was not kept.
+func putUploadOnDisk(dir, rel string, src io.Reader) (full string, written int64, sum []byte, msg string, err error) {
+	full = filepath.Join(dir, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+		// Wrapped so the handler can name it; see the 503 it turns into.
+		return "", 0, nil, "", fmt.Errorf("%w: %v", errStoreUnwritable, err)
+	}
+	dst, err := os.OpenFile(full, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
+	if err != nil {
+		return "", 0, nil, "", err
+	}
+	h := sha256.New()
+	written, copyErr := io.Copy(io.MultiWriter(dst, h),
+		io.LimitReader(src, maxLocalUploadBytes+1))
+	closeErr := dst.Close()
+	switch {
+	case copyErr != nil:
+		os.Remove(full)
+		return "", 0, nil, "the upload did not complete", nil
+	case closeErr != nil:
+		os.Remove(full)
+		return "", 0, nil, "", closeErr
+	case written > maxLocalUploadBytes:
+		os.Remove(full)
+		return "", 0, nil, "that file is larger than 64 MB", nil
+	case written == 0:
+		os.Remove(full)
+		return "", 0, nil, "that file is empty", nil
+	}
+	return full, written, h.Sum(nil), "", nil
+}
+
+/*
+putUploadInStore sends the part to the bucket under key.
+
+	The bucket signs the length into the request, so the size has to be known
+	before the first byte is sent -- which the disk path never needed, since a
+	file on disk is as long as whatever was written to it. A multipart part is
+	seekable (Go spools anything over the memory threshold to a temp file), so
+	it is measured and hashed in one pass and then rewound for the PUT. Twice
+	over at most 64 MB of local file is cheaper than buffering it in memory
+	and far cheaper than a multipart upload to the bucket.
+*/
+func putUploadInStore(ctx context.Context, store *storage.Store, key, contentType string, src io.ReadSeeker) (written int64, sum []byte, msg string, err error) {
+	h := sha256.New()
+	written, err = io.Copy(h, io.LimitReader(src, maxLocalUploadBytes+1))
+	switch {
+	case err != nil:
+		return 0, nil, "the upload did not complete", nil
+	case written > maxLocalUploadBytes:
+		return 0, nil, "that file is larger than 64 MB", nil
+	case written == 0:
+		return 0, nil, "that file is empty", nil
+	}
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		return 0, nil, "", err
+	}
+	if err := store.Put(ctx, key, contentType, written, src); err != nil {
+		return 0, nil, "", err
+	}
+	return written, h.Sum(nil), "", nil
 }
 
 // downloadFile streams a stored file back to somebody in the same school.
@@ -220,8 +304,7 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "invalid file id")
 		return
 	}
-	dir := s.storeDir()
-	if dir == "" {
+	if !s.hasFileStore() {
 		httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unconfigured",
 			errNoFileStore.Error())
 		return
@@ -300,25 +383,16 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The key was written by this code and is a uuid under a uuid, but it
-	// arrives here from the database, and a path out of a database is still a
-	// path from outside this function.
-	full := filepath.Join(dir, filepath.FromSlash(filepath.Clean("/"+key)))
-	if !strings.HasPrefix(full, filepath.Clean(dir)+string(filepath.Separator)) {
-		httpx.NotFound(w, r)
-		return
-	}
-	f, err := os.Open(full)
+	body, err := s.openStoredFile(r, key)
 	if err != nil {
-		httpx.NotFound(w, r)
-		return
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			httpx.NotFound(w, r)
+			return
+		}
 		httpx.Internal(w, r, err)
 		return
 	}
+	defer body.Close()
 
 	// Attachment, always, and nosniff with it. A school's document store is
 	// exactly the place somebody would like to serve an HTML file from, and
@@ -349,7 +423,93 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", `attachment; filename="`+safeName+`"`)
 	}
 	w.Header().Set("Cache-Control", "private, max-age=300")
-	http.ServeContent(w, r, name, info.ModTime(), f)
+	body.serve(w, r, name)
+}
+
+/*
+storedFile is one file on its way out, from whichever store holds it.
+
+	The disk gives http.ServeContent a seeker and gets Range, If-Modified-Since
+	and Content-Length for free. The bucket gives a stream, so the Range header
+	is forwarded to it instead and its answer -- 200 or 206, with the bucket's
+	own Content-Range -- is relayed. Same wire shape either way, which is what
+	the phone shells' video players and PDF viewers depend on.
+*/
+type storedFile struct {
+	file *os.File
+	obj  *storage.Object
+}
+
+func (f *storedFile) Close() error {
+	if f.file != nil {
+		return f.file.Close()
+	}
+	return f.obj.Body.Close()
+}
+
+func (f *storedFile) serve(w http.ResponseWriter, r *http.Request, name string) {
+	if f.file != nil {
+		info, err := f.file.Stat()
+		if err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		http.ServeContent(w, r, name, info.ModTime(), f.file)
+		return
+	}
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Length", strconv.FormatInt(f.obj.Size, 10))
+	if !f.obj.LastModified.IsZero() {
+		w.Header().Set("Last-Modified", f.obj.LastModified.UTC().Format(http.TimeFormat))
+	}
+	status := http.StatusOK
+	if f.obj.Partial {
+		w.Header().Set("Content-Range", f.obj.ContentRange)
+		status = http.StatusPartialContent
+	}
+	w.WriteHeader(status)
+	if r.Method != http.MethodHead {
+		_, _ = io.Copy(w, f.obj.Body)
+	}
+}
+
+/*
+openStoredFile finds key in the bucket, or on the disk, or nowhere.
+
+	The bucket is asked first when there is one. A key it does not hold is
+	then looked for on disk -- not as a permanent arrangement but so that
+	turning R2 on and copying the directory across can happen in either order
+	without a window where every existing attachment is a 404. With no
+	directory configured the miss is simply a miss. storage.ErrNotFound is the
+	only error the caller turns into 404; everything else is the bucket or
+	the disk misbehaving and is reported as such.
+*/
+func (s *Server) openStoredFile(r *http.Request, key string) (*storedFile, error) {
+	if s.Storage != nil {
+		obj, err := s.Storage.GetRange(r.Context(), key, r.Header.Get("Range"))
+		if err == nil {
+			return &storedFile{obj: obj}, nil
+		}
+		if !errors.Is(err, storage.ErrNotFound) || s.storeDir() == "" {
+			return nil, err
+		}
+	}
+	dir := s.storeDir()
+	if dir == "" {
+		return nil, storage.ErrNotFound
+	}
+	// The key was written by this code and is a uuid under a uuid, but it
+	// arrives here from the database, and a path out of a database is still a
+	// path from outside this function.
+	full := filepath.Join(dir, filepath.FromSlash(filepath.Clean("/"+key)))
+	if !strings.HasPrefix(full, filepath.Clean(dir)+string(filepath.Separator)) {
+		return nil, storage.ErrNotFound
+	}
+	f, err := os.Open(full)
+	if err != nil {
+		return nil, storage.ErrNotFound
+	}
+	return &storedFile{file: f}, nil
 }
 
 /*

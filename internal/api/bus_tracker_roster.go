@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -347,8 +345,7 @@ func (s *Server) getBusTrackerStudentPhoto(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	dir := s.storeDir()
-	if dir == "" {
+	if !s.hasFileStore() {
 		httpx.NotFound(w, r)
 		return
 	}
@@ -376,31 +373,23 @@ func (s *Server) getBusTrackerStudentPhoto(w http.ResponseWriter, r *http.Reques
 		httpx.NotFound(w, r)
 		return
 	}
-	full := filepath.Join(dir, filepath.FromSlash(filepath.Clean("/"+key)))
-	if !strings.HasPrefix(full, filepath.Clean(dir)+string(filepath.Separator)) {
-		httpx.NotFound(w, r)
-		return
-	}
 	if !strings.HasPrefix(contentType, "image/") {
 		httpx.NotFound(w, r)
 		return
 	}
-	f, err := os.Open(full)
+	// Bucket or disk, the same way downloadFile decides; a photo the store
+	// cannot find is a 404 and never an explanation.
+	body, err := s.openStoredFile(r, key)
 	if err != nil {
 		httpx.NotFound(w, r)
 		return
 	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		httpx.NotFound(w, r)
-		return
-	}
+	defer body.Close()
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Disposition", "inline")
 	w.Header().Set("Cache-Control", "private, max-age=86400")
-	http.ServeContent(w, r, "photo", info.ModTime(), f)
+	body.serve(w, r, "photo")
 }
 
 // --- notices -----------------------------------------------------------------

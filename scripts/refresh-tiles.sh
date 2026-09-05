@@ -10,6 +10,7 @@
 #
 #   bash scripts/refresh-tiles.sh            # latest build, default region
 #   BBOX=77,8,80.5,13.6 bash refresh-tiles.sh   # a different region
+#   TILES_R2=1 R2_BUCKET=temperp bash refresh-tiles.sh   # ...and mirror to R2
 #
 # Monthly is plenty: roads do not move. The daily builds exist so that a fresh
 # extract is always available, not so that we take one every day.
@@ -60,3 +61,42 @@ fi
 chown -R www-data:www-data "$DIR" 2>/dev/null || true
 ls -la "$ARCHIVE"
 pmtiles show "$ARCHIVE" | grep -iE "tile type|bounds|zoom" || true
+
+# Optional: mirror the archive and assets to R2, for a host with no disk to
+# serve /tiles/ from (Cloud Run; see docs/hosting-cloud-run.md). Off unless
+# TILES_R2=1, and never required: the nginx copy above is complete on its own.
+#
+# Needs R2_BUCKET and one of:
+#   rclone   with a remote configured for the bucket, named by R2_REMOTE
+#            (default "r2"): rclone config, type s3, provider Cloudflare.
+#   aws cli  with R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com and
+#            AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for an R2 API token.
+#
+# Objects land under tiles/, so with the bucket's public custom domain
+# (R2_PUBLIC_HOST in the Cloud Run manifests) the URLs are
+#   https://<R2_PUBLIC_HOST>/tiles/south-india.pmtiles
+#   https://<R2_PUBLIC_HOST>/tiles/assets/fonts/<stack>/<range>.pbf
+#   https://<R2_PUBLIC_HOST>/tiles/assets/sprites/v4/light.{json,png}
+# and the web build takes VITE_TILES_BASE=https://<R2_PUBLIC_HOST>/tiles
+# (web/.env.production). R2 answers range requests, which is all PMTiles
+# needs; the bucket's CORS rule must allow GET from the site's origin.
+if [ "${TILES_R2:-0}" = "1" ]; then
+    [ -n "${R2_BUCKET:-}" ] || { echo "TILES_R2=1 but R2_BUCKET is unset" >&2; exit 1; }
+    PREFIX=${R2_PREFIX:-tiles}
+    if command -v rclone >/dev/null; then
+        REMOTE=${R2_REMOTE:-r2}
+        echo "mirroring to $REMOTE:$R2_BUCKET/$PREFIX with rclone"
+        rclone copyto "$ARCHIVE" "$REMOTE:$R2_BUCKET/$PREFIX/south-india.pmtiles" --s3-no-check-bucket
+        rclone copyto "$DIR/BUILD" "$REMOTE:$R2_BUCKET/$PREFIX/BUILD" --s3-no-check-bucket
+        rclone copy "$DIR/assets" "$REMOTE:$R2_BUCKET/$PREFIX/assets" --s3-no-check-bucket
+    elif command -v aws >/dev/null; then
+        [ -n "${R2_ENDPOINT:-}" ] || { echo "TILES_R2=1 with the aws cli needs R2_ENDPOINT" >&2; exit 1; }
+        echo "mirroring to s3://$R2_BUCKET/$PREFIX with the aws cli"
+        aws --endpoint-url "$R2_ENDPOINT" s3 cp "$ARCHIVE" "s3://$R2_BUCKET/$PREFIX/south-india.pmtiles" \
+            --content-type application/octet-stream
+        aws --endpoint-url "$R2_ENDPOINT" s3 cp "$DIR/BUILD" "s3://$R2_BUCKET/$PREFIX/BUILD" --content-type text/plain
+        aws --endpoint-url "$R2_ENDPOINT" s3 sync "$DIR/assets" "s3://$R2_BUCKET/$PREFIX/assets"
+    else
+        echo "TILES_R2=1 but neither rclone nor the aws cli is installed" >&2; exit 1
+    fi
+fi

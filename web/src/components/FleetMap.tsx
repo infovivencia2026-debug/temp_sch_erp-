@@ -33,8 +33,11 @@ import { cn } from '@/lib/utils'
    from the ERP's own nginx under /tiles/, with the fonts and sprites the
    style needs beside it. No third party sees where the buses are, nothing
    can be revoked, and the hosting cost is a 200MB file on a disk that has
-   room for it. When R2 gets a public host the same file moves there and only
-   TILES_BASE changes.
+   room for it. On a host with no disk (Cloud Run) the same file and assets
+   sit in the R2 bucket under tiles/, and the R2 public host goes in
+   VITE_TILES_BASE at build time (web/.env.production), e.g.
+   https://<R2_PUBLIC_HOST>/tiles; unset, TILES_BASE stays the nginx path
+   /tiles. Nothing else in this file knows which of the two it is.
 
    It went to the iPhone parent app first, gated on the shell's bridge, and
    was watched there: the archive, the sprites and the fonts all answered
@@ -47,7 +50,12 @@ import { cn } from '@/lib/utils'
    fetched as JSON, because the layer list has to name this origin's tile
    source and asset paths, and a style file with those baked in would be one
    more thing to regenerate on every deploy. */
-const TILES_BASE = '/tiles'
+const TILES_BASE = (
+  (import.meta as { env?: Record<string, string> }).env?.VITE_TILES_BASE || '/tiles'
+).replace(/\/+$/, '')
+// Glyph and sprite URLs must be absolute for MapLibre. A relative base is
+// this origin's; an R2 host is already absolute and must not be prefixed.
+const TILES_ORIGIN = /^https?:\/\//i.test(TILES_BASE) ? '' : window.location.origin
 const TILES_ARCHIVE = `${TILES_BASE}/south-india.pmtiles`
 
 let pmtilesRegistered = false
@@ -59,8 +67,8 @@ export function selfHostedStyle(): maplibregl.StyleSpecification {
   }
   return {
     version: 8,
-    glyphs: `${window.location.origin}${TILES_BASE}/assets/fonts/{fontstack}/{range}.pbf`,
-    sprite: `${window.location.origin}${TILES_BASE}/assets/sprites/v4/light`,
+    glyphs: `${TILES_ORIGIN}${TILES_BASE}/assets/fonts/{fontstack}/{range}.pbf`,
+    sprite: `${TILES_ORIGIN}${TILES_BASE}/assets/sprites/v4/light`,
     sources: {
       protomaps: {
         type: 'vector',

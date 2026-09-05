@@ -30,3 +30,22 @@ build date and a SHA-256, none of which a bare directory listing can.
 
 sms-gateway.apk is kept here and still answers, because it is the URL already
 sent to handsets. Nothing new should be added to this directory.
+
+--- September 2026 ---------------------------------------------------------
+
+All three APKs are back here -- parent.apk, bus-tracker.apk, sms-gateway.apk --
+because the hosts without a disk need them. On Cloudflare Pages and Cloud Run
+there is no APK_DIR: the /apps page (still Go-rendered, still proxied by the
+Pages Function -- see web/public/_routes.json and SERVER_PATHS in
+web/functions/[[path]].ts) finds no disk build and links these files at
+/download/<slug>.apk instead. Pages serves them straight from the edge, nginx
+from the webroot, and the Go process itself from WEB_DIST. In that state the
+page says the build is a static file and shows no version, size or SHA-256:
+those are measured off the disk build and are not invented. /apps/<slug>.apk
+with no disk build redirects here rather than 404ing, for any handset that was
+given that URL.
+
+On the VPS, `make publish-apk` into APK_DIR still wins: a disk build is what
+the card shows, with its version and digest, and these files are ignored. The
+file names must stay <slug>.apk to match the catalogue in
+internal/api/apps.go.

@@ -53,6 +53,15 @@ import (
    redeploying the whole server to ship a driver-app bugfix, and would put the
    binary's size up by the two of them. `make deploy-server` does not build
    Android, and should not start.
+
+   A host with no disk (Cloud Run, or the Pages proxy in front of it) has no
+   APK_DIR, and the page must not read as a broken deployment there. The same
+   three APKs are checked in as static files under web/public/download/ and are
+   part of every web build, so when no disk build exists for an app the card
+   links the static file instead. What the static file does not carry is the
+   version, the size, the build date and the digest — those are read off the
+   disk build, and a number the server did not measure must not be printed.
+   The card says the build is served as a static file and stops there.
 */
 
 // AppsPage serves the sideload page and the APKs it lists.
@@ -86,6 +95,10 @@ type appInfo struct {
 	Who      string   // the handset this belongs on, in the school's words
 	Needs    []string // what the phone must have, before they download 40MB
 	Contract string   // the wire contract, for anyone who wants to know
+	// Static is the path of the checked-in build under web/public/download/,
+	// served as a plain file by whatever fronts the SPA (nginx, Pages, or the
+	// Go process itself under WEB_DIST). Offered only when no disk build exists.
+	Static string
 }
 
 var appCatalogue = []appInfo{
@@ -100,6 +113,7 @@ var appCatalogue = []appInfo{
 			"Left on charge in the cab. It reports for the whole run",
 		},
 		Contract: "docs/BUS_TRACKER_CONTRACT.md",
+		Static:   "/download/bus-tracker.apk",
 	},
 	{
 		Slug:    "sms-gateway",
@@ -112,6 +126,7 @@ var appCatalogue = []appInfo{
 			"Left plugged in. It works whenever the school queues a message",
 		},
 		Contract: "docs/SMS_GATEWAY_CONTRACT.md",
+		Static:   "/download/sms-gateway.apk",
 	},
 	{
 		// The parent app existed and had no way to reach a parent: the
@@ -125,13 +140,16 @@ var appCatalogue = []appInfo{
 			"Android 7.0 or newer",
 			"A data connection; it shows the school's site",
 		},
+		Static: "/download/parent.apk",
 	},
 }
 
 // appBuild is one app as the page renders it: the catalogue entry plus
 // whatever was actually found on disk. Available is false when nothing has
-// been published yet, and the card then says so rather than offering a link
-// to a 404.
+// been published to APK_DIR; the card then links the static file if the
+// catalogue names one, and otherwise says so rather than offering a link to
+// a 404. Version, Size, SHA256, Built and File are only ever set from a disk
+// build.
 type appBuild struct {
 	appInfo
 	Available bool
@@ -146,9 +164,11 @@ type appsView struct {
 	AssetVersion string
 	Apps         []appBuild
 	// AnyAvailable drives the difference between "no build for this app yet"
-	// and a page that is entirely empty, which is a deployment fault and
-	// should read like one.
+	// and a page with no disk builds at all. With AnyStatic false as well that
+	// is a deployment fault and should read like one; with it true the page is
+	// the diskless host's normal state and says where the downloads come from.
 	AnyAvailable bool
+	AnyStatic    bool
 }
 
 // buildName matches "<slug>-<version>.apk". The version is whatever the
@@ -171,6 +191,9 @@ func (a *AppsPage) Show(w http.ResponseWriter, r *http.Request) {
 				v.AnyAvailable = true
 			}
 		}
+		if !b.Available && b.Static != "" {
+			v.AnyStatic = true
+		}
 		v.Apps = append(v.Apps, b)
 	}
 
@@ -192,20 +215,28 @@ func (a *AppsPage) Show(w http.ResponseWriter, r *http.Request) {
 // right; an allow-list of two is right by construction.
 func (a *AppsPage) Download(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "slug")
-	known := false
-	for _, info := range appCatalogue {
-		if info.Slug == slug {
-			known = true
+	var info *appInfo
+	for i := range appCatalogue {
+		if appCatalogue[i].Slug == slug {
+			info = &appCatalogue[i]
 			break
 		}
 	}
-	if !known {
+	if info == nil {
 		http.NotFound(w, r)
 		return
 	}
 
 	path, version, ok := a.latest(slug)
 	if !ok {
+		// No disk build. A handset that was given this URL before the host
+		// lost its disk is sent to the static file rather than told the app
+		// is gone; the page itself links the static file directly.
+		if info.Static != "" {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+			http.Redirect(w, r, info.Static, http.StatusFound)
+			return
+		}
 		http.NotFound(w, r)
 		return
 	}
