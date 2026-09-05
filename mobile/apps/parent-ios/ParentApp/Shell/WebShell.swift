@@ -78,6 +78,11 @@ final class WebShell: NSObject, ObservableObject {
     @Published private(set) var locked = false
     @Published private(set) var pull = Pull()
 
+    /* The shell's own copy of the parent's summary, for the offline screen.
+       Nil until the portal has answered once on this phone. */
+    @Published private(set) var savedSummary: SummaryStore.Saved?
+    private let summaries = SummaryStore()
+
     let webView: WKWebView
     let pullGesture = PullToRefresh()
 
@@ -199,6 +204,8 @@ final class WebShell: NSObject, ObservableObject {
             self.showBanner(L10n.bannerOffline)
         }
         network.start()
+
+        summaries.onChange = { [weak self] saved in self?.savedSummary = saved }
 
         restoreLastScreen()
         load(Portal.url)
@@ -432,6 +439,11 @@ final class WebShell: NSObject, ObservableObject {
     func wentToBackground() {
         foreground = false
         leftAt = Date()
+        // The last moment with a signal, often: the phone is going into a
+        // pocket and onto a bus. Worth a request even if the last was recent.
+        if failure == nil, painted, Portal.isPortal(webView.url) {
+            summaries.refresh(from: webView, force: true)
+        }
         if let image = pendingSnapshot {
             pendingSnapshot = nil
             LastScreen.save(image)
@@ -590,6 +602,9 @@ extension WebShell: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         pullGesture.stopRefreshing()
         committed(webView.url)
+        /* A live page means a live session: the moment to take a copy of the
+           summary for the day the signal is gone. Throttled inside. */
+        if Portal.isPortal(webView.url) { summaries.refresh(from: webView) }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {

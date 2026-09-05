@@ -34,8 +34,15 @@ struct ShellView: View {
             PullSpinner(pull: shell.pull)
 
             if let failure = shell.failure {
-                OfflineView(failure: failure) { shell.retry() }
-                    .transition(.opacity)
+                /* With a saved summary the offline screen is the figures, not
+                   only the apology; without one it is the plain panel. */
+                if let saved = shell.savedSummary, !saved.children.isEmpty {
+                    OfflineSummaryView(failure: failure, saved: saved) { shell.retry() }
+                        .transition(.opacity)
+                } else {
+                    OfflineView(failure: failure) { shell.retry() }
+                        .transition(.opacity)
+                }
             }
 
             if shell.splashVisible {

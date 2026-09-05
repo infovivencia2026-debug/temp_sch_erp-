@@ -35,4 +35,30 @@ enum L10n {
 
     /* Read out by VoiceOver while the loading screen is up. */
     static let splashLoading = "Loading the school app"
+
+    /* The offline summary. */
+    static let offlineSummaryLabel = "Your children, as last saved"
+    static let attendance = "Attendance"
+    static let feesDue = "Fees due"
+    static let nothingDue = "Nothing due"
+    static let homework = "Homework due"
+    static let nextExam = "Next exam"
+    static let latestResult = "Latest result"
+    static let today = "Today"
+    static func absentDays(_ n: Int) -> String { n == 1 ? "1 day absent" : "\(n) days absent" }
+
+    static func savedAt(_ date: Date) -> String {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return "Saved \(f.localizedString(for: date, relativeTo: Date())). Figures may have changed since."
+    }
+
+    static func rupees(_ paise: Int64) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.locale = Locale(identifier: "en_IN")
+        f.currencyCode = "INR"
+        f.maximumFractionDigits = paise % 100 == 0 ? 0 : 2
+        return f.string(from: NSNumber(value: Double(paise) / 100)) ?? "₹\(paise / 100)"
+    }
 }
