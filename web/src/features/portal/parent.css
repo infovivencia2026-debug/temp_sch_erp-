@@ -83,7 +83,10 @@
   line-height: 1.35;
 }
 [data-role='parent'] .parent-list__time {
-  width: 3.4em;
+  /* min-content, not a fixed em: at Android's larger font scales 3.4em fell
+     a glyph short of "09:45" and the time wrapped into two lines. */
+  min-width: 3.4em;
+  white-space: nowrap;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   opacity: 0.6;
