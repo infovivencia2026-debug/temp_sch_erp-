@@ -78,23 +78,33 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	temp := chosen
-	if temp == "" {
-		temp, err = temporaryPassword()
-		if err != nil {
-			httpx.Internal(w, r, err)
-			return
-		}
-	}
-	hash, err := s.Hasher.Hash(temp)
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-
 	enabled := s.platformChannels(r.Context())
-	var sentBy, sentTo string
+	var (
+		temp           = chosen
+		known          bool
+		sentBy, sentTo string
+	)
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var email, phone *string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT email::text, phone FROM users WHERE id = $1`, target).Scan(&email, &phone); err != nil {
+			return err
+		}
+		/* The default password is the person's own number, as it is when the
+		   login is first issued: it is what the office reads out and what a
+		   parent or a driver can type without a slip of paper. Only an
+		   account with neither number nor address gets a generated value.
+		   Either way the account is held until they choose their own. */
+		if temp == "" {
+			var err error
+			if temp, known, err = issuedPassword(derefOrEmpty(phone), derefOrEmpty(email)); err != nil {
+				return err
+			}
+		}
+		hash, err := s.Hasher.Hash(temp)
+		if err != nil {
+			return err
+		}
 		/* A generated password is a value the office reads aloud, so the
 		   account is held on it until the person replaces it. One the
 		   administrator typed is not: they chose it, often with the person in
@@ -119,13 +129,8 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		/* A generated value goes to the person as well as the screen. One the
 		   administrator typed does not: they chose it, usually with the
 		   person beside them, and it is theirs to hand over. */
-		if chosen != "" {
+		if chosen != "" || known {
 			return nil
-		}
-		var email, phone *string
-		if err := tx.QueryRow(r.Context(),
-			`SELECT email::text, phone FROM users WHERE id = $1`, target).Scan(&email, &phone); err != nil {
-			return err
 		}
 		login := ""
 		if email != nil && *email != "" {
@@ -167,6 +172,10 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 			"from their profile. All their existing sessions have been signed out.",
 		SentBy: sentBy,
 		SentTo: sentTo,
+	}
+	if known {
+		out.Note = "Their own number is the password again. They are asked to set their " +
+			"own the first time they sign in. All their existing sessions have been signed out."
 	}
 	if chosen != "" {
 		out.TemporaryPassword = chosen
