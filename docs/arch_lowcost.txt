@@ -1,0 +1,162 @@
+LOW-COST SERVERLESS ARCHITECTURE FOR THE SCHOOL ERP
+====================================================
+Written 2026-09-05. Companion to docs/hosting-cloud-run.md (which holds the
+original cost plan verbatim and the Cloud Run manifests' rationale). This file
+is the decision record: what was surveyed, what was argued, what was decided,
+and the pipeline that gets there.
+
+WHAT THE SYSTEM IS
+------------------
+  Front end   React 18 + Vite SPA (web/), 5 MB JS, service worker, one origin
+  API         Go 1.25, chi, pgx; server-rendered /login /logout /buy /signup
+  Jobs/cron   asynq on Redis today (queue only; sessions are in Postgres)
+  Database    PostgreSQL 16, 85 tables, RLS on every tenant table, two roles
+  Files       FILE_STORE_DIR on local disk today; R2 presign exists, unused
+  Static      APKs (/apps, APK_DIR on disk), map tiles (/tiles, 527 MB PMTiles)
+  Mobile      iOS + Android shells around the site; bus-tracker (driver GPS);
+              sms-gateway (handset sends SMS); biometric readers (/iclock ADMS)
+
+TARGET STACK
+------------
+  Front end     Cloudflare Pages (free)              serves web/dist at the edge
+  API proxy     Pages Function web/functions/[[path]].ts (free tier)
+                forwards server-owned paths to API_ORIGIN, keeps ONE origin so
+                the session cookie stays first-party and no CORS is needed
+  API + jobs    One Go container on Cloud Run, Mumbai (asia-south1),
+                min-instances 0, max 5 (max 1 until rate limiters are shared)
+  Cron          Cloud Scheduler -> GET /api/v1/cron every minute (free: 3 jobs)
+  Queue         River (jobs are rows in Postgres, LISTEN/NOTIFY); Redis removed
+  Database      Neon Postgres (Singapore; Neon has no Mumbai)
+                free tier while onboarding (idle = Rs 0), Launch tier
+                (~Rs 1,600/mo, point-in-time restore) once fee data is live
+  Files/tiles   Cloudflare R2 with a public domain (10 GB free)
+  APKs          static in web/public/download (Pages) or R2
+  Secrets       Google Secret Manager
+  Old host      the VPS keeps answering temperp.187-127-178-100.sslip.io and
+                proxies it to the new origin until every handset is rebuilt
+                (sslip.io is wildcard DNS: that name always resolves to that
+                IP; we cannot repoint it)
+
+COST, HONESTLY
+--------------
+  Idle month              Rs 0 on Neon free; ~Rs 1,600 on Neon Launch
+  1-3 schools, in use     Rs 0-300 compute after the polling fixes below,
+                          + database plan, + R2 beyond 10 GB
+  What blows the budget   the app as it is today: ~600k API requests/day per
+                          mid-size school from background-tab timers, a 20 s
+                          SMS-handset poll 24/7, 15 s bus polls. Fix the loops,
+                          not the bill (Stage 1).
+
+SURVEY FINDINGS (3 read-only agent surveys, 2026-09-05)
+-------------------------------------------------------
+Fits as is
+  - No Redis use outside the asynq queue; sessions, locks, idempotency in SQL
+  - No SSE/WebSocket/streaming; everything is short request/response
+  - Cold start = one Postgres ping; no migrations at boot (cmd/migrate is separate)
+  - No PDF generation; CSV exports stream; heavy queue handlers are stubs
+  - Every client (apps, handsets, readers) tolerates a 2-3 s first response
+  - Nothing needs a fixed IP or a long-lived connection
+  - SPA is host-agnostic (no hard-coded hosts in web/src); auth requires
+    same-origin, which the Pages proxy provides
+
+Needs change (all software, all cheap)
+  - ~12 SPA refetchInterval timers do not pause on hidden tabs (web/src/lib/live.ts
+    and features/portal/child-bus.ts show the pattern that does)
+  - SMS handset poll_seconds is server-set per device (5-300): 300 at night
+  - Bus tracker ingest keeps the instance warm during runs only (~4 h/day) - fine
+  - Client IP: behind Cloudflare + Google, read CF-Connecting-IP (1 line)
+  - transport:position_retention can run 30 min; cap loops per run
+  - message:dispatch worst case >5 min; cron endpoint gets Cloud Run's longer timeout
+  - 4 in-memory rate limiters are per-process: tolerate at one school, or
+    Cloudflare WAF rule on the SMS pair-code endpoint; maxScale 1 meanwhile
+  - Inspector/queue-depth screen and the 24 h job-status contract rebuilt on River
+  - BASE_URL must be the public Pages host on both services
+
+Blockers (must be done before cut-over)
+  - Uploads: FILE_STORE_DIR is the live path; download has no R2 fallback ->
+    implement R2 put/get via the S3 API (~1 day) + migrate existing files
+  - APKs and tiles are read from disk -> static on Pages/R2
+  - Hostname change strands paired devices (release bus-tracker hard-codes the
+    host; SMS handsets store it) -> old host proxied from the VPS for months
+  - web/public/well-known/assetlinks.json is 0 bytes (app links never worked);
+    no apple-app-site-association exists -> publish both on the new host
+
+Rebuttal accepted (the "pessimistic survey" argument)
+  - Treat current polling as fixable software, not as load; the fixes are
+    half a day and make scale-to-zero real for 1-3 schools
+  - Cold starts are a 1-2 s wait, not a 5xx; ADMS readers tolerate it
+  - Rate limiters at 5x are acceptable for one school
+  Corrections to the rebuttal
+  - sslip.io DNS cannot be repointed (wildcard service) -> proxy from the VPS IP
+  - Edge-caching the SMS outbox does not work (bearer-token GET + POST heartbeat)
+    -> use the server-set poll_seconds instead
+  - The database is the one line the rebuttal skipped: Rs 0 only on Neon free
+
+PIPELINE
+--------
+Stage 0  Baseline (DONE, on origin/main)
+  containers, Cloud Run manifests, deploy.sh + secrets.sh, Pages proxy,
+  Go: WEB_DIST serving, PORT, worker /healthz, RealIP last hop, BASE_URL links
+
+Stage 1  Make the app idle                          ~1 day, deploys to the VPS
+  SPA: pause every refetchInterval on hidden tabs; gate ParentWeek/Alerts/IDCard
+  SMS gateway: poll_seconds 300 outside school hours
+  Go: read CF-Connecting-IP when present
+  Go: cap position-retention loops per run
+  gate: per-parent request rate falls from ~700/h to <100/h; nothing else changes
+
+Stage 2  Get off the disk                            ~1.5 days, deploys to the VPS
+  Go: uploads/downloads through R2 when R2_* is set; local dir stays as fallback
+  Go: student photos via the same store
+  One-off: copy FILE_STORE_DIR into R2, rewrite `files` rows
+  APKs -> web/public/download; /apps links there; APK_DIR retired
+  Tiles -> R2 public bucket; TILES_BASE = R2 host (web/src/components/FleetMap.tsx)
+  needs: R2 public domain
+  gate: upload->download round trip via R2 on the VPS; old files open; maps draw
+
+Stage 3  Queue without Redis                         ~2 days, deploys to the VPS
+  Go: River replaces asynq (same task types/handlers)
+  Go: GET /api/v1/cron runs due schedules; job status reads River's table
+  Go: 24 h job-status contract kept; admin queue-depth screen on River
+  VPS: systemd timer hits /api/v1/cron every minute (stand-in for Scheduler)
+  Redis removed from the VPS
+  gate: every job type observed running; nightly cron fires; Redis off, nothing breaks
+
+Stage 4  Stand up the new home (parallel with 3)     ~0.5 day
+  you: GCP project + billing + gcloud login; Neon free project; Pages project; hostname
+  me: secrets.sh -> Secret Manager; deploy.sh -> migrate job + Cloud Run web
+  Cloud Scheduler -> /api/v1/cron every minute
+  Pages: API_ORIGIN = Cloud Run URL; preview live against a Neon branch
+  maxScale 1 until limiters are shared (or Cloudflare WAF rule)
+  gate: sign in on the Pages preview against copied data; bus map, downloads, SMS outbox work
+
+Stage 5  Cut over                                    ~0.5 day, short read-only window
+  freeze writes on the VPS (banner); pg_dump VPS -> Neon; verify counts
+  DNS: new hostname -> Pages
+  VPS nginx: proxy old sslip.io hostname -> Pages origin
+  publish assetlinks.json and apple-app-site-association on the new host
+  unfreeze; watch /healthz, error rate, job runs for 48 h
+  rollback: DNS back to the VPS; nothing there was changed
+
+Stage 6  Aftercare                                   following weeks
+  rebuild the 4 apps with the new host; re-pair SMS handsets and bus trackers
+  push notifications (APNs/FCM) -> remove the remaining polling
+  Neon Launch tier the day fee data is live (PITR)
+  nightly pg_dump -> R2; free uptime monitor on /healthz
+  retire the old VPS after 30 days with no hits on the old hostname
+
+EFFORT
+------
+  Stages 1-3: ~5 working days (each is an improvement even without cut-over)
+  Stages 4-5: ~1 day once accounts exist
+  From you: Cloudflare Pages project + R2 public domain, GCP project with
+  billing + gcloud login, Neon project, the hostname. No Redis account needed.
+
+RELATED FILES
+-------------
+  docs/hosting-cloud-run.md            the original plan + per-area analysis
+  deploy/cloudrun/                     Dockerfile, service-web/worker.yaml,
+                                       job-migrate.yaml, deploy.sh, secrets.sh
+  web/functions/[[path]].ts            Pages proxy Function
+  web/public/_routes.json _headers _redirects
+  scripts/deploy.sh, scripts/build-on-server.sh   the VPS path, still production
