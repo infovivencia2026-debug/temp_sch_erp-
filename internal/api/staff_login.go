@@ -55,6 +55,9 @@ var errNoContact = errors.New(
 // stops working and a new one is issued. That is the recovery path as well as
 // the first-issue path, because "I never got it" and "I have lost it" are the
 // same request from the office's point of view.
+// errStaffNotActive is a login asked for on behalf of somebody who has left.
+var errStaffNotActive = errors.New("staff not active")
+
 func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 	if !requireInstitution(w, r) {
 		return
@@ -86,14 +89,33 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 			// a teacher can actually be told to type.
 			staffNo *int
 		)
+		var empStatus string
 		if err := tx.QueryRow(r.Context(), `
 			SELECT e.user_id, trim(e.first_name || ' ' || COALESCE(e.last_name,'')),
-			       e.employee_code, e.email, e.phone, e.staff_number
+			       e.employee_code, e.email, e.phone, e.staff_number, e.status
 			  FROM employees e WHERE e.id = $1`, empID).
-			Scan(&userID, &fullName, &out.EmployeeCode, &email, &phone, &staffNo); err != nil {
+			Scan(&userID, &fullName, &out.EmployeeCode, &email, &phone, &staffNo,
+				&empStatus); err != nil {
 			return err
 		}
 		out.FullName = fullName
+
+		/* A KEY IS ONLY EVER CUT FOR SOMEBODY WHO WORKS HERE.
+
+		   Leaving already takes the key away: setting a staff record to
+		   resigned, terminated or retired archives the account and revokes
+		   every open session. The other direction was not guarded at all, so a
+		   list of staff that includes the people who have left -- which it now
+		   does, because they have to be visible somewhere -- put a "give a
+		   login" button beside every one of them, and pressing it would have
+		   handed a working password to somebody who left in August.
+
+		   Not a silent skip. A button that quietly does nothing is read as a
+		   broken button, and the answer here is a real one: bring them back
+		   first, and then they can be given a login. */
+		if empStatus != "active" {
+			return errStaffNotActive
+		}
 
 		/* THE NUMBER HAS TO REACH THE DATABASE AS TEXT.
 
@@ -267,6 +289,13 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, errNoContact):
 		httpx.BadRequest(w, r, errNoContact.Error())
+		return
+	case errors.Is(err, errStaffNotActive):
+		httpx.BadRequest(w, r,
+			"this member of staff is not on the roll, so there is nobody to give a "+
+				"login to. Put them back on the roll first — their record, their "+
+				"service and their old attendance are all still here — and then a "+
+				"login can be issued.")
 		return
 	case err != nil:
 		httpx.BadRequest(w, r, err.Error())

@@ -3322,23 +3322,44 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                       >
                         already set
                       </span>
+                    ) : t.status && t.status !== 'active' ? (
+                      /* Not a fault to fix. Somebody who has left is meant to
+                         have no key, and saying "no login yet" beside their
+                         name invites an administrator to give them one. */
+                      <span className="text-muted-foreground">not on the roll</span>
                     ) : (
                       <span className="text-destructive">no login yet</span>
                     )}
                   </td>
                   <td className="px-3 py-1.5 text-right">
-                    <button
-                      type="button"
-                      disabled={busy === t.employee_id}
-                      onClick={() => issue(t, t.can_sign_in)}
-                      className="underline underline-offset-2 text-muted-foreground hover:text-primary"
-                    >
-                      {busy === t.employee_id
-                        ? 'working…'
-                        : t.can_sign_in
-                          ? 'reset password'
-                          : 'give a login'}
-                    </button>
+                    {/* A KEY IS ONLY CUT FOR SOMEBODY WHO WORKS HERE.
+
+                        Leaving archives the account and revokes the open
+                        sessions, and the server refuses to issue a new one.
+                        Offering the button anyway would be a control whose
+                        only outcome is an error message. HR puts them back on
+                        the roll first; then the button returns. */}
+                    {t.status && t.status !== 'active' ? (
+                      <span
+                        className="text-muted-foreground"
+                        title="Put them back on the roll to give them a login again."
+                      >
+                        {t.status.replace('_', ' ')}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy === t.employee_id}
+                        onClick={() => issue(t, t.can_sign_in)}
+                        className="underline underline-offset-2 text-muted-foreground hover:text-primary"
+                      >
+                        {busy === t.employee_id
+                          ? 'working…'
+                          : t.can_sign_in
+                            ? 'reset password'
+                            : 'give a login'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
