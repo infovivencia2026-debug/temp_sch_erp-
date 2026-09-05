@@ -221,13 +221,21 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	   the portal serves and refuses the same people. */
 	body := req.Body
 	if strings.TrimSpace(req.AttachmentFileID) != "" {
-		// Absolute, from the request that is publishing it: a relative path is
-		// fine on the page that produced it and useless in a mail client.
-		scheme := "https"
-		if r.TLS == nil && !strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-			scheme = "http"
+		// Absolute: a relative path is fine on the page that produced it and
+		// useless in a mail client. BASE_URL first, because behind a proxy that
+		// terminates the public hostname (Cloudflare Pages in front of Cloud
+		// Run) r.Host is the upstream's private name, not the one a parent can
+		// open. The request's own host is the fallback for a deployment that
+		// never configured one.
+		base := strings.TrimRight(s.BaseURL, "/")
+		if base == "" {
+			scheme := "https"
+			if r.TLS == nil && !strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+				scheme = "http"
+			}
+			base = scheme + "://" + r.Host
 		}
-		body += "\n\nAttached: " + scheme + "://" + r.Host +
+		body += "\n\nAttached: " + base +
 			"/api/v1/files/" + strings.TrimSpace(req.AttachmentFileID)
 	}
 
