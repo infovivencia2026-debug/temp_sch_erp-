@@ -989,3 +989,66 @@ func busTrackerSourceOf(t *testing.T, fn string) string {
 	t.Fatalf("could not find %s in this package's source", fn)
 	return ""
 }
+
+/*
+The parent's map follows the bus that ran, not the bus on the route.
+
+	A driver scans whichever bus he is on at the start of the run, so the
+	trip's vehicle and the route's standing vehicle are different things and
+	the route may have none at all. The position row is keyed by the bus that
+	ran. Joining it through the route's vehicle found nothing in exactly that
+	case: the run showed open, the phone pushed every fifteen seconds and was
+	answered 200, and the parent read "has not sent a position yet". Measured
+	on a handset on 5 September; this pins the join to the trip.
+*/
+func TestChildBusFollowsTheBusThatRanNotTheRoutesStandingBus(t *testing.T) {
+	sc := newBusSchool(t)
+	s := &Server{DB: sc.db}
+	_, token := sc.pairAndClaim(t, s)
+	trip := sc.startTrip(t, s, token)
+
+	// The route loses its standing bus after the run opened. The trip still
+	// names the bus that is running. The school publishes positions, which
+	// is off by default and is the other reason a parent reads no position.
+	sc.tx(t, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(context.Background(),
+			`UPDATE routes SET vehicle_id = NULL WHERE id = $1`, sc.route); err != nil {
+			return err
+		}
+		_, err := tx.Exec(context.Background(), `
+			INSERT INTO transport_tracking_policy (institution_id, parents_may_watch)
+			VALUES ($1, true)
+			ON CONFLICT (institution_id) DO UPDATE SET parents_may_watch = true`, sc.inst)
+		return err
+	})
+
+	at := time.Now().Add(-30 * time.Second).Truncate(time.Second)
+	batch := fmt.Sprintf(`{"trip_id":%q,"fixes":[%s]}`, trip,
+		fixJSON(at, busStopLat+0.01, busStopLon+0.01, 20))
+	if status, body := busTrackerCall(t, busTrackerDeviceRouter(s), http.MethodPost,
+		"/bus-tracker/positions", token, batch); status != http.StatusOK {
+		t.Fatalf("push: %d %v", status, body)
+	}
+
+	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			next.ServeHTTP(w, req.WithContext(httpx.WithIdentity(req.Context(),
+				sc.as(sc.parentUser, rbac.SelfProfileRead))))
+		})
+	})
+	r.Group(func(r chi.Router) { s.mountBusTracking(r) })
+	status, body := busTrackerCall(t, r, http.MethodGet, "/me/child-bus", "", "")
+	if status != http.StatusOK {
+		t.Fatalf("GET /me/child-bus: %d %v", status, body)
+	}
+	items := itemsOf(body)
+	if len(items) != 1 {
+		t.Fatalf("parent sees %d rows, want 1", len(items))
+	}
+	row, _ := items[0].(map[string]any)
+	if row["latitude"] == nil {
+		t.Fatalf("the feed carries no position (state %v) although the bus that ran pushed one; "+
+			"the join reached for the route's vehicle instead of the trip's", row["state"])
+	}
+}

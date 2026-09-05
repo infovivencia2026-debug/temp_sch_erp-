@@ -233,9 +233,20 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		       AND ta.valid_from <= CURRENT_DATE
 		       AND (ta.valid_to IS NULL OR ta.valid_to >= CURRENT_DATE)
 		  JOIN routes rt ON rt.id = ta.route_id
-		  LEFT JOIN vehicles v ON v.id = rt.vehicle_id
 		  LEFT JOIN vehicle_trips t
 		         ON t.route_id = rt.id AND t.ended_at IS NULL
+		  /* THE BUS THAT IS RUNNING, NOT THE BUS ON THE ROUTE.
+
+		     The route carries a standing vehicle, and the driver scans
+		     whichever bus he is actually on at the start of the run. The
+		     position row is keyed by the bus that ran, so joining it through
+		     the route's vehicle found nothing whenever the two differed, or
+		     the route had none: the run showed as open, the driver's phone
+		     was pushing every fifteen seconds and answered 200, and the
+		     parent read "has not sent a position yet". The trip's vehicle
+		     is the truth while a run is open; the route's is the fallback
+		     for the registration and driver name between runs. */
+		  LEFT JOIN vehicles v ON v.id = COALESCE(t.vehicle_id, rt.vehicle_id)
 		  -- The stop that matters depends on which way the bus is going.
 		  LEFT JOIN route_stops rs
 		         ON rs.id = CASE WHEN t.direction = 'drop'
