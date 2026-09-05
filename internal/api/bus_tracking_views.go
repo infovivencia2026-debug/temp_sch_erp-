@@ -182,6 +182,7 @@ type childBusRow struct {
 	   deliberately coarse and the basis says so -- see etaMinutes. */
 	EtaMinutes  *int     `json:"eta_minutes,omitempty"`
 	SpeedKmph   *float64 `json:"speed_kmph,omitempty"`
+	HeadingDeg  *int     `json:"heading_deg,omitempty"`
 	State       string   `json:"state"`
 	RefreshSecs int      `json:"refresh_seconds"`
 	ProximityM  int      `json:"proximity_m"`
@@ -243,7 +244,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		       to_char(CASE WHEN t.direction = 'drop' THEN rs.drop_time
 		                    ELSE rs.pickup_time END, 'HH24:MI'),
 		       to_char(ev.occurred_at AT TIME ZONE 'Asia/Kolkata','HH24:MI'),
-		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8,
+		       lp.latitude::float8, lp.longitude::float8, lp.speed_kmph::float8, lp.heading_deg,
 		       rs.latitude::float8, rs.longitude::float8,
 		       EXTRACT(epoch FROM now() - lp.recorded_at)::int,
 		       COALESCE(wp.refresh_seconds, wpall.refresh_seconds, $2),
@@ -281,13 +282,20 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN transport_watch_prefs wpall
 		         ON wpall.user_id = $1 AND wpall.student_id IS NULL
 		 ORDER BY m.student_name`,
-		[]any{id.UserID, 20, 800},
+		/* The refresh a family gets before choosing one is the bus's own
+		   reporting interval. It was a flat twenty seconds against a phone
+		   pushing every fifteen, so the marker sat, jumped, sat: polling
+		   slower than the bus reports is a bus seen in stills. Polling faster
+		   would only find the same fix again, so the policy's ping is the
+		   number, and a school that tunes its buses to five seconds gets a
+		   parent screen that keeps up. */
+		[]any{id.UserID, policy.PingSeconds, 800},
 		func(rows pgx.Rows) (childBusRow, error) {
 			var v childBusRow
 			return v, rows.Scan(&v.StudentID, &v.StudentName, &v.Route, &v.Registration,
 				&v.RouteID, &v.StopID,
 				&v.Direction, &v.Driver, &v.DriverPhone, &v.StopName, &v.ScheduledAt,
-				&v.ArrivedAt, &v.Latitude, &v.Longitude, &v.SpeedKmph, &v.StopLat, &v.StopLon,
+				&v.ArrivedAt, &v.Latitude, &v.Longitude, &v.SpeedKmph, &v.HeadingDeg, &v.StopLat, &v.StopLon,
 				&v.AgeSeconds, &v.RefreshSecs, &v.ProximityM)
 		})
 	if err != nil {
@@ -359,7 +367,7 @@ func (s *Server) getChildBus(w http.ResponseWriter, r *http.Request) {
 			// The school has not switched this on. Said plainly rather than
 			// shown as an empty map, which reads as a fault.
 			it.State = "not_published"
-			it.Latitude, it.Longitude, it.DriverPhone = nil, nil, nil
+			it.Latitude, it.Longitude, it.HeadingDeg, it.DriverPhone = nil, nil, nil, nil
 		case it.ArrivedAt != nil:
 			it.State = "arrived"
 		case it.Direction == nil:

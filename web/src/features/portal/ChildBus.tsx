@@ -127,12 +127,17 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
                       label: row.registration_no || 'Bus',
                       latitude: row.latitude!,
                       longitude: row.longitude!,
+                      heading_deg: row.heading_deg,
                       state: row.state === 'stale' ? 'stale' : 'running',
                       note: `no fix · ${ageText(row.age_seconds)}`,
                     },
                   ]
                 : []
             }
+            /* The marker glides from the last fix to this one over most of
+               the poll interval, so a bus that reports every ten seconds is
+               seen moving rather than appearing ten seconds further on. */
+            glideMs={Math.min(row.refresh_seconds || 15, 15) * 900}
             stops={
               /* THE WHOLE ROUTE, WITH OURS SINGLED OUT.
 

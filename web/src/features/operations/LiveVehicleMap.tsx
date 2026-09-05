@@ -283,6 +283,9 @@ export default function LiveVehicleMap() {
                     stops={stopPoints}
                     focusId={focus}
                     onFocus={setFocus}
+                    // Each bus glides for most of the interval between fixes,
+                    // so the fleet is seen moving rather than stepping.
+                    glideMs={Math.min(Math.max(5, ping), 15) * 900}
                   />
                 )}
                 {stops.isError && (

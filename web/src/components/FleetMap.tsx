@@ -119,6 +119,40 @@ interface Props {
   className?: string
   /** What to say when there is nothing with coordinates to draw. */
   empty?: React.ReactNode
+  /** How long a marker takes to travel from its last fix to a new one. 0 jumps. */
+  glideMs?: number
+}
+
+/* THE CREDIT IS ONE TAP AWAY, NOT ACROSS THE MAP.
+
+   MapLibre's compact attribution opens itself on any map narrower than 640px,
+   which is every phone, so "Protomaps © OpenStreetMap" sat in a white bar
+   across the bottom of the parent's map on top of the stops. The data is
+   OpenStreetMap's and its licence asks that the credit be reachable, not
+   that it be permanently on screen: the control stays, folded to its ⓘ
+   button, and a tap opens it. Removing the control altogether would put
+   every school on this installation in breach of the map's licence. */
+export function collapseAttribution(m: maplibregl.Map) {
+  m.getContainer()
+    .querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show')
+    .forEach((el) => el.classList.remove('maplibregl-compact-show'))
+}
+
+/** Metres between two points, close enough for a bus on a road. */
+function metres(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const dLat = (lat2 - lat1) * 110574
+  const dLon = (lon2 - lon1) * 111320 * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180))
+  return Math.hypot(dLat, dLon)
+}
+
+/** Direction of travel from one point to the next, degrees clockwise from north. */
+function bearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = Math.PI / 180
+  const y = Math.sin((lon2 - lon1) * toRad) * Math.cos(lat2 * toRad)
+  const x =
+    Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+    Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos((lon2 - lon1) * toRad)
+  return (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360
 }
 
 /* A circle on the ground, as a polygon.
@@ -179,12 +213,17 @@ export function FleetMap({
   link,
   focusId,
   onFocus,
+  glideMs = 1200,
   className,
   empty,
 }: Props) {
   const host = useRef<HTMLDivElement | null>(null)
   const map = useRef<MLMap | null>(null)
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map())
+  // In-flight glides by vehicle, so a new fix cancels the animation to the old one.
+  const glides = useRef<Map<string, number>>(new Map())
+  // The last direction each bus was drawn facing, kept while it sits still.
+  const lastHeading = useRef<Map<string, number>>(new Map())
   const [ready, setReady] = useState(false)
   const [tilesFailed, setTilesFailed] = useState(false)
   /* Filling the screen is a state of this component, not the browser's.
@@ -233,7 +272,10 @@ export function FleetMap({
        invites the reader to guess. */
     m.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left')
     m.touchZoomRotate.disableRotation()
-    m.on('load', () => setReady(true))
+    m.on('load', () => {
+      setReady(true)
+      collapseAttribution(m)
+    })
     /* A tile host with no SLA will eventually not answer. Say so: a grey
        square with markers floating on it reads as open countryside. */
     m.on('error', (e) => {
@@ -393,8 +435,42 @@ export function FleetMap({
       const focused = focusId === v.id
       const existing = markers.current.get(v.id)
       if (existing) {
-        paintMarker(existing.getElement(), v, focused)
-        existing.setLngLat([v.longitude, v.latitude])
+        /* THE BUS IS SEEN MOVING, NOT APPEARING.
+
+           setLngLat put the marker at the new fix in one frame, so every
+           poll the bus teleported a few hundred metres and sat still: a
+           parent watching for a minute saw four jumps and no travel. The
+           marker now glides from where it was to where it is over most of
+           the poll interval, so it is in motion for as long as it takes the
+           next fix to arrive. The arrow turns to the direction of travel:
+           the phone's own heading when it reported one, otherwise the
+           bearing from the last fix to this, which is what a bus on a road
+           is doing whatever its compass says. A move under a few metres is
+           GPS noise on a stationary bus and neither glides nor turns. */
+        const from = existing.getLngLat()
+        const moved = metres(from.lat, from.lng, v.latitude, v.longitude)
+        const heading =
+          v.heading_deg ?? (moved >= 4 ? bearing(from.lat, from.lng, v.latitude, v.longitude) : lastHeading.current.get(v.id))
+        if (heading != null) lastHeading.current.set(v.id, heading)
+        paintMarker(existing.getElement(), { ...v, heading_deg: heading }, focused)
+        const prior = glides.current.get(v.id)
+        if (prior) cancelAnimationFrame(prior)
+        if (moved < 4 || glideMs <= 0) {
+          existing.setLngLat([v.longitude, v.latitude])
+        } else {
+          const start = performance.now()
+          const fromLng = from.lng
+          const fromLat = from.lat
+          const step = (now: number) => {
+            const t = Math.min(1, (now - start) / glideMs)
+            // Ease out: fast off the last fix, settling onto the new one.
+            const k = 1 - (1 - t) * (1 - t)
+            existing.setLngLat([fromLng + (v.longitude - fromLng) * k, fromLat + (v.latitude - fromLat) * k])
+            if (t < 1) glides.current.set(v.id, requestAnimationFrame(step))
+            else glides.current.delete(v.id)
+          }
+          glides.current.set(v.id, requestAnimationFrame(step))
+        }
       } else {
         const el = paintMarker(document.createElement('div'), v, focused)
         el.addEventListener('mouseenter', () => onFocus?.(v.id))
@@ -403,15 +479,20 @@ export function FleetMap({
           v.id,
           new maplibregl.Marker({ element: el }).setLngLat([v.longitude, v.latitude]).addTo(m),
         )
+        if (v.heading_deg != null) lastHeading.current.set(v.id, v.heading_deg)
       }
     }
     for (const [id, marker] of markers.current) {
       if (!seen.has(id)) {
+        const prior = glides.current.get(id)
+        if (prior) cancelAnimationFrame(prior)
+        glides.current.delete(id)
+        lastHeading.current.delete(id)
         marker.remove()
         markers.current.delete(id)
       }
     }
-  }, [vehicles, focusId, onFocus, ready])
+  }, [vehicles, focusId, onFocus, ready, glideMs])
 
   /* Frame everything drawn. Called once on load, and again whenever somebody
      asks for it.

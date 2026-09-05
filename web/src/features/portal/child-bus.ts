@@ -46,6 +46,8 @@ export interface ChildBusRow {
      which refuses to invent one rather than print a confident wrong number. */
   eta_minutes?: number
   speed_kmph?: number
+  /** Degrees clockwise from north, when the phone reported one. */
+  heading_deg?: number
   state: BusState
   refresh_seconds: number
   proximity_m: number
@@ -200,7 +202,11 @@ export function usePoll(rows: ChildBusRow[], enabled: boolean, refetch: () => vo
   const live = rows.some(
     (r) => r.state === 'running' || r.state === 'stale' || r.state === 'no_signal',
   )
-  const every = rows.length ? Math.max(10, Math.min(...rows.map((r) => r.refresh_seconds || 20))) : 0
+  /* The floor is the bus's own reporting interval, which the server hands
+     back as refresh_seconds when the family has not chosen one. Polling
+     slower than the phone reports is a marker that jumps; polling faster is
+     a request that finds nothing new. Five is the policy's own minimum. */
+  const every = rows.length ? Math.max(5, Math.min(...rows.map((r) => r.refresh_seconds || 15))) : 0
   useEffect(() => {
     // Nothing is moving: a parked fleet does not need a request every twenty
     // seconds, and the next run will be picked up when the tab is looked at.
