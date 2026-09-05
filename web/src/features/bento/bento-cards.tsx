@@ -1,6 +1,7 @@
 import { Fragment, createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { useWidgetSize } from '@/lib/widget-size'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
    Twelve drawings, one card shell, and a single colour rule: every mark is
@@ -253,11 +254,31 @@ export function CardShell({
      all, so it takes no track and generates no gap, which is why the track
      list can leave the fraction out without a child falling into an implicit
      row -- the failure this template already has a long comment about. */
+  const t = useT()
+  /* THE EMPTY ROW IS DRAWN, NOT DROPPED.
+
+     A card whose drawing reported nothing used to lose its drawing row and
+     sit at its natural height. On a phone that is fine; on a board of fixed
+     cells it is a title, a figure and a sentence over two thirds of a card
+     of air, and a board with three such cards was called empty and unfinished
+     by the person paying for it. The earlier answer, a rule of grey slots
+     standing for a measure, was rejected for reading as a chart that failed;
+     the sentence-only card was the reaction, and it over-corrected.
+
+     So the row stays, and holds an empty-state plate: a dashed frame with
+     one small line saying nothing has been charted yet. It is plainly not a
+     chart and plainly not a failure; it is the shape a designed empty state
+     takes in every app the reader already uses. It takes the fraction the
+     drawing would have, so the card fills its cell, and it is hidden by the
+     theme on a board where EVERY card is quiet, which keeps the compact form
+     a brand-new school sees. */
+  const plate = quiet
   const rows = [
     'auto',
     'auto',
     ...(note ? ['min-content'] : []),
     ...(children && !quiet ? ['minmax(0,1fr)'] : []),
+    ...(plate ? ['minmax(0,1fr)'] : []),
   ].join(' ')
   return (
     /* FOUR rows: header, figure, drawing, action.
@@ -560,6 +581,19 @@ export function CardShell({
             </div>
           </CardZero.Provider>
         </CardNote.Provider>
+      )}
+      {plate && (
+        /* See THE EMPTY ROW IS DRAWN, NOT DROPPED above. aria-hidden: the
+           sentence has already said it; this is the shape, not a second
+           statement. */
+        <div
+          aria-hidden="true"
+          className="card-nothing flex min-h-0 min-w-0 items-center justify-center self-stretch overflow-hidden rounded-[10px] border border-dashed border-current/25"
+        >
+          <span className="px-2 text-center text-[10px] font-medium uppercase tracking-[0.08em] opacity-45">
+            {t('bento.common.nothing_yet')}
+          </span>
+        </div>
       )}
       {action && (
         /* THE SAME CORNER SQUARE THE CUE USES.

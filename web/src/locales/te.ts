@@ -946,6 +946,7 @@ export const te: Partial<Messages> = {
   // sentence that describes a figure keeps {name} in it: a guardian of two
   // must be able to see which child a cell is about in either language.
   'bento.common.roll': 'రోల్ {roll}',
+  'bento.common.nothing_yet': 'ఇంకా చార్ట్ చేయడానికి ఏమీ లేదు',
   'bento.parent_week.eyebrow': 'హోమ్',
   'bento.parent_week.title': 'మీ పిల్లలు',
   'bento.parent_week.loading': 'మీ పిల్లల వివరాలు చూస్తున్నాం…',

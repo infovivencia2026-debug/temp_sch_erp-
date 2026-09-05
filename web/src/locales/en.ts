@@ -1993,6 +1993,7 @@ export const en = {
   // `bento.common.*` is shared by all three; the rest is per screen, keyed
   // area.screen.slot with the screen named after the file.
   'bento.common.roll': 'Roll {roll}',
+  'bento.common.nothing_yet': 'Nothing to chart yet',
 
   // The student's own day. Their scope is one record, so nothing here has to
   // say whose day it is — it can only be theirs.

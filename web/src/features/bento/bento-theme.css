@@ -3959,3 +3959,16 @@ body:has(.bento-frost) .bento-dots,
 body:has(.bento-frost) [data-assistant-orb] {
   visibility: hidden;
 }
+
+/* THE EMPTY PLATE STAYS OFF A BOARD THAT IS EMPTY ALL OVER.
+
+   `.card-nothing` fills a quiet card's drawing row with a dashed plate so a
+   card with nothing to chart, beside cards that have something, is not two
+   thirds air. On a board where every card is quiet, a brand-new school on
+   its first morning, the rule above keeps the cards at their compact height
+   and a plate squeezed into that would be a dashed line under every sentence.
+   So it is not drawn there: the compact board says its sentences and nothing
+   else, which is the form it was designed for. */
+.bento-board:has([data-card][data-quiet]):not(:has([data-card]:not([data-quiet]))) .card-nothing {
+  display: none;
+}
