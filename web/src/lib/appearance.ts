@@ -347,7 +347,11 @@ export function applyAppearance(next: Appearance) {
   /* Dock sizing — CSS variables read directly by BentoDock. */
   const dockPad = { compact: '6px', default: '8px', large: '12px' }[next.dockSize]
   const dockBtn = { compact: '32px', default: '40px', large: '48px' }[next.dockSize]
-  const iconPx  = { small: '14px', default: '17px', large: '22px' }[next.iconSize]
+  /* Larger on a phone: the dock there is icons with no captions, a thumb is
+     the pointer, and 17px glyphs alone in a 60px bar read as decoration. */
+  const iconPx  = onPhone()
+    ? { small: '20px', default: '26px', large: '30px' }[next.iconSize]
+    : { small: '14px', default: '17px', large: '22px' }[next.iconSize]
   root.style.setProperty('--dock-pad', dockPad)
   root.style.setProperty('--dock-btn', dockBtn)
   root.style.setProperty('--dock-icon', iconPx)
