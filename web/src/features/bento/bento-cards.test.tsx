@@ -305,42 +305,63 @@ describe('CardShell', () => {
       <Line points={[1, 2, 3]} srLabel="l" />
     </CardShell>).firstElementChild as HTMLElement
 
+  /* THE TRACKS ARE READ FROM THE STYLE ATTRIBUTE, NOT FROM A CLASS.
+
+     The shell used to declare a fixed `grid-rows-[...]` class of three tracks
+     while rendering four children, and the fourth fell into an implicit
+     `auto` track: on a phone the chart got fifteen pixels (commit 29cce9d7,
+     "THE TRACKS ARE COUNTED, NOT ASSUMED"). Since then the template is built
+     from the rows the card actually renders and set inline, so this reads
+     `grid-template-rows` off the element the way the browser does. The action
+     is no longer a row of its own either: it is the corner mark, positioned
+     against the card, and takes no track. */
   const rows = () => {
-    const m = /grid-rows-\[([^\]]+)\]/.exec(shell().className)
-    expect(m, 'the shell declares no explicit grid rows').not.toBeNull()
-    return m![1].split('_')
+    const tracks = decl(shell().getAttribute('style') ?? '', 'grid-template-rows')
+    expect(tracks, 'the shell declares no explicit grid rows').not.toBe('')
+    return tracks.split(/\s+/)
   }
 
-  it('is a four-row grid', () => {
-    // Header, figure, drawing, action. The action moved out of the header and
-    // down to the foot of the card, on the left, and it has a row of its own
-    // rather than sitting over the drawing — a button floating on a chart is
-    // the overlap this layout exists to prevent. A FIFTH row would mean
-    // something new is competing with the drawing for height.
+  it('has exactly one track per rendered child', () => {
+    // Header, figure, sentence, drawing — the shell above has all four. A
+    // track list longer than the children reserves height for nothing; one
+    // shorter drops a child into an implicit `auto` row, which is the bug
+    // that shrank every phone chart to a sliver.
     expect(rows()).toHaveLength(4)
+    expect(shell().children).toHaveLength(4)
   })
 
-  it('gives the drawing row the FRACTION', () => {
+  it('gives the drawing row the ONLY fraction', () => {
     /* The entire point of the shell: the drawing takes whatever height is
        left, rather than a fixed height that leaves a large cell as a small
-       card with dead space under it. */
-    const [header, figure, drawing, action] = rows()
+       card with dead space under it. The sentence is `min-content` so it is
+       never the row that shrinks — an `auto` track was cut through its own
+       letters on a phone at Largest text. */
+    const [header, figure, sentence, drawing] = rows()
     expect(header).toBe('auto')
     expect(figure).toBe('auto')
-    expect(drawing).toMatch(/1fr/)
-    // and the action costs only what it needs, so it cannot eat the drawing
-    expect(action).toBe('auto')
+    expect(sentence).toBe('min-content')
+    expect(drawing).toBe('minmax(0,1fr)')
+    expect(rows().filter((t) => /fr/.test(t))).toHaveLength(1)
+  })
+
+  it('reserves no drawing track when there is nothing to draw', () => {
+    const host = draw(<CardShell title="Fees" value="12" />).firstElementChild as HTMLElement
+    const tracks = decl(host.getAttribute('style') ?? '', 'grid-template-rows').split(/\s+/)
+    expect(tracks).toEqual(['auto', 'auto'])
+    expect(tracks.some((t) => /fr/.test(t))).toBe(false)
   })
 
   it('lets the drawing row shrink below its content', () => {
     // `min-h-0` on the grid and on the drawing row: without it a grid child
     // refuses to shrink and the drawing pushes the card out of shape.
     expect(shell().className).toMatch(/\bmin-h-0\b/)
-    expect((shell().children[2] as HTMLElement).className).toMatch(/\bmin-h-0\b/)
+    expect(shell().querySelector('.card-drawing')!.className).toMatch(/\bmin-h-0\b/)
   })
 
-  it('puts the children in the third row', () => {
-    expect(shell().children[2].querySelector('[role="img"]')).not.toBeNull()
+  it('puts the children in the drawing row, the last track', () => {
+    const last = shell().children[rows().length - 1]
+    expect(last.classList.contains('card-drawing')).toBe(true)
+    expect(last.querySelector('[role="img"]')).not.toBeNull()
   })
 
   it('renders without a drawing, a sub, a glyph or a change', () => {

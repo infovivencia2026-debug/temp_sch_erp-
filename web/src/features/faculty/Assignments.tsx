@@ -31,13 +31,15 @@ export default function Assignments() {
     queryFn: () => api.get<List<Assignment>>('/api/v1/teaching/assignments'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={7} />
-  if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   /* A term's assignments across four subjects is a long list, and the question
-     is nearly always about one of them. */
+     is nearly always about one of them. Declared above the early returns so
+     the hook count is the same on every render. */
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (a) => [a.title, a.subject, a.class_name, a.section, a.kind])
+
+  if (list.isLoading) return <SkeletonTable columns={7} />
+  if (list.error) return <ErrorState error={list.error} />
   const waiting = rows.reduce((n, r) => n + r.awaiting_marking, 0)
 
   return (

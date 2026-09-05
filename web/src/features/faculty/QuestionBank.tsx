@@ -59,15 +59,17 @@ export default function QuestionBank() {
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not retire'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={9} />
-  if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
   /* A bank exists to be reused, and one that cannot be searched is one where
      the same question is typed again next term. Over the stem, the chapter and
      the subject — the three things somebody half-remembers about a question
-     they know they have written before. */
+     they know they have written before. Declared above the early returns so
+     the hook count is the same on every render. */
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (x) => [x.stem, x.chapter, x.subject, x.class_name, x.kind, x.difficulty])
+
+  if (list.isLoading) return <SkeletonTable columns={9} />
+  if (list.error) return <ErrorState error={list.error} />
   const banks = summary.data?.items ?? []
   const total = banks.reduce((n, b) => n + b.total, 0)
   const higher = banks.reduce((n, b) => n + b.higher_order, 0)

@@ -33,11 +33,13 @@ export default function OnlineTests() {
     queryFn: () => api.get<List<OnlineTest>>('/api/v1/teaching/online-tests'),
   })
 
-  if (list.isLoading) return <SkeletonTable columns={8} />
-  if (list.error) return <ErrorState error={list.error} />
   const rows = list.data?.items ?? []
+  /* Above the early returns so the hook count is the same on every render. */
   const { q: term, setQ: setTerm, shown } = useSearch(rows,
     (t) => [t.title, t.subject, t.class_name, t.section, t.status])
+
+  if (list.isLoading) return <SkeletonTable columns={8} />
+  if (list.error) return <ErrorState error={list.error} />
 
   return (
     <>
