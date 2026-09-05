@@ -59,10 +59,10 @@ export interface Placed {
 /** A few places to start from, so the wheel does not open on nothing. Not a
     fixed menu — every one of them is a starting point you then move. */
 /** The layouts somebody picks instead of building one. */
-export type Preset = 'default' | 'compact' | 'spotlight' | 'banner' | 'even' | 'columns'
+export type Preset = 'default' | 'compact' | 'spotlight' | 'banner' | 'even' | 'columns' | 'panels'
 
 export const PRESETS: readonly Preset[] =
-  ['default', 'compact', 'spotlight', 'banner', 'even', 'columns'] as const
+  ['default', 'compact', 'spotlight', 'banner', 'even', 'columns', 'panels'] as const
 
 export const TINT_STARTS: Hsl[] = [
   { h: 217, s: 91, l: 60 },
@@ -446,6 +446,10 @@ export function useLayout(dashboard: string) {
           // shape for a board of lists rather than of figures.
           placed = keep.map((x) => ({ id: x.id, w: 1, h: 2, ...tint(x.id) }))
           break
+        case 'panels':
+          // Every card two by two: on the phone, one card per page.
+          placed = keep.map((x) => ({ id: x.id, w: 2, h: 2, ...tint(x.id) }))
+          break
         case 'default':
         default:
           // Back to the sizes each card was designed at, keeping colours and
@@ -729,15 +733,18 @@ export const BOARD_ROWS = 3
    a card that needs the width is set Wide, and Small is for the ones that
    are a figure and a name. */
 export const PHONE_COLS = 2
-/* FOUR ROWS, AND EVERY CARD TAKES TWO OF THEM. The owner's next request was
-   that a phone card be 1x2 or 2x2 and nothing else: a tall half-width tile
-   or a full-width panel, both two rows high, so a page is four tiles or two
-   panels or one of each. Three rows would leave a dead strip under every
-   pair; four divides evenly. The height floor is applied in paginate(), so
-   a dashboard's declared 1x1 becomes a tile and its 2x1 a panel without any
-   card knowing. */
-export const PHONE_ROWS = 4
-export const PHONE_CARD_ROWS = 2
+/* TWO ROWS, EVERY CARD THE FULL WIDTH. The owner drew it:
+
+       Small           Large
+     [ # #,          [ # #,
+       . . ]           # # ]
+
+   A page is a two-row grid; a card is the top half of it or all of it, and
+   there are no half-width cells. So the two columns above exist only so the
+   spans read the same as the board's; paginate() forces every width to the
+   page and keeps the height, one or two, from what was declared or chosen.
+   Two Small cards make a page, or one Large, and swiping pages. */
+export const PHONE_ROWS = 2
 
 /** Where one widget ended up: which page, and where on it. */
 export interface Spot {
@@ -804,7 +811,9 @@ export function paginate(
   }
 
   for (const item of items) {
-    const w = Math.min(Math.max(1, item.w), cols)
+    // Full width, always: a phone card has no neighbour beside it.
+    const w = cols
+    void item.w
     /* HEIGHT IS ALWAYS ONE ROW ON A PHONE.
 
        A widget that asks for two rows was given two, so a 2x2 card filled half
@@ -832,14 +841,13 @@ export function paginate(
        so a card can never take a whole page and leave the pager with nothing
        to page. `tallOk` is how the caller says which heights were chosen here
        rather than declared elsewhere. */
-    /* EVERY PHONE CARD IS TWO ROWS. The paragraph above chose heights per
-       card; the owner then asked for two shapes only, 1x2 and 2x2, so the
-       height is the page's card height for every card whatever was declared
-       or chosen, and `tallOk` is kept for its callers but no longer decides
-       anything. Capped at the page's rows so the two-row text setting, where a
-       page is two rows, still gets one card per band rather than none. */
+    /* HALF THE PAGE OR ALL OF IT. The height is what was declared or chosen,
+       one row or two, and never more than the page has. `tallOk` used to
+       decide whether a declared height could be honoured; the owner's layout
+       honours it for every card, so the set is kept for its callers and no
+       longer decides anything. */
     void tallOk
-    const h = Math.min(PHONE_CARD_ROWS, rows)
+    const h = Math.min(Math.max(1, item.h), 2, rows)
     let spot: { row: number; col: number } | null = null
     for (let r = 0; !spot && r <= rows - h; r++) {
       for (let c = 0; c <= cols - w; c++) {

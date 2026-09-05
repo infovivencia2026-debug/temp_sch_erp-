@@ -2826,11 +2826,10 @@ html:not(.dark)[data-layout='bento'] {
        Small card is half a phone wide and a Wide one spans the page. The two
        numbers must agree or the snap stride is wrong. */
     grid-auto-columns: calc((100% - var(--bento-gap)) / 2);
-    /* FOUR, matching PHONE_ROWS in web/src/lib/widgets.ts, and every card is
-       two of them, so a card is never the 80px-tall strip four single rows
-       would make. The two numbers must agree: the pager's inline grid-row
-       comes from PHONE_ROWS and the track count from --pager-rows below, and
-       a mismatch silently drops the last row off the page. */
+    /* TWO, matching PHONE_ROWS in web/src/lib/widgets.ts: a card is the top
+       half of the page or all of it. The two numbers must agree: the pager's
+       inline grid-row comes from PHONE_ROWS and the track count from
+       --pager-rows below, and a mismatch silently drops a row off the page. */
     /* `--pager-rows` is written by WidgetLayer from the same number it packs
        with, so the two cannot drift. Three, or two once the platform's text
        setting has made every card a third taller — see TWO_ROWS_FROM. */

@@ -157,11 +157,12 @@ function shortDate(iso?: string) {
 function useCellShape() {
   const shape = useShape()
   const phone = usePhone()
-  /* One column always; the height is the one thing a phone card can be
-     given. A card set to Tall in the edit sheet takes two of the page's three
-     rows, and the drawing may use that depth the way a tall desktop cell does.
-     Never wide: nothing on a phone has a neighbour. */
-  return phone ? { ...shape, w: 1, h: shape.h >= 2 ? 2 : 1, wide: false, tall: shape.h >= 2, anchor: false } : shape
+  /* Full width always; the height is the one thing a phone card can be
+     given. Small is the top half of the page and draws compact; Large is the
+     whole page and draws like the desk's anchor, which is the only cell with
+     that much room. */
+  const large = shape.h >= 2
+  return phone ? { ...shape, w: 2, h: large ? 2 : 1, wide: true, tall: large, anchor: large } : shape
 }
 
 /** "Class 5-A" — the form, without the roll number, for the card label. */

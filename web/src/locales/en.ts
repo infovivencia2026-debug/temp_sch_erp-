@@ -2437,6 +2437,8 @@ export const en = {
   'bento.widgets.preset.even.hint': 'All cards wide, two to a row',
   'bento.widgets.preset.columns': 'Columns',
   'bento.widgets.preset.columns.hint': 'All cards tall and narrow, for lists',
+  'bento.widgets.preset.panels': 'Panels',
+  'bento.widgets.preset.panels.hint': 'Every card large; on a phone, one a page',
   'bento.widgets.undo': 'Undo',
   'bento.widgets.tidy': 'Tidy up',
   'bento.widgets.order': 'O',

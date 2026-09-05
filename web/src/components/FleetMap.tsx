@@ -3,7 +3,7 @@ import maplibregl, { type LngLatBoundsLike, type Map as MLMap } from 'maplibre-g
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
 import { layers, namedFlavor } from '@protomaps/basemaps'
-import { Maximize2, Minimize2, Crosshair } from 'lucide-react'
+import { Maximize2, Minimize2, Crosshair, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* The street map the fleet screens never had.
@@ -542,6 +542,25 @@ export function FleetMap({
     return () => window.removeEventListener('keydown', onKey)
   }, [expanded])
 
+  /* THE WAY BACK ON A PHONE. The full-screen map had one exit: the same
+     small button that opened it, bottom right, which on a phone is under the
+     thumb that is dragging the map. And the phone's own Back — the swipe from
+     the edge in the iPhone app, the button on Android — left the whole
+     screen, because the map had not told history it was a place. Expanding
+     pushes an entry, Back pops it and the map folds; leaving by the button
+     pops the entry itself so history does not keep a ghost page. */
+  useEffect(() => {
+    if (!expanded) return
+    let popped = false
+    const onPop = () => { popped = true; setExpanded(false) }
+    window.history.pushState({ mapExpanded: true }, '')
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      if (!popped && window.history.state?.mapExpanded) window.history.back()
+    }
+  }, [expanded])
+
   if (points.length === 0 && empty) return <>{empty}</>
 
   return (
@@ -555,6 +574,25 @@ export function FleetMap({
     >
       <div ref={host} className="h-full w-full" />
 
+      {expanded && (
+        /* Top left, where every phone screen puts its way back, and clear of
+           the clock: the expanded map is fixed to the viewport, so the body's
+           padding for the notch does not reach it and the inset is applied
+           here. Says "Back" rather than showing an icon, because a person who
+           cannot find the exit is not in the mood to decode one. */
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="absolute left-3 z-10 flex h-10 items-center gap-1.5 rounded-full border
+                     bg-background/90 pl-2.5 pr-3.5 text-[14px] font-medium text-foreground
+                     shadow-md backdrop-blur transition-colors hover:bg-background active:scale-95"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+        >
+          <ChevronLeft className="size-4" />
+          Back
+        </button>
+      )}
+
       {/* THE TWO THINGS A MAP IS ASKED FOR AND DID NOT HAVE.
 
           Recentre, because the map framed itself once on load and never again:
@@ -567,7 +605,11 @@ export function FleetMap({
           sit bottom-right, clear of the zoom control at the top and of the
           scale bar at bottom-left, and both are 40px targets -- the size of a
           fingertip, not of a mouse pointer. */}
-      <div className="absolute bottom-3 right-3 z-10 flex flex-col gap-2">
+      <div
+        className="absolute right-3 z-10 flex flex-col gap-2"
+        /* Above the home indicator when the map is the whole screen. */
+        style={{ bottom: expanded ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : 12 }}
+      >
         <button
           type="button"
           onClick={() => frame(true)}

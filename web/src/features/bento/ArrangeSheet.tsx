@@ -47,11 +47,10 @@ export function ArrangeSheet({
 }) {
   const t = useT()
   const { layout, place, remove, resize, recolour, move, reset, applyPreset } = useLayout(dashboard)
-  /* The three layouts that mean something on a two-column page: as drawn,
-     everything small, everything wide. Spotlight and Banner are shapes of a
-     five-wide board, and Columns is a tall card, which the phone does not
-     offer. */
-  const PHONE_PRESETS = ['default', 'compact', 'even'] as const
+  /* The three layouts that mean something on a phone page: as drawn, every
+     card Small (two a page), every card Large (one a page). The rest are
+     shapes of a five-wide board. */
+  const PHONE_PRESETS = ['default', 'compact', 'panels'] as const
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
   const hidden = declared.filter((d) => !visible.some((v) => v.id === d.id))
 
@@ -160,10 +159,10 @@ export function ArrangeSheet({
         <ul ref={listRef} className="bento-sheet__list" style={{ '--row-h': `${ROW_H}px` } as CSSProperties}>
           {rows.map((w, i) => {
             const { w: cw, h: ch } = dimsOf(layout, w.id, w.size)
-            /* The two shapes a phone page has: a tall half-width tile (1x2)
-               and a full-width panel (2x2). Both are two rows; the pager
-               enforces that, and the sheet only ever writes those two. */
-            const wide = cw >= 2
+            /* The two shapes a phone page has: the top half of it or all of
+               it, both full width. The sheet only ever writes those two. */
+            const large = ch >= 2
+            void cw
             const dragging = drag?.id === w.id
             return (
               <li
@@ -189,11 +188,11 @@ export function ArrangeSheet({
                   aria-label={t('bento.widgets.size_of', { label: w.label })}
                   className="bento-sheet__seg"
                 >
-                  <button type="button" role="radio" aria-checked={!wide} className={seg()}
-                          onClick={() => resize(w.id, 1, 2)}>
+                  <button type="button" role="radio" aria-checked={!large} className={seg()}
+                          onClick={() => resize(w.id, 2, 1)}>
                     {t('bento.widgets.size_small')}
                   </button>
-                  <button type="button" role="radio" aria-checked={wide} className={seg()}
+                  <button type="button" role="radio" aria-checked={large} className={seg()}
                           onClick={() => resize(w.id, 2, 2)}>
                     {t('bento.widgets.size_large')}
                   </button>

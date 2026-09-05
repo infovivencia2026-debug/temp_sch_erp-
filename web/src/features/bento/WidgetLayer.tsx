@@ -744,7 +744,21 @@ export function ColourPick({
       {open && at && createPortal(
         <div
           ref={pop}
-          style={{ position: 'fixed', left: at.left, top: at.top, width: 228 }}
+          /* A 228px card beside the swatch on a desk; on a phone the swatch is
+             in a sheet at the foot of the screen and the same card overflowed
+             the right edge and the bottom. Narrow, it becomes a sheet of its
+             own: full width less a margin, pinned above the home indicator. */
+          style={
+            window.innerWidth < 640
+              ? {
+                  position: 'fixed',
+                  left: 12,
+                  right: 12,
+                  bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+                  width: 'auto',
+                }
+              : { position: 'fixed', left: at.left, top: at.top, width: 228 }
+          }
           className="z-[80] rounded-xl border p-3 shadow-lg bg-[var(--bento-card)]
                      text-[var(--bento-ink)]
                      !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
