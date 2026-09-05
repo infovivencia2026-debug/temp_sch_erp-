@@ -228,7 +228,11 @@ export default function SettingsPage() {
              across the foot of a full-height sheet is a line under nothing.
 
              From sm up the panel is a card again and both come back. */
-          'min-h-full border-b-0 sm:min-h-0 sm:border-b',
+          /* Against the viewport, not the parent: the parent is sized to its
+             contents, so min-h-full asked for 100% of nothing and the band of
+             ground under a short list came back. The sheet may run a little
+             past the dock; the ground scrolls and it is only colour. */
+          'min-h-[100dvh] border-b-0 sm:min-h-0 sm:border-b',
           'sm:rounded-[16px] sm:border-x sm:border-t',
           'bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
