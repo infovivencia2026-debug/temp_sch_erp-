@@ -37,6 +37,11 @@ type teacher struct {
 	UserID   string `json:"user_id"`
 	FullName string `json:"full_name"`
 	Code     string `json:"employee_code"`
+	/* Active, resigned, retired and the rest. Only ever anything but active
+	   when the caller asked for the former staff too, and carried so that a
+	   screen counting the roll can explain a number that does not match what
+	   somebody just imported. */
+	Status string `json:"status"`
 	/* How much this colleague is carrying, omitted from teachers.
 
 	   The list itself is needed by everybody: a teacher picking cover, a class
@@ -235,7 +240,7 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		   list, which reads as staff not having been added at all. */
 		SELECT COALESCE(u.id::text, ''),
 		       COALESCE(u.full_name, btrim(concat_ws(' ', e.first_name, e.last_name))),
-		       e.employee_code, e.id::text,
+		       e.employee_code, e.id::text, e.status,
 		       /* What they sign in with, and whether they can.
 		
 		          The staff list showed names and nothing else, so the only way
@@ -278,7 +283,15 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		                  LIMIT 1), '')
 		  FROM employees e
 		  LEFT JOIN users u ON u.id = e.user_id
-		 WHERE e.status = 'active'
+		 /* include_former=true keeps the people who have left.
+		
+		    A school that imports fifty-eight staff, ten of whom its own sheet
+		    marks Inactive, is then told it has forty-eight -- correct, and
+		    with nothing on screen joining the two numbers. The caller that
+		    wants to explain the difference asks for them; every picker still
+		    gets the default, because a class teacher who has resigned is not
+		    a class teacher. */
+		 WHERE ($4::bool IS TRUE OR e.status = 'active')
 		   /* Narrowed to the people who teach the subject, when one is named.
 
 		      The subject-teacher dropdowns offered every member of staff for
@@ -311,12 +324,13 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 			nullString(r.URL.Query().Get("subject_id")),
 			r.URL.Query().Get("free_class_teacher") == "true",
 			nullString(r.URL.Query().Get("except_section")),
+			r.URL.Query().Get("include_former") == "true",
 		},
 		func(rows pgx.Rows) (teacher, error) {
 			var v teacher
 			var periods int
 			if err := rows.Scan(&v.UserID, &v.FullName, &v.Code, &v.EmployeeID,
-				&v.SignInAs, &v.CanSignIn, &v.Roles, &periods, &v.Subjects,
+				&v.Status, &v.SignInAs, &v.CanSignIn, &v.Roles, &periods, &v.Subjects,
 				&v.ClassTeacherOf); err != nil {
 				return v, err
 			}

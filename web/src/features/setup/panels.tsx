@@ -59,6 +59,11 @@ interface Teacher {
   user_id: string
   full_name: string
   employee_id: string
+  /* Active, or the reason they are not: resigned, retired, on_leave. Present
+     only when the caller asked for the former staff too, so a screen counting
+     the roll can explain why its number is smaller than the number somebody
+     just imported. */
+  status?: string
   subjects: string
   class_teacher_of?: string
   /** What they type into the sign-in box, and whether that account has a
@@ -1520,8 +1525,14 @@ function PeriodsPanel({ onDone }: PanelProps) {
 
 function StaffPanel({ onDone }: PanelProps) {
   const { data: teachers } = useQuery({
-    queryKey: ['teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryKey: ['teachers', 'with-former'],
+    /* The people who have left are asked for so the count can be explained.
+       A school that imports fifty-eight staff, ten of them marked Inactive on
+       its own sheet, is told it has forty-eight -- true, and baffling with
+       nothing joining the two numbers. Every picker filters to the active
+       ones itself; a class teacher who has resigned is not a class teacher. */
+    queryFn: () =>
+      api.get<List<Teacher>>('/api/v1/timetable/teachers?include_former=true'),
   })
   const [f, setF] = useState({
     employee_code: '',
@@ -1634,14 +1645,21 @@ function Assignments({ onDone }: PanelProps) {
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections'),
   })
   const { data: teachers } = useQuery({
-    queryKey: ['teachers'],
+    queryKey: ['teachers', 'with-former'],
+    /* The people who have left are asked for so the count can be explained.
+       A school that imports fifty-eight staff, ten of them marked Inactive on
+       its own sheet, is told it has forty-eight -- true, and baffling with
+       nothing joining the two numbers. Every picker filters to the active
+       ones itself; a class teacher who has resigned is not a class teacher. */
     queryFn: () =>
-      api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+      api.get<List<Teacher>>('/api/v1/timetable/teachers?include_former=true'),
   })
   const [sectionID, setSectionID] = useState('')
   const section = sections?.items.find((s) => s.id === sectionID)
   // What the step is actually measured on, shown where somebody can see it.
   const assignedSections = (sections?.items ?? []).filter((x) => x.class_teacher).length
+  const onRoll = (teachers?.items ?? []).filter((t) => !t.status || t.status === 'active')
+  const former = (teachers?.items ?? []).filter((t) => t.status && t.status !== 'active')
   const { data: subjects } = useQuery({
     queryKey: ['class-subjects', section?.class_id],
     queryFn: () =>
@@ -1753,10 +1771,23 @@ function Assignments({ onDone }: PanelProps) {
       <div className="mb-4 rounded-md border bg-muted/40 px-3 py-2.5 text-[13px]">
         <b>{assignedSections} of {sections?.items.length ?? 0}</b> sections have a class
         teacher.
-        {assignedSections === 0 && (teachers?.items.length ?? 0) > 0 && (
+        {assignedSections === 0 && onRoll.length > 0 && (
           <>
-            {' '}You have <b>{teachers!.items.length}</b> staff on the roll and none of them
+            {' '}You have <b>{onRoll.length}</b> staff on the roll and none of them
             assigned yet — adding staff does not finish this step, assigning them does.
+          </>
+        )}
+        {/* WHY THE NUMBER IS SMALLER THAN THE ONE JUST IMPORTED.
+
+            The roll is the people who work here now. A sheet that says
+            Inactive, Left or Resigned against somebody is believed, and those
+            rows import perfectly well -- they are simply not on the roll. Said
+            here because this is where the two numbers are read together, and
+            "58 added" above a count of 48 is otherwise a missing ten. */}
+        {former.length > 0 && (
+          <>
+            {' '}A further <b>{former.length}</b> were imported and marked as having
+            left, so they are on record but not on the roll.
           </>
         )}
         {(teachers?.items.length ?? 0) === 0 && ' Add your staff first, below.'}

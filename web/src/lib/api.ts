@@ -263,6 +263,7 @@ export interface Teacher {
   user_id: string
   full_name: string
   employee_code: string
+
   /* Absent unless the caller plans the timetable. The whole staff's weekly
      load is a league table of colleagues; the server omits it rather than
      sending a zero that would say something false about everybody. */
