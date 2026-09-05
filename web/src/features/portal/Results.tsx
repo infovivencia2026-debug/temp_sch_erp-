@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Award, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, SkeletonTiles, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  Select, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import CardViewer from '@/components/CardViewer'
@@ -71,18 +72,19 @@ export default function PortalResults() {
   const [card, setCard] = useState<{ html: string; css?: string; name?: string } | null>(null)
   const child = picked || kids[0]?.student_id || ''
 
-  const { data, isLoading, error } = useQuery({
+  const results = useQuery({
     queryKey: ['portal-results', child],
     queryFn: () => api.get<ResultView>(`/api/v1/portal/results?student_id=${child}`),
     enabled: !!child,
   })
+  const { data, isLoading, error } = results
 
   /* A failed children request used to be indistinguishable from a slow one:
      `!child` held the spinner forever because the results query never starts
      without a child, and a query that never starts never stops being pending.
      A parent is owed the reason. */
-  if (children.isLoading) return <Loading />
-  if (children.error) return <ScreenError error={children.error} />
+  if (children.isLoading) return <ScreenSkeleton />
+  if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
       <>
@@ -95,8 +97,8 @@ export default function PortalResults() {
         </PageBody>
       </>
     )
-  if (isLoading) return <SkeletonTiles count={4} />
-  if (error) return <ScreenError error={error} />
+  if (isLoading) return <ScreenSkeleton />
+  if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (
       <>
@@ -144,6 +146,7 @@ export default function PortalResults() {
           )
         }
       />
+      <Freshness query={results} />
       <PageBody>
         {latest && (
           <CellGrid cols={4}>

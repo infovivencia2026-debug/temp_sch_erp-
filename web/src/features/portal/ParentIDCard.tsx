@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, Users } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, Loading, PrintButton,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, PrintButton } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 
 /* The guardian's own card for the school gate.
@@ -53,8 +52,8 @@ export default function ParentIDCard() {
     refetchInterval: 60_000,
   })
 
-  if (query.isLoading) return <Loading label={t('portal.parent_id_card.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.parent_id_card.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const card = query.data?.card
   const pass = query.data?.pass
@@ -69,6 +68,7 @@ export default function ParentIDCard() {
         description={t('portal.parent_id_card.description')}
         actions={<PrintButton label={t('portal.parent_id_card.action_print')} />}
       />
+      <Freshness query={query} />
       <PageBody width="form">
         <Card className="overflow-hidden">
           <div className="border-b bg-muted/40 px-5 py-4">

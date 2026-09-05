@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { FleetMap } from '@/components/FleetMap'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import {
   ageText, hasPlot, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -25,8 +24,8 @@ export default function ChildBus() {
   const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   const every = usePoll(rows, visible, () => void feed.refetch())
 
-  if (feed.isLoading) return <Loading label="Finding your child's bus…" />
-  if (feed.error) return <ScreenError error={feed.error} />
+  if (feed.isLoading) return <ScreenSkeleton label="Finding your child's bus…" />
+  if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (
     <>
@@ -35,6 +34,7 @@ export default function ChildBus() {
         title="Live bus tracking"
         description="The bus, your child's stop, and the straight-line distance between them. That distance is how far away it is, not how long it will take — the bus still has roads, turns and other stops between the two."
       />
+      <Freshness query={feed} />
       <PageBody>
         {rows.length === 0 ? (
           <EmptyState

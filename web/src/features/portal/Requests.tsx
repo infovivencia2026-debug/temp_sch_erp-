@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileCheck2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, Field, FormGrid, FormNotice, Select, Textarea, SkeletonTiles, } from '@/components/ui'
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  Field, FormGrid, FormNotice, Select, Textarea,
+} from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -97,8 +99,8 @@ export default function Requests() {
     },
   })
 
-  if (requests.isLoading) return <SkeletonTiles count={3} label={t('portal.requests.loading')} />
-  if (requests.error) return <ScreenError error={requests.error} />
+  if (requests.isLoading) return <ScreenSkeleton label={t('portal.requests.loading')} />
+  if (requests.error && !requests.data) return <ScreenError error={requests.error} />
 
   const rows = requests.data?.items ?? []
   const available = types.data?.items ?? []
@@ -112,6 +114,7 @@ export default function Requests() {
         title={t('portal.requests.title')}
         description={t('portal.requests.description')}
       />
+      <Freshness query={requests} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.requests.stat_with_office')} value={waiting.length} icon={FileCheck2} />

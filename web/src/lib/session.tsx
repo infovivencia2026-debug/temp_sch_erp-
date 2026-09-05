@@ -1,8 +1,9 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
 import { forgetCachedDataOnUserChange } from './sw-data'
+import { adoptPersistedQueries, forgetPersistedQueries } from './query-persist'
 import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { claimTabs } from './tabs'
@@ -10,6 +11,7 @@ import { claimTabs } from './tabs'
 const SessionContext = createContext<SessionResponse | null>(null)
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['session'],
     queryFn: () => api.get<SessionResponse>('/api/v1/session'),
@@ -43,6 +45,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   if (!data.authenticated) {
+    /* A session that has ended is the second of the three sign-out paths in
+       lib/query-persist.ts: the parent's stored answers go before anybody is
+       sent to /login, so whoever signs in next on this phone starts clean. */
+    forgetPersistedQueries()
     // Full navigation, not a client route: /login is server-rendered by the Go
     // binary and must mint the cookie itself.
     const next = encodeURIComponent(location.pathname + location.search)
@@ -87,6 +93,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      as another, to sections they may not even be scoped for. */
   setOutboxUser(data.user?.id)
   forgetCachedDataOnUserChange(data.user?.id)
+  /* And the parent's last-seen answers are put back into the query cache --
+     or thrown away, if they were somebody else's or this account is staff.
+     During render for the same reason as claimTabs: CatalogProvider and every
+     screen under it read the cache on their first render, and this has to be
+     there before that render, not in an effect after it. */
+  adoptPersistedQueries(queryClient, data.user)
   /* And the phone's push token is pointed at this person, so alerts written
      while the app is closed reach the phone that is signed in as them. */
   registerPushToken(data.user?.id)

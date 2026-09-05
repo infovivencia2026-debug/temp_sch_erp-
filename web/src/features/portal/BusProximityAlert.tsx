@@ -4,9 +4,10 @@ import { Footprints } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Checkbox, Field, Input, FormNotice,
-  Loading, EmptyState,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import type { ChildBusFeed } from './child-bus'
 import {
   ALL_CHILDREN, PROXIMITY_MAX, PROXIMITY_MIN, currentFor, proximityError, savePrefs, walkText,
@@ -63,8 +64,8 @@ export default function BusProximityAlert() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me-child-bus'] }),
   })
 
-  if (feed.isLoading) return <Loading label="Reading your settings…" />
-  if (feed.error) return <ScreenError error={feed.error} />
+  if (feed.isLoading) return <ScreenSkeleton label="Reading your settings…" />
+  if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (
     <>
@@ -73,6 +74,7 @@ export default function BusProximityAlert() {
         title="Tell me when the bus is close"
         description="Choose how near the bus should be before you hear about it. The distance is measured in a straight line from your child's stop, not along the road — the bus will usually take a little longer to arrive than the number suggests."
       />
+      <Freshness query={feed} />
       <PageBody width="form">
         {rows.length === 0 ? (
           <EmptyState

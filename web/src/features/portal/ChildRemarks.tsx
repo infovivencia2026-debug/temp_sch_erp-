@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Award, TriangleAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, Select,
-  Loading, EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, Select, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from './use-children'
 
@@ -97,8 +95,8 @@ export default function ChildRemarks() {
     enabled: kids.length > 0,
   })
 
-  if (kidsQuery.isLoading) return <Loading />
-  if (kidsQuery.error) return <ScreenError error={kidsQuery.error} />
+  if (kidsQuery.isLoading) return <ScreenSkeleton />
+  if (kidsQuery.error && !kidsQuery.data) return <ScreenError error={kidsQuery.error} />
 
   if (kids.length === 0) {
     return (
@@ -114,8 +112,8 @@ export default function ChildRemarks() {
     )
   }
 
-  if (q.isLoading) return <Loading />
-  if (q.error) return <ScreenError error={q.error} />
+  if (q.isLoading) return <ScreenSkeleton />
+  if (q.error && !q.data) return <ScreenError error={q.error} />
 
   const items = q.data?.items ?? []
   const praise = items.filter((x) => TONE[x.kind] === 'success').length
@@ -138,6 +136,7 @@ export default function ChildRemarks() {
           )
         }
       />
+      <Freshness query={q} />
       <PageBody>
         {items.length > 0 && (
           <div className="flex flex-wrap gap-3">

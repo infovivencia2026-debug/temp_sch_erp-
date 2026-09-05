@@ -137,7 +137,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(res.status, e?.code ?? 'unknown', e?.message ?? res.statusText,
       e?.request_id, body)
   }
+  /* The worker's mark, carried through to whoever reads the answer.
+
+     sw-src.js answers a read it could not make from its cache and sets
+     X-From-Cache on the way back, "so the app can say 'this is what we last
+     saw' rather than presenting yesterday's balance as today's". Nothing read
+     the header: the body was returned bare and every screen painted it as
+     live. The body object is remembered here so a screen can ask
+     `servedFromCache(data)` and write "no connection" under its title. */
+  if (body && typeof body === 'object' && res.headers.get('X-From-Cache')) {
+    cachedBodies.add(body)
+  }
   return body as T
+}
+
+/* A WeakSet so a body held by nothing else costs nothing here either; the
+   query cache holds the same object, so as long as a screen can show it, it
+   can be asked about. */
+const cachedBodies = new WeakSet<object>()
+
+/** True if this answer came from the service worker's offline fallback,
+    not the server: the network was unreachable when it was asked for. */
+export function servedFromCache(data: unknown): boolean {
+  return !!data && typeof data === 'object' && cachedBodies.has(data as object)
 }
 
 export const api = {

@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { FolderCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  SkeletonTable, } from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -45,8 +44,8 @@ export default function Documents() {
     queryFn: () => api.get<List<DocumentRow>>('/api/v1/portal/documents'),
   })
 
-  if (docs.isLoading) return <SkeletonTable columns={6} label={t('portal.documents.loading')} />
-  if (docs.error) return <ScreenError error={docs.error} />
+  if (docs.isLoading) return <ScreenSkeleton label={t('portal.documents.loading')} />
+  if (docs.error && !docs.data) return <ScreenError error={docs.error} />
 
   const rows = docs.data?.items ?? []
   const unverified = rows.filter((d) => !d.verified)
@@ -58,6 +57,7 @@ export default function Documents() {
         title={t('portal.documents.title')}
         description={t('portal.documents.description')}
       />
+      <Freshness query={docs} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.documents.stat_on_file')} value={rows.length} icon={FolderCheck} />

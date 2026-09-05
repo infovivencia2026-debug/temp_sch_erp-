@@ -3,9 +3,10 @@ import { Target, ClipboardList } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  SkeletonTiles, EmptyState,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
@@ -101,8 +102,8 @@ export default function IEPGoals() {
     enabled: ready,
   })
 
-  if (query.isLoading) return <SkeletonTiles count={3} label={t('portal.iep_goals.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.iep_goals.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const plan = query.data?.plan
   const goals = query.data?.goals ?? []
@@ -115,6 +116,7 @@ export default function IEPGoals() {
         title={t('portal.iep_goals.title')}
         description={t('portal.iep_goals.description')}
       />
+      <Freshness query={query} />
       <PageBody>
         {children.length > 1 && (
           <Card>

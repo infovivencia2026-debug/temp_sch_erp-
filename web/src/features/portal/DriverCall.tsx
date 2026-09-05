@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Phone, PhoneOff } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, Loading, EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import {
   ageText, stateSentence, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -39,8 +38,8 @@ export default function DriverCall() {
   const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   usePoll(rows, visible, () => void feed.refetch())
 
-  if (feed.isLoading) return <Loading label="Checking whether a run is open…" />
-  if (feed.error) return <ScreenError error={feed.error} />
+  if (feed.isLoading) return <ScreenSkeleton label="Checking whether a run is open…" />
+  if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (
     <>
@@ -49,6 +48,7 @@ export default function DriverCall() {
         title="Call the bus driver"
         description="The driver's number is published to parents only while a run is open. Outside those hours it is not shown here at all, by design — the transport office takes the call instead."
       />
+      <Freshness query={feed} />
       <PageBody>
         {rows.length === 0 ? (
           <EmptyState

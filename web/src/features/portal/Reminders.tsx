@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { BellRing, CheckCircle2 } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button,
-  Loading, EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, Button, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 
 /* Things waiting on you.
@@ -51,8 +49,8 @@ export default function Reminders() {
     queryFn: () => api.get<Attention>('/api/v1/attention'),
   })
 
-  if (q.isLoading) return <Loading label={t('portal.reminders.loading')} />
-  if (q.error) return <ScreenError error={q.error} />
+  if (q.isLoading) return <ScreenSkeleton label={t('portal.reminders.loading')} />
+  if (q.error && !q.data) return <ScreenError error={q.error} />
 
   const items = q.data?.items ?? []
   const urgent = items.filter((i) => i.severity === 'critical')
@@ -64,6 +62,7 @@ export default function Reminders() {
         title={t('portal.reminders.title')}
         description={t('portal.reminders.description')}
       />
+      <Freshness query={q} />
       <PageBody>
         {items.length === 0 ? (
           <Card>

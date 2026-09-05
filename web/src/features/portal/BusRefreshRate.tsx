@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BatteryMedium } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Button, Field, Input, FormNotice,
-  Loading, EmptyState,
+  PageHead, PageBody, Card, CardHeader, Button, Field, Input, FormNotice, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import type { ChildBusFeed } from './child-bus'
 import {
   ALL_CHILDREN, REFRESH_MAX, REFRESH_MIN, batteryText, currentFor, refreshError, savePrefs,
@@ -68,8 +68,8 @@ export default function BusRefreshRate() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me-child-bus'] }),
   })
 
-  if (feed.isLoading) return <Loading label="Reading your settings…" />
-  if (feed.error) return <ScreenError error={feed.error} />
+  if (feed.isLoading) return <ScreenSkeleton label="Reading your settings…" />
+  if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   return (
     <>
@@ -78,6 +78,7 @@ export default function BusRefreshRate() {
         title="How often the bus map updates"
         description="The live map fetches the bus's position on a timer. A faster timer means a fresher picture and more of your phone's battery; a slower one means the bus may be a street or two past where the map shows it."
       />
+      <Freshness query={feed} />
       <PageBody width="form">
         {rows.length === 0 ? (
           <EmptyState

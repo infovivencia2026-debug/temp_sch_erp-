@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Images, Film, ArrowLeft } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, Loading, SkeletonTiles, ErrorState, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select, Field,
+  SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -74,8 +75,8 @@ export default function Gallery() {
       ),
   })
 
-  if (albums.isLoading) return <Loading label={t('portal.gallery.loading')} />
-  if (albums.error) return <ScreenError error={albums.error} />
+  if (albums.isLoading) return <ScreenSkeleton label={t('portal.gallery.loading')} />
+  if (albums.error && !albums.data) return <ScreenError error={albums.error} />
 
   const rows = albums.data?.items ?? []
   const photos = rows.reduce((n, a) => n + a.photo_count, 0)
@@ -148,6 +149,7 @@ export default function Gallery() {
         title={t('portal.gallery.title')}
         description={t('portal.gallery.description')}
       />
+      <Freshness query={albums} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.gallery.stat_albums')} value={rows.length} icon={Images} />

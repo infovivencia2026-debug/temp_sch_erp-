@@ -69,6 +69,17 @@
    ───────────────────────────────────────────────────────────────────── */
 
 export const en = {
+  // --- portal / screen-state.tsx -----------------------------------------
+  'portal.fresh.updating': 'Updating…',
+  'portal.fresh.just_now': 'Updated just now',
+  'portal.fresh.ago': 'Updated {ago}',
+  'portal.fresh.offline': 'No connection — showing what we saw {ago}',
+  'portal.fresh.failed': 'Could not refresh — showing what we saw {ago}',
+  'portal.fresh.retry': 'Try again',
+  'portal.fresh.seconds': '{n} seconds ago',
+  'portal.fresh.minutes': '{n} min ago',
+  'portal.fresh.hours': '{n} h ago',
+  'portal.fresh.days': '{n} days ago',
   // --- portal / Documents.tsx -------------------------------------------
   'portal.admission.loading': 'Looking up your admission…',
   'portal.admission.eyebrow': 'Admissions',

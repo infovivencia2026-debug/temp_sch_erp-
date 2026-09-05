@@ -4,10 +4,11 @@ import { MessagesSquare, Pin, Lock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
-  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Loading, SkeletonTable,
-  EmptyState,
+  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, EmptyState,
+  Skeleton,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -125,11 +126,11 @@ export default function Forum() {
     enabled: all.length > 0,
   })
 
-  if (boards.isLoading) return <SkeletonTable columns={6} label={t('portal.forum.loading')} />
+  if (boards.isLoading) return <ScreenSkeleton label={t('portal.forum.loading')} />
   // Never an empty state for a failed query: "your class has said nothing" and
   // "we could not ask" are different facts and only one of them is reassuring.
-  if (boards.error) return <ScreenError error={boards.error} />
-  if (threads.error) return <ScreenError error={threads.error} />
+  if (boards.error && !boards.data) return <ScreenError error={boards.error} />
+  if (threads.error && !threads.data) return <ScreenError error={threads.error} />
 
   const rows = threads.data?.items ?? []
   const mine = rows.filter((r) => r.written_by_me)
@@ -141,6 +142,7 @@ export default function Forum() {
         title={t('portal.forum.title')}
         description={t('portal.forum.description')}
       />
+      <Freshness query={boards} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.forum.stat_threads')} value={rows.length} icon={MessagesSquare} />
@@ -398,8 +400,8 @@ function ThreadDetail({
     onSuccess: () => setReason(''),
   })
 
-  if (thread.isLoading) return <Loading label={t('portal.forum.loading_thread')} />
-  if (thread.error) return <ScreenError error={thread.error} />
+  if (thread.isLoading) return <Skeleton rows={3} label={t('portal.forum.loading_thread')} />
+  if (thread.error && !thread.data) return <ScreenError error={thread.error} />
 
   const head = thread.data?.thread
   const posts = thread.data?.posts ?? []

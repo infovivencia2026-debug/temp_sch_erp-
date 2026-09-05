@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleCheck, CircleDashed, CircleDot } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Table, Td, Badge,
-  SkeletonTable, EmptyState,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Table, Td, Badge, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -114,8 +112,8 @@ export default function AdmissionStatus() {
     queryFn: () => api.get<List<Admission>>('/api/v1/portal/admission'),
   })
 
-  if (q.isLoading) return <SkeletonTable columns={4} label={t('portal.admission.loading')} />
-  if (q.error) return <ScreenError error={q.error} />
+  if (q.isLoading) return <ScreenSkeleton label={t('portal.admission.loading')} />
+  if (q.error && !q.data) return <ScreenError error={q.error} />
 
   const rows = q.data?.items ?? []
 
@@ -126,6 +124,7 @@ export default function AdmissionStatus() {
         title={t('portal.admission.title')}
         description={t('portal.admission.description')}
       />
+      <Freshness query={q} />
       <PageBody>
         {rows.length === 0 ? (
           /* An enrolled family reaching this page is the ordinary case, not a

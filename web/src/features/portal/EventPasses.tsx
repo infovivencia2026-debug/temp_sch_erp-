@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ticket, Armchair } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, FormGrid, FormNotice, SkeletonTiles, EmptyState, PrintButton,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select, Field,
+  FormGrid, FormNotice, EmptyState, PrintButton,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -102,8 +103,8 @@ export default function EventPasses() {
     },
   })
 
-  if (passes.isLoading) return <SkeletonTiles count={3} label={t('portal.event_passes.loading')} />
-  if (passes.error) return <ScreenError error={passes.error} />
+  if (passes.isLoading) return <ScreenSkeleton label={t('portal.event_passes.loading')} />
+  if (passes.error && !passes.data) return <ScreenError error={passes.error} />
 
   const rows = passes.data?.items ?? []
   const today = new Date().toISOString().slice(0, 10)
@@ -125,6 +126,7 @@ export default function EventPasses() {
         description={t('portal.event_passes.description')}
         actions={<PrintButton label={t('portal.event_passes.action_print')} />}
       />
+      <Freshness query={passes} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.event_passes.stat_passes')} value={live.length} icon={Ticket} />

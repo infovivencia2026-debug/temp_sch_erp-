@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarOff, Clock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Checkbox, SkeletonTable, } from '@/components/ui'
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
+} from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -73,8 +74,8 @@ export default function LeaveRequests() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-leave'] }),
   })
 
-  if (leave.isLoading) return <SkeletonTable columns={6} label={t('portal.leave_requests.loading')} />
-  if (leave.error) return <ScreenError error={leave.error} />
+  if (leave.isLoading) return <ScreenSkeleton label={t('portal.leave_requests.loading')} />
+  if (leave.error && !leave.data) return <ScreenError error={leave.error} />
 
   const rows = leave.data?.items ?? []
   const pending = rows.filter((r) => r.status === 'pending')
@@ -86,6 +87,7 @@ export default function LeaveRequests() {
         title={t('portal.leave_requests.title')}
         description={t('portal.leave_requests.description')}
       />
+      <Freshness query={leave} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.leave_requests.stat_waiting')} value={pending.length} icon={Clock} />

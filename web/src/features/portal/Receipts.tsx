@@ -4,8 +4,10 @@ import { Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Button,
-  PrintButton, Loading, SkeletonTable, } from '@/components/ui'
+  PrintButton, Skeleton,
+} from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -63,8 +65,8 @@ export default function Receipts() {
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),
   })
 
-  if (receipts.isLoading) return <SkeletonTable columns={6} label={t('portal.receipts.loading')} />
-  if (receipts.error) return <ScreenError error={receipts.error} />
+  if (receipts.isLoading) return <ScreenSkeleton label={t('portal.receipts.loading')} />
+  if (receipts.error && !receipts.data) return <ScreenError error={receipts.error} />
 
   const rows = receipts.data?.items ?? []
   const total = rows.reduce((n, r) => n + r.amount_paise, 0)
@@ -76,6 +78,7 @@ export default function Receipts() {
         title={t('portal.receipts.title')}
         description={t('portal.receipts.description')}
       />
+      <Freshness query={receipts} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.receipts.stat_receipts')} value={rows.length} icon={ReceiptIcon} />
@@ -134,8 +137,8 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
     queryFn: () => api.get<ReceiptDetail>(`/api/v1/portal/receipts/${paymentId}`),
   })
 
-  if (detail.isLoading) return <Loading label={t('portal.receipts.detail_loading')} />
-  if (detail.error) return <ScreenError error={detail.error} />
+  if (detail.isLoading) return <Skeleton rows={3} label={t('portal.receipts.detail_loading')} />
+  if (detail.error && !detail.data) return <ScreenError error={detail.error} />
   const d = detail.data
   if (!d) return null
 

@@ -5,9 +5,10 @@ import { api } from '@/lib/api'
 import { MonthGrid } from '../shared/MonthGrid'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  SkeletonTiles, EmptyState,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -107,8 +108,8 @@ export default function Calendar() {
 
   // Only the very first load blanks the page; a month change is drawn by the
   // grid's own dimming, so the screen does not flash on every arrow press.
-  if (query.isLoading && !query.data) return <SkeletonTiles count={3} label={t('portal.calendar.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.calendar.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const items = [...(query.data?.items ?? [])].sort((a, b) => a.date.localeCompare(b.date))
   const today = new Date().toISOString().slice(0, 10)
@@ -140,6 +141,7 @@ export default function Calendar() {
         title={t('portal.calendar.title')}
         description={t('portal.calendar.description')}
       />
+      <Freshness query={query} />
       <PageBody>
         {/* The month first, the list under it.
 

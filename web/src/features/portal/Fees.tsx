@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, IndianRupee, Receipt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Loading, EmptyState, PrintButton, FormNotice,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  Select, EmptyState, PrintButton, FormNotice,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 
@@ -93,11 +94,12 @@ export default function PortalFees() {
     onError: () => setPaid(''),
   })
 
-  const { data, isLoading, error } = useQuery({
+  const fees = useQuery({
     queryKey: ['portal-fees', child],
     queryFn: () => api.get<FeeView>(`/api/v1/portal/fees?student_id=${child}`),
     enabled: !!child,
   })
+  const { data, isLoading, error } = fees
 
   /* The children request is a state of this screen too.
 
@@ -105,8 +107,8 @@ export default function PortalFees() {
      linked to nobody — to a spinner that never resolved, because the fee query
      stays disabled while there is no child and a disabled query never stops
      being pending. Three separate answers, in the order the page learns them. */
-  if (children.isLoading) return <Loading />
-  if (children.error) return <ScreenError error={children.error} />
+  if (children.isLoading) return <ScreenSkeleton />
+  if (children.error && !children.data) return <ScreenError error={children.error} />
   if (!kids.length)
     return (
       <>
@@ -119,8 +121,8 @@ export default function PortalFees() {
         </PageBody>
       </>
     )
-  if (isLoading) return <Loading />
-  if (error) return <ScreenError error={error} />
+  if (isLoading) return <ScreenSkeleton />
+  if (error && !data) return <ScreenError error={error} />
   if (!data)
     return (
       <>
@@ -169,6 +171,7 @@ export default function PortalFees() {
           </>
         }
       />
+      <Freshness query={fees} />
       <PageBody>
         {/* NO MONEY MOVES HERE YET, AND IT SAYS SO.
 

@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, ShieldAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  SkeletonTable, } from '@/components/ui'
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
+} from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -62,8 +63,8 @@ export default function Pickup() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-pickup'] }),
   })
 
-  if (passes.isLoading) return <SkeletonTable columns={6} label={t('portal.pickup.loading')} />
-  if (passes.error) return <ScreenError error={passes.error} />
+  if (passes.isLoading) return <ScreenSkeleton label={t('portal.pickup.loading')} />
+  if (passes.error && !passes.data) return <ScreenError error={passes.error} />
 
   const rows = passes.data?.items ?? []
   const live = rows.filter((p) => p.status === 'live')
@@ -75,6 +76,7 @@ export default function Pickup() {
         title={t('portal.pickup.title')}
         description={t('portal.pickup.description')}
       />
+      <Freshness query={passes} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.pickup.stat_in_force')} value={live.length} icon={KeyRound} />

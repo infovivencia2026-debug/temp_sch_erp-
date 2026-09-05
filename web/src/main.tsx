@@ -8,6 +8,7 @@ import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
 import { startHaptics } from './lib/haptics'
+import { clearPersistedQueriesOnSignOut } from './lib/query-persist'
 
 /* Started before the app renders, not inside it.
 
@@ -26,6 +27,11 @@ reportScrollToShell()
 /* A short tap back when a control is pressed. One document-level listener
    rather than a prop on several hundred buttons. */
 startHaptics()
+
+/* The parent's stored answers go the instant a sign-out link is pressed --
+   before the navigation, which is the last moment any of this code runs. See
+   lib/query-persist.ts for the other two paths. */
+clearPersistedQueriesOnSignOut()
 
 /* The application shell, kept on the device.
 

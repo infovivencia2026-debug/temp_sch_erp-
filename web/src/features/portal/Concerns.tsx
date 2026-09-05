@@ -4,9 +4,10 @@ import { MessageSquareWarning } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
-  FormGrid, FormNotice, Input, Select, Textarea, SkeletonTiles, EmptyState,
+  FormGrid, FormNotice, Input, Select, Textarea, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -86,8 +87,8 @@ export default function Concerns() {
     },
   })
 
-  if (concerns.isLoading) return <SkeletonTiles count={3} label={t('portal.concerns.loading')} />
-  if (concerns.error) return <ScreenError error={concerns.error} />
+  if (concerns.isLoading) return <ScreenSkeleton label={t('portal.concerns.loading')} />
+  if (concerns.error && !concerns.data) return <ScreenError error={concerns.error} />
 
   const rows = concerns.data?.items ?? []
   const open = rows.filter((c) => c.status !== 'resolved' && c.status !== 'closed')
@@ -103,6 +104,7 @@ export default function Concerns() {
         title={t('portal.concerns.title')}
         description={t('portal.concerns.description')}
       />
+      <Freshness query={concerns} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.concerns.stat_open')} value={open.length} icon={MessageSquareWarning} />

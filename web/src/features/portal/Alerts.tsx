@@ -2,10 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, BookOpen, CalendarX2, Megaphone, Receipt } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select,
-  Field, SkeletonTiles, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Select, Field,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -94,8 +95,8 @@ export default function Alerts() {
     onSuccess: invalidate,
   })
 
-  if (query.isLoading) return <SkeletonTiles count={3} label={t('portal.alerts.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.alerts.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const items = query.data?.items ?? []
   const unread = query.data?.unread ?? 0
@@ -114,6 +115,7 @@ export default function Alerts() {
           ) : undefined
         }
       />
+      <Freshness query={query} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.alerts.stat_unread')} value={unread} icon={Bell} />

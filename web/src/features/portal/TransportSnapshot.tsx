@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { BusFront, Clock, MapPin } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, SkeletonTiles, EmptyState, CellGrid, Stat,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState, CellGrid, Stat } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import {
   ageText, minutes, usePoll, useSecondsSince, useTabVisible, withDrift,
   STATE_LABEL, STATE_TONE, type ChildBusFeed, type ChildBusRow,
@@ -40,8 +39,8 @@ export default function TransportSnapshot() {
   const rows = (feed.data?.items ?? []).map((r) => withDrift(r, drift, staleAfter))
   const every = usePoll(rows, visible, () => void feed.refetch())
 
-  if (feed.isLoading) return <SkeletonTiles count={3} label="Reading today's transport…" />
-  if (feed.error) return <ScreenError error={feed.error} />
+  if (feed.isLoading) return <ScreenSkeleton label="Reading today's transport…" />
+  if (feed.error && !feed.data) return <ScreenError error={feed.error} />
 
   /* Stale is not counted as running. A tile that says "1 on a run now" over a
      bus whose last fix is half an hour old is the screen telling a parent the
@@ -58,6 +57,7 @@ export default function TransportSnapshot() {
         title="Transport snapshot"
         description="Every child of yours who travels by school bus: their route, the vehicle, their stop and the time it is due — and, while a run is open, whether the bus has been yet and how far away it is."
       />
+      <Freshness query={feed} />
       <PageBody>
         {rows.length === 0 ? (
           <EmptyState

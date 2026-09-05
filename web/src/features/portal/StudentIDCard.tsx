@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck } from 'lucide-react'
 import { api } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, Badge, Select, Field,
-  Loading, EmptyState, PrintButton,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, Badge, Select, Field, EmptyState, PrintButton } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions, readyFor } from './use-children'
@@ -82,8 +80,8 @@ export default function StudentIDCard() {
     </Card>
   )
 
-  if (query.isLoading) return <Loading label={t('portal.student_id_card.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.student_id_card.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
   if (!ready)
     return (
       <>
@@ -116,6 +114,7 @@ export default function StudentIDCard() {
         description={t('portal.student_id_card.description')}
         actions={<PrintButton label={t('portal.student_id_card.action_print')} />}
       />
+      <Freshness query={query} />
       <PageBody width="form">
         {picker}
 

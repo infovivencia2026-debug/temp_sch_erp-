@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormNotice,
-  Select, Textarea, Loading, EmptyState,
+  PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormNotice, Select,
+  Textarea, EmptyState, Skeleton,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { Check, CheckCheck } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -83,8 +84,8 @@ export default function TeacherMessages() {
     },
   })
 
-  if (query.isLoading) return <Loading label={t('portal.teacher_messages.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.teacher_messages.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const list = teachers.data?.items ?? []
   const chosenTeacher = list.find((x) => x.user_id === teacher)
@@ -97,6 +98,7 @@ export default function TeacherMessages() {
         title={t('portal.teacher_messages.title')}
         description={t('portal.teacher_messages.description')}
       />
+      <Freshness query={query} />
       <PageBody>
         <Card>
           <CardHeader title={t('portal.teacher_messages.picker_title')} />
@@ -160,7 +162,7 @@ export default function TeacherMessages() {
               }
             />
             {thread.isLoading ? (
-              <Loading label={t('portal.teacher_messages.thread_loading')} />
+              <Skeleton rows={3} label={t('portal.teacher_messages.thread_loading')} />
             ) : messages.length === 0 ? (
               <EmptyState
                 title={t('portal.teacher_messages.empty_thread_title')}

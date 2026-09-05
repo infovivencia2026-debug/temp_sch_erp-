@@ -3,11 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarCheck, Clock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormGrid, FormNotice, Select, Input,
-  SkeletonTable, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
+  ConfirmButton, Field, FormGrid, FormNotice, Select, Input, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -104,8 +104,8 @@ export default function PTM() {
     onSuccess: refresh,
   })
 
-  if (slots.isLoading) return <SkeletonTable columns={7} label={t('portal.ptm.loading')} />
-  if (slots.error) return <ScreenError error={slots.error} />
+  if (slots.isLoading) return <ScreenSkeleton label={t('portal.ptm.loading')} />
+  if (slots.error && !slots.data) return <ScreenError error={slots.error} />
 
   const rows = slots.data?.items ?? []
   const mine = bookings.data?.items ?? []
@@ -121,6 +121,7 @@ export default function PTM() {
         title={t('portal.ptm.title')}
         description={t('portal.ptm.description')}
       />
+      <Freshness query={slots} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat label={t('portal.ptm.stat_free')} value={free.length} icon={Clock} />

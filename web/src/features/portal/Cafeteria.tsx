@@ -3,9 +3,10 @@ import { Utensils, Flame, Wallet } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
-  SkeletonTiles, EmptyState,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
@@ -68,8 +69,8 @@ export default function Cafeteria() {
       }>(`/api/v1/portal/cafeteria/purchases${studentId ? `?student_id=${studentId}` : ''}`),
   })
 
-  if (query.isLoading) return <SkeletonTiles count={3} label={t('portal.cafeteria.loading')} />
-  if (query.error) return <ScreenError error={query.error} />
+  if (query.isLoading) return <ScreenSkeleton label={t('portal.cafeteria.loading')} />
+  if (query.error && !query.data) return <ScreenError error={query.error} />
 
   const purchases = query.data?.items ?? []
   const days = query.data?.days ?? []
@@ -89,6 +90,7 @@ export default function Cafeteria() {
         title={t('portal.cafeteria.title')}
         description={t('portal.cafeteria.description')}
       />
+      <Freshness query={query} />
       <PageBody>
         <CellGrid cols={3}>
           <Stat

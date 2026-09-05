@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Loading, SkeletonTiles, ErrorState, EmptyState,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, SkeletonTiles, ErrorState,
+  EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
+import { Freshness, ScreenSkeleton } from './screen-state'
 import { ChildSwitch } from './ChildSwitch'
 import { formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -318,8 +319,8 @@ export default function Portal() {
     enabled: !!activeId,
   })
 
-  if (children.isLoading) return <Loading />
-  if (children.error) return <ScreenError error={children.error} />
+  if (children.isLoading) return <ScreenSkeleton />
+  if (children.error && !children.data) return <ScreenError error={children.error} />
 
   const kids = children.data?.items ?? []
   if (!kids.length) {
@@ -363,6 +364,7 @@ export default function Portal() {
           />
         }
       />
+      <Freshness query={summary} />
       <PageBody>
         {/* One dashboard rather than three tabs of it. What needs attention
             comes first: an unpaid fee or an absence to explain is the reason a
