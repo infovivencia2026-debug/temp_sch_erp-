@@ -333,6 +333,57 @@ Cloud Run has no equivalent for:
 | DNS for `temperp.187-127-178-100.sslip.io` | sslip.io encodes the VPS IP; the Cloud Run service needs a real hostname (`BASE_URL`), mapped with a Cloud Run domain mapping or a load balancer. The old hostname can 301 from nginx during the overlap. |
 | nginx | Only as a redirect and as the tile server until the archive is on R2. |
 
+## The front end on Cloudflare Pages
+
+The owner's choice for the page itself: Cloudflare Pages, which hosts
+`web/dist` on its edge network for nothing, in the same account as the R2
+bucket. The Go server stays on Cloud Run (or Fly). What makes this work
+without touching the app is that Pages still presents **one origin**:
+
+```
+browser ── app.school.in (Pages) ── static files from the edge
+                 └── /api/*, /login, /logout, /healthz, /static/*, /iclock/*,
+                     /buy, /signup, /forgot, /reset, /apps*, /files/*
+                        → web/functions/[[path]].ts → API_ORIGIN (Cloud Run)
+```
+
+`web/functions/[[path]].ts` is a Pages Function that forwards those paths to
+`API_ORIGIN` and streams the answer back, adding `X-Forwarded-Host`, and
+`X-Forwarded-For` in the appending form `httpx.RealIP` expects.
+`web/public/_routes.json` limits the Function to exactly those paths, so
+static files never invoke it and never count against the Functions free
+tier (100,000 requests a day; the API traffic of one school is well under).
+`web/public/_headers` carries the same cache and security headers nginx
+sends; `web/public/_redirects` maps `/.well-known/assetlinks.json`.
+
+Because the browser only ever talks to the Pages host, the session cookie is
+first-party, the fetches are same-origin, and the server-rendered sign-in
+pages load at `/login` as they always have. Nothing in `web/src` or the Go
+code changes for this.
+
+**Setting it up**
+
+1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect the
+   GitHub repository. Root directory `web`, build command
+   `npm ci --no-audit --no-fund && npm run build`, output directory `dist`,
+   Node version 20 (`NODE_VERSION=20` as a build env var).
+2. Environment variable `API_ORIGIN` = the Cloud Run web service URL, no
+   trailing slash. Set it for Production and Preview.
+3. Custom domain (e.g. `app.<school>.in`) on the Pages project; the DNS is a
+   CNAME Cloudflare adds itself when the zone is on Cloudflare.
+4. `BASE_URL` on the Cloud Run web service must be the **Pages** URL, not the
+   `run.app` one: it is what the server puts in emails and SMS links.
+5. The Cloud Run web service can keep `WEB_DIST` set (it then serves the page
+   too, harmlessly) or drop it; with Pages in front it is never asked for
+   the page. The mobile shells point at the Pages host (`PORTAL_URL` in
+   `mobile/apps/parent-ios/Config/Portal.xcconfig` and the Android
+   `portalUrl` Gradle property) and need a rebuild for the new host.
+
+**What Pages does not do**: the one place the Go code builds a link from the
+request's own `Host` (`internal/api/mod_ops.go`) will see the `run.app`
+host behind the proxy; everything else uses `BASE_URL`. Worth switching that
+one to `BASE_URL` before cut-over.
+
 ## Cut-over checklist
 
 In order. Each step is reversible until step 9.

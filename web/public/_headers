@@ -1,0 +1,17 @@
+# Cloudflare Pages response headers. The same contract nginx enforces in
+# scripts/deploy.sh: hashed assets are immutable for a year, the shell is
+# revalidated every time so a deploy reaches every open tab on its next load,
+# and the two security headers the site has always sent.
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

@@ -1,0 +1,6 @@
+# Vite drops dot-directories from public/, so the Android app-links file is
+# kept at well-known/ and served at the path Android looks for. nginx does the
+# same with an alias; this is the Pages spelling of it. 200 = rewrite, not a
+# visible redirect. The SPA fallback (any unknown path → index.html) is what
+# Pages does by default for a single-page app and needs no rule here.
+/.well-known/assetlinks.json  /well-known/assetlinks.json  200

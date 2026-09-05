@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "description": "Only the paths the Go server owns invoke the proxy Function; everything else is a static file served from the edge and never counts against the Functions quota. Keep in step with SERVER_PATHS in web/functions/[[path]].ts and the nginx locations in scripts/deploy.sh.",
+  "include": [
+    "/api/*", "/login", "/logout", "/healthz", "/static/*", "/iclock/*",
+    "/buy", "/signup", "/forgot", "/reset", "/apps", "/apps/*", "/files/*"
+  ],
+  "exclude": []
+}
