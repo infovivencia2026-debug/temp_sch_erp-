@@ -3513,8 +3513,23 @@ func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
 			out.Removed++
 		}
 
-		// Marked rather than deleted: "loaded and then undone" is a different
-		// fact from "never loaded", and an empty history says the second.
+		/* UNDONE ONLY IF SOMETHING WAS ACTUALLY UNDONE.
+
+		   Marked rather than deleted: "loaded and then undone" is a different
+		   fact from "never loaded", and an empty history says the second.
+
+		   But it was stamped whatever happened, including when every row was
+		   held back as in use. So pressing delete on nine staff who all teach
+		   a class removed none of them, marked the upload undone, and took the
+		   link away -- and from the other side of the screen that is a delete
+		   button that does nothing and then disappears. The rows are still
+		   there, the history says they are gone, and there is no second try.
+
+		   A run that gave nothing up is left exactly as it was, so it can be
+		   pressed again once whatever holds those rows has been dealt with. */
+		if out.Removed == 0 {
+			return nil
+		}
 		_, err = tx.Exec(r.Context(),
 			`UPDATE import_runs SET undone_at = now(), undone_by = $2 WHERE id = $1`,
 			runID, id.UserID)

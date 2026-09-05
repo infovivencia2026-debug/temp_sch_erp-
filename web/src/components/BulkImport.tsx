@@ -757,9 +757,23 @@ function History({
       const res = await api.post<{ removed: number; kept: number; reasons: string[] }>(
         `/api/v1/setup/import/history/${run.id}/undo`, {},
       )
+      /* SAY WHY, NOT JUST HOW MANY.
+
+         The server works out a reason for every row it holds back -- a teacher
+         who has a class, a child with attendance against them, a row another
+         table still points at -- and this threw all of it away and printed a
+         count. "0 removed, 9 kept because they are in use" tells somebody
+         their delete did not work and nothing about what to do next. */
       setOutcome(
-        `${res.removed} removed` +
-          (res.kept ? `, ${res.kept} kept because they are in use` : ''),
+        res.removed === 0 && res.kept > 0
+          ? `Nothing removed. All ${res.kept} are still in use: ` +
+            (res.reasons?.join('; ') || 'another record points at them') +
+            '. Deal with that and press delete again.'
+          : `${res.removed} removed` +
+            (res.kept
+              ? `, ${res.kept} kept because they are in use` +
+                (res.reasons?.length ? ` (${res.reasons.join('; ')})` : '')
+              : ''),
       )
       await qc.invalidateQueries()
     } catch (e) {
