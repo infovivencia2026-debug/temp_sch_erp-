@@ -22,3 +22,8 @@
 # node_modules is an install artefact, never a tracked symlink.
 web/node_modules/
 scripts/__pycache__/
+
+# Cloud Run configuration and secrets for deploy/cloudrun/*.sh: the Neon and
+# Upstash URLs, the pepper copied from the VPS, the R2 keys. Secret Manager is
+# where these live once uploaded; this file is the one local copy.
+deploy/cloudrun/.env.cloudrun

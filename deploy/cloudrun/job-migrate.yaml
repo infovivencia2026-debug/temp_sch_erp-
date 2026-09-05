@@ -1,0 +1,88 @@
+# temperp-migrate: schema migrations as a Cloud Run Job.
+#
+# One job, run more than once with different args, because the image is
+# distroless: there is no /bin/sh to chain `migrate up && migrate seed` in a
+# single container, and a two-container job would run both at once rather
+# than in order. So deploy.sh executes this job twice with --args, waiting on
+# each:
+#
+#   gcloud run jobs execute temperp-migrate --region asia-south1 --wait --args=up
+#   gcloud run jobs execute temperp-migrate --region asia-south1 --wait --args=seed-permissions
+#
+# `up` then `seed-permissions` is what scripts/deploy.sh does on the VPS on
+# every deploy. Full `seed` -- which rewrites every role's catalogue grants and
+# so undoes any customisation a school has made to its menus -- is the repair
+# path, run only when asked (deploy.sh SEED_ROLES=1), exactly as on the VPS.
+#
+# Runs before the services are replaced, so a failed migration leaves the old
+# revision serving: a failed deploy rather than an outage (README, deploy rule
+# 3). MIGRATE_DATABASE_URL is the owner role; DATABASE_URL is present because
+# internal/config refuses to load without it, and seed uses the app-role
+# connection for the same reason the VPS does.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: temperp-migrate
+  labels:
+    cloud.googleapis.com/location: asia-south1
+spec:
+  template:
+    spec:
+      taskCount: 1
+      parallelism: 1
+      template:
+        spec:
+          # A migration that fails should be read, not retried into a
+          # half-applied state. goose already wraps each file in a
+          # transaction; retrying blind adds nothing.
+          maxRetries: 0
+          # The baseline is 3,500 lines and the ledger migration seeds a
+          # chart of accounts; on a cold Neon compute that is tens of seconds,
+          # not the ten-minute default -- but a wedged lock should not run for
+          # an hour either.
+          timeoutSeconds: 1800
+          serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
+          containers:
+            - image: asia-south1-docker.pkg.dev/PROJECT_ID/temperp/app:COMMIT
+              command: ["/app/migrate"]
+              args: ["up"]
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+              env:
+                - name: APP_ENV
+                  value: production
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-database-url
+                      key: latest
+                - name: MIGRATE_DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-migrate-database-url
+                      key: latest
+                # config.Load insists on these even though migrate never
+                # opens a session or hashes a password: the same binary shares
+                # the loader with web and worker.
+                - name: SESSION_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-session-secret
+                      key: latest
+                - name: PASSWORD_PEPPER
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-password-pepper
+                      key: latest
+                - name: CREDENTIAL_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-credential-key
+                      key: latest
+                - name: REDIS_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: temperp-redis-url
+                      key: latest

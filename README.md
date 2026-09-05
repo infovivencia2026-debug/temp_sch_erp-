@@ -224,6 +224,14 @@ plenty) cuts a fresh archive from the daily Protomaps build of OpenStreetMap.
 `web/src/components/FleetMap.tsx` uses it inside the iPhone app first; every
 other client still loads OpenFreeMap until the rollout widens.
 
+**Cloud Run.** The planned move off the VPS — Cloud Run in Mumbai, Neon
+Postgres, Upstash Redis, files and map tiles on R2 — is written up in
+[docs/hosting-cloud-run.md](docs/hosting-cloud-run.md), with the manifests and
+scripts under [deploy/cloudrun/](deploy/cloudrun/). Nothing there is live yet;
+the doc lists what the code still needs (an always-on worker that listens on
+, , the RLS roles created on Neon by hand) before
+ can be run for real.
+
 **Deploy rules**
 
 1. **Deploys name a commit.** `COMMIT` pins the revision; without it you get

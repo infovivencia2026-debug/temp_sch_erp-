@@ -1,0 +1,165 @@
+# temperp-web on Cloud Run: the Go API, the server-rendered auth pages and
+# (with WEB_DIST set) the React SPA, all from one container.
+#
+# Applied with `gcloud run services replace` by deploy.sh, which first
+# substitutes the ALL-CAPS placeholder tokens (the project id, the image tag,
+# and the plain config values) from deploy/cloudrun/.env.cloudrun -- and then
+# refuses to continue if any token survived, so this comment must not spell
+# them out. Secrets are never written into this file:
+# they are referenced from Secret Manager by name, so the manifest is safe to
+# commit and the values live in exactly one place.
+#
+# The region is carried by the cloud.googleapis.com/location label, which is
+# how a Knative manifest names a Cloud Run region -- there is no --region on
+# `services replace` that overrides it.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: temperp-web
+  labels:
+    cloud.googleapis.com/location: asia-south1
+  annotations:
+    # Public: students and parents reach this directly. There is no nginx in
+    # front any more; Cloud Run's own front end terminates TLS.
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # Scale to zero. The plan is explicit about not paying for a warm
+        # instance yet; the school-hours traffic pattern (see
+        # docs/hosting-cloud-run.md) keeps one warm during the day anyway.
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"
+        # CPU only while a request is in flight -- the request-based billing
+        # model the plan's ₹0-300 estimate assumes. The worker is the process
+        # that needs CPU between requests, and it has its own manifest.
+        run.googleapis.com/cpu-throttling: "true"
+        # More CPU during start-up so a cold start (Go binary + pgx pool +
+        # Redis client + template parse) is a second, not three.
+        run.googleapis.com/startup-cpu-boost: "true"
+        # Gen2 for a full Linux syscall surface; distroless runs fine on it.
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      # 80 concurrent requests per instance. The handlers are small JSON
+      # responses bounded by Postgres, and the pgx pool is DB_MAX_CONNS deep,
+      # so requests beyond the pool queue in-process rather than opening more
+      # Neon connections. Matches the upper end of the plan's 40-80.
+      containerConcurrency: 80
+      # Uploads to the local file store stream through this process (see the
+      # FILE_STORE_DIR note in the doc) and Cloud Run's default is 300 s; keep
+      # it there rather than lowering it and cutting off a slow upload.
+      timeoutSeconds: 300
+      serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: asia-south1-docker.pkg.dev/PROJECT_ID/temperp/app:COMMIT
+          command: ["/app/web"]
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            failureThreshold: 15
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 3
+          env:
+            # Cloud Run injects PORT=8080 and internal/config falls back to it
+            # when HTTP_ADDR is unset. Set explicitly anyway: an explicit
+            # HTTP_ADDR wins over both defaults, so the bind address is stated
+            # here rather than inferred, and matches containerPort above.
+            - name: HTTP_ADDR
+              value: "0.0.0.0:8080"
+            - name: WEB_DIST
+              value: /app/web
+            - name: APP_ENV
+              value: production
+            - name: BASE_URL
+              value: "BASE_URL_VALUE"
+            - name: SESSION_TTL
+              value: 12h
+            - name: SESSION_IDLE_TTL
+              value: 2h
+            # Neon's free/launch compute allows ~100 direct connections, but
+            # this pool is per instance and maxScale is 5, so 5 x 10 = 50 at
+            # full fan-out, plus the worker's. Leave headroom; do not raise
+            # this without doing that arithmetic again.
+            - name: DB_MAX_CONNS
+              value: "10"
+            # R2: the bucket, account and public host are configuration, not
+            # secrets. The two keys are, and come from Secret Manager below.
+            - name: R2_ACCOUNT_ID
+              value: "R2_ACCOUNT_ID_VALUE"
+            - name: R2_BUCKET
+              value: "R2_BUCKET_VALUE"
+            - name: R2_PUBLIC_HOST
+              value: "R2_PUBLIC_HOST_VALUE"
+            - name: R2_PRESIGN_EXPIRY
+              value: 10m
+            # There is no writable disk here. Point the local file store at
+            # the in-memory tmpfs so an upload that slips past the R2 check
+            # fails loudly on the next instance instead of being silently
+            # lost with a restart; R2 must be configured for uploads to work.
+            - name: FILE_STORE_DIR
+              value: /tmp/temperp-files
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-database-url
+                  key: latest
+            - name: MIGRATE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-migrate-database-url
+                  key: latest
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-redis-url
+                  key: latest
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-session-secret
+                  key: latest
+            - name: PASSWORD_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-password-pepper
+                  key: latest
+            - name: CREDENTIAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-credential-key
+                  key: latest
+            - name: PAYMENT_GATEWAY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-payment-gateway-secret
+                  key: latest
+            - name: R2_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-r2-access-key-id
+                  key: latest
+            - name: R2_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-r2-secret-access-key
+                  key: latest
+  traffic:
+    - percent: 100
+      latestRevision: true

@@ -1,0 +1,153 @@
+# temperp-worker on Cloud Run: the asynq consumer and the cron scheduler.
+#
+# A Cloud Run *service*, not a job, and pinned to exactly one always-on
+# instance. The reasons are in cmd/worker/main.go: the asynq scheduler runs
+# in-process and fires cron entries every minute (message dispatch), every
+# five (diary reminders, message_log flush) and nightly; a process that is
+# only awake while a request is in flight would never fire any of them. Hence
+# minScale 1 and cpu-throttling off -- this is the one place we pay for idle
+# CPU, and it is the largest line in the Cloud Run bill. maxScale 1 because
+# asynq elects a single active scheduler through Redis, so a second replica
+# would consume queues but add nothing to the schedule, and the Postgres-bound
+# Concurrency of 4 does not need it.
+#
+# THE CATCH, read before applying: Cloud Run requires every service container
+# to listen on $PORT and answer the startup probe, and cmd/worker opens no
+# socket today. Until it grows a small /healthz listener (a few lines, tied to
+# asynq's own HealthCheckFunc), this revision will be reported unhealthy and
+# never receive traffic -- see "What this codebase needs" in
+# docs/hosting-cloud-run.md. The probe below is written for that listener.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: temperp-worker
+  labels:
+    cloud.googleapis.com/location: asia-south1
+  annotations:
+    # Nobody calls the worker over HTTP; the port exists only so Cloud Run
+    # can see it is alive. Internal ingress keeps it off the public internet.
+    run.googleapis.com/ingress: internal
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        # CPU allocated between requests: the queue consumer and the scheduler
+        # do all their work with no request in flight.
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 300
+      serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: asia-south1-docker.pkg.dev/PROJECT_ID/temperp/app:COMMIT
+          command: ["/app/worker"]
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              # 1 vCPU matches the plan. The worker is Postgres-bound at
+              # Concurrency 4, so "0.5" would very likely do and halves the
+              # always-on charge; see the cost note in the doc before lowering.
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 2
+            failureThreshold: 30
+          env:
+            - name: HTTP_ADDR
+              value: "0.0.0.0:8080"
+            - name: APP_ENV
+              value: production
+            - name: BASE_URL
+              value: "BASE_URL_VALUE"
+            - name: SESSION_TTL
+              value: 12h
+            - name: SESSION_IDLE_TTL
+              value: 2h
+            # A single instance with Concurrency 4 needs far fewer than the
+            # web's pool, and every connection here is one the web cannot
+            # have on Neon's connection ceiling.
+            - name: DB_MAX_CONNS
+              value: "4"
+            - name: R2_ACCOUNT_ID
+              value: "R2_ACCOUNT_ID_VALUE"
+            - name: R2_BUCKET
+              value: "R2_BUCKET_VALUE"
+            - name: R2_PUBLIC_HOST
+              value: "R2_PUBLIC_HOST_VALUE"
+            - name: R2_PRESIGN_EXPIRY
+              value: 10m
+            - name: FILE_STORE_DIR
+              value: /tmp/temperp-files
+            # Push to the parent app (docs/PUSH.md) reads a service-account
+            # JSON from disk. On Cloud Run that file is a Secret Manager
+            # volume. Both halves are commented out until the secret exists,
+            # because a reference to a missing secret fails the whole revision
+            # -- uncomment together with the volume block below.
+            # - name: FCM_SERVICE_ACCOUNT_FILE
+            #   value: /secrets/fcm/service-account.json
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-database-url
+                  key: latest
+            - name: MIGRATE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-migrate-database-url
+                  key: latest
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-redis-url
+                  key: latest
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-session-secret
+                  key: latest
+            - name: PASSWORD_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-password-pepper
+                  key: latest
+            - name: CREDENTIAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-credential-key
+                  key: latest
+            - name: PAYMENT_GATEWAY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-payment-gateway-secret
+                  key: latest
+            - name: R2_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-r2-access-key-id
+                  key: latest
+            - name: R2_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-r2-secret-access-key
+                  key: latest
+          # volumeMounts:
+          #   - name: fcm
+          #     mountPath: /secrets/fcm
+          #     readOnly: true
+      # volumes:
+      #   - name: fcm
+      #     secret:
+      #       secretName: temperp-fcm-service-account
+      #       items:
+      #         - key: latest
+      #           path: service-account.json
+  traffic:
+    - percent: 100
+      latestRevision: true
