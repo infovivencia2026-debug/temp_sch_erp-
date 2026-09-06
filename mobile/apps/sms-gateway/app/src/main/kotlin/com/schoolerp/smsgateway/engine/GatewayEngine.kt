@@ -43,6 +43,10 @@ class GatewayEngine @Inject constructor(
     /** When the current send-blocking condition began. Null when unblocked. */
     private var blockedSince: Long? = null
 
+    /** When the block last cleared. The grace timer is reset only once the
+        gateway has been continuously unblocked for [UNBLOCKED_SETTLE_MILLIS]. */
+    private var unblockedSince: Long? = null
+
     suspend fun run(): Unit = coroutineScope {
         // The window is seeded from durable history so restarting the service
         // cannot buy a fresh minute's carrier allowance.
@@ -130,11 +134,19 @@ class GatewayEngine @Inject constructor(
 
             val blockedReason = sendBlockedReason()
             if (blockedReason != null) {
+                unblockedSince = null
                 handleBlocked(blockedReason)
                 delay(BLOCKED_RECHECK_MILLIS)
                 continue
             }
-            blockedSince = null
+            /* Cleared only after a settled minute. A SIM that Android reports
+               ready and then not ready every few seconds -- a loose tray, a
+               failing card -- used to reset the ten-minute grace on every
+               flap, so the grace never ran out, the messages were held for
+               ever, and the server went on believing they were going out. */
+            val now = timeSource.nowMillis()
+            val clearedAt = unblockedSince ?: now.also { unblockedSince = it }
+            if (blockedSince != null && now - clearedAt >= UNBLOCKED_SETTLE_MILLIS) blockedSince = null
 
             val rows = repository.nextQueued(DISPATCH_BATCH)
             if (rows.isEmpty()) {
@@ -241,6 +253,7 @@ class GatewayEngine @Inject constructor(
         const val PAUSED_IDLE_MILLIS = 30_000L
         const val UNPAIRED_IDLE_MILLIS = 15_000L
         const val BLOCKED_RECHECK_MILLIS = 5_000L
+        const val UNBLOCKED_SETTLE_MILLIS = 60_000L
         const val RECEIPT_TICK_MILLIS = 10_000L
         const val DEVICE_REFRESH_MILLIS = 15_000L
         const val UPKEEP_TICK_MILLIS = 10 * 60_000L

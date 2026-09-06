@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import com.schoolerp.smsgateway.core.GwLog
+import com.schoolerp.smsgateway.engine.Blocker
 import com.schoolerp.smsgateway.engine.EngineSignals
 import com.schoolerp.smsgateway.engine.GatewayEngine
 import com.schoolerp.smsgateway.engine.StatusAggregator
@@ -18,7 +19,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,6 +37,7 @@ import javax.inject.Inject
  * the belt to this service's braces: if the process is killed anyway, or if a
  * background start was refused, WorkManager brings it back.
  */
+@OptIn(FlowPreview::class)
 @AndroidEntryPoint
 class GatewayService : Service() {
 
@@ -67,6 +72,28 @@ class GatewayService : Service() {
             aggregator.status.distinctUntilChanged { old, new ->
                 old.summary == new.summary && old.institutionName == new.institutionName
             }.collect { notifications.update(it) }
+        }
+
+        /* Something a person has to fix, said loudly, and only once it has
+           lasted. Two minutes rather than at once, because a SIM is not
+           readable for a while after boot and a data connection drops for a
+           moment in a lift; a heads-up for either would teach the office to
+           swipe them away. Not paired and no address are the operator's own
+           doing and are on the screen in front of them, so they are left out.
+           Cleared the moment the block lifts. */
+        scope.launch {
+            aggregator.status
+                .map { status ->
+                    status.blockers.firstOrNull {
+                        it.stopsSending && it != Blocker.NOT_PAIRED &&
+                            it != Blocker.NO_SERVER_ADDRESS && it != Blocker.SERVICE_NOT_RUNNING
+                    }
+                }
+                .distinctUntilChanged()
+                .debounce(PROBLEM_SETTLE_MILLIS)
+                .collect { stopper ->
+                    if (stopper == null) notifications.clearProblem() else notifications.problem(stopper)
+                }
         }
     }
 
@@ -143,5 +170,6 @@ class GatewayService : Service() {
     companion object {
         const val ACTION_STOP = "com.schoolerp.smsgateway.STOP_SERVICE"
         private const val ENGINE_RESTART_MILLIS = 10_000L
+        private const val PROBLEM_SETTLE_MILLIS = 2 * 60_000L
     }
 }

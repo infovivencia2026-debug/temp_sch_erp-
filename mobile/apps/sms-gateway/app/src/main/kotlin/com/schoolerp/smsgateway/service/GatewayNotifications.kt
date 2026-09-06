@@ -9,6 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.schoolerp.smsgateway.MainActivity
 import com.schoolerp.smsgateway.R
+import com.schoolerp.smsgateway.engine.Blocker
 import com.schoolerp.smsgateway.engine.GatewayStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -81,6 +82,31 @@ class GatewayNotifications @Inject constructor(
         manager?.notify(ONGOING_ID, ongoing(status))
     }
 
+    /* THE CHANNEL THAT WAS CREATED AND NEVER USED.
+
+       A phone whose SIM was pulled overnight showed only the low-importance
+       ongoing notice, quietly reworded, and nobody in the office was told
+       until the parents were. This is the loud one: heads-up, sound, on the
+       channel made for it. Cleared the moment the block lifts. */
+    fun problem(blocker: Blocker) {
+        val notification = NotificationCompat.Builder(context, CHANNEL_PROBLEM)
+            .setSmallIcon(R.drawable.ic_stat_gateway)
+            .setContentTitle(blocker.headline)
+            .setContentText(blocker.detail)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(blocker.detail))
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(false)
+            .setContentIntent(openApp())
+            .build()
+        manager?.notify(PROBLEM_ID, notification)
+    }
+
+    fun clearProblem() {
+        manager?.cancel(PROBLEM_ID)
+    }
+
     private fun openApp(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -97,5 +123,6 @@ class GatewayNotifications @Inject constructor(
         const val CHANNEL_STATUS = "gateway_status"
         const val CHANNEL_PROBLEM = "gateway_problem"
         const val ONGOING_ID = 1001
+        const val PROBLEM_ID = 1002
     }
 }

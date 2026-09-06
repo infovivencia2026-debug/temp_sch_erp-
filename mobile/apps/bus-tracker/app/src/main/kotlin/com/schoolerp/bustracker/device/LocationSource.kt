@@ -6,6 +6,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
+import android.os.SystemClock
 import com.schoolerp.bustracker.core.BtLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -62,7 +63,26 @@ class LocationSource @Inject constructor(
             return@callbackFlow
         }
 
-        val listener = LocationListener { location -> trySend(location.toFix()) }
+        /* THE STAND-IN STANDS IN, AND ONLY STANDS IN.
+
+           The KDoc below has always said the network provider covers the first
+           minutes while the GPS finds itself. Nothing enforced it: both
+           providers fed one listener and every fix was buffered, so a
+           cell-tower position a kilometre and a half out was uploaded beside
+           the GPS one and drawn for parents as the bus jumping across the
+           map. Two listeners now. A network fix is dropped while a GPS fix is
+           fresh, and dropped outright when its own accuracy says it is not a
+           position but a neighbourhood. */
+        var lastGpsAt = 0L
+        val gps = LocationListener { location ->
+            lastGpsAt = SystemClock.elapsedRealtime()
+            trySend(location.toFix())
+        }
+        val network = LocationListener { location ->
+            val gpsFresh = SystemClock.elapsedRealtime() - lastGpsAt < GPS_FRESH_MILLIS
+            val tooLoose = location.hasAccuracy() && location.accuracy > MAX_STAND_IN_ACCURACY_M
+            if (!gpsFresh && !tooLoose) trySend(location.toFix())
+        }
 
         val intervalMillis = intervalSeconds.coerceAtLeast(1) * 1_000L
         val providers = providersToUse(lm)
@@ -73,6 +93,7 @@ class LocationSource @Inject constructor(
         }
 
         providers.forEach { provider ->
+            val listener = if (provider == LocationManager.GPS_PROVIDER) gps else network
             runCatching {
                 lm.requestLocationUpdates(
                     provider,
@@ -88,7 +109,8 @@ class LocationSource @Inject constructor(
         }
 
         awaitClose {
-            runCatching { lm.removeUpdates(listener) }
+            runCatching { lm.removeUpdates(gps) }
+            runCatching { lm.removeUpdates(network) }
         }
     }
 
@@ -127,5 +149,12 @@ class LocationSource @Inject constructor(
     private companion object {
         /** Below walking pace the bearing is jitter, not a direction of travel. */
         const val MIN_SPEED_FOR_HEADING_MPS = 1.0f
+
+        /** A GPS fix this recent makes a network fix noise rather than news. */
+        const val GPS_FRESH_MILLIS = 30_000L
+
+        /** A stand-in wider than this is a cell tower, not a bus. Three times
+            the geofence slack in Geo, which is the most a stop will forgive. */
+        const val MAX_STAND_IN_ACCURACY_M = 300f
     }
 }
