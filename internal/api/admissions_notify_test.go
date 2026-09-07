@@ -327,6 +327,16 @@ A parent who already has a login keeps the one they are holding.
 	The sibling case, and the one that silently breaks a family: a second
 	application must attach itself to the account the parent already signs in
 	with rather than mint a second password that replaces it.
+
+	"Already signs in with" is the whole condition, and it is last_login_at.
+	ensureGuardianAccount leaves a password alone only when the login has been
+	used at least once; an account that was minted and never signed into is
+	given a fresh password, because a name with no working secret behind it is
+	what left a real family locked out (see the comment on that routine). This
+	test seeded a user with a hash and no last_login_at, describing them as
+	"already signing in", and so was pinning the dead end that rule removed.
+	The seed now records a sign-in; the never-used case is pinned separately
+	below.
 */
 func TestApplicantLoginNeverResetsAnExistingPassword(t *testing.T) {
 	db := testDB(t)
@@ -340,9 +350,9 @@ func TestApplicantLoginNeverResetsAnExistingPassword(t *testing.T) {
 	err := db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO users (id, institution_id, username, email, phone, full_name,
-			                   password_hash, status)
+			                   password_hash, status, last_login_at)
 			VALUES ($1,$2,'lakshmi'::citext,'lakshmi@example.test'::citext,'9000000001',
-			        'Lakshmi Rao',$3,'active')`, user, w.inst, before); err != nil {
+			        'Lakshmi Rao',$3,'active',now() - interval '1 day')`, user, w.inst, before); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `
@@ -412,6 +422,110 @@ func TestApplicantLoginNeverResetsAnExistingPassword(t *testing.T) {
 	}
 	if users != 1 {
 		t.Errorf("users = %d, want 1: one adult is one account", users)
+	}
+	if guardianOn == nil || *guardianOn != guardian {
+		t.Errorf("application guardian_id = %v, want the guardian who already existed", guardianOn)
+	}
+}
+
+/*
+A login nobody has ever used is replaced, not named.
+
+	The other half of the rule above. An account minted at enquiry and never
+	signed into is not one the family holds: whatever password it was given
+	went to whoever read the note the first time. Naming it and saying
+	"unchanged" hands the office half a credential, so a sibling's application
+	finding such an account issues a fresh password on it -- the same account,
+	the same guardian, one user in the school -- and says so.
+*/
+func TestApplicantLoginReissuesANeverUsedPassword(t *testing.T) {
+	db := testDB(t)
+	w := seedAdmissionsWorld(t, db, "Never Signed In School")
+	w.configureEmail(t)
+	ctx := context.Background()
+
+	guardian, user := uuid.New(), uuid.New()
+	before := "never-used-hash"
+	err := db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO users (id, institution_id, username, email, phone, full_name,
+			                   password_hash, status)
+			VALUES ($1,$2,'meena'::citext,'meena@example.test'::citext,'9000000002',
+			        'Meena Iyer',$3,'active')`, user, w.inst, before); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `
+			INSERT INTO guardians (id, institution_id, full_name, relation, phone, email, user_id)
+			VALUES ($1,$2,'Meena Iyer','mother','9000000002','meena@example.test'::citext,$3)`,
+			guardian, w.inst, user)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("seed guardian: %v", err)
+	}
+
+	app := uuid.New()
+	err = db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO applications (id, institution_id, campus_id, application_no,
+			                          first_name, class_sought, parent_name,
+			                          parent_phone, parent_email, status)
+			VALUES ($1,$2,$3,'APP-UNUSED','Kavya',$4,'Meena Iyer','9000000002',
+			        'meena@example.test'::citext,'submitted')`,
+			app, w.inst, w.campus, w.class)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("seed application: %v", err)
+	}
+
+	var welcome applicantWelcome
+	err = db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
+		welcome = w.s.ensureApplicantLogin(ctx, tx, w.inst, app)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ensureApplicantLogin: %v", err)
+	}
+
+	if !welcome.Existing {
+		t.Errorf("existing = false, want true: the account itself was already there")
+	}
+	if welcome.Password == "" {
+		t.Errorf("no password issued for a login that had never been used")
+	}
+	if !strings.Contains(welcome.Note, "never been used") {
+		t.Errorf("note = %q, want it to say the login had never been used", welcome.Note)
+	}
+
+	var (
+		after      string
+		guardianOn *uuid.UUID
+		users      int
+	)
+	err = db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx,
+			`SELECT password_hash FROM users WHERE id = $1`, user).Scan(&after); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx,
+			`SELECT guardian_id FROM applications WHERE id = $1`, app).Scan(&guardianOn); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx,
+			`SELECT count(*) FROM users WHERE institution_id = $1`, w.inst).Scan(&users)
+	})
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if after == before {
+		t.Errorf("the unused password was kept: the office is holding a name with no secret")
+	}
+	if err := w.s.Hasher.Verify(after, welcome.Password); err != nil {
+		t.Errorf("the hash on the account is not the password the office was shown")
+	}
+	if users != 1 {
+		t.Errorf("users = %d, want 1: reissuing must not mint a second account", users)
 	}
 	if guardianOn == nil || *guardianOn != guardian {
 		t.Errorf("application guardian_id = %v, want the guardian who already existed", guardianOn)
