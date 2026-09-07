@@ -51,6 +51,7 @@ interface Inputs {
   summary: {
     teaching_slots_a_week: number
     subjects_without_requirement: number
+    sections_without_subjects: number
   }
 }
 
@@ -85,7 +86,8 @@ export default function PeriodsNeeded({
      four to go should land on the work, not on Pre Nursery again. */
   useEffect(() => {
     if (pick || sections.length === 0) return
-    const unset = sections.find((s) => s.requirements.some((r) => r.periods_per_week === 0))
+    const unset = sections.find(
+      (s) => s.requirements.length === 0 || s.requirements.some((r) => r.periods_per_week === 0))
     setPick((unset ?? sections[0]).id)
   }, [sections, pick])
 
@@ -173,6 +175,7 @@ export default function PeriodsNeeded({
   /* How far the school has got, said once. Counted over sections rather than
      classes because a section is what a person is choosing between. */
   const done = sections.filter((s) => s.requirements.some((r) => r.periods_per_week > 0)).length
+  const noSubjects = sections.filter((s) => s.requirements.length === 0).length
 
   return (
     <Card>
@@ -195,13 +198,20 @@ export default function PeriodsNeeded({
                 value: s.id,
                 label:
                   `${s.class_name} — ${s.name}` +
-                  (s.requirements.some((r) => r.periods_per_week > 0) ? '' : ' · nothing set'),
+                  (s.requirements.length === 0
+                    ? ' · no subjects'
+                    : s.requirements.some((r) => r.periods_per_week > 0)
+                      ? ''
+                      : ' · nothing set'),
               }))}
             />
           </div>
           <p className="pb-2 text-[12.5px] text-muted-foreground">
             <span className="tabular-nums">{done}</span> of{' '}
             <span className="tabular-nums">{sections.length}</span> sections have periods set
+            {noSubjects > 0 && (
+              <> · <span className="tabular-nums">{noSubjects}</span> teach no subjects yet</>
+            )}
           </p>
         </div>
 
@@ -238,6 +248,21 @@ export default function PeriodsNeeded({
             <FormNotice error={save.error} />
             <FormNotice error={generate.error} />
 
+            {/* A class that teaches nothing is a real state with a real cause,
+                and it is not fixed on this screen. Saying "0 subjects" and
+                stopping would leave somebody looking for a box that is not
+                here; naming where the subjects are added is the whole answer. */}
+            {subjects.length === 0 ? (
+              <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-3 text-[13px] text-secondary-foreground">
+                <span className="font-medium">
+                  {chosen.class_name} has no subjects yet.
+                </span>{' '}
+                There is nothing to give periods to until it teaches something. Add its
+                subjects under Academics → Class Setup, or include {chosen.class_name} in the
+                class-subjects sheet — the pre-primary classes are usually missing because a
+                school's own subject list starts at Grade 1.
+              </div>
+            ) : (
             <Table head={['Subject', 'Periods a week', 'Teacher', '']}>
               {subjects.map((rq) => (
                 <tr key={rq.class_subject_id}>
@@ -277,8 +302,9 @@ export default function PeriodsNeeded({
                 </tr>
               ))}
             </Table>
+            )}
 
-            {mayWrite && (
+            {mayWrite && subjects.length > 0 && (
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   disabled={!ready || generate.isPending}

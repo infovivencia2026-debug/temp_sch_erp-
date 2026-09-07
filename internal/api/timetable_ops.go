@@ -246,15 +246,24 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 		// section_subject_teachers, which is where faculty allocation already
 		// stores it; a second idea of "who teaches this" is how two screens
 		// end up disagreeing.
+		/* LEFT JOIN, so a class that teaches nothing yet still has a section.
+		
+		   This was an inner join, and a class with no rows in class_subjects
+		   produced no rows at all -- so its sections were not listed as having
+		   no subjects, they were absent. A school with Pre Nursery, Nursery,
+		   Jr KG and Sr KG saw 14 sections on a screen that had just told them
+		   they had 18, with nothing anywhere saying where the other four went.
+		   The four are exactly the ones somebody still has to do something
+		   about, and they were the four the screen hid. */
 		rows, err := tx.Query(r.Context(), `
 			SELECT sec.id::text, sec.name, c.name, c.level,
 			       cs.id::text, sub.name, sub.code,
 			       cs.periods_per_week, cs.prefers_morning,
 			       sst.teacher_user_id::text, u.full_name
 			  FROM sections sec
-			  JOIN classes c         ON c.id = sec.class_id
-			  JOIN class_subjects cs ON cs.class_id = sec.class_id
-			  JOIN subjects sub      ON sub.id = cs.subject_id
+			  JOIN classes c              ON c.id = sec.class_id
+			  LEFT JOIN class_subjects cs ON cs.class_id = sec.class_id
+			  LEFT JOIN subjects sub      ON sub.id = cs.subject_id
 			  LEFT JOIN section_subject_teachers sst
 			         ON sst.section_id = sec.id AND sst.class_subject_id = cs.id
 			  LEFT JOIN users u ON u.id = sst.teacher_user_id
@@ -272,9 +281,14 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 			var secID, secName, className string
 			var level int
 			var req optimizerRequirement
+			/* Nullable now: the subject half of the row is absent for a class
+			   that teaches nothing. The section is still real. */
+			var csID, subName, subCode *string
+			var perWeek *int
+			var morning *bool
 			if err := rows.Scan(&secID, &secName, &className, &level,
-				&req.ClassSubjectID, &req.SubjectName, &req.SubjectCode,
-				&req.PeriodsPerWeek, &req.PrefersMorning,
+				&csID, &subName, &subCode,
+				&perWeek, &morning,
 				&req.TeacherID, &req.TeacherName); err != nil {
 				return err
 			}
@@ -286,6 +300,20 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 					ID: secID, Name: secName, ClassName: className, Level: level,
 					Requirements: []optimizerRequirement{},
 				})
+			}
+			if csID == nil {
+				// The section exists and has nothing to teach. That is the
+				// answer, not a row to invent.
+				continue
+			}
+			req.ClassSubjectID = *csID
+			req.SubjectName = derefOrEmpty(subName)
+			req.SubjectCode = derefOrEmpty(subCode)
+			if perWeek != nil {
+				req.PeriodsPerWeek = *perWeek
+			}
+			if morning != nil {
+				req.PrefersMorning = *morning
 			}
 			sections[idx].Requirements = append(sections[idx].Requirements, req)
 			sections[idx].Required += req.PeriodsPerWeek
@@ -310,9 +338,12 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 	}
 	cells := teaching * len(teachingWeekdays)
 
-	required, noPeriods, noTeacher := 0, 0, 0
+	required, noPeriods, noTeacher, noSubjects := 0, 0, 0, 0
 	for _, sec := range sections {
 		required += sec.Required
+		if len(sec.Requirements) == 0 {
+			noSubjects++
+		}
 		for _, rq := range sec.Requirements {
 			if rq.PeriodsPerWeek == 0 {
 				noPeriods++
@@ -341,6 +372,10 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 			"required_periods":      required,
 			// The three numbers that decide whether a run is worth starting.
 			"subjects_without_requirement": noPeriods,
+			// Sections whose class teaches nothing at all -- a different
+			// problem from a subject with no weekly count, and fixed
+			// somewhere else (Class Setup), so it is counted separately.
+			"sections_without_subjects": noSubjects,
 			"subjects_without_teacher":     noTeacher,
 			"teachers_over_cap":            overCap,
 		},
