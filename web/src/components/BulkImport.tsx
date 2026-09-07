@@ -156,6 +156,8 @@ export default function BulkImport({
 }) {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [gettingTemplate, setGettingTemplate] = useState(false)
+  const [templateError, setTemplateError] = useState('')
   const [csv, setCsv] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState<Result | null>(null)
@@ -398,15 +400,70 @@ export default function BulkImport({
           <p className="text-[14px] font-medium">{title}</p>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">{hint}</p>
         </div>
-        <a
-          href={templateUrl ?? `/api/v1/setup/import/${entity}/template`}
-          download
-          className="inline-flex items-center gap-1.5 text-[12.5px] tap-inline underline underline-offset-2"
+        {/* FETCHED, NOT LINKED.
+
+            This was a plain <a download>, and a plain <a download> has one
+            failure mode: nothing. If the server answers 403 because this
+            account may not import staff, or the request never leaves because
+            the service worker is between us and it, the browser discards the
+            response and the button appears dead -- no file, no error, nothing
+            to tell anybody which of those happened.
+
+            Fetching it means the two outcomes are a file and a sentence. */}
+        <button
+          type="button"
+          disabled={gettingTemplate}
+          onClick={async () => {
+            setTemplateError('')
+            setGettingTemplate(true)
+            try {
+              const res = await fetch(
+                templateUrl ?? `/api/v1/setup/import/${entity}/template`,
+                {
+                  credentials: 'same-origin',
+                  headers: actingInstitution()
+                    ? { 'X-Acting-Institution': actingInstitution()! }
+                    : {},
+                },
+              )
+              if (!res.ok) {
+                let why = `The template could not be fetched (${res.status}).`
+                try {
+                  const b = await res.json()
+                  if (b?.error?.message) why = b.error.message
+                } catch { /* not json; the status is all there is to say */ }
+                setTemplateError(why)
+                return
+              }
+              const blob = await res.blob()
+              const href = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = href
+              a.download = `${entity}-template.csv`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              // Freed on the next tick: revoking synchronously races the
+              // click on some browsers and saves an empty file.
+              setTimeout(() => URL.revokeObjectURL(href), 1000)
+            } catch {
+              setTemplateError('The template could not be fetched. Check your connection and try again.')
+            } finally {
+              setGettingTemplate(false)
+            }
+          }}
+          className="inline-flex items-center gap-1.5 text-[12.5px] tap-inline underline underline-offset-2 disabled:opacity-50"
         >
           <Download className="h-3.5 w-3.5" />
-          Template
-        </a>
+          {gettingTemplate ? 'Fetching…' : 'Template'}
+        </button>
       </div>
+
+      {templateError && (
+        <p className="border-b bg-destructive/10 px-4 py-2 text-[12.5px] text-destructive">
+          {templateError}
+        </p>
+      )}
 
       <div className="p-4">
         {pasting ? (

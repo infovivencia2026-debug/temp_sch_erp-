@@ -341,7 +341,7 @@ function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
       if (found.length === 0) {
         setNote(
           'None of those look like the setup sheets. They are the files whose names ' +
-            'start 01 to 10 — pick the folder they are in, not the zip.',
+            'start 01 to 14 — pick the folder they are in, not the zip.',
         )
         return
       }

@@ -1379,10 +1379,23 @@ var importSpecs = map[string]importSpec{
 	   class, in one year, out of one maximum. Repeating those on every row is
 	   how one typo puts one child's paper out of ten. */
 	"marks_grid": {
-		Perm:     rbac.MarksWrite,
-		Columns:  []string{"admission_no", "year", "exam", "class", "max_marks"},
+		Perm: rbac.MarksWrite,
+		/* ONE COLUMN, BECAUSE THE REST OF THE SHEET IS THE SCHOOL'S OWN.
+
+		   This listed year, exam, class and max_marks, and the importer reads
+		   none of them -- they come off the request, because they describe the
+		   whole sheet rather than a row. So the downloaded template told a
+		   school to fill in four columns that would be ignored, while the
+		   screen above asked for the same four again. Whichever the clerk
+		   trusted, one of them was a waste of their morning.
+
+		   What is left is the only column this importer can name: the child.
+		   Every other column is a subject, titled as the school titles it, and
+		   a template cannot invent those -- which is exactly why the screen
+		   asks which of your columns hold marks. */
+		Columns:  []string{"admission_no"},
 		Required: []string{"admission_no"},
-		Sample:   []string{"ADM0001", "2025-26", "Annual Examination", "Grade 5", "100"},
+		Sample:   []string{"ADM0001"},
 		// The four that describe the sheet rather than the child are taken
 		// from the request, because they are the same on every row of it.
 		Check: func(row map[string]string) error {
@@ -1718,6 +1731,11 @@ var importSpecs = map[string]importSpec{
 			   number is the one thing that identifies the transaction, and
 			   where a file gives one, a row already carrying it is reported
 			   here rather than paid again. */
+			if paidOn, perr := time.Parse(time.DateOnly, strings.TrimSpace(row["paid_on"])); perr == nil {
+				if err := withinWindow(c.sheet, paidOn, "this receipt"); err != nil {
+					return err
+				}
+			}
 			if rec := strings.TrimSpace(row["receipt_no"]); rec != "" {
 				var seen bool
 				if err := c.tx.QueryRow(c.r.Context(), `
@@ -1847,6 +1865,16 @@ var importSpecs = map[string]importSpec{
 			}
 			if err != nil {
 				return err
+			}
+			/* A month sits inside the window if the month itself does. Measured
+			   on the first of the month, because that is what "2026-04" names
+			   -- comparing a month against a mid-month boundary would refuse
+			   April for a window starting on the 5th, which is not what
+			   anybody choosing a payroll period means. */
+			if mo, merr := time.Parse("2006-01", strings.TrimSpace(row["month"])); merr == nil {
+				if err := withinWindow(c.sheet, mo, "this month"); err != nil {
+					return err
+				}
 			}
 			/* A MONTH THIS SYSTEM HAS ALREADY WORKED OUT IS NOT OVERWRITTEN.
 
@@ -2030,6 +2058,11 @@ var importSpecs = map[string]importSpec{
 			if err != nil {
 				return err
 			}
+			if day, derr := time.Parse(time.DateOnly, strings.TrimSpace(row["date"])); derr == nil {
+				if err := withinWindow(c.sheet, day, "this day"); err != nil {
+					return err
+				}
+			}
 			/* The register hangs off the user account, not the employee row --
 			   staff_attendance.user_id is NOT NULL and is what every hours and
 			   LOP query joins on. Somebody with no account has nowhere for the
@@ -2126,6 +2159,11 @@ var importSpecs = map[string]importSpec{
 			}
 			if err != nil {
 				return err
+			}
+			if day, derr := time.Parse(time.DateOnly, strings.TrimSpace(row["date"])); derr == nil {
+				if err := withinWindow(c.sheet, day, "this day"); err != nil {
+					return err
+				}
 			}
 			/* A register entry belongs to a section, and section_id is NOT
 			   NULL. A child admitted but never placed in a class has nowhere
@@ -3105,6 +3143,35 @@ func isStaffStatusWord(v string) bool {
 // intOrNil turns a blank column into NULL rather than into zero. A school that
 // does not keep attendance totals must not have "0 of 0" printed against every
 // child, which reads as a year in which nobody attended.
+/*
+withinWindow measures one dated row against the period the upload was given.
+
+	Written once and called from every dated importer, because the four of them
+	must agree about what "outside the period" means down to the boundary: the
+	window includes both ends, which is what a person choosing 1 April to 30
+	April means and not what a naive comparison does.
+
+	The date has already been parsed by the spec's own Check by the time this
+	runs -- this is about WHERE it falls, not whether it is a date.
+*/
+func withinWindow(f sheetFacts, day time.Time, what string) error {
+	if f.from != "" {
+		from, err := time.Parse(time.DateOnly, f.from)
+		if err == nil && day.Before(from) {
+			return fmt.Errorf("%s is %s, before the %s you chose. Check you have the right file for this period",
+				what, day.Format("2 January 2006"), from.Format("2 January 2006"))
+		}
+	}
+	if f.to != "" {
+		to, err := time.Parse(time.DateOnly, f.to)
+		if err == nil && day.After(to) {
+			return fmt.Errorf("%s is %s, after the %s you chose. Check you have the right file for this period",
+				what, day.Format("2 January 2006"), to.Format("2 January 2006"))
+		}
+	}
+	return nil
+}
+
 // numOrNil is intOrNil for a column the database keeps as numeric. Half a
 // day's leave is 0.5, and reading that as a whole number would round a
 // month's loss of pay to something nobody agreed to.
@@ -3220,6 +3287,24 @@ func (s *Server) getImportFields(w http.ResponseWriter, r *http.Request) {
 
 // sheetFacts is what one uploaded mark sheet says about itself.
 type sheetFacts struct {
+	/* THE STRETCH OF TIME THIS FILE IS ALLOWED TO COVER.
+
+	   A school carrying a part-finished year across does it a month at a time
+	   -- April's register, then May's -- because that is how its own records
+	   are filed and because a single file of five months is one it cannot
+	   check. Given a window, every dated row is measured against it, and a row
+	   outside is refused by date rather than written.
+
+	   The point is not tidiness. The commonest mistake in this whole job is
+	   uploading the wrong month's file, and without a window there is nothing
+	   in the data to notice it: May's register loads perfectly well as April's
+	   and the error surfaces weeks later as a payroll argument. With one, the
+	   dry run says so before anything is written.
+
+	   Both are optional and empty means unbounded, so a school that really does
+	   have one clean file for the year still uploads it in one go. */
+	from string
+	to   string
 	year     string
 	exam     string
 	class    string
@@ -3240,6 +3325,8 @@ func sheetFactsFrom(r *http.Request) sheetFacts {
 		year:  strings.TrimSpace(q.Get("year")),
 		exam:  strings.TrimSpace(q.Get("exam")),
 		class: strings.TrimSpace(q.Get("class")),
+		from:  strings.TrimSpace(q.Get("period_from")),
+		to:    strings.TrimSpace(q.Get("period_to")),
 	}
 	if v := strings.TrimSpace(q.Get("max_marks")); v != "" {
 		if n, err := strconv.ParseFloat(v, 64); err == nil {
