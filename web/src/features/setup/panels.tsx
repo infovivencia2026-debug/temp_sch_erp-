@@ -2000,7 +2000,7 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="student_exits"
         title="Children who have left"
-        hint="The term's transfer certificates as one sheet: admission number, the date they left, and how (transferred, graduated, withdrawn or alumni). Each one closes the enrolment too, so the register stops expecting them and the fee run stops billing them — and the family's login ends unless another of their children is still here."
+        hint="The term's transfer certificates as one sheet: admission number, the date they left, and how (transferred, graduated, withdrawn or alumni). Put your own TC number in tc_no and it is kept and searchable; leave it blank on a transfer and one is issued from your certificate series. Each row closes the enrolment too, so the register stops expecting them and the fee run stops billing them — and the family's login ends unless another of their children is still here."
         onDone={onDone}
       />
 

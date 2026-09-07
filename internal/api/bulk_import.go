@@ -1689,9 +1689,11 @@ var importSpecs = map[string]importSpec{
 	   in the parent's hand. */
 	"student_exits": {
 		Perm:     rbac.StudentsWrite,
-		Columns:  []string{"admission_no", "exit_date", "status", "reason"},
+		Columns: []string{"admission_no", "exit_date", "status", "reason",
+			"tc_no", "tc_issued_on"},
 		Required: []string{"admission_no"},
-		Sample:   []string{"ADM0001", "2026-03-31", "transferred", "TC issued"},
+		Sample: []string{"ADM0001", "2026-03-31", "transferred", "TC issued",
+			"42817", "2026-03-31"},
 		Check: func(row map[string]string) error {
 			if strings.TrimSpace(row["admission_no"]) == "" {
 				return errors.New("every row needs the child's admission number")
@@ -1706,6 +1708,11 @@ var importSpecs = map[string]importSpec{
 				   classroom on Monday, and the register stops expecting them. */
 				if day.After(time.Now().AddDate(0, 0, 1)) {
 					return errors.New("a leaving date cannot be in the future")
+				}
+			}
+			if d := strings.TrimSpace(row["tc_issued_on"]); d != "" {
+				if _, err := time.Parse(time.DateOnly, d); err != nil {
+					return errors.New("tc_issued_on must be a day like 2026-03-31")
 				}
 			}
 			st := strings.ToLower(strings.TrimSpace(row["status"]))
@@ -1730,6 +1737,23 @@ var importSpecs = map[string]importSpec{
 			if status != "active" && status != "suspended" {
 				return fmt.Errorf("%s has already left (%s). Remove the row if this is last term's list",
 					adm, status)
+			}
+			/* A certificate number identifies one certificate. Two children
+			   holding TC 42817 is not a duplicate row, it is two pieces of
+			   paper that cannot both be verified -- and the whole reason to
+			   keep the number is so that somebody ringing in two years gets one
+			   answer. */
+			if tc := strings.TrimSpace(row["tc_no"]); tc != "" {
+				var seen bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM issued_certificates
+					                WHERE institution_id = $1 AND serial_no = $2)`,
+					c.inst, tc).Scan(&seen); err != nil {
+					return err
+				}
+				if seen {
+					return fmt.Errorf("certificate number %s has already been issued to somebody. Check the number, or leave it blank to have one generated", tc)
+				}
 			}
 			return nil
 		},
@@ -1767,6 +1791,94 @@ var importSpecs = map[string]importSpec{
 				  WHERE student_id = $1 AND status = 'active'`, sid, status); err != nil {
 				return err
 			}
+			/* THE CERTIFICATE ITSELF, NOT JUST THE FACT THEY LEFT.
+
+			   "This child left on 31 March" and "we issued TC 42817 to this
+			   child" are different records, and only the second one answers
+			   the question a TC exists for: another school rings in two years
+			   to verify a number. Without this the roll would be right and the
+			   number would live nowhere but the office's own register.
+
+			   Only for a transfer -- a child who graduated or withdrew has no
+			   TC, and inventing one would put a certificate on a record nobody
+			   ever issued. */
+			if status == "transferred" {
+				serial := strings.TrimSpace(row["tc_no"])
+				if serial == "" {
+					/* No number in the sheet, so the school's own series
+					   provides one. NextNumber is what the Issue a certificate
+					   button uses, so a generated number takes its place in one
+					   sequence rather than starting a second. */
+					n, err := fees.NextNumber(c.r.Context(), c.tx, c.inst, "certificate")
+					if err != nil {
+						return err
+					}
+					serial = n
+				}
+				issuedOn := strings.TrimSpace(row["tc_issued_on"])
+				if issuedOn == "" {
+					// The day they left, which is what a TC is dated when the
+					// office writes one on the way out.
+					issuedOn = strings.TrimSpace(row["exit_date"])
+				}
+
+				var typeID uuid.UUID
+				err := c.tx.QueryRow(c.r.Context(),
+					`SELECT id FROM certificate_types WHERE code = 'TC'`).Scan(&typeID)
+				if errors.Is(err, pgx.ErrNoRows) {
+					// Created on first use, exactly as issuing one singly does,
+					// so a school is never blocked by a setup step it has not
+					// been shown.
+					if err := c.tx.QueryRow(c.r.Context(), `
+						INSERT INTO certificate_types (institution_id, code, name, requires_approval)
+						VALUES ($1,'TC','Transfer Certificate',false) RETURNING id`,
+						c.inst).Scan(&typeID); err != nil {
+						return err
+					}
+				} else if err != nil {
+					return err
+				}
+
+				/* The snapshot is what the certificate SAID, kept beside it.
+
+				   Attendance and dues are read now rather than as they were on
+				   the day -- for a certificate being carried across from a
+				   paper register there is no other honest option, and a
+				   snapshot that quietly claimed to be the day's figures would
+				   be worse than one that is plainly today's. Marked as
+				   imported so nobody later reads it as this system's own
+				   arithmetic. */
+				if _, err := c.tx.Exec(c.r.Context(), `
+					INSERT INTO issued_certificates (institution_id, certificate_type_id,
+					        student_id, serial_no, issued_on, snapshot, status, requested_by)
+					SELECT $1, $2, st.id, $3, COALESCE($4::date, CURRENT_DATE),
+					       jsonb_build_object(
+					         'name', concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+					         'admission_no', st.admission_no,
+					         'date_of_birth', st.date_of_birth,
+					         'class', c.name, 'section', sec.name,
+					         'admission_date', st.admission_date,
+					         'apaar_id', st.apaar_id,
+					         'reason', $5::text,
+					         'carried_across', true,
+					         'issued_at', now()
+					       ),
+					       'issued', $6
+					  FROM students st
+					  LEFT JOIN LATERAL (
+					      SELECT e.class_id, e.section_id FROM enrollments e
+					       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+					  ) en ON true
+					  LEFT JOIN classes  c   ON c.id = en.class_id
+					  LEFT JOIN sections sec ON sec.id = en.section_id
+					 WHERE st.id = $7`,
+					c.inst, typeID, serial, nullString(issuedOn),
+					nullString(strings.TrimSpace(row["reason"])),
+					httpx.IdentityFrom(c.r.Context()).UserID, sid); err != nil {
+					return err
+				}
+			}
+
 			// And the family's login, unless another of their children is
 			// still here. Same helper the single-child exit calls.
 			if _, err := endFamilyAccess(c.r, c.tx, sid); err != nil {
