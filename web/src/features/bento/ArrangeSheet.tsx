@@ -1,34 +1,31 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Check, GripVertical, RotateCcw } from 'lucide-react'
-import { useLayout, dimsOf, tintOf, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
-import { ColourPick } from './WidgetLayer'
+import { Check, GripVertical } from 'lucide-react'
+import { useLayout, isRemoved, DIMS, type BoardWidget } from '@/lib/widgets'
 import { buzz } from '@/lib/haptics'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { INK_HERE_FROM_PAGE } from './ColourDialog'
 
-/* THE PHONE'S EDITOR: A SHEET, NOT AN OVERLAY PER CARD.
+/* THE PHONE'S REORDER LIST: A SHEET, OPENED FROM THE CUSTOMIZE BAR.
 
-   The old arranger put a scrim and six controls on every tile — steppers for
-   width and height a one-column pager cannot use, arrows for an order that
-   dragging already expresses, a colour wheel — and to make room for them it
-   turned the pager back into a scrolling list. Editing the home screen meant
-   losing the home screen.
+   This used to be the phone's whole editor — every decision a card admitted,
+   in a row per card. Customize mode now puts those decisions on the card
+   itself: the remove button, the size pill, the colour wheel behind it, and
+   the drag. What a list still does better than a board is MOVE A CARD FAR:
+   dragging page four's card to page one means holding it at the edge of the
+   pager and waiting, four times; dragging a row up a list is one motion.
 
-   This is what a phone does instead: the board stays exactly as it is read,
-   and a sheet rises over its lower half listing the cards in order. Each row
-   has the three decisions a phone card admits — where it sits, whether it is
-   shown, and whether it is Small or Tall — and nothing else. Dragging a row
-   reorders the board behind the sheet as the finger moves, which is the whole
-   point of keeping the board visible.
+   So the sheet keeps exactly that: the cards in order, a handle to drag each
+   one, and a switch to put a hidden card back. The board behind it follows
+   the finger live, which is the point of keeping the board visible. Done on
+   the sheet closes the sheet; the mode stays on, with its bar.
 
    POINTER EVENTS, NOT HTML5 DRAG. Touch has no dragstart; pointer capture on
    the handle is what makes a finger drag work at all, and it gives the same
    code path to a mouse on a narrow window.
 
-   EVERY CONTROL IS 44PX. The rows, the handle, the size segments, the switch,
-   Done and Reset — a fingertip's target, on the one surface that exists only
-   to be pressed. */
+   EVERY CONTROL IS 44PX. The rows, the handle, the switch and Done — a
+   fingertip's target, on the one surface that exists only to be pressed. */
 
 const ROW_H = 52
 
@@ -46,12 +43,7 @@ export function ArrangeSheet({
   onDone: () => void
 }) {
   const t = useT()
-  const { layout, place, remove, resize, recolour, move, reset, applyPreset } = useLayout(dashboard)
-  /* The three layouts that mean something on a phone page: as drawn, every
-     card Small (two a page), every card Large (one a page). The rest are
-     shapes of a five-wide board. */
-  const PHONE_PRESETS = ['default', 'compact', 'panels'] as const
-  const arranged = layout.placed.length > 0 || layout.removed.length > 0
+  const { layout, place, remove, move } = useLayout(dashboard)
   const hidden = declared.filter((d) => !visible.some((v) => v.id === d.id))
 
   /* The drag, held apart from the layout.
@@ -95,12 +87,17 @@ export function ArrangeSheet({
     setDrag(null)
   }
 
-  /* Escape closes, like every sheet. The layer's own listener does the same;
-     this one exists so the sheet is correct on its own. */
+  /* Escape closes the sheet, like every sheet — caught on the way down and
+     stopped there, because the layer's own Escape ends customize mode and
+     closing a list is not that. */
   useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') onDone() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return
+      ev.stopPropagation()
+      onDone()
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
   }, [onDone])
 
   const rows = drag ? drag.list : visible
@@ -112,15 +109,11 @@ export function ArrangeSheet({
     return 0
   }
 
-  // Colour comes from the stylesheet's [aria-checked] rule, not a utility
-  // class: the sheet's own rules sit outside Tailwind's layer and win.
-  const seg = () => 'h-11 min-w-[56px] px-3 text-[13px] leading-none'
-
   return (
     <>
-      {/* A tap on the board while the sheet is up is Done, not a navigation:
-          every card is a link, and opening a screen is not what somebody
-          reordering their home meant. Transparent, so the board is seen. */}
+      {/* A tap on the board while the sheet is up closes the sheet: the bar
+          and the cards' own controls are underneath it, and the person is
+          reaching for them. Transparent, so the board is seen. */}
       <div className="bento-sheet-backdrop" onClick={onDone} aria-hidden="true" />
       <div
         className="bento-sheet"
@@ -141,28 +134,9 @@ export function ArrangeSheet({
             {t('bento.widgets.done')}
           </button>
         </div>
-        {/* A layout in one tap, before the list of cards: most people opening
-            this sheet want a good board, not to build one row by row. */}
-        <div className="flex flex-wrap gap-2 px-4 pb-2 pt-1" role="group" aria-label={t('bento.widgets.layouts')}>
-          {PHONE_PRESETS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => applyPreset(p, declared)}
-              className={cn('bento-sheet__btn', seg())}
-            >
-              {t(`bento.widgets.preset.${p}`)}
-            </button>
-          ))}
-        </div>
 
         <ul ref={listRef} className="bento-sheet__list" style={{ '--row-h': `${ROW_H}px` } as CSSProperties}>
           {rows.map((w, i) => {
-            const { w: cw, h: ch } = dimsOf(layout, w.id, w.size)
-            /* The two shapes a phone page has: the top half of it or all of
-               it, both full width. The sheet only ever writes those two. */
-            const large = ch >= 2
-            void cw
             const dragging = drag?.id === w.id
             return (
               <li
@@ -183,28 +157,6 @@ export function ArrangeSheet({
                   <GripVertical className="size-5" aria-hidden="true" />
                 </button>
                 <span className="min-w-0 flex-1 truncate text-[14px]">{w.label}</span>
-                <span
-                  role="radiogroup"
-                  aria-label={t('bento.widgets.size_of', { label: w.label })}
-                  className="bento-sheet__seg"
-                >
-                  <button type="button" role="radio" aria-checked={!large} className={seg()}
-                          onClick={() => resize(w.id, 2, 1)}>
-                    {t('bento.widgets.size_small')}
-                  </button>
-                  <button type="button" role="radio" aria-checked={large} className={seg()}
-                          onClick={() => resize(w.id, 2, 2)}>
-                    {t('bento.widgets.size_large')}
-                  </button>
-                </span>
-                {/* The fourth decision a card admits, and the one this sheet
-                    left out: its colour. The same swatch-and-wheel the desk
-                    editor uses, so a colour picked on a phone and one picked
-                    on a laptop are the same colour in the same place. */}
-                <ColourPick
-                  value={tintOf(layout, w.id)}
-                  onPick={(c) => recolour(w.id, c, cw, ch)}
-                />
                 <button
                   type="button"
                   role="switch"
@@ -239,15 +191,6 @@ export function ArrangeSheet({
             </li>
           ))}
         </ul>
-
-        {arranged && (
-          <div className="px-4 pb-2 pt-1">
-            <button type="button" onClick={reset} className="bento-sheet__btn is-quiet">
-              <RotateCcw className="size-4" aria-hidden="true" />
-              {t('bento.widgets.reset')}
-            </button>
-          </div>
-        )}
       </div>
     </>
   )

@@ -1,0 +1,362 @@
+/* THE "ADD A CARD" GALLERY. See AddGallery.tsx.
+
+   Every colour here is a --bento-* token or a currentColor mix, and the test
+   scans this file for a literal. The panel is a card: it paints the card's
+   ground and the card's ink, so the palette that relights the board relights
+   this with it, in both polarities.
+
+   Two shapes from one block: the desk's popover is the default; [data-phone]
+   turns it into a sheet from the bottom edge. The enter and exit are 180ms
+   on transform and opacity, matched by MOTION_MS in the component, and
+   [data-still] — the reduce-motion preference, OS or account — removes them. */
+
+.bento-gallery {
+  position: fixed;
+  z-index: 62;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 16px));
+  max-height: min(70vh, 640px);
+  border-radius: 14px;
+  background: var(--bento-card-base);
+  color: var(--bento-ink);
+  box-shadow:
+    var(--bento-edge, none),
+    0 0 0 1px color-mix(in srgb, var(--bento-ink) 16%, transparent),
+    0 12px 40px color-mix(in srgb, var(--bento-ink) 18%, transparent);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top left;
+  transition: opacity 180ms ease, transform 180ms var(--ease-phone, ease);
+  outline: none;
+}
+.bento-gallery[data-shown] {
+  opacity: 1;
+  transform: none;
+}
+.bento-gallery[data-still],
+.bento-gallery__backdrop[data-still] {
+  transition: none;
+}
+
+/* ── The phone: a sheet, not a popover ──────────────────────────────────── */
+.bento-gallery[data-phone] {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-height: min(78vh, 720px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 18px 18px 0 0;
+  box-shadow:
+    0 -8px 32px color-mix(in srgb, var(--bento-ink) 18%, transparent),
+    0 -1px 0 color-mix(in srgb, var(--bento-ink) 12%, transparent);
+  opacity: 1;
+  transform: translate3d(0, 100%, 0);
+  transform-origin: bottom center;
+  transition: transform 180ms var(--ease-phone, ease);
+}
+.bento-gallery[data-phone][data-shown] {
+  transform: none;
+}
+.bento-gallery__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 61;
+  background: color-mix(in srgb, var(--bento-ink) 28%, transparent);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.bento-gallery__backdrop[data-shown] {
+  opacity: 1;
+}
+.bento-gallery__grip {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.bento-gallery__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px 6px 14px;
+}
+.bento-gallery__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.bento-gallery[data-phone] .bento-gallery__title {
+  font-size: 15px;
+}
+.bento-gallery__hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.65;
+}
+.bento-gallery__close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.bento-gallery[data-phone] .bento-gallery__close {
+  width: 44px;
+  height: 44px;
+}
+.bento-gallery__close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* ── The grid of tiles ──────────────────────────────────────────────────── */
+.bento-gallery__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.bento-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 10px;
+  padding: 4px 12px 12px;
+}
+.bento-gallery[data-phone] .bento-gallery__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px 12px 14px;
+}
+.bento-gallery__empty {
+  margin: 0;
+  padding: 32px 16px 36px;
+  text-align: center;
+  font-size: 13.5px;
+  opacity: 0.7;
+}
+.bento-gallery__keys {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 14px 10px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.bento-gallery__tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  outline: none;
+  transition: background-color 120ms ease;
+}
+.bento-gallery__tile:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+@media (hover: hover) {
+  .bento-gallery__tile:hover {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+}
+.bento-gallery__label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bento-gallery__sub {
+  margin-top: -4px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  opacity: 0.65;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── The preview: a card in silhouette ──────────────────────────────────── */
+.bento-gallery__preview {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  padding: 8%;
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  transition: opacity 120ms ease;
+}
+.bento-gallery__tile[data-added] .bento-gallery__preview {
+  opacity: 0.45;
+}
+.bento-gallery__pv-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 7%;
+  box-sizing: border-box;
+  padding: 7%;
+  border-radius: 5px;
+  background: var(--bento-card-base);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+  /* The silhouette's proportions say which footprint the default tier is:
+     a square for Small, a band for Medium, the whole plate for Large, and
+     edge to edge for Wide. */
+  width: 92%;
+  height: 92%;
+}
+.bento-gallery__preview[data-tier='small'] .bento-gallery__pv-card {
+  width: 52%;
+  height: 78%;
+}
+.bento-gallery__preview[data-tier='medium'] .bento-gallery__pv-card {
+  width: 92%;
+  height: 52%;
+}
+.bento-gallery__preview[data-tier='wide'] .bento-gallery__pv-card {
+  width: 100%;
+  height: 52%;
+}
+.bento-gallery__pv-title {
+  display: block;
+  width: 55%;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 45%, transparent);
+}
+.bento-gallery__pv-figure {
+  display: block;
+  width: 34%;
+  height: 8px;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 82%, transparent);
+}
+.bento-gallery__pv-wave {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 8px;
+  opacity: 0.7;
+}
+
+/* ── The size row ───────────────────────────────────────────────────────── */
+.bento-gallery__sizes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 8px;
+}
+.bento-gallery__size {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 40px;
+  padding: 5px 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.bento-gallery__size + .bento-gallery__size {
+  border-left: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+}
+.bento-gallery[data-phone] .bento-gallery__size {
+  min-height: 44px;
+  font-size: 11px;
+}
+.bento-gallery__size[data-default] .bento-gallery__size-name {
+  font-weight: 600;
+}
+.bento-gallery__size:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.bento-gallery__size:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+@media (hover: hover) {
+  .bento-gallery__size:not(:disabled):hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
+}
+.bento-gallery__size:not(:disabled):active {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.bento-gallery__glyph {
+  display: block;
+  flex: 0 0 auto;
+}
+.bento-gallery__size-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* ── "Added" ────────────────────────────────────────────────────────────── */
+.bento-gallery__added {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bento-ink);
+  color: var(--bento-card-base);
+  font-size: 11px;
+  line-height: 1.2;
+  animation: bento-gallery-pop 180ms var(--ease-phone, ease);
+}
+@keyframes bento-gallery-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bento-gallery,
+  .bento-gallery__backdrop,
+  .bento-gallery__tile,
+  .bento-gallery__size,
+  .bento-gallery__preview {
+    transition: none;
+  }
+  .bento-gallery__added {
+    animation: none;
+  }
+}
+.bento-gallery[data-still] .bento-gallery__added {
+  animation: none;
+}

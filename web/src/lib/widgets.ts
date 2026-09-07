@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import type { Hsl } from './paint'
+import { dimsForTier, type SizeTier } from './size-tiers'
 
 /* The dashboard as something a person arranges.
 
@@ -346,6 +347,24 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
+  /* A size by NAME rather than by two numbers: Small, Medium, Large or Wide,
+     the four the picker offers (see size-tiers.ts). It is `resize` with the
+     numbers looked up, and nothing else — the stored row is still a width and
+     a height, so a layout arranged before the names existed reads exactly as
+     it did.
+
+     `phone` is an argument rather than something read here, because which
+     board is on screen is a DOM question and this module has none: the same
+     tier is a different shape on the two boards, and the caller is the one
+     looking at a screen. */
+  const setTier = useCallback(
+    (id: string, tier: SizeTier, phone: boolean) => {
+      const d = dimsForTier(tier, phone)
+      resize(id, d.w, d.h)
+    },
+    [resize],
+  )
+
   const move = useCallback(
     (id: string, to: number, all: Placed[]) => {
       const l = current(dashboard)
@@ -504,7 +523,7 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
-  return { layout, place, remove, resize, recolour, move, reset, undo, canUndo, tidy, applyPreset }
+  return { layout, place, remove, resize, setTier, recolour, move, reset, undo, canUndo, tidy, applyPreset }
 }
 
 /** The width and height a widget should render at: what the person chose,

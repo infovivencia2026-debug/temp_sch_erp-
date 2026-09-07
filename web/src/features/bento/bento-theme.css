@@ -1739,29 +1739,14 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
       inset 0 1px 3px color-mix(in srgb, currentColor 14%, transparent);
   }
 
-  /* While arranging, the toolbar takes the first row and the cards share the
-     rest — otherwise a row's worth of height goes to one line of buttons. */
-  .bento-board:has(> .bento-arrange-bar) {
-    grid-template-rows: auto repeat(var(--board-rows, 3), minmax(0, 1fr)) !important;
-  }
-
-  /* The arrange toolbar is a grid child, so it was taking a full 1fr row —
-     an entire row's worth of height for one line of buttons, which is the
-     band of empty space that appears the moment you start editing.
-
-     :has lets the board notice the toolbar is there and give the FIRST row
-     its natural height, while every row after it keeps dividing what is left.
-     Only while arranging: with no toolbar present the selector does not
-     match, and row one goes back to being a row like any other. */
   /* The backstop. The shedding rules are the plan; this stops a card that still
      holds too much from pushing the grid out of shape.
 
-     NOT the arrange toolbar. That bar is a grid child like the cards, so this
-     clipped it to its own 31px height — and the add tray hangs off it as a
-     320x280 disclosure panel, which meant the tray could not be seen AT ALL
-     while arranging. A rule written for cards was catching the one child that
-     is not a card. */
-  .bento-board > *:not(.bento-arrange-bar) { overflow: hidden; }
+     Every child, now. The customize bar used to be a grid child that this
+     rule had to except; it is a fixed strip portalled to the body, in the
+     slot the dock leaves while the mode is on, so the board holds nothing
+     but cards and pages again. */
+  .bento-board > * { overflow: hidden; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -3774,26 +3759,6 @@ html:not(.dark)[data-layout='bento'] {
   touch-action: none;
 }
 .bento-sheet__handle:active { cursor: grabbing; opacity: 1; }
-.bento-sheet__seg {
-  display: inline-flex;
-  flex: 0 0 auto;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-  border-radius: 10px;
-}
-.bento-sheet__seg > button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-.bento-sheet__seg > button[aria-checked='true'] {
-  background: var(--bento-ink, #111);
-  color: var(--bento-card, #fff);
-}
-.bento-sheet__seg > button + button {
-  border-left: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-}
 .bento-sheet__switch {
   position: relative;
   flex: 0 0 auto;
@@ -3849,8 +3814,6 @@ html:not(.dark)[data-layout='bento'] {
   width: 100%;
   justify-content: center;
 }
-/* While the sheet is up the cards are read-only and say so quietly. */
-[data-layout='bento'] .bento-board[data-arranging='sheet'] .bento-cue { opacity: 0.3; }
 
 /* The pencil on the page-dot strip: the left end, because the assistant's
    round button owns the right. 44px, like the dots' own hit area. */
@@ -3874,7 +3837,10 @@ html:not(.dark)[data-layout='bento'] {
 }
 .bento-dots__edit:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; opacity: 1; }
 
-/* ── The desktop: outlines, a slim bar, a pill ─────────────────────────── */
+/* ── Customize mode: the same chrome on a desk and on a phone ───────────── */
+
+/* THE DESK'S DOOR: a quiet pill at the foot of the board, beside the
+   assistant, where the phone keeps its pencil. */
 .bento-edit-pill {
   position: fixed;
   right: 84px;
@@ -3902,39 +3868,177 @@ html:not(.dark)[data-layout='bento'] {
   .bento-edit-pill { display: none; }
 }
 
+/* THE BAR: the mode's only chrome, and it is the same bar everywhere.
+
+   A floating pill centred at the foot of a desk board, in the slot the dock
+   leaves empty while the mode is on (the dock unmounts, and --board-h had
+   already reserved its height, so the bar covers no card). On a phone the
+   same bar is docked edge to edge above the home indicator, six icon-and-
+   caption buttons the way a tab bar is drawn. z-55: over the cards' own
+   controls, under the sheet and the gallery that open from it. */
+.bento-customize-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 55;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 18%, transparent);
+  border-radius: 999px;
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
+}
 .bento-bar__btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: 32px;
   padding: 0 12px;
-  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .bento-bar__btn:not(:disabled):hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+}
+.bento-bar__btn.is-primary {
+  background: var(--bento-ink, #111);
+  color: var(--bento-card, #fff);
+}
+.bento-bar__btn:disabled { opacity: 0.4; cursor: default; }
+.bento-bar__btn[aria-expanded='true'] { background: color-mix(in srgb, currentColor 12%, transparent); }
+.bento-bar__btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (max-width: 767px) {
+  .bento-customize-bar {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    transform: none;
+    justify-content: space-between;
+    gap: 0;
+    max-width: none;
+    padding: 6px 4px;
+    border-radius: 18px;
+  }
+  .bento-bar__btn {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    height: 50px;
+    padding: 0 2px;
+    border-radius: 12px;
+    font-size: 10.5px;
+  }
+  .bento-bar__btn svg { width: 20px; height: 20px; }
+}
+
+/* THE MENU: the size list on a card, the layouts list on the bar. Fixed and
+   portalled, positioned by the component; a sheet above the bar on a narrow
+   screen. Over the bar and the cards; under the colour wheel it can open. */
+.bento-menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 22%, transparent);
+  border-radius: 12px;
+  background: var(--bento-card, #fff);
+  color: var(--bento-ink, #111);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+}
+.bento-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 0;
   border-radius: 8px;
   background: transparent;
   color: inherit;
   font-size: 12.5px;
+  text-align: left;
   cursor: pointer;
 }
+.bento-menu__item:disabled { opacity: 0.4; cursor: not-allowed; }
+.bento-menu__item.is-on { background: color-mix(in srgb, currentColor 10%, transparent); }
+.bento-menu__item:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 @media (hover: hover) {
-  .bento-bar__btn:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+  .bento-menu__item:not(:disabled):hover { background: color-mix(in srgb, currentColor 8%, transparent); }
 }
-.bento-bar__btn.is-primary {
-  border-color: currentColor;
-  background: color-mix(in srgb, currentColor 12%, transparent);
+.bento-menu__rule {
+  height: 1px;
+  margin: 4px 2px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
 }
-.bento-bar__btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (max-width: 639px) {
+  .bento-menu__item { min-height: 44px; font-size: 14px; }
+}
 
-/* The card in edit mode: a hairline outline inside its own edge, the
-   pointer says it can be moved, and its contents do not answer clicks. */
-[data-layout='bento'] .bento-widget[data-editing] > :first-child { pointer-events: none; }
-/* The corner arrow opens the card; while editing nothing opens, and the ×
-   sits where the arrow was. */
+/* THE CARD, WHILE CUSTOMIZING. Its content is still drawn but answers
+   nothing: the wrapper's first child is the cell, made inert by the layer
+   and pointer-transparent here, so the edit surface on top gets every
+   press. The lift is a hair of scale and a softer shadow, on the CELL and
+   not on the wrapper, because the wrapper's transform is the drag ghost's. */
+[data-layout='bento'] .bento-widget[data-editing] > :first-child {
+  pointer-events: none;
+  transform: scale(0.98);
+  transition: transform 160ms ease;
+}
+[data-layout='bento'] .bento-widget[data-editing] .bento-cell {
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.08);
+}
+/* The corner arrow opens the card; while editing nothing opens. */
 [data-layout='bento'] .bento-widget[data-editing] .bento-cue { visibility: hidden; }
+
+/* THE WIGGLE. Only where there is no pointer to hover with — a touchscreen,
+   which is the surface that taught people a wiggling tile is a movable one —
+   and only when motion is welcome. ±0.3° is the home screen's own
+   amplitude, and neighbours are out of phase so the board breathes rather
+   than rocks. The card being carried holds still. */
+@media (hover: none) and (prefers-reduced-motion: no-preference) {
+  [data-layout='bento'] .bento-widget[data-editing]:not([data-dragging]) > :first-child {
+    animation: bento-wiggle 1.4s ease-in-out infinite;
+  }
+  [data-layout='bento'] .bento-widget[data-editing]:nth-child(even) > :first-child {
+    animation-delay: -0.7s;
+  }
+}
+@keyframes bento-wiggle {
+  0%, 100% { transform: scale(0.98) rotate(-0.3deg); }
+  50% { transform: scale(0.98) rotate(0.3deg); }
+}
+
+/* THE EDIT SURFACE: transparent, over the whole card. A hairline outline
+   inside its own edge, the pointer says it can be moved. No callout and no
+   selection, because a held finger on a phone is asking to lift the card,
+   not to copy its text. */
 .bento-edit {
   outline: 1.5px dashed color-mix(in srgb, currentColor 40%, transparent);
   outline-offset: -3px;
   cursor: grab;
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (max-width: 767px) {
+  /* A swipe still turns the page; a hold lifts the card. The layer refuses
+     the scroll itself once a card is being carried. */
+  .bento-edit { touch-action: pan-x; }
 }
 .bento-widget[data-dragging] .bento-edit { cursor: grabbing; }
 .bento-widget[data-dragging] { opacity: 0.85; }
@@ -3942,62 +4046,80 @@ html:not(.dark)[data-layout='bento'] {
   outline: 2px solid currentColor;
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
-.bento-edit__hide {
+/* While a card is being carried the pager must not snap under it: the
+   ghost is a grid child of the scroller, and a snap mid-drag would carry
+   it off the finger. The page turn the edge timer asks for still lands on
+   a page start, because it scrolls to the page element itself. */
+[data-layout='bento'] .bento-board[data-pager][data-dragging] { scroll-snap-type: none; }
+
+/* THE REMOVE BUTTON, top-left, always shown: a control that appears on
+   hover does not exist on a phone. Inside the card's corner rather than
+   hanging off it, because the board clips its children. */
+.bento-edit__remove {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  left: 6px;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
   border-radius: 999px;
   background: var(--bento-card, #fff);
   color: var(--bento-ink, #111);
-  opacity: 0.75;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
   cursor: pointer;
 }
-.bento-edit__hide:focus-visible { opacity: 1; }
+.bento-edit__remove:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 @media (hover: hover) {
-  .bento-edit__hide:hover { opacity: 1; }
+  .bento-edit__remove:hover { background: color-mix(in srgb, var(--bento-ink, #111) 10%, var(--bento-card, #fff)); }
 }
-.bento-edit__tools {
+
+/* THE SIZE PILL, bottom-right: the current tier's footprint and name, and
+   the menu of the others behind it. */
+.bento-sizebtn {
   position: absolute;
-  left: 8px;
-  bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-.bento-edit:focus-within .bento-edit__tools { opacity: 1; }
-@media (hover: hover) {
-  .bento-edit:hover .bento-edit__tools { opacity: 1; }
-}
-.bento-sizepick {
+  right: 6px;
+  bottom: 6px;
   display: inline-flex;
-  overflow: hidden;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 7px 0 7px;
   border: 1px solid color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--bento-card, #fff);
   color: var(--bento-ink, #111);
-}
-.bento-sizepick__btn {
-  height: 26px;
-  padding: 0 8px;
-  border: 0;
-  background: transparent;
-  color: inherit;
   font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
   cursor: pointer;
 }
-.bento-sizepick__btn + .bento-sizepick__btn { border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
-.bento-sizepick__btn.is-on { background: var(--bento-ink, #111); color: var(--bento-card, #fff); }
-.bento-sizepick__btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.bento-sizepick__swatch {
+.bento-sizebtn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.bento-sizebtn[aria-expanded='true'] { background: var(--bento-ink, #111); color: var(--bento-card, #fff); }
+@media (hover: hover) {
+  .bento-sizebtn:hover { background: color-mix(in srgb, var(--bento-ink, #111) 10%, var(--bento-card, #fff)); }
+}
+/* A one-column desk card is narrow: the pill keeps its glyph and drops its
+   word. */
+.bento-widget[data-w='1'] .bento-sizebtn > span { display: none; }
+/* A fingertip's target on a phone. The drawn control stays small; the hit
+   area does not. */
+@media (max-width: 767px) {
+  .bento-edit__remove, .bento-sizebtn { height: 30px; }
+  .bento-edit__remove { width: 30px; }
+  .bento-edit__remove::before, .bento-sizebtn::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+}
+
+/* The colour swatch: a bare disc where it stands alone, a small dot at the
+   head of the "Colour…" row in the size menu. */
+.bento-swatch {
   width: 26px;
   height: 26px;
   padding: 0;
@@ -4005,22 +4127,16 @@ html:not(.dark)[data-layout='bento'] {
   border-radius: 999px;
   cursor: pointer;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .bento-sheet__knob, .bento-edit__tools, .bento-edit-pill { transition: none; }
+.bento-swatch.is-dot {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  cursor: inherit;
 }
 
-/* The per-card colour swatch on the phone sheet. Every control on that
-   surface is a 44px target; the swatch is drawn at 26px on the desk where a
-   mouse points. A transparent border grows the button to the floor while the
-   background stays clipped to the 30px disc inside it, and the ring moves to
-   an inset shadow so it follows the disc rather than the box. */
-.bento-sheet__row .bento-sizepick__swatch {
-  width: 44px;
-  height: 44px;
-  border: 7px solid transparent;
-  background-clip: padding-box;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bento-ink, #111) 30%, transparent);
+@media (prefers-reduced-motion: reduce) {
+  .bento-sheet__knob, .bento-edit-pill,
+  [data-layout='bento'] .bento-widget[data-editing] > :first-child { transition: none; }
 }
 
 /* THE ICON SIZE SETTING REACHES THE TABS. --dock-icon was read by the

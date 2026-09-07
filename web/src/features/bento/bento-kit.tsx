@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import { useCatalog, usable } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { useDetail, useWidgetSize } from '@/lib/widget-size'
+import { TIERS, TIER_DIMS, PHONE_TIER_DIMS, PHONE_TIERS, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 
 /* THE BENTO KIT.
 
@@ -155,6 +156,44 @@ export const ROW: Record<number, string> = {
 export const clampSpan = (n: number, max = MAX_SPAN) => Math.min(Math.max(1, Math.round(n || 1)), max)
 /** Clamp a height to the page. */
 export const clampRows = (n: number) => clampSpan(n, MAX_ROWS)
+
+/* THE FOUR SIZES A PERSON PICKS FROM, AS FOOTPRINTS.
+
+   MAX_SPAN, COL and ROW above describe what the board can DRAW — any width
+   to five, any height to three, because a stored layout or a preset may ask
+   for it and the stylesheet must have a class ready. This is what the picker
+   OFFERS, which is deliberately smaller: four named sizes, each a single
+   footprint on the board, the way a preset's thumbnail is a set of them.
+
+   `w`/`h` are the cells the tier occupies on the board in question, so a
+   picker can draw each tier as a rectangle on a miniature of the grid and a
+   gallery can sort by area. `labelKey` is the locale key for its name. The
+   phone list is two entries long: on a phone every card is the full page
+   width, so Medium and Wide would be Small drawn twice. */
+export interface TierShape {
+  tier: SizeTier
+  w: number
+  h: number
+  labelKey: string
+}
+
+export const TIER_SHAPES: readonly TierShape[] = TIERS.map((tier) => ({
+  tier,
+  w: TIER_DIMS[tier].w,
+  h: TIER_DIMS[tier].h,
+  labelKey: tierLabelKey(tier),
+}))
+
+export const PHONE_TIER_SHAPES: readonly TierShape[] = PHONE_TIERS.map((tier) => ({
+  tier,
+  w: PHONE_TIER_DIMS[tier].w,
+  h: PHONE_TIER_DIMS[tier].h,
+  labelKey: tierLabelKey(tier),
+}))
+
+/** The shapes to offer on the board that is on screen. */
+export const tierShapes = (phone: boolean): readonly TierShape[] =>
+  phone ? PHONE_TIER_SHAPES : TIER_SHAPES
 
 /** The span name a cell should style itself as, given its dimensions. Cells use
     this for typography — the anchor draws a bigger figure — not for geometry,
