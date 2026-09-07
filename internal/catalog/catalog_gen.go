@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 400 features.
+// Roles is the catalog: 23 roles, 397 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -431,9 +431,6 @@ var Roles = []Role{
 				Workspace: "Communication",
 				Features: []Feature{
 					{Key: "institution_admin.channel_setup.message_channels", Slug: "message_channels", Name: "Message Channels", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own email, SMS and WhatsApp senders — the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent's empty inbox."},
-					{Key: "institution_admin.channel_setup.sender_identity", Slug: "sender_identity", Name: "Sender Identity", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The name and address a family sees a message come from, the reply-to that reaches a real desk, and the SMS sender ID the operator has approved."},
-					{Key: "institution_admin.channel_setup.quiet_hours_sending_limits", Slug: "quiet_hours_sending_limits", Name: "Quiet Hours & Sending Limits", Scope: Scope("institution"), Tier: Tier("core"), Summary: "When the school will not message a family, and how much it will spend in a month. An automation that loops at two in the morning is stopped by the first and paid for by the second."},
-					{Key: "institution_admin.channel_setup.who_we_may_message", Slug: "who_we_may_message", Name: "Who We May Message", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everybody, or a named list while a school is still testing. Held-back messages are recorded with the reason, so a message that never arrived is never mistaken for a broken mail server."},
 				},
 			},
 			{

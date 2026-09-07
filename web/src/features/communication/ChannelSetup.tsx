@@ -77,10 +77,10 @@ const TABS = [
 ] as const
 
 // Which tab a catalogue key lands on, so a menu entry named for one channel
-// does not open on another.
+// does not open on another. One entry, since Channel Setup is one menu key --
+// the others were removed rather than left pointing here under other names.
 const TAB_FOR: Record<string, string> = {
   message_channels: 'email',
-  sender_identity: 'email',
 }
 
 export default function ChannelSetup() {

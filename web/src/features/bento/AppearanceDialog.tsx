@@ -285,18 +285,6 @@ const LINK_GROUPS: LinkGroup[] = [
         at: ['channel_setup', 'message_channels'],
         note: 'The email, SMS and WhatsApp accounts messages actually go out through. Testable from the screen.',
       },
-      {
-        at: ['channel_setup', 'sender_identity'],
-        note: 'The name, address and reply-to a family sees, and the SMS sender ID the operator approved.',
-      },
-      {
-        at: ['channel_setup', 'quiet_hours_sending_limits'],
-        note: 'The hours the school will not message a family, and the monthly ceiling on what it spends.',
-      },
-      {
-        at: ['channel_setup', 'who_we_may_message'],
-        note: 'Everybody, or a named list while the school is still testing. Held-back messages are logged.',
-      },
     ],
   },
   {

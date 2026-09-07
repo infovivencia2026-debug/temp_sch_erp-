@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 400 features. */
+/** 23 roles, 397 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -384,9 +384,6 @@ export const ROLES: Role[] = [
         workspace: 'Communication',
         features: [
           { key: 'institution_admin.channel_setup.message_channels', slug: 'message_channels', name: 'Message Channels', scope: 'institution', tier: 'core', summary: 'The school\'s own email, SMS and WhatsApp senders — the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent\'s empty inbox.' },
-          { key: 'institution_admin.channel_setup.sender_identity', slug: 'sender_identity', name: 'Sender Identity', scope: 'institution', tier: 'core', summary: 'The name and address a family sees a message come from, the reply-to that reaches a real desk, and the SMS sender ID the operator has approved.' },
-          { key: 'institution_admin.channel_setup.quiet_hours_sending_limits', slug: 'quiet_hours_sending_limits', name: 'Quiet Hours & Sending Limits', scope: 'institution', tier: 'core', summary: 'When the school will not message a family, and how much it will spend in a month. An automation that loops at two in the morning is stopped by the first and paid for by the second.' },
-          { key: 'institution_admin.channel_setup.who_we_may_message', slug: 'who_we_may_message', name: 'Who We May Message', scope: 'institution', tier: 'core', summary: 'Everybody, or a named list while a school is still testing. Held-back messages are recorded with the reason, so a message that never arrived is never mistaken for a broken mail server.' },
         ],
       },
       {
