@@ -50,7 +50,9 @@ const BY_NUMBER: Record<string, { entity: string; step: string; label: string }>
      needs its invoice raised first, and a register needs the child in a
      class. */
   '11': { entity: 'fee_payments', step: 'history', label: 'Fees already collected' },
-  '12': { entity: 'attendance', step: 'history', label: 'Register already marked' },
+  '12': { entity: 'attendance', step: 'history', label: 'Student register already marked' },
+  '13': { entity: 'staff_attendance', step: 'history', label: 'Staff register already marked' },
+  '14': { entity: 'payslips', step: 'history', label: 'Salary already paid' },
 }
 
 export interface PackEntry {

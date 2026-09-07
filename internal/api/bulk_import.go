@@ -109,6 +109,13 @@ var attendanceStates = map[string]bool{
 	"half_day": true, "leave": true, "holiday": true,
 }
 
+// What a staff day may say. Wider than the student set by one: week_off is a
+// real state for staff and meaningless for a child.
+var staffAttendanceStates = map[string]bool{
+	"present": true, "absent": true, "late": true, "half_day": true,
+	"leave": true, "holiday": true, "week_off": true,
+}
+
 type createdRow struct {
 	entity string
 	id     uuid.UUID
@@ -1761,6 +1768,321 @@ var importSpecs = map[string]importSpec{
 		},
 	},
 
+	/* SALARY ALREADY PAID THIS YEAR.
+
+	   The same gap as the fee receipts, on the other side of the ledger. A
+	   school joining in September has run five months of payroll already, and
+	   nothing could carry it across: payroll here starts from an empty table,
+	   so Form 16 season arrives with five months missing, an employee asking
+	   for a salary certificate gets one covering four weeks, and the year-to-
+	   date figure every statutory return needs is wrong.
+
+	   Running the payroll engine over those months instead is the obvious idea
+	   and the wrong one. It would RECOMPUTE what the school already paid, from
+	   salary structures and an attendance history it does not have, and produce
+	   figures that disagree with the payslips the staff are holding. What was
+	   paid is a fact; recalculating a fact is how a school ends up explaining a
+	   difference it did not create. So this loads the amounts as given, and the
+	   engine is not consulted.
+
+	   One month per file, because a payroll run IS a month -- payroll_runs is
+	   unique on (institution, year, month) and every payslip hangs off one. The
+	   run is created if the month has none, marked 'paid', which is what a
+	   month that has already been paid is. A month the school has since run
+	   here properly is refused rather than overwritten: money that this system
+	   worked out is not something an upload should quietly replace. */
+	"payslips": {
+		// What running payroll costs. This writes the record an employee's
+		// salary certificate and the school's statutory returns are drawn
+		// from.
+		Perm: rbac.PayrollWrite,
+		Columns: []string{"employee_code", "month", "paid_days", "lop_days",
+			"gross", "deductions", "net"},
+		Required: []string{"employee_code", "month", "gross", "net"},
+		Sample:   []string{"EMP001", "2026-04", "30", "0", "45000", "3600", "41400"},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["employee_code"]) == "" {
+				return errors.New("every row needs the staff member's code")
+			}
+			if _, err := time.Parse("2006-01", strings.TrimSpace(row["month"])); err != nil {
+				return errors.New("month must be written as 2026-04")
+			}
+			for _, k := range []string{"gross", "net"} {
+				v := paiseOrNil(row[k])
+				if v == nil {
+					return fmt.Errorf("%s must be a number of rupees, like 45000", k)
+				}
+				if n, ok := v.(int64); ok && n < 0 {
+					return fmt.Errorf("%s cannot be less than nothing", k)
+				}
+			}
+			if v := paiseOrNil(row["deductions"]); v != nil {
+				if n, ok := v.(int64); ok && n < 0 {
+					return errors.New("deductions cannot be less than nothing")
+				}
+			}
+			/* The one arithmetic a payslip must satisfy. A file where net does
+			   not equal gross minus deductions is a file somebody built by
+			   hand with a column out of place, and loading it would put a
+			   contradiction into the record a salary certificate is written
+			   from. */
+			g, _ := paiseOrNil(row["gross"]).(int64)
+			n, _ := paiseOrNil(row["net"]).(int64)
+			d, _ := paiseOrNil(row["deductions"]).(int64)
+			if strings.TrimSpace(row["deductions"]) != "" && g-d != n {
+				return fmt.Errorf("net should be gross minus deductions. This row says %d - %d, which is %d, but net says %d",
+					g/100, d/100, (g-d)/100, n/100)
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			code := strings.TrimSpace(row["employee_code"])
+			var empID uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM employees
+				  WHERE institution_id = $1 AND lower(employee_code) = lower($2)`,
+				c.inst, code).Scan(&empID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("no staff member with code %q. Import the staff first", code)
+			}
+			if err != nil {
+				return err
+			}
+			/* A MONTH THIS SYSTEM HAS ALREADY WORKED OUT IS NOT OVERWRITTEN.
+
+			   Loading over it would replace figures the engine derived, from
+			   structures and attendance it can show its working for, with
+			   figures typed into a spreadsheet -- and nothing afterwards could
+			   tell which a payslip came from. A month imported before is
+			   updated freely; a month RUN here is refused and named. */
+			m, err := time.Parse("2006-01", strings.TrimSpace(row["month"]))
+			if err != nil {
+				return err
+			}
+			var runBy *uuid.UUID
+			err = c.tx.QueryRow(c.r.Context(),
+				`SELECT run_by FROM payroll_runs
+				  WHERE institution_id = $1 AND period_year = $2 AND period_month = $3`,
+				c.inst, m.Year(), int(m.Month())).Scan(&runBy)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+			if err == nil && runBy != nil {
+				return fmt.Errorf("payroll for %s was already run in this system. Loading over it would replace what it worked out — delete that run first if you really mean to",
+					m.Format("January 2006"))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			code := strings.TrimSpace(row["employee_code"])
+			var empID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM employees
+				  WHERE institution_id = $1 AND lower(employee_code) = lower($2)`,
+				c.inst, code).Scan(&empID); err != nil {
+				return err
+			}
+			m, err := time.Parse("2006-01", strings.TrimSpace(row["month"]))
+			if err != nil {
+				return err
+			}
+			gross, _ := paiseOrNil(row["gross"]).(int64)
+			net, _ := paiseOrNil(row["net"]).(int64)
+			var ded int64
+			if v, ok := paiseOrNil(row["deductions"]).(int64); ok {
+				ded = v
+			} else {
+				// Not given means nothing was taken off, which is what a file
+				// with no deductions column means.
+				ded = gross - net
+			}
+
+			/* The run for this month, made once however many rows name it.
+
+			   run_by stays null on purpose: it is what tells a later import
+			   that this month was carried across rather than worked out here,
+			   and it is what the refusal in Verify reads. */
+			var runID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO payroll_runs (institution_id, period_year, period_month,
+				        status, gross_paise, deduction_paise, net_paise, employees)
+				VALUES ($1,$2,$3,'paid',0,0,0,0)
+				ON CONFLICT (institution_id, period_year, period_month)
+				DO UPDATE SET status = payroll_runs.status
+				RETURNING id`,
+				c.inst, m.Year(), int(m.Month())).Scan(&runID); err != nil {
+				return err
+			}
+
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO payslips (institution_id, payroll_run_id, employee_id,
+				        paid_days, lop_days, gross_paise, deduction_paise, net_paise,
+				        breakup)
+				VALUES ($1,$2,$3,COALESCE($4,0),COALESCE($5,0),$6,$7,$8,
+				        jsonb_build_object('source','import'))
+				ON CONFLICT (payroll_run_id, employee_id) DO UPDATE SET
+				    paid_days = EXCLUDED.paid_days,
+				    lop_days = EXCLUDED.lop_days,
+				    gross_paise = EXCLUDED.gross_paise,
+				    deduction_paise = EXCLUDED.deduction_paise,
+				    net_paise = EXCLUDED.net_paise,
+				    breakup = EXCLUDED.breakup
+				RETURNING id, xmax = 0`,
+				c.inst, runID, empID,
+				numOrNil(row["paid_days"]), numOrNil(row["lop_days"]),
+				gross, ded, net).Scan(&id, &inserted); err != nil {
+				return err
+			}
+
+			/* The run's totals are the sum of what is under it, recomputed
+			   each row rather than accumulated in Go: an import that is
+			   re-run, or one row of which is corrected, must leave the header
+			   agreeing with its payslips, and the only way to guarantee that
+			   is to read them. */
+			if _, err := c.tx.Exec(c.r.Context(), `
+				UPDATE payroll_runs r
+				   SET gross_paise     = t.gross,
+				       deduction_paise = t.ded,
+				       net_paise       = t.net,
+				       employees       = t.n
+				  FROM (SELECT COALESCE(sum(gross_paise),0) gross,
+				               COALESCE(sum(deduction_paise),0) ded,
+				               COALESCE(sum(net_paise),0) net,
+				               count(*) n
+				          FROM payslips WHERE payroll_run_id = $1) t
+				 WHERE r.id = $1`, runID); err != nil {
+				return err
+			}
+			c.noteCreated("payslips", id, inserted)
+			return nil
+		},
+	},
+
+	/* THE STAFF REGISTER FROM BEFORE GO-LIVE, AS A SCHOOL ACTUALLY KEEPS IT.
+
+	   Staff attendance could already be imported -- as biometric PUNCHES, with
+	   a device serial and a timestamp per swipe. That is the right shape for a
+	   school with a reader whose exports it still has, and the wrong shape for
+	   everyone else: a school that kept a paper muster, or one whose previous
+	   software recorded a day rather than a moment, has present/absent per
+	   person per day and no punches to give. Asking them to invent timestamps
+	   so the file will load would put fiction into the table payroll is argued
+	   from.
+
+	   So: the same thing the manual staff register writes, in bulk. Status per
+	   person per day, with the arrival and leaving times only if the school
+	   has them -- a day with no times is still a day worked, which is exactly
+	   what a paper muster records.
+
+	   Times are anchored the way the register anchors them: a wall-clock 09:05
+	   against the school's own timezone, not against the server's. check_in is
+	   timestamptz, and a naive insert would put the whole school's hours out by
+	   five and a half.
+
+	   Written as 'manual', because that is what it is -- somebody's record of
+	   who was in, carried across. Calling it 'device' would claim a machine saw
+	   it. */
+	"staff_attendance": {
+		// Same permission as marking the register by hand. This writes the
+		// record payroll and LOP are argued from; nothing looser will do.
+		Perm:     rbac.StaffAttend,
+		Columns:  []string{"employee_code", "date", "status", "check_in", "check_out", "remarks"},
+		Required: []string{"employee_code", "date", "status"},
+		Sample:   []string{"EMP001", "2026-07-14", "present", "09:05", "16:30", ""},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["employee_code"]) == "" {
+				return errors.New("every row needs the staff member's code")
+			}
+			if _, err := time.Parse(time.DateOnly, strings.TrimSpace(row["date"])); err != nil {
+				return errors.New("date must be a day like 2026-07-14")
+			}
+			st := strings.ToLower(strings.TrimSpace(row["status"]))
+			if !staffAttendanceStates[st] {
+				return fmt.Errorf("%q is not an attendance state. Use one of: present, absent, late, half_day, leave, holiday, week_off", st)
+			}
+			for _, k := range []string{"check_in", "check_out"} {
+				v := strings.TrimSpace(row[k])
+				if v == "" {
+					continue
+				}
+				// 09:05 and 09:05:00 are both what a school writes. Anything
+				// else is a cell that will land in the wrong hour.
+				if _, err := time.Parse("15:04", v); err != nil {
+					if _, err2 := time.Parse("15:04:05", v); err2 != nil {
+						return fmt.Errorf("%s must be a 24-hour time like 09:05", k)
+					}
+				}
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			code := strings.TrimSpace(row["employee_code"])
+			var userID *uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(),
+				`SELECT user_id FROM employees
+				  WHERE institution_id = $1 AND lower(employee_code) = lower($2)`,
+				c.inst, code).Scan(&userID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("no staff member with code %q. Import the staff first", code)
+			}
+			if err != nil {
+				return err
+			}
+			/* The register hangs off the user account, not the employee row --
+			   staff_attendance.user_id is NOT NULL and is what every hours and
+			   LOP query joins on. Somebody with no account has nowhere for the
+			   day to go, and saying so here beats a constraint violation at
+			   commit that names a column instead of a person. */
+			if userID == nil {
+				return fmt.Errorf("%s has no login yet, and the staff register is kept against the login. Give them one under Staff → Logins, then upload this again", code)
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			code := strings.TrimSpace(row["employee_code"])
+			var userID uuid.UUID
+			var campus *uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT user_id, campus_id FROM employees
+				  WHERE institution_id = $1 AND lower(employee_code) = lower($2)`,
+				c.inst, code).Scan(&userID, &campus); err != nil {
+				return err
+			}
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO staff_attendance (institution_id, campus_id, user_id, on_date,
+				        status, check_in, check_out, source, remarks, marked_by)
+				VALUES ($1,$2,$3,$4::date,$5,
+				        CASE WHEN $6::text IS NULL THEN NULL
+				             ELSE ($4::date + $6::time) AT TIME ZONE COALESCE(
+				                  (SELECT timezone FROM institutions LIMIT 1),'UTC') END,
+				        CASE WHEN $7::text IS NULL THEN NULL
+				             ELSE ($4::date + $7::time) AT TIME ZONE COALESCE(
+				                  (SELECT timezone FROM institutions LIMIT 1),'UTC') END,
+				        'manual', NULLIF($8,''), $9)
+				ON CONFLICT (user_id, on_date) DO UPDATE
+				   SET status = EXCLUDED.status,
+				       check_in = EXCLUDED.check_in,
+				       check_out = EXCLUDED.check_out,
+				       remarks = EXCLUDED.remarks,
+				       marked_by = EXCLUDED.marked_by
+				RETURNING id, xmax = 0`,
+				c.inst, campus, userID, strings.TrimSpace(row["date"]),
+				strings.ToLower(strings.TrimSpace(row["status"])),
+				nullString(strings.TrimSpace(row["check_in"])),
+				nullString(strings.TrimSpace(row["check_out"])),
+				strings.TrimSpace(row["remarks"]),
+				httpx.IdentityFrom(c.r.Context()).UserID).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("staff_attendance", id, inserted)
+			return nil
+		},
+	},
+
 	/* THE REGISTER FOR THE TERM THAT HAPPENED BEFORE GO-LIVE.
 
 	   Marking a register already accepts a past date and does a whole section
@@ -2783,6 +3105,21 @@ func isStaffStatusWord(v string) bool {
 // intOrNil turns a blank column into NULL rather than into zero. A school that
 // does not keep attendance totals must not have "0 of 0" printed against every
 // child, which reads as a year in which nobody attended.
+// numOrNil is intOrNil for a column the database keeps as numeric. Half a
+// day's leave is 0.5, and reading that as a whole number would round a
+// month's loss of pay to something nobody agreed to.
+func numOrNil(v string) any {
+	t := strings.TrimSpace(v)
+	if t == "" {
+		return nil
+	}
+	n, err := strconv.ParseFloat(strings.ReplaceAll(t, ",", ""), 64)
+	if err != nil {
+		return nil
+	}
+	return n
+}
+
 func intOrNil(v string) any {
 	t := strings.TrimSpace(v)
 	if t == "" {

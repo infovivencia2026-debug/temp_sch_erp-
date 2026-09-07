@@ -2005,8 +2005,22 @@ function HistoryPanel({ onDone }: PanelProps) {
       />
 
       <BulkImport
+        entity="staff_attendance"
+        title="The staff register before you started here"
+        hint="One row per person per day: present, absent, late, half_day, leave, holiday or week_off, with arrival and leaving times only if you have them. This is what pay and loss-of-pay are worked out from, so load it for any month you are going to run payroll for. If you have biometric exports instead, use the punches upload under Attendance devices."
+        onDone={onDone}
+      />
+
+      <BulkImport
+        entity="payslips"
+        title="Salary already paid this year"
+        hint="One row per person per month, one month per file: what was actually paid. Loaded as given and never recalculated — the payslips your staff are holding are the fact, and recomputing them from structures this system did not have would only produce a difference to explain. A month you have already run here is refused rather than overwritten."
+        onDone={onDone}
+      />
+
+      <BulkImport
         entity="attendance"
-        title="The register before you started here"
+        title="The student register before you started here"
         hint="One row per child per day: present, absent, late, half_day, leave or holiday. Nobody is messaged about any of it — an absence from September is not news in December. Re-uploading a corrected file rewrites those days rather than refusing them."
         onDone={onDone}
       />
