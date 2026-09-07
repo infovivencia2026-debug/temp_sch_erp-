@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
+import PeriodsNeeded from './PeriodsNeeded'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* institution_admin.academics.master_timetable_generation
@@ -195,9 +196,9 @@ export default function MasterTimetable() {
         title: 'First, say how many periods each subject needs',
         body:
           'The solver places periods against what the subjects ask for, and nothing asks ' +
-          'for any yet. Set periods per week under Academics → Class Setup, or upload the ' +
-          'class-subjects sheet with a periods_per_week column. Nothing here can run until ' +
-          'it knows what to place.',
+          'for any yet. Fill them in below — one number per subject, set once per class, ' +
+          'and every section of that class gets its own timetable built from it. Nothing ' +
+          'here can run until it knows what to place.',
       }
     : hasDraft
       ? {
@@ -283,6 +284,26 @@ export default function MasterTimetable() {
         </Card>
 
         <FormNotice error={generate.error} ok={note} />
+
+        {/* THE INPUT, IN FRONT OF THE BUTTON THAT CONSUMES IT.
+
+            Open while nothing has been said, because then it IS the work and
+            the card above has just said so. Behind a line once the numbers
+            exist, because a school revisits them when a subject changes and
+            not otherwise -- and eighteen classes of boxes above a draft is a
+            page nobody can find the timetable on. */}
+        {needsRequirements ? (
+          <PeriodsNeeded mayWrite={mayWrite} />
+        ) : (
+          <details className="rounded-[10px] border bg-card">
+            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
+              Change how many periods a week each subject needs
+            </summary>
+            <div className="border-t">
+              <PeriodsNeeded mayWrite={mayWrite} />
+            </div>
+          </details>
+        )}
 
         {/* THE LATEST DRAFT, AS A CARD. THE REST BEHIND A LINK.
 
