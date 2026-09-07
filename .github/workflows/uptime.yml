@@ -1,0 +1,217 @@
+# Is the site up? Asked every ten minutes from GitHub's runners, because on the
+# evening of 2026-09-07 the VPS went offline and nobody was told: there was no
+# uptime monitor and no alert anywhere, and the operator found out by asking.
+# Actions is the one thing we already had that runs on somebody else's machine
+# on a schedule (nightly-backup.yml), and an Issue is the one channel every
+# maintainer already watches, so an outage becomes an issue labelled `outage`
+# and recovery closes it. Nothing to install, no secrets: GITHUB_TOKEN with
+# `issues: write` is enough.
+#
+# The probe itself is scripts/uptime-check.sh, which anyone can run by hand:
+#
+#   bash scripts/uptime-check.sh https://temperp.187-127-178-100.sslip.io --apk
+#
+# This workflow only does the issue bookkeeping around it.
+#
+# Cadence. Actions cron is UTC and its finest step is five minutes; ten is
+# plenty for a site whose /healthz answers in milliseconds, and a run can
+# start late -- often by several minutes, occasionally skipped altogether --
+# when GitHub is busy, which is why the minutes are 3,13,23,... rather than
+# the crowded 0,10,20. So "down for approximately N minutes" is rounded to
+# the cadence plus that lag; it is an alert, not a stopwatch. A missed run is
+# a ten-minute blind spot, not a false alarm: the next one asks again.
+#
+# Flapping. The script retries twice, twenty seconds apart, so one lost packet
+# never opens an issue. Above that, see the comments on "Rate limiting" in the
+# bookkeeping step for how repeated failures and short up/down flaps are kept
+# from turning one outage into ten issues or sixty comments.
+name: uptime
+
+on:
+  schedule:
+    - cron: "3-59/10 * * * *"
+  workflow_dispatch:
+
+env:
+  # The deployment to watch. A second deployment reuses this workflow by
+  # changing only this line (the host in issue titles is derived from it).
+  SITE_URL: https://temperp.187-127-178-100.sslip.io
+  # Every timestamp shown to a human is in this zone; the school is in India.
+  TZ_SHOW: Asia/Kolkata
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # continue-on-error because DOWN is a result to act on, not a broken
+      # job: the workflow itself stays green so that a red run means the
+      # bookkeeping failed, which is the only thing there is to debug here.
+      - name: Probe /healthz and the parent APK
+        id: probe
+        continue-on-error: true
+        run: bash scripts/uptime-check.sh "$SITE_URL" --apk
+
+      - name: Open, update or close the outage issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ steps.probe.outputs.status }}
+          HTTP: ${{ steps.probe.outputs.http }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+          APK: ${{ steps.probe.outputs.apk }}
+          APK_DETAIL: ${{ steps.probe.outputs.apk_detail }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          HOST=${SITE_URL#*://}; HOST=${HOST%%/*}
+          NOW_UTC=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          NOW=$(TZ=$TZ_SHOW date '+%Y-%m-%d %H:%M %Z')
+          echo "probe: status=$STATUS http=$HTTP apk=$APK at $NOW"
+
+          # The probe step can only leave status empty if it crashed before
+          # writing outputs (no curl, bad URL). That is not a verdict on the
+          # site and must not open an issue about it.
+          [ -n "$STATUS" ] || { echo "::error::probe produced no result; see the step above"; exit 1; }
+
+          # Labels the bookkeeping relies on. `gh label create` errors when
+          # the label exists, so ask first; --force would overwrite a colour
+          # someone chose by hand.
+          ensure_label() {
+              [ "$(gh label list --search "$1" --json name --jq "map(select(.name == \"$1\")) | length")" -gt 0 ] \
+                  || gh label create "$1" --color "$2" --description "$3"
+          }
+          ensure_label outage   B60205 "The site is not answering; opened and closed by the uptime workflow"
+          ensure_label apk-link D93F0B "The parent APK download is not serving an APK; opened and closed by the uptime workflow"
+
+          # ---- Rate limiting -------------------------------------------------
+          # Every comment and body this workflow writes starts with a hidden
+          # marker, <!-- uptime: down|up <utc-time> -->, and the LAST marker on
+          # the open issue is the state the workflow last reported. A run only
+          # writes when its verdict differs from that marker:
+          #
+          #   marker down, probe DOWN  -> the same outage, still going: silence.
+          #                               This is the case that would otherwise
+          #                               post 144 comments a day.
+          #   marker up,   probe DOWN  -> "down again": the issue was closed by
+          #                               a recovery and reopened (by the flap
+          #                               rule below, or by a person), or a
+          #                               person opened it; say so once.
+          #   marker down, probe UP    -> "back up", close.
+          #   no marker,   probe DOWN  -> a person opened an `outage` issue by
+          #                               hand; the first run to see it adds
+          #                               one comment so the thread has the
+          #                               HTTP result, then falls silent.
+          #
+          # Comments are the marker rather than a separate file or cache
+          # because the issue is already the record, survives runner churn,
+          # and an operator can read the same thing the workflow reads.
+          #
+          # Flaps. A recovery closes the issue, so a site that goes down, up,
+          # down within the hour would otherwise get a fresh issue each time.
+          # Instead a DOWN with no open issue first looks for an `outage`
+          # issue closed within FLAP_WINDOW minutes and reopens that one --
+          # its "down again" comment then reads as one outage with a gap in
+          # it, which is what it was. Recovery time is measured from the last
+          # `down` marker, not from created_at, for the same reason.
+          FLAP_WINDOW=60
+
+          last_marker() {   # last_marker <issue#> -> "down <utc>" | "up <utc>" | ""
+              { gh issue view "$1" --json body --jq '.body'
+                gh api --paginate "repos/$GH_REPO/issues/$1/comments" --jq '.[].body'
+              } | sed -n 's/^<!-- uptime: \(down\|up\) \([0-9TZ:-]*\) -->.*/\1 \2/p' | tail -1
+          }
+          minutes_between() { echo $(( ( $(date -u -d "$2" +%s) - $(date -u -d "$1" +%s) ) / 60 )); }
+          checklist() {
+              cat <<EOF
+          What to check, in order:
+          1. The hosting panel: is the VPS powered on, does its network show traffic? Reboot from there if SSH does not answer.
+          2. Once SSH answers: \`systemctl status temperp-web\` and \`journalctl -u temperp-web -n 100\` on the box.
+          3. From a checkout: \`make status\` for the service, nginx and the queue in one look.
+
+          Probe run: $RUN_URL
+          EOF
+          }
+
+          open=$(gh issue list --label outage --state open --json number,createdAt --limit 1)
+          number=$(echo "$open" | jq -r '.[0].number // empty')
+          created=$(echo "$open" | jq -r '.[0].createdAt // empty')
+
+          if [ "$STATUS" = down ]; then
+              if [ -z "$number" ]; then
+                  # A recent closed issue is the same outage flapping; reopen it.
+                  since=$(date -u -d "$FLAP_WINDOW minutes ago" '+%Y-%m-%dT%H:%M:%SZ')
+                  number=$(gh issue list --label outage --state closed --limit 5 --json number,closedAt \
+                      | jq -r --arg s "$since" '[.[] | select(.closedAt > $s)] | sort_by(.closedAt) | last | .number // empty')
+                  if [ -n "$number" ]; then
+                      echo "reopening #$number (closed within the last $FLAP_WINDOW minutes)"
+                      gh issue reopen "$number"
+                      gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s** -- `%s/healthz` -> %s.\n\nReopened rather than filed anew because it was closed less than %s minutes ago; this is one outage with a gap in it.\n\nProbe run: %s' \
+                          "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$FLAP_WINDOW" "$RUN_URL")"
+                  else
+                      echo "opening a new outage issue"
+                      gh issue create --label outage --title "Site down: $HOST" \
+                          --body "$(printf '<!-- uptime: down %s -->\n**Down since %s** (first failed probe). `%s/healthz` -> %s, after 3 attempts 20 s apart.\n\n%s\n\nThis issue is closed automatically when the probe sees a 200 again.' \
+                              "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$(checklist)")"
+                  fi
+              else
+                  marker=$(last_marker "$number")
+                  case "${marker%% *}" in
+                      down) echo "#$number already reports down (${marker#* }); nothing to add" ;;
+                      *)    echo "#$number last reported '${marker:-nothing}'; noting the failure"
+                            gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s** -- `%s/healthz` -> %s.\n\n%s' \
+                                "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$(checklist)")" ;;
+                  esac
+              fi
+              exit 0
+          fi
+
+          # ---- UP -------------------------------------------------------------
+          if [ -n "$number" ]; then
+              marker=$(last_marker "$number")
+              case "${marker%% *}" in
+                  down) since=${marker#* } ;;
+                  *)    since=$created ;;   # opened by hand, or an older issue without markers
+              esac
+              mins=$(minutes_between "$since" "$NOW_UTC")
+              apk_note=""
+              [ "$APK" = bad ] && apk_note=$(printf '\n\n**But the parent APK link is wrong:** `%s/apps/parent.apk` -> %s (want application/vnd.android.package-archive). See the Apps route block in scripts/build-on-server.sh.' "$SITE_URL" "$APK_DETAIL")
+              echo "closing #$number: back up after ~$mins minutes"
+              gh issue comment "$number" --body "$(printf '<!-- uptime: up %s -->\n**Back up at %s**, down for approximately %s minutes.%s\n\nProbe run: %s' \
+                  "$NOW_UTC" "$NOW" "$mins" "$apk_note" "$RUN_URL")"
+              gh issue close "$number" --reason completed
+          else
+              echo "up; no outage issue open"
+          fi
+
+          # ---- The APK link, a warning rather than an outage ------------------
+          # One open `apk-link` issue is the whole state: while it is open the
+          # link is known to be wrong and nothing more is said; when the link
+          # is right again it is closed. A wrong download once went unnoticed
+          # for days, so this must open something even when the site is fine.
+          apk_issue=$(gh issue list --label apk-link --state open --json number --jq '.[0].number // empty')
+          case "$APK:${apk_issue:+open}" in
+              bad:)
+                  echo "opening an apk-link warning"
+                  gh issue create --label apk-link --title "Parent APK link not serving an APK: $HOST" \
+                      --body "$(printf '<!-- uptime: down %s -->\n**Since %s**, `%s/apps/parent.apk` -> %s; a phone would save that as the app. Wanted a 200 with Content-Type application/vnd.android.package-archive.\n\nMost likely the nginx site lost its `location /apps` rule (the Apps route block in scripts/build-on-server.sh puts it back), or the published build is missing on the box. The site itself is up; this is a warning, not an outage, and closes on its own when the link is right again.\n\nProbe run: %s' \
+                          "$NOW_UTC" "$NOW" "$SITE_URL" "$APK_DETAIL" "$RUN_URL")" ;;
+              bad:open) echo "apk-link #$apk_issue already open; nothing to add" ;;
+              ok:open)
+                  since=$(gh issue view "$apk_issue" --json createdAt --jq .createdAt)
+                  gh issue comment "$apk_issue" --body "$(printf '<!-- uptime: up %s -->\n**Serving an APK again at %s**, wrong for approximately %s minutes.\n\nProbe run: %s' \
+                      "$NOW_UTC" "$NOW" "$(minutes_between "$since" "$NOW_UTC")" "$RUN_URL")"
+                  gh issue close "$apk_issue" --reason completed ;;
+              *) ;;   # ok with nothing open, or skipped because the site was down
+          esac
