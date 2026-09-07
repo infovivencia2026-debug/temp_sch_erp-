@@ -1826,7 +1826,19 @@ export default function StudentProfile() {
       ]}
       tabs={tabs}
       actions={actions}
-      onBack={() => { setSelected(null); setSearch('') }}
+      /* ONE PATCH, NOT TWO.
+
+         This was `setSelected(null); setSearch('')`, and it did nothing at
+         all. Both helpers build their next query string from `params` -- the
+         snapshot this render closed over -- so the second call started again
+         from a URL that still carried `student=...`, deleted `q`, and wrote
+         the child straight back in. Two correct calls in a row, and the
+         later one undid the earlier one.
+
+         Anything that clears more than one key has to say so in a single
+         patch, because there is no re-render between them to update the
+         snapshot. */
+      onBack={() => patch({ student: null, q: null }, true)}
       backLabel="Back to search"
     />
     </>
