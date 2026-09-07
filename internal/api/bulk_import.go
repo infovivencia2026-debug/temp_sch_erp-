@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
 )
@@ -100,6 +101,14 @@ type importSpec struct {
 
 // createdRow is one record an import brought into existence, as opposed to one
 // it edited. Only these are removed when an import is undone.
+// What a day's register may say, matching student_attendance's own check
+// constraint. Kept here rather than inlined so the importer and the message it
+// prints cannot drift apart.
+var attendanceStates = map[string]bool{
+	"present": true, "absent": true, "late": true,
+	"half_day": true, "leave": true, "holiday": true,
+}
+
 type createdRow struct {
 	entity string
 	id     uuid.UUID
@@ -1626,6 +1635,224 @@ var importSpecs = map[string]importSpec{
 				return err
 			}
 			c.noteCreated("marks", markID, inserted)
+			return nil
+		},
+	},
+
+	/* MONEY ALREADY TAKEN, BEFORE THE SCHOOL EVER SAW THIS PRODUCT.
+
+	   A school that starts in September has collected two terms already. Every
+	   other part of that year could be loaded from a file -- students, staff,
+	   subjects, the fee structure, the invoices, even the exams -- and the
+	   receipts could not. Four hundred children paying two instalments is eight
+	   hundred trips through the counter screen, and until the last one is typed
+	   the ledger says the school has collected nothing: every outstanding
+	   figure is wrong, every defaulter list is wrong, and the first reminder
+	   run texts a parent who paid in April. That is not slow onboarding, it is
+	   a product that lies about money on its first day.
+
+	   The school's own receipt number goes in reference_no, NOT in receipt_no.
+	   receipt_no is a numbered series this product issues and audits for gaps;
+	   injecting a school's old numbering into it would break the one property
+	   the series exists to have. Theirs is kept, searchable, beside ours.
+
+	   Allocation is the counter's own: fees.Collect, oldest invoice first, with
+	   any remainder left as an advance. A second path that decided what a
+	   payment settles is how two screens come to disagree about what a family
+	   owes. */
+	"fee_payments": {
+		Perm: rbac.FeesWrite,
+		Columns: []string{"admission_no", "receipt_no", "paid_on", "amount",
+			"mode", "remarks"},
+		Required: []string{"admission_no", "paid_on", "amount"},
+		Sample:   []string{"ADM0001", "R-2026-0417", "2026-04-11", "18500", "cash", "Term 1"},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["admission_no"]) == "" {
+				return errors.New("every row needs the child's admission number")
+			}
+			if _, err := time.Parse(time.DateOnly, strings.TrimSpace(row["paid_on"])); err != nil {
+				return errors.New("paid_on must be a date like 2026-04-11")
+			}
+			/* Written the way a school writes money -- 18,500 and 18500.00 are
+			   both the same eighteen and a half thousand rupees, and a file
+			   refused for a comma is a file the office edits by hand. */
+			amt := paiseOrNil(row["amount"])
+			if amt == nil {
+				return errors.New("amount must be a number of rupees, like 18500")
+			}
+			if v, ok := amt.(int64); ok && v <= 0 {
+				return errors.New("amount must be more than nothing")
+			}
+			mode := strings.ToLower(strings.TrimSpace(row["mode"]))
+			if mode != "" && !validModes[mode] {
+				return fmt.Errorf("%q is not a way of paying. Use one of: cash, cheque, dd, neft, upi, card, netbanking, adjustment", mode)
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var studentID uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM students WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, adm).Scan(&studentID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("no child with admission number %q. Import the students first", adm)
+			}
+			if err != nil {
+				return err
+			}
+			/* THE SAME RECEIPT MUST NOT BE TAKEN TWICE.
+
+			   Every other importer can be re-run harmlessly: a class that
+			   exists is updated, not duplicated. A payment has no natural key
+			   the database can enforce -- two genuine cash payments of the same
+			   amount on the same day are ordinary -- so a re-uploaded file
+			   would silently double a family's credit. The school's own receipt
+			   number is the one thing that identifies the transaction, and
+			   where a file gives one, a row already carrying it is reported
+			   here rather than paid again. */
+			if rec := strings.TrimSpace(row["receipt_no"]); rec != "" {
+				var seen bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					SELECT EXISTS (SELECT 1 FROM payments
+					                WHERE institution_id = $1 AND student_id = $2
+					                  AND reference_no = $3)`,
+					c.inst, studentID, rec).Scan(&seen); err != nil {
+					return err
+				}
+				if seen {
+					return fmt.Errorf("receipt %s is already recorded against this child. Remove the row, or clear its receipt number if it really is a second payment", rec)
+				}
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var studentID, instID, campusID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id, institution_id, campus_id FROM students
+				  WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, adm).Scan(&studentID, &instID, &campusID); err != nil {
+				return err
+			}
+			paidOn, err := time.Parse(time.DateOnly, strings.TrimSpace(row["paid_on"]))
+			if err != nil {
+				return err
+			}
+			amount, _ := paiseOrNil(row["amount"]).(int64)
+			mode := strings.ToLower(strings.TrimSpace(row["mode"]))
+			if mode == "" {
+				// What a school means when it does not say. Every counter takes
+				// cash; nothing else is safe to assume.
+				mode = "cash"
+			}
+			receipt, err := fees.Collect(c.r.Context(), c.tx, fees.CollectRequest{
+				InstitutionID: instID, CampusID: campusID, StudentID: studentID,
+				AmountPaise: amount, Mode: mode, PaidOn: paidOn,
+				ReferenceNo: strings.TrimSpace(row["receipt_no"]),
+				Remarks:     strings.TrimSpace(row["remarks"]),
+				CollectedBy: httpx.IdentityFrom(c.r.Context()).UserID,
+			})
+			if err != nil {
+				return err
+			}
+			c.noteCreated("fee_payments", receipt.PaymentID, true)
+			return nil
+		},
+	},
+
+	/* THE REGISTER FOR THE TERM THAT HAPPENED BEFORE GO-LIVE.
+
+	   Marking a register already accepts a past date and does a whole section
+	   at once -- it was built for the teacher catching up a fortnight late. It
+	   is not built for three months across eighteen sections, which is a
+	   thousand visits to a screen.
+
+	   Deliberately silent. Nothing here notifies a parent: an absence from
+	   September is not news in December, and the daily marking path sends
+	   messages precisely because it is about today. */
+	"attendance": {
+		Perm:     rbac.AttendanceWrite,
+		Columns:  []string{"admission_no", "date", "status", "remarks"},
+		Required: []string{"admission_no", "date", "status"},
+		Sample:   []string{"ADM0001", "2026-07-14", "present", ""},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["admission_no"]) == "" {
+				return errors.New("every row needs the child's admission number")
+			}
+			if _, err := time.Parse(time.DateOnly, strings.TrimSpace(row["date"])); err != nil {
+				return errors.New("date must be a day like 2026-07-14")
+			}
+			st := strings.ToLower(strings.TrimSpace(row["status"]))
+			if !attendanceStates[st] {
+				return fmt.Errorf("%q is not an attendance state. Use one of: present, absent, late, half_day, leave, holiday", st)
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var secID *uuid.UUID
+			err := c.tx.QueryRow(c.r.Context(), `
+				SELECT (SELECT e.section_id FROM enrollments e
+				         WHERE e.student_id = st.id
+				         ORDER BY e.enrolled_on DESC LIMIT 1)
+				  FROM students st
+				 WHERE st.institution_id = $1 AND st.admission_no = $2`,
+				c.inst, adm).Scan(&secID)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("no child with admission number %q. Import the students first", adm)
+			}
+			if err != nil {
+				return err
+			}
+			/* A register entry belongs to a section, and section_id is NOT
+			   NULL. A child admitted but never placed in a class has nowhere
+			   for the row to go -- said here rather than as a constraint
+			   violation at commit. */
+			if secID == nil {
+				return fmt.Errorf("%s is not in any class yet, so there is no register to mark them on", adm)
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var studentID, secID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT st.id, (SELECT e.section_id FROM enrollments e
+				                WHERE e.student_id = st.id
+				                ORDER BY e.enrolled_on DESC LIMIT 1)
+				  FROM students st
+				 WHERE st.institution_id = $1 AND st.admission_no = $2`,
+				c.inst, adm).Scan(&studentID, &secID); err != nil {
+				return err
+			}
+			onDate, err := time.Parse(time.DateOnly, strings.TrimSpace(row["date"]))
+			if err != nil {
+				return err
+			}
+			var id uuid.UUID
+			var inserted bool
+			/* The day register, so period_id is null and the partial unique
+			   index on (student_id, on_date) is the one that applies. Re-
+			   uploading a corrected file rewrites the day rather than refusing
+			   it. */
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO student_attendance (institution_id, student_id, section_id,
+				        on_date, status, remarks, marked_by, marked_at)
+				VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7, now())
+				ON CONFLICT (student_id, on_date) WHERE period_id IS NULL
+				DO UPDATE SET status = EXCLUDED.status,
+				              remarks = EXCLUDED.remarks,
+				              marked_by = EXCLUDED.marked_by,
+				              marked_at = now()
+				RETURNING id, xmax = 0`,
+				c.inst, studentID, secID, onDate,
+				strings.ToLower(strings.TrimSpace(row["status"])),
+				strings.TrimSpace(row["remarks"]),
+				httpx.IdentityFrom(c.r.Context()).UserID).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("attendance", id, inserted)
 			return nil
 		},
 	},

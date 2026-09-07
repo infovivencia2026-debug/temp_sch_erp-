@@ -1977,6 +1977,39 @@ function HistoryPanel({ onDone }: PanelProps) {
         hint="One row per person per year: designation, attendance and leave. What the school reads when it writes an experience certificate or settles seniority."
         onDone={onDone}
       />
+
+      {/* THIS YEAR, ALREADY UNDER WAY -- which is not the same as history.
+
+          Everything above closes a year that is over. These two are about the
+          year the school is standing in: a term's fees already collected, and
+          a register already marked, both of which happened before the school
+          had this product and both of which the live screens will otherwise
+          insist never happened. Kept visually apart from the past years for
+          exactly that reason -- a closed year is a record, and this is the
+          balance a parent will argue about on Monday. */}
+      <div className="rounded-lg border-l-4 border-l-warning bg-muted/20 p-3 text-[13px]">
+        <p className="font-medium">Joining part-way through a year?</p>
+        <p className="mt-1 text-muted-foreground">
+          Raise the invoices for the terms that have already gone (Fees → give each
+          its real due date), then load what has already been paid. Until that is
+          done the school looks as though it has collected nothing, and the first
+          reminder run would chase a parent who paid in April.
+        </p>
+      </div>
+
+      <BulkImport
+        entity="fee_payments"
+        title="Fees already collected this year"
+        hint="One row per receipt: the child, your own receipt number, the date it was taken, the amount and how they paid. It settles the oldest unpaid invoice first, exactly as the counter does, and anything left over stays as an advance. Your receipt number is kept and searchable; the system still issues its own, because its numbering is audited for gaps."
+        onDone={onDone}
+      />
+
+      <BulkImport
+        entity="attendance"
+        title="The register before you started here"
+        hint="One row per child per day: present, absent, late, half_day, leave or holiday. Nobody is messaged about any of it — an absence from September is not news in December. Re-uploading a corrected file rewrites those days rather than refusing them."
+        onDone={onDone}
+      />
     </div>
   )
 }

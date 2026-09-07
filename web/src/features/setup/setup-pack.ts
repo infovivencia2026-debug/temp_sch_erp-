@@ -44,6 +44,13 @@ const BY_NUMBER: Record<string, { entity: string; step: string; label: string }>
   '08': { entity: 'student_history', step: 'history', label: 'Past years, per child' },
   '09': { entity: 'marks_grid', step: 'history', label: 'Past results' },
   '10': { entity: 'staff_history', step: 'history', label: 'Staff service' },
+  /* A school joining part-way through a year brings two more sheets: the money
+     it has already taken this year, and the register it has already marked.
+     Numbered after the history files because they are loaded last -- a payment
+     needs its invoice raised first, and a register needs the child in a
+     class. */
+  '11': { entity: 'fee_payments', step: 'history', label: 'Fees already collected' },
+  '12': { entity: 'attendance', step: 'history', label: 'Register already marked' },
 }
 
 export interface PackEntry {
