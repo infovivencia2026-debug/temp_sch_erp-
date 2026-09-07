@@ -3678,6 +3678,15 @@ func (s *Server) getBulkTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+entity+`-template.csv"`)
+	/* Never cached, anywhere.
+
+	   The response carried no cache headers at all, which leaves it to the
+	   browser's heuristics and to the service worker -- which stores every
+	   /api/ GET it sees. A template that changes when the importer changes is
+	   exactly the wrong thing to serve from a cache written weeks ago, and a
+	   cached copy also explains a Template button that produces no network
+	   request whatsoever. */
+	w.Header().Set("Cache-Control", "no-store, must-revalidate")
 	cw := csv.NewWriter(w)
 	_ = cw.Write(spec.Columns)
 	if len(spec.Sample) == len(spec.Columns) {

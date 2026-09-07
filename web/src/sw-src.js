@@ -114,6 +114,15 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
+  /* A DOWNLOAD IS NOT A READ TO BE CACHED AND REPLAYED.
+
+     Template and export endpoints answer with a file, and this worker stored
+     every /api/ GET it saw -- so a template could be served from a copy taken
+     before the importer changed, and a click could be satisfied without a
+     single request leaving the machine. Left alone, they go to the network
+     like any ordinary download. */
+  if (url.pathname.includes('/template') || url.pathname.includes('/export')) return
+
   if (url.pathname.startsWith('/api/')) {
     /* The session call is cached like any other read, which is what makes a
        cold start with no signal land on the product rather than on "could not
