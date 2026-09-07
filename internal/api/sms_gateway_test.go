@@ -641,6 +641,14 @@ func seedSMSGatewayTenant(t *testing.T, db interface {
 }
 
 // pairADevice runs the real pair-and-claim path and returns the device token.
+//
+// The device comes back approved, because that is what claiming a code does:
+// the code was minted by somebody holding integrations.write, and reading it
+// out to the phone is the approval. Nothing here approves separately, on
+// purpose -- if the claim path ever forgets to, every outbox test in this file
+// answers 403 awaiting_approval, which is exactly how the omission was found.
+// The one state a pair-code phone never sits in, pending, is manufactured
+// explicitly by the test that pins it.
 func pairADevice(t *testing.T, s *Server, inst uuid.UUID, name string) (uuid.UUID, string) {
 	t.Helper()
 	ctx := context.Background()
@@ -714,6 +722,148 @@ func deviceRequest(t *testing.T, h http.Handler, token, method, path, body strin
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 	return w
+}
+
+/*
+A phone that arrived by code may send; a phone that signed itself in waits.
+
+	Two doors into the same table, and they mean different things. A pair code
+	was minted by somebody with integrations.write, so a handset claiming it
+	is approved as it arrives. A member of staff signing in on their own phone
+	(enrolSMSGateway) had nobody with that permission in the loop, so it sits
+	pending until the office approves it on the gateway screen.
+
+	The first half was broken and nothing noticed: the claim INSERT never
+	wrote approved_at, so every code-paired phone since migration 00155 polled
+	the outbox and was told to go and ask the administrator who had just read
+	it the code. Found because pairADevice stopped being able to fetch an
+	outbox at all.
+
+	The pending state is manufactured here by clearing the columns rather than
+	by driving the staff sign-in, which would need an employee, a PIN and a
+	session to say the same thing. What matters is the row the gate reads, and
+	this leaves it exactly as enrolSMSGateway does for a caller without the
+	permission.
+*/
+func TestSMSGatewayCodePairingIsApprovedAndSignInWaitsForTheOffice(t *testing.T) {
+	db := testDB(t)
+	s := &Server{DB: db}
+	inst := seedSMSGatewayTenant(t, db)
+	queueSMSMessage(t, s, inst, "+919000000010", "Fees due Friday.")
+	ctx := context.Background()
+
+	deviceID, token := pairADevice(t, s, inst, "Front office")
+	h := mountedSMSGatewayDevice(s)
+
+	// Arrived by code: approved on the spot, and the outbox answers.
+	var approved bool
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT approved_at IS NOT NULL FROM sms_gateway_devices
+		                          WHERE id = $1`, deviceID).Scan(&approved)
+	}); err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if !approved {
+		t.Fatalf("a phone paired by code is not approved on arrival; the code was the approval")
+	}
+	if w := deviceRequest(t, h, token, "GET", "/sms-gateway/outbox", ""); w.Code != http.StatusOK {
+		t.Fatalf("code-paired phone's outbox: %d %s", w.Code, w.Body.String())
+	}
+
+	// Put the row where a staff sign-in without integrations.write leaves it.
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE sms_gateway_devices
+		                           SET approved_at = NULL, approved_by = NULL
+		                         WHERE id = $1`, deviceID)
+		return err
+	}); err != nil {
+		t.Fatalf("unapprove: %v", err)
+	}
+
+	// Pending is refused with its own name on every device route: the phone
+	// is ours and the person holding it must be told what to go and do. It is
+	// not 401, which is the sentence for a stranger.
+	for _, c := range []struct{ method, path, body string }{
+		{"GET", "/sms-gateway/outbox", ""},
+		{"POST", "/sms-gateway/receipts", `{"receipts":[]}`},
+		{"POST", "/sms-gateway/heartbeat", `{}`},
+	} {
+		w := deviceRequest(t, h, token, c.method, c.path, c.body)
+		if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), `"awaiting_approval"`) {
+			t.Errorf("pending phone on %s %s: got %d %s, want 403 awaiting_approval",
+				c.method, c.path, w.Code, w.Body.String())
+		}
+	}
+
+	// The office approves it, through the real handler with the real rung.
+	// A real user row, because approved_by is recorded and references users:
+	// the revocation test gets away with an invented id since revoke writes
+	// nobody's name down.
+	var adminID uuid.UUID
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			INSERT INTO users (institution_id, email, full_name, status)
+			VALUES ($1, $2::citext, 'Office Admin', 'active') RETURNING id`,
+			inst, "office-"+inst.String()[:8]+"@gateway.test").Scan(&adminID)
+	}); err != nil {
+		t.Fatalf("admin user: %v", err)
+	}
+	admin := &httpx.Identity{
+		UserID: adminID, InstitutionID: inst,
+		Permissions: map[string]struct{}{rbac.IntegrationsWrite: {}, rbac.InstitutionRead: {}},
+	}
+	ar := chi.NewRouter()
+	ar.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			next.ServeHTTP(w, req.WithContext(httpx.WithIdentity(req.Context(), admin)))
+		})
+	})
+	ar.Group(func(r chi.Router) { s.mountSMSGateway(r) })
+	approve := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/sms-gateway/devices/"+deviceID.String()+"/approve",
+			strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		ar.ServeHTTP(w, req)
+		return w
+	}
+	if w := approve(); w.Code != http.StatusOK {
+		t.Fatalf("approve: %d %s", w.Code, w.Body.String())
+	}
+	if w := deviceRequest(t, h, token, "GET", "/sms-gateway/outbox", ""); w.Code != http.StatusOK {
+		t.Errorf("approved phone's outbox: %d %s", w.Code, w.Body.String())
+	}
+	// Pressed twice on a slow connection: still 200, still one approver.
+	if w := approve(); w.Code != http.StatusOK {
+		t.Errorf("second approve: %d %s", w.Code, w.Body.String())
+	}
+	var approver uuid.UUID
+	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT approved_by FROM sms_gateway_devices WHERE id = $1`,
+			deviceID).Scan(&approver)
+	}); err != nil {
+		t.Fatalf("read approver: %v", err)
+	}
+	if approver != admin.UserID {
+		t.Errorf("approved_by = %s, want the administrator who pressed it (%s)", approver, admin.UserID)
+	}
+
+	// Revoked is the end. Approve cannot quietly bring a written-off phone
+	// back, and the phone itself is a stranger again rather than pending.
+	req := httptest.NewRequest("POST", "/sms-gateway/devices/"+deviceID.String()+"/revoke",
+		strings.NewReader(`{"reason":"handed in"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	ar.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("revoke: %d %s", w.Code, w.Body.String())
+	}
+	if w := approve(); w.Code != http.StatusNotFound {
+		t.Errorf("approving a revoked phone: %d %s, want 404", w.Code, w.Body.String())
+	}
+	if w := deviceRequest(t, h, token, "GET", "/sms-gateway/outbox", ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("revoked phone's outbox: %d %s, want 401", w.Code, w.Body.String())
+	}
 }
 
 /*

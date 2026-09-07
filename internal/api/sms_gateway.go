@@ -993,12 +993,29 @@ func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request)
 		   Two handsets both reporting "Redmi Note 12" is ordinary, and the
 		   unique index is on the live rows. The office can rename either one
 		   afterwards; being unable to pair the second phone at all would be a
-		   worse answer than a suffix. */
+		   worse answer than a suffix.
+
+		   Approved on arrival, by the person who generated the code.
+
+		   Approval exists for the other door: a member of staff signing in on
+		   their own handset, with nobody holding integrations.write in the
+		   loop (enrolSMSGateway). A phone that arrives here came through a
+		   code that only somebody with that permission could have minted, and
+		   reading it out to the phone was the approval -- which is what
+		   migration 00155 said when it backfilled approved_at onto every
+		   device that already existed, and what approveSMSGatewayDevice's
+		   comment still says. This INSERT was never taught the same, so every
+		   phone paired by code after that migration sat on the gateway screen
+		   as pending, polled the outbox and was told to go and ask an
+		   administrator -- the administrator who had just handed it the code.
+		   The office could press Approve and it would start; it should never
+		   have had to. Pinned in
+		   TestSMSGatewayCodePairingIsApprovedAndSignInWaitsForTheOffice. */
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO sms_gateway_devices
 			       (id, institution_id, name, android_version, sim_operator,
 			        app_version, token_sealed, pair_code_id, paired_by,
-			        poll_seconds, per_minute_cap)
+			        approved_at, approved_by, poll_seconds, per_minute_cap)
 			VALUES ($1, $2,
 			        $3 || COALESCE((SELECT ' (' || (count(*) + 1) || ')'
 			                          FROM sms_gateway_devices d
@@ -1006,7 +1023,7 @@ func (s *Server) claimSMSGatewayPairCode(w http.ResponseWriter, r *http.Request)
 			                           AND d.revoked_at IS NULL
 			                           AND lower(d.name) = lower($3)
 			                        HAVING count(*) > 0), ''),
-			        $4, $5, $6, $7, $8, $9, $10, $11)`,
+			        $4, $5, $6, $7, $8, $9, now(), $9, $10, $11)`,
 			device, inst, truncate(name, 80),
 			nullIfBlank(req.AndroidVersion), nullIfBlank(req.SIMOperator),
 			nullIfBlank(req.AppVersion), sealed, codeID, createdBy,
