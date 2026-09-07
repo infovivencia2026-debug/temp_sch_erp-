@@ -39,6 +39,7 @@ export interface EditableStudent {
   last_name?: string
   date_of_birth?: string
   gender?: string
+  roll_no?: string
   blood_group?: string
   medium?: string
   mother_tongue?: string
@@ -86,6 +87,16 @@ const GROUPS: Group[] = [
       { name: 'middle_name', label: 'Middle name' },
       { name: 'last_name', label: 'Last name' },
       { name: 'date_of_birth', label: 'Date of birth' },
+      {
+        /* THE NUMBER THE REGISTER IS CALLED BY.
+           It was shown on the profile and nowhere editable, so a child who
+           arrived after the roll was numbered -- which is every mid-year
+           admission -- had no roll number and no way to be given one short of
+           re-importing the class. Blank clears it. */
+        name: 'roll_no', label: 'Roll number',
+        hint: 'The number in this section’s register. Leave empty if the class is not numbered yet.',
+        placeholder: 'e.g. 12',
+      },
       {
         name: 'gender', label: 'Gender',
         options: [

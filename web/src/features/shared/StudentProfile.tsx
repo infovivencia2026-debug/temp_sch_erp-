@@ -1099,8 +1099,15 @@ export default function StudentProfile() {
                       table of fifteen, so the things somebody checks first were
                       indistinguishable from the things they check once a year. */}
                   <p className="mt-3 text-center text-[16px] font-semibold">{p.full_name}</p>
+                  {/* The roll number is said either way.
+
+                      It appeared only when there was one, so the commonest
+                      question about a mid-year admission -- "what is their roll
+                      number?" -- was answered by a line that simply was not
+                      there, which reads as a screen that does not track it
+                      rather than as a number nobody has given them yet. */}
                   <p className="text-center text-[13px] text-muted-foreground">
-                    {cls}{p.roll_no ? ` · Roll ${p.roll_no}` : ''}
+                    {cls} · {p.roll_no ? `Roll ${p.roll_no}` : 'no roll number'}
                   </p>
                   <p className="text-center font-mono text-[12px] text-muted-foreground">
                     {p.admission_no}
@@ -1756,6 +1763,9 @@ export default function StudentProfile() {
           photo_file_id: p.photo_file_id,
           date_of_birth: p.date_of_birth,
           gender: p.gender,
+          // The form works in strings; the profile carries it as a number,
+          // and a child with no roll number has none rather than a zero.
+          roll_no: p.roll_no != null ? String(p.roll_no) : '',
           blood_group: p.blood_group,
           medium: p.medium,
           mother_tongue: p.mother_tongue,

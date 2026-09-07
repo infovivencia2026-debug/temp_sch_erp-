@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -388,7 +390,44 @@ func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	if len(req) == 0 {
+
+	/* THE ROLL NUMBER IS NOT A COLUMN ON THE CHILD.
+
+	   It belongs to the enrolment -- a child has one roll number per section
+	   per year, and it changes when they move -- so it cannot travel through
+	   the generic loop below, which writes to `students`. It arrives on the
+	   same request anyway, because the person typing it is looking at one form
+	   and does not care which table the number lives in.
+
+	   Taken out of the map first so the generic path never sees a key it has
+	   no column for and answers "roll_no is not a field this endpoint can
+	   change" to somebody correcting a roll number. */
+	rollRaw, rollGiven := req["roll_no"]
+	delete(req, "roll_no")
+	var rollNo *int
+	if rollGiven {
+		rollRaw = strings.TrimSpace(rollRaw)
+		if rollRaw != "" {
+			n, err := strconv.Atoi(rollRaw)
+			if err != nil || n <= 0 {
+				httpx.BadRequest(w, r, "a roll number is a whole number above zero")
+				return
+			}
+			// Nobody's register runs to five digits, and a mistyped year --
+			// 2026 in the roll box -- should be caught here rather than
+			// sorted out later by whoever prints the attendance sheet.
+			if n > 9999 {
+				httpx.BadRequest(w, r, "that is too large to be a roll number")
+				return
+			}
+			rollNo = &n
+		}
+		// An empty string clears it. A child who has no roll number yet and a
+		// child whose number was typed by mistake are the same case, and there
+		// is no other control on the screen for either.
+	}
+
+	if len(req) == 0 && !rollGiven {
 		httpx.BadRequest(w, r, "nothing to change")
 		return
 	}
@@ -478,14 +517,62 @@ func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
 	args = append(args, scopeArgs...)
 
 	var touched int64
+	// Reported separately from the student columns: a roll number that was
+	// refused because the child has no active enrolment must not be reported
+	// as saved just because the birthday next to it was.
+	var rollTouched int64
+	var rollTaken bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if len(sets) > 0 {
+			tag, err := tx.Exec(r.Context(),
+				`UPDATE students st SET `+strings.Join(sets, ", ")+
+					`, updated_at = now() WHERE st.id = $1 AND `+pred, args...)
+			if err != nil {
+				return err
+			}
+			touched = tag.RowsAffected()
+		} else {
+			/* Nothing to write to the child, so the scope check the UPDATE
+			   would have done has to happen on its own -- otherwise a roll-only
+			   change would skip it entirely and write to an enrolment the
+			   caller cannot reach. */
+			var one int
+			err := tx.QueryRow(r.Context(),
+				`SELECT 1 FROM students st WHERE st.id = $1 AND `+pred,
+				args...).Scan(&one)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			touched = 1
+		}
+		if touched == 0 || !rollGiven {
+			return nil
+		}
+		/* This year's enrolment, not last year's.
+
+		   A child who has been promoted has a row per year and only one of
+		   them is active; writing to all of them would rewrite a roll number
+		   that belongs to a closed year and prints on records already
+		   issued. */
 		tag, err := tx.Exec(r.Context(),
-			`UPDATE students st SET `+strings.Join(sets, ", ")+
-				`, updated_at = now() WHERE st.id = $1 AND `+pred, args...)
+			`UPDATE enrollments SET roll_no = $2
+			  WHERE student_id = $1 AND status = 'active'`,
+			sid, rollNo)
 		if err != nil {
+			// The section's own numbering, enforced in the database. Answering
+			// with the constraint name tells the office nothing it can act on;
+			// the number somebody else already has is the whole of what they
+			// need to know.
+			if strings.Contains(err.Error(), "enrollments_roll_no_unique") {
+				rollTaken = true
+				return nil
+			}
 			return err
 		}
-		touched = tag.RowsAffected()
+		rollTouched = tag.RowsAffected()
 		return nil
 	})
 	if err != nil {
@@ -496,5 +583,19 @@ func (s *Server) patchStudentFields(w http.ResponseWriter, r *http.Request) {
 		httpx.Forbidden(w, r, "this child is not one you can edit")
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"changed": len(sets)})
+	if rollTaken {
+		httpx.Error(w, r, http.StatusConflict, "roll_no_taken",
+			"another child in this section already has that roll number")
+		return
+	}
+	if rollGiven && rollTouched == 0 {
+		httpx.BadRequest(w, r,
+			"this child has no current enrolment, so there is no register to give them a roll number in")
+		return
+	}
+	changed := len(sets)
+	if rollGiven {
+		changed++
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"changed": changed})
 }
