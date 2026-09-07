@@ -41,15 +41,16 @@ func migrationFiles(t *testing.T) []string {
 
 var versionRe = regexp.MustCompile(`^(\d+)_`)
 
-/* TestNoDuplicateVersions
+/*
+TestNoDuplicateVersions
 
-   goose refuses two files at one version outright and panics before applying
-   anything, so the whole deploy fails at Migrate with the database untouched.
+	goose refuses two files at one version outright and panics before applying
+	anything, so the whole deploy fails at Migrate with the database untouched.
 
-   This happens for a mundane reason that will keep happening: two people, or
-   two sessions, write a migration at the same time, both look at the highest
-   number on disk, and both take the next one. Neither is wrong and neither can
-   see the other. The build has to be the thing that notices.
+	This happens for a mundane reason that will keep happening: two people, or
+	two sessions, write a migration at the same time, both look at the highest
+	number on disk, and both take the next one. Neither is wrong and neither can
+	see the other. The build has to be the thing that notices.
 */
 func TestNoDuplicateVersions(t *testing.T) {
 	seen := map[string]string{}
@@ -74,16 +75,17 @@ func TestNoDuplicateVersions(t *testing.T) {
 	}
 }
 
-/* TestHasUpAndDown
+/*
+TestHasUpAndDown
 
-   A migration with no -- +goose Down cannot be rolled back, and the moment
-   that is discovered is the moment somebody needs to roll it back.
+	A migration with no -- +goose Down cannot be rolled back, and the moment
+	that is discovered is the moment somebody needs to roll it back.
 
-   A DELIBERATELY EMPTY Down is fine and this test accepts it: several
-   migrations here refuse to undo themselves on purpose — dropping a clearance
-   department would orphan the signatures raised against it — and they say so
-   in a comment above a `SELECT 1`. What is not fine is the annotation missing
-   altogether, which is an omission rather than a decision.
+	A DELIBERATELY EMPTY Down is fine and this test accepts it: several
+	migrations here refuse to undo themselves on purpose — dropping a clearance
+	department would orphan the signatures raised against it — and they say so
+	in a comment above a `SELECT 1`. What is not fine is the annotation missing
+	altogether, which is an omission rather than a decision.
 */
 func TestHasUpAndDown(t *testing.T) {
 	for _, name := range migrationFiles(t) {
@@ -103,12 +105,13 @@ func TestHasUpAndDown(t *testing.T) {
 	}
 }
 
-/* TestStatementBlocksAreClosed
+/*
+TestStatementBlocksAreClosed
 
-   A DO $$ … $$ block, a function body, anything containing its own semicolons
-   must be wrapped in -- +goose StatementBegin / StatementEnd or goose splits
-   it exactly as it split the comment above. An unbalanced pair is the same
-   failure with a different message.
+	A DO $$ … $$ block, a function body, anything containing its own semicolons
+	must be wrapped in -- +goose StatementBegin / StatementEnd or goose splits
+	it exactly as it split the comment above. An unbalanced pair is the same
+	failure with a different message.
 */
 func TestStatementBlocksAreClosed(t *testing.T) {
 	for _, name := range migrationFiles(t) {
@@ -132,28 +135,29 @@ func TestStatementBlocksAreClosed(t *testing.T) {
 	}
 }
 
-/* TestNoCommentMarkerInsideStringLiteral
+/*
+TestNoCommentMarkerInsideStringLiteral
 
-   goose strips `--` comments without knowing what a string literal is. A `--`
-   inside quotes therefore truncates the statement at that point, and the rest
-   — including the closing quote and the semicolon — is thrown away. Postgres
-   is handed an unterminated query and the deploy dies at Migrate with nothing
-   applied.
+	goose strips `--` comments without knowing what a string literal is. A `--`
+	inside quotes therefore truncates the statement at that point, and the rest
+	— including the closing quote and the semicolon — is thrown away. Postgres
+	is handed an unterminated query and the deploy dies at Migrate with nothing
+	applied.
 
-   This is not a theory. It failed exactly this way on 00187, whose COMMENT ON
-   COLUMN contained an em-dash written as `--` in ordinary prose:
+	This is not a theory. It failed exactly this way on 00187, whose COMMENT ON
+	COLUMN contained an em-dash written as `--` in ordinary prose:
 
-     failed to parse migration: unexpected unfinished SQL query … missing
-     semicolon?
+	  failed to parse migration: unexpected unfinished SQL query … missing
+	  semicolon?
 
-   The rule is narrow. It looks only at single-quoted strings and only for the
-   two characters that start a comment. Prose in a `--` line comment is fine
-   and always was; prose inside quotes has to avoid them.
+	The rule is narrow. It looks only at single-quoted strings and only for the
+	two characters that start a comment. Prose in a `--` line comment is fine
+	and always was; prose inside quotes has to avoid them.
 
-   I previously added a rule here banning semicolons inside block comments,
-   believing they caused a similar failure. They do not — thirty migrations
-   carry them and have all deployed — and that rule was removed rather than
-   kept with an exception list. This one has a failure to point at.
+	I previously added a rule here banning semicolons inside block comments,
+	believing they caused a similar failure. They do not — thirty migrations
+	carry them and have all deployed — and that rule was removed rather than
+	kept with an exception list. This one has a failure to point at.
 */
 func TestNoCommentMarkerInsideStringLiteral(t *testing.T) {
 	// Single-quoted strings, doubled '' escapes allowed inside.
@@ -256,11 +260,14 @@ func TestNoCommentMarkerInsideStringLiteral(t *testing.T) {
    something cleverer than these, the reviewer is the test.
 */
 
-/* Version → why it is allowed to stay wrong. Every one of these has already
-   been applied on every database this code runs against, so the statement it
-   names matched nothing there and will never run again. Where a later
-   migration redid the work, it is named; where nothing did, the missed rows
-   are a matter for a new migration with the lift, not for editing this one. */
+/*
+Version → why it is allowed to stay wrong. Every one of these has already
+
+	been applied on every database this code runs against, so the statement it
+	names matched nothing there and will never run again. Where a later
+	migration redid the work, it is named; where nothing did, the missed rows
+	are a matter for a new migration with the lift, not for editing this one.
+*/
 var rlsGrandfathered = map[int]string{
 	2:   "payments.allocated_paise reconciliation matched nothing; the repaired trigger keeps the column right for every allocation written since",
 	48:  "instructional_norms seed per school inserted nothing; ensureInstructionalNorms in internal/api/statutory.go seeds a school on first read anyway",
@@ -348,8 +355,11 @@ func TestDataChangesLiftRowLevelSecurity(t *testing.T) {
 	}
 }
 
-/* rlsFinding is one data-changing statement that runs before any lift. line
-   is relative to the start of the +Up section. */
+/*
+rlsFinding is one data-changing statement that runs before any lift. line
+
+	is relative to the start of the +Up section.
+*/
 type rlsFinding struct {
 	line      int
 	statement string
@@ -407,9 +417,12 @@ func stripSQLStrings(s string) string {
 	return sqlStringRe.ReplaceAllStringFunc(s, blankKeepingLines)
 }
 
-/* blankFunctionBodies blanks every dollar-quoted body except those that
-   follow DO. CREATE FUNCTION bodies are full of UPDATE and DELETE that run
-   later, under whoever calls them; only a DO block runs during the migration. */
+/*
+blankFunctionBodies blanks every dollar-quoted body except those that
+
+	follow DO. CREATE FUNCTION bodies are full of UPDATE and DELETE that run
+	later, under whoever calls them; only a DO block runs during the migration.
+*/
 func blankFunctionBodies(s string) string {
 	out := []byte(s)
 	i := 0
@@ -448,9 +461,12 @@ func gooseUpSection(body string) (string, int, bool) {
 	return rest, line, true
 }
 
-/* rlsTablesFromMigrations collects every table that any migration, Up or
-   Down, applies row level security to. Strings are kept because the FOREACH
-   form names its tables inside them. */
+/*
+rlsTablesFromMigrations collects every table that any migration, Up or
+
+	Down, applies row level security to. Strings are kept because the FOREACH
+	form names its tables inside them.
+*/
 func rlsTablesFromMigrations(bodies map[string]string) map[string]bool {
 	out := map[string]bool{}
 	for _, body := range bodies {
@@ -470,10 +486,13 @@ func rlsTablesFromMigrations(bodies map[string]string) map[string]bool {
 	return out
 }
 
-/* scanUpForUnliftedDataChanges returns every UPDATE / DELETE / MERGE against
-   an RLS table, and every INSERT … SELECT that reads one, that appears before
-   the first transaction-local lift in the +Up section (or anywhere in it,
-   when there is none). */
+/*
+scanUpForUnliftedDataChanges returns every UPDATE / DELETE / MERGE against
+
+	an RLS table, and every INSERT … SELECT that reads one, that appears before
+	the first transaction-local lift in the +Up section (or anywhere in it,
+	when there is none).
+*/
 func scanUpForUnliftedDataChanges(up string, rls map[string]bool) []rlsFinding {
 	noComments := stripSQLComments(up)
 	noFuncs := blankFunctionBodies(noComments)

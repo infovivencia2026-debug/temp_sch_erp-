@@ -529,9 +529,9 @@ type apiProvider struct {
 	label string
 }
 
-func (p apiProvider) Key() string    { return p.key }
-func (p apiProvider) Label() string  { return p.label }
-func (apiProvider) LiveSync() bool   { return false }
+func (p apiProvider) Key() string   { return p.key }
+func (p apiProvider) Label() string { return p.label }
+func (apiProvider) LiveSync() bool  { return false }
 func (apiProvider) Push(Batch) (Receipt, error) {
 	return Receipt{}, ErrCRMAPIUnavailable
 }
@@ -542,8 +542,10 @@ func (apiProvider) Pull(PullRequest) ([]ImportRow, error) {
 // MerittoAPI and LeadSquaredAPI are placeholders that refuse rather than
 // pretend. Neither is wired to a URL: the endpoint differs by data centre and
 // guessing one produces a 401 that reads as a bad key.
-func MerittoAPI() CRMProvider     { return apiProvider{"meritto", "Meritto API (not available)"} }
-func LeadSquaredAPI() CRMProvider { return apiProvider{"leadsquared", "LeadSquared API (not available)"} }
+func MerittoAPI() CRMProvider { return apiProvider{"meritto", "Meritto API (not available)"} }
+func LeadSquaredAPI() CRMProvider {
+	return apiProvider{"leadsquared", "LeadSquared API (not available)"}
+}
 
 // CRMProviders is every transport the screen may offer.
 func CRMProviders() []CRMProvider {

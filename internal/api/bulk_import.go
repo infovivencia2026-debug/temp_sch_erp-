@@ -1688,7 +1688,7 @@ var importSpecs = map[string]importSpec{
 	   moving an exit date is how a leaving date stops matching the certificate
 	   in the parent's hand. */
 	"student_exits": {
-		Perm:     rbac.StudentsWrite,
+		Perm: rbac.StudentsWrite,
 		Columns: []string{"admission_no", "exit_date", "status", "reason",
 			"tc_no", "tc_issued_on"},
 		Required: []string{"admission_no"},
@@ -3533,8 +3533,8 @@ type sheetFacts struct {
 
 	   Both are optional and empty means unbounded, so a school that really does
 	   have one clean file for the year still uploads it in one go. */
-	from string
-	to   string
+	from     string
+	to       string
 	year     string
 	exam     string
 	class    string
@@ -4429,13 +4429,16 @@ var undoableTables = map[string]string{
    it rolls up into, and removing the punches would leave the register showing
    days nobody can now account for. */
 
-/* payrollRunsTidied brings a run's header back in line after payslips under it
-   were removed.
+/*
+payrollRunsTidied brings a run's header back in line after payslips under it
 
-   The header carries its own totals and headcount -- it is not derived -- so an
-   undo that deleted the payslips would leave a run saying it paid 45 people and
-   nothing underneath it. A run left with no payslips at all is removed
-   outright: a payroll month with nobody in it is not a record of anything. */
+	were removed.
+
+	The header carries its own totals and headcount -- it is not derived -- so an
+	undo that deleted the payslips would leave a run saying it paid 45 people and
+	nothing underneath it. A run left with no payslips at all is removed
+	outright: a payroll month with nobody in it is not a record of anything.
+*/
 func tidyPayrollRuns(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 	if _, err := tx.Exec(ctx, `
 		UPDATE payroll_runs r

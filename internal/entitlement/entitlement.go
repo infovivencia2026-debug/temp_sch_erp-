@@ -48,12 +48,14 @@ var All = []string{
 	Exams, HR, Transport, Library, Hostel, Inventory,
 }
 
-/* Known reports whether a name is one of the modules a school can buy.
+/*
+Known reports whether a name is one of the modules a school can buy.
 
-   The vendor types module names when writing a plan, and a name that is not a
-   module would switch nothing on while reading as though it had. Checked
-   against the same list Allows enforces, so the price list and the gate cannot
-   drift into disagreeing about what a module is called. */
+	The vendor types module names when writing a plan, and a name that is not a
+	module would switch nothing on while reading as though it had. Checked
+	against the same list Allows enforces, so the price list and the gate cannot
+	drift into disagreeing about what a module is called.
+*/
 func Known(module string) bool {
 	for _, m := range All {
 		if m == module {

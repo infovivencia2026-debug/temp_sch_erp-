@@ -28,8 +28,7 @@ rebuild on the same stack, from what could be recovered:
 | API surface | endpoint strings in the SPA bundle + live probing |
 | nginx / systemd / deploy topology | the running configuration |
 
-The original artifacts are preserved under [deployed-snapshot/](deployed-snapshot/),
-and the earlier unrelated gin-based scaffold is parked in [_local-scaffold/](_local-scaffold/).
+The original artifacts are preserved under [deployed-snapshot/](deployed-snapshot/). (The earlier unrelated gin-based scaffold that used to sit in _local-scaffold/ was deleted in September 2026; it is in history at 05de36b9.)
 
 Upstream's 16 incremental migrations were never committed, so the baseline
 collapses their end state into one file. It reproduces the production schema

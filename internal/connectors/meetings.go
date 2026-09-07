@@ -122,9 +122,9 @@ type apiMeetingProvider struct {
 	needs string
 }
 
-func (p apiMeetingProvider) Key() string      { return p.key }
-func (p apiMeetingProvider) Label() string    { return p.label }
-func (apiMeetingProvider) LiveCreate() bool   { return false }
+func (p apiMeetingProvider) Key() string    { return p.key }
+func (p apiMeetingProvider) Label() string  { return p.label }
+func (apiMeetingProvider) LiveCreate() bool { return false }
 func (p apiMeetingProvider) Create(MeetingRequest) (Meeting, error) {
 	return Meeting{}, fmt.Errorf("%w (this provider needs %s)", ErrMeetingAPIUnavailable, p.needs)
 }

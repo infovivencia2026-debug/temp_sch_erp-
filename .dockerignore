@@ -28,7 +28,6 @@ docs
 dump.rdb
 web/dump.rdb
 deployed-snapshot
-_local-scaffold
 ui-pass
 ui-parent
 

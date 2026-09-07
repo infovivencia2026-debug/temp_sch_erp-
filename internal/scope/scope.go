@@ -53,7 +53,7 @@ type Resolved struct {
 	   child. Using the wider set for either would let anybody timetabled into
 	   a room decide what goes on somebody else's report. */
 	ClassTeacherOf []uuid.UUID
-	StudentIDs    []uuid.UUID // own record, or linked children
+	StudentIDs     []uuid.UUID // own record, or linked children
 
 	/* Whether this person stands in front of a class at all.
 
@@ -425,40 +425,42 @@ func (r *Resolved) AttendancePredicate(alias string, argN int) (string, []any) {
 	return "(" + strings.Join(clauses, " OR ") + ")", args
 }
 
-/* CanMarkSection reports whether the caller may write attendance for a section.
+/*
+CanMarkSection reports whether the caller may write attendance for a section.
 
-   THE REGISTER BELONGS TO THE CLASS TEACHER.
+	THE REGISTER BELONGS TO THE CLASS TEACHER.
 
-   This used to accept SectionIDs — every section the caller teaches anything
-   in — so the Maths teacher of five sections could mark the register for all
-   five. That is not how a school runs: one person answers for whether a child
-   was in school that day, and if six subject teachers can all write the day's
-   register then a child marked present at nine and absent at ten has two
-   records and nobody responsible for either.
+	This used to accept SectionIDs — every section the caller teaches anything
+	in — so the Maths teacher of five sections could mark the register for all
+	five. That is not how a school runs: one person answers for whether a child
+	was in school that day, and if six subject teachers can all write the day's
+	register then a child marked present at nine and absent at ten has two
+	records and nobody responsible for either.
 
-   So: the class teacher of that section, or somebody holding
-   academics.attendance.write.any — the office role that amends any register,
-   which is what approving a correction for a class nobody in the room teaches
-   requires.
+	So: the class teacher of that section, or somebody holding
+	academics.attendance.write.any — the office role that amends any register,
+	which is what approving a correction for a class nobody in the room teaches
+	requires.
 
-   Period-level marking, if a school ever turns it on, is a different question
-   from the day's register and would need its own predicate rather than a
-   loosening of this one.
+	Period-level marking, if a school ever turns it on, is a different question
+	from the day's register and would need its own predicate rather than a
+	loosening of this one.
 */
 func (r *Resolved) CanMarkSection(sectionID uuid.UUID) bool {
 	return r.IsClassTeacherOf(sectionID)
 }
 
-/* Whether this person is the class teacher of a section.
+/*
+Whether this person is the class teacher of a section.
 
-   The class teacher reads every subject's marks for their own section and
-   builds its report cards. A subject teacher does neither: they enter the
-   marks for their own paper, which is a different question answered by
-   TeachesPaper.
+	The class teacher reads every subject's marks for their own section and
+	builds its report cards. A subject teacher does neither: they enter the
+	marks for their own paper, which is a different question answered by
+	TeachesPaper.
 
-   Office roles that may amend any register keep the right, because approving a
-   correction for a class nobody in the room teaches is exactly what
-   academics.attendance.write.any exists for.
+	Office roles that may amend any register keep the right, because approving a
+	correction for a class nobody in the room teaches is exactly what
+	academics.attendance.write.any exists for.
 */
 func (r *Resolved) IsClassTeacherOf(sectionID uuid.UUID) bool {
 	if r.AnySection || r.PlatformAdmin {

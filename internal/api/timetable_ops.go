@@ -247,7 +247,7 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 		// stores it; a second idea of "who teaches this" is how two screens
 		// end up disagreeing.
 		/* LEFT JOIN, so a class that teaches nothing yet still has a section.
-		
+
 		   This was an inner join, and a class with no rows in class_subjects
 		   produced no rows at all -- so its sections were not listed as having
 		   no subjects, they were absent. A school with Pre Nursery, Nursery,
@@ -376,8 +376,8 @@ func (s *Server) getOptimizerInputs(w http.ResponseWriter, r *http.Request) {
 			// problem from a subject with no weekly count, and fixed
 			// somewhere else (Class Setup), so it is counted separately.
 			"sections_without_subjects": noSubjects,
-			"subjects_without_teacher":     noTeacher,
-			"teachers_over_cap":            overCap,
+			"subjects_without_teacher":  noTeacher,
+			"teachers_over_cap":         overCap,
 		},
 	})
 }
