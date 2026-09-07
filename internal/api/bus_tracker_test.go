@@ -633,8 +633,15 @@ func (sc *busSchool) signInDriver(t *testing.T, s *Server, deviceToken string) s
 	if !ok {
 		t.Fatalf("device token %q does not split", deviceToken)
 	}
+	/* Under the school's scope, not the platform's, exactly as signInBusDriver
+	   opens it: device_staff_sessions' policy is institution_id =
+	   app_current_institution() with no platform escape (00155, kept by 00168),
+	   so a platform transaction is refused with 42501. This fixture used
+	   AsPlatform and passed for months because the test role was a superuser,
+	   which Postgres exempts from row-level security; the first run under a
+	   policy-bound role, the role production actually uses, refused it. */
 	var session string
-	err := s.DB.AsPlatform(context.Background(), func(tx pgx.Tx) error {
+	err := s.DB.InTenant(context.Background(), database.Scope{InstitutionID: sc.inst}, func(tx pgx.Tx) error {
 		var err error
 		session, _, _, err = s.openStaffSession(context.Background(), tx,
 			staffIdentity{UserID: sc.clerkUser, Institution: sc.inst, Name: "Ravi"},

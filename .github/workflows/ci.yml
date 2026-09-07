@@ -93,6 +93,22 @@ jobs:
             "CREATE ROLE app_user LOGIN PASSWORD 'app' NOSUPERUSER NOCREATEDB NOCREATEROLE"
           go run ./cmd/migrate up
           go run ./cmd/migrate status | tail -3
+          # THE TESTS MUST NOT BE A SUPERUSER. Postgres exempts superusers
+          # and BYPASSRLS roles from row-level security outright, and the
+          # tenant boundary is row-level security: run as erp_owner, the
+          # cross-school tests read straight through the wall production
+          # never lets anything through, and the first CI run reported a
+          # "leak" that was the harness. erp_tester is what the app is in
+          # production, an unprivileged login with DML and nothing else;
+          # the tests connect as it, migrations keep running as the owner.
+          psql "$PGURL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE erp_tester LOGIN PASSWORD 'erp_tester' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          GRANT CONNECT ON DATABASE erp_test TO erp_tester;
+          GRANT USAGE ON SCHEMA public TO erp_tester;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO erp_tester;
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO erp_tester;
+          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO erp_tester;
+          SQL
         env:
           MIGRATE_DATABASE_URL: ${{ env.PGURL }}
           DATABASE_URL: ${{ env.PGURL }}
@@ -118,8 +134,10 @@ jobs:
       - name: Test
         run: go test -count=1 ./...
         env:
-          ERP_TEST_DATABASE_URL: ${{ env.PGURL }}
-          TEST_DATABASE_URL: ${{ env.PGURL }}
+          # The policy-bound role created above, not the owner: see the
+          # note in the migrate step.
+          ERP_TEST_DATABASE_URL: postgres://erp_tester:erp_tester@127.0.0.1:5432/erp_test?sslmode=disable
+          TEST_DATABASE_URL: postgres://erp_tester:erp_tester@127.0.0.1:5432/erp_test?sslmode=disable
           CREDENTIAL_KEY: ci-only-credential-key
 
   web:
