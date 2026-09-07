@@ -4380,6 +4380,75 @@ var undoableTables = map[string]string{
 	"staff_history":   "employee_year_history",
 	"marks":           "marks",
 	"marks_grid":      "marks",
+	/* THE FIVE THAT COULD BE UPLOADED AND NOT TAKEN BACK.
+
+	   Every importer records what it created, and undo removes it -- unless
+	   its entity is missing from this map, in which case the rows are counted
+	   as "kept" and the school is told there was nothing to remove. That is
+	   the failure the note above describes for class_subjects, happening again
+	   to the sheets a school is MOST likely to get wrong, because they are the
+	   ones it uploads once, in a hurry, in its first week.
+
+	   attendance and staff_attendance are plainly safe: a register entry is a
+	   statement about one day, and nothing hangs off it.
+
+	   payments are safe for a reason worth writing down. paid_paise and an
+	   invoice's status are derived by triggers from the allocation rows, and
+	   payment_allocations cascades from payments -- so deleting an imported
+	   payment removes its allocations and the invoice reopens by itself. That
+	   is the same mechanism a bounced cheque uses. Nothing here has to
+	   un-apply money by hand, which is the only way this could have been got
+	   wrong. */
+	"attendance":       "student_attendance",
+	"staff_attendance": "staff_attendance",
+	"fee_payments":     "payments",
+	"payslips":         "payslips",
+}
+
+/* WHAT IS DELIBERATELY NOT UNDOABLE, AND WHY.
+
+   student_exits. Its record_id is the CHILD, not a row the import created --
+   the importer says so by recording every row as an update rather than an
+   insert, so undo never reaches them. That is correct: deleting the target
+   would delete the student. But it does mean an exits upload cannot be
+   reversed from the import history, and the honest place to say so is here
+   rather than in a school's face after the fact. Putting fifty children back
+   on the roll is re-admission, which is a decision per child and not the
+   reversal of a file.
+
+   punches. A punch file writes biometric_punches AND the staff_attendance days
+   it rolls up into, and removing the punches would leave the register showing
+   days nobody can now account for. */
+
+/* payrollRunsTidied brings a run's header back in line after payslips under it
+   were removed.
+
+   The header carries its own totals and headcount -- it is not derived -- so an
+   undo that deleted the payslips would leave a run saying it paid 45 people and
+   nothing underneath it. A run left with no payslips at all is removed
+   outright: a payroll month with nobody in it is not a record of anything. */
+func tidyPayrollRuns(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
+	if _, err := tx.Exec(ctx, `
+		UPDATE payroll_runs r
+		   SET gross_paise     = t.gross,
+		       deduction_paise = t.ded,
+		       net_paise       = t.net,
+		       employees       = t.n
+		  FROM (SELECT payroll_run_id,
+		               COALESCE(sum(gross_paise),0) gross,
+		               COALESCE(sum(deduction_paise),0) ded,
+		               COALESCE(sum(net_paise),0) net,
+		               count(*) n
+		          FROM payslips GROUP BY payroll_run_id) t
+		 WHERE r.id = t.payroll_run_id AND r.institution_id = $1`, inst); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+		DELETE FROM payroll_runs r
+		 WHERE r.institution_id = $1
+		   AND r.run_by IS NULL
+		   AND NOT EXISTS (SELECT 1 FROM payslips p WHERE p.payroll_run_id = r.id)`, inst)
+	return err
 }
 
 /*
@@ -4498,6 +4567,10 @@ func (s *Server) undoImport(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Err(); err != nil {
 			return err
 		}
+
+		// After the loop below, a payroll month whose payslips have gone needs
+		// its header put right; see tidyPayrollRuns.
+		defer func() { _ = tidyPayrollRuns(r.Context(), tx, id.InstitutionID) }()
 
 		for _, t := range targets {
 			table, ok := undoableTables[t.entity]
