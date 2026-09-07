@@ -422,8 +422,18 @@ func TestTheDispatcherSuppressesARecipientNotOnTheAllowlist(t *testing.T) {
 		}
 	}
 
-	// No policy row and no entries: the state every school is in the moment
-	// this ships. Nothing may go out.
+	/* The school has asked to be held back. Since migration 181 a school
+	   with no policy row sends to everyone, so the guard under test is the
+	   one a school chooses: allowlist mode with an empty list, which is a
+	   pilot that has not yet named its first number. Nothing may go out. */
+	if err := db.InTenant(ctx, database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO messaging_recipient_policy (institution_id, mode)
+			VALUES ($1, 'allowlist')`, inst)
+		return err
+	}); err != nil {
+		t.Fatalf("policy: %v", err)
+	}
 	queue("+919876543210")
 	if _, _, err := s.DispatchMessages(ctx, inst, false, 50); err != nil {
 		t.Fatalf("dispatch: %v", err)
@@ -470,6 +480,11 @@ One school's allowlist cannot widen another's.
 	The assertion is the strong direction: school B permits nobody even though
 	school A has permitted this very number. If the guard ever read across
 	tenants, B would start sending.
+
+	Both schools are put in allowlist mode first. Since migration 181 a
+	school with no policy row sends to everyone, which would make B permit
+	the number for a reason that has nothing to do with A's list and turn
+	this into a test of the default rather than of tenant isolation.
 */
 func TestOneSchoolsAllowlistDoesNotReachAnother(t *testing.T) {
 	db := testDB(t)
@@ -478,6 +493,16 @@ func TestOneSchoolsAllowlistDoesNotReachAnother(t *testing.T) {
 	b, _ := seedTenant(t, db)
 	ctx := context.Background()
 
+	for _, inst := range []uuid.UUID{a, b} {
+		if err := db.InTenant(ctx, database.Scope{InstitutionID: inst}, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, `
+				INSERT INTO messaging_recipient_policy (institution_id, mode)
+				VALUES ($1, 'allowlist')`, inst)
+			return err
+		}); err != nil {
+			t.Fatalf("policy for %s: %v", inst, err)
+		}
+	}
 	if err := db.InTenant(ctx, database.Scope{InstitutionID: a}, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO messaging_allowed_recipients (institution_id, kind, raw, normalised)
@@ -509,8 +534,8 @@ func TestOneSchoolsAllowlistDoesNotReachAnother(t *testing.T) {
 	if ok, _ := gb.permits("whatsapp", "9100575183"); ok {
 		t.Error("school B inherited school A's allowlist entry")
 	}
-	if gb.Mode != "everyone" {
-		t.Errorf("school B mode = %q, want everyone: no row means nobody asked to be held back", gb.Mode)
+	if gb.Mode != "allowlist" {
+		t.Errorf("school B mode = %q, want the allowlist mode it was put in", gb.Mode)
 	}
 }
 

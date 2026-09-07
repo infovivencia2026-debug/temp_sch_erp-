@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -601,6 +602,15 @@ func seedSMSGatewayTenant(t *testing.T, db interface {
 	AsPlatform(context.Context, func(pgx.Tx) error) error
 }) uuid.UUID {
 	t.Helper()
+	/* The pair-claim handler seals the handset's token with CREDENTIAL_KEY
+	   and refuses to store one in clear without it, which is right for a
+	   server and was fatal for these tests: every claim answered 500 and ten
+	   tests failed together the first time the suite ran against a real
+	   database. newBusSchool sets the same key for the tracker's claim; this
+	   fixture sets it for the gateway's, only when the environment has not. */
+	if strings.TrimSpace(os.Getenv("CREDENTIAL_KEY")) == "" {
+		t.Setenv("CREDENTIAL_KEY", "sms-gateway-test-key")
+	}
 	ctx := context.Background()
 	inst := uuid.New()
 	suffix := inst.String()[:8]
