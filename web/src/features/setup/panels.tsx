@@ -1998,6 +1998,13 @@ function HistoryPanel({ onDone }: PanelProps) {
       </div>
 
       <BulkImport
+        entity="student_exits"
+        title="Children who have left"
+        hint="The term's transfer certificates as one sheet: admission number, the date they left, and how (transferred, graduated, withdrawn or alumni). Each one closes the enrolment too, so the register stops expecting them and the fee run stops billing them — and the family's login ends unless another of their children is still here."
+        onDone={onDone}
+      />
+
+      <BulkImport
         entity="fee_payments"
         title="Fees already collected this year"
         hint="One row per receipt: the child, your own receipt number, the date it was taken, the amount and how they paid. It settles the oldest unpaid invoice first, exactly as the counter does, and anything left over stays as an advance. Your receipt number is kept and searchable; the system still issues its own, because its numbering is audited for gaps."

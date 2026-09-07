@@ -53,6 +53,7 @@ const BY_NUMBER: Record<string, { entity: string; step: string; label: string }>
   '12': { entity: 'attendance', step: 'history', label: 'Student register already marked' },
   '13': { entity: 'staff_attendance', step: 'history', label: 'Staff register already marked' },
   '14': { entity: 'payslips', step: 'history', label: 'Salary already paid' },
+  '15': { entity: 'student_exits', step: 'history', label: 'Children who have left' },
 }
 
 export interface PackEntry {

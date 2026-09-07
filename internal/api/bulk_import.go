@@ -116,6 +116,13 @@ var staffAttendanceStates = map[string]bool{
 	"leave": true, "holiday": true, "week_off": true,
 }
 
+// The four ways a child leaves, matching what the single-child exit accepts.
+// Kept beside the importer so the two cannot come to disagree about what a
+// school may write.
+var exitStates = map[string]bool{
+	"transferred": true, "graduated": true, "withdrawn": true, "alumni": true,
+}
+
 type createdRow struct {
 	entity string
 	id     uuid.UUID
@@ -1655,6 +1662,117 @@ var importSpecs = map[string]importSpec{
 				return err
 			}
 			c.noteCreated("marks", markID, inserted)
+			return nil
+		},
+	},
+
+	/* A TERM'S TRANSFER CERTIFICATES, WHICH IS A LIST AND NOT AN AFTERNOON.
+
+	   Taking a child off the roll existed only one child at a time, on their
+	   own record. That is right for the ordinary case -- one family moving in
+	   October -- and hopeless for the ordinary OTHER case, which is the TC
+	   register at the end of a year: fifty children who did not come back,
+	   arriving as one sheet from the office. Fifty records opened one at a
+	   time is an afternoon, and an afternoon nobody spends, so the roll stays
+	   wrong: the register marks fifty absent every morning, the fee run bills
+	   them, and next year's strength is fifty out.
+
+	   Every row goes through the same path a single exit does, including the
+	   part that is easy to forget: the enrolment closes with the child, and the
+	   family's login ends unless they have another child still here. A bulk
+	   route that only set a status would leave fifty open enrolments and fifty
+	   families still able to read a school they have left.
+
+	   Refuses a child who has already left rather than re-dating them. A TC
+	   register overlaps with last term's more often than not, and silently
+	   moving an exit date is how a leaving date stops matching the certificate
+	   in the parent's hand. */
+	"student_exits": {
+		Perm:     rbac.StudentsWrite,
+		Columns:  []string{"admission_no", "exit_date", "status", "reason"},
+		Required: []string{"admission_no"},
+		Sample:   []string{"ADM0001", "2026-03-31", "transferred", "TC issued"},
+		Check: func(row map[string]string) error {
+			if strings.TrimSpace(row["admission_no"]) == "" {
+				return errors.New("every row needs the child's admission number")
+			}
+			if d := strings.TrimSpace(row["exit_date"]); d != "" {
+				day, err := time.Parse(time.DateOnly, d)
+				if err != nil {
+					return errors.New("exit_date must be a day like 2026-03-31")
+				}
+				/* The same refusal the single-child form makes. A leaving date
+				   in the future takes a child off the roll who is in the
+				   classroom on Monday, and the register stops expecting them. */
+				if day.After(time.Now().AddDate(0, 0, 1)) {
+					return errors.New("a leaving date cannot be in the future")
+				}
+			}
+			st := strings.ToLower(strings.TrimSpace(row["status"]))
+			if st != "" && !exitStates[st] {
+				return fmt.Errorf("%q is not a way of leaving. Use one of: transferred, graduated, withdrawn, alumni", st)
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var status string
+			err := c.tx.QueryRow(c.r.Context(),
+				`SELECT status FROM students
+				  WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, adm).Scan(&status)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("no child with admission number %q on the roll", adm)
+			}
+			if err != nil {
+				return err
+			}
+			if status != "active" && status != "suspended" {
+				return fmt.Errorf("%s has already left (%s). Remove the row if this is last term's list",
+					adm, status)
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			adm := strings.TrimSpace(row["admission_no"])
+			var sid uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM students
+				  WHERE institution_id = $1 AND admission_no = $2`,
+				c.inst, adm).Scan(&sid); err != nil {
+				return err
+			}
+			status := strings.ToLower(strings.TrimSpace(row["status"]))
+			if status == "" {
+				// A transfer certificate is what this sheet is, so transferred
+				// is what a blank means here -- not the generic "withdrawn".
+				status = "transferred"
+			}
+			if _, err := c.tx.Exec(c.r.Context(), `
+				UPDATE students
+				   SET status = $2,
+				       exit_date = COALESCE($3::date, CURRENT_DATE),
+				       exit_reason = NULLIF($4,''),
+				       updated_at = now()
+				 WHERE id = $1`,
+				sid, status, nullString(strings.TrimSpace(row["exit_date"])),
+				strings.TrimSpace(row["reason"])); err != nil {
+				return err
+			}
+			/* The enrolment closes with the child. Left open, the section
+			   still counts them and the register marks them absent every day
+			   for the rest of the year. */
+			if _, err := c.tx.Exec(c.r.Context(),
+				`UPDATE enrollments SET status = $2
+				  WHERE student_id = $1 AND status = 'active'`, sid, status); err != nil {
+				return err
+			}
+			// And the family's login, unless another of their children is
+			// still here. Same helper the single-child exit calls.
+			if _, err := endFamilyAccess(c.r, c.tx, sid); err != nil {
+				return err
+			}
+			c.noteCreated("student_exits", sid, false)
 			return nil
 		},
 	},
