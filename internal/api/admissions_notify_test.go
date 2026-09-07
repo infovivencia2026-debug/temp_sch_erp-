@@ -613,13 +613,34 @@ func TestPortalAdmissionShowsOnlyMyOwnFamily(t *testing.T) {
 And the tenant boundary itself, forced rather than assumed.
 
 	The other school's parent, with their real user id, presented against THIS
-	school -- which is what a stolen session, a mixed-up institution claim or a
-	query that trusted user_id alone would look like. Every table here carries
-	FORCE ROW LEVEL SECURITY and the scope is set from the identity, so the
-	answer has to be nothing at all rather than the other school's admission.
+	school -- which is what a mixed-up institution claim, or a query that
+	trusted user_id alone, would look like. Every table here carries FORCE ROW
+	LEVEL SECURITY and the scope is set from the identity, so the answer has to
+	be nothing at all rather than the other school's admission.
+
+	What "nothing" is guarding. The query keys on guardians.user_id, and user
+	ids are unique across the installation, so even with every policy lifted
+	the only rows this user id can reach are that same person's own: the one
+	thing a stolen or mis-scoped session could show is the holder's own
+	admission at their other school, never another family's. That narrower
+	case -- one school, two families -- is TestPortalAdmissionShowsOnlyMyOwnFamily
+	above, and it holds under any role. This test is about the wider promise:
+	a school's scope shows nothing that is not that school's, and admission is
+	deliberately not part of the merged every-school view (portal_all_children.go
+	fans that out per school, each under its own scope, and never reads
+	applications).
+
+	Which is why this test insists on a role the policies bind. Under a
+	superuser the database ignores the scope, the parent's own other-school
+	application comes back, and the failure reads as a leak in a query that
+	has none. That happened; requirePolicyBoundConnection is the memory of it.
+	The positive control at the end -- the same user, under the other school's
+	own scope, DOES see APP-OTHER -- is there so an empty answer cannot pass by
+	the seed having quietly failed.
 */
 func TestPortalAdmissionNeverCrossesSchools(t *testing.T) {
 	db := testDB(t)
+	requirePolicyBoundConnection(t, db)
 	here := seedAdmissionsWorld(t, db, "My School")
 	other := seedAdmissionsWorld(t, db, "Other School")
 	ctx := context.Background()
@@ -669,5 +690,24 @@ func TestPortalAdmissionNeverCrossesSchools(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &out)
 	if len(out.Items) != 0 {
 		t.Fatalf("got %d admissions, want none in this school", len(out.Items))
+	}
+
+	// The positive control: their own school, their own admission. Without
+	// this, a seed that inserted nothing would make the assertions above pass
+	// and prove nothing.
+	req = httptest.NewRequest(http.MethodGet, "/portal/admission", nil)
+	req = req.WithContext(httpx.WithIdentity(req.Context(),
+		&httpx.Identity{UserID: otherUser, InstitutionID: other.inst}))
+	rec = httptest.NewRecorder()
+	other.s.getPortalAdmission(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("getPortalAdmission at own school: %d %s", rec.Code, rec.Body.String())
+	}
+	out.Items = nil
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	if len(out.Items) != 1 || out.Items[0].ApplicationID != otherApp.String() {
+		t.Fatalf("under their own school's scope, want exactly APP-OTHER, got: %s", rec.Body.String())
 	}
 }

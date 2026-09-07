@@ -368,29 +368,9 @@ func TestAPIKeyIsConfinedToItsOwnSchool(t *testing.T) {
 	t.Cleanup(db.Close)
 	s := &Server{DB: db}
 
-	/* The connection must be one the policies bind.
-
-	   Postgres exempts a superuser, and any role with BYPASSRLS, from every
-	   row-level policy; FORCE ROW LEVEL SECURITY reaches the table owner but
-	   not those. Run against such a role, the visibility assertion below
-	   fails and reports a tenant breach that does not exist, which is a bad
-	   way to spend an afternoon. The production pools connect as the
-	   unprivileged app_user (internal/database/db.go), and this test needs
-	   the same: a failure here is the harness pointing at the wrong role,
-	   not the schema. */
-	var bypasses bool
-	if err := db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `
-			SELECT rolsuper OR rolbypassrls FROM pg_roles
-			 WHERE rolname = current_user`).Scan(&bypasses)
-	}); err != nil {
-		t.Fatalf("inspect the connection role: %v", err)
-	}
-	if bypasses {
-		t.Fatal("TEST_DATABASE_URL connects as a superuser or BYPASSRLS role, which " +
-			"Postgres exempts from row-level security; point it at the unprivileged " +
-			"app role (app_user) so the tenant policies under test actually apply")
-	}
+	// A superuser or BYPASSRLS role would pass the visibility assertions
+	// below for the wrong reason; see requirePolicyBoundConnection.
+	requirePolicyBoundConnection(t, db)
 
 	newSchool := func(label string) *apiKeySchool {
 		sc := &apiKeySchool{}

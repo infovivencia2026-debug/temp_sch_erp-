@@ -46,6 +46,43 @@ func testDB(t *testing.T) *database.DB {
 	return db
 }
 
+/*
+requirePolicyBoundConnection refuses a database role the policies cannot bind.
+
+	Postgres exempts a superuser, and any role with BYPASSRLS, from every
+	row-level policy; FORCE ROW LEVEL SECURITY reaches the table owner but not
+	those. Run against such a role, a test that asserts one school cannot see
+	another's rows fails and reports a tenant breach that does not exist --
+	the handler set the scope, the policy is on the table, and the database
+	simply did not consult it. That was an afternoon spent reading a correct
+	query for a leak that lived in the test harness.
+
+	The production pools connect as the unprivileged app_user
+	(internal/database/db.go), and a test that proves the tenant boundary
+	needs the same. Fatal rather than skip: a boundary test that quietly
+	skips on the one box where it is run is a boundary nobody has checked.
+	The other database-backed tests do not call this, because seeding and
+	reading a single school works the same under either role and there is no
+	reason to lock them out of a developer's superuser database.
+*/
+func requirePolicyBoundConnection(t *testing.T, db *database.DB) {
+	t.Helper()
+	var bypasses bool
+	if err := db.AsPlatform(context.Background(), func(tx pgx.Tx) error {
+		return tx.QueryRow(context.Background(), `
+			SELECT rolsuper OR rolbypassrls FROM pg_roles
+			 WHERE rolname = current_user`).Scan(&bypasses)
+	}); err != nil {
+		t.Fatalf("inspect the connection role: %v", err)
+	}
+	if bypasses {
+		t.Fatal("the test database URL connects as a superuser or BYPASSRLS role, which " +
+			"Postgres exempts from row-level security; point it at a role the policies " +
+			"bind (the unprivileged app_user, or a login role granted app_user) so the " +
+			"tenant boundary under test actually applies")
+	}
+}
+
 // seedTenant creates the smallest world a guardian-addressed trigger rule
 // needs: a school, a campus, a child, and a parent with a phone number. It is
 // deliberately not a fixture shared with other tests -- a dispatch test that
