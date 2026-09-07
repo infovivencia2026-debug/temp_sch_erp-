@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   TIERS, PHONE_TIERS, TIER_DIMS, PHONE_TIER_DIMS, tierOf, dimsForTier, tierLabelKey, type SizeTier,
 } from './size-tiers'
-import { useLayout, dimsOf } from './widgets'
+import { useLayout, dimsOf, tintOf } from './widgets'
 
 /* The four named sizes over the stored width and height.
 
@@ -157,12 +157,27 @@ describe('setTier writes a tier as a width and a height', () => {
     }
   })
 
-  it('stores the phone dims when asked for the phone board', () => {
+  it('on the phone, writes the height and keeps the width it is given', () => {
     const d = freshDashboard()
-    api(d).setTier('fees', 'large', true)
-    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 2, h: 2 })
+    api(d).setTier('fees', 'large', true, 1)
+    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 1, h: 2 })
+    // No width given: the stored one stays.
     api(d).setTier('fees', 'small', true)
-    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 2, h: 1 })
+    expect(dimsOf(api(d).layout, 'fees', 'small')).toEqual({ w: 1, h: 1 })
+    // Never placed and nothing to keep: the phone table's own, a whole shape.
+    const e = freshDashboard()
+    api(e).setTier('fees', 'large', true)
+    expect(dimsOf(api(e).layout, 'fees', 'small')).toEqual({ w: 2, h: 2 })
+  })
+
+  it('a desk Small touched on the phone still reads as Small on the desk', () => {
+    const d = freshDashboard()
+    api(d).setTier('fees', 'small', false)
+    api(d).setTier('fees', 'large', true, 1)
+    api(d).setTier('fees', 'small', true, 1)
+    const { w, h } = dimsOf(api(d).layout, 'fees', 'small')
+    expect({ w, h }).toEqual({ w: 1, h: 1 })
+    expect(tierOf(w, h, false)).toBe('small')
   })
 
   it('places a card that was never placed, and un-removes one that was', () => {
@@ -222,5 +237,129 @@ describe('every preset produces shapes tierOf can name', () => {
       api(d).applyPreset(preset as 'compact' | 'even' | 'columns' | 'panels', board)
       for (const p of api(d).layout.placed) expect(tierOf(p.w, p.h, false)).toBe(tier)
     }
+  })
+})
+
+/* ---------- add: the gallery's verb ---------- */
+
+describe('add puts a card on the board at the end, at the size asked for', () => {
+  const all = [
+    { id: 'a', w: 2, h: 1 },
+    { id: 'b', w: 2, h: 1 },
+  ]
+
+  it('a card never placed lands last', () => {
+    const d = freshDashboard()
+    api(d).add('x', 1, 1, all)
+    expect(api(d).layout.placed.map((p) => p.id)).toEqual(['a', 'b', 'x'])
+    expect(dimsOf(api(d).layout, 'x', 'large')).toEqual({ w: 1, h: 1 })
+  })
+
+  it('a card already placed — and off the board for its size — is resized and moved last, keeping its colour', () => {
+    const RED = { h: 0, s: 80, l: 50 }
+    const d = freshDashboard()
+    api(d).recolour('x', RED, 2, 2)
+    api(d).move('x', 0, [...all, { id: 'x', w: 2, h: 2 }])
+    expect(api(d).layout.placed.map((p) => p.id)).toEqual(['x', 'a', 'b'])
+    api(d).add('x', 1, 1, all)
+    expect(api(d).layout.placed.map((p) => p.id)).toEqual(['a', 'b', 'x'])
+    expect(api(d).layout.placed[2]).toEqual({ id: 'x', w: 1, h: 1, tint: RED })
+  })
+
+  it('un-removes, and is one undo step', () => {
+    const d = freshDashboard()
+    api(d).remove('x')
+    api(d).add('x', 2, 1, all)
+    expect(api(d).layout.removed).toEqual([])
+    api(d).undo()
+    expect(api(d).layout.removed).toEqual(['x'])
+    expect(api(d).layout.placed).toEqual([])
+  })
+})
+
+/* ---------- undo: one step per gesture ---------- */
+
+describe('undo is one step per gesture', () => {
+  const RED = { h: 0, s: 80, l: 50 }
+  const BLUE = { h: 217, s: 91, l: 60 }
+  const GREEN = { h: 120, s: 60, l: 40 }
+  const all = ['a', 'b', 'c', 'd'].map((id) => ({ id, w: 1, h: 1 }))
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('every discrete act is one step: place, setTier, move, remove, recolour, add', () => {
+    const d = freshDashboard()
+    api(d).place('x', 1, 1)
+    expect(api(d).canUndo).toBe(true)
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+
+    api(d).setTier('x', 'large', false)
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+
+    api(d).move('c', 0, all)
+    expect(api(d).layout.placed.map((p) => p.id)).toEqual(['c', 'a', 'b', 'd'])
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+
+    api(d).remove('x')
+    api(d).undo()
+    expect(api(d).layout.removed).toEqual([])
+
+    api(d).recolour('x', RED, 1, 1)
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+
+    api(d).add('x', 2, 1, all)
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+    expect(api(d).canUndo).toBe(false)
+  })
+
+  it('the samples of one colour drag are one step', () => {
+    const d = freshDashboard()
+    api(d).recolour('x', { h: 10, s: 50, l: 50 }, 1, 1, true)
+    api(d).recolour('x', { h: 20, s: 50, l: 50 }, 1, 1, true)
+    api(d).recolour('x', { h: 30, s: 50, l: 50 }, 1, 1, true)
+    expect(tintOf(api(d).layout, 'x')?.h).toBe(30)
+    api(d).undo()
+    expect(api(d).layout.placed, 'back to before the drag, not to the previous sample').toEqual([])
+  })
+
+  it('the crossings of one reorder drag are one step', () => {
+    const d = freshDashboard()
+    api(d).move('d', 2, all, true)
+    api(d).move('d', 1, all, true)
+    api(d).move('d', 0, all, true)
+    expect(api(d).layout.placed.map((p) => p.id)).toEqual(['d', 'a', 'b', 'c'])
+    api(d).undo()
+    expect(api(d).layout.placed).toEqual([])
+  })
+
+  it('a pause, another card, or a press in between starts a new gesture', () => {
+    const d = freshDashboard()
+    let now = 1_000_000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+
+    api(d).recolour('x', RED, 1, 1, true)
+    now += 900
+    api(d).recolour('x', BLUE, 1, 1, true)
+    api(d).undo()
+    expect(tintOf(api(d).layout, 'x'), 'the pause split the drags').toEqual(RED)
+
+    api(d).recolour('x', BLUE, 1, 1, true)
+    api(d).recolour('y', GREEN, 1, 1, true)
+    api(d).undo()
+    expect(tintOf(api(d).layout, 'y'), 'a different card is a different gesture').toBeNull()
+    expect(tintOf(api(d).layout, 'x')).toEqual(BLUE)
+
+    api(d).place('z', 1, 1)
+    api(d).recolour('x', RED, 1, 1, true)
+    api(d).undo()
+    expect(tintOf(api(d).layout, 'x'), 'a press ended the previous gesture').toEqual(BLUE)
+    expect(api(d).layout.placed.some((p) => p.id === 'z'), 'and stays done').toBe(true)
   })
 })

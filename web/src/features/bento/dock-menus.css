@@ -1,0 +1,79 @@
+/* THE DOCK'S MENU AND THE TAB STRIP'S: what they need beyond .bento-menu.
+
+   Both hang off the one popover in Menu.tsx, whose look lives in
+   bento-theme.css (.bento-menu, .bento-menu__item, .bento-menu__rule). This
+   file adds only what those two menus have and the board's menus do not: a
+   heading row naming the tab, a right-hand hint ("4 max"), and a paint that
+   holds up OUTSIDE the Focus layout — the tab strip is drawn in the classic
+   layout too, where the bento tokens are not declared and the popover fell
+   back to white on a dark page.
+
+   Rules for the whole file: every hover is under (hover: hover), because a
+   touchscreen has no pointer to lift and a hover wash that sticks to the
+   last tapped row reads as a selection; rows are 44px on the phone, where
+   the popover is a sheet; and the sheet keeps the device's own reserved
+   strip, which Menu.tsx adds inline and this file must not fight. */
+
+/* Outside Focus: the classic layout's own popover tokens, the same ones
+   `bg-popover` resolves to, so a menu opened from a tab looks like the other
+   menus on that page in both themes. */
+html:not([data-layout='bento']) .bento-menu {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border-color: hsl(var(--border));
+}
+
+/* The tab's name, over its rows. Not a menuitem: the arrow keys skip it. */
+.bento-menu__title {
+  overflow: hidden;
+  padding: 4px 8px 2px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.6;
+}
+
+/* The glyph at the head of a row: one size, never squeezed by a long label. */
+.bento-menu__item > svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* The row's label takes the room; the hint keeps its width at the end. */
+.bento-menu__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.bento-menu__hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+@media (hover: hover) {
+  /* A disabled row does not light: the wash is the promise that a press does
+     something, and this row says plainly that it will not. */
+  .bento-menu__item:disabled:hover { background: transparent; }
+}
+
+@media (max-width: 639px) {
+  /* The sheet, on the phone. Its bottom offset is Menu.tsx's inline style —
+     the bar's height plus env(safe-area-inset-bottom) — and is left alone
+     here. What the stylesheet adds is a ceiling, so a long menu scrolls
+     inside the sheet rather than growing past the top of the screen. The
+     top inset is counted for the same reason the bottom one is. */
+  .bento-menu {
+    max-height: calc(100dvh - 120px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bento-menu__title { padding: 8px 12px 4px; font-size: 12px; }
+  .bento-menu__item > svg { width: 18px; height: 18px; }
+}

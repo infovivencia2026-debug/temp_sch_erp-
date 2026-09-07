@@ -217,8 +217,16 @@ export function BentoDock() {
      dock does anything useful mid-arrange, and a visible control that quietly
      does nothing is worse than an absent one.
 
-     Nothing is stranded by this. Done sits at the top of the board, and Escape
-     is not the only way out. */
+     Nothing is stranded by this. Done sits on the customize bar at the foot of
+     the screen, where the dock was, and Escape is not the only way out.
+
+     HOW YOU GET INTO THE MODE FROM HERE. The gear at the end of the bar is
+     the dock's menu (BentoSettings, on the board's own popover), and its
+     first row is "Customize board". That row is the phone's way in: the
+     other door is a long-press on a card, which nobody finds without being
+     told, and a long-press on the Home button — the other candidate — would
+     have been one more gesture of the same kind. A row is read; a gesture is
+     guessed. */
   if (arranging) return null
 
   /* Icon and word together, not one or the other.
@@ -673,7 +681,10 @@ export function BentoDock() {
            Still `shrink-0` on a wide screen, where the bar is a floating pill
            and this is one of the items the row must never crush. */}
         <span className={phone ? 'dock-tab' : 'shrink-0'}>
-          <BentoSettings placement="dock" />
+          {/* Told where Home is, so "Customize board" in its menu can go
+              there first from any screen; the board rows are otherwise
+              offered only while standing on a board. */}
+          <BentoSettings placement="dock" home={homeHref} />
           {tabLabel(t('bento.settings.label'))}
         </span>
       </div>

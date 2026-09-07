@@ -111,3 +111,80 @@ class ShellWebView(context: Context) : WebView(context) {
         settings.textZoom = (scale * 100).roundToInt().coerceIn(85, 130)
     }
 }
+
+/* THE PAGE'S OWN GESTURES, WHICH THE SHELL MUST NOT TAKE.
+
+   Everything above switches a browser habit off. This is the other
+   direction. The board can be customised on the phone (web/src/features/
+   bento/WidgetLayer.tsx): a half-second hold on a card enters the mode, a
+   fifth-of-a-second hold then lifts a card and carries it, a swipe still
+   turns the page, and the page refuses its own scroll under a carried card
+   with a non-passive touchmove. Every one of those arrives as touches the
+   WebView must pass through untouched, and the one thing in this shell that
+   takes touches away from the WebView is PullToRefresh. It reads the page's
+   scroller position, and the board sits at the top of its scroller, so a
+   card carried downward from the top row was a pull: an ACTION_CANCEL to
+   the page and the card dropped where it was.
+
+   The page says when it is in the mode — `data-arranging` on `.bento-board`,
+   `data-dragging` while a card is carried — but it says so to the DOM, not
+   to the shell. The script below is the same shape as SystemBars.WATCH:
+   injected after every load, idempotent per document, it watches those two
+   attributes and reports the answer through the bridge (setGestureLock),
+   where PullToRefresh reads it. A bundle that has never heard of the mode
+   has no such board and reports false once. Attribute mutations for the two
+   names anywhere in the tree, and childList for the board unmounting while
+   the mode is on: a route change removes the node before React clears the
+   attribute on it, and a lock left set would refuse the pull until the next
+   load.
+
+   THE STYLE IS THE ANDROID HALF OF THE iOS BRIDGE SCRIPT (parent-ios/
+   ParentApp/Shell/BridgeScript.swift), for a bundle that predates the site's
+   own copy of these rules. Selection is already refused at the view
+   (performLongClick, startActionMode); the rule makes the refusal airtight
+   and gives fields their handles back. touch-action pan-x pan-y on the body
+   only ever removes zoom, which setSupportZoom(false) has removed already;
+   it cannot loosen the board's own `pan-x` on a card, because touch-action
+   along the ancestor chain intersects and never adds. -webkit-touch-callout
+   is WebKit-only and does nothing here; kept so the two scripts read the
+   same. Injected after first paint, so none of it can flash: nothing in it
+   changes a pixel. */
+internal object PageGestures {
+
+    const val WATCH = """
+(function () {
+  var s = window.ErpShell;
+  if (!s || typeof s.setGestureLock !== 'function') return;
+  if (window.__erpGestures) return;
+  window.__erpGestures = true;
+  if (!document.getElementById('erp-shell-style')) {
+    var style = document.createElement('style');
+    style.id = 'erp-shell-style';
+    style.textContent =
+      'img, a { -webkit-touch-callout: none; }\n' +
+      'html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }\n' +
+      'body { -webkit-user-select: none; user-select: none; touch-action: pan-x pan-y; }\n' +
+      'input, textarea, [contenteditable], [data-selectable] { -webkit-user-select: text; user-select: text; }';
+    (document.head || document.documentElement).appendChild(style);
+  }
+  var last = null;
+  function report() {
+    var held = !!document.querySelector('.bento-board[data-arranging], .bento-board[data-dragging]');
+    if (held === last) return;
+    last = held;
+    try { s.setGestureLock(held); } catch (e) {}
+  }
+  new MutationObserver(report).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-arranging', 'data-dragging'],
+    childList: true,
+    subtree: true
+  });
+  report();
+})();
+"""
+
+    fun watch(web: WebView) {
+        web.evaluateJavascript(WATCH, null)
+    }
+}

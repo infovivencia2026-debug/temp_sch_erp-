@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState,
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
          type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useSwipeUpForAll } from './swipe-up-launcher'
@@ -8,14 +8,16 @@ import { Check, ChevronDown, LayoutGrid, ListOrdered, Minus, Pencil, Plus, Rotat
 import {
   useLayout, dimsOf, tintOf, isRemoved, orderOf, useBoard, publishBoard, clearBoard,
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
-  rowsNeeded, BOARD_ROWS, PRESETS,
+  rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
   type WidgetSize, type BoardWidget, type Spot, type Preset,
 } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
-import { AddGallery, type GalleryItem } from './AddGallery'
-import { usePhone, useTextZoom } from '@/lib/viewport'
-import { COL, ROW, spanFor, clampSpan, clampRows, type CellSpan } from './bento-kit'
+import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
+import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
+import { QuickMenu, type QuickTier } from './bento-cards'
+import { usePhone } from '@/lib/viewport'
+import { COL, ROW, spanFor, clampSpan, clampRows, useReduceMotion, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
 import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
 import { ArrangeSheet } from './ArrangeSheet'
@@ -76,14 +78,46 @@ interface LayerValue {
      board is not paged — every width above the phone. */
   phone: boolean
   spots: Map<string, Spot> | null
-  /** The drag in progress, so the card under the pointer can say it is the
-      target. */
-  dropTarget: string | null
-  setDropTarget: (id: string | null) => void
-  /** The id of the card being carried, if any. The layer reads it to stop
-      the page scrolling under a finger that is holding a card. */
-  dragging: string | null
+  /** The id of the card being carried, if any — kept in a ref and as an
+      attribute on the board, never as state, because nothing on the board
+      may re-render for a drag. The layer reads it to stop the page
+      scrolling under a finger that is holding a card. */
   setDragging: (id: string | null) => void
+  /** Reduce motion, as the account and the OS have it. The board carries it
+      as `data-reduce-motion` for the stylesheet; the portalled chrome — the
+      menus, the wheel, the sheet — gets it as a prop, being outside the
+      board. */
+  still: boolean
+  /** Enter customize mode for this card: the mode's first focus lands on
+      the card's size pill rather than on Done. The quick menu's Customize
+      row. */
+  enterFor: (id: string) => void
+  /** Say something through the bar's polite live region: a keyboard move,
+      a removal. */
+  say: (text: string) => void
+  /** Put focus on the bar's Undo, after a removal made from the keyboard. */
+  focusUndo: () => void
+  /** After a removal made with the pointer: focus the given card's remove
+      button, or Done when no card is left. */
+  focusAfterRemove: (nextId: string | null) => void
+}
+
+/** What the live region is saying. `n` makes two identical messages in a
+    row differ, so the second is announced too — the region only speaks when
+    its content changes. */
+interface Said {
+  text: string
+  n: number
+}
+
+/** The card element for an id, by attribute rather than by selector, so an
+    id with a character CSS would need escaping still finds its card. */
+function cardEl(id: string): HTMLElement | null {
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>('.bento-widget[data-widget-id]')).find(
+      (el) => el.getAttribute('data-widget-id') === id,
+    ) ?? null
+  )
 }
 
 /* Every domain token a cell might read. Repointing all of them is what lets
@@ -145,139 +179,6 @@ function PresetGlyph({ preset }: { preset: Preset }) {
   )
 }
 
-/* THE FOOTPRINT OF A TIER, drawn on a miniature of the board it is for: three
-   by two on the desk (Wide is the third column), two by two on the phone.
-   The lit cells are the tier; the dim ones are the board around it. */
-function TierGlyph({ tier, phone }: { tier: SizeTier; phone: boolean }) {
-  const { w, h } = dimsForTier(tier, phone)
-  const cols = phone ? 2 : 3
-  return (
-    <svg viewBox={`0 0 ${cols * 10} 20`} width={cols * 7} height={14} aria-hidden="true" className="shrink-0">
-      {Array.from({ length: cols * 2 }, (_, i) => {
-        const c = i % cols
-        const r = Math.floor(i / cols)
-        const on = c < w && r < h
-        return (
-          <rect key={i} x={c * 10 + 1} y={r * 10 + 1} width={8} height={8} rx="1.5"
-            fill="currentColor" opacity={on ? 0.9 : 0.18} />
-        )
-      })}
-    </svg>
-  )
-}
-
-/* ONE POPOVER FOR EVERY MENU IN CUSTOMIZE MODE: the size menu on a card, the
-   layouts menu on the bar.
-
-   Portalled and fixed, because a card may be one grid cell across and the
-   bar is a fixed strip; anchored under its button, or above it when the
-   button is nearer the bottom of the screen, which the bar's always is. On
-   a narrow screen it is a sheet above the bar instead, the same answer the
-   colour wheel gives.
-
-   Escape is caught ON THE WAY DOWN and stopped there: the layer's own Escape
-   leaves customize mode, and a person closing a menu has not asked for that.
-   Arrow keys walk the items; focus goes in on open and back to the button on
-   close. A press outside closes it — except inside the colour wheel, which
-   the size menu opens from its last row and which portals itself elsewhere. */
-function Menu({
-  open,
-  anchor,
-  label,
-  onClose,
-  width = 208,
-  children,
-}: {
-  open: boolean
-  anchor: HTMLElement | null
-  label: string
-  onClose: () => void
-  width?: number
-  children: ReactNode
-}) {
-  const pop = useRef<HTMLDivElement>(null)
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
-  const narrow = typeof window !== 'undefined' && window.innerWidth < 640
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setAt(null)
-      return
-    }
-    const r = anchor?.getBoundingClientRect()
-    const h = pop.current?.offsetHeight ?? 220
-    if (!r) {
-      setAt({ left: 16, top: 16 })
-      return
-    }
-    const below = r.bottom + 6 + h <= window.innerHeight - 8
-    setAt({
-      left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
-      top: below ? r.bottom + 6 : Math.max(8, r.top - 6 - h),
-    })
-  }, [open, anchor, width])
-
-  useEffect(() => {
-    if (!open) return
-    const first = pop.current?.querySelector<HTMLElement>('[role^="menuitem"]:not(:disabled)')
-    first?.focus()
-    const onDown = (e: PointerEvent) => {
-      const n = e.target as Node
-      if (pop.current?.contains(n) || anchor?.contains(n)) return
-      if ((n as HTMLElement).closest?.('[data-colour-pop]')) return
-      onClose()
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      onClose()
-    }
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey, true)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey, true)
-      anchor?.focus()
-    }
-  }, [open, anchor, onClose])
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
-    const items = Array.from(
-      pop.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]:not(:disabled)') ?? [],
-    )
-    if (items.length === 0) return
-    e.preventDefault()
-    const i = items.indexOf(document.activeElement as HTMLElement)
-    const next =
-      e.key === 'Home' ? 0
-      : e.key === 'End' ? items.length - 1
-      : e.key === 'ArrowDown' ? (i + 1) % items.length
-      : (i - 1 + items.length) % items.length
-    items[next].focus()
-  }
-
-  if (!open) return null
-  return createPortal(
-    <div
-      ref={pop}
-      role="menu"
-      aria-label={label}
-      data-bento-menu=""
-      className="bento-menu"
-      onKeyDown={onKeyDown}
-      style={
-        narrow
-          ? { left: 12, right: 12, bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', width: 'auto' }
-          : { left: at?.left ?? 0, top: at?.top ?? 0, width, visibility: at ? 'visible' : 'hidden' }
-      }
-    >
-      {children}
-    </div>,
-    document.body,
-  )
-}
-
 /* THE SIZE PILL AND ITS MENU: what a card is, and what it could be.
 
    Four tiers on the desk, two on the phone (Medium and Wide are Small there
@@ -302,9 +203,10 @@ function SizeMenu({
   fits: (w: number, h: number) => boolean
   tint: Hsl | null
   onTier: (tier: SizeTier) => void
-  onTint: (c: Hsl | null) => void
+  onTint: (c: Hsl | null, coalesce?: boolean) => void
 }) {
   const t = useT()
+  const layer = useWidgetLayer()
   const [open, setOpen] = useState(false)
   const btn = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => setOpen(false), [])
@@ -329,7 +231,7 @@ function SizeMenu({
         <span>{name(current)}</span>
         <ChevronDown className="size-3 opacity-70" aria-hidden="true" />
       </button>
-      <Menu open={open} anchor={btn.current} label={menuLabel} onClose={close}>
+      <Menu open={open} anchor={btn.current} label={menuLabel} onClose={close} phone={phone} still={layer?.still ?? false}>
         {tiers.map((tier) => {
           const d = dimsForTier(tier, phone)
           const ok = fits(d.w, d.h)
@@ -384,6 +286,9 @@ function CustomizeBar({
   onReset,
   addRef,
   doneRef,
+  undoRef,
+  message,
+  still,
 }: {
   phone: boolean
   canUndo: boolean
@@ -398,30 +303,64 @@ function CustomizeBar({
   onReset: () => void
   addRef: RefObject<HTMLButtonElement>
   doneRef: RefObject<HTMLButtonElement>
+  undoRef: RefObject<HTMLButtonElement>
+  /** What the cards ask the live region to say — see `LayerValue.say`. */
+  message: Said
+  still: boolean
 }) {
   const t = useT()
   const [layouts, setLayouts] = useState(false)
   const layoutsBtn = useRef<HTMLButtonElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  /* ARROW KEYS WALK THE TOOLBAR, as a toolbar's should: Left and Right
+     between the enabled buttons, wrapping, Home and End to the ends. Keys
+     from inside the Layouts menu — a portal, so React bubbles them here —
+     are the menu's, and its items are not bar buttons. */
+  const onBarKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+    const target = e.target as HTMLElement
+    if (!target.classList.contains('bento-bar__btn')) return
+    const items = Array.from(
+      barRef.current?.querySelectorAll<HTMLButtonElement>('.bento-bar__btn:not(:disabled)') ?? [],
+    )
+    if (items.length === 0) return
+    e.preventDefault()
+    const i = items.indexOf(target as HTMLButtonElement)
+    const next =
+      e.key === 'Home' ? 0
+      : e.key === 'End' ? items.length - 1
+      : e.key === 'ArrowRight' ? (i + 1) % items.length
+      : (i - 1 + items.length) % items.length
+    items[next].focus()
+  }
   const closeLayouts = useCallback(() => setLayouts(false), [])
   const [said, setSaid] = useState('')
   useEffect(() => {
     const id = window.setTimeout(() => setSaid(t('bento.widgets.announce')), 80)
     return () => window.clearTimeout(id)
   }, [t])
+  /* A repeated message gets a trailing no-break space every other time, so
+     the DOM text changes and the region speaks again. */
+  useEffect(() => {
+    if (!message.text) return
+    setSaid(message.n % 2 ? message.text : `${message.text}\u00a0`)
+  }, [message])
   const presets = phone ? PHONE_PRESETS : PRESETS
 
   return (
     <div
+      ref={barRef}
       className={cn('bento-customize-bar', phone && 'is-phone')}
       role="toolbar"
       aria-label={t('bento.widgets.customize')}
+      onKeyDown={onBarKey}
     >
       <span className="sr-only" role="status" aria-live="polite">{said}</span>
       <button ref={doneRef} type="button" onClick={onDone} className="bento-bar__btn is-primary">
         <Check className="size-3.5" aria-hidden="true" />
         <span>{t('bento.widgets.done')}</span>
       </button>
-      <button type="button" onClick={onUndo} disabled={!canUndo} className="bento-bar__btn">
+      <button ref={undoRef} type="button" onClick={onUndo} disabled={!canUndo} className="bento-bar__btn bento-bar__undo">
         <Undo2 className="size-3.5" aria-hidden="true" />
         <span>{t('bento.widgets.undo')}</span>
       </button>
@@ -448,7 +387,7 @@ function CustomizeBar({
         <LayoutGrid className="size-3.5" aria-hidden="true" />
         <span>{t('bento.widgets.layouts')}</span>
       </button>
-      <Menu open={layouts} anchor={layoutsBtn.current} label={t('bento.widgets.layouts')} onClose={closeLayouts} width={260}>
+      <Menu open={layouts} anchor={layoutsBtn.current} label={t('bento.widgets.layouts')} onClose={closeLayouts} width={260} phone={phone} still={still}>
         {presets.map((p) => (
           <button
             key={p}
@@ -511,20 +450,20 @@ function useWidgetLayer() {
   return useContext(Ctx)
 }
 
-/* THE PAGER ANSWERS THE FONT SETTING.
-
-   At the platform's Largest text a card's header, figure and sentence are a
-   third taller and its slot is not, so a three-row page pushes every drawing
-   out through the bottom. Two rows a page at that setting gives each card the
-   half-again height its text just took, which is what a phone home screen
-   does when the text grows: fewer, taller tiles. 1.25 is between Android's
-   Large (1.15) and Largest (1.3). */
-const TWO_ROWS_FROM = 1.25
+/* THE PAGER IS TWO ROWS A PAGE AT EVERY TEXT SIZE. A `TWO_ROWS_FROM` zoom
+   threshold used to turn a three-row page into two at the platform's Large
+   text; once the page became two rows for everybody (PHONE_ROWS in
+   widgets.ts) both branches said two, and the constant, the text-zoom read
+   and the `tallOk` set that travelled with it into `paginate` were dead —
+   nothing read them. Gone. The stylesheet's `--pager-rows` is still written
+   from here so the two cannot disagree. */
 
 /* Turn the pager one page, for a card held at its edge. Pages are found by
    position rather than by index arithmetic so the gap between them is never
-   a second number to keep in step with the stylesheet. */
-function flipPage(board: HTMLElement, dir: 1 | -1) {
+   a second number to keep in step with the stylesheet. `still` — reduce
+   motion — makes the turn a jump: Chrome's smooth scroll ignores the
+   preference on its own. */
+function flipPage(board: HTMLElement, dir: 1 | -1, still: boolean) {
   const pages = Array.from(board.querySelectorAll<HTMLElement>('.bento-page'))
   if (pages.length < 2) return
   const left = board.getBoundingClientRect().left
@@ -539,7 +478,7 @@ function flipPage(board: HTMLElement, dir: 1 | -1) {
   })
   const next = pages[at + dir]
   if (!next) return
-  next.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+  next.scrollIntoView({ behavior: still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
   buzz('snap')
 }
 
@@ -555,21 +494,64 @@ export function WidgetLayer({
      whether or not anybody is arranging. */
   const markRef = useRef<HTMLSpanElement>(null)
   const { arranging, setArranging } = useBoard()
-  const { layout, place, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
+  const { layout, add, reset, undo, canUndo, tidy, applyPreset } = useLayout(dashboard)
   const t = useT()
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
-  /* Mirrored in a ref because the touchmove listener below has to answer
-     synchronously, in the same event, and state is a render behind. */
-  const [dragging, setDraggingState] = useState<string | null>(null)
+  const still = useReduceMotion()
+  /* A ref and an attribute on the board, NOT state: the touchmove listener
+     below has to answer synchronously, in the same event, and a drag must
+     not re-render the board — every card's content would be rebuilt for a
+     ghost that is one transform on one element. */
   const draggingRef = useRef<string | null>(null)
   const setDragging = useCallback((id: string | null) => {
     draggingRef.current = id
-    setDraggingState(id)
+    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
+    board?.toggleAttribute('data-dragging', !!id)
   }, [])
   const [gallery, setGallery] = useState(false)
   const [sheet, setSheet] = useState(false)
+  /* The sheet slides in and out on the mode's motion token; it stays
+     mounted for the exit, the way the menus and the gallery do. */
+  const sheetMotion = useEnterExit(sheet, still, DUR_MS)
   const addRef = useRef<HTMLButtonElement>(null)
   const doneRef = useRef<HTMLButtonElement>(null)
+  const undoRef = useRef<HTMLButtonElement>(null)
+  /* The card whose size pill should take the mode's first focus, when the
+     mode was entered from that card's quick menu. Consumed on use. */
+  const enterFocus = useRef<string | null>(null)
+  const enterFor = useCallback((id: string) => {
+    enterFocus.current = id
+    setArranging(true)
+  }, [setArranging])
+  const [message, setMessage] = useState<Said>({ text: '', n: 0 })
+  const say = useCallback((text: string) => setMessage((m) => ({ text, n: m.n + 1 })), [])
+  const [undoWanted, setUndoWanted] = useState(0)
+  const focusUndo = useCallback(() => setUndoWanted((n) => n + 1), [])
+  /* After the render that reflected the removal, so Undo is enabled by the
+     time it is focused; a disabled button refuses focus. */
+  useEffect(() => {
+    if (!undoWanted) return
+    const id = requestAnimationFrame(() => undoRef.current?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [undoWanted])
+  /* After a removal made with the pointer: the next card's remove button,
+     so somebody clearing several cards finds the same control under the
+     hand; Done when the board has run out. The button that was pressed
+     unmounts with its card, and focus would otherwise fall to the body. */
+  const [removeWanted, setRemoveWanted] = useState<{ n: number; next: string | null }>({ n: 0, next: null })
+  const focusAfterRemove = useCallback(
+    (next: string | null) => setRemoveWanted((r) => ({ n: r.n + 1, next })),
+    [],
+  )
+  useEffect(() => {
+    if (!removeWanted.n) return
+    const id = requestAnimationFrame(() => {
+      const btn = removeWanted.next
+        ? cardEl(removeWanted.next)?.querySelector<HTMLElement>('.bento-edit__remove')
+        : null
+      ;(btn ?? doneRef.current)?.focus()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [removeWanted])
 
   const declare = useMemo(
     () => (w: BoardWidget) =>
@@ -677,7 +659,10 @@ export function WidgetLayer({
     wasArranging.current = arranging
     const id = requestAnimationFrame(() => {
       if (arranging) {
-        doneRef.current?.focus()
+        const want = enterFocus.current
+        enterFocus.current = null
+        const pill = want ? cardEl(want)?.querySelector<HTMLElement>('.bento-sizebtn') : null
+        ;(pill ?? doneRef.current)?.focus()
       } else {
         document.querySelector<HTMLElement>('.bento-dots__edit, .bento-edit-pill')?.focus()
       }
@@ -717,24 +702,16 @@ export function WidgetLayer({
   const paged = phone && inBoard
   useSwipeUpForAll(paged && !arranging, openLauncher)
 
-  const zoom = useTextZoom()
-  const rows = phone && zoom >= TWO_ROWS_FROM ? 2 : PHONE_ROWS
-  /* Only a height somebody chose on this device may take two rows: a
-     placed entry with h >= 2. A declared 'large' still reads as one row. */
-  const tallOk = useMemo(
-    () => new Set(layout.placed.filter((p) => p.h >= 2).map((p) => p.id)),
-    [layout],
-  )
+  const rows = PHONE_ROWS
   const spots = useMemo(() => {
     if (!paged) return null
     return paginate(
       visible.map((v) => ({ id: v.id, ...drawnDims(layout, v.id, v.size) })),
       PHONE_COLS,
       rows,
-      tallOk,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, rows, tallOk])
+  }, [paged, visible.map((v) => `${v.id}:${v.w}x${v.h}`).join(','), layout, rows])
   const pages = spots ? pageCount(spots) : 0
   const spotMap = useMemo(
     () => (spots ? new Map(spots.map((s) => [s.id, s])) : null),
@@ -762,6 +739,19 @@ export function WidgetLayer({
     return () => board.removeAttribute('data-arranging')
   }, [arranging, phone])
 
+  /* REDUCE MOTION, AS THE ACCOUNT HAS IT. The stylesheet gates the wiggle
+     and the lift on the OS media query; somebody who set "reduce motion"
+     in the product and not in the OS gets the same stillness through this
+     attribute, which zeroes the motion tokens under the board. Set whether
+     or not anybody is arranging, because the lift's exit runs after the
+     mode has ended. */
+  useEffect(() => {
+    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
+    if (!board) return
+    board.toggleAttribute('data-reduce-motion', still)
+    return () => board.removeAttribute('data-reduce-motion')
+  }, [still, inBoard])
+
   /* A HELD CARD DOES NOT SCROLL THE PAGE. The pager is a horizontal scroller
      and the card's surface allows a horizontal pan, so a swipe still turns
      the page while customizing; but once a card is being carried, the same
@@ -778,13 +768,6 @@ export function WidgetLayer({
     board.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => board.removeEventListener('touchmove', onTouchMove)
   }, [arranging, phone])
-  useEffect(() => {
-    const board = markRef.current?.closest('.bento-board') as HTMLElement | null
-    if (!board || !dragging) return
-    board.setAttribute('data-dragging', '')
-    return () => board.removeAttribute('data-dragging')
-  }, [dragging])
-
   /* HOLD A CARD TO ARRANGE THE BOARD.
 
      Touch only — a mouse has no long press worth the name. One finger,
@@ -854,10 +837,11 @@ export function WidgetLayer({
   const value = useMemo<LayerValue>(
     () => ({
       dashboard, editing: arranging, declare, visible, fitted, maxRows, phone, spots: spotMap,
-      dropTarget, setDropTarget, dragging, setDragging,
+      setDragging, still, enterFor, say, focusUndo, focusAfterRemove,
     }),
     [
-      dashboard, arranging, declare, maxRows, phone, spotMap, dropTarget, dragging, setDragging,
+      dashboard, arranging, declare, maxRows, phone, spotMap, setDragging, still,
+      enterFor, say, focusUndo, focusAfterRemove,
       /* Sizes as well as ids: `visible` seeds `move` for every widget nobody
          has explicitly placed, and a key of ids alone would hand it the
          previous render's w/h. */
@@ -889,7 +873,13 @@ export function WidgetLayer({
   })
   const onAdd = (id: string, tier: SizeTier) => {
     const d = dimsForTier(tier, phone)
-    place(id, d.w, d.h)
+    /* `add`, not `place`: on a desk a card can be placed yet not drawn — it
+       fell past the fifteen-slot ceiling after a phone arranged it — and
+       `place` leaves a placed card as it is, so "Add" flashed Added and
+       changed nothing. This puts it at the end of the order at the chosen
+       size, which is exactly where the tier list above tested that it
+       fits, in one write. */
+    add(id, d.w, d.h, visible)
     buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
@@ -920,10 +910,49 @@ export function WidgetLayer({
           />
         ))}
 
+      {/* THE EMPTY BOARD, WHILE ARRANGING. Every card removed leaves a
+          ground with nothing on it and a bar that says Add; this says so
+          where the cards were, with the two ways out. A grid child of the
+          board like the cards, spanning the page. Only for a board that
+          declared cards at all — a board with none is not one to arrange. */}
+      {arranging && inBoard && declared.length > 0 && visible.length === 0 && (
+        <div
+          className="bento-board__empty"
+          data-board-empty=""
+          style={{
+            ...ink,
+            gridColumn: paged ? `1 / span ${PHONE_COLS}` : '1 / -1',
+            gridRow: paged ? `1 / span ${rows}` : undefined,
+          }}
+        >
+          <p className="bento-board__empty-text">{t('bento.widgets.empty_board')}</p>
+          <div className="bento-board__empty-actions">
+            <button
+              type="button"
+              className="bento-bar__btn is-primary"
+              onClick={() => setGallery(true)}
+              disabled={off.length === 0}
+              aria-haspopup="dialog"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              <span>{t('bento.widgets.add_cards')}</span>
+            </button>
+            <button type="button" className="bento-bar__btn" onClick={reset} disabled={!arranged}>
+              <RotateCcw className="size-3.5" aria-hidden="true" />
+              <span>{t('bento.widgets.reset')}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Portalled to the body, like the dock, because the board is the
-          scroller and anything drawn inside it scrolls away with page one. */}
-      {paged && !arranging && createPortal(
-        <PageDots pages={pages} mark={markRef} onEdit={() => setArranging(true)} />,
+          scroller and anything drawn inside it scrolls away with page one.
+          Kept through the mode — a card held at the pager's edge needs to
+          say which page it is on — with the pencil put away, since the bar
+          is the door out. (The desk never pages: `paged` is phone-only, so
+          there are no dots to keep there.) */}
+      {paged && createPortal(
+        <PageDots pages={pages} mark={markRef} onEdit={() => setArranging(true)} editing={arranging} still={still} />,
         document.body,
       )}
 
@@ -945,6 +974,9 @@ export function WidgetLayer({
           onReset={reset}
           addRef={addRef}
           doneRef={doneRef}
+          undoRef={undoRef}
+          message={message}
+          still={still}
         />,
         document.body,
       )}
@@ -960,12 +992,14 @@ export function WidgetLayer({
       )}
       {/* The phone's reorder list: the old sheet, now a secondary editor
           opened from the bar. Done on it closes the sheet, not the mode. */}
-      {paged && arranging && sheet && createPortal(
+      {paged && arranging && sheetMotion.mounted && createPortal(
         <ArrangeSheet
           dashboard={dashboard}
           declared={declared}
           visible={visible}
           onDone={() => setSheet(false)}
+          shown={sheetMotion.shown}
+          still={still}
         />,
         document.body,
       )}
@@ -995,7 +1029,21 @@ export function WidgetLayer({
    from arithmetic on scrollLeft. The pencil at the strip's left end is the
    phone's visible door into editing; the right end is where the assistant
    sits. */
-function PageDots({ pages, mark, onEdit }: { pages: number; mark: { current: HTMLSpanElement | null }; onEdit: () => void }) {
+function PageDots({
+  pages,
+  mark,
+  onEdit,
+  editing = false,
+  still = false,
+}: {
+  pages: number
+  mark: { current: HTMLSpanElement | null }
+  onEdit: () => void
+  /** Customize mode is on: the strip stays, the pencil goes. */
+  editing?: boolean
+  /** Reduce motion: a tap on a dot jumps rather than glides. */
+  still?: boolean
+}) {
   const t = useT()
   const [at, setAt] = useState(0)
 
@@ -1026,7 +1074,7 @@ function PageDots({ pages, mark, onEdit }: { pages: number; mark: { current: HTM
   const go = (n: number) => {
     const board = mark.current?.closest('.bento-board') as HTMLElement | null
     const page = board?.querySelector<HTMLElement>(`.bento-page[data-page="${n}"]`)
-    page?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+    page?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
   }
 
   return (
@@ -1036,15 +1084,17 @@ function PageDots({ pages, mark, onEdit }: { pages: number; mark: { current: HTM
       aria-label={t('bento.page.pages')}
       style={{ color: INK_HERE_FROM_PAGE } as CSSProperties}
     >
-      <button
-        type="button"
-        className="bento-dots__edit"
-        onClick={onEdit}
-        aria-label={t('bento.widgets.edit_home')}
-        title={t('bento.widgets.edit_home')}
-      >
-        <Pencil className="size-4" aria-hidden="true" />
-      </button>
+      {!editing && (
+        <button
+          type="button"
+          className="bento-dots__edit"
+          onClick={onEdit}
+          aria-label={t('bento.widgets.edit_home')}
+          title={t('bento.widgets.edit_home')}
+        >
+          <Pencil className="size-4" aria-hidden="true" />
+        </button>
+      )}
       {pages > 1 && (
         <span className="sr-only" aria-live="polite">
           {t('bento.page.indicator', { n: at + 1, total: pages })}
@@ -1076,11 +1126,18 @@ export function ColourPick({
   label,
 }: {
   value: Hsl | null
-  onPick: (c: Hsl | null) => void
+  /** `coalesce` is true for a sample mid-gesture — the wheel and the
+      lightness slider report one per pointermove — so the store keeps one
+      undo step for the whole drag. A swatch or Default is a press each. */
+  onPick: (c: Hsl | null, coalesce?: boolean) => void
   label?: string
 }) {
+  const layer = useWidgetLayer()
+  const phone = layer?.phone ?? (typeof window !== 'undefined' && window.innerWidth < 640)
+  const still = (layer?.still ?? false) || osStill()
   const [open, setOpen] = useState(false)
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  const { mounted, shown } = useEnterExit(open, still, DUR_FAST_MS)
+  const [at, setAt] = useState<Pos | null>(null)
   const [typed, setTyped] = useState<string | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLDivElement>(null)
@@ -1093,32 +1150,37 @@ export function ColourPick({
       const n = e.target as Node
       if (!btn.current?.contains(n) && !pop.current?.contains(n)) setOpen(false)
     }
-    /* On the way down and stopped, for the same reason the menus do it: the
-       layer's Escape ends the mode, and closing a wheel is not that. */
+    /* ESCAPE PEELS ONE LAYER. The size menu this opens from catches Escape
+       on the DOCUMENT in the capture phase, and it registered first; a
+       second document listener would run after it, by which time the menu
+       — and this wheel with it — would be gone. The WINDOW is reached
+       before the document on the way down, so this runs first and stops
+       the event there: one Escape closes the wheel, the next the menu, the
+       next the mode. */
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.stopPropagation()
       setOpen(false)
     }
     document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey, true)
+    window.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('keydown', onKey, true)
     }
   }, [open])
 
   const toggle = () => {
     const r = btn.current?.getBoundingClientRect()
-    if (r) {
-      setAt({
-        left: Math.min(r.left, window.innerWidth - 236),
-        top: Math.min(r.bottom + 6, window.innerHeight - 300),
-      })
-    }
+    /* The same rule as the gallery: below the row, or above it when the
+       row is near the bottom edge — which a size menu flipped up over a
+       card in the last row puts it. */
+    if (r) setAt(placePanel(r, { width: POP_W, height: POP_H }, { width: window.innerWidth, height: window.innerHeight }))
     setOpen((v) => !v)
   }
   const fill = value ? softTintBg(value) : 'var(--bento-card)'
+  /* A sample mid-drag: coalesced into the gesture's one undo step. */
+  const sample = (c: Hsl) => onPick(c, true)
 
   return (
     <>
@@ -1147,37 +1209,39 @@ export function ColourPick({
         />
       )}
 
-      {open && at && createPortal(
+      {mounted && at && createPortal(
         <div
           ref={pop}
           data-colour-pop=""
-          /* A 228px card beside the swatch on a desk; on a phone the swatch is
-             in a sheet at the foot of the screen and the same card overflowed
-             the right edge and the bottom. Narrow, it becomes a sheet of its
-             own: full width less a margin, pinned above the home indicator. */
+          data-shown={shown ? '' : undefined}
+          data-still={still ? '' : undefined}
+          data-up={!phone && at.up ? '' : undefined}
+          data-sheet={phone ? '' : undefined}
+          /* A 228px card beside the row on a desk; on a phone the row is in
+             a sheet at the foot of the screen and the same card overflowed
+             the right edge and the bottom. There it becomes a sheet of its
+             own: full width less a margin, pinned ABOVE the bar so Done is
+             never under it. Painted by .bento-colour-pop. */
           style={
-            window.innerWidth < 640
+            phone
               ? {
-                  position: 'fixed',
                   left: 12,
                   right: 12,
-                  bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+                  bottom: 'calc(var(--customize-bar-h, 84px) + 10px + env(safe-area-inset-bottom, 0px))',
                   width: 'auto',
                 }
-              : { position: 'fixed', left: at.left, top: at.top, width: 228 }
+              : { left: at.left, top: at.top, bottom: at.bottom, width: POP_W }
           }
-          className="z-[85] rounded-xl border p-3 shadow-lg bg-[var(--bento-card)]
-                     text-[var(--bento-ink)]
-                     !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
+          className="bento-colour-pop"
         >
-          <WheelCanvas value={current} onPick={(h, s2) => onPick({ ...current, h, s: s2 })} />
+          <WheelCanvas value={current} onPick={(h, s2) => sample({ ...current, h, s: s2 })} />
           <input
             type="range"
             min={5}
             max={95}
             value={Math.round(current.l)}
             aria-label={t('bento.widgets.colour_lightness')}
-            onChange={(e) => onPick({ ...current, l: Number(e.target.value) })}
+            onChange={(e) => sample({ ...current, l: Number(e.target.value) })}
             className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full"
             style={{
               background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 5%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 95%))`,
@@ -1193,7 +1257,7 @@ export function ColourPick({
               onChange={(e) => {
                 setTyped(e.target.value)
                 const parsed = hexToHsl(e.target.value)
-                if (parsed) onPick(parsed)
+                if (parsed) sample(parsed)
               }}
               onBlur={() => setTyped(null)}
               className="w-full rounded-md border px-2 py-1 font-mono text-[11.5px]
@@ -1235,25 +1299,56 @@ export function ColourPick({
   )
 }
 
-/* The drag, in one record so a single release can clear all of it. */
+/* The colour wheel's pop, as placePanel needs it: its width and the most
+   it is tall. */
+const POP_W = 228
+const POP_H = 300
+
+/* The drag, in one record so a single release can clear all of it.
+
+   NOTHING IN IT IS REACT STATE. The ghost is a transform written straight
+   to the wrapper on each frame; the drop target is an attribute written
+   straight to the card under the pointer; the board's `data-dragging` is
+   set by the layer the same way. So the card's content — the queries, the
+   charts, the lists behind the render prop — is not rebuilt once between
+   the lift and the drop, on any of the hundred-odd moves a second a finger
+   makes. (It used to be a `setGhost` per move, and every one re-rendered
+   the whole cell.) */
 interface Drag {
   /** Where the pointer went down. */
   x: number
   y: number
-  /** Where it was last seen, for the ghost to be recomputed when the pager
-      scrolls under it. */
+  /** Where it was last seen: the next frame paints from here. */
   lastX: number
   lastY: number
-  /** The card under the pointer, or null. */
-  id: string | null
+  /** The card under the pointer and whether the drop goes AFTER it — empty
+      space past the last card — or null. */
+  over: { id: string; after: boolean } | null
+  /** The element carrying `data-drop-target`, so it can be cleared. */
+  overEl: HTMLElement | null
   /** Carrying the card: true from the down on a desk, after the hold on a
       phone. Before it the finger may still be swiping the page. */
   live: boolean
+  /** The ghost is visible: at the lift on a phone, after the first real
+      movement on a desk — a click is not a drag. */
+  shown: boolean
   hold?: number
   /** The pager's scrollLeft when the card was picked up. */
   scroll: number
   board: HTMLElement | null
+  /** The board's, every other card's and (on the pager) every page's
+      rectangle, measured when the ghost appears and again after the pager
+      scrolls or the window resizes — never per pointermove, which is what
+      an elementFromPoint there would have cost: a forced layout each. */
+  boardRect: DOMRect | null
+  cards: { id: string; el: HTMLElement; rect: DOMRect }[]
+  pages: { n: number; rect: DOMRect }[]
+  /** The rectangles are stale: re-measure on the next frame. */
+  stale: boolean
+  /** The frame that will paint, if one is pending. */
+  raf: number
   onScroll?: () => void
+  onResize?: () => void
   /** The edge the pointer is resting at, and the timer that turns the page. */
   edgeDir: -1 | 0 | 1
   edge?: number
@@ -1264,6 +1359,8 @@ interface Drag {
 const HOLD_TO_LIFT = 200
 /* Movement that ends a hold before it lifts: a swipe, not a press. */
 const HOLD_SLOP = 8
+/* Movement before a desk press becomes a visible drag. */
+const DRAG_SLOP = 6
 /* The band at each side of the pager where a held card asks for the next
    page, and how long it must wait there. */
 const EDGE = 36
@@ -1312,7 +1409,6 @@ export function Widget({
      the start of a swipe that turns the page — so the card lifts only after
      a short hold with the finger still, and a finger that moves first is
      left to the pager. */
-  const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
   const drag = useRef<Drag | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
@@ -1380,53 +1476,112 @@ export function Widget({
      card is not `[data-quiet]`. */
   const lead = pos === 0
 
-  /* The card under a point, other than this one. The ghost is what the
-     pointer is over, so it steps aside for the lookup. */
-  const targetOver = (x: number, y: number): string | null => {
-    const self = wrapRef.current
-    const was = self?.style.pointerEvents ?? ''
-    if (self) self.style.pointerEvents = 'none'
-    const el = document.elementFromPoint(x, y)
-    if (self) self.style.pointerEvents = was
-    const w2 = el?.closest<HTMLElement>('.bento-widget[data-widget-id]')
-    const tid = w2?.getAttribute('data-widget-id') ?? null
-    if (tid && tid !== id) return tid
-    /* Nothing under the finger on a phone: the empty half of a page. The
-       drop goes after the last card on that page, which is the card that is
-       highlighted. */
-    if (!layer?.spots || !drag.current?.board) return null
-    const pagesEls = Array.from(drag.current.board.querySelectorAll<HTMLElement>('.bento-page'))
-    const n = pagesEls.findIndex((p) => {
-      const r = p.getBoundingClientRect()
-      return x >= r.left && x < r.right
-    })
-    if (n < 0) return null
-    let last: string | null = null
-    for (const v of layer.visible) {
-      const s = layer.spots.get(v.id)
-      if (s && s.page === n && v.id !== id) last = v.id
-    }
-    return last
+  /* Measure once, not per move: the board, every other card and, on the
+     pager, every page, as rectangles. */
+  const measure = (f: Drag) => {
+    f.stale = false
+    const root: ParentNode = f.board ?? document
+    f.boardRect = f.board?.getBoundingClientRect() ?? null
+    f.cards = Array.from(root.querySelectorAll<HTMLElement>('.bento-widget[data-widget-id]'))
+      .filter((el) => el.getAttribute('data-widget-id') !== id)
+      .map((el) => ({ id: el.getAttribute('data-widget-id') ?? '', el, rect: el.getBoundingClientRect() }))
+    f.pages = f.board
+      ? Array.from(f.board.querySelectorAll<HTMLElement>('.bento-page')).map((p) => ({
+          n: Number(p.getAttribute('data-page')),
+          rect: p.getBoundingClientRect(),
+        }))
+      : []
   }
 
+  /* The card under a point, other than this one, from the cached
+     rectangles. Over empty space inside the board — the free half of a
+     page, the room below the last row — the last card of that page (of
+     the board, on a desk) with `after` set, so the drop lands in the gap
+     and not in front of it. */
+  const targetOver = (f: Drag, x: number, y: number): { id: string; after: boolean } | null => {
+    for (const c of f.cards) {
+      const r = c.rect
+      if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) return { id: c.id, after: false }
+    }
+    const b = f.boardRect
+    if (!layer || !b || x < b.left || x >= b.right || y < b.top || y >= b.bottom) return null
+    let last: string | null = null
+    if (layer.spots) {
+      const page = f.pages.find((p) => x >= p.rect.left && x < p.rect.right)
+      if (!page) return null
+      for (const v of layer.visible) {
+        const spotOf = layer.spots.get(v.id)
+        if (spotOf && spotOf.page === page.n && v.id !== id) last = v.id
+      }
+    } else {
+      for (const v of layer.visible) if (v.id !== id) last = v.id
+    }
+    return last ? { id: last, after: true } : null
+  }
+
+  /* The drop mark, as an attribute on the target and nothing else. */
+  const mark = (f: Drag, over: { id: string; after: boolean } | null) => {
+    f.overEl?.removeAttribute('data-drop-target')
+    f.overEl = over ? f.cards.find((c) => c.id === over.id)?.el ?? null : null
+    f.overEl?.setAttribute('data-drop-target', over?.after ? 'after' : '')
+  }
+
+  /* One frame per burst of pointermoves: the ghost's transform and the
+     hit-test, from wherever the pointer was last seen. A pointer reporting
+     at 120Hz is painted at the display's rate and hit-tested once a frame. */
+  const frame = (f: Drag) => {
+    if (f.raf) return
+    f.raf = requestAnimationFrame(() => {
+      f.raf = 0
+      const el = wrapRef.current
+      if (!el || drag.current !== f) return
+      if (f.stale) measure(f)
+      const sx = f.board ? f.board.scrollLeft - f.scroll : 0
+      el.style.transform = `translate3d(${f.lastX - f.x + sx}px, ${f.lastY - f.y}px, 0)`
+      const over = targetOver(f, f.lastX, f.lastY)
+      if (over?.id !== f.over?.id || over?.after !== f.over?.after) {
+        f.over = over
+        mark(f, over)
+        if (phone && over) buzz('tap')
+      }
+    })
+  }
+
+  /* Carrying: pointer capture, so the events keep coming from anywhere on
+     the screen — and through the ghost, which the stylesheet makes
+     pointer-transparent while it is carried. */
   const lift = (f: Drag, el: HTMLElement, pointerId: number) => {
     f.live = true
     try { el.setPointerCapture(pointerId) } catch { /* gone */ }
     f.scroll = f.board?.scrollLeft ?? 0
+  }
+
+  /* The ghost appears: attributes on the wrapper and on the board (no
+     state), the rectangles measured, and the two things that move them —
+     the pager scrolling under the finger when the edge timer turns a
+     page, the window resizing — watched, each re-measuring on its next
+     frame rather than in the event. */
+  const show = (f: Drag) => {
+    f.shown = true
+    const el = wrapRef.current
+    if (el) {
+      el.setAttribute('data-dragging', '')
+      el.style.zIndex = '40'
+    }
+    layer?.setDragging(id)
+    measure(f)
     if (f.board) {
-      /* The pager may scroll under the finger — the edge timer asks it to —
-         and the ghost is a grid child that scrolls with it, so the offset
-         is recomputed from the last pointer position on every scroll. */
       f.onScroll = () => {
-        const b = f.board
-        if (!b) return
-        setGhost({ dx: f.lastX - f.x + (b.scrollLeft - f.scroll), dy: f.lastY - f.y })
+        f.stale = true
+        frame(f)
       }
       f.board.addEventListener('scroll', f.onScroll, { passive: true })
     }
-    layer?.setDragging(id)
-    setGhost({ dx: 0, dy: 0 })
-    if (phone) buzz('select')
+    f.onResize = () => {
+      f.stale = true
+      frame(f)
+    }
+    window.addEventListener('resize', f.onResize)
   }
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1435,22 +1590,28 @@ export function Widget({
     const el = e.currentTarget
     const f: Drag = {
       x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY,
-      id: null, live: false, scroll: 0,
+      over: null, overEl: null, live: false, shown: false, scroll: 0,
       board: el.closest<HTMLElement>('.bento-board'),
+      boardRect: null, cards: [], pages: [], stale: false, raf: 0,
       edgeDir: 0,
     }
     drag.current = f
     if (phone) {
       const pointerId = e.pointerId
       f.hold = window.setTimeout(() => {
-        if (drag.current === f) lift(f, el, pointerId)
+        if (drag.current !== f) return
+        lift(f, el, pointerId)
+        show(f)
+        frame(f)
+        buzz('select')
       }, HOLD_TO_LIFT)
     } else {
       e.preventDefault()
+      /* Captured now, shown on the first real movement: a click is not a
+         drag, and a card that jumps on mousedown feels broken — and a
+         click that flipped the board's snap attribute twice was a board-
+         wide style change for nothing. */
       lift(f, el, e.pointerId)
-      /* No ghost until the pointer has actually moved: a click is not a
-         drag, and a card that jumps on mousedown feels broken. */
-      setGhost(null)
     }
   }
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1469,19 +1630,15 @@ export function Widget({
       }
       return
     }
-    if (!ghost && Math.hypot(dx, dy) < 6) return
-    const sx = f.board ? f.board.scrollLeft - f.scroll : 0
-    setGhost({ dx: dx + sx, dy })
-    const over = targetOver(e.clientX, e.clientY)
-    if (over !== f.id) {
-      f.id = over
-      layer.setDropTarget(over)
-      if (phone && over) buzz('tap')
+    if (!f.shown) {
+      if (Math.hypot(dx, dy) < DRAG_SLOP) return
+      show(f)
     }
+    frame(f)
     /* At the pager's edge, wait, then turn the page; keep turning while the
-       finger stays there. */
-    if (phone && f.board) {
-      const r = f.board.getBoundingClientRect()
+       finger stays there. Read against the cached rectangle. */
+    if (phone && f.board && f.boardRect) {
+      const r = f.boardRect
       const dir: -1 | 0 | 1 = e.clientX < r.left + EDGE ? -1 : e.clientX > r.right - EDGE ? 1 : 0
       if (dir !== f.edgeDir) {
         window.clearTimeout(f.edge)
@@ -1491,7 +1648,7 @@ export function Widget({
           const arm = () => {
             f.edge = window.setTimeout(() => {
               if (drag.current !== f) return
-              flipPage(b, dir)
+              flipPage(b, dir, layer.still)
               arm()
             }, EDGE_WAIT)
           }
@@ -1506,21 +1663,76 @@ export function Widget({
     if (!f) return
     window.clearTimeout(f.hold)
     window.clearTimeout(f.edge)
+    if (f.raf) cancelAnimationFrame(f.raf)
     if (f.onScroll) f.board?.removeEventListener('scroll', f.onScroll)
+    if (f.onResize) window.removeEventListener('resize', f.onResize)
     try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* not captured */ }
-    if (!layer) return
-    if (!f.live) return
+    if (!layer || !f.live || !f.shown) return
     layer.setDragging(null)
-    setGhost(null)
-    layer.setDropTarget(null)
-    if (commit && f.id) {
-      const to = layer.visible.findIndex((v) => v.id === f.id)
-      if (to >= 0) {
-        move(id, to, layer.visible)
+    mark(f, null)
+    const el = wrapRef.current
+    if (el) {
+      el.removeAttribute('data-dragging')
+      el.style.transform = ''
+      el.style.zIndex = ''
+    }
+    if (commit && f.over) {
+      const at = layer.visible.findIndex((v) => v.id === f.over?.id)
+      if (at >= 0) {
+        move(id, dropIndex(pos, at, f.over.after), layer.visible)
         if (phone) buzz('snap')
       }
     }
   }
+
+  /* KEYBOARD MOVES, from the remove button or the size pill. Alt (or Cmd,
+     which is what a Mac hand reaches for) with an arrow moves the card one
+     place earlier or later; a bare arrow moves focus to the same control on
+     the neighbouring card. Delete or Backspace removes the card and puts the
+     keyboard on Undo, which is the one thing somebody who just pressed
+     Delete may want. Keys arriving from inside an open menu — a portal, so
+     React bubbles them here — are the menu's. */
+  const onEditKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!layer) return
+    const target = e.target as HTMLElement
+    if (target.closest('[data-bento-menu],[data-colour-pop]')) return
+    const control = target.classList.contains('bento-sizebtn')
+      ? '.bento-sizebtn'
+      : target.classList.contains('bento-edit__remove') ? '.bento-edit__remove' : null
+    if (!control) return
+    const back = e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+    const fwd = e.key === 'ArrowRight' || e.key === 'ArrowDown'
+    if (back || fwd) {
+      e.preventDefault()
+      const dir = back ? -1 : 1
+      const to = pos + dir
+      if (to < 0 || to >= layer.visible.length) return
+      if (e.altKey || e.metaKey) {
+        move(id, to, layer.visible)
+        layer.say(t('bento.widgets.moved_to', { label, n: to + 1, total: layer.visible.length }))
+        buzz('tap')
+        return
+      }
+      cardEl(layer.visible[to].id)?.querySelector<HTMLElement>(control)?.focus()
+      return
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
+      remove(id)
+      layer.say(t('bento.widgets.removed_card', { label }))
+      layer.focusUndo()
+      buzz('tap')
+    }
+  }
+
+  /* THE QUICK MENU'S ROWS, judged here because the layer is what knows what
+     fits. Open follows the card's own link — the first one inside it — so it
+     opens exactly what a tap on the body opens, tab strip and all. */
+  const quickTiers: QuickTier[] = (phone ? PHONE_TIERS : TIERS).map((tier) => {
+    const d = dimsForTier(tier, phone)
+    return { tier, on: tier === tierOf(cw, ch, phone), ok: fitsAt(d.w, d.h) }
+  })
+  const cardLink = () => wrapRef.current?.querySelector<HTMLElement>('a[href]') ?? null
 
   return (
     <div
@@ -1533,16 +1745,15 @@ export function Widget({
          laid out side by side in one grid, so a card has to say which columns
          it occupies, and the only component that knows is the layer that
          packed it. Off the pager nothing is written. */
-      style={{
-        ...(spot
+      style={
+        spot
           ? {
               order,
               gridColumn: `${spot.page * PHONE_COLS + spot.col + 1} / span ${spot.w}`,
               gridRow: `${spot.row + 1} / span ${spot.h}`,
             }
-          : { order }),
-        ...(ghost ? { transform: `translate(${ghost.dx}px, ${ghost.dy}px)`, zIndex: 40 } : {}),
-      }}
+          : { order }
+      }
       data-widget-id={id}
       /* The stored size, as before: the [data-w]/[data-h] rules in index.css
          were measured against it, and a phone card reading data-w="1" would
@@ -1552,8 +1763,9 @@ export function Widget({
       data-tinted={tint ? 'true' : undefined}
       data-lead={lead ? '' : undefined}
       data-editing={editing ? '' : undefined}
-      data-dragging={ghost ? '' : undefined}
-      data-drop-target={layer?.dropTarget === id ? '' : undefined}
+      data-more={layer && !editing ? '' : undefined}
+      /* `data-dragging` and `data-drop-target` are written by the drag
+         itself, straight to the elements — see `Drag`. */
     >
       {/* The repointed palette is scoped to the CELL, not to the wrapper, so
           the editing controls keep the page's ink. On the phone the cell is
@@ -1566,6 +1778,32 @@ export function Widget({
           {children(span)}
         </WidgetSizeContext.Provider>
       </div>
+
+      {/* THE "…" OUTSIDE THE MODE: a sibling of the cell, after it, so the
+          keyboard reaches it after the card's link. Only inside a layer —
+          a card on a board nobody can arrange has no menu to offer. */}
+      {layer && !editing && (
+        <QuickMenu
+          label={label}
+          phone={phone}
+          tiers={quickTiers}
+          onOpen={() => cardLink()?.click()}
+          canOpen={() => cardLink() !== null}
+          onCustomize={() => layer.enterFor(id)}
+          onTier={(tier) => setTier(id, tier, phone, w)}
+          onHide={() => {
+            remove(id)
+            buzz('tap')
+          }}
+          colour={
+            <ColourPick
+              value={tint}
+              onPick={(c, coalesce) => recolour(id, c, cw, ch, coalesce)}
+              label={t('bento.widgets.colour_row')}
+            />
+          }
+        />
+      )}
 
       {editing && (
         /* THE EDIT SURFACE: transparent, over the whole card, so a press
@@ -1580,6 +1818,7 @@ export function Widget({
           onPointerMove={onMove}
           onPointerUp={(e) => endDrag(e, true)}
           onPointerCancel={(e) => endDrag(e, false)}
+          onKeyDown={onEditKey}
           /* Android answers the hold that lifts a card with a context menu;
              there is nothing here to put in one. */
           onContextMenu={(e) => e.preventDefault()}
@@ -1587,7 +1826,13 @@ export function Widget({
           <button
             type="button"
             onClick={() => {
+              /* The next card's remove button takes the keyboard — the
+                 previous card's when this was the last — or Done when the
+                 board is empty. This button unmounts with its card. */
+              const next = layer?.visible[pos + 1] ?? (pos > 0 ? layer?.visible[pos - 1] : null) ?? null
               remove(id)
+              layer?.say(t('bento.widgets.removed_card', { label }))
+              layer?.focusAfterRemove(next?.id ?? null)
               buzz('tap')
             }}
             aria-label={t('bento.widgets.remove_card', { label })}
@@ -1603,8 +1848,8 @@ export function Widget({
             phone={phone}
             fits={fitsAt}
             tint={tint}
-            onTier={(tier) => setTier(id, tier, phone)}
-            onTint={(c) => recolour(id, c, cw, ch)}
+            onTier={(tier) => setTier(id, tier, phone, w)}
+            onTint={(c, coalesce) => recolour(id, c, cw, ch, coalesce)}
           />
         </div>
       )}

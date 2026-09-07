@@ -234,6 +234,82 @@ export function SwitchRow({
   )
 }
 
+/* A SWITCH WITH A SIZE BESIDE IT — one row per card in Dashboard Widgets.
+
+   The board's own controls are a switch (on the board or not) and a size
+   pill, and Settings should offer the same two without inventing a third
+   composition: the card's name, its current size as a word, and the switch.
+   The word is a native select underneath, the way SelectRow does it, so the
+   size changes in place; it is a SEPARATE control from the switch because a
+   `<button role="switch">` may not contain a `<select>`. Both keep the row's
+   44px and read the same INK. Sizes that will not fit are disabled rather
+   than hidden, exactly as the pill on the board does. */
+export function SwitchSelectRow<T extends string>({
+  label, on, onToggle, value, options, name, onPick, disabled, selectLabel, helper,
+}: {
+  label: string
+  on: boolean
+  onToggle: () => void
+  value: T
+  options: readonly T[]
+  name: (v: T) => string
+  onPick: (v: T) => void
+  disabled?: (v: T) => boolean
+  /** The select's accessible name: "Size of Attendance", not "Attendance". */
+  selectLabel: string
+  helper?: ReactNode
+}) {
+  return (
+    <div
+      data-row=""
+      className={cn(
+        'flex min-h-[var(--srow-h,44px)] w-full items-center justify-between gap-3 px-[16px] py-[var(--srow-py,10px)]',
+        INK,
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span className={cn(LABEL, 'block truncate')}>{label}</span>
+        {helper && <span className={HELPER}>{helper}</span>}
+      </span>
+      {on && (
+        <span className={cn('relative inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5', RING)} data-size-select="">
+          <span className={cn(VALUE, 'text-[13px]')}>{name(value)}</span>
+          <ChevronRight className="size-4 rotate-90 opacity-60" aria-hidden="true" />
+          <select
+            aria-label={selectLabel}
+            value={value}
+            onChange={(e) => onPick(e.target.value as T)}
+            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+          >
+            {options.map((o) => (
+              <option key={o} value={o} disabled={disabled?.(o)}>{name(o)}</option>
+            ))}
+          </select>
+        </span>
+      )}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={onToggle}
+        className={cn(
+          'relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
+          on ? 'bg-[var(--bento-ink)] !border-[var(--bento-ink)]' : cn('bg-transparent', EDGE),
+          RING,
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-[3px] size-[16px] rounded-full transition-[left]',
+            on ? 'left-[19px] bg-[var(--bento-card)]' : 'left-[3px] bg-[var(--bento-ink)]',
+          )}
+        />
+      </button>
+    </div>
+  )
+}
+
 /* TWO STATES, BOTH SHOWN.
 
    Sidebar and Focus are not a scale and not a list: they are two shapes of

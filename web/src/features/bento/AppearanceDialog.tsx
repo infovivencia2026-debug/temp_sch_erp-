@@ -17,7 +17,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SegmentRow, SelectRow, SliderRow, SwitchRow } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
@@ -25,7 +25,13 @@ import { useFullScreen } from '@/lib/fullscreen'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
 import { useLayout as useFrameLayout, LAYOUTS, type Layout } from '@/lib/layout'
-import { useBoard, useLayout, isRemoved, DIMS, requestArrange } from '@/lib/widgets'
+import {
+  useBoard, useLayout, isRemoved, dimsOf, orderOf, rowsNeeded, DIMS, BOARD_ROWS, requestArrange,
+  type BoardWidget,
+} from '@/lib/widgets'
+import { tierOf, dimsForTier, tierLabelKey, TIERS, PHONE_TIERS, type SizeTier } from '@/lib/size-tiers'
+import { usePhone } from '@/lib/viewport'
+import { clampSpan, clampRows } from './bento-kit'
 import { useNavigate } from 'react-router-dom'
 import { useOverlayHistory } from '@/lib/overlay-history'
 
@@ -1419,27 +1425,29 @@ function AppearanceActions({ onClose }: { onClose: () => void }) {
    the screens that do not. */
 function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
   const { dashboard, widgets, setArranging } = useBoard()
-  const { layout, place, remove, reset } = useLayout(dashboard ?? 'none')
+  const { layout, place, remove, reset, setTier } = useLayout(dashboard ?? 'none')
   const navigate = useNavigate()
   const role = useActiveRole()
+  const phone = usePhone()
   const t = useT()
   /* THE DOOR WORKS FROM ANYWHERE.
 
      On a phone, Settings is a route and the board is unmounted underneath
      it, so "Arrange" had nothing to arrange and this section said "open a
      dashboard first" — from the one screen a person goes to looking for the
-     control. Edit home now goes to the home screen and parks the intent,
-     which the board picks up the moment it publishes (requestArrange). With
-     the board already mounted, in the desktop dialog, it simply switches on. */
+     control. Customize board now goes to the home screen and parks the
+     intent, which the board picks up the moment it publishes
+     (requestArrange). With the board already mounted, in the desktop dialog,
+     it simply switches on. */
   const home = (() => {
     if (!role) return null
     const h = role.sections.find((s) => s.slug === 'home')
     const f = h?.features.find(usable)
     return h && f ? featurePath(role.key, h.slug, f.slug) : null
   })()
-  const editHome = (
+  const customize = (
     <NavRow
-      label={t('bento.widgets.edit_home')}
+      label={t('bento.widgets.customize_board')}
       onClick={() => {
         if (dashboard) {
           setArranging(true)
@@ -1456,24 +1464,66 @@ function DashboardWidgets({ onArrange }: { onArrange: () => void }) {
   if (!dashboard || widgets.length === 0) {
     return (
       <>
-        {home && editHome}
+        {home && customize}
         <Row label="Cards" helper="Open a dashboard first; its cards are listed here." />
       </>
     )
   }
   const arranged = layout.placed.length > 0 || layout.removed.length > 0
+
+  /* ON THE BOARD, OR NOT — the layer's own rule, restated: an explicit
+     placement wins, then a removal, and an `optional` card that was never
+     placed is off. The old switch read only the removed list, so a card
+     waiting in the add tray showed as on. */
+  const isOn = (w: BoardWidget) => {
+    if (layout.placed.some((p) => p.id === w.id)) return true
+    if (isRemoved(layout, w.id)) return false
+    return !w.optional
+  }
+  /* The size each card is DRAWN at, clamped the way the layer clamps it, in
+     the order the grid lays them out — because "will this still fit?" is a
+     packing question and packing depends on order. */
+  const drawn = (w: BoardWidget) => {
+    const d = dimsOf(layout, w.id, w.size)
+    return { w: clampSpan(d.w), h: clampRows(d.h) }
+  }
+  const on = widgets
+    .filter(isOn)
+    .slice()
+    .sort((a, b) => orderOf(layout, a.id, a.index) - orderOf(layout, b.id, b.index))
+  /* THE SAME FIT RULE AS THE PILL ON THE BOARD. On the desk a size is offered
+     only if the whole board still packs into its rows with this card at that
+     size; on the phone every size fits, because a page is added rather than
+     a card dropped. The size a card is already at is always offered, so the
+     select can never show a value it refuses. */
+  const fits = (id: string, tier: SizeTier) => {
+    if (phone) return true
+    const dims = on.map((w) => (w.id === id ? dimsForTier(tier, false) : drawn(w)))
+    return rowsNeeded(dims) <= BOARD_ROWS
+  }
+  const tiers = phone ? PHONE_TIERS : TIERS
+  const name = (tier: SizeTier) => t(tierLabelKey(tier) as Parameters<typeof t>[0])
+
   return (
     <>
-      {editHome}
-      {arranged && <NavRow label="Reset layout" onClick={reset} />}
+      {customize}
+      {arranged && <NavRow label={t('bento.widgets.reset')} onClick={reset} />}
       {widgets.map((w) => {
-        const off = isRemoved(layout, w.id)
+        const shown = isOn(w)
+        const d = drawn(w)
+        const tier = tierOf(d.w, d.h, phone)
         return (
-          <SwitchRow
+          <SwitchSelectRow
             key={w.id}
             label={w.label}
-            on={!off}
-            onToggle={() => (off ? place(w.id, DIMS[w.size].w, DIMS[w.size].h) : remove(w.id))}
+            on={shown}
+            onToggle={() => (shown ? remove(w.id) : place(w.id, DIMS[w.size].w, DIMS[w.size].h))}
+            value={tier}
+            options={tiers}
+            name={name}
+            disabled={(v) => v !== tier && !fits(w.id, v)}
+            selectLabel={t('bento.widgets.size_of', { label: w.label })}
+            onPick={(v) => setTier(w.id, v, phone)}
           />
         )
       })}

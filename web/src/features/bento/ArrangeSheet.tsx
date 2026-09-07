@@ -34,6 +34,8 @@ export function ArrangeSheet({
   declared,
   visible,
   onDone,
+  shown = true,
+  still = false,
 }: {
   dashboard: string
   /** Every card the board knows, in mount order. */
@@ -41,6 +43,12 @@ export function ArrangeSheet({
   /** The ones on the board, in the order they are drawn. */
   visible: BoardWidget[]
   onDone: () => void
+  /** False for the frame before the enter and the beat after the exit: the
+      sheet is mounted and off the bottom edge. The layer drives it with
+      useEnterExit, the same way it drives the menus. */
+  shown?: boolean
+  /** Reduce motion: the slide is instant. */
+  still?: boolean
 }) {
   const t = useT()
   const { layout, place, remove, move } = useLayout(dashboard)
@@ -76,7 +84,9 @@ export function ArrangeSheet({
     const to = Math.max(0, Math.min(drag.list.length - 1, drag.from + Math.round(dy / ROW_H)))
     if (to !== lastTo.current) {
       lastTo.current = to
-      move(drag.id, to, drag.list)
+      /* Every crossing writes, so the board follows the finger — and every
+         crossing is the same gesture, so Undo takes the drag back whole. */
+      move(drag.id, to, drag.list, true)
       buzz('tap')
     }
     setDrag({ ...drag, dy, to })
@@ -121,6 +131,8 @@ export function ArrangeSheet({
         aria-modal="false"
         aria-label={t('bento.widgets.sheet_title')}
         data-arrange-sheet=""
+        data-shown={shown ? '' : undefined}
+        data-still={still ? '' : undefined}
         style={{ '--ink-here': INK_HERE_FROM_PAGE } as CSSProperties}
       >
         <div className="bento-sheet__grip" aria-hidden="true" />

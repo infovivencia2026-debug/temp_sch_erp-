@@ -216,6 +216,16 @@ scripts/      deploy.sh (runs on the server)
 tests/        integration tests (need a database)
 ```
 
+### The dashboard board
+
+Every role's home is a board of cards under `web/src/features/bento/`, and
+each board can be customized by the person looking at it — cards removed,
+resized to Small/Medium/Large/Wide, recoloured, dragged, or added back from
+a gallery — with the arrangement kept per dashboard in the browser. How the
+mode is entered on a phone and on a desk, what each size means on either,
+where it is stored, how a screen declares a card with its default size, and
+which tests guard it are all in [docs/board-customize.md](docs/board-customize.md).
+
 ## Local development
 
 Needs Go 1.25+, Node 22+, PostgreSQL. (No Redis: the job queue is in Postgres.)

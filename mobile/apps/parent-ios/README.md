@@ -21,7 +21,7 @@ direct counterpart in the Android `MainActivity` with the same wording.
 | Three different failures — wifi off, school unreachable, server 5xx — say three different things; cache is tried before the panel; the network coming back retries by itself | `Shell/WebShell.swift` (`Failure`, `failed`, `networkReturned`), `Shell/NetworkWatch.swift` |
 | A page that is still readable gets a banner rather than being replaced | `showBanner`, `Views/BannerView.swift` |
 | Pull to refresh that only fires when the *page* says its scroller is at the top | `Shell/PullToRefresh.swift`, `setAtTop` over the bridge |
-| The `window.ErpShell` bridge the site already speaks: `setAtTop`, `setAppLock`, `appLockEnabled`, `biometricsAvailable`, `haptic` | `Shell/BridgeScript.swift`, `WebShell.receive` |
+| The `window.ErpShell` bridge the site already speaks: `setAtTop`, `setGestureLock`, `setAppLock`, `appLockEnabled`, `biometricsAvailable`, `haptic` | `Shell/BridgeScript.swift`, `WebShell.receive` |
 | App lock behind Face ID / Touch ID / passcode after a minute away; no snapshot kept while it is on | `Shell/AppLock.swift`, `Views/LockView.swift` |
 | Attachments download into Files › EDU CLOUD with the session cookie; non-renderable inline documents open in Quick Look | `Shell/Downloads.swift`, `Shell/ContentDisposition.swift` |
 | Anything not the school opens in Safari; a link from another app must name the portal host and one of `/`, `/account`, `/go/` | `decidePolicyFor`, `Shell/DeepLink.swift`, `Config/Parent.entitlements` |

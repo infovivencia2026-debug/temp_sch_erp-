@@ -25,7 +25,7 @@ vi.mock('./bento-kit', () => ({
   useReduceMotion: () => true,
 }))
 
-import { AddGallery, type GalleryItem, type SizeTier } from './AddGallery'
+import { AddGallery, placePanel, type GalleryItem, type SizeTier } from './AddGallery'
 
 const ITEMS: GalleryItem[] = [
   { id: 'fees', label: 'Fees due', hint: 'What is outstanding', tiers: ['small', 'medium', 'large', 'wide'], defaultTier: 'medium' },
@@ -190,6 +190,75 @@ describe('AddGallery', () => {
   })
 })
 
+/* ── modal only where it is ─────────────────────────────────────────────── */
+
+describe('the dialog is modal only as the phone sheet', () => {
+  it('the desk popover leaves the page live and says so', async () => {
+    await render()
+    expect(panel()!.getAttribute('aria-modal')).toBeNull()
+  })
+  it('the phone sheet, with its backdrop, is modal', async () => {
+    await render({ phone: true })
+    expect(panel()!.getAttribute('aria-modal')).toBe('true')
+  })
+})
+
+/* ── where the desk popover goes ────────────────────────────────────────── */
+
+/* jsdom lays nothing out, so the placement is a pure function of three
+   rectangles and is held to its rule here. The Add button lives on a bar
+   fixed at the foot of the screen: the case that used to draw the whole
+   panel below the viewport. */
+describe('placePanel', () => {
+  const vp = { width: 1280, height: 800 }
+  const panel = { width: 640, height: 640 }
+
+  it('hangs below an anchor near the top', () => {
+    const p = placePanel({ top: 40, bottom: 72, left: 100 }, panel, vp)
+    expect(p.up).toBe(false)
+    expect(p.top).toBe(78)
+    expect(p.bottom).toBeUndefined()
+    expect(p.maxHeight).toBe(640)
+    expect(p.left).toBe(100)
+    expect(p.width).toBe(640)
+  })
+
+  it('opens above an anchor at the foot of the screen, hugging it from below', () => {
+    const p = placePanel({ top: 748, bottom: 780, left: 320 }, panel, vp)
+    expect(p.up).toBe(true)
+    expect(p.top).toBeUndefined()
+    expect(p.bottom).toBe(800 - 748 + 6)
+    expect(p.maxHeight).toBe(640)
+    expect(p.bottom! + p.maxHeight, 'ends inside the viewport').toBeLessThanOrEqual(800 - 8)
+  })
+
+  it('caps the height to the room on the chosen side, so it scrolls inside, never under 200', () => {
+    const p = placePanel({ top: 400, bottom: 432, left: 0 }, panel, { width: 1280, height: 600 })
+    expect(p.up, 'more room above than below').toBe(true)
+    expect(p.maxHeight).toBe(400 - 6 - 8)
+    expect(p.bottom).toBe(600 - 400 + 6)
+    const q = placePanel({ top: 120, bottom: 152, left: 0 }, panel, { width: 1280, height: 300 })
+    expect(q.up, 'more room below').toBe(false)
+    expect(q.maxHeight).toBe(200)
+    expect(q.top).toBe(300 - 8 - 200)
+    expect(q.top! + q.maxHeight).toBeLessThanOrEqual(300 - 8)
+  })
+
+  it('keeps the panel inside the viewport sideways', () => {
+    const p = placePanel({ top: 40, bottom: 72, left: 1000 }, panel, vp)
+    expect(p.left).toBe(1280 - 640 - 8)
+    const n = placePanel({ top: 40, bottom: 72, left: 300 }, panel, { width: 500, height: 800 })
+    expect(n.width).toBe(500 - 16)
+    expect(n.left).toBe(8)
+  })
+
+  it('a viewport shorter than the minimum gets the viewport', () => {
+    const p = placePanel({ top: 50, bottom: 80, left: 0 }, panel, { width: 400, height: 150 })
+    expect(p.maxHeight).toBe(150 - 16)
+    expect(p.top).toBe(8)
+  })
+})
+
 /* ── no source names a colour ───────────────────────────────────────────── */
 
 describe('the gallery names no colour', () => {
@@ -206,5 +275,22 @@ describe('the gallery names no colour', () => {
   it('the stylesheet states every strength through currentColor mixes', () => {
     const css = code(readFileSync(resolve(process.cwd(), files[1]), 'utf8'))
     expect(css).toMatch(/color-mix\(in srgb, currentColor/)
+  })
+
+  /* The mode's chrome in bento-theme.css — the bar, the menu, the pill, the
+     remove button, the sheet, the wheel's pop, the empty plate — is held to
+     the same rule, over the block between its two headers. bento-cards.test
+     scans a .tsx; nothing scanned this stylesheet before. */
+  it('the customize block of bento-theme.css names no colour either', () => {
+    const theme = readFileSync(resolve(process.cwd(), 'src/features/bento/bento-theme.css'), 'utf8')
+    const start = theme.indexOf("/* ── The mode's motion and chrome tokens")
+    const end = theme.indexOf('/* THE ICON SIZE SETTING REACHES THE TABS')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const block = code(theme.slice(start, end))
+    expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+    expect(block).not.toMatch(/\b(rgba?|hsla?)\s*\(/)
+    expect(block).toMatch(/color-mix\(in srgb, currentColor/)
+    expect(block).toMatch(/var\(--bento-pop-shadow\)/)
   })
 })

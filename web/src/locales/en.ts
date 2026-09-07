@@ -2483,6 +2483,10 @@ export const en = {
   'bento.widgets.hidden': 'Hidden',
   'bento.widgets.size': 'Size',
   'bento.widgets.size_of': 'Size of {label}',
+  /* The board with every card taken off, while customizing: what it says
+     where the cards were, and the button that opens the Add gallery. */
+  'bento.widgets.empty_board': 'Nothing on the board',
+  'bento.widgets.add_cards': 'Add cards',
   /* AddGallery.tsx — the "Add a card" gallery, on the desk's arrange bar and
      the phone's sheet. The size names are `bento.size.*` above, shared with
      the picker. */
@@ -2684,6 +2688,43 @@ export const en = {
   'bento.welfare.activity.published': 'Published',
   'bento.welfare.activity.published_note': 'In front of families now.',
   'bento.welfare.activity.nothing_published': 'Nothing has been published.',
+  /* The card's quick menu and keyboard moves in customize mode. */
+  'bento.widgets.more_for': 'More for {label}',
+  'bento.widgets.open': 'Open',
+  'bento.widgets.hide': 'Hide',
+  'bento.widgets.moved_to': '{label} moved to position {n} of {total}',
+  'bento.widgets.removed_card': '{label} removed. Undo is in the toolbar.',
+  /* The launcher's app grid: the pinned row a person curates, the "…" on a
+     tile that offers to pin it, and the keyboard hint for a grid rather than
+     a list. */
+  'bento.launcher.pinned': 'Pinned',
+  'bento.launcher.pin': 'Pin',
+  'bento.launcher.unpin': 'Unpin',
+  'bento.launcher.more_for': 'More for {name}',
+  'bento.launcher.pinned_note': '{name} pinned',
+  'bento.launcher.unpinned_note': '{name} unpinned',
+  'bento.launcher.grid_hint': 'Arrows to move, Enter to open, Esc to close',
+  /* THE DOCK'S MENU AND THE TAB STRIP'S, which share one popover (Menu.tsx).
+     "Customize board" is the name the mode's own bar uses for itself
+     (bento.widgets.customize); the ellipsis marks the rows that open
+     something further rather than acting at once. */
+  'bento.menu.customize': 'Customize board',
+  'bento.menu.add_card': 'Add card…',
+  'bento.menu.appearance': 'Appearance…',
+  'bento.menu.board_settings': 'Board settings…',
+  'bento.menu.settings': 'Settings…',
+  /* The tab strip's context menu. Desktop only, like the strip. */
+  'tabs.menu.right': 'Open to the right',
+  'tabs.menu.left': 'Open to the left',
+  'tabs.menu.up': 'Open above',
+  'tabs.menu.down': 'Open below',
+  'tabs.menu.max': '{n} max',
+  'tabs.menu.unsplit': 'Back to one pane',
+  'tabs.menu.close': 'Close tab',
+  // Customize mode, from Settings and from the coach mark (CustomizeCoach.tsx).
+  'bento.widgets.customize_board': 'Customize board',
+  'bento.coach.hold': 'Hold a card to customize',
+  'bento.coach.desk': 'Customize your board',
 } as const
 
 /** Every key the product has extracted. A locale file is a `Partial` of this,

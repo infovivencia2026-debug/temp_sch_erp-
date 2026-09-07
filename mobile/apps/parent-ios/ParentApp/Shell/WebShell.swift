@@ -115,6 +115,12 @@ final class WebShell: NSObject, ObservableObject {
        moment. Refusing is the safe direction. */
     private var atTop = false
 
+    /* Whether the page has the finger: the board being customised, a card
+       being carried. Reported through the bridge by the script in
+       BridgeScript; the pull gesture stays out while it is set. False until
+       the page says otherwise, and false again on every new document. */
+    private var pageBusy = false
+
     private var foreground = false
     private var leftAt: Date?
     private var firstActivation = true
@@ -185,6 +191,7 @@ final class WebShell: NSObject, ObservableObject {
         })
 
         pullGesture.canScrollUp = { [weak self] in !(self?.atTop ?? false) }
+        pullGesture.pageBusy = { [weak self] in self?.pageBusy ?? false }
         pullGesture.onRefresh = { [weak self] in self?.webView.reload() }
         pullGesture.onChange = { [weak self] travel, alpha, visible in
             self?.pull = Pull(travel: travel, alpha: alpha, visible: visible)
@@ -514,6 +521,8 @@ extension WebShell {
         switch kind {
         case "atTop":
             atTop = (body["value"] as? Bool) ?? false
+        case "gestureLock":
+            pageBusy = (body["value"] as? Bool) ?? false
         case "appLock":
             AppLock.enabled = (body["value"] as? Bool) ?? false
         case "haptic":
@@ -617,6 +626,8 @@ extension WebShell: WKNavigationDelegate {
        something worth looking at. Revealing here is what keeps the splash
        from handing over to an empty frame. */
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        // A new document: whatever the last one held, it has let go.
+        pageBusy = false
         committed(webView.url)
     }
 

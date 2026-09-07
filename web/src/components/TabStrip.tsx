@@ -1,14 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { X } from 'lucide-react'
+import {
+  Columns2, PanelBottom, PanelLeft, PanelRight, PanelTop, Pencil, Plus, SlidersHorizontal, X,
+} from 'lucide-react'
 import { useCatalog, screenTitle } from '@/lib/catalog'
 import { useTabs, neighbourOf, MAX_TABS } from '@/lib/tabs'
-import { usePanes, isHomeBoard, type Side } from '@/lib/panes'
-import TabMenu, { type MenuTarget } from '@/components/TabMenu'
+import { usePanes, isHomeBoard, MAX_PANES, type Side } from '@/lib/panes'
+import { Menu } from '@/features/bento/Menu'
 import { useLayout } from '@/lib/layout'
+import { useT } from '@/lib/i18n'
 import { requestArrange } from '@/lib/widgets'
 import { requestAppearance } from '@/lib/appearance-request'
 import { cn } from '@/lib/utils'
+import '@/features/bento/dock-menus.css'
 
 /* The tab strip. Desktop only — see lib/tabs.ts for why that is a decision
    rather than a breakpoint.
@@ -16,16 +20,35 @@ import { cn } from '@/lib/utils'
    It names the screen from the CATALOGUE rather than from the page, because a
    tab has to have its label before the screen it points at has loaded. Reading
    an <h1> would leave every freshly-opened tab briefly blank and then jump. */
+
+/* What a right-click on a tab opens. The anchor is the tab button itself:
+   the popover hangs under it, and focus goes back to it on close. */
+interface MenuTarget {
+  path: string
+  title: string
+  anchor: HTMLElement
+}
+
+const SIDES: { side: Side; key: 'tabs.menu.right' | 'tabs.menu.left' | 'tabs.menu.up' | 'tabs.menu.down'; icon: typeof PanelRight }[] = [
+  { side: 'right', key: 'tabs.menu.right', icon: PanelRight },
+  { side: 'left', key: 'tabs.menu.left', icon: PanelLeft },
+  { side: 'up', key: 'tabs.menu.up', icon: PanelTop },
+  { side: 'down', key: 'tabs.menu.down', icon: PanelBottom },
+]
+
 export default function TabStrip() {
   const { pathname, search } = useLocation()
   const here = pathname + search
   const navigate = useNavigate()
   const catalog = useCatalog()
+  const t = useT()
   const { tabs, open, close } = useTabs()
   const { paths, split, closeSplit } = usePanes()
   const { layout } = useLayout()
   const [menu, setMenu] = useState<MenuTarget | null>(null)
   const activeRef = useRef<HTMLDivElement | null>(null)
+  /* Referentially stable: the popover's document listeners depend on it. */
+  const dismiss = useCallback(() => setMenu(null), [])
 
   /* KEEP THE TAB YOU ARE ON IN SIGHT.
    *
@@ -86,6 +109,45 @@ export default function TabStrip() {
     if (split(side, path, here)) navigate(path)
   }
 
+  /* THE MENU BEHIND A RIGHT-CLICK, on the same popover every menu on the
+     board uses (features/bento/Menu.tsx): it hangs under the tab, walks with
+     the arrow keys, catches its own Escape and hands focus back to the tab.
+
+     It offers the same four directions whether or not the work area is
+     already split, because "split this off to the right" and "add another
+     one to the right" are the same intention and a menu that renames itself
+     between them makes somebody read it twice. What changes with a split is
+     what else is there: a way back to one pane, and — once four are open —
+     four directions that say plainly they are full rather than doing nothing
+     when pressed.
+
+     A Home board in the Focus layout is the one tab whose menu is not about
+     panes at all. Showing it four disabled directions was the first attempt
+     and it was wrong: a dashboard is not short of things somebody might want
+     from it — it is the one screen in the product meant to be rearranged —
+     so the space goes to that instead. In the classic layout Home is an
+     ordinary page and splits like any other. */
+  const board = menu !== null && layout === 'bento' && isHomeBoard(menu.path)
+  const paneCount = Math.max(paths.length, 1)
+  const full = paneCount >= MAX_PANES
+
+  /* The board has to be the one on screen before anything can be done to it:
+     the arranger reads whichever dashboard is currently published, not
+     whichever tab was right-clicked. */
+  const onBoard = (then: () => void) => {
+    if (!menu) return
+    if (menu.path !== here) navigate(menu.path)
+    then()
+    dismiss()
+  }
+  /* Parked rather than set: navigating unmounts the old board, and that
+     unmount clears arrange mode. The next board to publish picks it up.
+
+     "Add card…" goes to the same place. The mode's bar holds Add, and the
+     gallery it opens is state private to WidgetLayer with no request hook,
+     so the nearest this row can land is the bar with Add on it. */
+  const customize = () => onBoard(requestArrange)
+
   return (
     <div
       role="tablist"
@@ -128,7 +190,11 @@ export default function TabStrip() {
             ref={active ? activeRef : undefined}
             onContextMenu={(e) => {
               e.preventDefault()
-              setMenu({ path: t.path, title: t.title, x: e.clientX, y: e.clientY })
+              // Anchored on the tab button, not the box: the popover hangs
+              // under the tab, and the tab is the focusable thing focus can
+              // return to when the menu closes.
+              const anchor = e.currentTarget.querySelector<HTMLElement>('[role="tab"]') ?? e.currentTarget
+              setMenu({ path: t.path, title: t.title, anchor })
             }}
             className={cn(
               /* THE STRIP SCROLLS; THE TABS DO NOT SHRINK.
@@ -209,46 +275,80 @@ export default function TabStrip() {
           {MAX_TABS} max
         </span>
       )}
-      {menu && (
-        <TabMenu
-          target={menu}
-          paneCount={Math.max(paths.length, 1)}
-          /* A Home board in the Focus layout is the one tab whose menu is not
-             about panes at all. In the classic layout Home is an ordinary page
-             and splits like any other. */
-          board={
-            layout === 'bento' && isHomeBoard(menu.path)
-              ? {
-                  onAddWidget: () => {
-                    // The board has to be the one on screen before anything can
-                    // be added to it: the arranger reads whichever dashboard is
-                    // currently published, not whichever tab was right-clicked.
-                    if (menu.path !== here) navigate(menu.path)
-                    requestAppearance('dashboard')
-                    setMenu(null)
-                  },
-                  onEdit: () => {
-                    if (menu.path !== here) navigate(menu.path)
-                    // Parked rather than set: navigating unmounts the old
-                    // board, and that unmount clears arrange mode. The next
-                    // board to publish picks the intent up.
-                    requestArrange()
-                    setMenu(null)
-                  },
-                }
-              : undefined
-          }
-          onSplit={(side) => { doSplit(side, menu.path); setMenu(null) }}
-          onUnsplit={() => { closeSplit(); setMenu(null) }}
-          onClose={() => {
-            const to = menu.path === here ? neighbourOf(menu.path) : null
-            close(menu.path)
-            if (to) navigate(to)
-            setMenu(null)
-          }}
-          onDismiss={() => setMenu(null)}
-        />
-      )}
+      <Menu open={menu !== null} anchor={menu?.anchor ?? null} label={menu?.title ?? ''} onClose={dismiss} width={232}>
+        {menu && (
+          <>
+            <div className="bento-menu__title">{menu.title}</div>
+            {board ? (
+              <>
+                <Row icon={Plus} label={t('bento.menu.add_card')} onSelect={customize} />
+                <Row icon={Pencil} label={t('bento.menu.customize')} onSelect={customize} />
+                <Row
+                  icon={SlidersHorizontal}
+                  label={t('bento.menu.board_settings')}
+                  onSelect={() => onBoard(() => requestAppearance('dashboard'))}
+                />
+              </>
+            ) : (
+              SIDES.map(({ side, key, icon }) => (
+                <Row
+                  key={side}
+                  icon={icon}
+                  label={t(key)}
+                  hint={full ? t('tabs.menu.max', { n: MAX_PANES }) : undefined}
+                  disabled={full}
+                  onSelect={() => { doSplit(side, menu.path); dismiss() }}
+                />
+              ))
+            )}
+            <div className="bento-menu__rule" role="separator" />
+            {paneCount > 1 && (
+              <Row icon={Columns2} label={t('tabs.menu.unsplit')} onSelect={() => { closeSplit(); dismiss() }} />
+            )}
+            <Row
+              icon={X}
+              label={t('tabs.menu.close')}
+              onSelect={() => {
+                const to = menu.path === here ? neighbourOf(menu.path) : null
+                close(menu.path)
+                if (to) navigate(to)
+                dismiss()
+              }}
+            />
+          </>
+        )}
+      </Menu>
     </div>
+  )
+}
+
+/* One row of the menu, in the popover's own vocabulary: `bento-menu__item`
+   is what the arrow keys walk and what the stylesheet paints; a disabled
+   row is skipped by the keys and does not light under a pointer. */
+function Row({
+  icon: Icon,
+  label,
+  hint,
+  disabled,
+  onSelect,
+}: {
+  icon: typeof PanelRight
+  label: string
+  hint?: string
+  disabled?: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onSelect}
+      className="bento-menu__item"
+    >
+      <Icon aria-hidden="true" />
+      <span className="bento-menu__label">{label}</span>
+      {hint && <span className="bento-menu__hint">{hint}</span>}
+    </button>
   )
 }

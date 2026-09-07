@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import CustomizeCoach from '@/features/bento/CustomizeCoach'
 
 /* The first morning.
 
@@ -140,7 +141,11 @@ export default function FirstRunTour() {
   }, [finish])
   // The phone's Back dismisses the tour, like every overlay: see overlay-history.ts.
   useOverlayHistory(showing, dismiss)
-  if (!showing) return null
+  /* The board's one-line coach mark rides along here because this is where
+     first-time teaching lives; it waits while the tour is up so the screen
+     never teaches two things at once. See CustomizeCoach.tsx. */
+  const coach = <CustomizeCoach hold={showing} />
+  if (!showing) return coach
   const steps = stepsFor(data)
   const step = steps[at]
   const Icon = step.icon
@@ -149,6 +154,8 @@ export default function FirstRunTour() {
   const close = dismiss
 
   return (
+    <>
+    {coach}
     <div
       className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4"
       /* Fixed elements escape the body's notch padding; the card should
@@ -231,5 +238,6 @@ export default function FirstRunTour() {
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -40,7 +40,14 @@ export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
     Small is the top half of a page and Large is a whole page. Medium and
     Wide are the same shape as Small — the phone has no width to give them —
     and `tierOf` reports either of them back as Small, so the picker on a
-    phone shows two sizes and never claims a third. */
+    phone shows two sizes and never claims a third.
+
+    THE WIDTH HERE IS NEVER WRITTEN BY THE BOARD. `paginate` draws every
+    phone card at the page width whatever is stored, and the store's
+    `setTier` keeps a card's existing width when the phone picks a tier, so
+    a 1x1 desk card made Small on the phone stays 1x1 and the desk still
+    reads it as Small. The `w` column exists so that `dimsForTier` returns a
+    whole shape for a card that has no width yet. */
 export const PHONE_TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   small: { w: 2, h: 1 },
   medium: { w: 2, h: 1 },

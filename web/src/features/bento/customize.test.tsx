@@ -35,8 +35,15 @@ vi.mock('./bento-kit', async (importOriginal) => ({
   useReduceMotion: () => true,
 }))
 
+/* The colour wheel paints a canvas; jsdom has no 2D context. The rest of
+   ColourDialog — the page-ink constant the chrome reads — stays real. */
+vi.mock('./ColourDialog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./ColourDialog')>()),
+  WheelCanvas: () => <div data-wheel="" />,
+}))
+
 import { WidgetLayer, Widget } from './WidgetLayer'
-import { setArranging } from '@/lib/widgets'
+import { setArranging, dropIndex } from '@/lib/widgets'
 import type { WidgetSize } from '@/lib/widgets'
 import type { CellSpan } from './bento-kit'
 
@@ -76,25 +83,60 @@ function Board({ dashboard }: { dashboard: string }) {
   )
 }
 
+/* THE SAME BOARD WITH A RENDER COUNTER inside card A's content: what a
+   cell's queries and charts would be. A drag must not touch it. */
+let probeRenders = 0
+function Probe() {
+  probeRenders++
+  return <span>probe</span>
+}
+function ProbeBoard({ dashboard }: { dashboard: string }) {
+  return (
+    <div className="bento-board">
+      <WidgetLayer dashboard={dashboard}>
+        {CARDS.map((c, i) => (
+          <Widget key={c.id} id={c.id} label={`Card ${c.id.toUpperCase()}`} size={c.size} index={i}>
+            {(span: CellSpan) => (
+              <a href={`#${c.id}`} className="bento-cell" data-span={span}>
+                {c.id === 'a' ? <Probe /> : c.id}
+              </a>
+            )}
+          </Widget>
+        ))}
+      </WidgetLayer>
+    </div>
+  )
+}
+
 let host: HTMLDivElement
 let root: Root
 
 const stored = () =>
   JSON.parse(localStorage.getItem(`erp.widgets.${dashboard}`) ?? '{"placed":[],"removed":[]}') as {
-    placed: { id: string; w: number; h: number }[]
+    placed: { id: string; w: number; h: number; tint?: { h: number; s: number; l: number } }[]
     removed: string[]
   }
+
+/* One animation frame, inside act: the mode's first focus, a drag's paint
+   and the focus after a removal all land on a frame. */
+const frame = () =>
+  act(async () => {
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+  })
 
 const key = (k: string) =>
   document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
 
-async function mount() {
+/* Mounted, in the mode, and past the frame on which the mode puts its
+   first focus on Done — so no test races that frame with its own focus. */
+async function mount(board: 'plain' | 'probe' = 'plain') {
   await act(async () => {
-    root.render(<Board dashboard={dashboard} />)
+    root.render(board === 'probe' ? <ProbeBoard dashboard={dashboard} /> : <Board dashboard={dashboard} />)
   })
   await act(async () => {
     setArranging(true)
   })
+  await frame()
 }
 
 beforeEach(() => {
@@ -219,5 +261,334 @@ describe('customize mode', () => {
     expect(document.querySelector('[data-bento-menu]')).toBeNull()
     expect(document.querySelector('[role="toolbar"]'), 'still customizing').not.toBeNull()
     expect(host.querySelectorAll('.bento-edit__remove').length).toBe(CARDS.length)
+  })
+})
+
+/* KEYBOARD MOVES. With a card's remove button or size pill focused, Alt
+   (or Cmd) with an arrow moves the card; a bare arrow moves focus to the
+   neighbouring card's same control; Delete removes and lands on Undo. */
+const press = (el: Element, k: string, mods: KeyboardEventInit = {}) =>
+  el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...mods }))
+
+const pill = (id: string) =>
+  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] .bento-sizebtn`)!
+
+const status = () => document.querySelector('[role="toolbar"] [role="status"]')?.textContent?.trim()
+
+describe('keyboard moves in customize mode', () => {
+  it('Alt+Arrow moves the card and says so; Cmd does the same', async () => {
+    await mount()
+    pill('a').focus()
+    await act(async () => {
+      press(pill('a'), 'ArrowRight', { altKey: true })
+    })
+    expect(stored().placed.map((p) => p.id)).toEqual(['b', 'a', 'c', 'd', 'e', 'f', 'g'])
+    // Every untouched card was seeded at its own size: a move is not a resize.
+    expect(stored().placed.find((p) => p.id === 'g')).toMatchObject({ w: 1, h: 1 })
+    expect(status()).toBe('bento.widgets.moved_to:Card A')
+    // The card's own control keeps the keyboard.
+    expect(document.activeElement).toBe(pill('a'))
+
+    await act(async () => {
+      press(pill('a'), 'ArrowLeft', { metaKey: true })
+    })
+    expect(stored().placed.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+    // Earlier than first goes nowhere.
+    await act(async () => {
+      press(pill('a'), 'ArrowUp', { altKey: true })
+    })
+    expect(stored().placed.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+  })
+
+  it('a bare arrow moves focus to the same control on the next card', async () => {
+    await mount()
+    pill('b').focus()
+    await act(async () => {
+      press(pill('b'), 'ArrowRight')
+    })
+    expect(document.activeElement).toBe(pill('c'))
+    expect(stored().placed, 'nothing moved').toEqual([])
+    const remove = host.querySelector<HTMLButtonElement>('.bento-widget[data-widget-id="c"] .bento-edit__remove')!
+    remove.focus()
+    await act(async () => {
+      press(remove, 'ArrowUp')
+    })
+    expect(document.activeElement).toBe(
+      host.querySelector('.bento-widget[data-widget-id="b"] .bento-edit__remove'),
+    )
+  })
+
+  it('Delete removes the card and puts the keyboard on Undo', async () => {
+    await mount()
+    pill('d').focus()
+    await act(async () => {
+      press(pill('d'), 'Delete')
+    })
+    expect(host.querySelector('.bento-widget[data-widget-id="d"]')).toBeNull()
+    expect(stored().removed).toContain('d')
+    expect(status()).toBe('bento.widgets.removed_card:Card D')
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+    const undo = document.querySelector<HTMLButtonElement>('.bento-bar__undo')!
+    expect(undo.disabled).toBe(false)
+    expect(document.activeElement).toBe(undo)
+    await act(async () => {
+      undo.click()
+    })
+    expect(host.querySelector('.bento-widget[data-widget-id="d"]'), 'undone').not.toBeNull()
+  })
+
+  it('arrows inside an open size menu belong to the menu', async () => {
+    await mount()
+    await act(async () => {
+      pill('a').click()
+    })
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-bento-menu] [role^="menuitem"]:not(:disabled)'))
+    expect(document.activeElement).toBe(items[0])
+    await act(async () => {
+      press(items[0], 'ArrowDown')
+    })
+    expect(document.activeElement).toBe(items[1])
+    expect(stored().placed, 'nothing moved').toEqual([])
+  })
+})
+
+/* THE DRAG, THE WHEEL, THE BAR AND THE EMPTY BOARD: the desk review's
+   fixes, each held to what it promised. */
+const pointer = (el: Element, type: string, x: number, y: number) =>
+  el.dispatchEvent(
+    new PointerEvent(type, {
+      bubbles: true, cancelable: true, isPrimary: true, pointerId: 1, pointerType: 'mouse',
+      button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: x, clientY: y,
+    }),
+  )
+
+const removeOf = (id: string) =>
+  host.querySelector<HTMLButtonElement>(`.bento-widget[data-widget-id="${id}"] .bento-edit__remove`)!
+
+const colourRow = () =>
+  Array.from(document.querySelectorAll<HTMLButtonElement>('[data-bento-menu] [role="menuitem"]')).find(
+    (b) => b.textContent === 'bento.widgets.colour_row',
+  )!
+
+describe('dragging a card', () => {
+  it('carries the card without re-rendering its content, and leaves no trace on release', async () => {
+    await mount('probe')
+    const wrap = host.querySelector<HTMLElement>('.bento-widget[data-widget-id="a"]')!
+    const surface = wrap.querySelector<HTMLElement>('.bento-edit')!
+    const board = host.querySelector<HTMLElement>('.bento-board')!
+    const before = probeRenders
+    expect(before).toBeGreaterThan(0)
+
+    await act(async () => {
+      pointer(surface, 'pointerdown', 20, 20)
+    })
+    // A press is not yet a drag: nothing on the card or the board says so.
+    expect(wrap.hasAttribute('data-dragging')).toBe(false)
+    expect(board.hasAttribute('data-dragging')).toBe(false)
+    for (let i = 1; i <= 30; i++) {
+      await act(async () => {
+        pointer(surface, 'pointermove', 20 + i * 4, 20 + i * 3)
+      })
+    }
+    await frame()
+    expect(probeRenders, 'no render of the content during thirty moves').toBe(before)
+    // The ghost is a transform on the wrapper and an attribute on both.
+    expect(wrap.hasAttribute('data-dragging')).toBe(true)
+    expect(board.hasAttribute('data-dragging')).toBe(true)
+    expect(wrap.style.transform).toBe('translate3d(120px, 90px, 0)')
+    expect(wrap.style.zIndex).toBe('40')
+
+    await act(async () => {
+      pointer(surface, 'pointerup', 140, 110)
+    })
+    expect(wrap.hasAttribute('data-dragging')).toBe(false)
+    expect(board.hasAttribute('data-dragging')).toBe(false)
+    expect(wrap.style.transform).toBe('')
+    expect(wrap.style.zIndex).toBe('')
+    // jsdom lays nothing out, so nothing was under the pointer: no move,
+    // and still no render.
+    expect(stored().placed).toEqual([])
+    expect(probeRenders).toBe(before)
+  })
+
+  it('dropIndex lands on the target from either side, and after it when asked', () => {
+    expect(dropIndex(0, 3, false)).toBe(3)
+    expect(dropIndex(5, 3, false)).toBe(3)
+    // From earlier, the splice has already moved the target up one: inserting
+    // at its index IS after it. From later it needs the extra one.
+    expect(dropIndex(0, 3, true)).toBe(3)
+    expect(dropIndex(5, 3, true)).toBe(4)
+  })
+})
+
+describe('the colour wheel', () => {
+  it('Escape peels one layer: the wheel, then the menu, then the mode', async () => {
+    await mount()
+    await act(async () => {
+      pill('a').click()
+    })
+    await act(async () => {
+      colourRow().click()
+    })
+    expect(document.querySelector('[data-colour-pop]'), 'the wheel opened').not.toBeNull()
+    await act(async () => {
+      key('Escape')
+    })
+    expect(document.querySelector('[data-colour-pop]'), 'the wheel closed').toBeNull()
+    expect(document.querySelector('[data-bento-menu]'), 'the menu stayed').not.toBeNull()
+    await act(async () => {
+      key('Escape')
+    })
+    expect(document.querySelector('[data-bento-menu]')).toBeNull()
+    expect(document.querySelector('[role="toolbar"]'), 'still in the mode').not.toBeNull()
+    await act(async () => {
+      key('Escape')
+    })
+    expect(document.querySelector('[role="toolbar"]')).toBeNull()
+  })
+
+  it('a drag on the lightness slider is one undo step', async () => {
+    await mount()
+    await act(async () => {
+      pill('a').click()
+    })
+    await act(async () => {
+      colourRow().click()
+    })
+    const range = document.querySelector<HTMLInputElement>('[data-colour-pop] input[type="range"]')!
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+    const slide = (v: number) => {
+      setter.call(range, String(v))
+      range.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    for (const v of [30, 40, 55]) {
+      await act(async () => {
+        slide(v)
+      })
+    }
+    expect(stored().placed.find((p) => p.id === 'a')?.tint?.l).toBe(55)
+    const undo = document.querySelector<HTMLButtonElement>('.bento-bar__undo')!
+    expect(undo.disabled).toBe(false)
+    await act(async () => {
+      undo.click()
+    })
+    expect(stored().placed.find((p) => p.id === 'a'), 'back to before the drag, not one sample').toBeUndefined()
+    expect(undo.disabled, 'one step, and it is spent').toBe(true)
+  })
+})
+
+describe('the toolbar', () => {
+  it('arrow keys walk its enabled buttons, wrapping; Home and End jump', async () => {
+    await mount()
+    const bar = document.querySelector<HTMLElement>('[role="toolbar"]')!
+    const btns = Array.from(bar.querySelectorAll<HTMLButtonElement>('.bento-bar__btn:not(:disabled)'))
+    expect(btns.length).toBeGreaterThan(2)
+    btns[0].focus()
+    await act(async () => {
+      press(btns[0], 'ArrowRight')
+    })
+    expect(document.activeElement).toBe(btns[1])
+    await act(async () => {
+      press(btns[1], 'ArrowLeft')
+    })
+    expect(document.activeElement).toBe(btns[0])
+    await act(async () => {
+      press(btns[0], 'ArrowLeft')
+    })
+    expect(document.activeElement, 'wraps').toBe(btns[btns.length - 1])
+    await act(async () => {
+      press(btns[btns.length - 1], 'Home')
+    })
+    expect(document.activeElement).toBe(btns[0])
+    await act(async () => {
+      press(btns[0], 'End')
+    })
+    expect(document.activeElement).toBe(btns[btns.length - 1])
+  })
+
+  it('says reduce-motion on the board when the account asks for it', async () => {
+    await mount()
+    expect(host.querySelector('.bento-board')!.hasAttribute('data-reduce-motion')).toBe(true)
+  })
+})
+
+describe('removing with the pointer', () => {
+  it('moves focus to the next card\'s remove button; the last removal lands on Done and shows the empty board', async () => {
+    await mount()
+    await act(async () => {
+      removeOf('a').click()
+    })
+    await frame()
+    expect(document.activeElement).toBe(removeOf('b'))
+    expect(status()).toBe('bento.widgets.removed_card:Card A')
+
+    for (const id of ['b', 'c', 'd', 'e', 'f', 'g']) {
+      await act(async () => {
+        removeOf(id).click()
+      })
+      await frame()
+    }
+    expect(host.querySelectorAll('.bento-widget').length).toBe(0)
+    const done = document.querySelector<HTMLButtonElement>('[role="toolbar"] .bento-bar__btn.is-primary')!
+    expect(document.activeElement).toBe(done)
+
+    const hint = host.querySelector<HTMLElement>('[data-board-empty]')
+    expect(hint, 'the board says it is empty').not.toBeNull()
+    expect(hint!.textContent).toContain('bento.widgets.empty_board')
+    const [addCards, resetLayout] = Array.from(hint!.querySelectorAll<HTMLButtonElement>('button'))
+    expect(addCards.textContent).toContain('bento.widgets.add_cards')
+    expect(addCards.disabled).toBe(false)
+    await act(async () => {
+      addCards.click()
+    })
+    expect(document.querySelector('[data-add-gallery]'), 'Add cards opens the gallery').not.toBeNull()
+    expect(resetLayout.textContent).toContain('bento.widgets.reset')
+    await act(async () => {
+      resetLayout.click()
+    })
+    expect(host.querySelectorAll('.bento-widget').length, 'Reset brings every card back').toBe(CARDS.length)
+    expect(host.querySelector('[data-board-empty]')).toBeNull()
+  })
+})
+
+describe('the add gallery', () => {
+  it('Add on a card that is placed but fell off the board resizes it and puts it last', async () => {
+    // Five Mediums, the Small, then A as Large (2x2): fifteen slots hold the
+    // first six and A needs two rows nobody has, so it is placed yet not drawn.
+    localStorage.setItem(
+      `erp.widgets.${dashboard}`,
+      JSON.stringify({
+        placed: [
+          ...['b', 'c', 'd', 'e', 'f'].map((id) => ({ id, w: 2, h: 1 })),
+          { id: 'g', w: 1, h: 1 },
+          { id: 'a', w: 2, h: 2 },
+        ],
+        removed: [],
+      }),
+    )
+    await mount()
+    expect(host.querySelector('.bento-widget[data-widget-id="a"]'), 'A fell off').toBeNull()
+    const add = document.querySelector<HTMLButtonElement>('[role="toolbar"] button[aria-haspopup="dialog"]')!
+    expect(add.disabled).toBe(false)
+    await act(async () => {
+      add.click()
+    })
+    const small = document.querySelector<HTMLButtonElement>('[data-gallery-tile="a"] button[data-tier="small"]')!
+    expect(small.disabled).toBe(false)
+    await act(async () => {
+      small.click()
+    })
+    expect(stored().placed.map((p) => p.id)).toEqual(['b', 'c', 'd', 'e', 'f', 'g', 'a'])
+    expect(stored().placed.find((p) => p.id === 'a')).toMatchObject({ w: 1, h: 1 })
+    expect(host.querySelector('.bento-widget[data-widget-id="a"]'), 'A is drawn again').not.toBeNull()
+    // One write: one undo.
+    const undo = document.querySelector<HTMLButtonElement>('.bento-bar__undo')!
+    await act(async () => {
+      undo.click()
+    })
+    expect(stored().placed.find((p) => p.id === 'a')).toMatchObject({ w: 2, h: 2 })
+    expect(host.querySelector('.bento-widget[data-widget-id="a"]')).toBeNull()
   })
 })

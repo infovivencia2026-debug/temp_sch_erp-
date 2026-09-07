@@ -1,0 +1,108 @@
+/* THE COACH MARK: one sentence over the board, once.
+
+   Painted from the board's own tokens and nothing else — the card colour
+   for its ground, the ink for its text, the ink at a fraction for its edge —
+   so it reads as part of whichever theme and skin is on, and a tint chosen
+   for a card never bleeds into it. No colour is written here; see
+   bento-theme.css for what the tokens resolve to.
+
+   z-index 46: over the Edit pill it points at (45), under the customize bar
+   (55) it must never be seen beside, and under every menu. */
+.bento-coach {
+  position: fixed;
+  z-index: 46;
+  pointer-events: none;
+  animation: bento-coach-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.bento-coach__body {
+  pointer-events: auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--bento-ink) 22%, transparent);
+  border-radius: 999px;
+  background: var(--bento-card);
+  color: var(--bento-ink);
+  box-shadow: var(--bento-shadow);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bento-coach__body:focus-visible {
+  outline: 2px solid var(--bento-ink);
+  outline-offset: 2px;
+}
+
+/* THE DESK: a callout above the pill, its tail pointing down at it. The
+   defaults below are where the pill sits when nothing measured it. */
+.bento-coach.is-desk {
+  right: 84px;
+  bottom: 70px;
+}
+.bento-coach.is-desk .bento-coach__body::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-right: inherit;
+  border-bottom: inherit;
+  transform: rotate(45deg);
+}
+
+/* THE PHONE: a hand beside the first card's foot, centred on the card. */
+.bento-coach.is-phone {
+  top: 36vh;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.bento-coach__glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bento-ink) 10%, transparent);
+  animation: bento-coach-press 1400ms ease-in-out 400ms infinite;
+}
+
+@keyframes bento-coach-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+/* A press: the hand dips and comes back, the motion the words describe. */
+@keyframes bento-coach-press {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(2px) scale(0.9); }
+}
+
+/* Reduced motion, from either the OS or the account (`is-still` is what
+   useReduceMotion decided): nothing moves, it is simply there. */
+.bento-coach.is-still,
+.bento-coach.is-still .bento-coach__glyph {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bento-coach,
+  .bento-coach__glyph {
+    animation: none;
+  }
+}
+@media print {
+  .bento-coach { display: none; }
+}

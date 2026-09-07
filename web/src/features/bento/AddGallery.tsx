@@ -59,15 +59,73 @@ export const TIER_FOOTPRINT: Record<SizeTier, { w: number; h: number }> = {
   wide: { w: 3, h: 1 },
 }
 
-/** Enter and exit, in milliseconds. Matched by the stylesheet's transitions. */
-const MOTION_MS = 180
+/** Enter and exit, in milliseconds: the --bento-dur token the stylesheet
+    transitions on. */
+const MOTION_MS = 200
 /** How long a tile says "Added" if the parent leaves it in the list. */
 const ADDED_MS = 900
 /** The popover's width on the desk: three tiles, two gutters, the padding. */
 const PANEL_W = 640
+/** The tallest the popover gets: the stylesheet's own cap. */
+const PANEL_H = 640
 const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-type Pos = { top: number; left: number; width: number; maxHeight: number }
+/** Where the desk popover goes. `top` when it hangs below the anchor,
+    `bottom` (a distance from the viewport's bottom edge) when it opens
+    above — so the panel's lower edge hugs the anchor whatever its content
+    height comes to. */
+export type Pos = {
+  top?: number
+  bottom?: number
+  left: number
+  width: number
+  maxHeight: number
+  /** Opening above the anchor: the stylesheet flips the transform origin. */
+  up: boolean
+}
+
+/** The gap between the anchor and the panel, and the margin the panel keeps
+    from the viewport's edges. */
+const GAP = 6
+const MARGIN = 8
+/** The panel never gets shorter than this while there is a viewport to hold
+    it — the header, one row of tiles, the key hint. */
+const MIN_H = 200
+
+/* WHERE A POPOVER GOES, as a pure function of three rectangles, so a test
+   that cannot lay anything out can still hold it to the rule.
+
+   Below the anchor when the panel fits there; ABOVE it when it does not and
+   there is more room above — the Add button lives on a bar fixed at the
+   foot of the screen, so on a desk that is every time. The chosen side gets
+   the panel's height or the room on that side, whichever is less, never
+   under MIN_H unless the viewport itself is smaller. Left is clamped so the
+   panel stays inside the viewport, and the panel scrolls inside itself when
+   the cap is less than its content. */
+export function placePanel(
+  anchor: { top: number; bottom: number; left: number },
+  panel: { width: number; height: number },
+  viewport: { width: number; height: number },
+): Pos {
+  const width = Math.max(240, Math.min(panel.width, viewport.width - 2 * MARGIN))
+  const left = Math.max(MARGIN, Math.min(anchor.left, viewport.width - width - MARGIN))
+  const roomBelow = viewport.height - anchor.bottom - GAP - MARGIN
+  const roomAbove = anchor.top - GAP - MARGIN
+  const up = panel.height > roomBelow && roomAbove > roomBelow
+  const room = up ? roomAbove : roomBelow
+  const cap = Math.max(MIN_H, Math.min(panel.height, room))
+  const maxHeight = Math.min(cap, viewport.height - 2 * MARGIN)
+  if (up) {
+    /* Measured from the bottom, clamped so the top edge stays on screen. */
+    const bottom = Math.min(
+      Math.max(MARGIN, viewport.height - anchor.top + GAP),
+      viewport.height - MARGIN - maxHeight,
+    )
+    return { bottom: Math.max(MARGIN, bottom), left, width, maxHeight, up }
+  }
+  const top = Math.min(Math.max(MARGIN, anchor.bottom + GAP), viewport.height - MARGIN - maxHeight)
+  return { top: Math.max(MARGIN, top), left, width, maxHeight, up }
+}
 
 export function AddGallery({
   open, items, phone, onAdd, onClose, anchor,
@@ -179,30 +237,25 @@ export function AddGallery({
     return () => document.removeEventListener('pointerdown', onDown)
   }, [open, phone])
 
-  /* The popover hangs under the anchor and never leaves the viewport; it is
-     re-measured on resize and on any scroll, since the bar it hangs from is
-     inside the board's scroller. Without an anchor it sits near the top,
-     centred. */
+  /* The popover hangs under the anchor, or above it when the anchor sits
+     in the lower half — the bar's Add button always does — and never leaves
+     the viewport (placePanel); it is re-measured on resize and on any
+     scroll, since the bar it hangs from is inside the board's scroller.
+     Without an anchor it sits near the top, centred. */
   const [pos, setPos] = useState<Pos | null>(null)
   useLayoutEffect(() => {
     if (!mounted || phone) return
     const place = () => {
       const vw = window.innerWidth
       const vh = window.innerHeight
-      const width = Math.max(240, Math.min(PANEL_W, vw - 16))
       const a = anchorRef.current
       if (!a) {
-        setPos({ top: 72, left: Math.max(8, (vw - width) / 2), width, maxHeight: Math.max(200, vh - 88) })
+        const width = Math.max(240, Math.min(PANEL_W, vw - 16))
+        setPos({ top: 72, left: Math.max(8, (vw - width) / 2), width, maxHeight: Math.max(MIN_H, vh - 88), up: false })
         return
       }
       const r = a.getBoundingClientRect()
-      const top = r.bottom + 6
-      setPos({
-        top,
-        left: Math.max(8, Math.min(r.left, vw - width - 8)),
-        width,
-        maxHeight: Math.max(200, vh - top - 12),
-      })
+      setPos(placePanel(r, { width: PANEL_W, height: PANEL_H }, { width: vw, height: vh }))
     }
     place()
     window.addEventListener('resize', place)
@@ -292,7 +345,7 @@ export function AddGallery({
   const sizeName = (tier: SizeTier) => t(`bento.size.${tier}`)
   const style: CSSProperties | undefined = phone || !pos
     ? undefined
-    : { top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }
+    : { top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }
 
   return createPortal(
     <>
@@ -308,11 +361,15 @@ export function AddGallery({
       <div
         ref={panelRef}
         role="dialog"
-        aria-modal="true"
+        /* Modal only where it is: the phone sheet has a backdrop and takes
+           the screen; the desk popover leaves the rest of the page live and
+           closes on a click outside, which is a popover, not a modal. */
+        aria-modal={phone ? 'true' : undefined}
         aria-label={t('bento.add_gallery.title')}
         className="bento-gallery"
         data-add-gallery=""
         data-phone={phone ? '' : undefined}
+        data-up={!phone && pos?.up ? '' : undefined}
         data-shown={shown ? '' : undefined}
         data-still={still ? '' : undefined}
         style={style}

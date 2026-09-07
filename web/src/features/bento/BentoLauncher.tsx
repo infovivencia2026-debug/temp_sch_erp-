@@ -1,10 +1,13 @@
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+  type CSSProperties,
+} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
-  CornerDownLeft, House,
+  CornerDownLeft, House, Pin, PinOff, Ellipsis,
   Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard,
   FileCheck2, FileText, FolderTree, Handshake, Inbox, KeyRound, Landmark,
   LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
@@ -13,11 +16,16 @@ import {
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
-import { cn } from '@/lib/utils'
+import { usePins, togglePin } from '@/lib/pins'
+import { buzz } from '@/lib/haptics'
+import { useReduceMotion } from './bento-kit'
+import './launcher.css'
 
-/* The slide, in and out. 340ms is what the phone shell already uses for a
-   pushed screen, so the drawer and the screens behind it move at one speed. */
-const SHEET_MS = 340
+/* The open and the close: a short rise and a fade, in and out. 200ms is the
+   layout's --dur-fast, the speed everything else on the board answers at. A
+   drag — the finger bringing the sheet up, or pulling it back down — is not a
+   transition at all: the sheet is wherever the finger is. */
+const MOTION_MS = 200
 
 /* Everything the role can open, on one surface, reachable by pointing at it.
 
@@ -26,23 +34,26 @@ const SHEET_MS = 340
    noticing things, and a layout that can only be searched has taken that away
    — so this is the sidebar's discovery, without the sidebar.
 
-   It used to be a filing cabinet: sixty-five identical text rows in workspace
-   order, correct and complete and no faster on the hundredth visit than the
-   first. Three things changed that, and none of them is decoration.
+   It is an APP GRID now, the shape iCloud.com and every phone's home screen
+   use: a rounded plate with a glyph, the name beneath, four to a row on a
+   phone and six to eight at a desk. One kind of object, everywhere on the
+   surface — pinned, recent, or filed under its workspace — so that position
+   and colour become memory and the third visit is faster than the first.
 
-   RECENTS FIRST. Almost nobody uses sixty-five features. A principal opens the
-   same four or five every morning, and the only real advantage a library has
-   over a menu is that it can notice which.
+   PINNED, THEN RECENT, THEN EVERYTHING. Almost nobody uses sixty-five
+   features. A principal opens the same four or five every morning: the
+   launcher notices which (recents) and lets them say which (pins), and the
+   two rows are kept apart because a curated row must not reorder itself.
 
-   ICONS ON THE GROUPS, NOT THE ROWS. A mark per workspace is a landmark you
-   navigate by after a week. A mark per feature would be sixty-five glyphs
-   invented for concepts that do not have one — "Working Days & Instructional
-   Hours" has no icon — and a wall of near-identical shapes is slower to read
-   than plain words.
+   A MARK PER WORKSPACE, A MONOGRAM PER FEATURE. The catalogue carries no
+   icon per feature and inventing sixty-five for concepts that do not have one
+   ("Working Days & Instructional Hours") would be a wall of near-identical
+   shapes. So the plate shows the feature's initials, in a tint of its
+   workspace's colour, with the workspace's mark in the corner: the family is
+   legible from across the room and the member is legible up close.
 
-   OPERABLE FROM THE KEYBOARD. It is a launcher. Typing filters, up and down
-   walk the results, Enter opens, Escape leaves. A launcher you must aim at
-   with a mouse is a menu with extra steps. */
+   OPERABLE FROM THE KEYBOARD. Typing filters, the arrows walk the grid in
+   two dimensions, Enter opens, Escape leaves. */
 
 /** Workspace name -> mark. Keyed by the catalogue's own workspace labels
     rather than a new field on the section, because the catalogue is generated
@@ -65,17 +76,9 @@ const WORKSPACE_ICON: Record<string, typeof Home> = {
   Timetable: CalendarDays,
   Stores: Boxes,
 
-  /* THE OTHER THIRTY-TWO.
-
-     Everything absent from this map fell through to LayoutGrid — the same
-     glyph the "All features" button uses — so 32 of the catalogue's 41
-     workspaces drew the identical icon, and My Profile was indistinguishable
-     from All features sitting next to it in the dock. A row of identical marks
-     is not an icon set; it is decoration that costs a click to disambiguate.
-
-     Each of these is the thing the workspace is ABOUT rather than a shape that
-     happened to be free — a reader learns "money is a banknote" once and it
-     holds across Accounts, Payroll and Campus Money. */
+  /* Each of these is the thing the workspace is ABOUT rather than a shape
+     that happened to be free — a reader learns "money is a banknote" once and
+     it holds across Accounts, Payroll and Campus Money. */
   Admissions: Handshake,
   'Front Desk': Handshake,
   Assessments: FileCheck2,
@@ -108,41 +111,30 @@ const WORKSPACE_ICON: Record<string, typeof Home> = {
   Support: LifeBuoy,
   'Usage & Health': Activity,
   Setup: Settings2,
-
-  /* The last two that fell through.
-
-     Every unmapped workspace draws the same fallback, so these two were
-     indistinguishable from each other in the rail — and Schools is the
-     vendor's own first section, where the whole business lives.
-
-     Schools reuses the building the singular School already uses, because they
-     are the same subject seen from the two sides of the product: one school's
-     own record, and the vendor's list of all of them. */
+  /* Schools reuses the building the singular School already uses, because
+     they are the same subject seen from the two sides of the product. */
   Schools: Building2,
   Documents: FileText,
 }
 
 export function markFor(workspace: string) {
-  /* The fallback is deliberately NOT LayoutGrid.
-
-     That is the All-features glyph, so anything unmapped used to be a perfect
-     copy of the button beside it. A workspace nobody has thought about should
-     look unremarkable, not look like something else. */
+  /* The fallback is deliberately NOT LayoutGrid: that is the All-features
+     glyph, so anything unmapped used to be a perfect copy of the button
+     beside it. A workspace nobody has thought about should look unremarkable,
+     not look like something else. */
   return WORKSPACE_ICON[workspace] ?? Sparkle
 }
 
 /* Colour by ERP domain, not by launcher category.
 
-   These were the launcher's own eight hues. They are now the product's domain
-   palette — attendance is cyan in this list, on its chart, on its chip and in
-   a mixed queue — so the launcher stops being the one place colour means
-   something and becomes one of the places it is read.
+   These are the product's domain palette — attendance is cyan in this list,
+   on its chart, on its chip and in a mixed queue — so the launcher is one of
+   the places colour is read rather than the one place it means something.
 
    Nine domains for thirty-nine workspace labels, because the labels are how
    the catalogue files things and the domains are how a school thinks about
    them: Fees, Accounting, Payroll and Subscriptions are four sections of one
-   subject, and a reader who has learnt that money is teal should not have to
-   learn it four times.
+   subject.
 
    The tail is hashed over the name rather than left unassigned — a workspace
    nobody thought about still gets a colour and gets the same one every time.
@@ -181,35 +173,40 @@ export function hueFor(workspace: string): string {
   return DOMAINS[h % DOMAINS.length]
 }
 
-/* How much of the board a category takes.
+/* Two letters for a feature that has no icon.
 
-   The list was the honest first version and the wrong shape: every workspace
-   got a full-width band whether it held two features or twenty-one, so
-   Administration — one feature — occupied as much of the screen as Operations,
-   which holds twenty-one. Reading it meant scrolling past the small ones to
-   find the large ones.
+   The first letters of the first two words that carry meaning — "Fee
+   Dashboard" is FD, "Working Days & Instructional Hours" is WD — and the
+   first two letters of a one-word name, so "Fees" is Fe rather than a lone F
+   that six other features would share. The little words are skipped only
+   when there is something else to use: "Of Note" is still ON. */
+const SMALL = new Set(['and', 'of', 'the', 'for', 'to', 'a', 'an', 'in', 'on', 'by', 'or', 'my'])
 
-   Size by content, and let them pack. Tailwind needs whole class names at
-   build time, so these are four fixed strings rather than a computed span; a
-   template literal here would compile to nothing and every tile would be one
-   column wide.
-
-   grid-flow-dense is what makes it a mosaic rather than a ragged column: a
-   one-wide tile will back-fill a hole an earlier three-wide tile left beside
-   it, so the board closes up instead of leaving steps down the right edge. */
-function tileSpan(count: number): string {
-  if (count >= 12) return 'sm:col-span-2 lg:col-span-4'
-  if (count >= 7) return 'sm:col-span-2 lg:col-span-2 lg:row-span-2'
-  if (count >= 4) return 'sm:col-span-2 lg:col-span-2'
-  return 'sm:col-span-1 lg:col-span-1'
+export function monogram(label: string): string {
+  const words = label.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  if (!words.length) return '·'
+  if (words.length === 1) return capitalise(words[0].slice(0, 2))
+  const meaningful = words.filter((w) => !SMALL.has(w.toLowerCase()))
+  const use = meaningful.length >= 2 ? meaningful : words
+  return (use[0][0] + use[1][0]).toUpperCase()
 }
 
-/* A wide tile gets its features in columns. A narrow one must not: two columns
-   inside a single grid column is two four-character-wide columns. */
-function tileColumns(count: number): string {
-  if (count >= 12) return 'sm:grid-cols-2 lg:grid-cols-4'
-  if (count >= 4) return 'lg:grid-cols-2'
-  return ''
+function capitalise(s: string) {
+  return s[0].toUpperCase() + s.slice(1)
+}
+
+/** The name cut around the first match, so the launcher can underline what
+    it matched on. `hit` marks the piece that matched; a name that matched by
+    its section rather than its own words comes back in one unmarked piece. */
+export function splitMatch(name: string, needle: string): { text: string; hit: boolean }[] {
+  if (!needle) return [{ text: name, hit: false }]
+  const at = name.toLowerCase().indexOf(needle.toLowerCase())
+  if (at < 0) return [{ text: name, hit: false }]
+  const out: { text: string; hit: boolean }[] = []
+  if (at > 0) out.push({ text: name.slice(0, at), hit: false })
+  out.push({ text: name.slice(at, at + needle.length), hit: true })
+  if (at + needle.length < name.length) out.push({ text: name.slice(at + needle.length), hit: false })
+  return out
 }
 
 interface Row {
@@ -243,6 +240,17 @@ function score(row: Row, needle: string): number {
   return -1
 }
 
+/* One place on the surface where a feature is drawn. A feature can be drawn
+   up to three times — pinned, recent, and under its workspace — and the
+   keyboard cursor walks PLACES, so each gets an id of its own. */
+interface Slot {
+  id: string
+  r: Row
+  /** Say where it belongs under the name (recents and results, which are
+      drawn from everywhere at once). */
+  context: boolean
+}
+
 export function BentoLauncher({
   open,
   drag = null,
@@ -258,16 +266,15 @@ export function BentoLauncher({
   const { pathname } = useLocation()
   const t = useT()
   const recentKeys = useRecents()
+  const pinKeys = usePins()
+  const still = useReduceMotion()
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
-  /* Which categories are switched OFF, not which are on.
-
-     Everything is visible by default, so the empty set is the ordinary state
-     and the filter starts by showing the whole board rather than nothing. The
-     inverse — a set of selected categories, empty meaning none — would put a
-     blank panel in front of somebody who has just opened a launcher to look
-     around, and make "show me everything" a thing they had to ask for. */
-  const [off, setOff] = useState<Set<string>>(new Set())
+  /* The slot whose "…" menu is open, if any. */
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  /* What a screen reader is told when a pin is made by long-press, which
+     has no visible menu to confirm it. */
+  const [note, setNote] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -288,63 +295,56 @@ export function BentoLauncher({
     return out
   }, [role])
 
+  const byKey = useMemo(() => new Map(rows.map((r) => [r.key, r])), [rows])
+
   const needle = q.trim().toLowerCase()
 
   const results = useMemo(() => {
     if (!needle) return []
     return rows
-      .filter((r) => !off.has(r.workspace))
       .map((r) => ({ r, s: score(r, needle) }))
       .filter((x) => x.s >= 0)
       .sort((a, b) => b.s - a.s || a.r.name.localeCompare(b.r.name))
       .map((x) => x.r)
-  }, [rows, needle, off])
+  }, [rows, needle])
 
-  const recents = useMemo(() => {
-    const byKey = new Map(rows.map((r) => [r.key, r]))
-    // Filtered through the catalogue, so a feature this account has since lost
-    // access to simply disappears from the list rather than 404ing on click.
-    return recentKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r)
-  }, [recentKeys, rows])
-
-  /* Every category this role has, in board order, with its colour. */
-  const chips = useMemo(() => {
-    const seen: string[] = []
-    for (const r of rows) if (!seen.includes(r.workspace)) seen.push(r.workspace)
-    return seen
-  }, [rows])
-
-  const toggle = (name: string) =>
-    setOff((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
+  /* Both filtered through the catalogue, so a feature this account has since
+     lost access to simply disappears rather than 404ing on tap. */
+  const recents = useMemo(
+    () => recentKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r),
+    [recentKeys, byKey],
+  )
+  const pinned = useMemo(
+    () => pinKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r),
+    [pinKeys, byKey],
+  )
+  const pinSet = useMemo(() => new Set(pinKeys), [pinKeys])
 
   const groups = useMemo(() => {
-    const out: { name: string; sections: { name: string; rows: Row[] }[] }[] = []
+    const out: { name: string; rows: Row[] }[] = []
     for (const r of rows) {
       let g = out.find((x) => x.name === r.workspace)
-      if (!g) { g = { name: r.workspace, sections: [] }; out.push(g) }
-      let s = g.sections.find((x) => x.name === r.section)
-      if (!s) { s = { name: r.section, rows: [] }; g.sections.push(s) }
-      s.rows.push(r)
+      if (!g) { g = { name: r.workspace, rows: [] }; out.push(g) }
+      g.rows.push(r)
     }
     return out
   }, [rows])
 
-  // What the keyboard walks. Only meaningful while searching: browsing a
-  // sixty-five item grid with arrow keys is worse than pointing at it.
-  const walkable = needle ? results : []
+  /* What the keyboard walks, in the order it is drawn: the results while
+     searching, otherwise pinned, then recent, then every workspace. */
+  const slots = useMemo<Slot[]>(() => {
+    if (needle) return results.map((r) => ({ id: `q:${r.key}`, r, context: true }))
+    return [
+      ...pinned.map((r) => ({ id: `pin:${r.key}`, r, context: false })),
+      ...recents.map((r) => ({ id: `recent:${r.key}`, r, context: true })),
+      ...groups.flatMap((g) => g.rows.map((r) => ({ id: `all:${r.key}`, r, context: false }))),
+    ]
+  }, [needle, results, pinned, recents, groups])
 
-  /* The way home, from the panel that lists everywhere else.
-
-     Somebody who opens All features to look around needs a way back that is
-     not "guess which of these sixty-five is the dashboard". It resolves to the
-     role's first opening feature, exactly as the dock's Home does — the same
-     rule in both places, because two different answers to "where is home"
-     would be worse than none. */
+  /* The way home, from the panel that lists everywhere else. It resolves to
+     the role's first opening feature, exactly as the dock's Home does — the
+     same rule in both places, because two different answers to "where is
+     home" would be worse than none. */
   const homeRow = rows[0]
 
   const go = useCallback(
@@ -356,28 +356,29 @@ export function BentoLauncher({
     [navigate, onClose, role],
   )
 
+  const onPin = useCallback(
+    (r: Row) => {
+      const now = togglePin(r.key)
+      buzz('select')
+      setNote(t(now ? 'bento.launcher.pinned_note' : 'bento.launcher.unpinned_note', { name: r.name }))
+      setMenuFor(null)
+    },
+    [t],
+  )
+
   useEffect(() => {
     if (!open) return
     setQ('')
     setCursor(0)
+    setMenuFor(null)
+    setNote('')
     /* Focused on open WHERE THERE IS A KEYBOARD ALREADY ON THE DESK.
 
-       The argument for autofocus is a good one at a desk: the fastest path
-       through a launcher is to start typing, and a search box you must click
-       first is a search box that gets clicked. It inverts on a phone. Focusing
-       an input there summons the on-screen keyboard, which takes half the
-       screen and covers the list somebody opened the launcher to READ. They
-       asked to see what the product has; they were shown a text field and
-       three rows.
-
-       So the phone gets the list and the desk gets the cursor, and anybody on
-       a phone who does want to search taps the field, which is one tap and the
-       thing they were already looking at.
-
-       Keyed on the pointer rather than on the width: what decides this is
-       whether focusing costs a keyboard, and that is a property of the input
-       device. A tablet with a keyboard attached reports a fine pointer and is
-       right to get the cursor. */
+       At a desk the fastest path through a launcher is to start typing. On a
+       phone, focusing an input summons the on-screen keyboard, which covers
+       the grid somebody opened the launcher to READ. Keyed on the pointer
+       rather than on the width: what decides this is whether focusing costs
+       a keyboard, and that is a property of the input device. */
     if (window.matchMedia?.('(pointer: fine)').matches !== false) {
       const id = requestAnimationFrame(() => inputRef.current?.focus())
       return () => cancelAnimationFrame(id)
@@ -386,74 +387,112 @@ export function BentoLauncher({
 
   useEffect(() => setCursor(0), [needle])
 
-  /* Back closes the launcher rather than the app. The effect that did this
-     inline moved into useOverlayHistory when three more surfaces turned out to
-     need exactly the same thing; the reasoning lives there now. */
   /* The one close everything goes through. Calling `onClose` directly leaves
      the history entry the open pushed, so the next Back goes one page too far;
      the function this returns takes the entry with it. Escape, the button and
      the pull-down all use it. */
   const close = useOverlayHistory(open, onClose)
 
+  /* THE ARROWS WALK THE GRID IN TWO DIMENSIONS.
+
+     Left and right are the previous and next slot. Up and down are measured
+     rather than counted: the tile nearest above or below the cursor's own
+     position, by geometry, so the same keys work in a four-column band, an
+     eight-column grid and across the seam between them without the component
+     knowing how many columns the stylesheet chose today. Where there is no
+     geometry (a test runner has no layout) they fall back to one step. */
+  const stepVertical = useCallback((from: number, dir: 1 | -1): number => {
+    const list = listRef.current
+    if (!list) return from
+    const tiles = Array.from(list.querySelectorAll<HTMLElement>('[data-slot]'))
+    const cur = tiles.find((el) => Number(el.dataset.slot) === from)
+    if (!cur) return from
+    const a = cur.getBoundingClientRect()
+    if (a.width === 0 && a.height === 0) {
+      return Math.max(0, Math.min(slots.length - 1, from + dir))
+    }
+    const ax = a.left + a.width / 2
+    let best: { i: number; dy: number; dx: number } | null = null
+    for (const el of tiles) {
+      const b = el.getBoundingClientRect()
+      const dy = dir === 1 ? b.top - a.top : a.top - b.top
+      if (dy < 2) continue
+      const dx = Math.abs(b.left + b.width / 2 - ax)
+      if (!best || dy < best.dy - 1 || (Math.abs(dy - best.dy) <= 1 && dx < best.dx)) {
+        best = { i: Number(el.dataset.slot), dy, dx }
+      }
+    }
+    return best ? best.i : from
+  }, [slots.length])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { close(); return }
-      if (!walkable.length) return
-      if (e.key === 'ArrowDown') {
+      if (e.key === 'Escape') {
+        if (menuFor) setMenuFor(null)
+        else close()
+        return
+      }
+      const target = e.target as HTMLElement | null
+      /* The "…" and its menu are ordinary buttons; Enter there is theirs. */
+      if (target?.closest?.('.lch-more, .lch-menu')) return
+      if (!slots.length) return
+      const inInput = target === inputRef.current
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        /* In a field with text in it, left and right belong to the caret. */
+        if (inInput && q.length) return
         e.preventDefault()
-        setCursor((c) => (c + 1) % walkable.length)
-      } else if (e.key === 'ArrowUp') {
+        const d = e.key === 'ArrowRight' ? 1 : -1
+        setCursor((c) => (c + d + slots.length) % slots.length)
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault()
-        setCursor((c) => (c - 1 + walkable.length) % walkable.length)
+        setCursor((c) => stepVertical(c, e.key === 'ArrowDown' ? 1 : -1))
       } else if (e.key === 'Enter') {
         e.preventDefault()
-        const pick = walkable[cursor]
-        if (pick) go(pick)
+        const pick = slots[cursor]
+        if (pick) go(pick.r)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose, walkable, cursor, go])
+  }, [open, slots, cursor, go, close, menuFor, q.length, stepVertical])
 
   // Keep the cursor in view when it walks past the fold.
   useEffect(() => {
     listRef.current
       ?.querySelector<HTMLElement>('[data-cursor="true"]')
-      ?.scrollIntoView({ block: 'nearest' })
+      ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [cursor, needle])
 
   /* A SHEET, NOT A SWITCH.
 
-     This faded in over 200ms and the phone read it as a pop: the drawer was
-     simply there. A phone's drawer slides up from the bottom edge, is already
-     under the thumb while the swipe is still going, and either finishes the
-     journey or slides back down when the finger lets go short. So the panel
-     is positioned by a transform: exactly where the drag has it while the
-     finger is down, with no transition at all -- a transition during a drag
-     is lag -- and eased the rest of the way once the decision is made. The
-     same slide, downward, is how it leaves.
+     Opened from the dock, it rises a little and fades in over 200ms, and
+     leaves the same way. Opened by the swipe on the board it is somewhere
+     else entirely: exactly where the drag has it while the finger is down,
+     with no transition at all — a transition during a drag is lag — and
+     eased the rest of the way once the decision is made.
 
      Mounted from the first pixel of a drag and kept mounted until the exit
-     slide has finished, which is why `open` alone no longer decides whether
-     it renders. */
+     has finished, which is why `open` alone no longer decides whether it
+     renders. */
   const dragging = drag !== null && !open
 
   /* THE SAME GESTURE, BACKWARDS.
 
-     A sheet that slid up under the thumb and then only answers a button or
-     Back on the way out is half a sheet. Pulling it down should take it down:
-     the finger drags, the panel follows exactly, and on release it either
-     finishes leaving or springs back. The pull is only recognised when the
-     sheet's own list is scrolled to the top — otherwise a downward finger is
-     scrolling the list, and stealing that would break the one thing a long
-     list needs.
+     Pulling the sheet down takes it down: the finger drags, the panel
+     follows exactly, and on release it either finishes leaving or springs
+     back. The pull is only recognised when the sheet's own list is scrolled
+     to the top — otherwise a downward finger is scrolling the list.
 
      `pull` is 0..1 of the sheet's height, written to the same transform the
      open-drag uses, so the two directions are one mechanism. */
   const sheetRef = useRef<HTMLDivElement>(null)
   const [pull, setPull] = useState(0)
   const pullStart = useRef<{ y: number; live: boolean } | null>(null)
+  /* Whether the exit should slide off the bottom rather than fade in place:
+     true once a finger has had the sheet, so a cancelled swipe or a pull that
+     commits finishes the journey it started instead of dissolving mid-air. */
+  const exitDown = useRef(false)
   const onSheetTouchStart = (e: React.TouchEvent) => {
     if (!open || e.touches.length !== 1) return
     const el = sheetRef.current
@@ -474,6 +513,7 @@ export function BentoLauncher({
     /* A fifth of the way is a decision; less is a wobble. The same
        proportion the up-swipe commits at, so the two feel like one hinge. */
     if (pull > 0.2) {
+      exitDown.current = true
       setPull(0)
       close()
       return
@@ -481,14 +521,28 @@ export function BentoLauncher({
     setPull(0)
   }
   const [mounted, setMounted] = useState(open)
-  const [shown, setShown] = useState(false)
-  const reduce =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  useEffect(() => {
+  const [shown, setShown] = useState(open)
+  /* Written during render on purpose: the very next render after a drag
+     ends is the one that must already know the sheet came from a finger,
+     and an effect would tell it a frame late. */
+  const cameFromDrag = useRef(false)
+  if (dragging) {
+    cameFromDrag.current = true
+    exitDown.current = true
+  }
+  useLayoutEffect(() => {
     if (open) {
       setMounted(true)
-      // Two frames: one for the mount to paint at the bottom, one for the
+      exitDown.current = false
+      if (cameFromDrag.current) {
+        /* The sheet is already mid-way and painted; the transition has its
+           starting point, so it can go straight to shown. Waiting two frames
+           here would paint it at the bottom first — a visible drop. */
+        cameFromDrag.current = false
+        setShown(true)
+        return
+      }
+      // Two frames: one for the mount to paint at its start, one for the
       // transition to have somewhere to start from.
       let inner = 0
       const outer = requestAnimationFrame(() => {
@@ -504,41 +558,62 @@ export function BentoLauncher({
       setMounted(true)
       return
     }
-    const t = window.setTimeout(() => setMounted(false), reduce ? 0 : SHEET_MS)
-    return () => window.clearTimeout(t)
-  }, [open, dragging, reduce])
+    const tm = window.setTimeout(() => setMounted(false), still ? 0 : MOTION_MS)
+    return () => window.clearTimeout(tm)
+  }, [open, dragging, still])
 
   if (!mounted || !role) return null
   const pulling = pullStart.current !== null && pull > 0
-  const y = dragging ? (1 - (drag ?? 0)) * 100 : shown ? pull * 100 : 100
+  const transform = dragging
+    ? `translate3d(0, ${(1 - (drag ?? 0)) * 100}%, 0)`
+    : pulling
+      ? `translate3d(0, ${pull * 100}%, 0)`
+      : shown
+        ? 'translate3d(0, 0, 0)'
+        : `translate3d(0, ${exitDown.current ? '100%' : '24px'}, 0)`
   const sheet: CSSProperties = {
-    transform: `translate3d(0, ${y}%, 0)`,
-    transition: dragging || pulling || reduce
+    transform,
+    opacity: dragging || pulling || shown ? 1 : 0,
+    transition: dragging || pulling || still
       ? 'none'
-      : `transform ${SHEET_MS}ms var(--ease-phone, cubic-bezier(0.32, 0.72, 0, 1))`,
-    willChange: 'transform',
+      : `transform ${MOTION_MS}ms var(--ease-out, ease), opacity ${MOTION_MS}ms var(--ease-out, ease)`,
+    willChange: 'transform, opacity',
   }
 
   /* What every tile needs from the launcher, handed down as props — see the
      note on Tile for why it must not simply close over these. */
-  const tileProps = { roleKey: role.key, pathname, cursor, setCursor, go }
+  const tileProps = {
+    roleKey: role.key, pathname, cursor, setCursor, go, onPin,
+    needle, menuFor, setMenuFor,
+  }
 
-  /* The two header controls, and the reason they no longer name a semantic
-     class. `hover:bg-accent` is a wash mixed from `--bento-ink` — the card's
-     ink — which on the near-black page is a black smear that cannot be seen;
-     `focus-visible:ring-ring` is the mint accent, measured against the card
-     and 1.2:1 against the paper dock, so the focus ring was the one thing on
-     screen a keyboard user could not find. Both are mixed from `--ink-here`
-     instead, which is by construction the colour this ground contrasts with. */
+  /* The two header controls. Both are mixed from `--ink-here`, which is by
+     construction the colour this ground contrasts with. */
   const quiet =
     `flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors ` +
     `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
 
+  const indexOf = new Map(slots.map((s, i) => [s.id, i]))
+  const draw = (list: Slot[], band = false) => (
+    <div className={band ? 'lch-band' : 'lch-grid'}>
+      {list.map((s) => (
+        <Tile
+          key={s.id}
+          slot={s}
+          index={indexOf.get(s.id) ?? -1}
+          pinned={pinSet.has(s.r.key)}
+          {...tileProps}
+        />
+      ))}
+    </div>
+  )
+
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-label={t('bento.launcher.title')}
       /* Frosted glass over the board, the way an iPhone's App Library sits
          over the wallpaper — see .bento-frost in bento-theme.css for why the
          saturation matters as much as the blur. */
@@ -547,22 +622,15 @@ export function BentoLauncher({
       onTouchMove={onSheetTouchMove}
       onTouchEnd={onSheetTouchEnd}
       onTouchCancel={onSheetTouchEnd}
-      className="bento-frost fixed inset-0 z-[60] overflow-y-auto overscroll-contain"
+      className="lch bento-frost fixed inset-0 z-[60] overflow-y-auto overscroll-contain"
       /* THE INK IS CHOSEN BY THE SURFACE, AND EVERY SURFACE CHOOSES ITS OWN.
 
-         This panel is the one place in the layout whose ground is the PAGE and
-         not a card. `--bento-ink` is the card's ink — the palettes measured it
-         against `--bento-card` and nothing else — so every word in this header
-         inherited black and the default palette put it on a near-black page at
-         1.11:1. Not a palette that could fix it: one ink cannot be right on two
-         grounds.
-
-         So the ink is derived from the ground it will sit on: black or white,
-         whichever the ground is further from, by that ground's own lightness.
-         `--ink-here` is redefined by each surface below — the page, a category
-         panel, a chip, a tile — and everything inside a surface reads it, so a
-         word is always the ink of the thing it is printed on. No colour is
-         named and no palette has anything new to set. */
+         This panel's ground is the PAGE and not a card, and `--bento-ink` is
+         the card's ink. So the ink is derived from the ground it will sit on:
+         black or white, whichever the ground is further from, by that
+         ground's own lightness. `--ink-here` is redefined by each surface
+         below — the page, a plate — and everything inside a surface reads
+         it, so a word is always the ink of the thing it is printed on. */
       style={
         {
           ...sheet,
@@ -574,58 +642,34 @@ export function BentoLauncher({
           paddingTop: 'env(safe-area-inset-top, 0px)',
         } as CSSProperties
       }
-      onClick={onClose}
+      onClick={() => close()}
     >
       <div
-        /* Wider than a reading column, because this is not one.
-
-           max-w-5xl is the width prose wants — about 1024px — and it was
-           strangling a four-column board of boxes: "Academic Performan…"
-           truncated at 1024 with a thousand pixels of empty screen either side
-           of it. A launcher is scanned across, not read down, so it should take
-           the glass it is given.
-
-           Capped rather than full-bleed. On an ultrawide, panels stretched to
-           2500px would put Home and Operations so far apart that finding one
-           means moving your head, and the tiles inside would grow into empty
-           rectangles. 1600 is about as wide as a four-column board stays
-           readable. */
-        className="mx-auto max-w-[1600px] px-6 pb-16 pt-10 sm:px-10"
-        onClick={(e) => e.stopPropagation()}
+        className="lch-body"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (menuFor) setMenuFor(null)
+        }}
       >
         <div className="mb-5 flex items-baseline justify-between gap-4">
           <div>
-            {/* `text-muted-foreground` resolves to `--bento-muted`, which is
-                the card's ink. On the page it is the wrong ground's ink, and
-                the muted tone is the ink anyway — the difference is carried by
-                size and weight, which is where it already was. */}
-            <p className="text-[11px] uppercase tracking-[0.08em]">
-              {role.name}
-            </p>
+            <p className="text-[11px] uppercase tracking-[0.08em]">{role.name}</p>
             <h2 className="text-[22px] font-semibold">{t('bento.launcher.title')}</h2>
           </div>
           <div className="flex items-center gap-1.5">
             {homeRow && (
-              <button
-                type="button"
-                onClick={() => go(homeRow)}
-                className={quiet}
-              >
+              <button type="button" onClick={() => go(homeRow)} className={quiet}>
                 <House className="size-3.5" aria-hidden="true" />
                 {t('bento.dock.home')}
               </button>
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className={quiet}
-            >
+            <button type="button" onClick={() => close()} className={quiet}>
               {t('bento.launcher.close')}
             </button>
           </div>
         </div>
 
-        <div className="relative mb-8">
+        <div className="relative mb-7">
           {/* The glyph sits ON the field, not on the page, so it takes the
               card's ink rather than the page's. */}
           <Search
@@ -633,21 +677,19 @@ export function BentoLauncher({
                        text-[var(--bento-ink)]"
             aria-hidden="true"
           />
-          {/* The field is a card, so its words are the card's ink — it was
-              inheriting the page's and came out black on white by luck on two
-              palettes and black on near-black on the default.
-
-              Its edge is mixed from the ink rather than taken from
-              `--bento-line`: the line token is the hairline BETWEEN cards, and
-              at 1.13:1 against the page it left the one text input on the
+          {/* The field is a card, so its words are the card's ink. Its edge
+              is mixed from the ink rather than taken from `--bento-line`,
+              which at 1.13:1 against the page left the one text input on the
               surface with no visible boundary at all. */}
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            type="search"
+            autoComplete="off"
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
-            className="w-full rounded-[10px] border
+            className="w-full rounded-[12px] border
                        !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
                        bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
                        text-[var(--bento-ink)] focus-visible:outline-none focus-visible:ring-2
@@ -655,106 +697,17 @@ export function BentoLauncher({
           />
         </div>
 
-        {/* The categories, as switches rather than as a picker.
-
-            All are on when the panel opens, and pressing one turns it off.
-            That is the direction round that matches what somebody is doing
-            here: they arrive wanting the whole board and narrow it by removing
-            the parts they are not looking in — the opposite arrangement makes
-            "show me everything" a thing they have to ask for first.
-
-            Each carries its domain colour when on and goes flat when off, so
-            the row of chips reads as the same colour system as the board it is
-            filtering rather than as a separate control panel. */}
-        <div className="mb-6 flex flex-wrap items-center gap-1.5">
-          {chips.map((name) => {
-            const Mark = markFor(name)
-            const hue = hueFor(name)
-            const on = !off.has(name)
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => toggle(name)}
-                aria-pressed={on}
-                className={cn(
-                  `flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px]
-                   transition-colors focus-visible:outline-none focus-visible:ring-2
-                   focus-visible:ring-[var(--ink-here)]`,
-                  on && 'font-medium',
-                )}
-                /* A chip that is on is its own little surface, so it declares
-                   its own ink; a chip that is off is the page, so it keeps the
-                   page's.
-
-                   The off state's border was a literal `hsl(var(--border))` —
-                   the classic theme's token, written inline where the
-                   stylesheet's re-pointing rules cannot reach it. It is the one
-                   value in these three components a palette structurally could
-                   not move, and it moved only when the theme flipped between
-                   light and dark. */
-                style={
-                  on
-                    ? ({
-                        '--chip': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                        '--ink-here': 'hsl(from var(--chip) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
-                        background: 'var(--chip)',
-                        color: 'var(--ink-here)',
-                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,
-                      } as CSSProperties)
-                    : {
-                        borderColor: 'color-mix(in srgb, var(--ink-here) 45%, transparent)',
-                        opacity: 0.75,
-                      }
-                }
-              >
-                {/* The mark keeps its hue and is moved far enough toward the
-                    chip's own ink to be a shape rather than a stain: the
-                    default palette's domain colours ARE its card colours, so
-                    drawn neat on a chip mixed from the same colour they
-                    measured 1.0-1.9:1. */}
-                <Mark
-                  className="size-3.5 shrink-0"
-                  style={{
-                    color: on
-                      ? `color-mix(in srgb, var(--dom-${hue}) 45%, var(--ink-here))`
-                      : 'currentColor',
-                  }}
-                  aria-hidden="true"
-                />
-                {name}
-              </button>
-            )
-          })}
-
-          {/* Only offered when it would do something. A reset that is always
-              there is a control people learn to ignore. */}
-          {off.size > 0 && (
-            <button
-              type="button"
-              onClick={() => setOff(new Set())}
-              className="ml-1 rounded-full px-2.5 py-1 text-[12px] underline-offset-4
-                         transition-colors hover:underline focus-visible:outline-none
-                         focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]"
-            >
-              {t('bento.launcher.show_all')}
-            </button>
-          )}
-        </div>
-
         <div ref={listRef}>
           {needle ? (
             results.length ? (
-              <>
-                <Heading icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
-                <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {results.map((r, i) => <Tile key={r.key} r={r} i={i} step={i} context {...tileProps} />)}
-                </div>
+              <section className="lch-section" data-band="results">
+                <Label icon={Search} label={t('bento.launcher.results', { count: String(results.length) })} />
+                {draw(slots)}
                 <p className="mt-6 flex items-center gap-1.5 text-[11.5px] opacity-80">
                   <CornerDownLeft className="size-3" aria-hidden="true" />
-                  {t('bento.launcher.hint')}
+                  {t('bento.launcher.grid_hint')}
                 </p>
-              </>
+              </section>
             ) : (
               <p className="py-10 text-center text-[13.5px] opacity-80">
                 {t('bento.launcher.empty', { q: q.trim() })}
@@ -762,79 +715,32 @@ export function BentoLauncher({
             )
           ) : (
             <>
-              {recents.length > 0 && (
-                <section className="mb-9">
-                  <Heading icon={Clock} label={t('bento.launcher.recent')} />
-                  <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {recents.map((r, i) => <Tile key={`recent-${r.key}`} r={r} step={i} context {...tileProps} />)}
-                  </div>
+              {pinned.length > 0 && (
+                <section className="lch-section" data-band="pinned">
+                  <Label icon={Pin} label={t('bento.launcher.pinned')} />
+                  {draw(slots.filter((s) => s.id.startsWith('pin:')))}
                 </section>
               )}
-              <div className="grid grid-flow-dense auto-rows-min grid-cols-[minmax(0,1fr)] gap-3
-                              sm:grid-cols-2 lg:grid-cols-4">
-              {groups.filter((g) => !off.has(g.name)).map((g) => {
+              {recents.length > 0 && (
+                <section className="lch-section" data-band="recent">
+                  <Label icon={Clock} label={t('bento.launcher.recent')} />
+                  {draw(slots.filter((s) => s.id.startsWith('recent:')), true)}
+                </section>
+              )}
+              {groups.map((g) => {
                 const Mark = markFor(g.name)
-                const hue = hueFor(g.name)
-                const count = g.sections.reduce((n, x) => n + x.rows.length, 0)
                 return (
-                  /* The whole category sits on its colour, not just its glyph.
-
-                     A tinted panel does the grouping that a heading alone only
-                     asserts: the eye finds the block before it reads the word,
-                     and a feature's category is legible from the far side of
-                     the screen. The tint is the same soft the chip uses, so a
-                     workspace is one colour in two weights rather than two
-                     colours that have to be learned separately. */
-                  <section
-                    key={g.name}
-                    className={cn(
-                      'launcher-tile min-w-0 rounded-[var(--bento-radius)] border p-3.5',
-                      tileSpan(count),
-                    )}
-                    /* Mixed from the domain's ink, not its chip tone.
-
-                       The -soft tokens are about 4% saturation, which is right
-                       behind a chip the size of a word and invisible behind a
-                       panel the size of a hand: Home, Students and Finance all
-                       came out off-white and the colour system stopped saying
-                       anything. 13% of the ink against the card is enough to
-                       name a category across the width of the screen while
-                       still reading as a tint, and the border at 28% gives the
-                       block an edge so it is a region rather than a wash.
-
-                       Derived rather than a second set of hexes per domain, so
-                       there is nothing to keep in step and dark mode follows
-                       from the ink it already redefines. */
-                    /* The panel declares the ink for everything printed
-                       directly on it. Its colour is a mix, so which of black
-                       and white wins is a question about the mix and not about
-                       the palette's polarity: under the default palette Staff
-                       and Department Workspace come out dark enough to need
-                       white while their neighbours need black, and no single
-                       token could have said that. */
-                    style={
-                      {
-                        '--panel': `color-mix(in srgb, var(--dom-${hue}) 40%, var(--bento-card))`,
-                        '--ink-here': 'hsl(from var(--panel) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
-                        background: 'var(--panel)',
-                        color: 'var(--ink-here)',
-                        borderColor: `color-mix(in srgb, var(--dom-${hue}) 60%, var(--ink-here))`,
-                      } as CSSProperties
-                    }
-                  >
-                    <Heading icon={Mark} label={g.name} hue={hue} onTint />
-                    <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-1.5', tileColumns(count))}>
-                      {g.sections.flatMap((s) => s.rows).map((r, i) => (
-                        <Tile key={r.key} r={r} step={i} {...tileProps} />
-                      ))}
-                    </div>
+                  <section key={g.name} className="lch-section" data-band="all" data-workspace={g.name}>
+                    <Label icon={Mark} label={g.name} />
+                    {draw(slots.filter((s) => s.id.startsWith('all:') && s.r.workspace === g.name))}
                   </section>
                 )
               })}
-              </div>
             </>
           )}
         </div>
+
+        <div className="lch-live" role="status" aria-live="polite">{note}</div>
       </div>
     </div>
   )
@@ -853,197 +759,194 @@ export function BentoLauncher({
    touchend. The pixel reached onSheetTouchMove, which set `pull`, which
    re-rendered the launcher, which threw away the button under the finger. By
    the time the browser went to dispatch the click, its target was no longer in
-   the document, and WebKit dispatches nothing to a detached node. Tiles further
-   down worked, because there the finger is scrolling and the pull gesture has
-   stood down — so it looked like a bug in the recents list specifically.
+   the document, and WebKit dispatches nothing to a detached node.
 
    Everything the tile used to close over arrives as props instead, so the
-   type is stable and a re-render is a re-render. */
+   type is stable and a re-render is a re-render. BentoLauncher.test.tsx
+   guards this. */
+
+/* How long a finger rests before it is a hold rather than a tap, and how far
+   it may drift before it is a scroll. */
+const HOLD_MS = 450
+const HOLD_SLOP = 10
+
 function Tile({
-  r, i, context, step, roleKey, pathname, cursor, setCursor, go,
+  slot, index, pinned, roleKey, pathname, cursor, setCursor, go, onPin,
+  needle, menuFor, setMenuFor,
 }: {
-  r: Row
-  i?: number
-  context?: boolean
-  step?: number
+  slot: Slot
+  index: number
+  pinned: boolean
   roleKey: string
   pathname: string
   cursor: number
   setCursor: (i: number) => void
   go: (r: Row) => void
+  onPin: (r: Row) => void
+  needle: string
+  menuFor: string | null
+  setMenuFor: (id: string | null) => void
 }) {
+  const t = useT()
+  const { r, context } = slot
   const href = featurePath(roleKey, r.sectionSlug, r.slug)
   const here = pathname === href
-  const onCursor = i !== undefined && i === cursor
+  const onCursor = index === cursor
+  const menuOpen = menuFor === slot.id
   const Mark = markFor(r.workspace)
+  const hue = hueFor(r.workspace)
+  const menuRef = useRef<HTMLButtonElement>(null)
+
+  /* THE LONG PRESS.
+
+     A phone has no hover to reveal a "…" on, and a second target beside a
+     56px plate is a mis-tap. So holding the tile is how it is pinned there:
+     the timer starts on touch, a drift of more than a few pixels means the
+     finger is scrolling and stands it down, and lifting before it fires is
+     the tap it always was. When it does fire, the click that follows the
+     lift is swallowed — a hold that also opened the feature would be a
+     hold nobody could use. */
+  const hold = useRef<number | null>(null)
+  const held = useRef(false)
+  const at = useRef<{ x: number; y: number } | null>(null)
+  const clearHold = () => {
+    if (hold.current !== null) {
+      window.clearTimeout(hold.current)
+      hold.current = null
+    }
+  }
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return
+    held.current = false
+    at.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    clearHold()
+    hold.current = window.setTimeout(() => {
+      hold.current = null
+      held.current = true
+      onPin(r)
+    }, HOLD_MS)
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    const a = at.current
+    if (!a || e.touches.length !== 1) return
+    const dx = e.touches[0].clientX - a.x
+    const dy = e.touches[0].clientY - a.y
+    if (Math.abs(dx) > HOLD_SLOP || Math.abs(dy) > HOLD_SLOP) clearHold()
+  }
+  const onTouchEnd = () => {
+    clearHold()
+    at.current = null
+  }
+  useEffect(() => clearHold, [])
+
+  useEffect(() => {
+    if (menuOpen) menuRef.current?.focus()
+  }, [menuOpen])
+
+  const pieces = splitMatch(r.name, needle)
+
   return (
-    <button
-      type="button"
-      onClick={() => go(r)}
-      onMouseEnter={() => i !== undefined && setCursor(i)}
-      data-cursor={onCursor ? 'true' : undefined}
-      aria-current={here ? 'page' : undefined}
-      /* Each feature is its own object now, not a line of a list.
-
-         A row of text is read; a box is aimed at. With sixty-five of them
-         the difference is the whole experience of the panel — the eye lands
-         on a shape and the hand goes there, rather than scanning a column
-         for a word. It is the home-screen arrangement, and it works for the
-         same reason: position and colour become memory, so the third visit
-         is faster than the first.
-
-         The box carries its own surface rather than sitting transparently on
-         the category tint. That is what makes it an object at all — on the
-         tint alone it is a hover state pretending to be a thing. */
-      className={cn(
-        /* min-w-0 is what keeps this inside the screen.
-
-           A grid item's min-width is `auto`, which means it refuses to be
-           narrower than its own content. "Parent Bus Proximity Radius
-           Customizer" is a wide piece of min-content, so the box grew, the
-           grid grew with it, and the whole launcher overflowed the phone by
-           36px -- every tile pushed off the right edge, and the truncation
-           on the label below never got a chance to fire because nothing was
-           ever narrower than the text. */
-        `launcher-app group flex w-full min-w-0 items-center gap-2.5 rounded-[10px] px-2.5 py-2
-         text-left focus-visible:outline-none focus-visible:ring-2
-         focus-visible:ring-[var(--ink-here)]`,
-        onCursor && 'launcher-app-on',
-        here && 'font-medium',
-      )}
-      /* Each box takes a tone from its category's own colour.
-
-         Not one tint repeated: the mix walks 5, 7, 9, 11 per cent down the
-         tile order and then repeats, so neighbours differ by a step small
-         enough to read as one family and large enough that the boxes are
-         separate objects rather than a striped field. It is the difference
-         between a shelf of books in a series and a shelf of identical books.
-
-         All of them stay lighter than the panel behind, which is at 13, so
-         the boxes lift off their category rather than sinking into it.
-
-         Mixed against the card token rather than white, so dark mode needs
-         no second rule: there the same expression tints a dark surface. */
-      /* THE TINT IS NOW ACTUALLY PAINTED.
-
-         `--tile-tint` was computed here and consumed nowhere: the stylesheet
-         says the background is "given inline", the inline style set only the
-         variable, and so every one of the sixty-five boxes was transparent.
-         The whole reason the box exists — an object you aim at rather than a
-         row you read — was never on screen, and its words were inheriting the
-         ink of whatever it happened to be sitting over.
-
-         With a surface it also gets an ink, chosen against that surface the
-         same way every other surface here chooses one. */
-      style={
-        {
-          '--tile-tint': `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) ${
-            5 + ((step ?? 0) % 4) * 2
-          }%, var(--bento-card))`,
-          '--ink-here': 'hsl(from var(--tile-tint) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
-          background: 'var(--tile-tint)',
-          color: 'var(--ink-here)',
-        } as CSSProperties
-      }
-    >
-      {/* The row's glyph carries its group's colour, which is what ties a
-          tile to the heading it sits under once the eye has left it. Within
-          a group every glyph is the same, so it reads as grouping rather
-          than as sixty-five separate decisions.
-
-          It names itself on hover. A mark is only a landmark once you have
-          learnt it, and nothing here teaches it: a book means Academics to
-          whoever chose the book. The title is on a wrapping span rather than
-          the svg because a title inside an aria-hidden element is read by
-          neither the pointer nor the screen reader in some browsers. */}
-      <span
-        title={r.workspace}
-        className="grid shrink-0 place-items-center"
-        /* Neat domain colour on a surface mixed from that same domain colour
-           is a glyph you cannot see — 1.00:1 for Operations under the default
-           palette, where `--dom-operations` IS the paper the tile is made of.
-           Mixed toward the tile's own ink it keeps the hue that ties it to
-           its heading and gains a shape. */
-        style={{ color: `color-mix(in srgb, var(--dom-${hueFor(r.workspace)}) 45%, var(--ink-here))` }}
+    <div className="lch-cell" data-key={r.key}>
+      <button
+        type="button"
+        data-slot={index}
+        data-cursor={onCursor ? 'true' : undefined}
+        aria-current={here ? 'page' : undefined}
+        aria-label={pinned ? `${r.name} · ${t('bento.launcher.pinned')}` : undefined}
+        className="lch-app"
+        onClick={() => {
+          if (held.current) { held.current = false; return }
+          go(r)
+        }}
+        onMouseEnter={() => setCursor(index)}
+        onFocus={() => setCursor(index)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        /* A right-click is the desk's long press: it opens the same one-item
+           menu the "…" does, and never the browser's. */
+        onContextMenu={(e) => {
+          e.preventDefault()
+          setMenuFor(menuOpen ? null : slot.id)
+        }}
       >
-        <Mark className="size-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px]">{r.name}</span>
-        {/* Where it belongs, said only where that is not already obvious.
-
-            Inside a category panel the heading has just said it: HOME, and
-            then three tiles each captioned "Home". Repeating the answer to a
-            question the block already answered is noise the eye has to
-            discard on every row.
-
-            Recents and search results are the cases where it earns its
-            place, because those are drawn from everywhere at once — and
-            there it names the category rather than the section, since the
-            category is the thing carrying a colour the reader has been
-            learning. */}
-        {context && (
-          <span className="block truncate text-[11.5px] opacity-80">
-            {r.workspace}
+        {/* The plate takes a tint of its workspace's colour and chooses its
+            own ink against that tint, the way every surface here does. The
+            monogram is moved toward that ink so it is a shape and not a
+            stain: the default palette's domain colours ARE its card colours,
+            and drawn neat on a plate mixed from the same colour they
+            measured 1.0-1.9:1. */}
+        <span
+          className="lch-plate"
+          aria-hidden="true"
+          style={
+            {
+              '--plate': `color-mix(in srgb, var(--dom-${hue}) 30%, var(--bento-card))`,
+              '--ink-here': 'hsl(from var(--plate) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
+              color: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--ink-here))`,
+            } as CSSProperties
+          }
+        >
+          <span className="lch-mono">{monogram(r.name)}</span>
+          <span className="lch-plate-mark" title={r.workspace}>
+            <Mark aria-hidden="true" />
           </span>
-        )}
-      </span>
-    </button>
+          {pinned && (
+            <span className="lch-pinmark">
+              <Pin aria-hidden="true" />
+            </span>
+          )}
+        </span>
+        <span className="lch-name">
+          {pieces.map((p, i) =>
+            p.hit ? <mark key={i} className="lch-hl">{p.text}</mark> : <Fragment key={i}>{p.text}</Fragment>,
+          )}
+          {/* Where it belongs, said only where that is not already obvious:
+              recents and results are drawn from everywhere at once. Under a
+              workspace label the label has just said it. */}
+          {context && <span className="lch-where">{r.workspace}</span>}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        className="lch-more"
+        aria-label={t('bento.launcher.more_for', { name: r.name })}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={(e) => {
+          e.stopPropagation()
+          setMenuFor(menuOpen ? null : slot.id)
+        }}
+      >
+        <Ellipsis aria-hidden="true" />
+      </button>
+      {menuOpen && (
+        <div className="lch-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+          <button
+            ref={menuRef}
+            type="button"
+            role="menuitem"
+            onClick={() => onPin(r)}
+          >
+            {pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+            {t(pinned ? 'bento.launcher.unpin' : 'bento.launcher.pin')}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
-/** One heading treatment for every band, so recents, results and workspaces
-    read as the same kind of thing rather than three inventions.
-
-    The glyph sits in a filled chip of its category's colour. Both halves earn
-    their place: a coloured icon alone is too small a mark to register on this
-    ground, and a coloured chip alone loses the shape that says which
-    workspace it is. The label stays muted — colouring the words as well would
-    make eight headings shout at each other, and the chip has already said it. */
-function Heading({
-  icon: Icon,
-  label,
-  hue = 'operations',
-  onTint,
-}: {
-  icon: typeof Home
-  label: string
-  hue?: string
-  /** True when the heading sits on its category's tint, where a chip of the
-      same soft would be invisible. There the glyph goes bare and the label
-      takes the ink, so the heading still reads as the strongest thing in the
-      panel without inventing a third weight of the colour. */
-  onTint?: boolean
-}) {
+/** One label treatment for every band, so pinned, recents, results and
+    workspaces read as the same kind of thing rather than four inventions.
+    Quiet on purpose: the tiles are the content. */
+function Label({ icon: Icon, label }: { icon: typeof Home; label: string }) {
   return (
-    <h3
-      className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.08em]"
-      /* On the tint the heading was drawn in `--dom-<hue>` — the domain colour
-         — on a panel mixed from that same domain colour. In the shipped
-         palettes that name is a dark ink and it read; under the default palette
-         it is the panel's own colour and the heading measured 1.86:1. It takes
-         the panel's ink instead, which is the one colour the panel is
-         guaranteed to contrast with, and the weight keeps it the strongest
-         thing in the block. */
-      style={onTint ? { color: 'var(--ink-here)' } : undefined}
-    >
-      <span
-        title={label}
-        className="flex size-6 items-center justify-center"
-        /* Off the tint the chip is the domain's own panel, so the glyph is
-           that panel's measured ink — `-text` is exactly the token for it, and
-           `--dom-<hue>` was the panel colour again: a mark drawn in the colour
-           it sits on. */
-        style={{
-          background: onTint ? 'transparent' : `var(--dom-${hue}-soft)`,
-          color: onTint
-            ? `color-mix(in srgb, var(--dom-${hue}) 45%, var(--ink-here))`
-            : `var(--dom-${hue}-text)`,
-        }}
-      >
-        <Icon className="size-3.5" aria-hidden="true" />
-      </span>
-      <span className={onTint ? 'font-semibold' : undefined}>{label}</span>
+    <h3 className="lch-label">
+      <Icon aria-hidden="true" />
+      <span>{label}</span>
     </h3>
   )
 }

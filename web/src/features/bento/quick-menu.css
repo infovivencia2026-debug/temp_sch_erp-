@@ -1,0 +1,75 @@
+/* THE "…" IN THE CORNER, outside customize mode.
+
+   Every card carries one, at the top-right, where the corner arrow already
+   sits. The arrow stays — it is the cue that the card is a link, and on a
+   phone there is no hover to bring a menu button up in its place — so when
+   the "…" is showing, the arrow slides one control-width to the left, the
+   geometry `CornerControl`'s `insetLeft` already draws. The two are the same
+   40px square in the same style; only the glyph differs.
+
+   ALWAYS SHOWN WHERE THERE IS NO HOVER. The base rules are the touch rules;
+   the (hover: hover) block is the only place a control is allowed to hide
+   at rest, and there focus-within brings it up for a keyboard.
+
+   The wrapper (`.bento-widget`) sets every child to full height so the cell
+   stretches; the "…" is a child of that wrapper and must not. */
+[data-layout='bento'] .bento-widget > .bento-more {
+  height: 2.5rem;
+  width: 2.5rem;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+[data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) {
+  right: 2.5rem;
+}
+/* A fingertip's target on a phone, the size the arrow already takes there. */
+@media (max-width: 767px) {
+  [data-layout='bento'] .bento-widget > .bento-more { width: 2.75rem; height: 2.75rem; }
+  [data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) { right: 2.75rem; }
+}
+[data-layout='bento'] .bento-more[aria-expanded='true'] {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  opacity: 1;
+}
+@media (hover: hover) {
+  [data-layout='bento'] .bento-widget > .bento-more { opacity: 0; }
+  [data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) {
+    right: 0;
+    transition: right 150ms ease-out;
+  }
+  [data-layout='bento'] .bento-widget:hover > .bento-more,
+  [data-layout='bento'] .bento-widget:focus-within > .bento-more {
+    opacity: 0.7;
+  }
+  [data-layout='bento'] .bento-widget > .bento-more:hover,
+  [data-layout='bento'] .bento-widget > .bento-more:focus-visible,
+  [data-layout='bento'] .bento-widget > .bento-more[aria-expanded='true'] {
+    opacity: 1;
+  }
+  [data-layout='bento'] .bento-widget[data-more]:hover .bento-cue:not(.bento-more),
+  [data-layout='bento'] .bento-widget[data-more]:focus-within .bento-cue:not(.bento-more) {
+    right: 2.5rem;
+  }
+  @media (max-width: 767px) {
+    [data-layout='bento'] .bento-widget[data-more]:hover .bento-cue:not(.bento-more),
+    [data-layout='bento'] .bento-widget[data-more]:focus-within .bento-cue:not(.bento-more) {
+      right: 2.75rem;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-layout='bento'] .bento-widget[data-more] .bento-cue:not(.bento-more) { transition: none; }
+}
+
+/* A heading inside the menu — "Size" over the four tiers — drawn as a
+   label, not a row: no hover, not walkable. */
+.bento-menu__head {
+  padding: 6px 10px 2px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  user-select: none;
+}

@@ -250,6 +250,10 @@ class MainActivity : Activity() {
              * Refusing is the safe direction: the cost is a missing
              * convenience, and the cost of the other default is lost work. */
             canScrollUp = { !shell.atTop }
+            /* And it stays out altogether while the page has the finger: the
+               board being customised, a card being carried. See PageGestures
+               in ShellWebView.kt for how the page says so. */
+            pageBusy = { shell.gestureLocked }
             onRefresh = { web.reload() }
         }
         splash = buildSplashView()
@@ -387,6 +391,36 @@ class MainActivity : Activity() {
         @android.webkit.JavascriptInterface
         fun setAtTop(value: Boolean) {
             reported = value
+        }
+
+        /* WHETHER THE PAGE HAS THE FINGER.
+
+           The board can be customised on the phone: a held card lifts and is
+           carried, and a card carried downward from the top row is, to the
+           pull gesture, a pull — the board sits at the top of its scroller,
+           so atTop is true throughout. PullToRefresh intercepting there sent
+           the WebView an ACTION_CANCEL and the card dropped mid-drag. The
+           page marks the board with data-arranging while the mode is on and
+           data-dragging while a card is carried; the script in PageGestures
+           reports those marks here, and the pull reads the answer and stays
+           out. Same shape as setAtTop: a boolean, written on the bridge's
+           thread, read on the UI thread inside a touch event, false until
+           the page says otherwise. */
+        @Volatile private var held: Boolean = false
+
+        val gestureLocked: Boolean get() = held
+
+        @android.webkit.JavascriptInterface
+        fun setGestureLock(on: Boolean) {
+            held = on
+        }
+
+        /* A new document starts with nothing held. The flag belongs to the
+           page that set it; a reload while arranging must not leave the
+           pull refused for the life of the next page. Not a bridge method:
+           only the annotated ones are reachable from the page. */
+        fun clearGestureLock() {
+            held = false
         }
 
         /* The app lock's switch. Still nothing but booleans: the page may
@@ -635,6 +669,9 @@ class MainActivity : Activity() {
                 painted = true
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL
+                // A new document: whatever the last one held, it has let go.
+                shell.clearGestureLock()
+                PageGestures.watch(view)
                 committed(url)
                 if (offline.visibility != View.VISIBLE) web.visibility = View.VISIBLE
             }
@@ -643,6 +680,7 @@ class MainActivity : Activity() {
                 painted = true
                 hideSplash()
                 SystemBars.watch(view) // SHELL-FEEL
+                PageGestures.watch(view)
                 progress.visibility = View.GONE
                 pull.stopRefreshing()
                 committed(url)

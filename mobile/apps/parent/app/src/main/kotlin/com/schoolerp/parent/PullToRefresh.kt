@@ -57,6 +57,21 @@ class PullToRefresh(context: Context) : FrameLayout(context) {
        away from its top, in which case this layout never takes a gesture. */
     var canScrollUp: () -> Boolean = { false }
 
+    /* Set by the activity. Returns true while the page has said a gesture of
+       its own is under way — the board being customised, a card being
+       carried — and while it does, no pull is taken however far down the
+       finger travels. A card is dragged with the page's scroller at the top,
+       so canScrollUp alone offers the pull; and the board's own rule is
+       stricter than any position: while it is being arranged, a downward
+       finger is moving a card, never asking for a reload.
+
+       Unlike canScrollUp this is read again at the moment the pull would be
+       taken, not only at ACTION_DOWN. The page raises the flag after the
+       finger has already held still for a fifth of a second, so at DOWN the
+       answer is always no; and a re-read here can only refuse, never
+       trigger, which is the direction every rule in this class leans. */
+    var pageBusy: () -> Boolean = { false }
+
     /* Called once per accepted pull. The activity reloads; it must call
        stopRefreshing when the load finishes, or the spinner sits there
        forever and the app looks hung. */
@@ -113,7 +128,7 @@ class PullToRefresh(context: Context) : FrameLayout(context) {
                 dragging = false
                 // The one and only reading of scroll position, taken before a
                 // finger has moved anything.
-                eligible = !canScrollUp()
+                eligible = !canScrollUp() && !pageBusy()
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 // A second finger means a pinch zoom on a document, never a
@@ -123,6 +138,12 @@ class PullToRefresh(context: Context) : FrameLayout(context) {
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!eligible) return false
+                // The page may have taken the finger since DOWN: a hold has
+                // lifted a card. Settled for the rest of this gesture.
+                if (pageBusy()) {
+                    eligible = false
+                    return false
+                }
                 val dy = event.y - startY
                 val dx = event.x - startX
                 if (dy > slop && dy > Math.abs(dx)) {

@@ -284,8 +284,31 @@ function current(dashboard: string): Layout {
   return cache.get(dashboard)!
 }
 
-function write(dashboard: string, next: Layout, remember = true) {
-  if (remember) history.set(dashboard, current(dashboard))
+/* ONE UNDO STEP PER GESTURE. The colour wheel reports a sample on every
+   pointermove and the reorder sheet writes on every row crossing; if each
+   sample took the history slot, Undo would step back one sample and the
+   card would stay the colour it was dragged to. A write that names the op
+   it is part of pushes history only when it STARTS a gesture: the previous
+   write was a different op, on a different card, or longer ago than a
+   hand pauses mid-drag. Discrete acts (a button, a key) pass `true`, and
+   also end whatever gesture was running. */
+const GESTURE_MS = 800
+const lastOp = new Map<string, { op: string; id: string; at: number }>()
+
+function write(dashboard: string, next: Layout, remember: boolean | { op: string; id: string } = true) {
+  if (remember === true) {
+    history.set(dashboard, current(dashboard))
+    lastOp.delete(dashboard)
+  } else if (remember) {
+    const last = lastOp.get(dashboard)
+    const now = Date.now()
+    const continues =
+      !!last && last.op === remember.op && last.id === remember.id && now - last.at < GESTURE_MS
+    if (!continues) history.set(dashboard, current(dashboard))
+    lastOp.set(dashboard, { op: remember.op, id: remember.id, at: now })
+  } else {
+    lastOp.delete(dashboard)
+  }
   cache.set(dashboard, next)
   try {
     // An untouched dashboard stores nothing, so "never arranged" and "arranged
@@ -358,15 +381,44 @@ export function useLayout(dashboard: string) {
      tier is a different shape on the two boards, and the caller is the one
      looking at a screen. */
   const setTier = useCallback(
-    (id: string, tier: SizeTier, phone: boolean) => {
+    (id: string, tier: SizeTier, phone: boolean, currentW?: number) => {
       const d = dimsForTier(tier, phone)
-      resize(id, d.w, d.h)
+      /* A PHONE CHOOSES A HEIGHT AND NOTHING ELSE. `paginate` draws every
+         card the full page width whatever `w` says, so the phone has no
+         width to choose — and must not write one: a 1x1 desk card made
+         Small on the phone came back 2x1, which the desk reads as Medium.
+         The width the card already has (`currentW`, the caller's stored or
+         declared width; else the stored one) is kept. */
+      const w = phone
+        ? currentW ?? current(dashboard).placed.find((p) => p.id === id)?.w ?? d.w
+        : d.w
+      resize(id, w, d.h)
     },
-    [resize],
+    [resize, dashboard],
+  )
+
+  /* PUT A CARD ON THE BOARD FROM THE ADD GALLERY, at this size, at the end
+     of the order. `place` leaves an already-placed card untouched, and on a
+     desk a card can be placed yet not drawn — it fell past the fifteen-slot
+     ceiling after a phone arranged it — so "Add" on such a card did nothing
+     and said "Added". This resizes it and moves it to the end in ONE write,
+     which is where the gallery's own fit test assumed it would land and one
+     step for Undo. `all` seeds the order the way `move` does. */
+  const add = useCallback(
+    (id: string, w: number, h: number, all: Placed[]) => {
+      const l = current(dashboard)
+      const was = l.placed.find((p) => p.id === id)
+      const seed: Placed[] = all
+        .filter((x) => x.id !== id)
+        .map((x) => l.placed.find((p) => p.id === x.id) ?? { id: x.id, w: x.w, h: x.h })
+      const entry: Placed = { ...(was ?? {}), id, w, h }
+      write(dashboard, { placed: [...seed, entry], removed: l.removed.filter((r) => r !== id) })
+    },
+    [dashboard],
   )
 
   const move = useCallback(
-    (id: string, to: number, all: Placed[]) => {
+    (id: string, to: number, all: Placed[], coalesce = false) => {
       const l = current(dashboard)
       /* Ordering needs every visible widget in the list, not only the ones
          somebody has already touched, or moving a default card would jump it
@@ -384,7 +436,7 @@ export function useLayout(dashboard: string) {
       const next = [...seed]
       const [item] = next.splice(from, 1)
       next.splice(to, 0, item)
-      write(dashboard, { placed: next, removed: l.removed })
+      write(dashboard, { placed: next, removed: l.removed }, coalesce ? { op: 'move', id } : true)
     },
     [dashboard],
   )
@@ -394,16 +446,20 @@ export function useLayout(dashboard: string) {
      dashboard gave it rather than storing a "default" that would stop tracking
      the dashboard if that colour ever changed. */
   const recolour = useCallback(
-    (id: string, tint: Hsl | null, w: number, h: number) => {
+    (id: string, tint: Hsl | null, w: number, h: number, coalesce = false) => {
       const l = current(dashboard)
       const at = l.placed.find((p) => p.id === id)
       const next: Placed = at ? { ...at } : { id, w, h }
       if (tint) next.tint = tint
       else delete next.tint
-      write(dashboard, {
-        placed: at ? l.placed.map((p) => (p.id === id ? next : p)) : [...l.placed, next],
-        removed: l.removed.filter((r) => r !== id),
-      })
+      write(
+        dashboard,
+        {
+          placed: at ? l.placed.map((p) => (p.id === id ? next : p)) : [...l.placed, next],
+          removed: l.removed.filter((r) => r !== id),
+        },
+        coalesce ? { op: 'recolour', id } : true,
+      )
     },
     [dashboard],
   )
@@ -523,7 +579,7 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
-  return { layout, place, remove, resize, setTier, recolour, move, reset, undo, canUndo, tidy, applyPreset }
+  return { layout, place, add, remove, resize, setTier, recolour, move, reset, undo, canUndo, tidy, applyPreset }
 }
 
 /** The width and height a widget should render at: what the person chose,
@@ -547,6 +603,17 @@ export function isRemoved(layout: Layout, id: string): boolean {
 export function orderOf(layout: Layout, id: string, declared: number): number {
   const i = layout.placed.findIndex((p) => p.id === id)
   return i >= 0 ? i : layout.placed.length + declared
+}
+
+/** The `to` that `move` needs for a card dragged from `from` to land ON
+    the slot of the card at `at` — or, with `after`, in the gap after it,
+    which is where a drop into a page's empty half or below the last card
+    goes. `move` splices the card out first, so from an earlier position
+    the target has already slid one place up: inserting at `at` is then
+    after it, and only a card from later needs the extra one. */
+export function dropIndex(from: number, at: number, after: boolean): number {
+  if (!after) return at
+  return from < at ? at : at + 1
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -808,9 +875,6 @@ export function paginate(
   items: { id: string; w: number; h: number }[],
   cols = PHONE_COLS,
   rows = PHONE_ROWS,
-  /** The ids whose height was chosen by a person, not declared by the
-      dashboard. Only those may take a second row — see below. */
-  tallOk?: Set<string>,
 ): Spot[] {
   const out: Spot[] = []
   let page = 0
@@ -861,11 +925,9 @@ export function paginate(
        to page. `tallOk` is how the caller says which heights were chosen here
        rather than declared elsewhere. */
     /* HALF THE PAGE OR ALL OF IT. The height is what was declared or chosen,
-       one row or two, and never more than the page has. `tallOk` used to
-       decide whether a declared height could be honoured; the owner's layout
-       honours it for every card, so the set is kept for its callers and no
-       longer decides anything. */
-    void tallOk
+       one row or two, and never more than the page has. A `tallOk` set used
+       to decide whether a declared height could be honoured; the owner's
+       layout honours it for every card, and the parameter is gone. */
     const h = Math.min(Math.max(1, item.h), 2, rows)
     let spot: { row: number; col: number } | null = null
     for (let r = 0; !spot && r <= rows - h; r++) {

@@ -29,6 +29,16 @@ final class PullToRefresh: NSObject, UIGestureRecognizerDelegate {
        away from the top, in which case no gesture is ever taken. */
     var canScrollUp: () -> Bool = { true }
 
+    /* Set by the shell. Returns true while the page has said a gesture of
+       its own is under way — the board being customised, a card being
+       carried — and while it does, no pull is taken however far down the
+       finger travels. A card is dragged with the page's scroller at the top,
+       so canScrollUp alone would offer the pull. Read again at the moment
+       the pull would be taken, not only when the pan begins: the page raises
+       the flag after the finger has already held still, and a re-read here
+       can only refuse, never trigger. */
+    var pageBusy: () -> Bool = { false }
+
     /* Called once per accepted pull. The shell reloads; it must call
        stopRefreshing when the load finishes, or the spinner sits there for
        ever and the app looks hung. */
@@ -75,7 +85,7 @@ final class PullToRefresh: NSObject, UIGestureRecognizerDelegate {
             dragging = false
             travel = 0
             // The one and only reading of the page's position.
-            eligible = pullEnabled && !refreshing && !canScrollUp()
+            eligible = pullEnabled && !refreshing && !canScrollUp() && !pageBusy()
             // A pan begins only after the finger has already moved, so the
             // first translation is worth judging rather than discarding.
             moved(g)
@@ -93,6 +103,12 @@ final class PullToRefresh: NSObject, UIGestureRecognizerDelegate {
 
     private func moved(_ g: UIPanGestureRecognizer) {
         guard eligible else { return }
+        // The page may have taken the finger since the pan began: a hold has
+        // lifted a card. Settled for the rest of this gesture.
+        if !dragging && pageBusy() {
+            eligible = false
+            return
+        }
         let t = g.translation(in: g.view)
         if !dragging {
             if t.y > slop && t.y > abs(t.x) {

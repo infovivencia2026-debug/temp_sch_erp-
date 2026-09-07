@@ -75,6 +75,15 @@ export function recordRecent(key: string) {
   for (const l of listeners) l()
 }
 
+/** Re-read storage. The list is cached for the life of the page, so a test
+    that clears localStorage between cases — or another tab that changed the
+    list — needs a way to say so. Only ever additive to the API above. */
+export function reloadRecents(): string[] {
+  current = typeof window === 'undefined' ? [] : read()
+  for (const l of listeners) l()
+  return current
+}
+
 export function useRecents(): string[] {
   return useSyncExternalStore(subscribe, snapshot, serverSnapshot)
 }

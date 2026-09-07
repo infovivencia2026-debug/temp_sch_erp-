@@ -2,7 +2,7 @@ import Foundation
 
 /* THE ONE HOLE IN THE WALL BETWEEN THE PAGE AND THE PHONE.
 
-   The site talks to the Android shell through window.ErpShell, five methods
+   The site talks to the Android shell through window.ErpShell, six methods
    and nothing else (web/src/lib/shell-scroll.ts is the contract). Android
    gets that object for free from addJavascriptInterface, and its methods are
    synchronous: appLockEnabled() returns a boolean the page reads on the spot.
@@ -11,7 +11,7 @@ import Foundation
    and asynchronous, so the same object is built here in JavaScript, injected
    before any page script runs, and answers the two questions the page asks
    from state it was handed at injection: whether the lock is on and whether
-   the phone can do it. The three commands post a message and return. The page
+   the phone can do it. The four commands post a message and return. The page
    cannot tell the difference, which is the point: one bundle, two shells.
 
    Everything the page can do through this is still nothing but booleans and
@@ -38,6 +38,7 @@ enum BridgeScript {
           }
           window.ErpShell = {
             setAtTop: function (v) { post('atTop', !!v); },
+            setGestureLock: function (v) { post('gestureLock', !!v); },
             setAppLock: function (on) { state.appLock = !!on; post('appLock', !!on); },
             appLockEnabled: function () { return state.appLock; },
             biometricsAvailable: function () { return state.canLock; },
@@ -59,6 +60,31 @@ enum BridgeScript {
             'body { -webkit-user-select: none; user-select: none; touch-action: pan-x pan-y; }\\n' +
             'input, textarea, [contenteditable], [data-selectable] { -webkit-user-select: text; user-select: text; }';
           (document.head || document.documentElement).appendChild(style);
+          /* THE BOARD'S OWN GESTURES. The board can be customised on the
+             phone: a held card lifts and is carried, and a card carried
+             downward from the top row is, to the shell's pull-to-refresh, a
+             pull — the board sits at the top of its scroller, so atTop is
+             true throughout. The page marks the board with data-arranging
+             while the mode is on and data-dragging while a card is carried,
+             but says so to the DOM, not to the shell; this watches the two
+             marks and reports them through the same method Android's
+             injected script calls, and the pull stays out while either is
+             set. childList as well as attributes: a route change removes the
+             board before React clears the attribute on it. One report per
+             change, nothing per touch. */
+          var held = null;
+          function report() {
+            var now = !!document.querySelector('.bento-board[data-arranging], .bento-board[data-dragging]');
+            if (now === held) return;
+            held = now;
+            window.ErpShell.setGestureLock(now);
+          }
+          new MutationObserver(report).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-arranging', 'data-dragging'],
+            childList: true,
+            subtree: true
+          });
         })();
         """
     }

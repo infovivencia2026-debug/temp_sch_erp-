@@ -1,8 +1,11 @@
-import { Fragment, createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react'
-import { ArrowUpRight } from 'lucide-react'
+import { Fragment, createContext, forwardRef, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { ArrowUpRight, Check, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useT } from '@/lib/i18n'
+import { useT, type MessageKey } from '@/lib/i18n'
 import { useWidgetSize } from '@/lib/widget-size'
+import { Menu, TierGlyph } from './Menu'
+import { tierLabelKey, type SizeTier } from '@/lib/size-tiers'
+import './quick-menu.css'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
    Twelve drawings, one card shell, and a single colour rule: every mark is
    `currentColor`. The cell has already resolved its own ink — black on a pale
@@ -722,21 +725,25 @@ function Figure({ text }: { text: string }) {
   )
 }
 
-export function CornerControl({
-  as: Tag = 'button',
-  insetLeft = false,
-  className,
-  children,
-  ...props
-}: {
+/* A forwardRef because the quick menu hangs its popover off this box and
+   needs the node; every other caller passes no ref and sees no change. */
+export const CornerControl = forwardRef<HTMLElement, {
   as?: any
   insetLeft?: boolean
   className?: string
   children: ReactNode
   type?: 'button' | 'submit' | 'reset'
-} & React.HTMLAttributes<HTMLElement>) {
+  disabled?: boolean
+} & React.HTMLAttributes<HTMLElement>>(function CornerControl({
+  as: Tag = 'button',
+  insetLeft = false,
+  className,
+  children,
+  ...props
+}, ref) {
   return (
     <Tag
+      ref={ref}
       {...props}
       className={cn(
         'bento-cue absolute top-0 z-10 grid size-10 place-items-center',
@@ -747,7 +754,7 @@ export function CornerControl({
       {children}
     </Tag>
   )
-}
+})
 
 /** THE CORNER MARK — one definition, every board.
     ...
@@ -768,6 +775,119 @@ export function CornerMark({
     >
       <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
     </CornerControl>
+  )
+}
+
+/* THE QUICK MENU: what iCloud's home page puts behind the "…" on a tile,
+   here on every card outside customize mode.
+
+   The card body stays the link. This is a second control beside the corner
+   arrow — a `CornerControl` in the arrow's own style, at the very corner,
+   with the arrow slid left while it shows (quick-menu.css says why the arrow
+   is kept rather than replaced). It is rendered by `Widget`, as a sibling of
+   the card rather than inside it, because the card is often itself a Link
+   and a button inside a link is a click that navigates.
+
+   Presentational: the rows are given as callbacks and the colour row as a
+   node, so this file knows nothing about the layout store. The tiers arrive
+   already judged — `on` for the current one, `ok` for the ones that fit —
+   and choosing one applies straight away without entering the mode; that is
+   the point of a quick menu. */
+export interface QuickTier {
+  tier: SizeTier
+  on: boolean
+  ok: boolean
+}
+
+export function QuickMenu({
+  label,
+  phone,
+  tiers,
+  onOpen,
+  canOpen,
+  onCustomize,
+  onTier,
+  onHide,
+  colour,
+}: {
+  label: string
+  phone: boolean
+  tiers: readonly QuickTier[]
+  onOpen: () => void
+  /** Asked while the menu is open, not at mount — the card's link is in the
+      DOM by then. False draws no Open row. */
+  canOpen?: () => boolean
+  onCustomize: () => void
+  onTier: (tier: SizeTier) => void
+  onHide: () => void
+  /** The colour row — `ColourPick` with a label — supplied by the caller
+      because the wheel lives with the layer. */
+  colour?: ReactNode
+}) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const btn = useRef<HTMLButtonElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  const name = t('bento.widgets.more_for', { label })
+  const act = (fn: () => void) => () => {
+    setOpen(false)
+    fn()
+  }
+
+  return (
+    <>
+      <CornerControl
+        ref={btn}
+        type="button"
+        className="bento-more"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={name}
+        title={name}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+      </CornerControl>
+      <Menu open={open} anchor={btn.current} label={name} onClose={close}>
+        {(canOpen?.() ?? true) && (
+          <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onOpen)}>
+            <ArrowUpRight className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{t('bento.widgets.open')}</span>
+          </button>
+        )}
+        <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onCustomize)}>
+          <span className="min-w-0 flex-1 truncate">{t('bento.widgets.customize')}</span>
+        </button>
+        <div className="bento-menu__rule" role="separator" />
+        <div className="bento-menu__head" aria-hidden="true">{t('bento.widgets.size')}</div>
+        {tiers.map(({ tier, on, ok }) => (
+          <button
+            key={tier}
+            type="button"
+            role="menuitemradio"
+            aria-checked={on}
+            disabled={!ok}
+            title={ok ? undefined : t('bento.widgets.wont_fit')}
+            className={cn('bento-menu__item', on && 'is-on')}
+            onClick={act(() => onTier(tier))}
+          >
+            <TierGlyph tier={tier} phone={phone} />
+            <span className="min-w-0 flex-1 truncate">{t(tierLabelKey(tier) as MessageKey)}</span>
+            {on && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+          </button>
+        ))}
+        {colour && (
+          <>
+            <div className="bento-menu__rule" role="separator" />
+            {colour}
+          </>
+        )}
+        <div className="bento-menu__rule" role="separator" />
+        <button type="button" role="menuitem" className="bento-menu__item" onClick={act(onHide)}>
+          <span className="min-w-0 flex-1 truncate">{t('bento.widgets.hide')}</span>
+        </button>
+      </Menu>
+    </>
   )
 }
 

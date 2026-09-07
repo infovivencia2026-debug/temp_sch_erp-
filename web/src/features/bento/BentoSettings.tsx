@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { Palette, Pencil, Plus, Settings, SlidersHorizontal } from 'lucide-react'
 import { useAppearanceRequest } from '@/lib/appearance-request'
+import { requestArrange } from '@/lib/widgets'
+import { isHomeBoard } from '@/lib/panes'
 import { usePhone } from '@/lib/viewport'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
+import { Menu } from './Menu'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH } from './ColourDialog'
+import './dock-menus.css'
 
 /* Settings, from inside a layout that has no header to put them in.
 
@@ -17,49 +21,58 @@ import { INK, EDGE, WASH } from './ColourDialog'
    changing, and sending someone to a settings page to do it means they judge
    the result on the wrong screen.
 
-   THIS IS A BUTTON NOW, AND NOT A MENU.
+   THIS IS A MENU AGAIN, AND HERE IS WHY THAT IS NOT THE OLD MENU.
 
-   It was a popover listing a handful of rows, one of which opened the
-   appearance dialog. That made pressing the settings cog a question -- which
-   settings? -- answered by a list whose every substantive entry led to the
-   same window. Two surfaces, one of them a waiting room for the other.
+   It was a popover once, and it was taken down for a good reason: every
+   substantive row in it opened the same appearance window, so the cog asked
+   "which settings?" and answered with a list that all led to one door. Two
+   surfaces, one of them a waiting room for the other.
 
-   The cog opens that window directly. The four rows the popover still had
-   after the appearance rows merged into it -- full screen, reset appearance,
-   my profile, sign out -- went into the dialog's footer, where they are
-   visible from every tab rather than one press further away than the thing
-   they sat in front of.
+   That objection no longer holds, because the rows are not about one door.
+   The board has a customize mode now — the one a long-press on a card
+   enters — and nothing in the dock said so; on the phone in particular the
+   mode was reachable only by knowing to hold a card down. So the cog is the
+   dock's overflow: "Customize board" and "Add card…" go into the mode, and
+   the appearance and board-settings rows go to the window (or, on a phone,
+   to the /settings route). Three destinations is a menu; one was not.
 
-   What is left here is the trigger and the mount. The placement prop survives
-   because the cog itself still looks different in a dock, a rail, a menu bar
-   and a sidebar; it no longer has to position a floating panel, which is where
-   most of this file used to go.
+   It is the same popover every menu on the board uses (Menu.tsx): opens
+   upward from the bar, walks with the arrow keys, catches its own Escape,
+   returns focus to the cog, and on a phone is a sheet above the tab bar.
 
-   AND ON A PHONE IT IS A LINK, NOT A TRIGGER.
+   WHY THE COG AND NOT A LONG-PRESS ON HOME. A long-press on the dock's Home
+   button was the other candidate for the phone, and it is exactly as hidden
+   as the long-press on a card this row exists to make unnecessary: a gesture
+   you have to be told about. A row in a menu is read, not guessed, and the
+   cog is the one tab on the phone bar every person opens eventually.
 
-   The paragraph above is the argument for a window rather than a route, and it
-   is still right where it is true: on a desktop the dialog floats over the
-   live page, and the palette you are choosing repaints the thing behind it
-   while you choose. On a 390px phone none of that holds. The dialog's own
-   panel is `h-full ... rounded-none` there -- a full sheet covering every
-   pixel of the page it was supposed to float over -- so there is nothing
-   behind it to judge a palette against, and it was a full-screen settings
-   surface that merely had no URL.
+   AND ON A PHONE THE ROUTE STAYS THE DESTINATION.
 
-   What the missing URL cost: a history entry pushed by hand so the back
-   gesture would not close the tab, a dock item that could not be drawn as the
-   current tab because nothing in the location said it was current, and a
-   fourth tab in a four-tab bar that left the screen by a mechanism the other
-   three do not use. So below 768px this navigates to /settings and the dialog
-   is not mounted at all; at and above it, everything is exactly as it was. */
+   Below 768px the appearance dialog is not mounted at all: its panel is a
+   full sheet there, so there was nothing behind it to judge a palette
+   against, and it was a settings surface that merely had no URL — with a
+   history entry pushed by hand and a dock item that could not be drawn as
+   current. The /settings route fixed that, and the menu's rows navigate to
+   it; the cog is still marked `aria-current` while you stand in it. */
 
 export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
-export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlacement }) {
+export function BentoSettings({
+  placement = 'dock',
+  home,
+}: {
+  placement?: SettingsPlacement
+  /** The home board's path, from whoever knows it (the dock resolves it per
+      role). Without it the board rows are offered only while standing on a
+      board, which the address can answer on its own. */
+  home?: string
+}) {
   const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
   const phone = usePhone()
+  const btn = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
@@ -94,17 +107,47 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
   const here = location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/')
 
+  /* Which board the board rows act on: the one the dock named, else the one
+     under our feet. Neither, and the rows are not drawn — a "Customize
+     board" that has no board is a row that does nothing when pressed. */
+  const board = home ?? (isHomeBoard(location.pathname) ? location.pathname : undefined)
+
+  /* Referentially stable: it is a dependency of the effect that installs the
+     popover's document listeners. */
+  const close = useCallback(() => setOpen(false), [])
+
+  /* Into customize mode on the board. The board has to be the one on screen
+     before it can be arranged, so this navigates first; the intent is parked
+     rather than set (see requestArrange), because the move unmounts the old
+     board and that unmount drops arrange mode.
+
+     "Add card…" lands in the same place. The mode's own bar holds Add, and
+     the gallery it opens is state private to WidgetLayer with no request
+     hook, so the closest this row can get is the bar with Add on it. */
+  const customize = () => {
+    if (board && location.pathname !== board) navigate(board)
+    requestArrange()
+    setOpen(false)
+  }
+
+  const page = (which: 'appearance' | 'dashboard') => {
+    setOpen(false)
+    if (phone) {
+      navigate(which === 'appearance' ? '/settings' : '/settings/dashboard')
+      return
+    }
+    setAppearanceTab(which)
+    setShowAppearance(true)
+  }
+
   return (
     <div className="relative">
       <button
+        ref={btn}
         type="button"
-        onClick={() => {
-          if (phone) { navigate('/settings'); return }
-          setAppearanceTab('appearance')
-          setShowAppearance(true)
-        }}
-        aria-haspopup={phone ? undefined : 'dialog'}
-        aria-expanded={phone ? undefined : showAppearance}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         aria-current={phone && here ? 'page' : undefined}
         data-tip={placement === 'dock' ? t('bento.settings.label') : undefined}
         aria-label={t('bento.settings.label')}
@@ -150,6 +193,32 @@ export function BentoSettings({ placement = 'dock' }: { placement?: SettingsPlac
         />
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
+
+      <Menu open={open} anchor={btn.current} label={t('bento.settings.label')} onClose={close} width={224}>
+        {board && (
+          <>
+            <button type="button" role="menuitem" className="bento-menu__item" onClick={customize}>
+              <Pencil aria-hidden="true" />
+              <span className="bento-menu__label">{t('bento.menu.customize')}</span>
+            </button>
+            <button type="button" role="menuitem" className="bento-menu__item" onClick={customize}>
+              <Plus aria-hidden="true" />
+              <span className="bento-menu__label">{t('bento.menu.add_card')}</span>
+            </button>
+            <div className="bento-menu__rule" role="separator" />
+          </>
+        )}
+        <button type="button" role="menuitem" className="bento-menu__item" onClick={() => page('appearance')}>
+          {phone ? <Settings aria-hidden="true" /> : <Palette aria-hidden="true" />}
+          <span className="bento-menu__label">
+            {phone ? t('bento.menu.settings') : t('bento.menu.appearance')}
+          </span>
+        </button>
+        <button type="button" role="menuitem" className="bento-menu__item" onClick={() => page('dashboard')}>
+          <SlidersHorizontal aria-hidden="true" />
+          <span className="bento-menu__label">{t('bento.menu.board_settings')}</span>
+        </button>
+      </Menu>
 
       {/* Not mounted on a phone at all. The route renders the same sections
           from the same components, and a dialog that can never open is a

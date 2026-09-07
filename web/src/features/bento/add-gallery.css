@@ -6,9 +6,12 @@
    this with it, in both polarities.
 
    Two shapes from one block: the desk's popover is the default; [data-phone]
-   turns it into a sheet from the bottom edge. The enter and exit are 180ms
-   on transform and opacity, matched by MOTION_MS in the component, and
-   [data-still] — the reduce-motion preference, OS or account — removes them. */
+   turns it into a sheet from the bottom edge. The enter and exit ride the
+   mode's motion tokens (--bento-dur, --bento-ease in bento-theme.css) on
+   transform and opacity only, matched by MOTION_MS in the component, and
+   [data-still] — the reduce-motion preference, OS or account — removes them.
+   [data-up] is the popover opened ABOVE its anchor: it grows from its
+   bottom-left corner instead. */
 
 .bento-gallery {
   position: fixed;
@@ -18,18 +21,24 @@
   box-sizing: border-box;
   width: min(640px, calc(100vw - 16px));
   max-height: min(70vh, 640px);
-  border-radius: 14px;
+  border-radius: var(--bento-pop-radius, 14px);
   background: var(--bento-card-base);
   color: var(--bento-ink);
   box-shadow:
     var(--bento-edge, none),
     0 0 0 1px color-mix(in srgb, var(--bento-ink) 16%, transparent),
-    0 12px 40px color-mix(in srgb, var(--bento-ink) 18%, transparent);
+    var(--bento-pop-shadow, 0 12px 40px color-mix(in srgb, var(--bento-ink) 18%, transparent));
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
   transform-origin: top left;
-  transition: opacity 180ms ease, transform 180ms var(--ease-phone, ease);
+  transition:
+    opacity var(--bento-dur, 200ms) var(--bento-ease, ease),
+    transform var(--bento-dur, 200ms) var(--bento-ease, ease);
   outline: none;
+}
+.bento-gallery[data-up] {
+  transform: translateY(6px) scale(0.98);
+  transform-origin: bottom left;
 }
 .bento-gallery[data-shown] {
   opacity: 1;
@@ -56,7 +65,7 @@
   opacity: 1;
   transform: translate3d(0, 100%, 0);
   transform-origin: bottom center;
-  transition: transform 180ms var(--ease-phone, ease);
+  transition: transform var(--bento-dur, 200ms) var(--bento-ease, ease);
 }
 .bento-gallery[data-phone][data-shown] {
   transform: none;
@@ -67,7 +76,7 @@
   z-index: 61;
   background: color-mix(in srgb, var(--bento-ink) 28%, transparent);
   opacity: 0;
-  transition: opacity 180ms ease;
+  transition: opacity var(--bento-dur, 200ms) var(--bento-ease, ease);
 }
 .bento-gallery__backdrop[data-shown] {
   opacity: 1;
@@ -169,7 +178,7 @@
   border-radius: 12px;
   background: color-mix(in srgb, currentColor 4%, transparent);
   outline: none;
-  transition: background-color 120ms ease;
+  transition: background-color var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
 }
 .bento-gallery__tile:focus-visible {
   outline: 2px solid currentColor;
@@ -207,7 +216,7 @@
   padding: 8%;
   border-radius: 8px;
   background: color-mix(in srgb, currentColor 7%, transparent);
-  transition: opacity 120ms ease;
+  transition: opacity var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
 }
 .bento-gallery__tile[data-added] .bento-gallery__preview {
   opacity: 0.45;
@@ -284,7 +293,7 @@
   font-size: 10px;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 120ms ease;
+  transition: background-color var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
 }
 .bento-gallery__size + .bento-gallery__size {
   border-left: 1px solid color-mix(in srgb, currentColor 16%, transparent);
@@ -338,7 +347,7 @@
   color: var(--bento-card-base);
   font-size: 11px;
   line-height: 1.2;
-  animation: bento-gallery-pop 180ms var(--ease-phone, ease);
+  animation: bento-gallery-pop var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
 }
 @keyframes bento-gallery-pop {
   from { opacity: 0; transform: translateY(4px) scale(0.9); }
