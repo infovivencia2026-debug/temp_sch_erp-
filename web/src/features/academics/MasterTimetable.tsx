@@ -165,6 +165,14 @@ export default function MasterTimetable() {
     },
   })
 
+  /* A section built on its own lands in the same place a whole-school run
+     does: the draft opens, and nothing has reached a teacher yet. */
+  function onSectionDraft(draftID: string, sectionName: string) {
+    setOpenDraft(draftID)
+    setNote(`Worked out ${sectionName}. Nothing has changed for teachers yet — open it to look.`)
+    qc.invalidateQueries({ queryKey: ['master-timetable'] })
+  }
+
   if (overview.isLoading) return <Loading label="Reading the year's timetable…" />
   // A failed read is never drawn as "no sections". "We could not read this"
   // and "this school has no timetable" are opposite conclusions.
@@ -293,14 +301,14 @@ export default function MasterTimetable() {
             not otherwise -- and eighteen classes of boxes above a draft is a
             page nobody can find the timetable on. */}
         {needsRequirements ? (
-          <PeriodsNeeded mayWrite={mayWrite} />
+          <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
         ) : (
           <details className="rounded-[10px] border bg-card">
             <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-              Change how many periods a week each subject needs
+              Set periods and build one section at a time
             </summary>
             <div className="border-t">
-              <PeriodsNeeded mayWrite={mayWrite} />
+              <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
             </div>
           </details>
         )}
