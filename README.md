@@ -247,6 +247,47 @@ answer 200 while a student's and parent's attempts at staff endpoints answer
 family's child, and everything below `/api/v1` except `/session` is 401 signed
 out.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull
+request. Four jobs, independent so they run in parallel:
+
+| Job | What it runs |
+| --- | --- |
+| `go` | `go build ./...`, `go vet ./...`, `go test -count=1 ./...` against a Postgres 16 service container that has been migrated with `cmd/migrate up`. Both `ERP_TEST_DATABASE_URL` and `TEST_DATABASE_URL` point at it, so the database-backed tests that skip on a laptop do not skip here. |
+| `web` | `npm ci`, `npx tsc --noEmit`, `npx vitest run`, `npx vite build` in `web/` on Node 22. |
+| `android` | `./gradlew --no-daemon assembleDebug -x lint` for each of `mobile/apps/{bus-tracker,parent,sms-gateway}` on JDK 17. Debug only: no keystore, and bus-tracker's `MAPS_API_KEY` comes from the tracked `local.defaults.properties` placeholder. |
+| `migrations` | A shell check that every `migrations/*.sql` has a unique, increasing 5-digit number. `go test ./migrations/` makes the same check in the `go` job; this one needs no toolchain. |
+
+Reproducing each job locally:
+
+```bash
+# go: needs a Postgres you own. The migrations name the roles erp_owner and
+# app_user literally, so both must exist before `migrate up`.
+psql -c "CREATE ROLE erp_owner LOGIN SUPERUSER PASSWORD 'erp'"
+psql -c "CREATE ROLE app_user LOGIN PASSWORD 'app' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+createdb -O erp_owner erp_test
+export PGURL='postgres://erp_owner:erp@127.0.0.1:5432/erp_test?sslmode=disable'
+MIGRATE_DATABASE_URL=$PGURL DATABASE_URL=$PGURL \
+  SESSION_SECRET=any-string-of-at-least-32-bytes-long PASSWORD_PEPPER=x \
+  go run ./cmd/migrate up
+go build ./... && go vet ./...
+ERP_TEST_DATABASE_URL=$PGURL TEST_DATABASE_URL=$PGURL CREDENTIAL_KEY=any \
+  go test -count=1 ./...
+
+# web
+cd web && npm ci && npx tsc --noEmit && npx vitest run && npx vite build
+
+# android (JDK 17 on PATH, ANDROID_HOME set; see mobile/apps/*/README.md)
+cd mobile/apps/bus-tracker && ./gradlew --no-daemon assembleDebug -x lint
+
+# migrations: the loop in the workflow file, or simply
+go test ./migrations/
+```
+
+Without `ERP_TEST_DATABASE_URL` / `TEST_DATABASE_URL` the Go database tests
+skip rather than fail, which is why CI is the place they are guaranteed to run.
+
 ## Deploy
 
 The server builds from git. `make deploy-server` is the supported path;

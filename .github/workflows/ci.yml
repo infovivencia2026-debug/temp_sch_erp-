@@ -1,0 +1,238 @@
+# Continuous integration: every push to main and every pull request builds
+# and tests the Go backend against a real Postgres, the web SPA, and the three
+# Android apps, and checks that no two migrations share a number.
+#
+# Until this file existed nothing ran the tests but the author's own machine.
+# The failures that shipped were the ones a second machine would have caught:
+# a compile error in a package the author had not touched, a vitest suite that
+# had gone red weeks earlier, and two migrations at the same number (see the
+# header of migrations/00141_unguarded_channels.sql). Each job below exists
+# because one of those happened.
+#
+# The four jobs are independent so they run in parallel; a red Android build
+# does not hide a red Go test. Reproduce any job locally with the commands
+# under "Continuous integration" in README.md.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A second push to the same branch supersedes the run in progress; on main
+# every push still gets its own run, because main is what is deployed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      # The database-backed tests are guarded on an environment variable and
+      # skip silently without one (`go test ./...` stays green on a box with
+      # no Postgres, which is how they are usually run). CI is the one place
+      # they must not skip, so it provides the database.
+      #
+      # POSTGRES_USER is erp_owner, not the image's default `postgres`: the
+      # baseline migration says `ALTER DEFAULT PRIVILEGES FOR ROLE erp_owner`
+      # (migrations/00001_baseline.sql) and goose fails on it unless a role
+      # of that name exists. The image makes its POSTGRES_USER a superuser,
+      # which also covers CREATE EXTENSION citext / pgcrypto.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: erp_owner
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: erp_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp_owner -d erp_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # sslmode=disable is what every test's own doc comment shows
+      # (internal/api/message_dispatch_test.go and friends); the service
+      # container has no certificate and pgx would otherwise refuse it.
+      PGURL: postgres://erp_owner:erp@127.0.0.1:5432/erp_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      # go-version-file keeps the toolchain in one place (go.mod), and
+      # setup-go caches the module download and build caches keyed on go.sum.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # The tests expect an already migrated database: none of them runs
+      # goose itself (internal/ratelimit fails outright with "apply migrations
+      # to TEST_DATABASE_URL first"). migrations/00042_baseline_grants.sql
+      # grants to a role literally named app_user, so that role has to exist
+      # before goose reaches it; it is created with LOGIN and nothing else,
+      # exactly as scripts/deploy.sh creates the app role in production.
+      #
+      # cmd/migrate goes through config.Load before it looks at any flag, and
+      # config.Load refuses to start without DATABASE_URL, a 32-byte
+      # SESSION_SECRET and PASSWORD_PEPPER, so throwaway values are supplied
+      # for those. MIGRATE_DATABASE_URL is the owner DSN the command reads,
+      # as documented in .env.example.
+      - name: Create the app role and migrate
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -c \
+            "CREATE ROLE app_user LOGIN PASSWORD 'app' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+          go run ./cmd/migrate up
+          go run ./cmd/migrate status | tail -3
+        env:
+          MIGRATE_DATABASE_URL: ${{ env.PGURL }}
+          DATABASE_URL: ${{ env.PGURL }}
+          SESSION_SECRET: ci-only-session-secret-of-at-least-32-bytes
+          PASSWORD_PEPPER: ci-only-pepper
+
+      # Two families of database tests read two different variables:
+      # ERP_TEST_DATABASE_URL guards the message-dispatch, SMS-gateway,
+      # WhatsApp and route-sweep tests under internal/api, while
+      # TEST_DATABASE_URL guards internal/queue, internal/auth,
+      # internal/ratelimit, tests/ and the HR and timetable tests. Both point
+      # at the same migrated database, connecting as the owner, which is the
+      # form every test's own doc comment gives.
+      #
+      # CREDENTIAL_KEY is exported because the SMS gateway tests seal a
+      # pairing token with it and fail with "CREDENTIAL_KEY is not set.
+      # Refusing to store a password in clear" when nothing sets it; the
+      # bus-tracker tests set it themselves with t.Setenv, the gateway ones
+      # did not. Any fixed non-empty value does.
+      #
+      # -count=1 defeats the test cache: a cached "ok" from a run against a
+      # different database is not evidence of anything.
+      - name: Test
+        run: go test -count=1 ./...
+        env:
+          ERP_TEST_DATABASE_URL: ${{ env.PGURL }}
+          TEST_DATABASE_URL: ${{ env.PGURL }}
+          CREDENTIAL_KEY: ci-only-credential-key
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      # web/package.json declares no engines field and there is no .nvmrc;
+      # README.md asks for Node 22+, which is what the box that deploys runs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # The three commands `make lint` and the production build run, split so
+      # the log names the one that broke. `npm run build` is `tsc -b && vite
+      # build`; vitest is not in any npm script, which is how its suite went
+      # red unnoticed.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build
+        run: npx vite build
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [bus-tracker, parent, sms-gateway]
+    defaults:
+      run:
+        working-directory: mobile/apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # All three apps pin jvmToolchain(17) in app/build.gradle.kts and use
+      # the foojay resolver to find it; AGP 9.3.1 and Gradle 9.5 accept 17.
+      # Installing exactly 17 means the toolchain resolver finds it on disk
+      # instead of downloading one.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      # Caches ~/.gradle (wrapper distribution and dependency jars) between
+      # runs. On pull requests the cache is read-only so a PR cannot poison
+      # what main restores.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # assembleDebug, not assembleRelease: release signing reads an untracked
+      # keystore.properties and the keystores are not in the repository at
+      # all. Debug uses the SDK's throwaway debug key.
+      #
+      # bus-tracker needs MAPS_API_KEY from the secrets-gradle-plugin.
+      # secrets.properties is git-ignored, and local.defaults.properties
+      # carries the non-empty placeholder the plugin falls back to, so the
+      # build needs no secret and draws a blank map, as that file explains.
+      #
+      # Lint is excluded: the parent app's lintVital task is broken by a
+      # Gradle bug, and sms-gateway's lint has abortOnError and its own rule
+      # module. assembleDebug does not schedule lintVital (that is a release
+      # task) and -x lint drops the plain lint task, so this job proves the
+      # code compiles and packages, and nothing more. Lint runs where the
+      # release is built.
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon assembleDebug -x lint
+
+  migrations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # goose keys a migration on its numeric prefix and refuses to load a
+      # directory with the same version twice, so two files at one number stop
+      # every deploy on the installation. It has happened: two people wrote
+      # a migration within hours of each other and both took 00138 (see
+      # migrations/00141_unguarded_channels.sql). migrations/lint_test.go
+      # catches it under `go test ./...` in the go job too; this step is the
+      # same check with no toolchain, so it reports in seconds and stands on
+      # its own if the go job is red for an unrelated reason.
+      - name: Migration numbers are unique and increasing
+        run: |
+          set -eu
+          prev=0
+          for f in $(ls migrations/*.sql | sort); do
+            name=$(basename "$f")
+            case "$name" in
+              [0-9][0-9][0-9][0-9][0-9]_*.sql) ;;
+              *) echo "::error file=$f::migration filename must start with a 5-digit version and an underscore"; exit 1 ;;
+            esac
+            n=$((10#${name%%_*}))
+            if [ "$n" -le "$prev" ]; then
+              echo "::error file=$f::version $n is not greater than the previous migration's ($prev); two files share a number or one is out of order"
+              exit 1
+            fi
+            prev=$n
+          done
+          echo "$(ls migrations/*.sql | wc -l) migrations, highest is $prev, next free number is $(printf '%05d' $((prev + 1)))"
