@@ -131,8 +131,15 @@ jobs:
       #
       # -count=1 defeats the test cache: a cached "ok" from a run against a
       # different database is not evidence of anything.
+      # -p 1: one package at a time. Every database-backed package shares
+      # the one erp_test database, and go test runs packages in parallel by
+      # default. The cron tick test suspends every school but its own two
+      # and then counts them; the catalogue probe in another package
+      # provisions an active school; run together, the tick saw three. The
+      # tests inside a package still parallelise as they choose; this only
+      # stops two packages from arranging the same database at once.
       - name: Test
-        run: go test -count=1 ./...
+        run: go test -count=1 -p 1 ./...
         env:
           # The policy-bound role created above, not the owner: see the
           # note in the migrate step.
