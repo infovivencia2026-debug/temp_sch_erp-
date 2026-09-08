@@ -88,19 +88,56 @@ export function CommandSearch() {
   const session = useSession()
   const mayReadPeople = session.permissions.includes('students.read')
 
-  const needleForPeople = q.trim()
+  /* One question per pause, not one per letter.
+
+     Typing "karthikeya" used to be nine round trips, each a substring scan
+     over every student and guardian in the school. On the VPS that was a
+     rounding error. On Cloud Run and Neon every one of them is billed
+     compute, and a palette is the one screen people type into fastest. The
+     roll is asked only once the fingers stop for a quarter of a second. */
+  const needleTyped = q.trim()
+  const [needleForPeople, setNeedleForPeople] = useState('')
+  useEffect(() => {
+    const t = window.setTimeout(() => setNeedleForPeople(needleTyped), 250)
+    return () => window.clearTimeout(t)
+  }, [needleTyped])
+
+  /* Narrowing a complete answer needs no second question.
+
+     The server caps at 15 hits. When it returned fewer than that for "ka",
+     it returned everyone who matches "ka", so everyone who matches "kar" is
+     already on this side of the wire and a filter finds them. Only a
+     truncated answer, or a needle that is not an extension of the last one,
+     goes back to the database. */
+  const complete = useRef<{ needle: string; items: PersonHit[] } | null>(null)
+  const narrowFrom = complete.current
+  const canNarrow =
+    narrowFrom !== null &&
+    needleForPeople.length >= 2 &&
+    needleForPeople.toLowerCase().startsWith(narrowFrom.needle.toLowerCase())
   const people = useQuery({
     queryKey: ['people-search', needleForPeople],
     queryFn: () =>
       api.get<{ items: PersonHit[] }>(
         `/api/v1/people/search?q=${encodeURIComponent(needleForPeople)}`,
       ),
-    enabled: mayReadPeople && needleForPeople.length >= 2,
+    enabled: mayReadPeople && needleForPeople.length >= 2 && !canNarrow,
     // The roll does not change while somebody types, and a palette reopened a
     // second later should not re-ask.
     staleTime: 30_000,
   })
-  const peopleHits = people.data?.items ?? []
+  useEffect(() => {
+    if (people.data && people.data.items.length < 15) {
+      complete.current = { needle: needleForPeople, items: people.data.items }
+    }
+  }, [people.data, needleForPeople])
+  const peopleHits = useMemo(() => {
+    if (canNarrow && narrowFrom) {
+      const n = needleForPeople.toLowerCase()
+      return narrowFrom.items.filter((p) => `${p.name} ${p.detail}`.toLowerCase().includes(n))
+    }
+    return people.data?.items ?? []
+  }, [canNarrow, narrowFrom, needleForPeople, people.data])
 
   const hits = useMemo(() => {
     const needle = q.trim().toLowerCase()
