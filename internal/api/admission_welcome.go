@@ -99,12 +99,6 @@ func (s *Server) issueAdmissionLogin(
 		return admissionWelcome{Note: note}
 	}
 
-	// The school's own name, read here rather than passed in: the caller is a
-	// long handler and one more argument threaded through it is one more thing
-	// to get wrong.
-	var schoolName string
-	_ = tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName)
-
 	var (
 		guardianID uuid.UUID
 		userID     *uuid.UUID
@@ -221,52 +215,121 @@ func (s *Server) issueAdmissionLogin(
 		out.Note = "Shown once. Give it to the parent now; it cannot be read back."
 	}
 
-	/* THE MESSAGE.
+	out.SentTo = s.queueFamilyLogin(ctx, tx, nil, inst, familyCredential{
+		SourceKind: "admission", SourceID: studentID,
+		Occurrence: "portal_login",
+		FullName:   fullName, Phone: tel, Email: addr,
+		SignInAs: out.SignInAs, Password: out.Password,
+	})
+	return out
+}
 
-	   Two templates, because the two cases say different things: a new account
-	   carries a password, and a sibling's does not. Sending the new-account
-	   wording with an empty password would read as a blank credential.
+/* THE MESSAGE, for every path that puts a credential in a parent's hand.
 
-	   A guardian with no account and no password reaches neither branch, so
-	   there is nothing to send and nothing is sent. */
+   Two templates, because the two cases say different things: a new account
+   carries a password, and a sibling's does not. Sending the new-account
+   wording with an empty password would read as a blank credential.
+
+   The admission path did this and the others did not. A login issued from
+   the child's profile, or three hundred issued after a spreadsheet import,
+   was shown on a screen and went nowhere else -- so the office either read it
+   over the telephone or printed a list, and a family that lost the slip was
+   back at the desk. The same three channels, the same wording, and the same
+   swallowed failure: a credential that could not be queued is still on the
+   screen, and a message that did not go is not a reason to fail the thing
+   that was asked for.
+
+   A caller inside a fan-out passes the providers it has already loaded;
+   anybody else passes nil and they are read once here.
+*/
+
+type familyCredential struct {
+	// SourceKind, SourceID and Occurrence are the idempotency key. Occurrence
+	// must change when the credential does, or a reset would be swallowed as
+	// a duplicate of the message that carried the password it replaced.
+	SourceKind string
+	SourceID   uuid.UUID
+	Occurrence string
+
+	FullName string
+	Phone    string
+	Email    string
+	SignInAs string
+	// Empty when the account already existed and nothing was reissued; the
+	// message then names the account and stops. A reissued password on an
+	// account that had never been signed into is a password like any other
+	// and travels with the new-account wording -- the "existing" wording has
+	// nowhere to put one, and sent it nowhere.
+	Password string
+}
+
+// queueFamilyLogin queues the credential to every channel the guardian can be
+// reached on and returns the channels it managed to queue.
+func (s *Server) queueFamilyLogin(ctx context.Context, tx pgx.Tx, set providerSet,
+	inst uuid.UUID, c familyCredential) []string {
+
+	if strings.TrimSpace(c.SignInAs) == "" {
+		return nil
+	}
+	if set == nil {
+		loaded, err := s.loadProviders(ctx, tx, inst)
+		if err != nil {
+			return nil
+		}
+		set = loaded
+	}
+	var schoolName string
+	_ = tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).Scan(&schoolName)
+
 	code := "admissions.portal_login"
-	if out.Existing {
+	if c.Password == "" {
 		code = "admissions.portal_existing"
 	}
 	vars := map[string]any{
 		"school_name": schoolName,
-		"parent_name": firstNonEmpty(fullName, "Sir/Madam"),
-		"sign_in_as":  out.SignInAs,
-		"password":    out.Password,
+		"parent_name": firstNonEmpty(c.FullName, "Sir/Madam"),
+		"sign_in_as":  c.SignInAs,
+		"password":    c.Password,
 		"portal_url":  strings.TrimSuffix(s.BaseURL, "/") + "/login",
 	}
-	sid := studentID
+	sid := c.SourceID
+	var sent []string
 	for _, channel := range welcomeChannels {
-		to := tel
+		to := strings.TrimSpace(c.Phone)
 		if channel == "email" {
-			to = addr
+			to = strings.TrimSpace(c.Email)
 		}
 		if to == "" {
 			continue
 		}
-		if _, err := s.QueueMessage(ctx, tx, inst, SendRequest{
+		if _, err := s.queueWith(ctx, tx, inst, set, SendRequest{
 			Channel:      channel,
 			TemplateCode: code,
 			Vars:         vars,
 			Recipient:    to,
-			SourceKind:   "admission",
+			SourceKind:   c.SourceKind,
 			SourceID:     &sid,
-			// Idempotent per child per channel: an office that presses enrol
-			// twice because the page was slow must not send a family two
-			// different passwords, of which only the second one works.
-			OccurrenceKey: "portal_login:" + channel,
+			// Idempotent per credential per channel: an office that presses
+			// the button twice because the page was slow must not send a
+			// family two different passwords, of which only the second works.
+			OccurrenceKey: c.Occurrence + ":" + channel,
 		}); err != nil {
 			// Swallowed on purpose. See the file comment: a courtesy message
-			// is not worth failing an admission for.
-			_ = err
+			// is not worth failing the thing that was asked for.
 			continue
 		}
-		out.SentTo = append(out.SentTo, channel)
+		sent = append(sent, channel)
 	}
-	return out
+	return sent
+}
+
+// credentialTag names one issued password without revealing it, for the
+// occurrence key of the message that carries it. Every hash carries its own
+// salt, so a reset produces a new tag and a new message; a double press that
+// reached the same hash produces the same tag and one message.
+func credentialTag(hash string) string {
+	if len(hash) > 12 {
+		return hash[len(hash)-12:]
+	}
+	return hash
 }

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -70,6 +72,10 @@ type bulkLoginResult struct {
 	Skipped  int            `json:"skipped"`
 	Rows     []bulkLoginRow `json:"rows"`
 	Note     string         `json:"note"`
+	// Sent counts the new passwords that were also queued to the family, so
+	// the office knows whether the downloaded list is the only copy or a
+	// backup. Zero with created > 0 means no channel is set up yet.
+	Sent int `json:"sent"`
 }
 
 // issueLoginsInBulk mints an account for everybody of one kind who has none.
@@ -137,6 +143,34 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 	out := bulkLoginResult{Rows: []bulkLoginRow{}}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* Sent as well as listed, for a parent.
+
+		   A list of three hundred passwords is downloaded once and read out
+		   over the telephone for a month. The admission desk already sends
+		   the credential to the family the moment it exists; this does the
+		   same for every guardian it mints one for, on whatever channels the
+		   school has set up. The providers are read once here rather than
+		   once per family. A child has no phone of their own and staff get
+		   theirs handed over in the staff room, so it is guardians only. */
+		var providers providerSet
+		if req.Kind == "guardians" {
+			providers, _ = s.loadProviders(r.Context(), tx, id.InstitutionID)
+		}
+		tell := func(guardianID uuid.UUID, name, phone, email, signIn, password, hash string) {
+			if req.Kind != "guardians" || providers == nil {
+				return
+			}
+			sent := s.queueFamilyLogin(r.Context(), tx, providers, id.InstitutionID, familyCredential{
+				SourceKind: "guardian_login", SourceID: guardianID,
+				Occurrence: credentialTag(hash),
+				FullName:   name, Phone: phone, Email: email,
+				SignInAs: signIn, Password: password,
+			})
+			if len(sent) > 0 {
+				out.Sent++
+			}
+		}
+
 		type person struct {
 			id       uuid.UUID
 			name     string
@@ -242,6 +276,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				out.Rows = append(out.Rows, bulkLoginRow{
 					Name: p.name, SignInAs: signIn, Password: password,
 				})
+				tell(p.id, p.name, p.phone, p.email, signIn, password, hash)
 				continue
 			}
 
@@ -271,6 +306,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				out.Rows = append(out.Rows, bulkLoginRow{
 					Name: p.name, SignInAs: signIn, Password: password,
 				})
+				tell(p.id, p.name, p.phone, p.email, signIn, password, hash)
 				continue
 			}
 
@@ -405,6 +441,58 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			/* AND ONE HANDSET BETWEEN A FATHER AND A MOTHER MUST NOT LOSE ONE OF THEM.
+
+			   The commonest family on an Indian class list: two parents, one
+			   mobile number, written against both. The first was given an
+			   account on the number and the second was skipped as "already
+			   belongs to another account", which reads as an error about the
+			   data when it is a fact about the household.
+
+			   The single-record button already answers this by attaching the
+			   guardian to the parent account that holds the number, so the
+			   home signs in once and sees every child. The same here. Where
+			   the number is a staff member's rather than a parent's -- a
+			   teacher whose own child is enrolled, with a colleague's number
+			   on the sheet -- there is no household account to share, and the
+			   guardian is given a username-based login instead, without the
+			   number on it, rather than nothing. */
+			if err != nil && req.Kind == "guardians" && p.phone != "" && isUniqueViolation(err) {
+				_ = sp.Rollback(r.Context())
+				var attach *uuid.UUID
+				if qerr := tx.QueryRow(r.Context(), `
+					SELECT u.id FROM users u
+					 WHERE u.institution_id = $1 AND u.phone = $2
+					   AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+					                WHERE ur.user_id = u.id AND r.key = 'parent')
+					 ORDER BY u.created_at LIMIT 1`,
+					id.InstitutionID, p.phone).Scan(&attach); qerr != nil && !errors.Is(qerr, pgx.ErrNoRows) {
+					return qerr
+				}
+				if attach != nil {
+					var signIn, holder string
+					if qerr := tx.QueryRow(r.Context(), `
+						UPDATE guardians SET user_id = $2 WHERE id = $1
+						RETURNING (SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $2),
+						          (SELECT full_name FROM users WHERE id = $2)`,
+						p.id, *attach).Scan(&signIn, &holder); qerr != nil {
+						return qerr
+					}
+					out.Existing++
+					out.Rows = append(out.Rows, bulkLoginRow{
+						Name: p.name, SignInAs: signIn, Existing: true,
+						Detail: "shares the login of " + holder + ", who has the same number",
+					})
+					continue
+				}
+				sp5, berr := tx.Begin(r.Context())
+				if berr != nil {
+					return berr
+				}
+				sp = sp5
+				err = insert(sp, "", "")
+			}
+
 			if err != nil {
 				_ = sp.Rollback(r.Context())
 				out.Skipped++
@@ -449,6 +537,7 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 			out.Rows = append(out.Rows, bulkLoginRow{
 				Name: p.name, SignInAs: username, Password: password,
 			})
+			tell(p.id, p.name, p.phone, p.email, username, password, hash)
 		}
 		return nil
 	})
@@ -463,6 +552,9 @@ func (s *Server) issueLoginsInBulk(w http.ResponseWriter, r *http.Request) {
 
 	out.Note = "Passwords are shown once and are not stored. Download this list " +
 		"before leaving the page."
+	if out.Sent > 0 {
+		out.Note = fmt.Sprintf("%d of these were also sent to the family by message. ", out.Sent) + out.Note
+	}
 	if req.Reset {
 		out.Note += " Every password here is new: the ones handed out before this " +
 			"have stopped working."
