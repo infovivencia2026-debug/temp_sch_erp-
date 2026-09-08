@@ -176,11 +176,66 @@
        toward the accent -- it is where you are, not what you are doing. */
     --nav-active: 0 0% 100%;
 
-    /* Elevation. A hairline plus a shadow you cannot quite see: enough to lift
-       a panel off the page, far short of the stacked drop-shadows that date an
-       admin UI. Menus and dialogs genuinely float, so they get more. */
-    --lift-panel: 0 1px 2px hsl(220 20% 20% / 0.04);
-    --lift-float: 0 4px 12px -2px hsl(220 20% 20% / 0.10), 0 2px 4px -2px hsl(220 20% 20% / 0.06);
+    /* ELEVATION. One ladder, four rungs, and every surface in the product
+       stands on exactly one of them:
+
+         0  ground   the page. Nothing.
+         1  card     cards, rows, buttons, the phone's tiles. A two-layer
+                     shadow -- a tight contact layer that says the thing is
+                     resting on the page, a wide faint ambient one that says
+                     the page is lit -- plus a hairline.
+         2  raised   the dock, floating buttons, a card or row under the
+                     pointer, a widget being carried. Same two layers, further
+                     off the page.
+         3  sheet    bottom sheets, drawers, dialogs, menus. Clearly above
+                     everything, and always over a scrim.
+
+       Every alpha is a base times --elev-a, which is the single dial the
+       Shadow preference and the depth slider turn: the whole ladder scales
+       together, so a menu never ends up flatter than the card it opened from.
+       The colour is the ground's own hue darkened, not black -- a black shadow
+       on a cool grey page reads as dirt; a shadow the colour of the page in
+       shade reads as light.
+
+       Never heavier than this. The heaviest rung is a 56px ambient at 22%,
+       which is what a sheet over a page casts; anything past that stops being
+       a shadow and becomes a border made of smoke. */
+    --elev-a: 1;
+    --elev-ink: 220 20% 12%;
+    --elev-0: none;
+    --elev-1: 0 1px 1px hsl(var(--elev-ink) / calc(0.04 * var(--elev-a))),
+              0 2px 6px -1px hsl(var(--elev-ink) / calc(0.07 * var(--elev-a)));
+    --elev-2: 0 2px 4px -1px hsl(var(--elev-ink) / calc(0.08 * var(--elev-a))),
+              0 10px 24px -6px hsl(var(--elev-ink) / calc(0.14 * var(--elev-a)));
+    --elev-3: 0 6px 12px -4px hsl(var(--elev-ink) / calc(0.10 * var(--elev-a))),
+              0 24px 56px -12px hsl(var(--elev-ink) / calc(0.22 * var(--elev-a)));
+    /* The same two rungs cast UPWARD, for a bar or a sheet pinned to the
+       bottom edge: its shadow has to fall onto the page above it. */
+    --elev-2-up: 0 -2px 4px -1px hsl(var(--elev-ink) / calc(0.05 * var(--elev-a))),
+                 0 -10px 24px -6px hsl(var(--elev-ink) / calc(0.10 * var(--elev-a)));
+    --elev-3-up: 0 -6px 12px -4px hsl(var(--elev-ink) / calc(0.08 * var(--elev-a))),
+                 0 -24px 56px -12px hsl(var(--elev-ink) / calc(0.22 * var(--elev-a)));
+    /* Pressed: the elevation comes off and the face sinks a pixel. */
+    --elev-press: inset 0 1px 2px hsl(var(--elev-ink) / calc(0.08 * var(--elev-a)));
+    /* The lip. In daylight a slab shows its thickness as a shade along its
+       foot; in the dark (below) it catches the light along its top. */
+    --edge-lip: inset 0 -1px 0 hsl(var(--elev-ink) / calc(0.06 * var(--elev-a)));
+    /* A field is a recess, not a card: a hairline of shade inside its top
+       edge is what tells the two apart at a glance. */
+    --field-inset: inset 0 1px 2px hsl(var(--elev-ink) / 0.05);
+    /* The hairline a level-1 surface draws, and the fainter one a level-3
+       surface draws -- a sheet has its shadow to say where it ends. */
+    --hairline: hsl(var(--border));
+    --hairline-lifted: hsl(var(--border));
+    /* What the page becomes under a sheet. */
+    --scrim: 220 20% 10% / 0.42;
+    /* Focus, one way everywhere: a 2px ring in the accent and a soft halo. */
+    --ring-halo: 0 0 0 3px hsl(var(--ring) / 0.18);
+
+    /* The two names everything already reads. Kept as aliases of the ladder
+       so nothing has to be renamed to move with it. */
+    --lift-panel: var(--elev-1);
+    --lift-float: var(--elev-3);
 
     /* Radius scale, by component weight — and multiplied.
 
@@ -256,9 +311,11 @@
     --card: 0 0% 9%;             /* #171717  comes forward */
     --card-default: 0 0% 9%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 9%;          /* #181818 */
+    /* Lighter as they rise -- see the elevation note below. A menu at the
+       card's own grey sat IN the card rather than over it. */
+    --popover: 0 0% 14%;         /* #242424  a sheet, over everything */
     --popover-foreground: 0 0% 98%;
-    --elevated: 0 0% 9%;
+    --elevated: 0 0% 12%;        /* #1F1F1F  raised */
 
     --foreground: 0 0% 98%;      /* #FAFAFA */
     --secondary-foreground: 240 5% 65%;  /* #A1A1AA */
@@ -289,9 +346,35 @@
     --rail-foreground: 240 5% 65%;
     --nav-active: 0 0% 13%;
 
-    /* On a dark ground a shadow does nothing; the border carries the edge. */
-    --lift-panel: 0 0 0 0 transparent;
-    --lift-float: 0 8px 24px -4px hsl(0 0% 0% / 0.6);
+    /* DEPTH IN THE DARK IS MOSTLY TONE, NOT SHADOW.
+
+       A shadow on a near-black ground has almost nowhere to fall, so the
+       ladder here is climbed by SURFACE first: each rung is a lighter grey
+       than the one under it (4% ground, 9% card, 12% raised, 14% sheet), and
+       the shadow is only what keeps the edge from reading as a hard cut. The
+       alphas look larger than daylight's because they are black on black --
+       measured on the page they are the subtler of the two sets. The lip
+       moves to the TOP edge, as a hairline of light: that is where a raised
+       surface catches an overhead light when there is no shade to show. */
+    --elev-ink: 0 0% 0%;
+    --elev-1: 0 1px 1px hsl(0 0% 0% / calc(0.20 * var(--elev-a))),
+              0 2px 6px -1px hsl(0 0% 0% / calc(0.24 * var(--elev-a)));
+    --elev-2: 0 2px 4px -1px hsl(0 0% 0% / calc(0.28 * var(--elev-a))),
+              0 10px 24px -6px hsl(0 0% 0% / calc(0.40 * var(--elev-a)));
+    --elev-3: 0 6px 12px -4px hsl(0 0% 0% / calc(0.36 * var(--elev-a))),
+              0 24px 56px -12px hsl(0 0% 0% / calc(0.55 * var(--elev-a)));
+    --elev-2-up: 0 -2px 4px -1px hsl(0 0% 0% / calc(0.24 * var(--elev-a))),
+                 0 -10px 24px -6px hsl(0 0% 0% / calc(0.36 * var(--elev-a)));
+    --elev-3-up: 0 -6px 12px -4px hsl(0 0% 0% / calc(0.32 * var(--elev-a))),
+                 0 -24px 56px -12px hsl(0 0% 0% / calc(0.55 * var(--elev-a)));
+    --elev-press: inset 0 1px 2px hsl(0 0% 0% / calc(0.35 * var(--elev-a)));
+    --edge-lip: inset 0 1px 0 hsl(0 0% 100% / calc(0.06 * var(--elev-a)));
+    --field-inset: inset 0 1px 2px hsl(0 0% 0% / 0.30);
+    /* The hairline fades as a surface rises: at level 1 it is still the
+       edge, at level 3 the tonal step and the shadow have taken over. */
+    --hairline: hsl(0 0% 100% / calc(0.08 * var(--hairline-a, 1)));
+    --hairline-lifted: hsl(0 0% 100% / calc(0.06 * var(--hairline-a, 1)));
+    --scrim: 0 0% 0% / 0.60;
   }
 
   /* Row padding is a document-level dial so every table responds to the
@@ -730,17 +813,30 @@
 }
 
 @layer components {
-  /* A card is a hairline and a surface. No shadow: on a neutral ground the
-     border already separates it, and stacked shadows are what make an admin
-     panel look like a 2016 dashboard. */
+  /* A card is level 1: a hairline, a lip and the lightest shadow on the
+     ladder. Enough that it visibly rests ON the page rather than being a
+     region of it -- which is the difference between a surface and a box --
+     and nothing like the stacked drop-shadows that date an admin UI.
+
+     Only a card that can be opened answers the pointer. A static card that
+     lifted on hover would be promising a click it cannot honour. */
   .card {
     position: relative;
     border-radius: var(--radius-card);
-    border: 1px solid hsl(var(--border));
+    border: 1px solid var(--hairline);
     background: hsl(var(--card));
     color: hsl(var(--card-foreground));
-    box-shadow: var(--lift-panel);
-    transition: border-color 0.2s ease;
+    box-shadow: var(--edge-lip), var(--elev-1);
+    transition: border-color 0.2s ease, box-shadow var(--motion-quick, 150ms) ease;
+  }
+  @media (hover: hover) {
+    :is(a, button, [role='button'], [data-cue]).card:hover,
+    .card:has(> a:only-child):hover {
+      box-shadow: var(--edge-lip), var(--elev-2);
+    }
+  }
+  :is(a, button, [role='button'], [data-cue]).card:focus-visible {
+    box-shadow: var(--edge-lip), var(--elev-2);
   }
 
   /* An empty state inside a card is the card's own body, not a second card.
@@ -778,12 +874,12 @@
      colour showing through the gap rather than by each cell drawing its own
      box. Cheaper visually than four cards side by side. */
   .cell-grid {
-    box-shadow: var(--lift-panel);
+    box-shadow: var(--edge-lip), var(--elev-1);
     display: grid;
     gap: 1px;
     overflow: hidden;
     border-radius: var(--radius-card);
-    border: 1px solid hsl(var(--border));
+    border: 1px solid var(--hairline);
     background: hsl(var(--border));
   }
   .cell {
@@ -854,6 +950,10 @@
     border: 1px solid hsl(var(--input));
     background: hsl(var(--card));
     color: hsl(var(--foreground));
+    /* Inset, not raised. A field and a card were the same white rectangle
+       with the same hairline; the shade inside the top edge is what makes
+       one read as a place to type and the other as a thing to read. */
+    box-shadow: var(--field-inset);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   @media (hover: hover) {
@@ -862,7 +962,24 @@
   .field:focus {
     outline: none;
     border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+    box-shadow: var(--field-inset), var(--ring-halo);
+  }
+  /* The same recess for an input that is not a .field -- the launcher's
+     filter box, a search bar drawn in utilities. */
+  .inset-field { box-shadow: var(--field-inset); }
+  .inset-field:focus { box-shadow: var(--field-inset), var(--ring-halo); }
+
+  /* A BUTTON IS A KEY: level 1 at rest, on the page it sits on, and pressed
+     it sinks to the page. Ghost buttons are text with a hover wash and stay
+     flat -- lifting them would turn every icon in a toolbar into a chiclet.
+     The lip goes on the secondary button only, whose face is the card's
+     colour and needs the shade to show its thickness; a filled primary
+     button already separates by colour. */
+  .btn[data-variant='primary'] { box-shadow: var(--elev-1); }
+  .btn[data-variant='secondary'] { box-shadow: var(--edge-lip), var(--elev-1); border-color: var(--hairline); }
+  @media (hover: hover) {
+    .btn[data-variant='primary']:not(:disabled):hover,
+    .btn[data-variant='secondary']:not(:disabled):hover { box-shadow: var(--edge-lip), var(--elev-2); }
   }
   .field::placeholder { color: hsl(var(--muted-foreground)); }
 
@@ -1403,15 +1520,20 @@
      Four steps over the two lift tokens the product already uses, so every
      card, menu and dialog moves together. Flat is genuinely none: a dashboard
      read all day is a legitimate place to want no depth at all. */
-  html[data-shadow='flat'] { --lift-panel: none; --lift-float: none; }
-  html[data-shadow='lifted'] {
-    --lift-panel: 0 2px 4px hsl(220 20% 20% / 0.06), 0 8px 20px -6px hsl(220 20% 20% / 0.10);
-    --lift-float: 0 8px 24px -4px hsl(220 20% 20% / 0.16), 0 4px 8px -4px hsl(220 20% 20% / 0.10);
+  /* One dial. The four steps set --elev-a, and every rung of the ladder --
+     card, dock, sheet, the lip, the press -- scales from it, so 'deep' is
+     the same design with more light rather than four surfaces each re-tuned.
+     Flat is genuinely none, lip included: somebody asking for a flat
+     surface is asking for no thickness either. */
+  html[data-shadow='flat'] {
+    --elev-a: 0;
+    --elev-1: none; --elev-2: none; --elev-3: none;
+    --elev-2-up: none; --elev-3-up: none; --edge-lip: none;
   }
-  html[data-shadow='deep'] {
-    --lift-panel: 0 4px 8px hsl(220 20% 20% / 0.08), 0 16px 36px -8px hsl(220 20% 20% / 0.16);
-    --lift-float: 0 16px 48px -8px hsl(220 20% 20% / 0.26), 0 6px 12px -6px hsl(220 20% 20% / 0.14);
-  }
+  html[data-shadow='lifted'] { --elev-a: 1.5; }
+  html[data-shadow='deep'] { --elev-a: 2.2; }
+  /* The Borders preference at 'none' takes the dark hairline with it. */
+  html[data-borders='none'] { --hairline-a: 0; }
 
   /* ---- background pattern --------------------------------------------
 
@@ -1765,20 +1887,50 @@
    slides off watches it come back up. Nothing has to be written for that; it
    is why this is :active and not a JavaScript pressed state.
 
-   0.97, not 0.9. This is a confirmation that contact happened, not an
+   0.98, not 0.9. This is a confirmation that contact happened, not an
    animation. Rows and table cells are excluded -- a list row that shrinks under
-   a finger reads as the list collapsing. */
+   a finger reads as the list collapsing; a row gets a tint instead, below.
+
+   The scale is half of the press. The other half is the ELEVATION COMING
+   OFF: a button that stands a step above the page and sinks to meet it is
+   what a key does, and it is what makes the scale read as pushing rather
+   than shrinking. Same rung of the same ladder as everything else, so the
+   pressed state is the resting state of the level below. */
 :where(button, [role='button'], a.btn, .btn, [role='tab'], [role='switch'],
        summary):active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.98);
+  transition-duration: var(--motion-press);
+}
+.btn:active:not(:disabled) {
+  box-shadow: var(--elev-press);
+}
+
+/* A card presses only where it opens something -- one with a cue, or one
+   that IS a link or a button. A static card that gave under the finger
+   would be promising a screen it cannot deliver. The bento cell's own press
+   rule (bento-theme.css) drops the elevation; this adds the give. */
+:where(.bento-cell:has(.bento-cue), .launcher-tile, .launcher-app,
+       a.card, button.card, [role='button'].card, .card[data-cue],
+       a.cell, button.cell):active {
+  transform: scale(0.98);
   transition-duration: var(--motion-press);
 }
 
-/* A card is bigger, so it needs less. The same 3% on a full-width tile is a
-   lurch; 1% is the same statement at that size. */
-:where(.card, .cell, .bento-cell, .launcher-tile, .launcher-app):active {
-  transform: scale(0.99);
-  transition-duration: var(--motion-press);
+/* A ROW UNDER A FINGER.
+
+   Rows do not scale -- see above -- but on a phone they have to answer the
+   touch some other way, because there is no hover to have shown the finger
+   was in the right place. A wash of the row's own ink, gone the moment the
+   finger lifts. currentColor so it is a dark tint on a pale sheet and a light
+   one on a dark card without a second rule. Pointer devices keep their hover
+   and need nothing here. */
+@media (hover: none) {
+  :where([data-row], .responsive-table tbody tr, .bento-sheet__row,
+         [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'],
+         [role='option'], .lch-app, .parent-list__row a):active {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+    transition-duration: var(--motion-press);
+  }
 }
 
 /* SECOND HOLE — things that arrive. A transition needs a from-state, and an
@@ -2499,8 +2651,12 @@ body[data-scroll-lock] {
    --motion, not --motion-slow. 220ms. A settings window that takes longer
    than that is a window you are waiting for, and this one is opened to change
    one colour. */
+/* AND IT RISES. A sheet is above the page, so it arrives from slightly
+   below its resting place: 8px of travel with the scale, which is enough to
+   say "came up over this" without being a slide. Reduced motion keeps the
+   fade and drops the travel, in the block at the foot of the file. */
 @keyframes motion-panel-in {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
 
@@ -2509,6 +2665,29 @@ body[data-scroll-lock] {
   animation: motion-panel-in var(--motion) var(--motion-ease) both;
   transform-origin: center;
 }
+
+/* LEVEL 3, BY ROLE.
+
+   A menu, a listbox, a tooltip, a dialog's panel and a drawer are the
+   surfaces that sit OVER the page, and each used to carry whatever shadow
+   its author reached for -- shadow-md here, shadow-lg there, a hand-written
+   rgba in the bento file. They are one thing: a sheet above everything,
+   with the ladder's top rung under it and the fainter hairline round it,
+   because at this height the shadow says where the edge is and the line
+   only has to keep the surface from bleeding into a same-coloured card.
+
+   `:where()` so any component that states its own shadow still wins. The
+   full-screen overlays are excluded by shape: a panel that IS the viewport
+   has no edge for a shadow to fall from. */
+:where([role='menu'], [role='listbox'], [role='tooltip'], [popover],
+       [role='dialog'][aria-modal='true']:not([data-side]):not(.bento-frost) > :only-child,
+       [role='dialog'][data-side]) {
+  box-shadow: var(--elev-3);
+}
+:where([role='menu'], [role='listbox'], [popover]) {
+  border-color: var(--hairline-lifted);
+}
+:where([role='dialog'][data-side='right']) { box-shadow: var(--elev-3); }
 
 /* THE LAUNCHER OPENS UPWARD, BECAUSE THAT IS WHERE IT WAS ASKED FOR FROM.
 

@@ -225,7 +225,7 @@ export function CommandSearch() {
      anybody mounts it next. */
   return createPortal(
     <>
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setOpen(false)} aria-hidden />
+      <div className="fixed inset-0 z-50 bg-[hsl(var(--scrim))]" onClick={() => setOpen(false)} aria-hidden />
       <div
         role="dialog"
         aria-label="Search features"

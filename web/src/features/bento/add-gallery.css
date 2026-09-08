@@ -27,7 +27,7 @@
   box-shadow:
     var(--bento-edge, none),
     0 0 0 1px color-mix(in srgb, var(--bento-ink) 16%, transparent),
-    var(--bento-pop-shadow, 0 12px 40px color-mix(in srgb, var(--bento-ink) 18%, transparent));
+    var(--bento-pop-shadow, var(--elev-3));
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
   transform-origin: top left;

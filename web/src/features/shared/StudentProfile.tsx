@@ -2377,7 +2377,10 @@ function RollTile({ label, value, note, active, onClick }: {
       className={cn(
         // bg-background without text-foreground: the four figures on these
         // tiles measured 1.07:1 — black on the dark shell, i.e. invisible.
-        'rounded-xl border bg-background text-foreground px-4 py-3 text-left transition-colors',
+        /* A tile you can press is level 1 on the ladder, raised under the
+           pointer -- the same seat every card has, so it reads as a thing
+           rather than an outlined region of the page. */
+        'rounded-xl border bg-card text-foreground px-4 py-3 text-left transition-colors shadow-sm hover:shadow-md',
         active ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/50',
       )}
     >

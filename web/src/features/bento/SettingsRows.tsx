@@ -341,7 +341,9 @@ export function SegmentRow<T extends string>({
       <span
         role="group"
         aria-label={label}
-        className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full border p-0.5"
+        /* A track with a lifted knob: the selected segment is level 1 on a
+           recessed ground, so which one is chosen reads without a colour. */
+        className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full border bg-[color-mix(in_srgb,var(--bento-ink)_6%,transparent)] p-0.5 shadow-[var(--field-inset)]"
       >
         {options.map((o) => {
           const on = o === value
@@ -353,7 +355,7 @@ export function SegmentRow<T extends string>({
               onClick={() => onPick(o)}
               className={cn(
                 'rounded-full px-3 py-1 text-[13px] transition-colors',
-                on ? 'bg-foreground text-background font-medium'
+                on ? 'bg-foreground text-background font-medium shadow-[var(--elev-1)]'
                    : 'text-muted-foreground hover:text-foreground',
               )}
             >
