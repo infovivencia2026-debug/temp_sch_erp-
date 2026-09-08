@@ -567,6 +567,95 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
         how long somebody has taught a subject.</p>
     </article>
 
+    <article>
+      <div class="head">
+        <span class="num">11</span>
+        <h2 class="name">Student register</h2>
+        <span class="file">11-student-register.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">One row per child per day, for the register kept before this system.</p>
+      <div class="header-strip"><pre><span class="req">admission_no</span>,<span class="req">date</span>,<span class="req">status</span>,remarks
+<span class="ex">ADM0001,2026-07-14,present,</span></pre></div>
+      <p class="note">Nobody is messaged about any of it &mdash; an absence from September is not news in December. A corrected file rewrites those days rather than being refused.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">12</span>
+        <h2 class="name">Staff register</h2>
+        <span class="file">12-staff-register.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">One row per person per day, with times only if you have them.</p>
+      <div class="header-strip"><pre><span class="req">employee_code</span>,<span class="req">date</span>,<span class="req">status</span>,check_in,check_out,remarks
+<span class="ex">YPS59100001,2026-07-14,present,09:05,16:30,</span></pre></div>
+      <p class="note">This is what pay and loss-of-pay are worked out from, so load it for any month you are going to run payroll for. If what you have is a biometric export, use sheet 17 instead.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">13</span>
+        <h2 class="name">Fees already collected</h2>
+        <span class="file">13-fees-already-collected.csv</span>
+        <span class="later">only if you joined mid-year</span>
+      </div>
+      <p class="lede">One row per receipt, for a school joining part-way into a year.</p>
+      <div class="header-strip"><pre><span class="req">admission_no</span>,receipt_no,<span class="req">paid_on</span>,<span class="req">amount</span>,mode,remarks
+<span class="ex">ADM0001,R-2026-0417,2026-04-11,18500,cash,Term 1</span></pre></div>
+      <p class="note">It settles the oldest unpaid invoice first, exactly as the counter does, and anything left over stays as an advance. Raise this year&rsquo;s invoices first, or there is nothing for a payment to settle against &mdash; until then the school looks as though it collected nothing, and the first reminder run chases a parent who paid in April.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">14</span>
+        <h2 class="name">Salary already paid</h2>
+        <span class="file">14-salary-already-paid.csv</span>
+        <span class="later">only if you joined mid-year</span>
+      </div>
+      <p class="lede">One row per person per month. One month per file.</p>
+      <div class="header-strip"><pre><span class="req">employee_code</span>,<span class="req">month</span>,paid_days,lop_days,<span class="req">gross</span>,deductions,<span class="req">net</span>
+<span class="ex">YPS59100001,2026-04,30,0,45000,3600,41400</span></pre></div>
+      <p class="note">Loaded as given and never recalculated: the payslips your staff are holding are the fact, and recomputing them from structures this system did not have would only produce a difference to explain. A month already run here is refused rather than overwritten.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">15</span>
+        <h2 class="name">Past results, per subject</h2>
+        <span class="file">15-past-results-per-subject.csv</span>
+        <span class="later">only if the school ran before</span>
+      </div>
+      <p class="lede">The same results as sheet 09, in the other shape &mdash; a list rather than a grid.</p>
+      <div class="header-strip"><pre><span class="req">admission_no</span>,<span class="req">year</span>,<span class="req">exam</span>,<span class="req">class</span>,<span class="req">subject</span>,<span class="req">max_marks</span>,marks_obtained,grade
+<span class="ex">ADM0001,2025-26,Annual Examination,Grade 5,Mathematics,100,87,A1</span></pre></div>
+      <p class="note">Use whichever shape your existing export already is &mdash; 09 if it is a grid, this if it is a list. <b>Not both:</b> they write to the same place. Children and subjects must already exist; years and exams named here are created for you.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">16</span>
+        <h2 class="name">Children who have left</h2>
+        <span class="file">16-children-who-have-left.csv</span>
+      </div>
+      <p class="lede">The term&rsquo;s transfer certificates as one sheet.</p>
+      <div class="header-strip"><pre><span class="req">admission_no</span>,exit_date,status,reason,tc_no,tc_issued_on
+<span class="ex">ADM0001,2026-03-31,transferred,Family moved to Bengaluru,42817,2026-03-31</span></pre></div>
+      <p class="note">Each row closes the enrolment too, so the register stops expecting them and the fee run stops billing them &mdash; and the family&rsquo;s login ends unless another of their children is still here. Your own TC number is kept and searchable; leave it blank on a transfer and one is issued from your certificate series.</p>
+    </article>
+
+    <article>
+      <div class="head">
+        <span class="num">17</span>
+        <h2 class="name">Biometric punches</h2>
+        <span class="file">17-biometric-punches.csv</span>
+      </div>
+      <p class="lede">Raw punches from a fingerprint reader, for the days before it was talking to this system.</p>
+      <div class="header-strip"><pre><span class="req">device_serial</span>,<span class="req">device_user_id</span>,name,<span class="req">punched_at</span>
+<span class="ex">OGJ3220160104,T001,RAMYA SRI RACHERLA,2026-09-02 08:40:55</span></pre></div>
+      <p class="note"><b>device_serial</b> is the number printed on the reader. <b>device_user_id</b> is the id enrolled on it, such as T001 &mdash; not the same as the staff code, unless you made it so.</p>
+    </article>
+
   </div>
 
   <section class="typed">
@@ -583,8 +672,9 @@ ADM0002,Sana Fatima,68,AB,71,,139,9</span></pre></div>
 
   <footer>
     <p><span class="minimum">Minimum to open the school:</span> sheets 01, 02, 03
-      and 04. Money needs 06 and 07; a timetable needs 05. The last three are
-      only for a school that ran before this system.</p>
+      and 04. Money needs 06 and 07; a timetable needs 05. Everything from 08 on is
+      only for a school that was already running &mdash; a school opening for the
+      first time skips all of it.</p>
   </footer>
 
 </div>

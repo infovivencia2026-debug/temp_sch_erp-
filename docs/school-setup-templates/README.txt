@@ -21,9 +21,14 @@ ORDER MATTERS FOR THREE OF THEM
   02 staff        before 03, if you want teacher names in it
   01 classes      before 03 and 07
   06 fee heads    before 07
-  04 students     before 08, 09 and 10
+  04 students     before 08, 09, 11, 13, 15 and 16
+  02 staff        before 10, 12, 14 and 17
 
 Everything else can go in any order.
+
+Sheets 08 to 17 are history and money already taken. A school opening for the
+first time skips every one of them -- nothing in them is required and no step
+waits for them.
 
 
 THE SHEETS
@@ -153,6 +158,60 @@ THE SHEETS
     morning of the upload.
 
 
+11-student-register.csv        (only if the school ran before this system)
+    One row per child per day: present, absent, late, half_day, leave or
+    holiday. Nobody is messaged about any of it -- an absence from September
+    is not news in December. Re-uploading a corrected file rewrites those days
+    rather than refusing them.
+
+12-staff-register.csv          (only if the school ran before this system)
+    One row per person per day, with arrival and leaving times only if you
+    have them. This is what pay and loss-of-pay are worked out from, so load
+    it for any month you are going to run payroll for. If what you have is a
+    biometric export instead, use 17.
+
+13-fees-already-collected.csv  (only if the school ran part-way into a year)
+    One row per receipt: the child, your own receipt number, the date, the
+    amount and how they paid. It settles the oldest unpaid invoice first,
+    exactly as the counter does, and anything left over stays as an advance.
+    Your receipt number is kept and searchable; the system still issues its
+    own, because its numbering is audited for gaps.
+
+    Raise this year's invoices first, or there is nothing for a payment to
+    settle against. Until this is loaded the school looks as though it has
+    collected nothing, and the first reminder run chases a parent who paid in
+    April.
+
+14-salary-already-paid.csv     (only if the school ran part-way into a year)
+    One row per person per month, one month per file: what was actually paid.
+    Loaded as given and never recalculated -- the payslips your staff are
+    holding are the fact, and recomputing them from structures this system
+    did not have would only produce a difference to explain. A month already
+    run here is refused rather than overwritten.
+
+15-past-results-per-subject.csv  (only if the school ran before this system)
+    The same results as 09, in the other shape: one row per child, per exam,
+    per subject. Use whichever your existing export already is -- 09 if it is
+    a grid, this if it is a list. Not both: they write to the same place.
+
+    Children and subjects must already exist. Years and exams named here are
+    created for you.
+
+16-children-who-have-left.csv
+    The term's transfer certificates as one sheet. Each row closes the
+    enrolment too, so the register stops expecting them and the fee run stops
+    billing them -- and the family's login ends unless another of their
+    children is still here. Put your own TC number in tc_no and it is kept
+    and searchable; leave it blank on a transfer and one is issued from your
+    certificate series.
+
+17-biometric-punches.csv
+    Raw punches exported from a fingerprint reader, for the days before the
+    device was talking to this system. device_serial is the number printed on
+    the reader; device_user_id is the id enrolled on it, such as T001, which
+    is not the same as the staff code unless you made it so.
+
+
 WHAT IS NOT A SHEET
 -------------------
 These are typed in, once, and take a few minutes each:
@@ -165,3 +224,4 @@ These are typed in, once, and take a few minutes each:
 
 MINIMUM TO OPEN THE SCHOOL: 01, 02, 03, 04.
 Money needs 06 and 07. A timetable needs 05.
+Everything from 08 on is only for a school that was already running.
