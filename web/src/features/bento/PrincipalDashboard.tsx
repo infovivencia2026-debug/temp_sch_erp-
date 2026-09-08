@@ -4257,7 +4257,6 @@ export default function BentoPrincipalDashboard() {
   const academicPerformanceHref = useFeatureHref('institution_admin.students.academic_performance')
   const messagesHref = useFeatureHref('institution_admin.communication.messages')
   const myPayHref = useFeatureHref('institution_admin.my_profile.my_pay')
-  const myLeaveHref = useFeatureHref('institution_admin.my_profile.leave_self_service')
   const classSetupHref = useFeatureHref('institution_admin.academics.class_setup')
 
   const attentionHrefs: Record<AttentionTarget, string | undefined> = {
@@ -4454,7 +4453,6 @@ export default function BentoPrincipalDashboard() {
   const perf = performance.data?.summary
   const bySubject = performance.data?.by_subject ?? []
   const unread = threadRows.reduce((n, t2) => n + t2.unread, 0)
-  const balances = myPay.data?.leave_balances ?? []
   const classCount = classes.data?.items.length ?? 0
 
   return (
@@ -5292,16 +5290,16 @@ export default function BentoPrincipalDashboard() {
         )}
       </Widget>
 
-      <Widget id="my-leave" label={t('bento.principal.my_leave')} size="small" index={42} optional>
-        {(span) => (
-          <MyLeaveCell
-            span={span}
-            balances={balances}
-            status={stateOf(myPay)}
-            href={myLeaveHref}
-          />
-        )}
-      </Widget>
+      {/* MY LEAVE CAME OFF THIS DESK WITH THE SCREEN BEHIND IT.
+       *
+       * The tile linked to institution_admin.my_profile.leave_self_service,
+       * which is no longer in the catalogue: whoever runs the school does not
+       * apply to themselves for leave. useFeatureHref reads the catalogue, so
+       * the tile survived as a card with a dead link -- worse than either
+       * having it or not.
+       *
+       * The leave that is this desk's business is the queue of other people's,
+       * and that is its own entry and untouched. */}
 
       <Widget id="classes" label={t('bento.principal.classes')} size="small" index={43} optional>
         {(span) => (
