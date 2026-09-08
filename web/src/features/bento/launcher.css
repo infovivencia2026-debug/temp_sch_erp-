@@ -181,6 +181,31 @@
    feature; the mark is the family it belongs to, which is what ties a tile to
    its heading once the eye has left the heading. */
 .lch-mono { pointer-events: none; }
+
+/* THE DRAWN GLYPH, WHERE A FEATURE HAS ONE.
+ *
+ * Sized against the plate rather than in pixels, so it holds its proportion
+ * through the density slider and the two breakpoints the plate already has.
+ * 52% leaves the corner free for the workspace mark, which sits at 26% inset
+ * by 9% and would otherwise be crossed by the drawing's lower right.
+ *
+ * The stroke is not scaled with it. vector-effect keeps the hairline at one
+ * device pixel whatever the plate is doing, which is the whole character of
+ * the set -- a 44px drawing and a 64px drawing are the same weight of line,
+ * the way they were drawn. Colour comes from the plate, so the glyph takes
+ * the workspace tint the monogram took. */
+.lch-glyph {
+  width: 52%;
+  height: 52%;
+  pointer-events: none;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
 .lch-plate-mark {
   position: absolute;
   right: 9%;

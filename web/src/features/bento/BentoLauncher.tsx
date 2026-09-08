@@ -16,6 +16,7 @@ import {
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
+import { featureIcon } from './feature-icons'
 import { usePins, togglePin } from '@/lib/pins'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
@@ -888,7 +889,30 @@ function Tile({
             } as CSSProperties
           }
         >
-          <span className="lch-mono">{monogram(r.name)}</span>
+          {/* THE DRAWING WHERE THERE IS ONE, THE INITIALS WHERE THERE IS NOT.
+           *
+           * Nine of this role's fifty-four features shared their monogram
+           * with another -- Academic Performance and Admissions Pipeline are
+           * both AP, and sit in Students together -- so for a sixth of the
+           * grid the plate pointed at the wrong screen. A drawing cannot
+           * collide with another drawing.
+           *
+           * Falling back rather than requiring one: 321 features exist and a
+           * mark invented for "Working Days & Instructional Hours" would be
+           * another document-with-something, which is worse than two letters.
+           * See feature-icons.tsx. */}
+          {featureIcon(r.slug) ? (
+            <svg
+              className="lch-glyph"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              /* The paths are ours, from the registry beside this file, and
+                 never from the catalogue or any other input. */
+              dangerouslySetInnerHTML={{ __html: featureIcon(r.slug) as string }}
+            />
+          ) : (
+            <span className="lch-mono">{monogram(r.name)}</span>
+          )}
           <span className="lch-plate-mark" title={r.workspace}>
             <Mark aria-hidden="true" />
           </span>
