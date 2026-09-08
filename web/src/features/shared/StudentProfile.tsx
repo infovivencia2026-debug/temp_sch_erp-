@@ -1629,7 +1629,7 @@ export default function StudentProfile() {
               whether the year was reached by promotion — both already on the
               enrolments row and both previously unread. */}
           <Table
-            head={['Year', 'Class', 'Roll', 'From', 'Outcome', 'Note']}
+            head={['Year', 'Class', 'Roll', 'From', 'To', 'Outcome', 'Note']}
             empty={!(detail.data?.enrolment_history ?? []).length}
             emptyLabel="No enrolment recorded."
           >
@@ -1639,6 +1639,9 @@ export default function StudentProfile() {
                 <Td>{[e.class, e.section].filter(Boolean).join('-') || '—'}</Td>
                 <Td className="tabular-nums">{e.roll_no ?? '—'}</Td>
                 <Td className="text-muted-foreground">{formatDate(e.from)}</Td>
+                {/* A mid-year section change closes a row on a day; the
+                    rows a year end closes carry no day, and say so. */}
+                <Td className="text-muted-foreground">{e.to ? formatDate(e.to) : '—'}</Td>
                 <Td>
                   <Badge tone={e.status === 'active' ? 'success' : e.status === 'detained' ? 'warning' : undefined}>
                     {e.status}

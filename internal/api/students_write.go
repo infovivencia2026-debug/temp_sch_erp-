@@ -396,7 +396,8 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			                         class_id, section_id, roll_no, status)
 			SELECT $1, $2::uuid, $3::uuid, s.class_id, s.id, $5, 'active'
 			  FROM sections s WHERE s.id = $4::uuid
-			ON CONFLICT (student_id, academic_year_id)
+			-- One active row per child per year; the closed ones are history.
+			ON CONFLICT (student_id, academic_year_id) WHERE status = 'active'
 			DO UPDATE SET section_id = EXCLUDED.section_id,
 			              class_id   = EXCLUDED.class_id,
 			              roll_no    = COALESCE(EXCLUDED.roll_no, enrollments.roll_no),
@@ -440,8 +441,12 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO enrollments (institution_id, student_id, academic_year_id,
 				                         class_id, status)
-				VALUES ($1,$2::uuid,$3,$4,'completed')
-				ON CONFLICT (student_id, academic_year_id) DO NOTHING`,
+				SELECT $1, $2::uuid, $3, $4, 'completed'
+				-- Once. A closed year is not unique in the table any more (a
+				-- mid-year move leaves two rows), so a re-import is kept from
+				-- adding a third by looking rather than by conflicting.
+				 WHERE NOT EXISTS (SELECT 1 FROM enrollments
+				                    WHERE student_id = $2::uuid AND academic_year_id = $3)`,
 				instID, studentID, prevYear, prevClass); err != nil {
 				return "", "", err
 			}
