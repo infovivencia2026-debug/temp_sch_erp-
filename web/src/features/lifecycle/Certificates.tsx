@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, ApiError, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState,
+  Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
+import CardViewer from '@/components/CardViewer'
 
 interface Cert {
   id: string
@@ -35,6 +36,23 @@ const TYPES = [
   { value: 'TC', label: 'Transfer certificate' },
 ]
 
+/* The prescribed fields a transfer certificate carries that no table holds.
+
+   Nationality and category are read from the child's record and only asked
+   here to override; the rest — games, conduct, NCC, the date the family
+   applied — are what the office writes on the form and nowhere else. */
+interface TCForm {
+  nationality: string; category: string; ncc_scout: string; games: string
+  conduct: string; date_of_application: string; date_of_issue: string
+  qualified_for_promotion: string; dues_paid_up_to: string; fee_concession: string
+  last_exam_passed: string
+}
+const EMPTY_TC: TCForm = {
+  nationality: '', category: '', ncc_scout: '', games: '', conduct: '',
+  date_of_application: '', date_of_issue: '', qualified_for_promotion: '',
+  dues_paid_up_to: '', fee_concession: '', last_exam_passed: '',
+}
+
 /** Certificates freeze a snapshot of the student at issue time, so an old TC
     keeps showing the class and dues it was issued with. */
 export default function Certificates() {
@@ -45,6 +63,9 @@ export default function Certificates() {
   const [type, setType] = useState('BONAFIDE')
   const [reason, setReason] = useState('')
   const [answering, setAnswering] = useState<Cert | null>(null)
+  const [tc, setTc] = useState<TCForm>(EMPTY_TC)
+  const [overrideReason, setOverrideReason] = useState('')
+  const [card, setCard] = useState<{ html: string; name?: string } | null>(null)
   const [decision, setDecision] = useState('issued')
   const [note, setNote] = useState('')
 
@@ -73,14 +94,29 @@ export default function Certificates() {
     queryFn: () => api.get<List<Cert>>('/api/v1/lifecycle/certificates'),
   })
   const issue = useMutation({
-    mutationFn: () => api.post<{ serial_no: string }>('/api/v1/lifecycle/certificates', {
-      student_id: studentId, type_code: type, reason,
-    }),
+    mutationFn: (override: boolean) =>
+      api.post<{ serial_no: string; dues_overridden?: boolean }>('/api/v1/lifecycle/certificates', {
+        student_id: studentId, type_code: type, reason,
+        ...(type === 'TC'
+          ? {
+              ...tc,
+              qualified_for_promotion:
+                tc.qualified_for_promotion === '' ? undefined : tc.qualified_for_promotion === 'yes',
+              override_dues: override,
+              override_dues_reason: override ? overrideReason : undefined,
+            }
+          : {}),
+      }),
     onSuccess: () => {
-      setStudentId(''); setSearch(''); setReason('')
+      setStudentId(''); setSearch(''); setReason(''); setTc(EMPTY_TC); setOverrideReason('')
       qc.invalidateQueries({ queryKey: ['certificates'] })
     },
   })
+  // Fees owed. The server says how much and on how many bills; the office
+  // either collects or issues anyway with a reason that goes on the record.
+  const duesBlock =
+    issue.error instanceof ApiError && issue.error.code === 'dues_unpaid' ? issue.error : null
+  const setTcField = (k: keyof TCForm) => (v: string) => setTc((t) => ({ ...t, [k]: v }))
 
   const rows = list.data?.items ?? []
   // What is waiting on somebody here, separated from the register. A queue
@@ -89,6 +125,7 @@ export default function Certificates() {
 
   return (
     <>
+      {card && <CardViewer card={card} onClose={() => setCard(null)} />}
       {/* The name in the menu, not a second name invented here.
 
           A principal clicked "Certificates & transfers" under Students and
@@ -193,23 +230,83 @@ export default function Certificates() {
             )}
             <div className="flex flex-wrap items-end gap-3">
               <Select value={type} onChange={setType} options={TYPES} />
-              <Input value={reason} onChange={setReason} placeholder="Reason (optional)" />
-              <Button disabled={!studentId || issue.isPending} onClick={() => issue.mutate()}>
+              <Input value={reason} onChange={setReason}
+                placeholder={type === 'TC' ? 'Reason for leaving' : 'Reason (optional)'} />
+              <Button disabled={!studentId || issue.isPending} onClick={() => issue.mutate(false)}>
                 {issue.isPending ? 'Issuing…' : 'Issue certificate'}
               </Button>
             </div>
             {type === 'TC' && (
-              <p className="text-[13px] text-warning">
-                A transfer certificate exits the student and closes their enrolment.
-              </p>
+              <>
+                <p className="text-[13px] text-warning">
+                  A transfer certificate exits the student and closes their enrolment. It is refused
+                  while fees are owed.
+                </p>
+                {/* What the register asks and the record does not hold. Blank
+                    nationality and category fall back to the child's record. */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label="Nationality" hint="Blank: as on the record">
+                    <Input value={tc.nationality} onChange={setTcField('nationality')} placeholder="Indian" />
+                  </Field>
+                  <Field label="Category" hint="Blank: as on the record">
+                    <Input value={tc.category} onChange={setTcField('category')} placeholder="General" />
+                  </Field>
+                  <Field label="NCC / Scout / Guide">
+                    <Input value={tc.ncc_scout} onChange={setTcField('ncc_scout')} placeholder="No" />
+                  </Field>
+                  <Field label="Games / activities">
+                    <Input value={tc.games} onChange={setTcField('games')} placeholder="Kabaddi, chess" />
+                  </Field>
+                  <Field label="General conduct">
+                    <Input value={tc.conduct} onChange={setTcField('conduct')} placeholder="Good" />
+                  </Field>
+                  <Field label="Qualified for promotion" hint="Blank: from the last published result">
+                    <Select
+                      value={tc.qualified_for_promotion}
+                      onChange={setTcField('qualified_for_promotion')}
+                      options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                      placeholder="From the result"
+                    />
+                  </Field>
+                  <Field label="Last examination taken" hint="Blank: the last published card">
+                    <Input value={tc.last_exam_passed} onChange={setTcField('last_exam_passed')} />
+                  </Field>
+                  <Field label="Date of application">
+                    <Input type="date" value={tc.date_of_application} onChange={setTcField('date_of_application')} />
+                  </Field>
+                  <Field label="Date of issue" hint="Blank: today">
+                    <Input type="date" value={tc.date_of_issue} onChange={setTcField('date_of_issue')} />
+                  </Field>
+                  <Field label="Dues paid up to" hint="Blank: the last bill settled">
+                    <Input type="date" value={tc.dues_paid_up_to} onChange={setTcField('dues_paid_up_to')} />
+                  </Field>
+                  <Field label="Fee concession availed" hint="Blank: from the concession register">
+                    <Input value={tc.fee_concession} onChange={setTcField('fee_concession')} placeholder="Nil" />
+                  </Field>
+                </div>
+              </>
             )}
-            {issue.isError && (
+            {duesBlock ? (
+              <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3">
+                <p className="text-[13px]">{duesBlock.message}</p>
+                <Input value={overrideReason} onChange={setOverrideReason}
+                  placeholder="Why the certificate goes out anyway — recorded with your name" className="w-full" />
+                <Button size="sm" variant="secondary"
+                  disabled={!overrideReason.trim() || issue.isPending}
+                  onClick={() => issue.mutate(true)}>
+                  Issue anyway, over the dues
+                </Button>
+              </div>
+            ) : issue.isError && (
               <p className="text-[13px] text-destructive">
                 {issue.error instanceof Error ? issue.error.message : 'Could not issue'}
               </p>
             )}
             {issue.isSuccess && (
-              <p className="text-[13px] text-success">Issued {issue.data.serial_no}.</p>
+              <p className="text-[13px] text-success">
+                Issued {issue.data.serial_no}.
+                {issue.data.dues_overridden ? ' Dues were outstanding; the override is on the record.' : ''}
+              </p>
             )}
           </div>
         </Card>
@@ -271,7 +368,7 @@ export default function Certificates() {
         <Card>
           <CardHeader title="Register" description="Every certificate issued, with its frozen snapshot" />
           {list.isLoading ? <SkeletonTable columns={7} /> : list.error ? <ErrorState error={list.error} /> : (
-            <Table head={['Serial', 'Type', 'Student', 'Class at issue', 'Dues at issue', 'Issued', 'Status']}
+            <Table head={['Serial', 'Type', 'Student', 'Class at issue', 'Dues at issue', 'Issued', 'Status', '']}
               empty={!rows.length} emptyLabel="No certificates issued yet.">
               {rows.map((c) => (
                 <tr key={c.serial_no}>
@@ -282,6 +379,20 @@ export default function Certificates() {
                   <Td>{formatPaise(Number(c.snapshot?.dues_paise ?? 0))}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
                   <Td><Badge tone={statusTone(c.status)}>{c.status}</Badge></Td>
+                  <Td>
+                    {/* From the frozen snapshot, so a TC printed again a year
+                        on says what it said the day it was handed over. */}
+                    {c.status === 'issued' && (
+                      <Button size="sm" variant="ghost"
+                        onClick={async () => {
+                          const v = await api.get<{ html: string; name?: string }>(
+                            `/api/v1/lifecycle/certificates/${c.id}/render`)
+                          setCard(v)
+                        }}>
+                        Print
+                      </Button>
+                    )}
+                  </Td>
                 </tr>
               ))}
             </Table>

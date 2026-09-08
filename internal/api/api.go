@@ -1048,6 +1048,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/certificates", s.listCertificates)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/promote", s.promoteStudents)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/certificates", s.issueCertificate)
+			// The paper, from the frozen snapshot rather than the live record.
+			r.Get("/certificates/{id}/render", s.renderIssuedCertificate)
 			/* Answering a request a family actually made. The office's own
 			   button INSERTS, so acting on a parent's request used to create a
 			   second row with a second serial and leave the first sitting in

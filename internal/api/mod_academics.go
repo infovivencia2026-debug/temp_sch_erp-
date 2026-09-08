@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -1147,6 +1148,8 @@ type issueCertificateRequest struct {
 	StudentID string `json:"student_id"`
 	TypeCode  string `json:"type_code"` // TC | BONAFIDE | CONDUCT
 	Reason    string `json:"reason,omitempty"`
+	// The rest of a transfer certificate; see transfer_certificate.go.
+	tcDetails
 }
 
 // issueCertificate generates a numbered certificate and freezes a snapshot of
@@ -1171,8 +1174,43 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 		req.TypeCode = "TC"
 	}
 
+	if req.OverrideDues && strings.TrimSpace(req.OverrideDuesReason) == "" {
+		httpx.BadRequest(w, r, "issuing over unpaid dues needs a reason, which goes on the record")
+		return
+	}
+
 	var serial string
+	var duesPaise int64
+	var duesInvoices int
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// What the record knows, plus what the form said. Empty for anything
+		// but a TC, and the snapshot keeps its old shape for those.
+		extras := map[string]any{}
+		overridden := false
+		if req.TypeCode == "TC" {
+			var err error
+			duesPaise, duesInvoices, err = tcDues(r.Context(), tx, sid)
+			if err != nil {
+				return err
+			}
+			if duesPaise > 0 {
+				if !req.OverrideDues {
+					return errDuesUnpaid
+				}
+				overridden = true
+			}
+			extras, err = tcExtras(r.Context(), tx, sid, req.tcDetails, req.Reason)
+			if err != nil {
+				return err
+			}
+		}
+		var overrideBy any
+		var overrideReason any
+		if overridden {
+			overrideBy = id.UserID
+			overrideReason = strings.TrimSpace(req.OverrideDuesReason)
+		}
+
 		var typeID uuid.UUID
 		err := tx.QueryRow(r.Context(),
 			`SELECT id FROM certificate_types WHERE code = $1`, req.TypeCode).Scan(&typeID)
@@ -1195,12 +1233,17 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 
 		_, err = tx.Exec(r.Context(), `
 			INSERT INTO issued_certificates (institution_id, certificate_type_id, student_id,
-			                                 serial_no, issued_on, snapshot, status, requested_by)
+			                                 serial_no, issued_on, snapshot, status, requested_by,
+			                                 dues_override_by, dues_override_at, dues_override_reason)
 			SELECT $1, $2, st.id, $3, CURRENT_DATE,
 			       jsonb_build_object(
 			         'name', concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 			         'admission_no', st.admission_no,
 			         'date_of_birth', st.date_of_birth,
+			         'guardian_name', (SELECT g.full_name FROM student_guardians sg
+			                             JOIN guardians g ON g.id = sg.guardian_id
+			                            WHERE sg.student_id = st.id
+			                            ORDER BY sg.is_primary DESC LIMIT 1),
 			         'class', c.name, 'section', sec.name,
 			         'admission_date', st.admission_date,
 			         'apaar_id', st.apaar_id,
@@ -1213,8 +1256,11 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 			              WHERE i.student_id = st.id AND i.status IN ('unpaid','partial','overdue')), 0),
 			         'reason', $4::text,
 			         'issued_at', now()
-			       ),
-			       'issued', $5
+			       -- The prescribed fields, laid over the record's own. Empty
+			       -- for a bonafide or a conduct certificate.
+			       ) || $7::jsonb,
+			       'issued', $5,
+			       $8::uuid, CASE WHEN $8::uuid IS NOT NULL THEN now() END, $9::text
 			  FROM students st
 			  LEFT JOIN LATERAL (
 			      SELECT e.class_id, e.section_id FROM enrollments e
@@ -1223,7 +1269,8 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 			  LEFT JOIN classes  c   ON c.id = en.class_id
 			  LEFT JOIN sections sec ON sec.id = en.section_id
 			 WHERE st.id = $6`,
-			id.InstitutionID, typeID, serial, nullString(req.Reason), id.UserID, sid)
+			id.InstitutionID, typeID, serial, nullString(req.Reason), id.UserID, sid,
+			extras, overrideBy, overrideReason)
 		if err != nil {
 			return err
 		}
@@ -1241,12 +1288,20 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 		}
 		return err
 	})
+	if errors.Is(err, errDuesUnpaid) {
+		// The one sentence the counter needs: how much, on how many bills.
+		httpx.Error(w, r, http.StatusConflict, "dues_unpaid",
+			fmt.Sprintf("%s is still owed on %d %s; collect it, or issue with an override and a reason.",
+				formatPaise(duesPaise), duesInvoices, plural(duesInvoices, "invoice", "invoices")))
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"serial_no": serial, "type": req.TypeCode, "student_id": sid.String(),
+		"dues_paise": duesPaise, "dues_overridden": duesPaise > 0 && req.OverrideDues,
 	})
 }
 
