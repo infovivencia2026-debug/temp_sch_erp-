@@ -112,5 +112,11 @@ func allocateAtAdmission(
 		          ORDER BY starts_on DESC LIMIT 1),
 		        $3, $4, $5, current_date)`,
 		inst, student, route, pickup, drop)
-	return err
+	if err != nil {
+		return err
+	}
+	// The stop's fare becomes the child's own charge, so the first demand
+	// raised for them carries the bus. Same rule as the transport office's
+	// own screen; there is one table for it.
+	return syncTransportFeeComponent(ctx, tx, inst, student)
 }

@@ -1023,7 +1023,7 @@ function Allocations() {
       <Card>
         <CardHeader
           title="Put a child on a route"
-          description="The fare follows the stop rather than being typed, because a transport fee that disagrees with the stop it came from is an argument at the counter every August. Moving a child closes the old allocation instead of deleting it — the fee already raised has to stay explicable."
+          description="The fare follows the stop rather than being typed, because a transport fee that disagrees with the stop it came from is an argument at the counter every August. It goes on every fee demand raised for the child from today. Moving a child closes the old allocation instead of deleting it — the fee already raised has to stay explicable."
         />
         <div className="p-4">
           <FormGrid>

@@ -937,6 +937,18 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* How many instalments one bill covers, for the child's own charges.
+		   A structure line already says which instalment it is; a per-child
+		   component is priced per instalment and has to be told. */
+		instalments := 1
+		if req.AllInstalments {
+			if err := tx.QueryRow(r.Context(), `
+				SELECT count(DISTINCT instalment_no)::int FROM fee_structure_items
+				 WHERE fee_structure_id = $1`, structureID).Scan(&instalments); err != nil {
+				return err
+			}
+		}
+
 		for _, sid := range students {
 			invoiceNo, err := fees.NextNumber(r.Context(), tx, instID, "invoice")
 			if err != nil {
@@ -981,6 +993,16 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				instID, invoiceID, sid, yearID, structureID, req.InstalmentNo,
 				req.AllInstalments); err != nil {
 				return fmt.Errorf("create invoice lines: %w", err)
+			}
+
+			/* THE CHILD'S OWN CHARGES, after the class's.
+
+			   The bus fare lived on the transport allocation and reached no
+			   invoice; a family that paid for the bus was billed as though
+			   the child walked. These are the lines the structure cannot
+			   carry because they differ child by child. */
+			if err := addComponentLines(r.Context(), tx, instID, invoiceID, sid, yearID, instalments); err != nil {
+				return err
 			}
 
 			// Roll the lines up into the header. net_paise is generated from
