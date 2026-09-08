@@ -135,7 +135,10 @@ export default function Circulars() {
   })
   const publish = useMutation({
     mutationFn: () =>
-      api.post<{ recipients: number; unreachable_children: number; sms_queued: number; email_queued: number }>(
+      api.post<{
+        recipients: number; without_login: number; unreachable_children: number
+        sms_queued: number; email_queued: number; whatsapp_queued: number
+      }>(
         '/api/v1/communication/circulars',
         {
           title, body, section_ids: [...sectionIds],
@@ -388,19 +391,37 @@ export default function Circulars() {
                 Published to {publish.data.recipients}{' '}
                 {audience === 'students' ? 'students' : audience === 'parents' ? 'guardians' : 'recipients'}
                 {publish.data.sms_queued > 0 && `, ${publish.data.sms_queued} SMS queued`}
-                {publish.data.email_queued > 0 && `, ${publish.data.email_queued} emails queued`}.
+                {publish.data.email_queued > 0 && `, ${publish.data.email_queued} emails queued`}
+                {publish.data.whatsapp_queued > 0 && `, ${publish.data.whatsapp_queued} WhatsApp queued`}.
+              </p>
+            )}
+            {publish.isSuccess && publish.data.without_login > 0 && (
+              /* The families counted above who cannot see the portal.
+
+                 A guardian with a number and no login is reached by SMS,
+                 email or WhatsApp -- the same fallback an absence alert has
+                 always used -- and by nothing else. So when no channel was
+                 ticked they were counted and not told, and the honest thing
+                 is to say so beside the count. */
+              <p className="text-[13px] text-warning">
+                {publish.data.without_login} of them have no login and
+                {publish.data.sms_queued + publish.data.email_queued + publish.data.whatsapp_queued > 0
+                  ? ' were reached only by the message you ticked.'
+                  : ' saw nothing — tick SMS, email or WhatsApp to reach them, or issue logins on School setup → Students.'}
               </p>
             )}
             {publish.isSuccess && publish.data.unreachable_children > 0 && (
               /* The other half of the number, and the reason it looks small.
                  A school of sixty children publishing to "all parents" and
                  being told "12 recipients" reads it as a targeting fault. It
-                 is not: the other families have never been issued a login, so
-                 there is nowhere to deliver a portal notice to. That is worth
-                 saying plainly, with where to fix it. */
+                 is not: those families have no login and no number or
+                 address on record either, so there is nowhere at all to
+                 deliver to. That is worth saying plainly, with where to fix
+                 it. */
               <p className="text-[13px] text-warning">
-                {publish.data.unreachable_children} children could not be reached — their parent
-                has no login yet. Issue logins on School setup → Students to reach them.
+                {publish.data.unreachable_children} children could not be reached at all — nobody on
+                their record has a login, a phone number or an email. Add a contact on the
+                student's profile, then issue logins on School setup → Students.
               </p>
             )}
             {/* The action, with what it is about to do beside it.

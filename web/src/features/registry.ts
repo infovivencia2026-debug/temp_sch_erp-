@@ -16,6 +16,7 @@ import { messagingKeys } from './super_admin/messaging-keys'
 import { rollupKeys } from './analytics/rollup-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
+import { periodCloseKeys } from './finance/period-close-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { hodKeys } from './hod/keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
@@ -287,6 +288,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * its own door under Getting Started. This one shows the grades, their
    * sections and the rooms, which is what the entry says it does. */
   'institution_admin.academics.class_setup': screen(() => import('./shared/Academics')),
+  'institution_admin.academics.year_rollover': screen(() => import('./academics/YearRollover')),
   /* Clubs, coaching and electives. The register was a notebook in the
      coordinator's bag and the money was cash against a list; enrolling now
      raises a real bill the family can pay in the app. */
@@ -550,6 +552,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...rollupKeys,
   ...statutoryKeys,
   ...tallyKeys,
+  ...periodCloseKeys,
   ...hodKeys,
   ...timetableOpsKeys,
   ...adminOpsKeys,

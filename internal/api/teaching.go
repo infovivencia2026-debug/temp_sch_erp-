@@ -2790,16 +2790,22 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 		var maxMarks float64
 		var subject string
 		var scaleID *uuid.UUID
+		var yearID uuid.UUID
 		// Subject name fetched alongside the ceiling so a rejected mark can say
 		// which paper it was out of, the same as the admin entry path.
 		if err := tx.QueryRow(r.Context(), `
 			SELECT es.class_subject_id, es.max_marks, COALESCE(sub.name, ''),
-			       e.grading_scale_id
+			       e.grading_scale_id, e.academic_year_id
 			  FROM exam_subjects es
 			  JOIN exams e            ON e.id = es.exam_id
 			  LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
 			  LEFT JOIN subjects sub  ON sub.id = cs.subject_id
-			 WHERE es.id = $1`, esID).Scan(&csID, &maxMarks, &subject, &scaleID); err != nil {
+			 WHERE es.id = $1`, esID).Scan(&csID, &maxMarks, &subject, &scaleID, &yearID); err != nil {
+			return err
+		}
+		// Same rule as the admin entry path: a closed year's marks are the
+		// record behind a report card somebody has already been handed.
+		if err := s.requireOpenYear(r.Context(), tx, yearID); err != nil {
 			return err
 		}
 		ok, cerr := classSubjectTaught(r.Context(), tx, res, csID)
@@ -2870,6 +2876,7 @@ func (s *Server) saveSummativeMarks(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, errNotTaught):
 		httpx.Forbidden(w, r, "entering marks for this class")
+	case periodClosed(w, r, err):
 		return
 	case errors.As(err, &ceiling):
 		httpx.BadRequest(w, r, ceiling.Error())

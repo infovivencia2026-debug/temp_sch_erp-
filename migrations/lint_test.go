@@ -554,3 +554,67 @@ func scanUpForUnliftedDataChanges(up string, rls map[string]bool) []rlsFinding {
 	}
 	return out
 }
+
+/*
+A semicolon inside a block comment is a statement end to goose.
+
+	goose splits a migration on ';' without reading SQL comments, so a
+	sentence in a slash-star comment ending in a semicolon becomes the end of
+	a statement that begins mid-comment, and Postgres refuses it with
+	"unterminated /* comment". 00301 shipped that way and failed on a scratch
+	database; on production it would have stopped the deploy at Migrate.
+
+	Only outside StatementBegin/End: inside those goose sends the block whole,
+	which is why the older migrations that carry the character there have
+	always applied.
+*/
+func TestBlockCommentsCarryNoSemicolon(t *testing.T) {
+	entries, err := FS.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		body, err := FS.ReadFile(e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		inBlock, inComment := false, false
+		for n, line := range strings.Split(string(body), "\n") {
+			trim := strings.TrimSpace(line)
+			switch {
+			case strings.HasPrefix(trim, "-- +goose StatementBegin"):
+				inBlock = true
+			case strings.HasPrefix(trim, "-- +goose StatementEnd"):
+				inBlock = false
+			}
+			rest := line
+			for rest != "" {
+				if !inComment {
+					start := strings.Index(rest, "/*")
+					if start < 0 {
+						break
+					}
+					inComment = true
+					rest = rest[start+2:]
+					continue
+				}
+				end := strings.Index(rest, "*/")
+				seg := rest
+				if end >= 0 {
+					seg = rest[:end]
+				}
+				if !inBlock && strings.Contains(seg, ";") {
+					t.Errorf("%s:%d: a block comment outside StatementBegin/End contains ';', which goose reads as the end of a statement; use -- line comments", e.Name(), n+1)
+				}
+				if end < 0 {
+					break
+				}
+				inComment = false
+				rest = rest[end+2:]
+			}
+		}
+	}
+}

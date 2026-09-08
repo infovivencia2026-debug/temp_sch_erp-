@@ -240,7 +240,7 @@ export default function Notifications() {
             'fixed inset-0 z-[60] flex justify-end',
             // The ground dims with the drawer rather than appearing under it.
             'transition-colors',
-            open ? 'bg-black/40' : 'pointer-events-none bg-transparent',
+            open ? 'bg-[hsl(var(--scrim))]' : 'pointer-events-none bg-transparent',
           )}
           onClick={dismiss}
         >

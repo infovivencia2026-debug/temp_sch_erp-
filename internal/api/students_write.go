@@ -350,14 +350,11 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 
 	// Placement.
 	if req.SectionID != "" {
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return "", "", errNoAcademicYear
-			}
+		year, err := workingYearIn(r.Context(), tx, req.AcademicYearID)
+		if err != nil {
+			return "", "", errNoAcademicYear
 		}
+		yearID := year.String()
 		/* Refuse to over-fill a section unless told to.
 
 		   The admissions funnel already refuses this — offering a seat in a
@@ -396,7 +393,8 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			                         class_id, section_id, roll_no, status)
 			SELECT $1, $2::uuid, $3::uuid, s.class_id, s.id, $5, 'active'
 			  FROM sections s WHERE s.id = $4::uuid
-			ON CONFLICT (student_id, academic_year_id)
+			-- One active row per child per year; the closed ones are history.
+			ON CONFLICT (student_id, academic_year_id) WHERE status = 'active'
 			DO UPDATE SET section_id = EXCLUDED.section_id,
 			              class_id   = EXCLUDED.class_id,
 			              roll_no    = COALESCE(EXCLUDED.roll_no, enrollments.roll_no),
@@ -440,8 +438,12 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO enrollments (institution_id, student_id, academic_year_id,
 				                         class_id, status)
-				VALUES ($1,$2::uuid,$3,$4,'completed')
-				ON CONFLICT (student_id, academic_year_id) DO NOTHING`,
+				SELECT $1, $2::uuid, $3, $4, 'completed'
+				-- Once. A closed year is not unique in the table any more (a
+				-- mid-year move leaves two rows), so a re-import is kept from
+				-- adding a third by looking rather than by conflicting.
+				 WHERE NOT EXISTS (SELECT 1 FROM enrollments
+				                    WHERE student_id = $2::uuid AND academic_year_id = $3)`,
 				instID, studentID, prevYear, prevClass); err != nil {
 				return "", "", err
 			}
@@ -1347,11 +1349,10 @@ func recordConcession(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 		reason += " (carried across at import)"
 	}
 
+	// The concession belongs to the year the child is being placed in, which
+	// during an import is the importer's working year.
 	var yearID any
-	var y uuid.UUID
-	if err := tx.QueryRow(r.Context(),
-		`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).
-		Scan(&y); err == nil {
+	if y, err := workingYearIn(r.Context(), tx, ""); err == nil {
 		yearID = y
 	}
 

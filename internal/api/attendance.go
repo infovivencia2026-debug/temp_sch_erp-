@@ -190,6 +190,12 @@ func (s *Server) markAttendance(w http.ResponseWriter, r *http.Request) {
 			`SELECT institution_id FROM sections WHERE id = $1`, sectionID).Scan(&instID); err != nil {
 			return err
 		}
+		// A register for a closed month is exactly the back-fill the close
+		// exists to stop: the shortage list was already sent out on it.
+		onDate, _ := time.Parse(time.DateOnly, req.OnDate)
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", onDate); err != nil {
+			return err
+		}
 
 		batch := &pgx.Batch{}
 		for _, e := range req.Entries {
@@ -242,6 +248,9 @@ func (s *Server) markAttendance(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

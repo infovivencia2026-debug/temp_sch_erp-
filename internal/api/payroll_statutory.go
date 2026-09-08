@@ -503,7 +503,17 @@ func (s *Server) getBankFile(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(&b, "%s,%s,%s,%.2f,Salary %02d/%d\n",
 				csvSafe(name), acct, ifsc, float64(net)/100, month, year)
 		}
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		rows.Close()
+		// Drawing the file is the point of no return for the run: from here
+		// runPayroll refuses to recompute the month. The first draw is the
+		// one that matters, so a second download does not move the date.
+		_, err = tx.Exec(r.Context(), `
+			UPDATE payroll_runs SET bank_file_drawn_at = COALESCE(bank_file_drawn_at, now())
+			 WHERE period_year = $1 AND period_month = $2`, year, month)
+		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

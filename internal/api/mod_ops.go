@@ -103,6 +103,41 @@ const circularRecipients = `
 	 WHERE emp.status = 'active'
 	   AND $2::text IN ('staff','everyone')`
 
+/*
+And the families a portal notice cannot reach.
+
+	circularRecipients is accounts, because a portal notice needs one, and
+	this file used that same list for the SMS. So a circular ticked "send SMS"
+	went to the twelve families with a login and not to the forty-nine
+	without, who are exactly the families an SMS exists for -- while the
+	messaging path next door (absence alerts, fee reminders) has always fallen
+	back to the guardian's own number. The school texted a parent about an
+	absence on Monday and could not text them the holiday list on Tuesday.
+
+	This is the fallback list: guardians of the same children who have no
+	account but do have a number or an address. Deduplicated on the contact,
+	because a father and a mother written against one handset are one text;
+	and a contact that already belongs to somebody's account is left out,
+	because that account is already on the first list and would be told twice.
+*/
+const circularContactOnly = `
+	SELECT DISTINCT ON (COALESCE(NULLIF(g.phone,''), g.email::text))
+	       COALESCE(g.phone,''), COALESCE(g.email::text,'')
+	  FROM students st
+	  JOIN student_guardians sg ON sg.student_id = st.id
+	  JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NULL
+	       AND (NULLIF(g.phone,'') IS NOT NULL OR g.email IS NOT NULL)
+	  LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+	 WHERE st.status = 'active'
+	   AND $2::text IN ('all','parents','everyone')
+	   AND ($1::uuid[] IS NULL OR e.section_id = ANY($1))
+	   AND NOT EXISTS (
+	         SELECT 1 FROM users u
+	          WHERE u.institution_id = g.institution_id
+	            AND ((NULLIF(g.phone,'') IS NOT NULL AND u.phone = g.phone)
+	              OR (g.email IS NOT NULL AND u.email = g.email)))
+	 ORDER BY COALESCE(NULLIF(g.phone,''), g.email::text), g.created_at`
+
 // publishCircular posts an announcement and optionally pushes it as SMS.
 //
 // Targeting is by role and, optionally, by section. A circular aimed at
@@ -138,7 +173,7 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var annID uuid.UUID
-	var recipients, unreachable int
+	var recipients, withoutLogin, unreachable int
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO announcements (institution_id, title, body, kind, audience_role,
@@ -183,6 +218,21 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 		if req.AudienceRole == "staff" {
 			return nil
 		}
+		/* Counted with the accounts, and reported apart from them.
+
+		   A family with a number and no login IS reached when a channel is
+		   ticked and is NOT when none is, and the screen has to be able to
+		   say which. So the total is everybody a circular can get to, and
+		   without_login is the part of it that depends on the tick. */
+		if err := tx.QueryRow(r.Context(),
+			`SELECT count(*) FROM (`+circularContactOnly+`) AS c`,
+			uuidArray(req.SectionIDs), req.AudienceRole).Scan(&withoutLogin); err != nil {
+			return err
+		}
+		recipients += withoutLogin
+		// A child is unreachable when nobody on their record has a login OR
+		// a way to be messaged. "No login" alone stopped being the test the
+		// moment the number became enough for the SMS.
 		return tx.QueryRow(r.Context(), `
 			SELECT count(*)::int
 			  FROM students st
@@ -192,7 +242,9 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 			   AND st.user_id IS NULL
 			   AND NOT EXISTS (
 			         SELECT 1 FROM student_guardians sg
-			           JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL
+			           JOIN guardians g ON g.id = sg.guardian_id
+			                AND (g.user_id IS NOT NULL
+			                  OR NULLIF(g.phone,'') IS NOT NULL OR g.email IS NOT NULL)
 			          WHERE sg.student_id = st.id)`,
 			uuidArray(req.SectionIDs)).Scan(&unreachable)
 	})
@@ -287,14 +339,79 @@ func (s *Server) publishCircular(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
+
+			/* The families with no account, by their number or address.
+
+			   Queued through the send contract directly rather than the task
+			   queue, because a task carries a user id and these people have
+			   none. Same template, same vars; the occurrence key is the
+			   address, since the one-per-occurrence index does not otherwise
+			   know one guardian from another when neither has a user_id. */
+			if req.AudienceRole == "staff" {
+				return nil
+			}
+			crows, err := tx.Query(r.Context(), circularContactOnly,
+				uuidArray(req.SectionIDs), req.AudienceRole)
+			if err != nil {
+				return err
+			}
+			type contact struct{ phone, email string }
+			var contacts []contact
+			for crows.Next() {
+				var c contact
+				if err := crows.Scan(&c.phone, &c.email); err != nil {
+					crows.Close()
+					return err
+				}
+				contacts = append(contacts, c)
+			}
+			crows.Close()
+			if err := crows.Err(); err != nil {
+				return err
+			}
+			if len(contacts) == 0 {
+				return nil
+			}
+			providers, err := s.loadProviders(r.Context(), tx, id.InstitutionID)
+			if err != nil {
+				return err
+			}
+			vars := map[string]any{"title": req.Title, "body": body}
+			var schoolName string
+			_ = tx.QueryRow(r.Context(), `SELECT name FROM institutions WHERE id = $1`,
+				id.InstitutionID).Scan(&schoolName)
+			vars["school_name"] = schoolName
+			ann := annID
+			for _, c := range contacts {
+				for _, ch := range channels {
+					to := c.phone
+					if ch == "email" {
+						to = c.email
+					}
+					if to == "" {
+						continue
+					}
+					if res, err := s.queueWith(r.Context(), tx, id.InstitutionID, providers, SendRequest{
+						Channel: ch, TemplateCode: "announcement.published", Vars: vars,
+						Recipient:  to,
+						SourceKind: "announcement", SourceID: &ann, OccurrenceKey: to,
+					}); err == nil && !res.Duplicate {
+						queued[ch]++
+					}
+				}
+			}
 			return nil
 		})
 	}
 
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"id": annID.String(), "recipients": recipients,
-		// Children nobody can be told about, because their family has no
-		// login. Not an error — a thing to go and fix.
+		// Of those, the families who have a number and no login: on the
+		// portal they see nothing, and they are reached only by a channel
+		// that was ticked.
+		"without_login": withoutLogin,
+		// Children nobody can be told about at all: no login, no number, no
+		// address on anyone. Not an error — a thing to go and fix.
 		"unreachable_children": unreachable,
 		"sms_queued":           queued["sms"], "email_queued": queued["email"],
 		"whatsapp_queued": queued["whatsapp"],
@@ -782,19 +899,33 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 	var gross, deduction, net int64
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Before the upsert: a run row must not appear for a month the school
+		// has already closed.
+		if err := s.requireOpenPeriod(r.Context(), tx, id.InstitutionID, "month",
+			time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, time.UTC)); err != nil {
+			return err
+		}
 		var status string
+		var bankFileAt *time.Time
 		err := tx.QueryRow(r.Context(), `
 			INSERT INTO payroll_runs (institution_id, period_month, period_year, status, run_by)
 			VALUES ($1,$2,$3,'draft',$4)
 			ON CONFLICT (institution_id, period_year, period_month) DO UPDATE
 			   SET run_by = EXCLUDED.run_by
-			RETURNING id, status`, id.InstitutionID, req.Month, req.Year, id.UserID).
-			Scan(&runID, &status)
+			RETURNING id, status, bank_file_drawn_at`, id.InstitutionID, req.Month, req.Year, id.UserID).
+			Scan(&runID, &status, &bankFileAt)
 		if err != nil {
 			return err
 		}
 		if status == "locked" || status == "paid" {
 			return errPayrollLocked
+		}
+		// The bank has the figures. Whatever the state machine says, a run
+		// whose file has left the building is a record of a transfer, and
+		// deleting its payslips to write new ones would leave the school's
+		// books disagreeing with the bank's.
+		if bankFileAt != nil {
+			return errPayrollExported
 		}
 
 		// Recompute from scratch: a re-run must amend, never accumulate.
@@ -1089,6 +1220,14 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			"this month's payroll is locked; payslips already issued cannot be recomputed")
 		return
 	}
+	if errors.Is(err, errPayrollExported) {
+		httpx.Error(w, r, http.StatusConflict, "payroll_exported",
+			"this month's salary file has already gone to the bank; its payslips cannot be recomputed")
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -1100,6 +1239,10 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 }
 
 var errPayrollLocked = errors.New("payroll run is locked")
+
+// errPayrollExported: the bank file was drawn, so the run is a record of a
+// transfer whatever its status says.
+var errPayrollExported = errors.New("payroll bank file already drawn")
 
 type payslipRow struct {
 	EmployeeCode string `json:"employee_code"`

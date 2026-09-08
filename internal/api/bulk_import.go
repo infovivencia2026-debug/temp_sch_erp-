@@ -3635,10 +3635,12 @@ func (c *importCtx) writeSections(row map[string]string, classID uuid.UUID) erro
 		}
 	}
 
-	var yearID uuid.UUID
-	if err := c.tx.QueryRow(c.r.Context(), `
-		SELECT id FROM academic_years
-		 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
+	// The importer's working year, so next year's sections can be loaded in
+	// November without the flag moving. Resolved per row rather than once
+	// only because the classes sheet is the one importer that never set
+	// ctx.year, and the sheets are short.
+	yearID, err := workingYearIn(c.r.Context(), c.tx, "")
+	if err != nil {
 		return errors.New("open the academic year before importing sections")
 	}
 
@@ -3916,10 +3918,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			sheet: sheetFactsFrom(r), subjectCols: subjectColumnsFrom(r),
 			classes: map[string]uuid.UUID{}, server: s}
 
-		var year uuid.UUID
-		if err := tx.QueryRow(r.Context(),
-			`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).
-			Scan(&year); err == nil {
+		if year, err := s.workingYear(r.Context(), tx, r); err == nil {
 			ctx.year = &year
 		}
 

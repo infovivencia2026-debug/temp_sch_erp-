@@ -95,11 +95,19 @@ export default {
         book: '450',
       },
       boxShadow: {
-        /* Only overlays lift off the page; everything in flow is separated by
-           a border and a tonal step. */
+        /* The utility scale is index.css's elevation ladder, so a component
+           reaching for shadow-lg gets the sheet rung in both schemes and
+           follows the Shadow preference. sm is level 1 (card), md level 2
+           (raised), lg/xl/2xl level 3 (sheet); there is nothing above 3. */
         xs: 'none',
-        card: 'none',
-        pop: '0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.12)',
+        card: 'var(--elev-1)',
+        sm: 'var(--elev-1)',
+        DEFAULT: 'var(--elev-1)',
+        md: 'var(--elev-2)',
+        lg: 'var(--elev-3)',
+        xl: 'var(--elev-3)',
+        '2xl': 'var(--elev-3)',
+        pop: 'var(--elev-3)',
       },
       transitionTimingFunction: {
         premium: 'cubic-bezier(.16, 1, .3, 1)',

@@ -243,14 +243,10 @@ export default function MasterTimetable() {
       />
       <PageBody>
         {/* The single instruction, and the single button that acts on it. */}
-        <Card
-          className={cn(
-            'border-l-4',
-            stage.tone === 'warn' && 'border-l-warning',
-            stage.tone === 'go' && 'border-l-primary',
-            stage.tone === 'done' && 'border-l-success',
-          )}
-        >
+        {/* No coloured edge. The stripe said warn/go/done in a colour the
+            sentence beside it already says in words, and on a wide screen it
+            was the only saturated thing on the page. */}
+        <Card>
           <div className="flex flex-wrap items-start justify-between gap-4 p-5">
             <div className="min-w-0 max-w-2xl">
               <p className="text-[15px] font-medium">{stage.title}</p>

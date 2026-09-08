@@ -506,6 +506,13 @@ func (s *Server) markStaffAttendance(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		// Staff attendance is what payroll reads. A month whose salaries
+		// have gone out is closed, and a day marked into it afterwards would
+		// be a loss of pay nobody deducted or a presence nobody paid for.
+		onDate, _ := time.Parse(time.DateOnly, req.OnDate)
+		if err := s.requireOpenPeriod(r.Context(), tx, id.InstitutionID, "month", onDate); err != nil {
+			return err
+		}
 		for _, e := range req.Entries {
 			uid, err := uuid.Parse(e.UserID)
 			if err != nil {
@@ -535,6 +542,9 @@ func (s *Server) markStaffAttendance(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

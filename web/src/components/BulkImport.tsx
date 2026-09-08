@@ -1152,6 +1152,10 @@ interface BulkLoginResult {
   skipped: number
   rows: BulkLoginRow[]
   note: string
+  /* How many of the new passwords were also queued to the family by message.
+     Zero beside a positive `created` means no channel is set up yet, and the
+     downloaded list is the only copy there is. */
+  sent?: number
 }
 
 /**
@@ -1167,7 +1171,7 @@ interface BulkLoginResult {
  * Monday, a class teacher runs this on Tuesday, and Tuesday must not quietly
  * replace what the families are already holding.
  */
-function IssueLogins({ entity }: { entity: string }) {
+export function IssueLogins({ entity }: { entity: string }) {
   const [result, setResult] = useState<BulkLoginResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState('')
@@ -1267,6 +1271,11 @@ function IssueLogins({ entity }: { entity: string }) {
             {result.skipped > 0 && (
               <span className="text-destructive">
                 <b className="tabular-nums">{result.skipped}</b> could not be given one
+              </span>
+            )}
+            {(result.sent ?? 0) > 0 && (
+              <span className="text-muted-foreground">
+                <b className="tabular-nums">{result.sent}</b> sent to the family
               </span>
             )}
             <span className="ml-auto flex flex-wrap items-center gap-2">

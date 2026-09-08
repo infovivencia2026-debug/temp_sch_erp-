@@ -165,6 +165,17 @@ export function CommandSearch() {
 
   useEffect(() => setCursor(0), [q])
 
+  /* The list follows the cursor. The arrow keys moved the highlight and the
+     box stayed where it was, so from the seventh hit down the keyboard was
+     selecting rows nobody could see. `nearest` moves the scroll only when the
+     row is actually out of view, so a mouse hover, which also sets the
+     cursor, never jolts the list. */
+  useEffect(() => {
+    document
+      .querySelector<HTMLElement>('[data-command-hit="active"]')
+      ?.scrollIntoView?.({ block: 'nearest' })
+  }, [cursor])
+
   if (!open) {
     return (
       <button
@@ -214,7 +225,7 @@ export function CommandSearch() {
      anybody mounts it next. */
   return createPortal(
     <>
-      <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setOpen(false)} aria-hidden />
+      <div className="fixed inset-0 z-50 bg-[hsl(var(--scrim))]" onClick={() => setOpen(false)} aria-hidden />
       <div
         role="dialog"
         aria-label="Search features"
@@ -298,6 +309,7 @@ export function CommandSearch() {
                 <button
                   onMouseEnter={() => setCursor(i)}
                   onClick={() => go(h)}
+                  data-command-hit={i === cursor ? 'active' : undefined}
                   className={cn(
                     'flex w-full items-center gap-3 px-4 py-2 text-left',
                     i === cursor && 'bg-accent',

@@ -35,6 +35,8 @@ interface FeeStructure {
 interface GenerateResult {
   created: number
   skipped: number
+  arrears_children?: number
+  arrears_paise?: number
 }
 
 export default function DemandGeneration() {
@@ -59,10 +61,16 @@ export default function DemandGeneration() {
         ...(dueOn ? { due_on: dueOn } : {}),
       }),
     onSuccess: (r) => {
+      /* Arrears are said out loud. A run whose total is ₹1,40,000 higher
+         than the structure implies is otherwise a mystery the accountant
+         solves by opening bills one at a time. */
+      const arrears = r.arrears_children
+        ? ` ${formatPaise(r.arrears_paise ?? 0)} of last year's unpaid balance brought forward for ${r.arrears_children} ${r.arrears_children === 1 ? 'child' : 'children'}.`
+        : ''
       setResult(
-        r.skipped
+        (r.skipped
           ? `${r.created} invoices raised. ${r.skipped} skipped — already billed for this instalment.`
-          : `${r.created} invoices raised.`,
+          : `${r.created} invoices raised.`) + arrears,
       )
       qc.invalidateQueries({ queryKey: ['finance'] })
       qc.invalidateQueries({ queryKey: ['attention'] })

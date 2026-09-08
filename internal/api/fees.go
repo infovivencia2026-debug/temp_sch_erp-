@@ -183,6 +183,9 @@ func (s *Server) getStudentLedger(w http.ResponseWriter, r *http.Request) {
 			         COALESCE(p.receipt_no,'—'),
 			         CASE WHEN p.status = 'pending' THEN 'Cheque held (post-dated)'
 			              WHEN p.status = 'bounced' THEN 'Cheque dishonoured'
+			              /* An adjustment is not money received. The one the
+			                 year-turn writes says where the balance went. */
+			              WHEN p.mode = 'adjustment' THEN COALESCE(p.remarks, 'Adjustment')
 			              ELSE 'Payment received' END,
 			         0::bigint, p.amount_paise, p.status, p.mode
 			    FROM payments p
@@ -297,6 +300,11 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 			studentID).Scan(&instID, &campusID); err != nil {
 			return err
 		}
+		// A receipt back-dated into a closed month changes a collection
+		// figure the school has already tied out and reported.
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", paidOn); err != nil {
+			return err
+		}
 
 		receipt, err = fees.Collect(r.Context(), tx, fees.CollectRequest{
 			InstitutionID: instID, CampusID: campusID, StudentID: studentID,
@@ -375,6 +383,9 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, fees.ErrInvoiceNotFound) {
 		httpx.BadRequest(w, r, "none of the selected invoices are outstanding for this student")
+		return
+	}
+	if periodClosed(w, r, err) {
 		return
 	}
 	if err != nil {
@@ -523,6 +534,20 @@ func (s *Server) bounceCheque(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Bouncing is the one way a receipt is undone: the invoice reopens
+		// and the money leaves the month it was counted in. Once that month
+		// is closed the dishonour is booked where the bank told us, in the
+		// open month, after the principal has reopened the old one.
+		var instID uuid.UUID
+		var paidOn time.Time
+		if err := tx.QueryRow(r.Context(),
+			`SELECT institution_id, paid_on FROM payments WHERE id = $1`, paymentID).
+			Scan(&instID, &paidOn); err != nil {
+			return err
+		}
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", paidOn); err != nil {
+			return err
+		}
 		fine := req.FinePaise
 		if fine <= 0 {
 			/* The school's standing amount, where it has set one.
@@ -544,6 +569,13 @@ func (s *Server) bounceCheque(w http.ResponseWriter, r *http.Request) {
 		}
 		return fees.BounceCheque(r.Context(), tx, paymentID, fine)
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -756,6 +788,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 
 	created, skipped := 0, 0
 	pendingConcessions := 0
+	// What last year's unpaid balances added to this run, and for how many
+	// children, so the screen can say "and ₹1,40,000 of arrears" rather
+	// than leaving the accountant to notice the totals are higher.
+	arrearsChildren, arrearsPaise := 0, int64(0)
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var instID, campusID, yearID uuid.UUID
 		var classID *uuid.UUID
@@ -763,6 +799,15 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			SELECT institution_id, campus_id, academic_year_id, class_id
 			  FROM fee_structures WHERE id = $1 AND is_active`, structureID).
 			Scan(&instID, &campusID, &yearID, &classID); err != nil {
+			return err
+		}
+		// A demand raised into a closed year is a debt the year's books do
+		// not show. The invoice is dated today as well, so a closed current
+		// month refuses it too.
+		if err := s.requireOpenYear(r.Context(), tx, yearID); err != nil {
+			return err
+		}
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", time.Now()); err != nil {
 			return err
 		}
 
@@ -793,6 +838,20 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			return errNoLiveFeeVersion
 		}
 
+		/* THE LINES THIS RUN MAY BILL, decided once.
+
+		   The run read fee_structure_items — the unversioned table — and
+		   never wrote the version onto the invoice, so the careful ON
+		   DELETE RESTRICT guaranteeing "an invoice can always name the
+		   version it was raised under" protected a column that was NULL on
+		   every bill the system produced, and the committee's approved
+		   amounts were recorded and never charged. loadFeeRunLines is where
+		   the version, the approval and the amounts meet. */
+		source, err := loadFeeRunLines(r.Context(), tx, structureID, classID)
+		if err != nil {
+			return err
+		}
+
 		/* An instalment the structure does not have.
 
 		   Most schools price the year in one instalment and collect it in one
@@ -804,15 +863,9 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		   with the school's own invoice sequence spent on them.
 
 		   The clerk's mistake is a typo in one field. The remedy is to say so
-		   before anything is written, not to hand back "created: 60". */
-		var lines int
-		if err := tx.QueryRow(r.Context(), `
-			SELECT count(*)::int FROM fee_structure_items
-			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
-			structureID, req.InstalmentNo).Scan(&lines); err != nil {
-			return err
-		}
-		/* A STRUCTURE WORTH NOTHING RAISES NOTHING, and says so.
+		   before anything is written, not to hand back "created: 60".
+
+		   A STRUCTURE WORTH NOTHING RAISES NOTHING, and says so.
 
 		   A structure whose heads are all zero is a stub somebody began and
 		   abandoned. Billing from it created an invoice for nought, which the
@@ -822,32 +875,24 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 
 		   Refused with the reason. Creating the zero invoice and warning
 		   afterwards would leave the row behind, and the guard against billing
-		   twice would then skip the child on the retry. */
-		var worth int64
-		if err := tx.QueryRow(r.Context(), `
-			SELECT COALESCE(sum(amount_paise), 0) FROM fee_structure_items
-			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
-			structureID, req.InstalmentNo).Scan(&worth); err != nil {
-			return err
-		}
-		if lines > 0 && worth == 0 {
+		   twice would then skip the child on the retry.
+
+		   Paying the year at once bills every instalment, so the count and the
+		   value are the whole structure rather than one term of it. */
+		runLines, worth, instalments := source.forInstalment(req.InstalmentNo, req.AllInstalments)
+		if len(runLines) > 0 && worth == 0 {
 			return errStructureWorthNothing
 		}
-		/* Paying the year at once bills every instalment, so the count and the
-		   value are the whole structure rather than one term of it. */
-		if req.AllInstalments {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT count(*)::int, COALESCE(sum(amount_paise), 0)
-				  FROM fee_structure_items WHERE fee_structure_id = $1`,
-				structureID).Scan(&lines, &worth); err != nil {
-				return err
-			}
-			if lines == 0 || worth == 0 {
+		if len(runLines) == 0 {
+			if req.AllInstalments {
 				return errStructureWorthNothing
 			}
-		}
-		if lines == 0 {
 			return errNoSuchInstalment
+		}
+		headIDs := make([]uuid.UUID, len(runLines))
+		amounts := make([]int64, len(runLines))
+		for i, l := range runLines {
+			headIDs[i], amounts[i] = l.HeadID, l.AmountPaise
 		}
 
 		/* CONCESSIONS STILL WAITING ON A DECISION.
@@ -943,44 +988,73 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			// The version is written onto the bill, which is the key an
+			// auditor joins the filing to. NULL only where the school has
+			// never versioned, and then it truthfully reads "raised before
+			// versioning".
 			var invoiceID uuid.UUID
 			if err := tx.QueryRow(r.Context(), `
 				INSERT INTO invoices (institution_id, campus_id, student_id, academic_year_id,
 				                      invoice_no, instalment_no, issued_on, due_on,
-				                      gross_paise, discount_paise, status)
-				VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE,$7,0,0,'unpaid')
+				                      gross_paise, discount_paise, status, fee_structure_version_id)
+				VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE,$7,0,0,'unpaid',$8)
 				RETURNING id`,
-				instID, campusID, sid, yearID, invoiceNo, req.InstalmentNo, dueOn).Scan(&invoiceID); err != nil {
+				instID, campusID, sid, yearID, invoiceNo, req.InstalmentNo, dueOn,
+				source.VersionID).Scan(&invoiceID); err != nil {
 				return fmt.Errorf("create invoice for %s: %w", sid, err)
 			}
 
-			// Lines from the structure, with the student's concession applied
-			// per head. A percentage concession is computed on that head's
+			// The run's lines, with the student's concession applied per
+			// head. A percentage concession is computed on that head's
 			// amount, which is why the discount lives on the line and not on
 			// the invoice header.
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id,
 				                           description, amount_paise, discount_paise)
-				SELECT $1, $2, fsi.fee_head_id, fh.name, fsi.amount_paise,
+				SELECT $1, $2, l.fee_head_id, fh.name, l.amount_paise,
 				       LEAST(
-				         fsi.amount_paise,
+				         l.amount_paise,
 				         COALESCE((
 				           SELECT COALESCE(max(fc.amount_paise),
-				                           max(round(fsi.amount_paise * fc.percent / 100.0))::bigint)
+				                           max(round(l.amount_paise * fc.percent / 100.0))::bigint)
 				             FROM fee_concessions fc
 				            WHERE fc.student_id = $3
 				              AND fc.academic_year_id = $4
 				              AND fc.approved_at IS NOT NULL
-				              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = fsi.fee_head_id)
+				              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = l.fee_head_id)
 				         ), 0)
 				       )
-				  FROM fee_structure_items fsi
-				  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
-				 WHERE fsi.fee_structure_id = $5
-			   AND ($7::bool OR fsi.instalment_no = $6)`,
-				instID, invoiceID, sid, yearID, structureID, req.InstalmentNo,
-				req.AllInstalments); err != nil {
+				  FROM unnest($5::uuid[], $6::bigint[]) AS l(fee_head_id, amount_paise)
+				  JOIN fee_heads fh ON fh.id = l.fee_head_id`,
+				instID, invoiceID, sid, yearID, headIDs, amounts); err != nil {
 				return fmt.Errorf("create invoice lines: %w", err)
+			}
+
+			/* THE CHILD'S OWN CHARGES, after the class's.
+
+			   The bus fare lived on the transport allocation and reached no
+			   invoice; a family that paid for the bus was billed as though
+			   the child walked. These are the lines the structure cannot
+			   carry because they differ child by child. */
+			if err := addComponentLines(r.Context(), tx, instID, invoiceID, sid, yearID, instalments); err != nil {
+				return err
+			}
+
+			/* WHAT THEY STILL OWED WHEN THE YEAR TURNED.
+
+			   A family two terms behind in March was billed in June as if
+			   March were settled: the old invoices stayed open somewhere in
+			   the ledger, and the paper they were handed did not mention
+			   them. Brought forward here, once, onto the first demand of the
+			   new year, and the old bill closed against it. */
+			moved, err := carryArrears(r.Context(), tx, instID, campusID,
+				sid, yearID, invoiceID, invoiceNo)
+			if err != nil {
+				return err
+			}
+			if moved > 0 {
+				arrearsChildren++
+				arrearsPaise += moved
 			}
 
 			// Roll the lines up into the header. net_paise is generated from
@@ -1012,6 +1086,11 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("this fee structure has nothing priced under instalment %d, so every invoice would come to zero. Check the instalment number, or add the lines to the structure first.", req.InstalmentNo))
 		return
 	}
+	if errors.Is(err, errFeeNotApproved) {
+		httpx.Error(w, r, http.StatusConflict, "fee_version_not_approved",
+			"this fee structure was filed with the fee committee and the committee's approval has not been recorded against its live version, so nothing can be billed from it yet. Record the decision under Fee regulatory filing, or activate the version the committee approved.")
+		return
+	}
 	if errors.Is(err, errNoLiveFeeVersion) {
 		httpx.Error(w, r, http.StatusConflict, "no_live_fee_version",
 			"cannot generate invoices: this fee structure has no live version. Activate a version first, or a parent will be billed a figure the school has not agreed.")
@@ -1028,6 +1107,8 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		   rather than refused: the demand is usually right and a school that
 		   cannot bill until every concession is decided cannot bill. */
 		"pending_concessions": pendingConcessions,
+		"arrears_children":    arrearsChildren,
+		"arrears_paise":       arrearsPaise,
 	})
 }
 
@@ -1110,6 +1191,7 @@ func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 
 type refundRow struct {
 	ID          string  `json:"id"`
+	StudentID   string  `json:"student_id"`
 	StudentName string  `json:"student_name"`
 	AdmissionNo string  `json:"admission_no"`
 	AmountPaise int64   `json:"amount_paise"`
@@ -1118,25 +1200,39 @@ type refundRow struct {
 	Status      string  `json:"status"`
 	ProcessedOn *string `json:"processed_on,omitempty"`
 	CreatedAt   string  `json:"created_at"`
+	// The decision, whole: who asked, who signed, what they wrote, and the
+	// bank reference of the payout a family quotes when it has not arrived.
+	RequestedBy  *string `json:"requested_by,omitempty"`
+	DecidedBy    *string `json:"decided_by,omitempty"`
+	DecidedOn    *string `json:"decided_on,omitempty"`
+	DecisionNote *string `json:"decision_note,omitempty"`
+	ReferenceNo  *string `json:"reference_no,omitempty"`
 }
 
 // listRefunds shows money going back out, which is the half of a fee ledger
 // nobody builds until an auditor asks for it.
 func (s *Server) listRefunds(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT rf.id::text,
+		SELECT rf.id::text, st.id::text,
 		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 		       rf.amount_paise, rf.reason, rf.mode, rf.status,
 		       to_char(rf.processed_on,'YYYY-MM-DD'),
-		       to_char(rf.created_at,'YYYY-MM-DD')
+		       to_char(rf.created_at,'YYYY-MM-DD'),
+		       ru.full_name, du.full_name,
+		       to_char(rf.approved_at,'YYYY-MM-DD'),
+		       rf.decision_note, rf.reference_no
 		  FROM refunds rf
 		  JOIN students st ON st.id = rf.student_id
-		 ORDER BY rf.created_at DESC
+		  LEFT JOIN users ru ON ru.id = rf.requested_by
+		  LEFT JOIN users du ON du.id = rf.approved_by
+		 -- Waiting first: the row somebody has to act on.
+		 ORDER BY rf.status <> 'pending', rf.status <> 'approved', rf.created_at DESC
 		 LIMIT 200`, nil,
 		func(rows pgx.Rows) (refundRow, error) {
 			var v refundRow
-			return v, rows.Scan(&v.ID, &v.StudentName, &v.AdmissionNo, &v.AmountPaise,
-				&v.Reason, &v.Mode, &v.Status, &v.ProcessedOn, &v.CreatedAt)
+			return v, rows.Scan(&v.ID, &v.StudentID, &v.StudentName, &v.AdmissionNo, &v.AmountPaise,
+				&v.Reason, &v.Mode, &v.Status, &v.ProcessedOn, &v.CreatedAt,
+				&v.RequestedBy, &v.DecidedBy, &v.DecidedOn, &v.DecisionNote, &v.ReferenceNo)
 		})
 	respond(w, r, items, err)
 }

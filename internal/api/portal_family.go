@@ -275,11 +275,14 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 	subjects := []familySubjectMark{}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			SELECT rc.id::text, COALESCE(t.name, ay.name, 'Result'), t.name,
+			-- The exam's name, then the term's, then the year's: a card is for
+			-- an exam, and a term can hold more than one of them.
+			SELECT rc.id::text, COALESCE(ex.name, t.name, ay.name, 'Result'), t.name,
 			       rc.total_marks, rc.max_marks, rc.percentage, rc.grade, rc.gpa,
 			       rc.rank_in_section, rc.attendance_percent, rc.class_teacher_remarks,
 			       to_char(rc.published_at,'YYYY-MM-DD')
 			  FROM report_cards rc
+			  LEFT JOIN exams ex          ON ex.id = rc.exam_id
 			  LEFT JOIN terms t           ON t.id = rc.term_id
 			  LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
 			 WHERE rc.student_id = $1 AND rc.is_published
@@ -302,9 +305,14 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		// Marks are shown only for exams whose results have been published for
-		// this child, so a parent cannot read a paper back before the school
-		// has released it.
+		/* Marks are shown only for exams the school has released.
+
+		   The gate used to be "this child has some published report card" —
+		   any card, ever. From the day the first card of the year went out,
+		   every later unit-test mark reached the family the moment a teacher
+		   saved it. Two doors now, both deliberate acts: the exam controller
+		   publishing the exam, or the head releasing this child's card for
+		   that exam. A mark behind neither stays in the building. */
 		rows, err = tx.Query(r.Context(), `
 			SELECT ex.name, sub.name, m.marks_obtained, es.max_marks,
 			       m.grade, COALESCE(m.is_absent, false)
@@ -314,8 +322,10 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 			  JOIN class_subjects cs ON cs.id = es.class_subject_id
 			  JOIN subjects      sub ON sub.id = cs.subject_id
 			 WHERE m.student_id = $1
-			   AND EXISTS (SELECT 1 FROM report_cards rc
-			                WHERE rc.student_id = m.student_id AND rc.is_published)
+			   AND (ex.is_published
+			        OR EXISTS (SELECT 1 FROM report_cards rc
+			                    WHERE rc.student_id = m.student_id
+			                      AND rc.exam_id = ex.id AND rc.is_published))
 			 ORDER BY ex.starts_on NULLS LAST, sub.name`, student)
 		if err != nil {
 			return err
@@ -342,6 +352,6 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 		// Said plainly rather than left as an empty list: "nothing here yet"
 		// and "your school has not released results" are different messages,
 		// and a parent reading the first one telephones the office.
-		"published": len(cards) > 0,
+		"published": len(cards) > 0 || len(subjects) > 0,
 	})
 }

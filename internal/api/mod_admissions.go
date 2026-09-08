@@ -503,28 +503,50 @@ type seatRow struct {
 //
 // The RTE quota is 25% of intake by statute, tracked separately because those
 // seats cannot be filled from the general merit list.
+/*
+getSeatMatrix counts one year's seats.
+
+	Sections and enrolments both carry a year, and summing them across years
+	is what made the matrix wrong the moment next year's sections existed:
+	capacity doubled, and this year's Class 1 was subtracted from next year's
+	Class 1 seats. The year is the caller's working year (the admissions
+	desk works in the year it is admitting into) or the one named. Offers
+	are counted by the session's year, and an application on no session by
+	the year in view -- the old behaviour, kept only for that case.
+*/
 func (s *Server) getSeatMatrix(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
+		WITH yr AS (SELECT COALESCE($1::uuid, `+workingYearSQL("$2")+`) AS id)
 		SELECT c.id::text, c.name,
 		       COALESCE(sum(sec.capacity), 0)::int,
 		       (SELECT count(*) FROM enrollments e
-		         WHERE e.class_id = c.id AND e.status = 'active')::int,
+		         WHERE e.class_id = c.id AND e.status = 'active'
+		           AND e.academic_year_id = (SELECT id FROM yr))::int,
 		       (SELECT count(*) FROM applications a
-		         WHERE a.class_sought = c.id AND a.status IN ('offered','accepted'))::int,
+		          LEFT JOIN admission_sessions ss ON ss.id = a.admission_session_id
+		         WHERE a.class_sought = c.id AND a.status IN ('offered','accepted')
+		           AND COALESCE(ss.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr))::int,
 		       GREATEST(0, COALESCE(sum(sec.capacity),0)
 		                   - (SELECT count(*) FROM enrollments e
-		                       WHERE e.class_id = c.id AND e.status='active')
+		                       WHERE e.class_id = c.id AND e.status='active'
+		                         AND e.academic_year_id = (SELECT id FROM yr))
 		                   - (SELECT count(*) FROM applications a
-		                       WHERE a.class_sought = c.id AND a.status IN ('offered','accepted')))::int,
+		                        LEFT JOIN admission_sessions ss ON ss.id = a.admission_session_id
+		                       WHERE a.class_sought = c.id AND a.status IN ('offered','accepted')
+		                         AND COALESCE(ss.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr)))::int,
 		       -- RTE reservation is 25% of sanctioned intake.
 		       (COALESCE(sum(sec.capacity),0) / 4)::int,
 		       (SELECT count(*) FROM students st
 		          JOIN enrollments e2 ON e2.student_id = st.id AND e2.class_id = c.id
+		                             AND e2.academic_year_id = (SELECT id FROM yr)
 		         WHERE st.is_rte)::int
 		  FROM classes c
 		  LEFT JOIN sections sec ON sec.class_id = c.id
+		                        AND sec.academic_year_id = (SELECT id FROM yr)
 		 GROUP BY c.id
-		 ORDER BY c.level`, nil,
+		 ORDER BY c.level`,
+		[]any{nullString(strings.TrimSpace(r.URL.Query().Get("academic_year_id"))),
+			httpx.IdentityFrom(r.Context()).UserID},
 		func(rows pgx.Rows) (seatRow, error) {
 			var v seatRow
 			return v, rows.Scan(&v.ClassID, &v.ClassName, &v.Capacity, &v.Enrolled,
@@ -578,16 +600,31 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		// Refuse to offer a seat that does not exist. Overselling a class is
 		// discovered on the first day of term, when it cannot be undone.
 		if req.Decision == "offered" {
+			// The same one-year arithmetic as getSeatMatrix. The year is the
+			// application's session year where it has one, else the year
+			// the desk is working in.
+			working, err := s.workingYear(r.Context(), tx, r)
+			if err != nil {
+				return err
+			}
 			var available int
 			if err := tx.QueryRow(r.Context(), `
+				WITH yr AS (
+				  SELECT COALESCE((SELECT ss.academic_year_id FROM applications a
+				                     JOIN admission_sessions ss ON ss.id = a.admission_session_id
+				                    WHERE a.id = $1), $2::uuid) AS id)
 				SELECT GREATEST(0, COALESCE((SELECT sum(sec.capacity) FROM sections sec
-				                              WHERE sec.class_id = a.class_sought), 0)
+				                              WHERE sec.class_id = a.class_sought
+				                                AND sec.academic_year_id = (SELECT id FROM yr)), 0)
 				                   - (SELECT count(*) FROM enrollments e
-				                       WHERE e.class_id = a.class_sought AND e.status='active')
+				                       WHERE e.class_id = a.class_sought AND e.status='active'
+				                         AND e.academic_year_id = (SELECT id FROM yr))
 				                   - (SELECT count(*) FROM applications a2
+				                        LEFT JOIN admission_sessions s2 ON s2.id = a2.admission_session_id
 				                       WHERE a2.class_sought = a.class_sought
-				                         AND a2.status IN ('offered','accepted')))::int
-				  FROM applications a WHERE a.id = $1`, appID).Scan(&available); err != nil {
+				                         AND a2.status IN ('offered','accepted')
+				                         AND COALESCE(s2.academic_year_id, (SELECT id FROM yr)) = (SELECT id FROM yr)))::int
+				  FROM applications a WHERE a.id = $1`, appID, working).Scan(&available); err != nil {
 				return err
 			}
 			if available <= 0 {
@@ -835,14 +872,14 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return err
-			}
+		// The year the admission lands in: named on the call, else the year
+		// this clerk is working in. From November that is next year, and
+		// is_current would have put the child on this year's roll.
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return err
 		}
+		yearID := year.String()
 
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO enrollments (institution_id, student_id, academic_year_id,
@@ -1137,7 +1174,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 			   standing there, not a silent half-arrangement. */
 			if req.Transport.wanted() {
 				if terr := allocateAtAdmission(
-					r.Context(), tx, instID, sid, req.Transport); terr != nil {
+					r.Context(), tx, instID, sid, year, req.Transport); terr != nil {
 					return terr
 				}
 			}

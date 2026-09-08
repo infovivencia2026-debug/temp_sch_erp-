@@ -219,14 +219,18 @@ type termRow struct {
 	EndsOn   string `json:"ends_on"`
 }
 
+// listTerms serves the terms of the year the caller is working in -- the
+// exam planner and the report card both pick from this list, and next year's
+// term dates are set before this year's are over.
 func (s *Server) listTerms(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT t.id::text, t.name,
 		       to_char(t.starts_on,'YYYY-MM-DD'), to_char(t.ends_on,'YYYY-MM-DD')
 		  FROM terms t
-		  JOIN academic_years ay ON ay.id = t.academic_year_id
-		 WHERE ay.is_current
-		 ORDER BY t.sequence, t.starts_on`, nil,
+		 WHERE t.academic_year_id = COALESCE($1::uuid, `+workingYearSQL("$2")+`)
+		 ORDER BY t.sequence, t.starts_on`,
+		[]any{nullString(strings.TrimSpace(r.URL.Query().Get("academic_year_id"))),
+			httpx.IdentityFrom(r.Context()).UserID},
 		func(rows pgx.Rows) (termRow, error) {
 			var v termRow
 			return v, rows.Scan(&v.ID, &v.Name, &v.StartsOn, &v.EndsOn)

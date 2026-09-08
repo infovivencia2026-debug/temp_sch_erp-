@@ -1006,7 +1006,12 @@ export function Button({
       aria-busy={pending || undefined}
       title={title}
       aria-label={title}
+      /* `btn` and the level are what index.css reads to put the button on
+         the elevation ladder: a key at level 1, sunk on press, flat when
+         ghost. The classes below paint colour only. */
+      data-variant={level}
       className={cn(
+        'btn',
         /* nowrap because the height is fixed. A label that wraps does not make
            the button taller, it spills out of it — which is what a narrow last
            column in a wide table does to a two-syllable word. */
@@ -1483,7 +1488,8 @@ export function Select({
             bottom: box_.bottom,
             width: box_.width,
           }}
-          className="fixed z-50 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-md"
+          role="listbox"
+          className="fixed z-50 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (

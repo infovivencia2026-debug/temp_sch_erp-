@@ -71,6 +71,19 @@ func threeDigits(n int64) string {
 	return strings.Join(parts, " ")
 }
 
+// NumberInWords is the same grouping without the currency, for the places a
+// document writes a number out in full — a date of birth on a transfer
+// certificate, where the words are the tamper check against the digits.
+func NumberInWords(n int64) string {
+	if n == 0 {
+		return "Zero"
+	}
+	if n < 0 {
+		return "Minus " + indianWords(-n)
+	}
+	return indianWords(n)
+}
+
 // indianWords groups as crore / lakh / thousand / hundred, which is the Indian
 // 2-2-3 digit grouping rather than the western 3-3-3.
 func indianWords(n int64) string {

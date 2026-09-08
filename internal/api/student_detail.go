@@ -53,6 +53,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	crew := []map[string]any{}
 	activities := []map[string]any{}
 	concessions := []map[string]any{}
+	components := []map[string]any{}
 	coScholastic := []map[string]any{}
 	invoices := []map[string]any{}
 	var classID *string
@@ -258,7 +259,8 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			SELECT COALESCE(ay.name,''), COALESCE(c.name,''), COALESCE(sec.name,''),
 			       en.roll_no::text, en.status,
 			       to_char(en.enrolled_on,'YYYY-MM-DD'), COALESCE(en.remarks,''),
-			       en.promoted_from_id IS NOT NULL
+			       en.promoted_from_id IS NOT NULL,
+			       to_char(en.ended_on,'YYYY-MM-DD')
 			  FROM enrollments en
 			  LEFT JOIN academic_years ay ON ay.id = en.academic_year_id
 			  LEFT JOIN classes c ON c.id = en.class_id
@@ -267,15 +269,15 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			 ORDER BY en.enrolled_on DESC`,
 			func(rows pgx.Rows) error {
 				var year, class, section, status, on, remarks string
-				var roll *string
+				var roll, to *string
 				var promoted bool
 				if err := rows.Scan(&year, &class, &section, &roll, &status,
-					&on, &remarks, &promoted); err != nil {
+					&on, &remarks, &promoted, &to); err != nil {
 					return err
 				}
 				history = append(history, map[string]any{
 					"year": year, "class": class, "section": section,
-					"roll_no": roll, "status": status, "from": on,
+					"roll_no": roll, "status": status, "from": on, "to": to,
 					"remarks": remarks, "promoted": promoted,
 				})
 				return nil
@@ -424,6 +426,37 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* WHAT THIS CHILD IS CHARGED THAT THEIR CLASS IS NOT.
+
+		   The bus fare, today. A family reading "why is our bill more than
+		   the neighbour's" is answered here: the stop, the fare, and since
+		   when. Ended charges stay so the earlier invoice is explicable. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT c.code, c.description, fh.name, c.amount_paise::text,
+			       to_char(c.valid_from,'YYYY-MM-DD'),
+			       COALESCE(to_char(c.valid_to,'YYYY-MM-DD'),''),
+			       c.valid_to IS NULL OR c.valid_to >= CURRENT_DATE
+			  FROM student_fee_components c
+			  JOIN fee_heads fh ON fh.id = c.fee_head_id
+			 WHERE c.student_id = $1
+			 ORDER BY (c.valid_to IS NULL OR c.valid_to >= CURRENT_DATE) DESC, c.valid_from DESC
+			 LIMIT 20`,
+			func(rows pgx.Rows) error {
+				var code, descr, head, amount, from, to string
+				var live bool
+				if err := rows.Scan(&code, &descr, &head, &amount, &from, &to, &live); err != nil {
+					return err
+				}
+				components = append(components, map[string]any{
+					"code": code, "description": descr, "fee_head": head,
+					"amount_paise": amount, "valid_from": from, "valid_to": to,
+					"live": live,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* CLUBS AND COACHING, and what each one cost.
 
 		   Left enrolments are kept and shown: "did she do swimming last year"
@@ -511,6 +544,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"transport_crew":    crew,
 		"activities":        activities,
 		"concessions":       concessions,
+		"fee_components":    components,
 		"co_scholastic":     coScholastic,
 		"invoices":          invoices,
 		// The class this child is in, so the record can quote its fee without

@@ -715,6 +715,9 @@ func (s *Server) getFeeOverview(w http.ResponseWriter, r *http.Request) {
 			  FROM invoices i
 			  JOIN enrollments en ON en.student_id = i.student_id
 			                     AND en.academic_year_id = i.academic_year_id
+			                     -- A mid-year move leaves two rows for the year;
+			                     -- the one the child left must not count the bill twice.
+			                     AND en.status <> 'moved'
 			  JOIN classes c ON c.id = en.class_id
 			 WHERE i.academic_year_id = $1 AND i.status <> 'cancelled'
 			 GROUP BY c.id, c.name, c.level
@@ -1418,6 +1421,7 @@ func (s *Server) getPerfTrend(w http.ResponseWriter, r *http.Request) {
 		  -- the class that matters for a past exam is the one they sat it in.
 		  JOIN enrollments    en ON en.student_id = m.student_id
 		                        AND en.academic_year_id = ex.academic_year_id
+		                        AND en.status <> 'moved'
 		  JOIN sections       sec ON sec.id = en.section_id AND sec.class_id = c.id
 		 WHERE `+pred+`
 		 GROUP BY ex.id, ex.name, ex.starts_on, c.id, c.name, c.level
@@ -1537,6 +1541,7 @@ func (s *Server) getPerfDistribution(w http.ResponseWriter, r *http.Request) {
 		      -- enrolments contributes one row per mark rather than one per year.
 		      JOIN enrollments   en ON en.student_id = m.student_id
 		                           AND en.academic_year_id = ex.academic_year_id
+		                           AND en.status <> 'moved'
 		      JOIN sections      sec ON sec.id = en.section_id
 		     WHERE NOT m.is_absent AND `+pred+`
 		), banded AS (

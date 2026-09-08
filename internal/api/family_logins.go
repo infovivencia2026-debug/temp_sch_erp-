@@ -53,6 +53,10 @@ type familyLoginResponse struct {
 	// difference between "here is their login" and "here is their new login".
 	Existing bool   `json:"existing"`
 	Note     string `json:"note"`
+	// SentTo names the channels the credential was queued on, so the desk can
+	// say "check your WhatsApp" rather than reading a password aloud. Empty
+	// when nothing new was issued, or when no channel is set up.
+	SentTo []string `json:"sent_to,omitempty"`
 }
 
 var errNoFamilyContact = errors.New(
@@ -284,6 +288,26 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 		out.FullName = fullName
 		out.Relation = relation
 
+		/* SENT AS WELL AS SHOWN, on every branch that issues a password.
+
+		   The admission desk already did this; this button did not, so a
+		   login issued from the child's profile lived only on the screen of
+		   whoever pressed it. Deferred to the end of the transaction so it
+		   runs once whichever branch below produced the credential, and only
+		   when one was produced: naming an unchanged account is not news. */
+		issued := false
+		defer func() {
+			if !issued {
+				return
+			}
+			out.SentTo = s.queueFamilyLogin(r.Context(), tx, nil, id.InstitutionID, familyCredential{
+				SourceKind: "guardian_login", SourceID: guardianID,
+				Occurrence: credentialTag(hash),
+				FullName:   fullName, Phone: strVal(phone), Email: strVal(email),
+				SignInAs: out.SignInAs, Password: password,
+			})
+		}()
+
 		var err error
 		password, known, err = issuedPassword(strVal(phone), strVal(email))
 		if err != nil {
@@ -309,6 +333,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 				*userID, hash, known); err != nil {
 				return err
 			}
+			issued = true
 			return tx.QueryRow(r.Context(),
 				`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
 				*userID).Scan(&out.SignInAs)
@@ -354,6 +379,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 					 WHERE id = $1`, *attach, hash, known); err != nil {
 					return err
 				}
+				issued = true
 			}
 			return tx.QueryRow(r.Context(),
 				`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
@@ -391,6 +417,7 @@ func (s *Server) issueGuardianLogin(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		out.SignInAs = username
+		issued = true
 		return nil
 	})
 	switch {

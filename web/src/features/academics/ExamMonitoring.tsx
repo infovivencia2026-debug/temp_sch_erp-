@@ -78,6 +78,15 @@ export default function ExamMonitoring() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exam-monitor'] }),
   })
 
+  /* Release to families. Sign-off says the marks are finished; this says
+     the school stands behind them. Until it is pressed, a mark a teacher
+     saved this morning stays in the building. */
+  const publish = useMutation({
+    mutationFn: (v: { exam_id: string; publish: boolean }) =>
+      api.post('/api/v1/academics/admin/exam-monitor/publish', v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exam-monitor'] }),
+  })
+
   const rows = monitor.data?.items ?? []
   const sort = useSort<Paper>(
     rows,
@@ -90,6 +99,19 @@ export default function ExamMonitoring() {
 
   const s = monitor.data?.summary
   const exams = [...new Set(rows.map((r) => r.exam_id))]
+  // One line per exam: its name, whether families can see it, and the
+  // button that changes that. Signed-off counts come from the papers below.
+  const byExam = exams.map((examId) => {
+    const papers = rows.filter((r) => r.exam_id === examId)
+    return {
+      id: examId,
+      name: papers[0].exam_name,
+      published: papers[0].published,
+      papers: papers.length,
+      signedOff: papers.filter((p) => p.signed_off).length,
+      entered: papers.reduce((n, p) => n + p.entered, 0),
+    }
+  })
 
   return (
     <>
@@ -118,6 +140,53 @@ export default function ExamMonitoring() {
             hint="Marks below the pass line"
           />
         </CellGrid>
+
+        {byExam.length > 0 && (
+          <Card>
+            <CardHeader
+              title="Release to families"
+              description="A mark stays inside the school until its exam is released here or the child's report card for it is published. Withdrawing takes it off the portal again."
+            />
+            <Table head={['Exam', 'Papers signed off', 'Marks entered', 'Families', '']}>
+              {byExam.map((e) => (
+                <tr key={e.id}>
+                  <Td className="font-medium">{e.name}</Td>
+                  <Td className="tabular-nums">
+                    {e.signedOff}/{e.papers}
+                  </Td>
+                  <Td className="tabular-nums">{e.entered}</Td>
+                  <Td>
+                    {e.published ? (
+                      <Badge tone="success">can see marks</Badge>
+                    ) : (
+                      <Badge tone="neutral">not released</Badge>
+                    )}
+                  </Td>
+                  <Td>
+                    <Button
+                      size="sm"
+                      variant={e.published ? 'secondary' : 'primary'}
+                      disabled={publish.isPending || (!e.published && e.entered === 0)}
+                      title={
+                        e.published
+                          ? 'Take this exam off the family portal'
+                          : e.signedOff < e.papers
+                            ? `${e.papers - e.signedOff} paper(s) not yet signed off — releasing anyway shows families the marks as they stand`
+                            : 'Show families the marks of this exam'
+                      }
+                      onClick={() => publish.mutate({ exam_id: e.id, publish: !e.published })}
+                    >
+                      {e.published ? 'Withdraw' : 'Release'}
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+            <div className="px-5 pb-5">
+              <FormNotice error={publish.error} />
+            </div>
+          </Card>
+        )}
 
         <Card>
           <CardHeader

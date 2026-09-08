@@ -816,6 +816,14 @@ export default function StudentProfile() {
         <Field k="Sign in as" v={issued.sign_in_as} mono />
         {issued.password && <Field k="Password" v={issued.password} mono />}
         {issued.relation && <Field k="Relation" v={issued.relation} />}
+        {issued.password && (
+          <Field
+            k="Sent"
+            v={issued.sent_to?.length
+              ? `Also sent by ${issued.sent_to.join(', ')}`
+              : 'Not sent — no message channel is set up, so this screen is the only copy'}
+          />
+        )}
       </dl>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
         {/* The password cannot be shown, because the school does not keep it.
@@ -1427,7 +1435,7 @@ export default function StudentProfile() {
             qc.invalidateQueries({ queryKey: ['student-profile', selected] })
           }}
         />
-        <FeeLedger heads={detail.data?.fee_heads ?? []} />
+        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         <Receipts rows={detail.data?.payments ?? []} />
         </>
       ),
@@ -1629,7 +1637,7 @@ export default function StudentProfile() {
               whether the year was reached by promotion — both already on the
               enrolments row and both previously unread. */}
           <Table
-            head={['Year', 'Class', 'Roll', 'From', 'Outcome', 'Note']}
+            head={['Year', 'Class', 'Roll', 'From', 'To', 'Outcome', 'Note']}
             empty={!(detail.data?.enrolment_history ?? []).length}
             emptyLabel="No enrolment recorded."
           >
@@ -1639,6 +1647,9 @@ export default function StudentProfile() {
                 <Td>{[e.class, e.section].filter(Boolean).join('-') || '—'}</Td>
                 <Td className="tabular-nums">{e.roll_no ?? '—'}</Td>
                 <Td className="text-muted-foreground">{formatDate(e.from)}</Td>
+                {/* A mid-year section change closes a row on a day; the
+                    rows a year end closes carry no day, and say so. */}
+                <Td className="text-muted-foreground">{e.to ? formatDate(e.to) : '—'}</Td>
                 <Td>
                   <Badge tone={e.status === 'active' ? 'success' : e.status === 'detained' ? 'warning' : undefined}>
                     {e.status}
@@ -1860,6 +1871,10 @@ interface IssuedLogin {
      answers this rather than failing, because "they already have one" is not
      an error — it is the answer to the question that was asked. */
   existing?: boolean
+  /* Channels the credential was also queued on, so the desk can say "check
+     your WhatsApp" instead of reading a password aloud. Absent when nothing
+     new was issued or no channel is set up. */
+  sent_to?: string[]
   /* How to issue a fresh one, when they already have it. Held on the panel so
      the button knows which of the two endpoints to call without the panel
      having to know whose login it is showing. */
@@ -2377,7 +2392,10 @@ function RollTile({ label, value, note, active, onClick }: {
       className={cn(
         // bg-background without text-foreground: the four figures on these
         // tiles measured 1.07:1 — black on the dark shell, i.e. invisible.
-        'rounded-xl border bg-background text-foreground px-4 py-3 text-left transition-colors',
+        /* A tile you can press is level 1 on the ladder, raised under the
+           pointer -- the same seat every card has, so it reads as a thing
+           rather than an outlined region of the page. */
+        'rounded-xl border bg-card text-foreground px-4 py-3 text-left transition-colors shadow-sm hover:shadow-md',
         active ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/50',
       )}
     >

@@ -94,6 +94,12 @@ func (s *Server) Routes() http.Handler {
 		r.Use(s.Idempotent)
 
 		r.Get("/ref-data", s.getRefData)
+		/* The year this person is working in. Beside ref-data rather than
+		   under /academics because every role's shell asks, and a clerk
+		   running next year's admissions has no academics permission to
+		   spend on it. See working_year.go. */
+		r.Get("/working-year", s.getWorkingYear)
+		r.Put("/working-year", s.setWorkingYear)
 		// The period presets every metric picker offers. Published so the
 		// client does not keep a second copy that drifts from the resolver.
 		r.Get("/date-ranges", s.listRangePresets)
@@ -171,6 +177,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/section", s.moveStudentSection)
+			// The dated move: closes today's enrolment and opens the next
+			// one, so the child keeps a history and never lacks a row.
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/section-change", s.changeStudentSection)
 			/* Erasing a record, as against taking a child off the roll.
 
 			   Almost every departure is a leaver and keeps the record; this is
@@ -752,6 +761,9 @@ func (s *Server) Routes() http.Handler {
 			// asserts for its own module.
 			s.mountConcessionGrant(r)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/refunds", s.listRefunds)
+			// The write path the refunds table never had: request on
+			// fees.write, decide and pay out on refunds.write.
+			s.mountRefunds(r)
 		})
 
 		// --- Admissions & Front Office ------------------------------------
@@ -1045,6 +1057,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/certificates", s.listCertificates)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/promote", s.promoteStudents)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/certificates", s.issueCertificate)
+			// The paper, from the frozen snapshot rather than the live record.
+			r.Get("/certificates/{id}/render", s.renderIssuedCertificate)
 			/* Answering a request a family actually made. The office's own
 			   button INSERTS, so acting on a parent's request used to create a
 			   second row with a second serial and leave the first sitting in
@@ -1287,6 +1301,13 @@ func (s *Server) Routes() http.Handler {
 			// Dropout risk and the cash outlook, as rules — see platform_signals.go.
 			s.mountPlatformSignals(r)
 			s.mountIntegrationsIndex(r)
+			// The month and year close -- see period_close.go.
+			s.mountPeriodClose(r)
+			// April, once: carry sections, fees, bus stops and the timetable
+			// grid into a year that exists and has not started. Preview runs
+			// the same copy and rolls it back — see year_rollover.go.
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Get("/academic-years/{id}/rollover", s.previewYearRollover)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/academic-years/{id}/rollover", s.postYearRollover)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
