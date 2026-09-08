@@ -401,6 +401,21 @@ export function ColourPanel({
     onPickingChange?.(picking)
   }, [picking, onPickingChange])
 
+  /* AND DISARMED WHEN THIS PANEL GOES AWAY.
+   *
+   * The line above tells the dialog we are aiming; nothing told it we had
+   * stopped. Switching tabs unmounts this panel, so a crosshair armed on
+   * Colour and abandoned by clicking "Appearance" left the dialog believing
+   * it was still being aimed -- and while it believes that it drops to a
+   * quarter opacity, drops its scrim, and ignores Escape. The result was a
+   * settings window you could see the page through, could not read, and could
+   * not close: the state that made it transparent lived in a component that
+   * no longer existed to turn it off.
+   *
+   * Its own listeners and the crosshair cursor were already cleaned up on
+   * unmount by the effect below. This is the one that was not. */
+  useEffect(() => () => onPickingChange?.(false), [onPickingChange])
+
   useEffect(() => {
     if (!picking) return
     const onClick = (e: MouseEvent) => {
