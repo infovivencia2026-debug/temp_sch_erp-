@@ -556,19 +556,29 @@ func scanUpForUnliftedDataChanges(up string, rls map[string]bool) []rlsFinding {
 }
 
 /*
-A semicolon inside a block comment is a statement end to goose.
+A comment line ending in a semicolon is a statement end to goose.
 
-	goose splits a migration on ';' without reading SQL comments, so a
-	sentence in a slash-star comment ending in a semicolon becomes the end of
-	a statement that begins mid-comment, and Postgres refuses it with
-	"unterminated /* comment". 00301 shipped that way and failed on a scratch
-	database; on production it would have stopped the deploy at Migrate.
+	goose does not parse block comments. It ends a statement when a line's
+	last word, before any "--", ends in ';' (endsWithSemicolon in its
+	sqlparser). So a slash-star comment is harmless until one of its lines
+	ends with a semicolon, at which point the statement that began at the
+	comment is cut there and Postgres refuses "unterminated /* comment".
+	00301 shipped that way and failed on a scratch database; on production it
+	would have stopped the deploy at Migrate.
 
-	Only outside StatementBegin/End: inside those goose sends the block whole,
-	which is why the older migrations that carry the character there have
-	always applied.
+	Only outside StatementBegin/End, where goose sends the block whole.
 */
-func TestBlockCommentsCarryNoSemicolon(t *testing.T) {
+func TestNoCommentLineEndsWithSemicolon(t *testing.T) {
+	endsWithSemicolon := func(line string) bool {
+		prev := ""
+		for _, word := range strings.Fields(line) {
+			if strings.HasPrefix(word, "--") {
+				break
+			}
+			prev = word
+		}
+		return strings.HasSuffix(prev, ";")
+	}
 	entries, err := FS.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
@@ -590,30 +600,18 @@ func TestBlockCommentsCarryNoSemicolon(t *testing.T) {
 			case strings.HasPrefix(trim, "-- +goose StatementEnd"):
 				inBlock = false
 			}
-			rest := line
-			for rest != "" {
-				if !inComment {
-					start := strings.Index(rest, "/*")
-					if start < 0 {
-						break
-					}
-					inComment = true
-					rest = rest[start+2:]
-					continue
-				}
-				end := strings.Index(rest, "*/")
-				seg := rest
-				if end >= 0 {
-					seg = rest[:end]
-				}
-				if !inBlock && strings.Contains(seg, ";") {
-					t.Errorf("%s:%d: a block comment outside StatementBegin/End contains ';', which goose reads as the end of a statement; use -- line comments", e.Name(), n+1)
-				}
-				if end < 0 {
-					break
-				}
+			opened := strings.Contains(line, "/*")
+			closed := strings.Contains(line, "*/")
+			// A line that is inside a comment, or opens one that runs on,
+			// and ends in a semicolon is where goose cuts the statement.
+			if !inBlock && (inComment || (opened && !closed)) && endsWithSemicolon(line) {
+				t.Errorf("%s:%d: a comment line ends with ';', which goose reads as the end of a statement", e.Name(), n+1)
+			}
+			if opened && !closed {
+				inComment = true
+			}
+			if closed {
 				inComment = false
-				rest = rest[end+2:]
 			}
 		}
 	}
