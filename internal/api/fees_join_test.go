@@ -260,3 +260,108 @@ func withURLParam(r *http.Request, key, value string) *http.Request {
 	rctx.URLParams.Add(key, value)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
+
+/*
+TestArrearsFollowTheChildIntoTheNewYear is the April gap: a family that owed
+two terms in March was billed in June as though March were settled.
+
+	The balance must land on the new bill once, name the invoice it came
+	from, close the old bill, and leave the ledger's own arithmetic -- charged
+	less paid -- exactly where it was.
+*/
+func TestArrearsFollowTheChildIntoTheNewYear(t *testing.T) {
+	db := testDB(t)
+	requirePolicyBoundConnection(t, db)
+	w := seedFeesWorld(t, db)
+
+	lastYear := uuid.New()
+	w.exec(t, `INSERT INTO academic_years (id, institution_id, name, starts_on, ends_on, is_current)
+	           VALUES ($1,$2,'Last year', CURRENT_DATE - 395, CURRENT_DATE - 31, false)`, lastYear, w.inst)
+
+	child := w.student(t, "Defaulter")
+	// Last year's enrolment is over, and last year's bill is still open.
+	w.exec(t, `INSERT INTO enrollments (institution_id, student_id, academic_year_id, class_id, section_id, status)
+	           VALUES ($1,$2,$3,$4,$5,'promoted')`, w.inst, child, lastYear, w.class, w.section)
+	oldInvoice, oldNo := uuid.New(), "INV/OLD/00001"
+	w.exec(t, `INSERT INTO invoices (id, institution_id, campus_id, student_id, academic_year_id, invoice_no,
+	                                 instalment_no, issued_on, due_on, gross_paise, status)
+	           VALUES ($1,$2,$3,$4,$5,$6,1,CURRENT_DATE - 300,CURRENT_DATE - 286,1000000,'unpaid')`,
+		oldInvoice, w.inst, w.campus, child, lastYear, oldNo)
+	w.exec(t, `INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id, description, amount_paise)
+	           VALUES ($1,$2,$3,'Tuition',1000000)`, w.inst, oldInvoice, w.tuition)
+	// They paid ₹3,000 of the ₹10,000 last year.
+	w.exec(t, `INSERT INTO payments (id, institution_id, campus_id, student_id, amount_paise, mode, status)
+	           VALUES ($1,$2,$3,$4,300000,'cash','success')`, uuid.New(), w.inst, w.campus, child)
+	w.exec(t, `INSERT INTO payment_allocations (institution_id, payment_id, invoice_id, amount_paise)
+	           SELECT $1, id, $2, 300000 FROM payments WHERE student_id = $3 AND mode = 'cash'`, w.inst, oldInvoice, child)
+
+	var chargedBefore, paidBefore int64
+	w.scan(t, `SELECT (SELECT COALESCE(sum(net_paise),0) FROM invoices WHERE student_id = $1 AND status <> 'cancelled'),
+	                  (SELECT COALESCE(sum(amount_paise),0) FROM payments WHERE student_id = $1 AND status = 'success')`,
+		[]any{&chargedBefore, &paidBefore}, child)
+	if chargedBefore-paidBefore != 700000 {
+		t.Fatalf("fixture: balance before is %d, want 700000", chargedBefore-paidBefore)
+	}
+
+	// The new year's demand.
+	structure := w.structure(t, w.year, 1200000, 1)
+	code, out := w.raise(t, structure, "")
+	if code != http.StatusCreated || out["created"] != float64(1) {
+		t.Fatalf("raise this year: %d %v", code, out)
+	}
+	if out["arrears_paise"] != float64(700000) || out["arrears_children"] != float64(1) {
+		t.Errorf("run reported arrears %v for %v children, want 700000 for 1", out["arrears_paise"], out["arrears_children"])
+	}
+
+	n, total := w.lines(t, child, "Arrears brought forward")
+	if n != 1 || total != 700000 {
+		t.Errorf("arrears line: %d worth %d, want one worth 700000", n, total)
+	}
+	var descr string
+	var newNet int64
+	w.scan(t, `SELECT il.description, i.net_paise FROM invoice_lines il JOIN invoices i ON i.id = il.invoice_id
+	            JOIN fee_heads fh ON fh.id = il.fee_head_id
+	           WHERE i.student_id = $1 AND fh.code = 'ARREARS'`, []any{&descr, &newNet}, child)
+	if !strings.Contains(descr, oldNo) || !strings.Contains(descr, "Last year") {
+		t.Errorf("arrears line %q does not name the invoice and year it came from", descr)
+	}
+	if newNet != 1900000 {
+		t.Errorf("new bill is %d, want 1900000 (12,000 tuition + 7,000 arrears)", newNet)
+	}
+
+	// The old bill is closed by the carry, and the ledger's balance is what
+	// it was: the debt moved, it did not double.
+	var oldStatus string
+	var oldPaid int64
+	w.scan(t, `SELECT status, paid_paise FROM invoices WHERE id = $1`, []any{&oldStatus, &oldPaid}, oldInvoice)
+	if oldStatus != "paid" || oldPaid != 1000000 {
+		t.Errorf("old invoice after carry: %s with %d paid, want paid in full by the adjustment", oldStatus, oldPaid)
+	}
+	var chargedAfter, paidAfter, collected int64
+	w.scan(t, `SELECT (SELECT COALESCE(sum(net_paise),0) FROM invoices WHERE student_id = $1 AND status <> 'cancelled'),
+	                  (SELECT COALESCE(sum(amount_paise),0) FROM payments WHERE student_id = $1 AND status = 'success'),
+	                  (SELECT COALESCE(sum(amount_paise),0) FROM payments WHERE student_id = $1 AND status = 'success' AND mode <> 'adjustment')`,
+		[]any{&chargedAfter, &paidAfter, &collected}, child)
+	if chargedAfter-paidAfter != 700000+1200000 {
+		t.Errorf("ledger balance after carry is %d, want 1900000", chargedAfter-paidAfter)
+	}
+	if collected != 300000 {
+		t.Errorf("collection reads %d after the carry, want the 300000 actually received", collected)
+	}
+	var carries int
+	w.scan(t, `SELECT count(*)::int FROM invoice_carry_forwards WHERE from_invoice_id = $1`, []any{&carries}, oldInvoice)
+	if carries != 1 {
+		t.Errorf("%d carry rows for the old invoice, want exactly one", carries)
+	}
+
+	// Raising instalment 2 finds nothing left to carry: once.
+	w.exec(t, `INSERT INTO fee_structure_items (institution_id, fee_structure_id, fee_head_id, instalment_no, amount_paise)
+	           VALUES ($1,$2,$3,2,1200000)`, w.inst, structure, w.tuition)
+	code, out = w.raise(t, structure, `{"fee_structure_id":"`+structure.String()+`","instalment_no":2}`)
+	if code != http.StatusCreated || out["arrears_paise"] != float64(0) {
+		t.Errorf("second raise: %d %v — arrears carried again", code, out)
+	}
+	if n, _ := w.lines(t, child, "Arrears brought forward"); n != 1 {
+		t.Errorf("%d arrears lines after the second raise, want still one", n)
+	}
+}

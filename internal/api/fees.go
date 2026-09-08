@@ -183,6 +183,9 @@ func (s *Server) getStudentLedger(w http.ResponseWriter, r *http.Request) {
 			         COALESCE(p.receipt_no,'—'),
 			         CASE WHEN p.status = 'pending' THEN 'Cheque held (post-dated)'
 			              WHEN p.status = 'bounced' THEN 'Cheque dishonoured'
+			              /* An adjustment is not money received. The one the
+			                 year-turn writes says where the balance went. */
+			              WHEN p.mode = 'adjustment' THEN COALESCE(p.remarks, 'Adjustment')
 			              ELSE 'Payment received' END,
 			         0::bigint, p.amount_paise, p.status, p.mode
 			    FROM payments p
@@ -756,6 +759,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 
 	created, skipped := 0, 0
 	pendingConcessions := 0
+	// What last year's unpaid balances added to this run, and for how many
+	// children, so the screen can say "and ₹1,40,000 of arrears" rather
+	// than leaving the accountant to notice the totals are higher.
+	arrearsChildren, arrearsPaise := 0, int64(0)
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var instID, campusID, yearID uuid.UUID
 		var classID *uuid.UUID
@@ -1005,6 +1012,23 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			/* WHAT THEY STILL OWED WHEN THE YEAR TURNED.
+
+			   A family two terms behind in March was billed in June as if
+			   March were settled: the old invoices stayed open somewhere in
+			   the ledger, and the paper they were handed did not mention
+			   them. Brought forward here, once, onto the first demand of the
+			   new year, and the old bill closed against it. */
+			moved, err := carryArrears(r.Context(), tx, instID, campusID,
+				sid, yearID, invoiceID, invoiceNo)
+			if err != nil {
+				return err
+			}
+			if moved > 0 {
+				arrearsChildren++
+				arrearsPaise += moved
+			}
+
 			// Roll the lines up into the header. net_paise is generated from
 			// gross/discount/fine, so only the inputs are written.
 			if _, err := tx.Exec(r.Context(), `
@@ -1050,6 +1074,8 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		   rather than refused: the demand is usually right and a school that
 		   cannot bill until every concession is decided cannot bill. */
 		"pending_concessions": pendingConcessions,
+		"arrears_children":    arrearsChildren,
+		"arrears_paise":       arrearsPaise,
 	})
 }
 
