@@ -3,10 +3,15 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, ApiError, type List, type Section, type Student } from '@/lib/api'
 import { Button, Card, Field, FormNotice, Input, Select } from '@/components/ui'
 
-/* One child, one new section. Class first, then the section in it, then
-   the roll number if the office has one ready; the server keeps the old
-   roll number when none is given. A full section is refused with the count
-   and offered "Move anyway", which is the same override admissions has. */
+/* One child, one new section, on a date. Class first, then the section in
+   it, then the day the move takes effect and the roll number if the office
+   has one ready. The old enrolment is closed on that day and the new one
+   opened the same day, so the child keeps a history — attendance and marks
+   taken in the old section stay against it — and is never off the roll in
+   between. A full section is refused with the count and offered "Move
+   anyway", which is the same override admissions has. */
+const today = () => new Date().toISOString().slice(0, 10)
+
 export default function MoveSection({
   student,
   onDone,
@@ -23,6 +28,8 @@ export default function MoveSection({
   const [classId, setClassId] = useState('')
   const [sectionId, setSectionId] = useState('')
   const [rollNo, setRollNo] = useState('')
+  const [effectiveOn, setEffectiveOn] = useState(today())
+  const [reason, setReason] = useState('')
   const classes = useMemo(() => {
     const seen = new Map<string, string>()
     for (const s of sections.data?.items ?? []) seen.set(s.class_id, s.class_name)
@@ -31,9 +38,11 @@ export default function MoveSection({
   const inClass = (sections.data?.items ?? []).filter((s) => s.class_id === classId)
   const move = useMutation({
     mutationFn: (allowOverflow: boolean) =>
-      api.post<{ class: string; section: string }>(`/api/v1/students/${student.id}/section`, {
+      api.post<{ class: string; section: string }>(`/api/v1/students/${student.id}/section-change`, {
         section_id: sectionId,
+        effective_on: effectiveOn,
         roll_no: rollNo ? Number(rollNo) : undefined,
+        reason,
         allow_overflow: allowOverflow,
       }),
     onSuccess: (r) => onDone(`${r.class}-${r.section}`),
@@ -44,7 +53,8 @@ export default function MoveSection({
       <p className="text-[15px] font-medium">Move {student.first_name} to another section</p>
       <p className="mt-1 text-[13px] text-muted-foreground">
         Now in {[student.class_name, student.section_name].filter(Boolean).join('-') || 'no section'}.
-        Attendance and marks already recorded stay where they were taken.
+        The current enrolment closes on the day you give and the new one opens the same day;
+        attendance and marks already recorded stay where they were taken.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <Field label="Class">
@@ -69,8 +79,14 @@ export default function MoveSection({
             placeholder={classId ? 'Choose a section' : 'Class first'}
           />
         </Field>
-        <Field label="Roll number" hint="Leave blank to keep the current one.">
+        <Field label="From" hint="The day the child starts in the new section.">
+          <Input type="date" value={effectiveOn} onChange={setEffectiveOn} />
+        </Field>
+        <Field label="Roll number" hint="In the new section. Leave blank for none yet.">
           <Input value={rollNo} onChange={setRollNo} placeholder="14" />
+        </Field>
+        <Field label="Reason" hint="Kept on the enrolment history.">
+          <Input value={reason} onChange={setReason} placeholder="Parent's request" />
         </Field>
       </div>
       {move.error && !full && (

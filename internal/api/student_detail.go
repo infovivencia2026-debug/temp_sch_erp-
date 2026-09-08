@@ -259,7 +259,8 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			SELECT COALESCE(ay.name,''), COALESCE(c.name,''), COALESCE(sec.name,''),
 			       en.roll_no::text, en.status,
 			       to_char(en.enrolled_on,'YYYY-MM-DD'), COALESCE(en.remarks,''),
-			       en.promoted_from_id IS NOT NULL
+			       en.promoted_from_id IS NOT NULL,
+			       to_char(en.ended_on,'YYYY-MM-DD')
 			  FROM enrollments en
 			  LEFT JOIN academic_years ay ON ay.id = en.academic_year_id
 			  LEFT JOIN classes c ON c.id = en.class_id
@@ -268,15 +269,15 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			 ORDER BY en.enrolled_on DESC`,
 			func(rows pgx.Rows) error {
 				var year, class, section, status, on, remarks string
-				var roll *string
+				var roll, to *string
 				var promoted bool
 				if err := rows.Scan(&year, &class, &section, &roll, &status,
-					&on, &remarks, &promoted); err != nil {
+					&on, &remarks, &promoted, &to); err != nil {
 					return err
 				}
 				history = append(history, map[string]any{
 					"year": year, "class": class, "section": section,
-					"roll_no": roll, "status": status, "from": on,
+					"roll_no": roll, "status": status, "from": on, "to": to,
 					"remarks": remarks, "promoted": promoted,
 				})
 				return nil

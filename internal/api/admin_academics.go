@@ -84,6 +84,10 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	// --- exams and marks monitoring ----------------------------------------
 	r.With(reports).Get("/admin/exam-monitor", s.getExamMonitor)
 	r.With(exams).Post("/admin/exam-monitor/approve", s.approveExamMarks)
+	// Release to families is the controller's act, not the scheduler's: the
+	// right that signs marks off is the right that lets a family read them.
+	r.With(httpx.RequirePermission(rbac.ExamsApprove)).
+		Post("/admin/exam-monitor/publish", s.publishExamResults)
 
 	// --- faculty allocation -------------------------------------------------
 	r.With(academics).Get("/admin/faculty-allocation", s.getFacultyAllocation)

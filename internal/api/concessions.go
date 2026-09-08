@@ -897,6 +897,7 @@ func (s *Server) buildClaimLines(w http.ResponseWriter, r *http.Request) {
 			         ORDER BY fc.created_at DESC LIMIT 1)
 			  FROM students st
 			  JOIN enrollments e ON e.student_id = st.id AND e.academic_year_id = $2
+			                    AND e.status <> 'moved'
 			  JOIN classes cl ON cl.id = e.class_id
 			  LEFT JOIN reimbursement_rates rr
 			         ON rr.scheme_id = $5 AND rr.academic_year_id = $2

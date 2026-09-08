@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -624,6 +625,30 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 
 	created := 0
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* The remarks written before the card existed.
+
+		   A class teacher drafts the term's remarks in the last week and the
+		   cards are run afterwards, so a remark-only row for this term is the
+		   usual case, not the odd one. It becomes this exam's card rather
+		   than sitting beside it as a second row with words and no numbers:
+		   the upsert below then fills the numbers in. Only where the child
+		   has no card for this exam yet, and only for this section. */
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE report_cards rc
+			   SET exam_id = $1
+			  FROM exams ex
+			 WHERE ex.id = $1
+			   AND rc.exam_id IS NULL
+			   AND rc.term_id = ex.term_id
+			   AND rc.academic_year_id = ex.academic_year_id
+			   AND rc.total_marks IS NULL
+			   AND rc.student_id IN (SELECT e.student_id FROM enrollments e
+			                          WHERE e.section_id = $2 AND e.status = 'active')
+			   AND NOT EXISTS (SELECT 1 FROM report_cards c
+			                    WHERE c.student_id = rc.student_id AND c.exam_id = $1)`,
+			examID, sectionID); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(r.Context(), `
 			WITH totals AS (
 			  SELECT e.student_id, e.id AS enrollment_id, e.academic_year_id,
@@ -661,11 +686,14 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			    FROM totals
 			)
 			INSERT INTO report_cards (institution_id, student_id, academic_year_id, enrollment_id,
-			                          exam_id,
+			                          exam_id, term_id,
 			                          total_marks, max_marks, percentage, grade,
 			                          rank_in_section, attendance_percent, is_published, published_at,
 			                          status)
 			SELECT $3, r.student_id, r.academic_year_id, r.enrollment_id, $1,
+			       -- The card's term is its exam's. Left NULL, every card read
+			       -- as the year's card and Term 2 could not be told from Term 1.
+			       (SELECT term_id FROM exams WHERE id = $1),
 			       r.total, r.max_total, r.pct,
 			       (SELECT gb.grade FROM grade_bands gb
 			         WHERE gb.grading_scale_id = (SELECT grading_scale_id FROM exams WHERE id = $1)
@@ -685,7 +713,8 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			   the same exam still updates its own card, which is the point of
 			   the upsert -- a corrected mark reprints rather than duplicates. */
 			ON CONFLICT (student_id, exam_id) WHERE exam_id IS NOT NULL DO UPDATE
-			   SET total_marks = EXCLUDED.total_marks,
+			   SET term_id     = EXCLUDED.term_id,
+			       total_marks = EXCLUDED.total_marks,
 			       max_marks   = EXCLUDED.max_marks,
 			       percentage  = EXCLUDED.percentage,
 			       grade       = EXCLUDED.grade,
@@ -1146,6 +1175,8 @@ type issueCertificateRequest struct {
 	StudentID string `json:"student_id"`
 	TypeCode  string `json:"type_code"` // TC | BONAFIDE | CONDUCT
 	Reason    string `json:"reason,omitempty"`
+	// The rest of a transfer certificate; see transfer_certificate.go.
+	tcDetails
 }
 
 // issueCertificate generates a numbered certificate and freezes a snapshot of
@@ -1170,8 +1201,43 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 		req.TypeCode = "TC"
 	}
 
+	if req.OverrideDues && strings.TrimSpace(req.OverrideDuesReason) == "" {
+		httpx.BadRequest(w, r, "issuing over unpaid dues needs a reason, which goes on the record")
+		return
+	}
+
 	var serial string
+	var duesPaise int64
+	var duesInvoices int
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// What the record knows, plus what the form said. Empty for anything
+		// but a TC, and the snapshot keeps its old shape for those.
+		extras := map[string]any{}
+		overridden := false
+		if req.TypeCode == "TC" {
+			var err error
+			duesPaise, duesInvoices, err = tcDues(r.Context(), tx, sid)
+			if err != nil {
+				return err
+			}
+			if duesPaise > 0 {
+				if !req.OverrideDues {
+					return errDuesUnpaid
+				}
+				overridden = true
+			}
+			extras, err = tcExtras(r.Context(), tx, sid, req.tcDetails, req.Reason)
+			if err != nil {
+				return err
+			}
+		}
+		var overrideBy any
+		var overrideReason any
+		if overridden {
+			overrideBy = id.UserID
+			overrideReason = strings.TrimSpace(req.OverrideDuesReason)
+		}
+
 		var typeID uuid.UUID
 		err := tx.QueryRow(r.Context(),
 			`SELECT id FROM certificate_types WHERE code = $1`, req.TypeCode).Scan(&typeID)
@@ -1194,12 +1260,17 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 
 		_, err = tx.Exec(r.Context(), `
 			INSERT INTO issued_certificates (institution_id, certificate_type_id, student_id,
-			                                 serial_no, issued_on, snapshot, status, requested_by)
+			                                 serial_no, issued_on, snapshot, status, requested_by,
+			                                 dues_override_by, dues_override_at, dues_override_reason)
 			SELECT $1, $2, st.id, $3, CURRENT_DATE,
 			       jsonb_build_object(
 			         'name', concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 			         'admission_no', st.admission_no,
 			         'date_of_birth', st.date_of_birth,
+			         'guardian_name', (SELECT g.full_name FROM student_guardians sg
+			                             JOIN guardians g ON g.id = sg.guardian_id
+			                            WHERE sg.student_id = st.id
+			                            ORDER BY sg.is_primary DESC LIMIT 1),
 			         'class', c.name, 'section', sec.name,
 			         'admission_date', st.admission_date,
 			         'apaar_id', st.apaar_id,
@@ -1212,8 +1283,11 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 			              WHERE i.student_id = st.id AND i.status IN ('unpaid','partial','overdue')), 0),
 			         'reason', $4::text,
 			         'issued_at', now()
-			       ),
-			       'issued', $5
+			       -- The prescribed fields, laid over the record's own. Empty
+			       -- for a bonafide or a conduct certificate.
+			       ) || $7::jsonb,
+			       'issued', $5,
+			       $8::uuid, CASE WHEN $8::uuid IS NOT NULL THEN now() END, $9::text
 			  FROM students st
 			  LEFT JOIN LATERAL (
 			      SELECT e.class_id, e.section_id FROM enrollments e
@@ -1222,7 +1296,8 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 			  LEFT JOIN classes  c   ON c.id = en.class_id
 			  LEFT JOIN sections sec ON sec.id = en.section_id
 			 WHERE st.id = $6`,
-			id.InstitutionID, typeID, serial, nullString(req.Reason), id.UserID, sid)
+			id.InstitutionID, typeID, serial, nullString(req.Reason), id.UserID, sid,
+			extras, overrideBy, overrideReason)
 		if err != nil {
 			return err
 		}
@@ -1240,12 +1315,20 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 		}
 		return err
 	})
+	if errors.Is(err, errDuesUnpaid) {
+		// The one sentence the counter needs: how much, on how many bills.
+		httpx.Error(w, r, http.StatusConflict, "dues_unpaid",
+			fmt.Sprintf("%s is still owed on %d %s; collect it, or issue with an override and a reason.",
+				formatPaise(duesPaise), duesInvoices, plural(duesInvoices, "invoice", "invoices")))
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
 		"serial_no": serial, "type": req.TypeCode, "student_id": sid.String(),
+		"dues_paise": duesPaise, "dues_overridden": duesPaise > 0 && req.OverrideDues,
 	})
 }
 

@@ -154,7 +154,7 @@ export default function PortalResults() {
               label={t('portal.results.stat_latest')}
               value={latest.percentage != null ? `${latest.percentage.toFixed(1)}%` : '—'}
               icon={GraduationCap}
-              hint={latest.term ?? latest.exam}
+              hint={[latest.exam, latest.term].filter(Boolean).join(' · ')}
             />
             <Stat label={t('portal.results.stat_grade')} value={latest.grade ?? '—'} icon={Award} />
             <Stat
@@ -198,7 +198,15 @@ export default function PortalResults() {
             >
               {d.cards.map((c, i) => (
                 <tr key={i}>
-                  <Td className="font-medium">{c.term ?? c.exam}</Td>
+                  {/* The exam, with its term underneath. Both terms now
+                      have their own cards, and a row that said only
+                      "Term 1" twice could not be told apart. */}
+                  <Td className="font-medium">
+                    {c.exam}
+                    {c.term && c.term !== c.exam && (
+                      <span className="block text-[12px] text-muted-foreground">{c.term}</span>
+                    )}
+                  </Td>
                   <Td className="tabular-nums">
                     {c.total_marks != null ? `${c.total_marks} / ${c.max_marks ?? '—'}` : '—'}
                   </Td>
@@ -221,7 +229,7 @@ export default function PortalResults() {
                       onClick={async () => {
                         const v = await api.get<{ html: string; css?: string }>(
                           `/api/v1/portal/results/card?id=${c.id}`)
-                        setCard({ ...v, name: c.term ?? c.exam })
+                        setCard({ ...v, name: c.exam })
                       }}
                     >
                       Open the card

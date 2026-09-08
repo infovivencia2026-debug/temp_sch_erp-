@@ -26,7 +26,7 @@ export interface Detail {
   payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string }[]
   documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
   leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
-  enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; remarks: string; promoted: boolean }[]
+  enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; to?: string; remarks: string; promoted: boolean }[]
   /* The years before this school used this system, imported from whatever it
      kept. Deliberately not folded into enrolment_history: those are live rows
      in the live tables, these are a summary of a closed year. */

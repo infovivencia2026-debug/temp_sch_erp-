@@ -177,6 +177,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/", s.createStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Put("/{id}", s.updateStudent)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/section", s.moveStudentSection)
+			// The dated move: closes today's enrolment and opens the next
+			// one, so the child keeps a history and never lacks a row.
+			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/{id}/section-change", s.changeStudentSection)
 			/* Erasing a record, as against taking a child off the roll.
 
 			   Almost every departure is a leaver and keeps the record; this is
@@ -1054,6 +1057,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/certificates", s.listCertificates)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/promote", s.promoteStudents)
 			r.With(httpx.RequirePermission(rbac.StudentsWrite)).Post("/certificates", s.issueCertificate)
+			// The paper, from the frozen snapshot rather than the live record.
+			r.Get("/certificates/{id}/render", s.renderIssuedCertificate)
 			/* Answering a request a family actually made. The office's own
 			   button INSERTS, so acting on a parent's request used to create a
 			   second row with a second serial and leave the first sitting in
