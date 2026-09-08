@@ -51,7 +51,8 @@ allocateAtAdmission puts the new student on a route, inside the enrolment.
 	one, so the child waits at a corner the bus does not turn.
 */
 func allocateAtAdmission(
-	ctx context.Context, tx pgx.Tx, inst uuid.UUID, student uuid.UUID, t admissionTransport,
+	ctx context.Context, tx pgx.Tx, inst uuid.UUID, student uuid.UUID, year uuid.UUID,
+	t admissionTransport,
 ) error {
 	route, err := uuid.Parse(strings.TrimSpace(t.RouteID))
 	if err != nil {
@@ -107,10 +108,7 @@ func allocateAtAdmission(
 		INSERT INTO transport_allocations
 		    (institution_id, student_id, academic_year_id, route_id,
 		     pickup_stop_id, drop_stop_id, valid_from)
-		VALUES ($1, $2,
-		        (SELECT id FROM academic_years WHERE is_current
-		          ORDER BY starts_on DESC LIMIT 1),
-		        $3, $4, $5, current_date)`,
-		inst, student, route, pickup, drop)
+		VALUES ($1, $2, $3, $4, $5, $6, current_date)`,
+		inst, student, year, route, pickup, drop)
 	return err
 }

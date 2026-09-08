@@ -350,14 +350,11 @@ func upsertStudent(r *http.Request, tx pgx.Tx, instID uuid.UUID, req studentWrit
 
 	// Placement.
 	if req.SectionID != "" {
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return "", "", errNoAcademicYear
-			}
+		year, err := workingYearIn(r.Context(), tx, req.AcademicYearID)
+		if err != nil {
+			return "", "", errNoAcademicYear
 		}
+		yearID := year.String()
 		/* Refuse to over-fill a section unless told to.
 
 		   The admissions funnel already refuses this — offering a seat in a
@@ -1347,11 +1344,10 @@ func recordConcession(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 		reason += " (carried across at import)"
 	}
 
+	// The concession belongs to the year the child is being placed in, which
+	// during an import is the importer's working year.
 	var yearID any
-	var y uuid.UUID
-	if err := tx.QueryRow(r.Context(),
-		`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).
-		Scan(&y); err == nil {
+	if y, err := workingYearIn(r.Context(), tx, ""); err == nil {
 		yearID = y
 	}
 

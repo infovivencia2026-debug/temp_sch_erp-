@@ -159,14 +159,12 @@ func loadPeriods(ctx context.Context, tx pgx.Tx) ([]gridPeriod, error) {
 // resolveYear returns the requested academic year, or the current one. A
 // timetable belongs to a year and a handler that guesses wrong writes into the
 // wrong one, so this returns an error rather than a zero uuid.
+//
+// A draft is the pre-year activity: the January timetable is for a year that
+// is not current yet, so with nothing named this is the caller's working
+// year, not the flag.
 func resolveYear(ctx context.Context, tx pgx.Tx, want string) (uuid.UUID, error) {
-	if want = strings.TrimSpace(want); want != "" {
-		return uuid.Parse(want)
-	}
-	var id uuid.UUID
-	err := tx.QueryRow(ctx,
-		`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&id)
-	return id, err
+	return workingYearIn(ctx, tx, want)
 }
 
 // ==================================================== 1. the optimizer inputs

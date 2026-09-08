@@ -98,13 +98,13 @@ func (s *Server) getYearPlan(w http.ResponseWriter, r *http.Request) {
 	// the helper is only the fallback for a school that has not set one up.
 	var from, to time.Time
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		yearID := strings.TrimSpace(q.Get("academic_year_id"))
-		row := tx.QueryRow(r.Context(), `
-			SELECT starts_on, ends_on FROM academic_years
-			 WHERE ($1::uuid IS NULL OR id = $1::uuid)
-			   AND ($1::uuid IS NOT NULL OR is_current)
-			 ORDER BY starts_on DESC LIMIT 1`, nullString(yearID))
-		return row.Scan(&from, &to)
+		yearID, err := s.workingYear(r.Context(), tx, r)
+		if err != nil {
+			return err
+		}
+		return tx.QueryRow(r.Context(),
+			`SELECT starts_on, ends_on FROM academic_years WHERE id = $1`, yearID).
+			Scan(&from, &to)
 	})
 	if err != nil {
 		start := academicYearStart(nowInIndia())

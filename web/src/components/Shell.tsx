@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
    left on 'classic' BentoOutlet renders its children unchanged.
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
+import { YearSwitch } from '@/components/YearSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
@@ -966,6 +967,10 @@ export function Shell({
             <span className="font-medium">{session.institution?.name ?? 'EDU CLOUD'}</span>
             {scopeLine && <span className="text-muted-foreground"> · {scopeLine}</span>}
           </p>
+          {/* The year being worked in, only when there is more than one to
+              choose. Beside the institution because it answers the same
+              question -- what is every number on this page about. */}
+          <YearSwitch />
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <CommandSearch />

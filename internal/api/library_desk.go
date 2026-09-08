@@ -649,16 +649,20 @@ func (s *Server) saveTextbookIndent(w http.ResponseWriter, r *http.Request) {
 
 	var newID string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// An indent is raised in February for June: the year it is for is
+		// the one the librarian is working in, not the one being taught.
+		year, err := s.workingYear(r.Context(), tx, r)
+		if err != nil {
+			return err
+		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO textbook_indents
 			    (institution_id, academic_year_id, class_id, subject_id, title,
 			     publisher, qty_requested, unit_price_paise, indent_no)
-			VALUES ($1,
-			        (SELECT id FROM academic_years WHERE is_current LIMIT 1),
-			        $2, NULLIF($3,'')::uuid, $4, $5, $6, $7, NULLIF($8,''))
+			VALUES ($1, $9, $2, NULLIF($3,'')::uuid, $4, $5, $6, $7, NULLIF($8,''))
 			RETURNING id::text`,
 			id.InstitutionID, class, req.SubjectID, req.Title, req.Publisher,
-			req.Requested, req.PricePaise, req.IndentNo).Scan(&newID)
+			req.Requested, req.PricePaise, req.IndentNo, year).Scan(&newID)
 	})
 	if err != nil {
 		httpx.BadRequest(w, r, friendlyIndentError(err))

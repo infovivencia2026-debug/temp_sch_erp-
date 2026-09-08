@@ -248,12 +248,11 @@ func (s *Server) createClass(w http.ResponseWriter, r *http.Request) {
 		   Separately would mean a class could exist with the sections that
 		   were meant to go in it having failed -- and the failure is silent,
 		   because the class list looks complete. */
-		var yearID string
-		if err := tx.QueryRow(r.Context(), `
-			SELECT id::text FROM academic_years
-			 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
+		year, err := s.workingYear(r.Context(), tx, r)
+		if err != nil {
 			return errNoAcademicYear
 		}
+		yearID := year.String()
 		for _, raw := range req.Sections {
 			name := strings.TrimSpace(raw)
 			if name == "" {
@@ -329,14 +328,11 @@ func (s *Server) createSection(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return errNoAcademicYear
-			}
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return errNoAcademicYear
 		}
+		yearID := year.String()
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO sections (institution_id, campus_id, class_id, academic_year_id,
 			                      name, capacity, room, class_teacher_id)
@@ -829,14 +825,11 @@ func (s *Server) createFeeStructure(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return errNoAcademicYear
-			}
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return errNoAcademicYear
 		}
+		yearID := year.String()
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO fee_structures (institution_id, campus_id, academic_year_id,
 			                            class_id, name, applies_to, is_active)
@@ -1005,14 +998,11 @@ func (s *Server) createExam(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		yearID := req.AcademicYearID
-		if yearID == "" {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT id::text FROM academic_years
-				 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
-				return errNoAcademicYear
-			}
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return errNoAcademicYear
 		}
+		yearID := year.String()
 
 		scale := req.GradingScaleID
 		if scale == "" {
