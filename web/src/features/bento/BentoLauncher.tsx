@@ -689,7 +689,7 @@ export function BentoLauncher({
             autoComplete="off"
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
-            className="w-full rounded-[12px] border
+            className="inset-field w-full rounded-[12px] border
                        !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
                        bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
                        text-[var(--bento-ink)] focus-visible:outline-none focus-visible:ring-2

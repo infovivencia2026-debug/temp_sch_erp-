@@ -29,12 +29,35 @@ function loadRoles() {
   return mod.exports.ROLES
 }
 const ROLES = loadRoles()
-const parentRole = ROLES.find((r) => r.key === 'parent')
+/* Which role the stubbed session wears. Parent by default, which is what
+   every screen in this file was drawn for; `UI_ROLE=institution_admin`
+   renders the principal's side of the product against the same data so the
+   chrome shared by both -- the dock, the launcher, the drawer, Settings --
+   can be looked at from both seats. The export keeps its old name so the
+   parent harness needs no change. */
+const ROLE_KEY = process.env.UI_ROLE || 'parent'
+const parentRole = ROLES.find((r) => r.key === ROLE_KEY)
+if (!parentRole) throw new Error(`no role ${ROLE_KEY} in catalog.gen.ts`)
 const parentKeys = parentRole.sections.flatMap((s) => s.features.map((f) => f.key))
+const IS_PARENT = ROLE_KEY === 'parent'
+/* Every write permission the client asks useCan() for, so an admin screen
+   shows its buttons and forms rather than a read-only view of them. */
+const ADMIN_PERMS = [
+  'academics.academics.write', 'academics.attendance.write', 'academics.exams.write',
+  'academics.homework.write', 'academics.marks.write', 'academics.reportcards.generate',
+  'academics.reportcards.publish', 'academics.timetable.write', 'academics.write',
+  'access.roles.write', 'admin.jobs.enqueue', 'admissions.approve', 'admissions.write',
+  'comms.announcements.write', 'finance.export', 'finance.fees.take_fee_payment',
+  'finance.fees.write', 'finance.invoices.write', 'finance.payments.write',
+  'finance.refunds.write', 'hr.attendance.write', 'hr.employees.write', 'hr.leave.approve',
+  'institution.settings.write', 'institution.write', 'office.front_desk.write',
+  'operations.hostel.write', 'operations.inventory.write', 'operations.library.write',
+  'students.write', 'students.read', 'staff.read', 'finance.read', 'academics.read',
+]
 
 const catalog = {
   setup_required: false,
-  active_role: 'parent',
+  active_role: ROLE_KEY,
   roles: [
     {
       key: parentRole.key,
@@ -47,18 +70,24 @@ const catalog = {
       })),
     },
   ],
-  scope: { platform_admin: false, all_campuses: false, campuses: 1, departments: 0, sections: 2, students: 2 },
+  scope: IS_PARENT
+    ? { platform_admin: false, all_campuses: false, campuses: 1, departments: 0, sections: 2, students: 2 }
+    : { platform_admin: false, all_campuses: true, campuses: 1, departments: 6, sections: 24, students: 638 },
   implemented: parentKeys,
 }
 
 const session = {
   authenticated: true,
-  user: { id: 'u-priya', full_name: 'Priya Gupta', roles: ['parent'], platform_admin: false },
+  user: IS_PARENT
+    ? { id: 'u-priya', full_name: 'Priya Gupta', roles: ['parent'], platform_admin: false }
+    : { id: 'u-meera', full_name: 'Meera Iyer', roles: [ROLE_KEY], platform_admin: false },
   institution: {
     id: 'inst-1', name: 'Vivencia International School', short_name: 'Vivencia', slug: 'vivencia',
     primary_color: '#0f766e', timezone: 'Asia/Kolkata', locale: 'en-IN',
   },
-  permissions: [...parentKeys, 'portal.read', 'portal.write', 'comms.circulars.read'],
+  permissions: IS_PARENT
+    ? [...parentKeys, 'portal.read', 'portal.write', 'comms.circulars.read']
+    : [...parentKeys, ...ADMIN_PERMS],
   modules: [],
   subscription: { active: true, plan_code: 'std', plan_name: 'Standard', status: 'active', modules: ['transport', 'fees', 'comms'] },
 }
@@ -490,6 +519,62 @@ const staffRemarkTeachers = {
 }
 
 // --- the router -----------------------------------------------------------
+
+// --- the principal's side --------------------------------------------------
+// Only read when UI_ROLE is not parent. Shapes mirror PrincipalDashboard.tsx,
+// StudentProfile.tsx, Certificates.tsx and Approvals.tsx.
+const CLASSES = Array.from({ length: 10 }, (_, i) => ({ id: `cls-${i + 1}`, name: `Class ${i + 1}`, level: i + 1 }))
+const SECTIONS = CLASSES.flatMap((c) => ['A', 'B'].map((n) => ({
+  id: `sec-${c.id}-${n}`, class_id: c.id, class_name: c.name, academic_year_id: 'ay-2026', name: n,
+  capacity: 40, room: `${c.level}0${n === 'A' ? 1 : 2}`, class_teacher: n === 'A' ? 'Sunita Rao' : 'Neha Iyer', enrolled: 28 + c.level,
+})))
+const FIRST = ['Aarav', 'Diya', 'Kabir', 'Anaya', 'Vihaan', 'Ishita', 'Arjun', 'Meera', 'Rohan', 'Sara', 'Dev', 'Priya']
+const LAST = ['Gupta', 'Reddy', 'Sharma', 'Iyer', 'Khan', 'Nair', 'Patel', 'Rao']
+const STUDENTS = Array.from({ length: 24 }, (_, i) => {
+  const first = FIRST[i % FIRST.length], last = LAST[(i * 3) % LAST.length]
+  return {
+    id: `st-${i + 1}`, admission_no: `VIS/2024/0${100 + i}`, full_name: `${first} ${last}`, first_name: first, last_name: last,
+    gender: i % 2 ? 'F' : 'M', date_of_birth: `2016-0${(i % 9) + 1}-1${i % 9}`, status: 'active', admission_date: '2024-06-10',
+    class_name: 'Class 5', section_name: i % 2 ? 'B' : 'A', roll_no: i + 1, primary_phone: `+91 98490 ${10000 + i * 37}`,
+  }
+})
+const principalKPIs = {
+  students: 638, staff: 54, sections: 20,
+  attendance_today_pct: 93.4, attendance_marked_today: 596,
+  collected_paise: 4_128_500_00, outstanding_paise: 1_236_400_00,
+  billed_paise: 5_960_000_00, collected_year_paise: 4_128_500_00, outstanding_year_paise: 1_236_400_00,
+  defaulters: 41, pending_leave: 6, open_applications: 23, unassigned_subjects: 3,
+  year_invoice_count: 1240, class_subjects_total: 118,
+  open_applications_by_status: [{ status: 'enquiry', applications: 11 }, { status: 'applied', applications: 8 }, { status: 'offered', applications: 4 }],
+  pending_leave_by_type: [{ leave_type: 'Casual', subject_kind: 'staff', department: 'Primary', requests: 4, days: 6 }, { leave_type: 'Sick', subject_kind: 'staff', department: 'Science', requests: 2, days: 3 }],
+  students_by_class: CLASSES.map((c) => ({ class_id: c.id, class_name: c.name, students: 56 + c.level * 2 })),
+  outstanding_ageing: { not_due_paise: 420_000_00, days_0_30_paise: 310_000_00, days_31_60_paise: 226_400_00, days_61_90_paise: 140_000_00, days_90_plus_paise: 100_000_00, undated_paise: 40_000_00 },
+  range: { period: 'month', from: dayISO(-30), to: dayISO(0), label: 'Last 30 days' },
+  as_of_now: ['students', 'staff', 'sections', 'outstanding_paise'],
+}
+const attendanceTrend = { items: Array.from({ length: 14 }, (_, i) => { const present = 570 + ((i * 13) % 40); return { date: dayISO(i - 13), present, absent: 638 - present, total: 638, pct: Math.round((present / 638) * 1000) / 10 } }) }
+const adminAttention = { items: [
+  { key: 'fees.defaulters', severity: 'critical', count: 41, headline: '41 families over 30 days late', detail: '₹12.4L outstanding', action: 'See defaulters', href: '/institution_admin/finance/fee_dashboard', amount_paise: 1_236_400_00 },
+  { key: 'hr.leave', severity: 'warning', count: 6, headline: '6 leave requests waiting', action: 'Approve', href: '/institution_admin/approvals/approvals' },
+  { key: 'timetable.unassigned', severity: 'warning', count: 3, headline: '3 subjects have no teacher', action: 'Assign', href: '/institution_admin/academics/teacher_assignment' },
+  { key: 'admissions.open', severity: 'info', count: 23, headline: '23 applications open', action: 'Review', href: '/institution_admin/admissions/admissions_pipeline' },
+] }
+const setupStatus = { completed: 15, total: 15, blocking_remaining: 0, ready: true, steps: [] }
+const certificates = { items: [
+  { id: 'c1', serial_no: 'VIS/BC/2026/018', type: 'BONAFIDE', student_name: 'Aarav Gupta', issued_on: dayISO(-2), status: 'issued', snapshot: {}, class_name: 'Class 5', section_name: 'A', admission_no: 'VIS/2024/0100' },
+  { id: 'c2', serial_no: 'VIS/TC/2026/004', type: 'TC', student_name: 'Diya Reddy', issued_on: dayISO(-9), status: 'requested', snapshot: {}, class_name: 'Class 7', section_name: 'B', admission_no: 'VIS/2022/0311', asked_by: 'Father' },
+  { id: 'c3', serial_no: 'VIS/CC/2026/011', type: 'CONDUCT', student_name: 'Rohan Nair', issued_on: dayISO(-20), status: 'issued', snapshot: {}, class_name: 'Class 10', section_name: 'A', admission_no: 'VIS/2019/0042' },
+] }
+const approvals = {
+  total: 4, by_kind: { leave: 2, attendance_correction: 1, fee_concession: 1 },
+  items: [
+    { id: 'a1', kind: 'leave', title: 'Sunita Rao · Casual leave, 2 days', detail: `${dayISO(3)} to ${dayISO(4)} — family function`, requested_by: 'Sunita Rao', raised_at: stamp(-1, 10, 5), decide_url: '/api/v1/hr/leave/a1/decide' },
+    { id: 'a2', kind: 'leave', title: 'Neha Iyer · Sick leave, 1 day', detail: dayISO(1), requested_by: 'Neha Iyer', raised_at: stamp(0, 8, 40), decide_url: '/api/v1/hr/leave/a2/decide' },
+    { id: 'a3', kind: 'attendance_correction', title: 'Class 5-A · mark Kabir Gupta present', detail: `${dayISO(-2)} — was at the inter-school meet`, requested_by: 'Sunita Rao', raised_at: stamp(-1, 15, 20), decide_url: '/api/v1/academics/attendance/a3/decide' },
+    { id: 'a4', kind: 'fee_concession', title: 'Sibling concession · Anaya Gupta', detail: '10% on tuition, term 2', requested_by: 'Accounts', raised_at: stamp(-3, 11, 0), decide_url: '/api/v1/finance/concessions/a4/decide', amount_paise: 4_500_00 },
+  ],
+}
+
 function studentOf(url) {
   return url.searchParams.get('student_id') || KABIR
 }
@@ -508,9 +593,9 @@ function respond(method, rawUrl) {
   switch (p) {
     case '/api/v1/session': return ok(session)
     case '/api/v1/catalog': return ok(catalog)
-    case '/api/v1/tour': return ok({ seen: true, role: 'parent', school_name: 'Vivencia', is_first_user: false })
+    case '/api/v1/tour': return ok({ seen: true, role: ROLE_KEY, school_name: 'Vivencia', is_first_user: false })
     case '/api/v1/portal/live': return ok({ rev: 'r1' })
-    case '/api/v1/profile': return ok({ full_name: 'Priya Gupta' })
+    case '/api/v1/profile': return ok({ full_name: session.user.full_name })
     case '/api/v1/portal/students': return ok({ items: children })
     case '/api/v1/portal/students/everywhere': return ok({ items: children.map((c) => ({ ...c, institution_id: 'inst-1', institution_name: 'Vivencia International School', mine: true })) })
     case '/api/v1/portal/summary': return ok(summary(sid))
@@ -520,9 +605,19 @@ function respond(method, rawUrl) {
     case '/api/v1/portal/receipts': return ok({ items: receiptRows })
     case '/api/v1/homework': return ok(homework(sid))
     case '/api/v1/communication/circulars': return ok(circulars)
-    case '/api/v1/academics/sections': return ok({ items: [] })
+    case '/api/v1/academics/sections': return ok({ items: IS_PARENT ? [] : SECTIONS })
+    case '/api/v1/academics/classes': return ok({ items: CLASSES })
+    case '/api/v1/principal/dashboard': return ok(principalKPIs)
+    case '/api/v1/principal/attendance-trend': return ok(attendanceTrend)
+    case '/api/v1/principal/attendance-shortage': return ok({ items: [{ pct: 68 }, { pct: 72 }] })
+    case '/api/v1/principal/staff-workload': return ok({ items: [{ weekly_periods: 30 }, { weekly_periods: 24 }] })
+    case '/api/v1/setup/status': return ok(setupStatus)
+    case '/api/v1/students/counts': return ok({ active: 638, left: 27, suspended: 2, new_this_year: 96 })
+    case '/api/v1/students': return ok({ items: STUDENTS, total: STUDENTS.length, limit: 50, offset: 0, has_more: false })
+    case '/api/v1/lifecycle/certificates': return ok(certificates)
+    case '/api/v1/workflow/approvals': return ok(approvals)
     case '/api/v1/portal/notifications': return ok(notifications)
-    case '/api/v1/attention': return ok(attention)
+    case '/api/v1/attention': return ok(IS_PARENT ? attention : adminAttention)
     case '/api/v1/me/child-bus': return ok(bus)
     case '/api/v1/portal/messages/teachers': return ok(teachers(sid))
     case '/api/v1/portal/messages': return ok(messages)
@@ -556,4 +651,4 @@ function respond(method, rawUrl) {
   return null
 }
 
-module.exports = { respond, parentRole, children, KABIR, ANAYA }
+module.exports = { respond, parentRole, role: parentRole, ROLE_KEY, children, KABIR, ANAYA }

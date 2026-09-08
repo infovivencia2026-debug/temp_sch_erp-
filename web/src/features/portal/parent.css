@@ -50,7 +50,8 @@
 [data-role='parent'] .parent-switch__item.is-on {
   background: var(--bento-card);
   opacity: 1;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  /* The selected segment is a lifted knob on its track. */
+  box-shadow: var(--edge-lip), var(--elev-1);
 }
 [data-role='parent'] .parent-switch__item:focus-visible {
   outline: 2px solid var(--bento-ink);
@@ -223,12 +224,14 @@
   line-height: 1.2;
 }
 
-/* Cards: one radius, a hairline, no lift. A shadow under every card on a
-   grey ground is texture the eye has to read past. */
+/* Cards: one radius, and level 1 of the ladder -- a hairline, a lip and
+   the lightest shadow. They used to be flat, which on the phone's grey
+   ground left a white rectangle with no seat; the seat is what says a card
+   is a thing rather than a region. */
 [data-role='parent'] .card,
 [data-role='parent'] .cell-grid {
   border-radius: 16px;
-  box-shadow: none;
+  box-shadow: var(--edge-lip), var(--elev-1);
 }
 [data-role='parent'] .card .border-b {
   border-color: color-mix(in srgb, currentColor 8%, transparent);

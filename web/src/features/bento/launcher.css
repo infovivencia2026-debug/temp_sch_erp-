@@ -158,7 +158,7 @@
   background: var(--plate);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent),
-    0 1px 2px color-mix(in srgb, currentColor 6%, transparent);
+    var(--elev-1);
   font-size: calc(var(--lch-plate) * 0.34);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -171,7 +171,7 @@
   .lch-app:hover .lch-plate {
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent),
-      0 4px 12px color-mix(in srgb, currentColor 12%, transparent);
+      var(--elev-2);
   }
 }
 /* The press. A plate that does not give under the finger is a picture. */
@@ -283,7 +283,7 @@
   color: var(--bento-ink);
   box-shadow:
     0 0 0 1px color-mix(in srgb, currentColor 10%, transparent),
-    0 8px 24px color-mix(in srgb, currentColor 18%, transparent);
+    var(--elev-3);
 }
 .lch-menu button {
   display: flex;

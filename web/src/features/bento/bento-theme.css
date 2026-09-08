@@ -116,9 +116,15 @@
      supplies 'lifted' and 'deep' for anyone who wants the tray back; this is
      the value it starts from. --bento-depth-lg keeps a real shadow because it
      is the dock and the dialogs, which genuinely do float. */
-  --bento-depth-sm: none;
-  --bento-depth: none;
-  --bento-depth-lg: 0 8px 30px rgba(0,0,0,0.06);
+  /* THE LADDER IS index.css's. --elev-1/2/3 are the product's one
+     elevation scale, light and dark, and every bento depth token is an
+     alias onto a rung of it so the board, the dock and the sheets move with
+     the same Shadow dial as every classic card. The desktop board still
+     takes the per-cell elevation back off (it is one ruled sheet); that is
+     done where the cells are drawn, not by zeroing the token. */
+  --bento-depth-sm: var(--elev-1);
+  --bento-depth: var(--elev-2);
+  --bento-depth-lg: var(--elev-3);
 
   --bento-shadow: var(--bento-depth);
   --bento-shadow-sm: var(--bento-depth-sm);
@@ -302,12 +308,9 @@ html.dark[data-layout='bento'] {
      dark ground had a hard little rim and no ambient falloff; the eye reads
      that as a sticker rather than as a panel above a surface. The near layer
      is kept and a wide, offset, low-opacity layer is added under it. */
-  --bento-depth-sm:
-    0 1px 2px rgb(0 0 0 / 0.55), 0 4px 12px -3px rgb(0 0 0 / 0.55);
-  --bento-depth:
-    0 2px 4px rgb(0 0 0 / 0.6), 0 12px 30px -8px rgb(0 0 0 / 0.72);
-  --bento-depth-lg:
-    0 4px 10px rgb(0 0 0 / 0.6), 0 22px 48px -12px rgb(0 0 0 / 0.85);
+  --bento-depth-sm: var(--elev-1);
+  --bento-depth: var(--elev-2);
+  --bento-depth-lg: var(--elev-3);
 
   /* THE EDGE IS ITS OWN TOKEN NOW, AND THAT IS THE POINT OF THIS CHANGE.
 
@@ -324,7 +327,7 @@ html.dark[data-layout='bento'] {
      one ruled sheet, no per-cell elevation, but cards that still have a top
      lip. Depth and edge are different claims about a surface and they now
      have different switches. */
-  --bento-edge: inset 0 1px 0 rgb(255 255 255 / 0.10);
+  --bento-edge: var(--edge-lip);
 
   /* The domains against the dark ground. Inverted in role rather than
      lightened: the ink lifts so a small glyph still reads, and the soft becomes
@@ -617,20 +620,27 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
    No lift, no wash, no scale. A tinted ground shifting under the pointer
    competes with the card's own colour, which carries meaning here, and a card
    that grows in a packed grid moves the thing the cursor is on. */
+/* AND IT LIFTS. The ring says which card; the elevation says the card has
+   come up to meet the pointer -- level 2, the same rung the dock stands
+   on. z-index so the risen card's shadow falls ON its neighbours rather
+   than being clipped by them, which is what a card above the sheet does.
+   Still no scale and no translate, for the reasons above. */
 [data-layout='bento'] .bento-cell:focus-within {
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
     var(--bento-edge, none),
-    var(--bento-shadow-sm, none);
+    var(--elev-2);
   border-color: color-mix(in srgb, currentColor 75%, transparent);
+  z-index: 2;
 }
 @media (hover: hover) {
   [data-layout='bento'] .bento-cell:hover {
     box-shadow:
       inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
       var(--bento-edge, none),
-      var(--bento-shadow-sm, none);
+      var(--elev-2);
     border-color: color-mix(in srgb, currentColor 75%, transparent);
+    z-index: 2;
   }
 }
 
@@ -644,7 +654,8 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
    an interface that appears not to have heard you, which is the state that
    produces a second tap.
 
-   The press is the elevation coming OFF, not a transform. A card that scales
+   The press is the elevation coming OFF, with a 2% give (index.css draws
+   the scale, once, for every pressable surface). A card that scales
    or translates moves the thing the finger is already on, and the file has
    turned that down twice already for the packed grid; but a card that stops
    floating and gains a shade over its face reads unmistakably as pushed into
@@ -661,7 +672,7 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
 [data-layout='bento'] .bento-cell:has(.bento-cue):active {
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
-    inset 0 1px 3px color-mix(in srgb, currentColor 14%, transparent);
+    var(--elev-press);
   border-color: color-mix(in srgb, currentColor 75%, transparent);
   /* Faster going down than coming back up, which is how a physical key feels
      and how every press state that reads as a press is timed. */
@@ -732,7 +743,12 @@ html[data-shadow='flat'] [data-layout='bento'] .bento-cell::before { display: no
      inside --bento-depth-lg; it has moved to its own token, and the dock is
      the one surface in the product that is unarguably floating, so it is the
      last place that should lose its lip. */
-  box-shadow: var(--bento-edge, none), var(--bento-depth-lg);
+  /* Level 2, raised -- not the sheet's level 3. The dock floats over the
+     board but it is furniture, not a modal; a menu opened FROM it has to
+     be able to sit visibly above it. The variable is restated by the phone
+     rule below, where the bar is pinned to the bottom edge and casts up. */
+  --dock-shadow: var(--bento-edge, none), var(--elev-2);
+  box-shadow: var(--dock-shadow);
   background-color: color-mix(
     in srgb, var(--bento-dock-bg, var(--bento-card)) 78%, transparent);
   backdrop-filter: blur(28px) saturate(180%);
@@ -775,8 +791,8 @@ html[data-skin='focus'] [data-layout='bento'] {
      axis on the floor: whatever the slider said, this frame drew one pixel. */
   --bento-border-w: calc(0.5px * var(--border-scale, 1));
   --bento-line: #d8dee8;
-  --bento-shadow: none;
-  --bento-shadow-sm: none;
+  --bento-shadow: var(--elev-2);
+  --bento-shadow-sm: var(--elev-1);
 
   --dom-students: #2563eb;      --dom-students-soft: #dee8ff;      --dom-students-text: #000000;
   --dom-academics: #7c3aed;     --dom-academics-soft: #e5d8fc;     --dom-academics-text: #000000;
@@ -843,7 +859,11 @@ html[data-skin='focus'] .bento-cell,
 html[data-skin='focus'] .launcher-tile,
 html[data-skin='focus'] .launcher-app {
   background-color: var(--bento-card);
-  box-shadow: none;
+  /* Level 1, not none. Focus flattened every cell to a bare fill, which on
+     the phone -- where cells sit in 14px gutters -- left a white tile on a
+     grey page with no seat. The desktop board's own rule below still takes
+     the elevation off where the cells butt, so the ruled sheet is kept. */
+  box-shadow: var(--bento-edge, none), var(--bento-shadow-sm);
   border-color: var(--bento-line);
 }
 
@@ -856,7 +876,9 @@ html[data-skin='focus'] .launcher-app {
    where the thing is. Focus is the default skin, so this rule is why the dock
    looked solid for everybody. */
 html[data-skin='focus'] .bento-dock {
-  box-shadow: none;
+  /* Level 2. This rule said `none`, and Focus is the default skin, so the
+     one surface that unarguably floats was drawn flat for everybody. */
+  box-shadow: var(--dock-shadow);
   border-color: var(--bento-line);
 }
 
@@ -1206,18 +1228,8 @@ html[data-shadow='flat'][data-layout='bento'] {
      crosshair turns itself off under this attribute. */
   --bento-edge: none;
 }
-html[data-shadow='lifted'] [data-layout='bento'],
-html[data-shadow='lifted'][data-layout='bento'] {
-  --bento-depth-sm: 0 2px 6px rgb(15 23 42 / 0.07), 0 6px 16px -4px rgb(15 23 42 / 0.10);
-  --bento-depth: 0 4px 12px rgb(15 23 42 / 0.09), 0 16px 36px -10px rgb(15 23 42 / 0.18);
-  --bento-depth-lg: 0 8px 20px rgb(15 23 42 / 0.10), 0 28px 60px -14px rgb(15 23 42 / 0.24);
-}
-html[data-shadow='deep'] [data-layout='bento'],
-html[data-shadow='deep'][data-layout='bento'] {
-  --bento-depth-sm: 0 3px 10px rgb(15 23 42 / 0.10), 0 10px 24px -6px rgb(15 23 42 / 0.16);
-  --bento-depth: 0 8px 22px rgb(15 23 42 / 0.14), 0 26px 56px -12px rgb(15 23 42 / 0.26);
-  --bento-depth-lg: 0 14px 34px rgb(15 23 42 / 0.16), 0 44px 90px -18px rgb(15 23 42 / 0.32);
-}
+/* 'lifted' and 'deep' need nothing here: the depth tokens are aliases of
+   --elev-1/2/3, and index.css scales those through --elev-a. */
 
 /* THE WORK AREA PAINTS THE BOARD'S GROUND, NOT THE APP'S.
 
@@ -1336,16 +1348,7 @@ html[data-shadow='flat'] {
      crosshair turns itself off under this attribute. */
   --bento-edge: none;
 }
-html[data-shadow='lifted'] {
-  --bento-depth-sm: 0 3px 14px rgba(0,0,0,0.06);
-  --bento-depth: 0 8px 28px rgba(0,0,0,0.09);
-  --bento-depth-lg: 0 16px 44px rgba(0,0,0,0.13);
-}
-html[data-shadow='deep'] {
-  --bento-depth-sm: 0 4px 18px rgba(0,0,0,0.10);
-  --bento-depth: 0 12px 38px rgba(0,0,0,0.16);
-  --bento-depth-lg: 0 24px 60px rgba(0,0,0,0.22);
-}
+/* 'lifted' and 'deep' are answered by --elev-a in index.css. */
 
 /* TEXT SIZE — the figure already reads --bento-fig; this makes the axis reach
    it, and the label and note with it.
@@ -1720,23 +1723,28 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      ring has no relationship to whether the cell is elevated. Both are
      restated here only because the resting rule above is more specific than
      the plain .bento-cell rule they were written against. */
+  /* On the sheet the resting cell has no elevation; the hovered one rises
+     to level 2 and comes forward over the seam, which is the one moment a
+     cell of the sheet is allowed to be a separate object. */
   [data-layout='bento'] .bento-board .bento-cell:focus-within {
     box-shadow:
       inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
-      var(--bento-edge, none);
+      var(--bento-edge, none),
+      var(--elev-2);
   }
   @media (hover: hover) {
     [data-layout='bento'] .bento-board .bento-cell:hover {
       box-shadow:
         inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
-        var(--bento-edge, none);
+        var(--bento-edge, none),
+        var(--elev-2);
     }
   }
 
   [data-layout='bento'] .bento-board .bento-cell:has(.bento-cue):active {
     box-shadow:
       inset 0 0 0 2px color-mix(in srgb, currentColor 75%, transparent),
-      inset 0 1px 3px color-mix(in srgb, currentColor 14%, transparent);
+      var(--elev-press);
   }
 
   /* The backstop. The shedding rules are the plan; this stops a card that still
@@ -1747,6 +1755,26 @@ html[data-pattern='lines'] .bento-surface { color: var(--bento-line); }
      slot the dock leaves while the mode is on, so the board holds nothing
      but cards and pages again. */
   .bento-board > * { overflow: hidden; }
+
+  /* THE LIFT HAS TO BE ALLOWED OUT. The backstop above clips the widget to
+     its own box, which also clips the shadow a hovered cell casts onto its
+     neighbours -- the whole visible content of "raised". So while a cell is
+     under the pointer (or holds focus) its wrapper lets the shadow out and
+     the cell takes over the clipping of its own contents, which is what the
+     wrapper was doing for it. Pointer devices only; a phone has no hover
+     and its board is not the ruled sheet. */
+  @media (hover: hover) {
+    [data-layout='bento'] .bento-board > *:has(.bento-cell:hover),
+    [data-layout='bento'] .bento-board > *:has(.bento-cell:focus-within) {
+      overflow: visible;
+      position: relative;
+      z-index: 2;
+    }
+    [data-layout='bento'] .bento-board > *:has(.bento-cell:hover) .bento-cell,
+    [data-layout='bento'] .bento-board > *:has(.bento-cell:focus-within) .bento-cell {
+      overflow: hidden;
+    }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1768,7 +1796,7 @@ html[data-appearance-open] .bento-dock {
 /* The backdrop dims the page; the dock is not part of what is being dimmed
    while it is the subject. A ring keeps it legible against the scrim. */
 html[data-appearance-open] .bento-dock {
-  box-shadow: 0 0 0 1px var(--bento-line), var(--bento-depth-lg);
+  box-shadow: 0 0 0 1px var(--bento-line), var(--elev-3);
 }
 
 /* Room at the bottom of the dialog so a tall panel cannot scroll under the
@@ -1861,28 +1889,10 @@ html[data-appearance-open] .appearance-overlay {
 :root {
   --shadow-scale: 1;
 }
+/* The slider turns the same dial as the four steps: the whole ladder, in
+   both schemes, from one number. */
 html[style*='--shadow-scale'] {
-  --bento-depth-sm:
-    0 calc(2px * var(--shadow-scale)) calc(10px * var(--shadow-scale))
-    rgba(0, 0, 0, calc(0.03 * var(--shadow-scale)));
-  --bento-depth:
-    0 calc(4px * var(--shadow-scale)) calc(20px * var(--shadow-scale))
-    rgba(0, 0, 0, calc(0.04 * var(--shadow-scale)));
-  --bento-depth-lg:
-    0 calc(8px * var(--shadow-scale)) calc(30px * var(--shadow-scale))
-    rgba(0, 0, 0, calc(0.06 * var(--shadow-scale)));
-}
-.dark html[style*='--shadow-scale'],
-html[style*='--shadow-scale'] .dark {
-  --bento-depth-sm:
-    0 calc(1px * var(--shadow-scale)) calc(3px * var(--shadow-scale))
-    rgb(0 0 0 / calc(0.5 * var(--shadow-scale)));
-  --bento-depth:
-    0 calc(10px * var(--shadow-scale)) calc(26px * var(--shadow-scale))
-    rgb(0 0 0 / calc(0.7 * var(--shadow-scale)));
-  --bento-depth-lg:
-    0 calc(20px * var(--shadow-scale)) calc(44px * var(--shadow-scale))
-    rgb(0 0 0 / calc(0.85 * var(--shadow-scale)));
+  --elev-a: var(--shadow-scale);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -2672,12 +2682,9 @@ html:not(.dark)[data-layout='bento'] {
      terms: these cards sit at 14px gutters on a phone and one pixel on the
      desktop board, and a 40px ambient blur at that spacing pools in the gaps
      and greys the whole sheet. */
-  --bento-depth-sm:
-    0 1px 2px rgb(10 11 13 / 0.06), 0 3px 8px -2px rgb(10 11 13 / 0.08);
-  --bento-depth:
-    0 2px 4px rgb(10 11 13 / 0.07), 0 10px 24px -6px rgb(10 11 13 / 0.12);
-  --bento-depth-lg:
-    0 4px 10px rgb(10 11 13 / 0.08), 0 20px 44px -10px rgb(10 11 13 / 0.16);
+  --bento-depth-sm: var(--elev-1);
+  --bento-depth: var(--elev-2);
+  --bento-depth-lg: var(--elev-3);
 
   /* THE EDGE, WHICH IS ON THE OTHER SIDE HERE.
 
@@ -2695,7 +2702,7 @@ html:not(.dark)[data-layout='bento'] {
      Rejected: a grey border all round. That is what the file's own note on
      .bento-cell threw out — a border doubles against the one-pixel gutter
      wherever two cells meet and turns the seam into a trough. */
-  --bento-edge: inset 0 -1px 0 rgb(10 11 13 / 0.06);
+  --bento-edge: var(--edge-lip);
 
   --bento-bg: #f4f5f7;
   --bento-card-base: hsl(var(--paint-cards-bg, 0 0% 100%));
@@ -2998,6 +3005,11 @@ html:not(.dark)[data-layout='bento'] {
        is answering is an inline style and nothing else can reach it. */
     padding-left: 0 !important;
     padding-right: 0 !important;
+
+    /* A bar on the bottom edge casts UP onto the page, and its lip is the
+       hairline along its top. */
+    --dock-shadow: 0 -1px 0 var(--hairline), var(--elev-2-up);
+    border-width: 0;
   }
 
   /* One cell: a fixed icon row with the word under it.
@@ -3718,7 +3730,14 @@ html:not(.dark)[data-layout='bento'] {
 }
 [data-layout='bento'] {
   --bento-pop-bg: var(--bento-card);
-  --bento-pop-shadow: 0 10px 30px color-mix(in srgb, var(--bento-ink) 18%, transparent);
+  --bento-pop-shadow: var(--elev-3);
+}
+/* In the dark a sheet is a lighter grey than the card it opens over --
+   depth by tone, as index.css does for --popover -- or a menu at the card's
+   own colour sits IN the card. Ink is white on both, so nothing re-measures. */
+html.dark[data-layout='bento'],
+html.dark [data-layout='bento'] {
+  --bento-pop-bg: var(--bento-card-2);
 }
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -3736,7 +3755,8 @@ html:not(.dark)[data-layout='bento'] {
   position: fixed;
   inset: 0;
   z-index: 58;
-  background: transparent;
+  /* A sheet is over the page, so the page goes under it. */
+  background: hsl(var(--scrim));
 }
 .bento-sheet {
   position: fixed;
@@ -3752,7 +3772,7 @@ html:not(.dark)[data-layout='bento'] {
   color: var(--bento-ink);
   border-top-left-radius: 18px;
   border-top-right-radius: 18px;
-  box-shadow: 0 -8px 32px color-mix(in srgb, var(--bento-ink) 18%, transparent), 0 -1px 0 color-mix(in srgb, var(--bento-ink) 12%, transparent);
+  box-shadow: 0 -1px 0 var(--hairline-lifted), var(--elev-3-up);
   transform: translate3d(0, 100%, 0);
   transition: transform var(--bento-dur) var(--bento-ease);
 }
@@ -3788,7 +3808,7 @@ html:not(.dark)[data-layout='bento'] {
 .bento-sheet__row.is-dragging {
   position: relative;
   z-index: 2;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--bento-ink) 16%, transparent);
+  box-shadow: var(--elev-2);
   border-radius: 10px;
   border-top-color: transparent;
 }
@@ -3840,7 +3860,7 @@ html:not(.dark)[data-layout='bento'] {
   height: 20px;
   border-radius: 999px;
   background: var(--bento-pop-bg);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--bento-ink) 25%, transparent);
+  box-shadow: var(--edge-lip), var(--elev-1);
   transition: transform var(--bento-dur-fast) var(--bento-ease);
 }
 .bento-sheet__switch[aria-checked='true'] .bento-sheet__knob { transform: translateX(16px); }
@@ -3905,7 +3925,7 @@ html:not(.dark)[data-layout='bento'] {
   background: var(--bento-pop-bg);
   color: var(--bento-ink);
   font-size: 12.5px;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--bento-ink) 8%, transparent);
+  box-shadow: var(--edge-lip), var(--elev-2);
   opacity: 0.8;
   cursor: pointer;
   transition: opacity var(--bento-dur-fast) var(--bento-ease);
@@ -3941,7 +3961,8 @@ html:not(.dark)[data-layout='bento'] {
   border-radius: 999px;
   background: var(--bento-pop-bg);
   color: var(--bento-ink);
-  box-shadow: var(--bento-pop-shadow);
+  /* Level 2: it is a bar, like the dock it stands in for, not a sheet. */
+  box-shadow: var(--edge-lip), var(--elev-2);
 }
 .bento-bar__btn {
   display: inline-flex;
@@ -4085,7 +4106,11 @@ html:not(.dark)[data-layout='bento'] {
   to { opacity: 1; }
 }
 [data-layout='bento'] .bento-widget[data-editing] .bento-cell {
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--bento-ink) 8%, transparent);
+  box-shadow: var(--bento-edge, none), var(--elev-2);
+}
+/* The card being carried is the highest thing on the board. */
+[data-layout='bento'] .bento-widget[data-dragging] .bento-cell {
+  box-shadow: var(--bento-edge, none), var(--elev-3);
 }
 /* The corner arrow opens the card; while editing nothing opens. */
 [data-layout='bento'] .bento-widget[data-editing] .bento-cue { visibility: hidden; }
@@ -4170,7 +4195,7 @@ html:not(.dark)[data-layout='bento'] {
   border-radius: 999px;
   background: var(--bento-pop-bg);
   color: var(--bento-ink);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--bento-ink) 18%, transparent);
+  box-shadow: var(--elev-2);
   cursor: pointer;
 }
 .bento-edit__remove:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
@@ -4196,7 +4221,7 @@ html:not(.dark)[data-layout='bento'] {
   font-size: 11.5px;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--bento-ink) 18%, transparent);
+  box-shadow: var(--elev-2);
   cursor: pointer;
 }
 .bento-sizebtn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
