@@ -503,28 +503,57 @@ type seatRow struct {
 //
 // The RTE quota is 25% of intake by statute, tracked separately because those
 // seats cannot be filled from the general merit list.
+//
+// FOR ONE YEAR. Sections are per academic year, and this summed every year's
+// capacity together: the day the office created 2027-28's sections in
+// November, every class showed twice the seats it had, and offers went out
+// against places that did not exist. Enrolments and applications are scoped
+// the same way -- an application belongs to the year its admission session
+// admits into. ?academic_year_id picks the year; the default is the year the
+// school is admitting into, which is the open session's, else the current one.
 func (s *Server) getSeatMatrix(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
+		WITH yr AS (
+		  SELECT COALESCE($1::uuid,
+		                  (SELECT academic_year_id FROM admission_sessions
+		                    WHERE is_open ORDER BY created_at DESC LIMIT 1),
+		                  (SELECT id FROM academic_years
+		                    ORDER BY is_current DESC, starts_on DESC LIMIT 1)) AS id
+		),
+		cap AS (
+		  SELECT sec.class_id, sum(sec.capacity)::int AS capacity
+		    FROM sections sec, yr WHERE sec.academic_year_id = yr.id
+		   GROUP BY sec.class_id
+		),
+		enr AS (
+		  SELECT e.class_id, count(*)::int AS enrolled,
+		         count(*) FILTER (WHERE st.is_rte)::int AS rte
+		    FROM enrollments e JOIN students st ON st.id = e.student_id, yr
+		   WHERE e.academic_year_id = yr.id AND e.status = 'active'
+		   GROUP BY e.class_id
+		),
+		off AS (
+		  SELECT a.class_sought AS class_id, count(*)::int AS offered
+		    FROM applications a
+		    LEFT JOIN admission_sessions ses ON ses.id = a.admission_session_id, yr
+		   WHERE a.status IN ('offered','accepted')
+		     AND COALESCE(ses.academic_year_id, yr.id) = yr.id
+		   GROUP BY a.class_sought
+		)
 		SELECT c.id::text, c.name,
-		       COALESCE(sum(sec.capacity), 0)::int,
-		       (SELECT count(*) FROM enrollments e
-		         WHERE e.class_id = c.id AND e.status = 'active')::int,
-		       (SELECT count(*) FROM applications a
-		         WHERE a.class_sought = c.id AND a.status IN ('offered','accepted'))::int,
-		       GREATEST(0, COALESCE(sum(sec.capacity),0)
-		                   - (SELECT count(*) FROM enrollments e
-		                       WHERE e.class_id = c.id AND e.status='active')
-		                   - (SELECT count(*) FROM applications a
-		                       WHERE a.class_sought = c.id AND a.status IN ('offered','accepted')))::int,
+		       COALESCE(cap.capacity, 0),
+		       COALESCE(enr.enrolled, 0),
+		       COALESCE(off.offered, 0),
+		       GREATEST(0, COALESCE(cap.capacity, 0) - COALESCE(enr.enrolled, 0) - COALESCE(off.offered, 0)),
 		       -- RTE reservation is 25% of sanctioned intake.
-		       (COALESCE(sum(sec.capacity),0) / 4)::int,
-		       (SELECT count(*) FROM students st
-		          JOIN enrollments e2 ON e2.student_id = st.id AND e2.class_id = c.id
-		         WHERE st.is_rte)::int
+		       COALESCE(cap.capacity, 0) / 4,
+		       COALESCE(enr.rte, 0)
 		  FROM classes c
-		  LEFT JOIN sections sec ON sec.class_id = c.id
-		 GROUP BY c.id
-		 ORDER BY c.level`, nil,
+		  LEFT JOIN cap ON cap.class_id = c.id
+		  LEFT JOIN enr ON enr.class_id = c.id
+		  LEFT JOIN off ON off.class_id = c.id
+		 ORDER BY c.level`,
+		[]any{nullString(r.URL.Query().Get("academic_year_id"))},
 		func(rows pgx.Rows) (seatRow, error) {
 			var v seatRow
 			return v, rows.Scan(&v.ClassID, &v.ClassName, &v.Capacity, &v.Enrolled,
@@ -578,16 +607,34 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 		// Refuse to offer a seat that does not exist. Overselling a class is
 		// discovered on the first day of term, when it cannot be undone.
 		if req.Decision == "offered" {
+			// The same year the seat matrix shows: the session's, else the
+			// year the school is admitting into. Next year's sections are not
+			// this year's seats.
 			var available int
 			if err := tx.QueryRow(r.Context(), `
+				WITH a AS (
+				  SELECT ap.class_sought,
+				         COALESCE(ses.academic_year_id,
+				                  (SELECT academic_year_id FROM admission_sessions
+				                    WHERE is_open ORDER BY created_at DESC LIMIT 1),
+				                  (SELECT id FROM academic_years
+				                    ORDER BY is_current DESC, starts_on DESC LIMIT 1)) AS year_id
+				    FROM applications ap
+				    LEFT JOIN admission_sessions ses ON ses.id = ap.admission_session_id
+				   WHERE ap.id = $1
+				)
 				SELECT GREATEST(0, COALESCE((SELECT sum(sec.capacity) FROM sections sec
-				                              WHERE sec.class_id = a.class_sought), 0)
+				                              WHERE sec.class_id = a.class_sought
+				                                AND sec.academic_year_id = a.year_id), 0)
 				                   - (SELECT count(*) FROM enrollments e
-				                       WHERE e.class_id = a.class_sought AND e.status='active')
+				                       WHERE e.class_id = a.class_sought AND e.status='active'
+				                         AND e.academic_year_id = a.year_id)
 				                   - (SELECT count(*) FROM applications a2
+				                       LEFT JOIN admission_sessions s2 ON s2.id = a2.admission_session_id
 				                       WHERE a2.class_sought = a.class_sought
-				                         AND a2.status IN ('offered','accepted')))::int
-				  FROM applications a WHERE a.id = $1`, appID).Scan(&available); err != nil {
+				                         AND a2.status IN ('offered','accepted')
+				                         AND COALESCE(s2.academic_year_id, a.year_id) = a.year_id))::int
+				  FROM a`, appID).Scan(&available); err != nil {
 				return err
 			}
 			if available <= 0 {

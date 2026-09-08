@@ -1287,6 +1287,11 @@ func (s *Server) Routes() http.Handler {
 			// Dropout risk and the cash outlook, as rules — see platform_signals.go.
 			s.mountPlatformSignals(r)
 			s.mountIntegrationsIndex(r)
+			// April, once: carry sections, fees, bus stops and the timetable
+			// grid into a year that exists and has not started. Preview runs
+			// the same copy and rolls it back — see year_rollover.go.
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Get("/academic-years/{id}/rollover", s.previewYearRollover)
+			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/academic-years/{id}/rollover", s.postYearRollover)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

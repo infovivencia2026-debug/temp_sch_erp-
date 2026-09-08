@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 397 features. */
+/** 23 roles, 398 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -292,6 +292,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.academics.syllabus_progress', slug: 'syllabus_progress', name: 'Syllabus Progress', scope: 'institution', tier: 'core', summary: 'How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam.' },
           { key: 'institution_admin.academics.attendance_audit', slug: 'attendance_audit', name: 'Attendance Audit', scope: 'institution', tier: 'core', summary: 'School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact.' },
           { key: 'institution_admin.academics.class_setup', slug: 'class_setup', name: 'Class Setup', scope: 'institution', tier: 'core', summary: 'Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it.' },
+          { key: 'institution_admin.academics.year_rollover', slug: 'year_rollover', name: 'Year Rollover', scope: 'institution', tier: 'core', summary: 'Carry this year\'s sections, fee structure, bus allocations and timetable grid into the year that has not started yet, once. Shows what will be copied before it runs, and what was already carried. Children move separately, under Class Promotion.' },
           { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated — and push the result into the published timetable so the two agree.' },
         ],
       },
