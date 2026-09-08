@@ -67,12 +67,11 @@ func (s *Server) moveStudentSection(w http.ResponseWriter, r *http.Request) {
 		if !exists {
 			return pgx.ErrNoRows
 		}
-		var yearID string
-		if err := tx.QueryRow(r.Context(), `
-			SELECT id::text FROM academic_years
-			 ORDER BY is_current DESC, starts_on DESC LIMIT 1`).Scan(&yearID); err != nil {
+		year, err := s.workingYear(r.Context(), tx, r)
+		if err != nil {
 			return errNoAcademicYear
 		}
+		yearID := year.String()
 		var className, sectionName string
 		var capacity, taken int
 		if err := tx.QueryRow(r.Context(), `

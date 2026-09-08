@@ -6,6 +6,7 @@ import BulkImport from '@/components/BulkImport'
 import RoleSelect from '@/components/RoleSelect'
 import AdmitStudent from './AdmitStudent'
 import { api, type AcademicYear, type Klass, type List, type Section, type Subject } from '@/lib/api'
+import { useWorkingYear } from '@/lib/working-year'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -2485,7 +2486,13 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
   })
   const [name, setName] = useState('')
-  const currentYear = years?.items.find((y) => y.is_current) ?? years?.items[0]
+  /* Named after the year it will be filed into, which is the working year:
+     the server puts a structure with no year named there, and a name that
+     said "2026-27" over a structure filed into 2027-28 would be a lie. */
+  const working = useWorkingYear().year
+  const currentYear =
+    years?.items.find((y) => y.id === working?.id) ??
+    years?.items.find((y) => y.is_current) ?? years?.items[0]
 
   useEffect(() => {
     if (!name && currentYear?.name) setName(currentYear.name)

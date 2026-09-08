@@ -352,13 +352,16 @@ func (s *Server) saveCalendarEntry(w http.ResponseWriter, r *http.Request) {
 				req.ID, req.Name, req.OnDate, req.ToDate, req.Kind, req.AppliesTo,
 				req.Description, req.CampusID, req.AcademicYearID).Scan(&newID)
 		}
+		// Next year's calendar is drawn up while this year runs, so a holiday
+		// with no year named goes into the caller's working year.
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return err
+		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO holidays (institution_id, campus_id, academic_year_id, name,
 			                      on_date, to_date, kind, applies_to, description)
-			VALUES ($1, NULLIF($2,'')::uuid,
-			        COALESCE(NULLIF($3,'')::uuid,
-			                 (SELECT id FROM academic_years WHERE is_current
-			                   ORDER BY starts_on DESC LIMIT 1)),
+			VALUES ($1, NULLIF($2,'')::uuid, $10,
 			        $4, $5::date, NULLIF($6,'')::date, $7, $8, NULLIF($9,''))
 			ON CONFLICT (institution_id,
 			             COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid),
@@ -370,7 +373,8 @@ func (s *Server) saveCalendarEntry(w http.ResponseWriter, r *http.Request) {
 			                                          holidays.academic_year_id)
 			RETURNING id::text`,
 			id.InstitutionID, req.CampusID, req.AcademicYearID, req.Name,
-			req.OnDate, req.ToDate, req.Kind, req.AppliesTo, req.Description).Scan(&newID)
+			req.OnDate, req.ToDate, req.Kind, req.AppliesTo, req.Description,
+			year).Scan(&newID)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.NotFound(w, r)
@@ -649,11 +653,10 @@ func (s *Server) getFacultyAllocation(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN section_subject_teachers sst
 		         ON sst.section_id = sec.id AND sst.class_subject_id = cs.id
 		  LEFT JOIN users u ON u.id = sst.teacher_user_id
-		 -- With no year asked for, the current one; with no current year set,
-		 -- every year, which is better than an empty screen.
-		 WHERE sec.academic_year_id = COALESCE($1::uuid,
-		         (SELECT id FROM academic_years WHERE is_current
-		           ORDER BY starts_on DESC LIMIT 1), sec.academic_year_id)
+		 -- With no year asked for, the caller's working year (next year's
+		 -- allocation is drawn up while this one runs); with no year at
+		 -- all, every year, which is better than an empty screen.
+		 WHERE sec.academic_year_id = COALESCE($1::uuid, `+workingYearSQL("$5")+`, sec.academic_year_id)
 		   AND ($2::uuid IS NULL OR sec.class_id = $2)
 		   AND ($3::uuid IS NULL OR sst.teacher_user_id = $3)
 		   AND ($4::boolean IS NOT TRUE OR sst.id IS NULL)
@@ -662,7 +665,7 @@ func (s *Server) getFacultyAllocation(w http.ResponseWriter, r *http.Request) {
 		[]any{nullString(strings.TrimSpace(q.Get("academic_year_id"))),
 			nullString(strings.TrimSpace(q.Get("class_id"))),
 			nullString(strings.TrimSpace(q.Get("teacher_user_id"))),
-			unassignedOnly},
+			unassignedOnly, httpx.IdentityFrom(r.Context()).UserID},
 		func(rows pgx.Rows) (facultyAllocationRow, error) {
 			var v facultyAllocationRow
 			return v, rows.Scan(&v.SectionID, &v.SectionName, &v.ClassID, &v.ClassName,
@@ -1904,9 +1907,9 @@ type councilMemberRow struct {
 // passed a year parameter reads as a broken feature.
 func (s *Server) getCouncil(w http.ResponseWriter, r *http.Request) {
 	yearID := nullString(strings.TrimSpace(r.URL.Query().Get("academic_year_id")))
-	const resolveYear = `
-		COALESCE($1::uuid,
-		         (SELECT id FROM academic_years WHERE is_current ORDER BY starts_on DESC LIMIT 1),
+	userID := httpx.IdentityFrom(r.Context()).UserID
+	resolveYear := `
+		COALESCE($1::uuid, ` + workingYearSQL("$2") + `,
 		         (SELECT academic_year_id FROM council_positions
 		           ORDER BY created_at DESC LIMIT 1))`
 
@@ -1919,7 +1922,7 @@ func (s *Server) getCouncil(w http.ResponseWriter, r *http.Request) {
 		  JOIN academic_years ay ON ay.id = cp.academic_year_id
 		 WHERE cp.academic_year_id = `+resolveYear+`
 		 ORDER BY cp.sequence, lower(cp.title)`,
-		[]any{yearID},
+		[]any{yearID, userID},
 		func(rows pgx.Rows) (councilPositionRow, error) {
 			var v councilPositionRow
 			if err := rows.Scan(&v.ID, &v.YearID, &v.YearName, &v.Title, &v.Portfolio,
@@ -1955,7 +1958,7 @@ func (s *Server) getCouncil(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN classes  c   ON c.id = cur.class_id
 		 WHERE cp.academic_year_id = `+resolveYear+`
 		 ORDER BY cp.sequence, cm.status, st.first_name`,
-		[]any{yearID},
+		[]any{yearID, userID},
 		func(rows pgx.Rows) (councilMemberRow, error) {
 			var v councilMemberRow
 			return v, rows.Scan(&v.ID, &v.PositionID, &v.Position, &v.StudentID,
@@ -2031,21 +2034,22 @@ func (s *Server) saveCouncilPosition(w http.ResponseWriter, r *http.Request) {
 				req.ID, req.Title, req.Portfolio, req.Seats, elected,
 				req.Sequence, req.Description).Scan(&outID)
 		}
+		// Elections are held in the last term for the year to come.
+		year, err := s.workingYearOr(r.Context(), tx, r, req.AcademicYearID)
+		if err != nil {
+			return err
+		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO council_positions (institution_id, academic_year_id, title,
 			                               portfolio, seats, is_elected, sequence, description)
-			VALUES ($1,
-			        COALESCE(NULLIF($2,'')::uuid,
-			                 (SELECT id FROM academic_years WHERE is_current
-			                   ORDER BY starts_on DESC LIMIT 1)),
-			        $3, NULLIF($4,''), $5, $6, $7, NULLIF($8,''))
+			VALUES ($1, $9, $3, NULLIF($4,''), $5, $6, $7, NULLIF($8,''))
 			ON CONFLICT (academic_year_id, lower(title))
 			DO UPDATE SET portfolio = EXCLUDED.portfolio, seats = EXCLUDED.seats,
 			              is_elected = EXCLUDED.is_elected, sequence = EXCLUDED.sequence,
 			              description = EXCLUDED.description
 			RETURNING id::text`,
 			id.InstitutionID, req.AcademicYearID, req.Title, req.Portfolio,
-			req.Seats, elected, req.Sequence, req.Description).Scan(&outID)
+			req.Seats, elected, req.Sequence, req.Description, year).Scan(&outID)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.NotFound(w, r)

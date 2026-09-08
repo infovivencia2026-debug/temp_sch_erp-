@@ -445,18 +445,12 @@ func (s *Server) addBoardCandidates(w http.ResponseWriter, r *http.Request) {
 }
 
 // boardAcademicYear resolves the year a roll belongs to, defaulting to the
-// current one so the screens need not ask for something the school has already
-// told the product once.
+// caller's working year so the screens need not ask for something the school
+// has already told the product once.
 func boardAcademicYear(r *http.Request, tx pgx.Tx, given string) (uuid.UUID, error) {
-	if given != "" {
-		return uuid.Parse(given)
-	}
-	var year uuid.UUID
-	err := tx.QueryRow(r.Context(),
-		`SELECT id FROM academic_years WHERE is_current ORDER BY starts_on DESC LIMIT 1`).
-		Scan(&year)
+	year, err := workingYearIn(r.Context(), tx, given)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return year, errors.New("no academic year is marked current; name one explicitly")
+		return year, errors.New("no academic year exists; name one explicitly")
 	}
 	return year, err
 }

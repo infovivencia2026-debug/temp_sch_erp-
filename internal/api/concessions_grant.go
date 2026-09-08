@@ -127,8 +127,9 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 		year = parsed
 	} else {
 		if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-			return tx.QueryRow(r.Context(),
-				`SELECT id FROM academic_years WHERE is_current LIMIT 1`).Scan(&year)
+			var err error
+			year, err = s.workingYear(r.Context(), tx, r)
+			return err
 		}); err != nil && student != nil {
 			// An APPLICANT needs no year: they are not enrolled in one. It is
 			// filled in at acceptance along with the student.

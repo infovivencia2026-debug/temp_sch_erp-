@@ -94,6 +94,12 @@ func (s *Server) Routes() http.Handler {
 		r.Use(s.Idempotent)
 
 		r.Get("/ref-data", s.getRefData)
+		/* The year this person is working in. Beside ref-data rather than
+		   under /academics because every role's shell asks, and a clerk
+		   running next year's admissions has no academics permission to
+		   spend on it. See working_year.go. */
+		r.Get("/working-year", s.getWorkingYear)
+		r.Put("/working-year", s.setWorkingYear)
 		// The period presets every metric picker offers. Published so the
 		// client does not keep a second copy that drifts from the resolver.
 		r.Get("/date-ranges", s.listRangePresets)
