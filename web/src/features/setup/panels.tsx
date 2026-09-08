@@ -2064,46 +2064,71 @@ function MarksGridUpload({ onDone }: { onDone?: () => void }) {
 
   const ready = year.trim() && exam.trim() && cls.trim() && Number(max) > 0
 
+  /* FENCED OFF, BECAUSE THESE FIELDS BELONG TO THIS BOX AND NOT THE LAST ONE.
+   *
+   * These four rendered as bare fields in the flow of the panel, directly
+   * under the previous step's drop zone. On screen that reads as one form: a
+   * box to drop a file on, with its required fields underneath. So the sheet
+   * went into the box above -- the one for each child's past years -- and the
+   * year and examination typed here did nothing, because they were never this
+   * box's fields at all.
+   *
+   * A border and a title are the whole fix. The step now begins somewhere
+   * visible, and the drop zone it gates is inside the same frame as the four
+   * facts that gate it. */
   return (
-    <div className="space-y-3">
-      <FormGrid>
-        <Field label="Which year" required hint="As the school writes it, e.g. 2024-25.">
-          <Input value={year} onChange={setYear} placeholder="2024-25" />
-        </Field>
-        <Field label="Which examination" required
-          hint="Created if the school has never recorded it here.">
-          <Input value={exam} onChange={setExam} placeholder="Annual Examination" />
-        </Field>
-        <Field label="Which class" required
-          hint="The class as it is now named. Subjects are checked against it.">
-          <Select
-            value={cls}
-            onChange={setCls}
-            placeholder="Choose a class"
-            options={(classes.data?.items ?? []).map((c) => ({ value: c.name, label: c.name }))}
-          />
-        </Field>
-        <Field label="Out of" required
-          hint="What every paper on this sheet is marked out of.">
-          <Input type="number" value={max} onChange={setMax} />
-        </Field>
-      </FormGrid>
-
-      {ready ? (
-        <BulkImport
-          entity="marks_grid"
-          title="Upload the mark sheet"
-          hint="Children down, subjects across — the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
-          params={{ year, exam, class: cls, max_marks: max }}
-          subjectMapping
-          onDone={onDone}
-        />
-      ) : (
-        <p className="rounded-md border border-dashed p-3 text-[13px] text-muted-foreground">
-          Fill in the four above and the upload box appears. They describe the
-          whole sheet, so they are asked once rather than repeated on every row.
+    <div className="rounded-lg border bg-card">
+      <div className="border-b px-4 py-3">
+        <p className="text-[14px] font-medium">Past exam results, as a mark sheet</p>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+          Children down the side, subjects across the top — the sheet the staff
+          room already keeps. These four describe the whole sheet, so they are
+          asked once here rather than repeated on every row.
         </p>
-      )}
+      </div>
+
+      <div className="space-y-3 p-4">
+        <FormGrid>
+          <Field label="Which year" required hint="As the school writes it, e.g. 2024-25.">
+            <Input value={year} onChange={setYear} placeholder="2024-25" />
+          </Field>
+          <Field label="Which examination" required
+            hint="Created if the school has never recorded it here.">
+            <Input value={exam} onChange={setExam} placeholder="Annual Examination" />
+          </Field>
+          <Field label="Which class" required
+            hint="The class as it is now named. Subjects are checked against it.">
+            <Select
+              value={cls}
+              onChange={setCls}
+              placeholder="Choose a class"
+              options={(classes.data?.items ?? []).map((c) => ({ value: c.name, label: c.name }))}
+            />
+          </Field>
+          <Field label="Out of" required
+            hint="What every paper on this sheet is marked out of.">
+            <Input type="number" value={max} onChange={setMax} />
+          </Field>
+        </FormGrid>
+
+        {ready ? (
+          <BulkImport
+            entity="marks_grid"
+            title="Upload the mark sheet"
+            hint="Children down, subjects across — the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
+            params={{ year, exam, class: cls, max_marks: max }}
+            subjectMapping
+            onDone={onDone}
+          />
+        ) : (
+          /* Says which four, and that the box appears here. "Fill in the four
+             above" was read as the four above the previous box. */
+          <p className="rounded-md border border-dashed p-3 text-[13px] text-muted-foreground">
+            Fill in the year, examination, class and marks-out-of above, and the
+            box to drop the mark sheet on appears here.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

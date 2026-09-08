@@ -318,6 +318,9 @@ export default function BulkImport({
     const rows = parseCsv(text)
     setCsv(text)
     setName(label)
+    // The previous file's complaint is not this file's. Left standing, a
+    // corrected sheet loads underneath the error that sent it away.
+    setError('')
     setResult(null)
     setShowAll(false)
     setGrid(rows)
@@ -368,6 +371,22 @@ export default function BulkImport({
 
   const onFile = (f: File | undefined) => {
     if (!f) return
+    /* A WORKBOOK IS NOT A CSV, AND SAYING SO BEATS SAYING NOTHING.
+     *
+     * .xlsx and .xls are what a school actually has on the desk, and the
+     * picker's accept list quietly refuses them -- the dialog closes with
+     * nothing chosen and the box looks broken. Dropped instead of chosen they
+     * got worse: FileReader read the zip as text, parseCsv made one row of
+     * binary, and the preview never appeared. Either way the screen said
+     * nothing. It says this now. */
+    if (/\.(xlsx|xls|numbers|ods)$/i.test(f.name)) {
+      setError(
+        'That is a spreadsheet, not a CSV. In Excel or Google Sheets choose ' +
+        'File → Download / Save As → CSV, and drop that — or use ' +
+        '"paste the cells instead" above, which takes the sheet as it is.',
+      )
+      return
+    }
     if (f.size > 8 * 1024 * 1024) {
       setError('That file is over 8 MB. Split it, or ask us to run it as a migration.')
       return
@@ -524,9 +543,21 @@ export default function BulkImport({
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,text/csv,text/plain"
+              /* Workbooks are listed on purpose. Left out, the picker
+                 greys out the file the school is pointing at and the
+                 dialog closes having chosen nothing -- which is the
+                 same silence. onFile turns them away with a sentence. */
+              accept=".csv,text/csv,text/plain,.xlsx,.xls"
               className="hidden"
-              onChange={(e) => onFile(e.target.files?.[0])}
+              /* The value is cleared after every pick, because a file input
+                 fires no change event when the same file is chosen twice.
+                 Cancelling a file and reaching for the same one again --
+                 which is what somebody does after a rejected dry run and a
+                 correction in Excel -- otherwise did nothing at all. */
+              onChange={(e) => {
+                onFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
             />
           </div>
         )}
