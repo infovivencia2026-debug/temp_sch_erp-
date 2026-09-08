@@ -816,6 +816,14 @@ export default function StudentProfile() {
         <Field k="Sign in as" v={issued.sign_in_as} mono />
         {issued.password && <Field k="Password" v={issued.password} mono />}
         {issued.relation && <Field k="Relation" v={issued.relation} />}
+        {issued.password && (
+          <Field
+            k="Sent"
+            v={issued.sent_to?.length
+              ? `Also sent by ${issued.sent_to.join(', ')}`
+              : 'Not sent — no message channel is set up, so this screen is the only copy'}
+          />
+        )}
       </dl>
       <div className="flex flex-wrap items-center gap-2 px-5 py-3">
         {/* The password cannot be shown, because the school does not keep it.
@@ -1860,6 +1868,10 @@ interface IssuedLogin {
      answers this rather than failing, because "they already have one" is not
      an error — it is the answer to the question that was asked. */
   existing?: boolean
+  /* Channels the credential was also queued on, so the desk can say "check
+     your WhatsApp" instead of reading a password aloud. Absent when nothing
+     new was issued or no channel is set up. */
+  sent_to?: string[]
   /* How to issue a fresh one, when they already have it. Held on the panel so
      the button knows which of the two endpoints to call without the panel
      having to know whose login it is showing. */

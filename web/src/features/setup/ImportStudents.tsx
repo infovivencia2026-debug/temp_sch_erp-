@@ -6,6 +6,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Button, ErrorState,
 } from '@/components/ui'
+import { IssueLogins } from '@/components/BulkImport'
 
 interface Problem { row: number; problem: string; data?: Record<string, string> }
 interface Result {
@@ -151,6 +152,12 @@ export default function ImportStudents() {
                     ? `All ${r.total} rows are valid. Import them when you are ready.`
                     : `Imported ${r.imported} students.`}
                 </p>
+                {/* The half of an import that used to be missing. Eight
+                    hundred children arrived and none of their families could
+                    sign in, because the only way to issue a login was one
+                    record at a time. The same buttons the setup wizard's
+                    importer offers, on the screen where the rows just landed. */}
+                {!r.dry_run && r.imported > 0 && <IssueLogins entity="students" />}
               </Card>
             )}
           </>
