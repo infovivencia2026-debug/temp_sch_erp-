@@ -1,19 +1,7 @@
-# Cloudflare Pages redirects. Status 200 = proxy: the browser stays on this
-# domain, so the session cookie works and nginx's explicit proxy list from
-# config/nginx-school-erp.conf is reproduced here.
-#
-# BACKEND is the current VPS until the Cloud Run service exists. Swap the
-# hostname, push to main, and Pages rebuilds.
-/api/*      https://erp.187-127-178-100.sslip.io/api/:splat      200
-/login      https://erp.187-127-178-100.sslip.io/login           200
-/logout     https://erp.187-127-178-100.sslip.io/logout          200
-/forgot     https://erp.187-127-178-100.sslip.io/forgot          200
-/reset      https://erp.187-127-178-100.sslip.io/reset           200
-/files/*    https://erp.187-127-178-100.sslip.io/files/:splat    200
-/static/*   https://erp.187-127-178-100.sslip.io/static/:splat   200
-/iclock/*   https://erp.187-127-178-100.sslip.io/iclock/:splat   200
-/buy        https://erp.187-127-178-100.sslip.io/buy             200
-/signup/*   https://erp.187-127-178-100.sslip.io/signup/:splat   200
-/apps/*     https://erp.187-127-178-100.sslip.io/apps/:splat     200
-/healthz    https://erp.187-127-178-100.sslip.io/healthz         200
-/*          /index.html                                          200
+# Vite drops dot-directories from public/, so the Android app-links file is
+# kept at well-known/ and served at the path Android looks for. nginx does the
+# same with an alias; this is the Pages spelling of it. 200 = rewrite, not a
+# visible redirect. The SPA fallback (any unknown path → index.html) is what
+# Pages does by default for a single-page app and needs no rule here.
+/.well-known/assetlinks.json  /well-known/assetlinks.json  200
+/.well-known/apple-app-site-association  /well-known/apple-app-site-association  200
