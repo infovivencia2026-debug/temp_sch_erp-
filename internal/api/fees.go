@@ -1153,6 +1153,7 @@ func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 
 type refundRow struct {
 	ID          string  `json:"id"`
+	StudentID   string  `json:"student_id"`
 	StudentName string  `json:"student_name"`
 	AdmissionNo string  `json:"admission_no"`
 	AmountPaise int64   `json:"amount_paise"`
@@ -1161,25 +1162,39 @@ type refundRow struct {
 	Status      string  `json:"status"`
 	ProcessedOn *string `json:"processed_on,omitempty"`
 	CreatedAt   string  `json:"created_at"`
+	// The decision, whole: who asked, who signed, what they wrote, and the
+	// bank reference of the payout a family quotes when it has not arrived.
+	RequestedBy  *string `json:"requested_by,omitempty"`
+	DecidedBy    *string `json:"decided_by,omitempty"`
+	DecidedOn    *string `json:"decided_on,omitempty"`
+	DecisionNote *string `json:"decision_note,omitempty"`
+	ReferenceNo  *string `json:"reference_no,omitempty"`
 }
 
 // listRefunds shows money going back out, which is the half of a fee ledger
 // nobody builds until an auditor asks for it.
 func (s *Server) listRefunds(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
-		SELECT rf.id::text,
+		SELECT rf.id::text, st.id::text,
 		       concat_ws(' ', st.first_name, st.last_name), st.admission_no,
 		       rf.amount_paise, rf.reason, rf.mode, rf.status,
 		       to_char(rf.processed_on,'YYYY-MM-DD'),
-		       to_char(rf.created_at,'YYYY-MM-DD')
+		       to_char(rf.created_at,'YYYY-MM-DD'),
+		       ru.full_name, du.full_name,
+		       to_char(rf.approved_at,'YYYY-MM-DD'),
+		       rf.decision_note, rf.reference_no
 		  FROM refunds rf
 		  JOIN students st ON st.id = rf.student_id
-		 ORDER BY rf.created_at DESC
+		  LEFT JOIN users ru ON ru.id = rf.requested_by
+		  LEFT JOIN users du ON du.id = rf.approved_by
+		 -- Waiting first: the row somebody has to act on.
+		 ORDER BY rf.status <> 'pending', rf.status <> 'approved', rf.created_at DESC
 		 LIMIT 200`, nil,
 		func(rows pgx.Rows) (refundRow, error) {
 			var v refundRow
-			return v, rows.Scan(&v.ID, &v.StudentName, &v.AdmissionNo, &v.AmountPaise,
-				&v.Reason, &v.Mode, &v.Status, &v.ProcessedOn, &v.CreatedAt)
+			return v, rows.Scan(&v.ID, &v.StudentID, &v.StudentName, &v.AdmissionNo, &v.AmountPaise,
+				&v.Reason, &v.Mode, &v.Status, &v.ProcessedOn, &v.CreatedAt,
+				&v.RequestedBy, &v.DecidedBy, &v.DecidedOn, &v.DecisionNote, &v.ReferenceNo)
 		})
 	respond(w, r, items, err)
 }

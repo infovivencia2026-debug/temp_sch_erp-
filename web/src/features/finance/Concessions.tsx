@@ -48,6 +48,7 @@ interface Concession {
 
 interface Refund {
   id: string
+  student_id: string
   student_name: string
   admission_no: string
   amount_paise: number
@@ -56,7 +57,19 @@ interface Refund {
   status: string
   processed_on?: string
   created_at: string
+  requested_by?: string
+  decided_by?: string
+  decided_on?: string
+  decision_note?: string
+  reference_no?: string
 }
+
+const REFUND_MODES = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'neft', label: 'NEFT / IMPS' },
+  { value: 'upi', label: 'UPI' },
+  { value: 'cheque', label: 'Cheque' },
+]
 
 export default function Concessions() {
   const qc = useQueryClient()
@@ -90,6 +103,59 @@ export default function Concessions() {
       )
       qc.invalidateQueries({ queryKey: ['concessions'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
+    },
+  })
+
+  /* THE REFUND WRITE PATH. The table could be listed and never written: no
+     refund could be raised, so none could be approved, so the payout batch
+     that consumes approved refunds was permanently empty. A child leaving
+     in November with two terms paid and unused had no settlement path. */
+  const maySign = can('finance.refunds.write')
+  const [refundStudent, setRefundStudent] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const students = useQuery({
+    queryKey: ['students-picker'],
+    queryFn: () => api.get<List<{ id: string; full_name?: string; admission_no?: string }>>('/api/v1/students?limit=400'),
+  })
+  const requestRefund = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/fees/refunds', {
+        student_id: refundStudent,
+        amount_paise: Math.round(Number(refundAmount || 0) * 100),
+        reason: refundReason,
+      }),
+    onSuccess: () => {
+      setNote('Refund raised. It waits for sign-off before any money moves.')
+      setRefundStudent('')
+      setRefundAmount('')
+      setRefundReason('')
+      qc.invalidateQueries({ queryKey: ['refunds'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    },
+  })
+  const [refundNotes, setRefundNotes] = useState<Record<string, string>>({})
+  const decideRefund = useMutation({
+    mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) =>
+      api.post(`/api/v1/fees/refunds/${v.id}/decide`, { decision: v.decision, note: refundNotes[v.id] ?? '' }),
+    onSuccess: (_r, v) => {
+      setNote(v.decision === 'approved' ? 'Approved. Mark it paid once the money has gone.' : 'Refused.')
+      qc.invalidateQueries({ queryKey: ['refunds'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    },
+  })
+  /* How it was paid and the bank's reference, per row: the UTR is what the
+     family quotes when they say the money never arrived. */
+  const [payout, setPayout] = useState<Record<string, { mode: string; ref: string }>>({})
+  const processRefund = useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/api/v1/fees/refunds/${id}/process`, {
+        mode: payout[id]?.mode ?? 'neft',
+        reference_no: payout[id]?.ref ?? '',
+      }),
+    onSuccess: () => {
+      setNote('Paid out and on the ledger.')
+      qc.invalidateQueries({ queryKey: ['refunds'] })
     },
   })
 
@@ -129,7 +195,7 @@ export default function Concessions() {
           <Stat label="Refunded" value={refunded ? formatPaise(refunded) : '—'} />
         </CellGrid>
 
-        <FormNotice error={decide.error} ok={note} />
+        <FormNotice error={decide.error ?? requestRefund.error ?? decideRefund.error ?? processRefund.error} ok={note} />
 
         <Card>
           <CardHeader
@@ -236,14 +302,48 @@ export default function Concessions() {
         </Card>
 
         <Card>
-          <CardHeader title="Refunds" description="Money returned, and what it was against" />
+          <CardHeader
+            title="Refunds"
+            description="Money returned, and what it was against. Raised by the office, signed off, then marked paid — a refund cannot exceed what the family actually paid."
+          />
+          {mayDecide && (
+            <div className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
+              <label className="flex min-w-[16rem] flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">Child</span>
+                <Select
+                  value={refundStudent}
+                  onChange={setRefundStudent}
+                  placeholder="Choose a child"
+                  options={(students.data?.items ?? []).map((s) => ({
+                    value: s.id,
+                    label: s.admission_no ? `${s.full_name ?? s.id} · ${s.admission_no}` : (s.full_name ?? s.id),
+                  }))}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">Amount (₹)</span>
+                <Input className="w-32" value={refundAmount} onChange={setRefundAmount} placeholder="0" />
+              </label>
+              <label className="flex min-w-[18rem] flex-1 flex-col gap-1 text-[12.5px]">
+                <span className="text-muted-foreground">Why the money is going back</span>
+                <Input value={refundReason} onChange={setRefundReason} placeholder="Left in November; terms 2 and 3 unused" />
+              </label>
+              <Button
+                size="sm"
+                disabled={requestRefund.isPending || !refundStudent || !(Number(refundAmount) > 0) || !refundReason.trim()}
+                onClick={() => requestRefund.mutate()}
+              >
+                Raise refund
+              </Button>
+            </div>
+          )}
           {refunds.isLoading ? (
-            <SkeletonTable columns={6} />
+            <SkeletonTable columns={7} />
           ) : refunds.error ? (
             <ErrorState error={refunds.error} />
           ) : (
             <Table
-              head={['Student', 'Amount', 'Reason', 'Mode', 'Status', 'Processed']}
+              head={['Student', 'Amount', 'Reason', 'Mode', 'Status', 'Processed', '']}
               empty={!rs.length}
               emptyLabel="No refunds raised."
             >
@@ -256,11 +356,77 @@ export default function Concessions() {
                     </span>
                   </Td>
                   <Td className={cn('tabular-nums font-medium')}>{formatPaise(r.amount_paise)}</Td>
-                  <Td className="text-muted-foreground">{r.reason ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{r.mode ?? '—'}</Td>
-                  <Td><StatusPill status={r.status} /></Td>
+                  <Td className="text-muted-foreground">
+                    <span className="block max-w-[24ch] truncate" title={r.reason ?? ''}>{r.reason ?? '—'}</span>
+                  </Td>
+                  <Td className="text-muted-foreground">
+                    {r.mode ?? '—'}
+                    {r.reference_no && (
+                      <span className="block font-mono text-[11.5px]">{r.reference_no}</span>
+                    )}
+                  </Td>
+                  <Td>
+                    <StatusPill status={r.status} />
+                    {r.requested_by && (
+                      <span className="block text-[11.5px] text-muted-foreground">
+                        asked by {r.requested_by} · {formatDate(r.created_at)}
+                      </span>
+                    )}
+                    {r.decided_by && (
+                      <span className="block text-[11.5px] text-muted-foreground">
+                        {r.status === 'rejected' ? 'refused' : 'approved'} by {r.decided_by}
+                        {r.decided_on ? ` · ${formatDate(r.decided_on)}` : ''}
+                      </span>
+                    )}
+                    {r.decision_note && (
+                      <span className="block max-w-[28ch] text-[11.5px] text-muted-foreground">“{r.decision_note}”</span>
+                    )}
+                  </Td>
                   <Td className="text-muted-foreground">
                     {r.processed_on ? formatDate(r.processed_on) : '—'}
+                  </Td>
+                  <Td>
+                    {r.status === 'pending' && maySign && (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Input
+                          className="w-44"
+                          value={refundNotes[r.id] ?? ''}
+                          onChange={(v) => setRefundNotes({ ...refundNotes, [r.id]: v })}
+                          placeholder="Reason for the decision"
+                        />
+                        <Button size="sm" disabled={decideRefund.isPending}
+                          onClick={() => decideRefund.mutate({ id: r.id, decision: 'approved' })}>
+                          Approve
+                        </Button>
+                        <ConfirmButton size="sm" variant="secondary" tone="danger" disabled={decideRefund.isPending}
+                          confirmLabel="Refuse"
+                          question="Refuse this refund? It stays on the record with your reason."
+                          onConfirm={() => decideRefund.mutate({ id: r.id, decision: 'rejected' })}>
+                          Refuse
+                        </ConfirmButton>
+                      </span>
+                    )}
+                    {r.status === 'approved' && maySign && (
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Select
+                          value={payout[r.id]?.mode ?? 'neft'}
+                          onChange={(v) => setPayout({ ...payout, [r.id]: { mode: v, ref: payout[r.id]?.ref ?? '' } })}
+                          options={REFUND_MODES}
+                        />
+                        <Input
+                          className="w-36"
+                          value={payout[r.id]?.ref ?? ''}
+                          onChange={(v) => setPayout({ ...payout, [r.id]: { mode: payout[r.id]?.mode ?? 'neft', ref: v } })}
+                          placeholder="UTR / cheque no."
+                        />
+                        <ConfirmButton size="sm" disabled={processRefund.isPending}
+                          confirmLabel="Mark paid"
+                          question="Record this refund as paid out? It goes on the family's ledger as money returned."
+                          onConfirm={() => processRefund.mutate(r.id)}>
+                          Mark paid
+                        </ConfirmButton>
+                      </span>
+                    )}
                   </Td>
                 </tr>
               ))}

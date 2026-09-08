@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -433,3 +434,91 @@ func TestApprovedFeeVersionIsWhatIsBilled(t *testing.T) {
 		t.Errorf("invoice cites version %v, want %s", cited, version)
 	}
 }
+
+/*
+TestRefundCanBeRaisedSignedAndPaid is the exit-settlement gap: the refunds
+table could be listed and never written, so nothing ever reached the payout
+batch and the ledger never showed money going back.
+
+	A refund cannot exceed what was actually paid; a refusal needs a reason;
+	only a pending one is decided and only an approved one is paid.
+*/
+func TestRefundCanBeRaisedSignedAndPaid(t *testing.T) {
+	db := testDB(t)
+	requirePolicyBoundConnection(t, db)
+	w := seedFeesWorld(t, db)
+
+	child := w.student(t, "Leaver")
+	// The people, because requested_by and approved_by are real users.
+	clerk, head := uuid.New(), uuid.New()
+	w.exec(t, `INSERT INTO users (id, institution_id, full_name, status, email)
+	           VALUES ($1,$3,'Clerk','active',$4), ($2,$3,'Head','active',$5)`,
+		clerk, head, w.inst, "clerk-"+clerk.String()[:8]+"@school.test", "head-"+head.String()[:8]+"@school.test")
+	clerkID := &httpx.Identity{UserID: clerk, InstitutionID: w.inst}
+	headID := &httpx.Identity{UserID: head, InstitutionID: w.inst}
+
+	// Paid ₹30,000 in cash; a ₹7,000 carry adjustment must not count as paid.
+	w.exec(t, `INSERT INTO payments (institution_id, campus_id, student_id, amount_paise, mode, status)
+	           VALUES ($1,$2,$3,3000000,'cash','success'), ($1,$2,$3,700000,'adjustment','success')`,
+		w.inst, w.campus, child)
+
+	body := func(paise int64, reason string) string {
+		return `{"student_id":"` + child.String() + `","amount_paise":` + itoa64(paise) + `,"reason":"` + reason + `"}`
+	}
+	if code, out := w.call(t, w.s.requestRefund, clerkID, body(3100000, "too much")); code != http.StatusConflict {
+		t.Fatalf("refund above what was paid: %d %v, want 409", code, out)
+	}
+	if code, out := w.call(t, w.s.requestRefund, clerkID, body(1000000, "")); code != http.StatusBadRequest {
+		t.Fatalf("refund with no reason: %d %v, want 400", code, out)
+	}
+	code, out := w.call(t, w.s.requestRefund, clerkID, body(2000000, "Left in November, terms 2-3 unused"))
+	if code != http.StatusCreated {
+		t.Fatalf("raise refund: %d %v", code, out)
+	}
+	refund := out["id"].(string)
+
+	// Pending money already asked for counts against what is left.
+	if code, out := w.call(t, w.s.requestRefund, clerkID, body(1100000, "second")); code != http.StatusConflict {
+		t.Fatalf("second refund beyond the remainder: %d %v, want 409", code, out)
+	}
+
+	if code, out := w.call(t, w.s.processRefund, headID, `{"mode":"neft"}`, "id", refund); code != http.StatusBadRequest {
+		t.Fatalf("pay out before approval: %d %v, want a refusal", code, out)
+	}
+	if code, out := w.call(t, w.s.decideRefund, headID, `{"decision":"rejected"}`, "id", refund); code != http.StatusBadRequest {
+		t.Fatalf("refuse without a reason: %d %v, want 400", code, out)
+	}
+	if code, out := w.call(t, w.s.decideRefund, headID, `{"decision":"approved","note":"Pro-rata for two terms"}`, "id", refund); code != http.StatusOK {
+		t.Fatalf("approve: %d %v", code, out)
+	}
+	if code, out := w.call(t, w.s.decideRefund, headID, `{"decision":"approved"}`, "id", refund); code != http.StatusBadRequest {
+		t.Fatalf("approve twice: %d %v, want a refusal", code, out)
+	}
+	if code, out := w.call(t, w.s.processRefund, headID, `{"mode":"neft","reference_no":"UTR123"}`, "id", refund); code != http.StatusOK {
+		t.Fatalf("pay out: %d %v", code, out)
+	}
+
+	var status, mode, ref string
+	var processedOn *time.Time
+	var approvedBy, processedBy *uuid.UUID
+	w.scan(t, `SELECT status, mode, reference_no, processed_on, approved_by, processed_by FROM refunds WHERE id = $1`,
+		[]any{&status, &mode, &ref, &processedOn, &approvedBy, &processedBy}, uuid.MustParse(refund))
+	if status != "processed" || mode != "neft" || ref != "UTR123" || processedOn == nil {
+		t.Errorf("after payout: %s %s %q %v", status, mode, ref, processedOn)
+	}
+	if approvedBy == nil || *approvedBy != head || processedBy == nil || *processedBy != head {
+		t.Errorf("signatures: approved by %v, paid by %v, want the head for both", approvedBy, processedBy)
+	}
+
+	// It is on the family's ledger as money going back out.
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req = req.WithContext(httpx.WithIdentity(req.Context(), w.identity(rbac.FeesRead, "students.read.all")))
+	req = withURLParam(req, "id", child.String())
+	rec := httptest.NewRecorder()
+	w.s.getStudentLedger(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"kind":"refund"`) {
+		t.Errorf("ledger after payout: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func itoa64(n int64) string { return strconv.FormatInt(n, 10) }
