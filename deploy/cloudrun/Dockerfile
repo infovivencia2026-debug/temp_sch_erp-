@@ -14,7 +14,7 @@
 # The image's default command is the web server. The other two run from the
 # same image with the command overridden:
 #
-#   web       (Cloud Run service)   ENTRYPOINT as is; set WEB_DIST=/app/web so
+#   web       (Cloud Run service)   ENTRYPOINT as is; set WEB_DIST=/app/dist so
 #                                   the binary serves the SPA itself -- there is
 #                                   no nginx here. PORT is honoured automatically.
 #                                   With QUEUE_INPROCESS=1 (service-web.yaml) it
@@ -77,11 +77,11 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${COMMIT}" 
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /out/web /out/worker /out/migrate /app/
-COPY --from=spa /src/web/dist /app/web
+COPY --from=spa /src/web/dist /app/dist
 # Nothing else is copied on purpose: migrations, templates and /static/ are
 # embedded in the binaries (migrations.FS, templates.Parse, static.FS), so the
 # migrate job needs no files beside it.
-ENV WEB_DIST=/app/web
+ENV WEB_DIST=/app/dist
 # Cloud Run sets PORT itself and the config honours it; 8080 is its default and
 # is what a local `docker run -p 8080:8080` reaches.
 EXPOSE 8080
