@@ -237,22 +237,31 @@ say "Health"
 URL="https://temperp-web-PLACEHOLDER-el.a.run.app"
 if [ "$DRY_RUN" = "1" ]; then
     echo "+ gcloud run services describe temperp-web --project $PROJECT_ID --region $REGION --format 'value(status.url)'"
-    echo "+ curl -fsS \$URL/healthz"
+    echo "+ gcloud run services add-iam-policy-binding temperp-web --member allUsers --role roles/run.invoker"
+    echo "+ curl -fsS \$URL/api/v1/session"
 else
     URL="$(gcloud run services describe temperp-web \
         --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)')"
     echo "  $URL"
-    # /healthz pings Postgres, so a 200 here means the revision is up AND can
-    # reach Neon with the app role -- the two things most likely to be wrong
-    # on a first deploy. Retried because the first request after a replace
-    # is the cold start.
+    # The Pages Function and the browser call this URL with no credentials,
+    # so the service must accept unauthenticated requests. Idempotent.
+    gcloud run services add-iam-policy-binding temperp-web \
+        --project "$PROJECT_ID" --region "$REGION" \
+        --member allUsers --role roles/run.invoker --quiet >/dev/null
+    # /api/v1/session, not /healthz: Cloud Run's edge answers an external
+    # /healthz with a Google 404 page on every service (the container
+    # probes still reach it, so the manifests keep it). /session is the
+    # first thing the SPA asks for, is unauthenticated by design, and its
+    # handler opens a tenant transaction, so a 200 here means the revision
+    # is up AND can reach Neon with the app role. Retried because the first
+    # request after a replace is the cold start.
     for attempt in 1 2 3 4 5 6; do
-        if body="$(curl -fsS --max-time 20 "$URL/healthz" 2>/dev/null)"; then
-            echo "  healthz: $body"
+        if body="$(curl -fsS --max-time 20 "$URL/api/v1/session" 2>/dev/null)"; then
+            echo "  session: $body"
             break
         fi
         if [ "$attempt" = "6" ]; then
-            echo "  !! $URL/healthz did not answer 200 after six tries" >&2
+            echo "  !! $URL/api/v1/session did not answer 200 after six tries" >&2
             echo "  !! read: gcloud run services logs read temperp-web --project $PROJECT_ID --region $REGION" >&2
             exit 1
         fi
