@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List } from '@/lib/api'
+import { api, type List, type AcademicYear } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, SkeletonTable, ErrorState, ExportButton,
@@ -72,9 +72,18 @@ export default function Pipeline() {
     queryKey: ['merit', testWeight],
     queryFn: () => api.get<List<Merit>>(`/api/v1/admissions/workflow/merit?test_weight=${testWeight}`),
   })
+  /* Which year's seats. Sections are per year, so once next year's exist the
+     office needs to say which intake it is looking at; blank is the year the
+     open admission session admits into. */
+  const [seatYear, setSeatYear] = useState('')
+  const years = useQuery({
+    queryKey: ['years'],
+    queryFn: () => api.get<List<AcademicYear>>('/api/v1/academics/years'),
+  })
   const seats = useQuery({
-    queryKey: ['seats'],
-    queryFn: () => api.get<List<Seat>>('/api/v1/admissions/workflow/seats'),
+    queryKey: ['seats', seatYear],
+    queryFn: () => api.get<List<Seat>>(
+      `/api/v1/admissions/workflow/seats${seatYear ? `?academic_year_id=${seatYear}` : ''}`),
   })
   const funnel = useQuery({
     queryKey: ['funnel'],
@@ -135,7 +144,18 @@ export default function Pipeline() {
 
   const seatsCard = (
           <Card>
-            <CardHeader title="Seat matrix" description="RTE reservation is 25% of sanctioned intake" />
+            <CardHeader
+              title="Seat matrix"
+              description="RTE reservation is 25% of sanctioned intake. Capacity is the chosen year's sections only."
+              action={
+                <Select
+                  value={seatYear}
+                  onChange={setSeatYear}
+                  options={(years.data?.items ?? []).map((y) => ({ value: y.id, label: y.name }))}
+                  placeholder="Admission year"
+                />
+              }
+            />
             {seats.isLoading ? <SkeletonTable columns={7} /> : (
               <Table head={['Class', 'Capacity', 'Enrolled', 'Offered', 'Available', 'RTE quota', 'RTE filled']}
                 empty={!seats.data?.items.length}>
