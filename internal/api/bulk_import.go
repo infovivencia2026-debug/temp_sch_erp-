@@ -2672,10 +2672,20 @@ var importSpecs = map[string]importSpec{
 				   none -- it hands somebody a workspace that is not theirs. */
 				RoleKey: staffRoleKey(row["role"], row["designation"]),
 			}
-			// A login is minted only where there is an address to send it to.
-			// A teacher with no email is still a teacher; inventing a username
-			// for them creates an account nobody will ever sign in to.
-			req.CreateLogin = req.Email != "" && req.RoleKey != ""
+			/* A login is minted where there is something to sign in WITH.
+			 *
+			 * That used to mean an email, and sign-in has never meant only an
+			 * email: it matches an email, a phone number or a username. So a
+			 * roll of aayas, drivers and janitors -- a mobile number each and
+			 * not one address between them -- imported as personnel records
+			 * with no account, and the school's way round it was to put one
+			 * invented address on all of them, which the users table absorbs
+			 * into a single account holding whichever name landed last.
+			 *
+			 * A number is an address to send it to. What is still required is
+			 * one of the two and a role: an account with no role signs in to
+			 * an empty rail, which is worse than no account. */
+			req.CreateLogin = (req.Email != "" || req.Phone != "") && req.RoleKey != ""
 			empID, userID, created, err := appointEmployee(c.r.Context(), c.tx, c.inst, c.campus, req)
 			if err != nil {
 				return err
@@ -2767,10 +2777,10 @@ var importSpecs = map[string]importSpec{
 			if strings.TrimSpace(userID) == "" {
 				return fmt.Errorf(
 					"%q teaches %s, and what somebody teaches is held against their "+
-						"login. This row has no email, or no role to give, so no "+
-						"account was made and the subjects would be lost. Add an "+
-						"email and a role, or leave the subjects column out and set "+
-						"them on the allocation sheet",
+						"login. This row has no email or phone, or no role to give, "+
+						"so no account was made and the subjects would be lost. "+
+						"Add an email or a phone number and a role, or leave the "+
+						"subjects column out and set them on the allocation sheet",
 					strings.TrimSpace(row["first_name"]), list)
 			}
 			for _, want := range splitSubjects(list) {

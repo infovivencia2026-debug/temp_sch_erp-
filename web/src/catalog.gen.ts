@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 397 features. */
+/** 23 roles, 396 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -352,7 +352,6 @@ export const ROLES: Role[] = [
         name: 'My Profile',
         workspace: 'My Profile',
         features: [
-          { key: 'institution_admin.my_profile.leave_self_service', slug: 'leave_self_service', name: 'Leave & self service', scope: 'self', tier: 'core', summary: 'Apply for your own leave, and see where it has got to. A principal takes leave too.' },
           { key: 'institution_admin.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },

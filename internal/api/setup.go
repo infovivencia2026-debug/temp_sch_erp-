@@ -1381,8 +1381,21 @@ func (req employeeRequest) validate() error {
 	if req.EmployeeCode == "" || req.FirstName == "" {
 		return errors.New("employee_code and first_name are required")
 	}
-	if req.CreateLogin && req.Email == "" {
-		return errors.New("an email is required to create a login")
+	/* EITHER CONTACT WILL DO, BECAUSE SIGN-IN ALREADY TAKES EITHER.
+	 *
+	 * Login has accepted an email, a phone number or a username since it was
+	 * written -- see internal/auth/handler.go, which matches all three. This
+	 * check insisted on the email anyway, so the aya, the driver and the
+	 * janitor, who have a mobile number and no address between them, could
+	 * not be given an account at all. A school that runs on phone numbers was
+	 * told to invent email addresses, and it did: four staff at Yajur share
+	 * one made-up gmail, which the users table then absorbs into a single
+	 * account.
+	 *
+	 * Requiring one of the two is the real constraint: an account nobody can
+	 * name is an account nobody can sign into. */
+	if req.CreateLogin && req.Email == "" && req.Phone == "" {
+		return errors.New("an email or a phone number is required to create a login")
 	}
 	return nil
 }
@@ -1413,7 +1426,14 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 			ON CONFLICT (institution_id, email) WHERE email IS NOT NULL
 			DO UPDATE SET full_name = EXCLUDED.full_name
 			RETURNING id::text`,
-			instID, req.Email, nullString(req.Phone),
+			/* NULL, not the empty string, when there is no email.
+			 *
+			 * The unique index is partial -- WHERE email IS NOT NULL -- and ''
+			 * is not null. Passing the empty string would make every
+			 * phone-only member of staff collide with the last one on the
+			 * email index and be absorbed by it, which is the exact failure
+			 * this change exists to stop. */
+			instID, nullString(req.Email), nullString(req.Phone),
 			strings.TrimSpace(req.FirstName+" "+req.LastName)).Scan(&userID); err != nil {
 			/* THE TABLE HAS TWO UNIQUE CONSTRAINTS AND THIS ANTICIPATED ONE.
 

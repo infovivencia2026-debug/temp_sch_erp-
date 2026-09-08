@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
-import { useCan } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 
 /* Leave, as the queue it is.
@@ -146,6 +146,27 @@ export default function Leave() {
    * way round: this door is "my leave", and deciding somebody else's belongs
    * behind the entry that says so. */
   const mayDecide = canDecide && !mine
+
+  /* NOBODY APPLIES TO THEMSELVES.
+   *
+   * "Apply for my leave" asks whoever runs the school to file a request that
+   * goes, as the card says underneath, "to whoever approves leave at this
+   * school" -- which is them. It lands in their own queue for their own
+   * decision, and the school's owner does not take leave from anybody.
+   *
+   * Gone on both doors, not only the self-service one. The approver's route
+   * shows the same card with a "Whose leave" selector, which is how an
+   * application is filed for a teacher who cannot file it -- but that work
+   * belongs to HR and to whoever else holds hr.leave.approve, and they keep
+   * it. The one person it does not belong to is the person every request is
+   * addressed to.
+   *
+   * Note this hides the card and nothing else: the queue, the decisions and
+   * the whole history stay exactly as they were. It is the applying that
+   * makes no sense here, not the deciding. */
+  const roles = useSession().user?.roles ?? []
+  const runsTheSchool = roles.includes('institution_admin') || roles.includes('super_admin')
+  const mayApply = !runsTheSchool
 
   /* FILING SOMEBODY ELSE'S LEAVE.
 
@@ -290,6 +311,7 @@ export default function Leave() {
           />
         </CellGrid>
 
+        {mayApply && (
         <Card>
           <CardHeader
             title="Apply for my leave"
@@ -419,6 +441,7 @@ export default function Leave() {
             <p className="px-5 pb-4 text-[13.5px] text-muted-foreground">{applied}</p>
           )}
         </Card>
+        )}
 
         <Card>
           <CardHeader
