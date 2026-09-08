@@ -16,6 +16,7 @@ import { messagingKeys } from './super_admin/messaging-keys'
 import { rollupKeys } from './analytics/rollup-keys'
 import { statutoryKeys } from './compliance/statutory-keys'
 import { tallyKeys } from './finance/tally-keys'
+import { periodCloseKeys } from './finance/period-close-keys'
 import { timetableOpsKeys } from './academics/timetable-ops-keys'
 import { hodKeys } from './hod/keys'
 import { adminOpsKeys } from './operations/admin-ops-keys'
@@ -550,6 +551,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...rollupKeys,
   ...statutoryKeys,
   ...tallyKeys,
+  ...periodCloseKeys,
   ...hodKeys,
   ...timetableOpsKeys,
   ...adminOpsKeys,

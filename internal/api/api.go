@@ -1287,6 +1287,8 @@ func (s *Server) Routes() http.Handler {
 			// Dropout risk and the cash outlook, as rules — see platform_signals.go.
 			s.mountPlatformSignals(r)
 			s.mountIntegrationsIndex(r)
+			// The month and year close -- see period_close.go.
+			s.mountPeriodClose(r)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

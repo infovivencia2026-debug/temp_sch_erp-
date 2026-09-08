@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 397 features. */
+/** 23 roles, 398 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -312,6 +312,7 @@ export const ROLES: Role[] = [
         workspace: 'Finance',
         features: [
           { key: 'institution_admin.fees.fee_dashboard', slug: 'fee_dashboard', name: 'Fee Dashboard', scope: 'institution', tier: 'core', summary: 'Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting.' },
+          { key: 'institution_admin.fees.period_close', slug: 'period_close', name: 'Period Close', scope: 'institution', tier: 'core', summary: 'Which months of the year are finished, and the year itself. Close a month and the register, the fee counter, the payslip and cheque bounces dated inside it become read-only; close the year and its marks and fee demands do too. Reopen here when a correction is needed.' },
           { key: 'institution_admin.fees.fee_default', slug: 'fee_default', name: 'Fee Default', scope: 'institution', tier: 'core', summary: 'Who is behind, by how much and for how long, grouped by class. The accountant works the counter; this is the list a principal takes into a parent meeting.' },
         ],
       },

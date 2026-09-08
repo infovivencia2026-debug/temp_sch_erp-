@@ -578,6 +578,17 @@ func (s *Server) moderateMarks(w http.ResponseWriter, r *http.Request) {
 
 	var touched int64
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Moderation rewrites grace_marks on every row of the paper, which is
+		// a marks entry by another door; it is shut by the same year close.
+		var yearID uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
+			SELECT e.academic_year_id FROM exam_subjects es
+			  JOIN exams e ON e.id = es.exam_id WHERE es.id = $1`, esID).Scan(&yearID); err != nil {
+			return err
+		}
+		if err := s.requireOpenYear(r.Context(), tx, yearID); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO mark_moderations
 			       (institution_id, exam_subject_id, adjustment, reason, moderated_by)

@@ -297,6 +297,11 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 			studentID).Scan(&instID, &campusID); err != nil {
 			return err
 		}
+		// A receipt back-dated into a closed month changes a collection
+		// figure the school has already tied out and reported.
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", paidOn); err != nil {
+			return err
+		}
 
 		receipt, err = fees.Collect(r.Context(), tx, fees.CollectRequest{
 			InstitutionID: instID, CampusID: campusID, StudentID: studentID,
@@ -375,6 +380,9 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, fees.ErrInvoiceNotFound) {
 		httpx.BadRequest(w, r, "none of the selected invoices are outstanding for this student")
+		return
+	}
+	if periodClosed(w, r, err) {
 		return
 	}
 	if err != nil {
@@ -523,6 +531,20 @@ func (s *Server) bounceCheque(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Bouncing is the one way a receipt is undone: the invoice reopens
+		// and the money leaves the month it was counted in. Once that month
+		// is closed the dishonour is booked where the bank told us, in the
+		// open month, after the principal has reopened the old one.
+		var instID uuid.UUID
+		var paidOn time.Time
+		if err := tx.QueryRow(r.Context(),
+			`SELECT institution_id, paid_on FROM payments WHERE id = $1`, paymentID).
+			Scan(&instID, &paidOn); err != nil {
+			return err
+		}
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", paidOn); err != nil {
+			return err
+		}
 		fine := req.FinePaise
 		if fine <= 0 {
 			/* The school's standing amount, where it has set one.
@@ -544,6 +566,13 @@ func (s *Server) bounceCheque(w http.ResponseWriter, r *http.Request) {
 		}
 		return fees.BounceCheque(r.Context(), tx, paymentID, fine)
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -763,6 +792,15 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			SELECT institution_id, campus_id, academic_year_id, class_id
 			  FROM fee_structures WHERE id = $1 AND is_active`, structureID).
 			Scan(&instID, &campusID, &yearID, &classID); err != nil {
+			return err
+		}
+		// A demand raised into a closed year is a debt the year's books do
+		// not show. The invoice is dated today as well, so a closed current
+		// month refuses it too.
+		if err := s.requireOpenYear(r.Context(), tx, yearID); err != nil {
+			return err
+		}
+		if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", time.Now()); err != nil {
 			return err
 		}
 

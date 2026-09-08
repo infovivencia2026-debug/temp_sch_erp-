@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -123,6 +124,19 @@ func (s *Server) decideCorrection(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if req.Decision == "approved" {
+			// Approving is the write; the request itself changed nothing. A
+			// correction to a closed month waits for the principal to reopen
+			// it, and the request stays pending until then.
+			var instID uuid.UUID
+			var onDate time.Time
+			if err := tx.QueryRow(r.Context(),
+				`SELECT institution_id, on_date FROM student_attendance WHERE id = $1`, attID).
+				Scan(&instID, &onDate); err != nil {
+				return err
+			}
+			if err := s.requireOpenPeriod(r.Context(), tx, instID, "month", onDate); err != nil {
+				return err
+			}
 			// The register keeps the previous value in corrected_from, so the
 			// audit trail survives on the row itself as well as in the
 			// correction record.
@@ -176,6 +190,9 @@ func (s *Server) decideCorrection(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.Error(w, r, http.StatusNotFound, "not_found", "no pending correction with that id")
+		return
+	}
+	if periodClosed(w, r, err) {
 		return
 	}
 	if err != nil {
@@ -393,16 +410,23 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 		var maxMarks float64
 		var subject string
 		var scaleID *uuid.UUID
+		var yearID uuid.UUID
 		// The subject name comes back with the ceiling so a rejection can name
 		// the paper: "50 is above the maximum for Mathematics" is actionable,
 		// "marks out of range" is not.
 		if err := tx.QueryRow(r.Context(), `
-			SELECT es.max_marks, COALESCE(sub.name, ''), e.grading_scale_id
+			SELECT es.max_marks, COALESCE(sub.name, ''), e.grading_scale_id, e.academic_year_id
 			  FROM exam_subjects es
 			  JOIN exams e            ON e.id = es.exam_id
 			  LEFT JOIN class_subjects cs ON cs.id = es.class_subject_id
 			  LEFT JOIN subjects sub  ON sub.id = cs.subject_id
-			 WHERE es.id = $1`, esID).Scan(&maxMarks, &subject, &scaleID); err != nil {
+			 WHERE es.id = $1`, esID).Scan(&maxMarks, &subject, &scaleID, &yearID); err != nil {
+			return err
+		}
+		// A published report card is built from these rows. Once the year is
+		// closed the card is the record, and a mark that moves under it is
+		// the thing an auditor cannot be shown.
+		if err := s.requireOpenYear(r.Context(), tx, yearID); err != nil {
 			return err
 		}
 
@@ -458,6 +482,9 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.NotFound(w, r)
+		return
+	}
+	if periodClosed(w, r, err) {
 		return
 	}
 	if err != nil {

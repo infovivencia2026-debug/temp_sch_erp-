@@ -782,19 +782,33 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 	var gross, deduction, net int64
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Before the upsert: a run row must not appear for a month the school
+		// has already closed.
+		if err := s.requireOpenPeriod(r.Context(), tx, id.InstitutionID, "month",
+			time.Date(req.Year, time.Month(req.Month), 1, 0, 0, 0, 0, time.UTC)); err != nil {
+			return err
+		}
 		var status string
+		var bankFileAt *time.Time
 		err := tx.QueryRow(r.Context(), `
 			INSERT INTO payroll_runs (institution_id, period_month, period_year, status, run_by)
 			VALUES ($1,$2,$3,'draft',$4)
 			ON CONFLICT (institution_id, period_year, period_month) DO UPDATE
 			   SET run_by = EXCLUDED.run_by
-			RETURNING id, status`, id.InstitutionID, req.Month, req.Year, id.UserID).
-			Scan(&runID, &status)
+			RETURNING id, status, bank_file_drawn_at`, id.InstitutionID, req.Month, req.Year, id.UserID).
+			Scan(&runID, &status, &bankFileAt)
 		if err != nil {
 			return err
 		}
 		if status == "locked" || status == "paid" {
 			return errPayrollLocked
+		}
+		// The bank has the figures. Whatever the state machine says, a run
+		// whose file has left the building is a record of a transfer, and
+		// deleting its payslips to write new ones would leave the school's
+		// books disagreeing with the bank's.
+		if bankFileAt != nil {
+			return errPayrollExported
 		}
 
 		// Recompute from scratch: a re-run must amend, never accumulate.
@@ -1089,6 +1103,14 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 			"this month's payroll is locked; payslips already issued cannot be recomputed")
 		return
 	}
+	if errors.Is(err, errPayrollExported) {
+		httpx.Error(w, r, http.StatusConflict, "payroll_exported",
+			"this month's salary file has already gone to the bank; its payslips cannot be recomputed")
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
@@ -1100,6 +1122,10 @@ func (s *Server) runPayroll(w http.ResponseWriter, r *http.Request) {
 }
 
 var errPayrollLocked = errors.New("payroll run is locked")
+
+// errPayrollExported: the bank file was drawn, so the run is a record of a
+// transfer whatever its status says.
+var errPayrollExported = errors.New("payroll bank file already drawn")
 
 type payslipRow struct {
 	EmployeeCode string `json:"employee_code"`

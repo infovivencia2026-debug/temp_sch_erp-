@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 397 features.
+// Roles is the catalog: 23 roles, 398 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -359,6 +359,7 @@ var Roles = []Role{
 				Workspace: "Finance",
 				Features: []Feature{
 					{Key: "institution_admin.fees.fee_dashboard", Slug: "fee_dashboard", Name: "Fee Dashboard", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting."},
+					{Key: "institution_admin.fees.period_close", Slug: "period_close", Name: "Period Close", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Which months of the year are finished, and the year itself. Close a month and the register, the fee counter, the payslip and cheque bounces dated inside it become read-only; close the year and its marks and fee demands do too. Reopen here when a correction is needed."},
 					{Key: "institution_admin.fees.fee_default", Slug: "fee_default", Name: "Fee Default", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who is behind, by how much and for how long, grouped by class. The accountant works the counter; this is the list a principal takes into a parent meeting."},
 				},
 			},
