@@ -1,0 +1,14 @@
+# Cloudflare Pages configuration for the school-erp project.
+#
+# With this file present, Pages takes the project's variables from here on
+# every git build and the dashboard's own variables become read-only. That
+# is the point: API_ORIGIN is the one setting that decides which backend the
+# edge proxies to, and it belongs in the repo next to the Function that reads
+# it (functions/[[path]].ts), not in a console field nobody can diff.
+name = "school-erp"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"
+
+[vars]
+# The Cloud Run service (deploy/cloudrun/deploy.sh). No trailing slash.
+API_ORIGIN = "https://temperp-web-480232416236.asia-south1.run.app"
