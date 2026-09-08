@@ -567,7 +567,19 @@ func (s *Server) listReportRemarks(w http.ResponseWriter, r *http.Request) {
 		       nullif(btrim(COALESCE(rc.class_teacher_remarks,'')),'') IS NOT NULL
 		  FROM enrollments e
 		  JOIN students st ON st.id = e.student_id
-		  LEFT JOIN report_cards rc ON rc.student_id = st.id AND rc.term_id = $2
+		  /* The term's card. A term can hold several exams and so several
+		     cards; the one that carries the remarks wins, then the term
+		     exam over a unit test, then the latest. */
+		  LEFT JOIN LATERAL (
+		      SELECT rc.* FROM report_cards rc
+		      LEFT JOIN exams ex ON ex.id = rc.exam_id
+		       WHERE rc.student_id = st.id AND rc.term_id = $2
+		       ORDER BY (rc.class_teacher_remarks IS NOT NULL
+		                 OR rc.principal_remarks IS NOT NULL) DESC,
+		                (ex.kind = 'term') DESC NULLS LAST,
+		                ex.starts_on DESC NULLS LAST
+		       LIMIT 1
+		  ) rc ON true
 		  LEFT JOIN users ctu ON ctu.id = rc.class_teacher_remarks_by
 		  LEFT JOIN users pu  ON pu.id = rc.principal_remarks_by
 		 WHERE e.section_id = $1 AND e.status = 'active'
@@ -667,7 +679,39 @@ func (s *Server) saveReportRemark(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		/* Onto the term's card where one exists.
+
+		   Generated cards now carry their term, so the remark goes on the
+		   card the family will open rather than on a row of its own. The
+		   term exam's card first, then the latest; a term with no card yet
+		   gets the remark-only row below, which generation adopts. */
 		tag, err := tx.Exec(r.Context(), `
+			UPDATE report_cards rc
+			   SET class_teacher_remarks    = COALESCE($3, rc.class_teacher_remarks),
+			       class_teacher_remarks_by = CASE WHEN $3::text IS NOT NULL THEN $2::uuid
+			                                       ELSE rc.class_teacher_remarks_by END,
+			       class_teacher_remarks_at = CASE WHEN $3::text IS NOT NULL THEN now()
+			                                       ELSE rc.class_teacher_remarks_at END,
+			       principal_remarks        = COALESCE($4, rc.principal_remarks),
+			       principal_remarks_by     = CASE WHEN $4::text IS NOT NULL THEN $2::uuid
+			                                       ELSE rc.principal_remarks_by END,
+			       principal_remarks_at     = CASE WHEN $4::text IS NOT NULL THEN now()
+			                                       ELSE rc.principal_remarks_at END
+			 WHERE rc.id = (SELECT c.id FROM report_cards c
+			                  JOIN exams ex ON ex.id = c.exam_id
+			                 WHERE c.student_id = $1 AND c.term_id = $5
+			                 ORDER BY (ex.kind = 'term') DESC, ex.starts_on DESC NULLS LAST
+			                 LIMIT 1)`,
+			studentID, id.UserID, req.Remark, req.Principal, termID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() > 0 {
+			saved = true
+			return nil
+		}
+
+		tag, err = tx.Exec(r.Context(), `
 			INSERT INTO report_cards (institution_id, student_id, academic_year_id,
 			                          term_id, enrollment_id,
 			                          class_teacher_remarks, class_teacher_remarks_by,
@@ -687,9 +731,10 @@ func (s *Server) saveReportRemark(w http.ResponseWriter, r *http.Request) {
 			           CASE WHEN $5::text IS NOT NULL THEN now() END
 			  FROM terms t
 			 WHERE t.id = $6
-			-- The unique constraint over (student, year, term). term_id is never
-			-- NULL on this path, so the partial annual index is the wrong target.
-			ON CONFLICT (student_id, academic_year_id, term_id) DO UPDATE SET
+			-- The remark-only row: one per child per term until the term's
+			-- card is generated and takes it over.
+			ON CONFLICT (student_id, academic_year_id, term_id)
+			      WHERE exam_id IS NULL AND term_id IS NOT NULL DO UPDATE SET
 			    class_teacher_remarks    = COALESCE(EXCLUDED.class_teacher_remarks,
 			                                        report_cards.class_teacher_remarks),
 			    class_teacher_remarks_by = COALESCE(EXCLUDED.class_teacher_remarks_by,

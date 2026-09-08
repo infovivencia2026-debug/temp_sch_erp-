@@ -597,6 +597,30 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 
 	created := 0
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* The remarks written before the card existed.
+
+		   A class teacher drafts the term's remarks in the last week and the
+		   cards are run afterwards, so a remark-only row for this term is the
+		   usual case, not the odd one. It becomes this exam's card rather
+		   than sitting beside it as a second row with words and no numbers:
+		   the upsert below then fills the numbers in. Only where the child
+		   has no card for this exam yet, and only for this section. */
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE report_cards rc
+			   SET exam_id = $1
+			  FROM exams ex
+			 WHERE ex.id = $1
+			   AND rc.exam_id IS NULL
+			   AND rc.term_id = ex.term_id
+			   AND rc.academic_year_id = ex.academic_year_id
+			   AND rc.total_marks IS NULL
+			   AND rc.student_id IN (SELECT e.student_id FROM enrollments e
+			                          WHERE e.section_id = $2 AND e.status = 'active')
+			   AND NOT EXISTS (SELECT 1 FROM report_cards c
+			                    WHERE c.student_id = rc.student_id AND c.exam_id = $1)`,
+			examID, sectionID); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(r.Context(), `
 			WITH totals AS (
 			  SELECT e.student_id, e.id AS enrollment_id, e.academic_year_id,
@@ -634,11 +658,14 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			    FROM totals
 			)
 			INSERT INTO report_cards (institution_id, student_id, academic_year_id, enrollment_id,
-			                          exam_id,
+			                          exam_id, term_id,
 			                          total_marks, max_marks, percentage, grade,
 			                          rank_in_section, attendance_percent, is_published, published_at,
 			                          status)
 			SELECT $3, r.student_id, r.academic_year_id, r.enrollment_id, $1,
+			       -- The card's term is its exam's. Left NULL, every card read
+			       -- as the year's card and Term 2 could not be told from Term 1.
+			       (SELECT term_id FROM exams WHERE id = $1),
 			       r.total, r.max_total, r.pct,
 			       (SELECT gb.grade FROM grade_bands gb
 			         WHERE gb.grading_scale_id = (SELECT grading_scale_id FROM exams WHERE id = $1)
@@ -658,7 +685,8 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			   the same exam still updates its own card, which is the point of
 			   the upsert -- a corrected mark reprints rather than duplicates. */
 			ON CONFLICT (student_id, exam_id) WHERE exam_id IS NOT NULL DO UPDATE
-			   SET total_marks = EXCLUDED.total_marks,
+			   SET term_id     = EXCLUDED.term_id,
+			       total_marks = EXCLUDED.total_marks,
 			       max_marks   = EXCLUDED.max_marks,
 			       percentage  = EXCLUDED.percentage,
 			       grade       = EXCLUDED.grade,

@@ -275,11 +275,14 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 	subjects := []familySubjectMark{}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			SELECT rc.id::text, COALESCE(t.name, ay.name, 'Result'), t.name,
+			-- The exam's name, then the term's, then the year's: a card is for
+			-- an exam, and a term can hold more than one of them.
+			SELECT rc.id::text, COALESCE(ex.name, t.name, ay.name, 'Result'), t.name,
 			       rc.total_marks, rc.max_marks, rc.percentage, rc.grade, rc.gpa,
 			       rc.rank_in_section, rc.attendance_percent, rc.class_teacher_remarks,
 			       to_char(rc.published_at,'YYYY-MM-DD')
 			  FROM report_cards rc
+			  LEFT JOIN exams ex          ON ex.id = rc.exam_id
 			  LEFT JOIN terms t           ON t.id = rc.term_id
 			  LEFT JOIN academic_years ay ON ay.id = rc.academic_year_id
 			 WHERE rc.student_id = $1 AND rc.is_published
