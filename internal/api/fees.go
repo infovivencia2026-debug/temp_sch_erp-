@@ -800,6 +800,20 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			return errNoLiveFeeVersion
 		}
 
+		/* THE LINES THIS RUN MAY BILL, decided once.
+
+		   The run read fee_structure_items — the unversioned table — and
+		   never wrote the version onto the invoice, so the careful ON
+		   DELETE RESTRICT guaranteeing "an invoice can always name the
+		   version it was raised under" protected a column that was NULL on
+		   every bill the system produced, and the committee's approved
+		   amounts were recorded and never charged. loadFeeRunLines is where
+		   the version, the approval and the amounts meet. */
+		source, err := loadFeeRunLines(r.Context(), tx, structureID, classID)
+		if err != nil {
+			return err
+		}
+
 		/* An instalment the structure does not have.
 
 		   Most schools price the year in one instalment and collect it in one
@@ -811,15 +825,9 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 		   with the school's own invoice sequence spent on them.
 
 		   The clerk's mistake is a typo in one field. The remedy is to say so
-		   before anything is written, not to hand back "created: 60". */
-		var lines int
-		if err := tx.QueryRow(r.Context(), `
-			SELECT count(*)::int FROM fee_structure_items
-			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
-			structureID, req.InstalmentNo).Scan(&lines); err != nil {
-			return err
-		}
-		/* A STRUCTURE WORTH NOTHING RAISES NOTHING, and says so.
+		   before anything is written, not to hand back "created: 60".
+
+		   A STRUCTURE WORTH NOTHING RAISES NOTHING, and says so.
 
 		   A structure whose heads are all zero is a stub somebody began and
 		   abandoned. Billing from it created an invoice for nought, which the
@@ -829,32 +837,24 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 
 		   Refused with the reason. Creating the zero invoice and warning
 		   afterwards would leave the row behind, and the guard against billing
-		   twice would then skip the child on the retry. */
-		var worth int64
-		if err := tx.QueryRow(r.Context(), `
-			SELECT COALESCE(sum(amount_paise), 0) FROM fee_structure_items
-			 WHERE fee_structure_id = $1 AND instalment_no = $2`,
-			structureID, req.InstalmentNo).Scan(&worth); err != nil {
-			return err
-		}
-		if lines > 0 && worth == 0 {
+		   twice would then skip the child on the retry.
+
+		   Paying the year at once bills every instalment, so the count and the
+		   value are the whole structure rather than one term of it. */
+		runLines, worth, instalments := source.forInstalment(req.InstalmentNo, req.AllInstalments)
+		if len(runLines) > 0 && worth == 0 {
 			return errStructureWorthNothing
 		}
-		/* Paying the year at once bills every instalment, so the count and the
-		   value are the whole structure rather than one term of it. */
-		if req.AllInstalments {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT count(*)::int, COALESCE(sum(amount_paise), 0)
-				  FROM fee_structure_items WHERE fee_structure_id = $1`,
-				structureID).Scan(&lines, &worth); err != nil {
-				return err
-			}
-			if lines == 0 || worth == 0 {
+		if len(runLines) == 0 {
+			if req.AllInstalments {
 				return errStructureWorthNothing
 			}
-		}
-		if lines == 0 {
 			return errNoSuchInstalment
+		}
+		headIDs := make([]uuid.UUID, len(runLines))
+		amounts := make([]int64, len(runLines))
+		for i, l := range runLines {
+			headIDs[i], amounts[i] = l.HeadID, l.AmountPaise
 		}
 
 		/* CONCESSIONS STILL WAITING ON A DECISION.
@@ -944,61 +944,51 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		/* How many instalments one bill covers, for the child's own charges.
-		   A structure line already says which instalment it is; a per-child
-		   component is priced per instalment and has to be told. */
-		instalments := 1
-		if req.AllInstalments {
-			if err := tx.QueryRow(r.Context(), `
-				SELECT count(DISTINCT instalment_no)::int FROM fee_structure_items
-				 WHERE fee_structure_id = $1`, structureID).Scan(&instalments); err != nil {
-				return err
-			}
-		}
-
 		for _, sid := range students {
 			invoiceNo, err := fees.NextNumber(r.Context(), tx, instID, "invoice")
 			if err != nil {
 				return err
 			}
 
+			// The version is written onto the bill, which is the key an
+			// auditor joins the filing to. NULL only where the school has
+			// never versioned, and then it truthfully reads "raised before
+			// versioning".
 			var invoiceID uuid.UUID
 			if err := tx.QueryRow(r.Context(), `
 				INSERT INTO invoices (institution_id, campus_id, student_id, academic_year_id,
 				                      invoice_no, instalment_no, issued_on, due_on,
-				                      gross_paise, discount_paise, status)
-				VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE,$7,0,0,'unpaid')
+				                      gross_paise, discount_paise, status, fee_structure_version_id)
+				VALUES ($1,$2,$3,$4,$5,$6,CURRENT_DATE,$7,0,0,'unpaid',$8)
 				RETURNING id`,
-				instID, campusID, sid, yearID, invoiceNo, req.InstalmentNo, dueOn).Scan(&invoiceID); err != nil {
+				instID, campusID, sid, yearID, invoiceNo, req.InstalmentNo, dueOn,
+				source.VersionID).Scan(&invoiceID); err != nil {
 				return fmt.Errorf("create invoice for %s: %w", sid, err)
 			}
 
-			// Lines from the structure, with the student's concession applied
-			// per head. A percentage concession is computed on that head's
+			// The run's lines, with the student's concession applied per
+			// head. A percentage concession is computed on that head's
 			// amount, which is why the discount lives on the line and not on
 			// the invoice header.
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO invoice_lines (institution_id, invoice_id, fee_head_id,
 				                           description, amount_paise, discount_paise)
-				SELECT $1, $2, fsi.fee_head_id, fh.name, fsi.amount_paise,
+				SELECT $1, $2, l.fee_head_id, fh.name, l.amount_paise,
 				       LEAST(
-				         fsi.amount_paise,
+				         l.amount_paise,
 				         COALESCE((
 				           SELECT COALESCE(max(fc.amount_paise),
-				                           max(round(fsi.amount_paise * fc.percent / 100.0))::bigint)
+				                           max(round(l.amount_paise * fc.percent / 100.0))::bigint)
 				             FROM fee_concessions fc
 				            WHERE fc.student_id = $3
 				              AND fc.academic_year_id = $4
 				              AND fc.approved_at IS NOT NULL
-				              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = fsi.fee_head_id)
+				              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = l.fee_head_id)
 				         ), 0)
 				       )
-				  FROM fee_structure_items fsi
-				  JOIN fee_heads fh ON fh.id = fsi.fee_head_id
-				 WHERE fsi.fee_structure_id = $5
-			   AND ($7::bool OR fsi.instalment_no = $6)`,
-				instID, invoiceID, sid, yearID, structureID, req.InstalmentNo,
-				req.AllInstalments); err != nil {
+				  FROM unnest($5::uuid[], $6::bigint[]) AS l(fee_head_id, amount_paise)
+				  JOIN fee_heads fh ON fh.id = l.fee_head_id`,
+				instID, invoiceID, sid, yearID, headIDs, amounts); err != nil {
 				return fmt.Errorf("create invoice lines: %w", err)
 			}
 
@@ -1056,6 +1046,11 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errNoSuchInstalment) {
 		httpx.Error(w, r, http.StatusConflict, "no_such_instalment",
 			fmt.Sprintf("this fee structure has nothing priced under instalment %d, so every invoice would come to zero. Check the instalment number, or add the lines to the structure first.", req.InstalmentNo))
+		return
+	}
+	if errors.Is(err, errFeeNotApproved) {
+		httpx.Error(w, r, http.StatusConflict, "fee_version_not_approved",
+			"this fee structure was filed with the fee committee and the committee's approval has not been recorded against its live version, so nothing can be billed from it yet. Record the decision under Fee regulatory filing, or activate the version the committee approved.")
 		return
 	}
 	if errors.Is(err, errNoLiveFeeVersion) {

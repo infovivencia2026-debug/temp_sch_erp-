@@ -365,3 +365,71 @@ func TestArrearsFollowTheChildIntoTheNewYear(t *testing.T) {
 		t.Errorf("%d arrears lines after the second raise, want still one", n)
 	}
 }
+
+/*
+TestApprovedFeeVersionIsWhatIsBilled is the statutory gap: the committee cut
+a head, the product recorded the cut, and kept invoicing the original from
+the unversioned table with no version on the bill.
+
+	Filed and undecided must refuse; approved with modification must bill
+	the committee's figure and cite the version on every invoice.
+*/
+func TestApprovedFeeVersionIsWhatIsBilled(t *testing.T) {
+	db := testDB(t)
+	requirePolicyBoundConnection(t, db)
+	w := seedFeesWorld(t, db)
+
+	child := w.student(t, "Filed")
+	development := uuid.New()
+	w.exec(t, `INSERT INTO fee_heads (id, institution_id, name, code) VALUES ($1,$2,'Development','DEV')`,
+		development, w.inst)
+	// The structure's own lines are stale on purpose: the run must not read them.
+	structure := w.structure(t, w.year, 999, 1)
+
+	version := uuid.New()
+	w.exec(t, `INSERT INTO fee_structure_versions (id, institution_id, fee_structure_id, version_no, status, effective_from, activated_at)
+	           VALUES ($1,$2,$3,1,'active',CURRENT_DATE - 10, now())`, version, w.inst, structure)
+	w.exec(t, `INSERT INTO fee_structure_version_items (institution_id, version_id, fee_head_id, instalment_no, amount_paise)
+	           VALUES ($1,$2,$3,1,1000000), ($1,$2,$4,1,500000)`, w.inst, version, w.tuition, development)
+
+	filing := uuid.New()
+	w.exec(t, `INSERT INTO fee_regulatory_filings (id, institution_id, filing_no, committee_name, academic_year_id,
+	                                               fee_structure_version_id, status, submitted_on, filed_snapshot)
+	           VALUES ($1,$2,'FRC/1','District Fee Committee',$3,$4,'submitted',CURRENT_DATE - 5,'{"lines":2}')`,
+		filing, w.inst, w.year, version)
+	w.exec(t, `INSERT INTO fee_regulatory_filing_lines (institution_id, filing_id, fee_head_id, instalment_no, proposed_paise)
+	           VALUES ($1,$2,$3,1,1000000), ($1,$2,$4,1,500000)`, w.inst, filing, w.tuition, development)
+
+	// Filed, not decided: nothing may be billed.
+	code, out := w.raise(t, structure, "")
+	if code != http.StatusConflict {
+		t.Fatalf("raise while the filing is undecided: %d %v, want 409", code, out)
+	}
+	var n int
+	w.scan(t, `SELECT count(*)::int FROM invoices WHERE student_id = $1`, []any{&n}, child)
+	if n != 0 {
+		t.Fatalf("%d invoices raised from an unapproved fee", n)
+	}
+
+	// The committee allows tuition as filed and cuts development to ₹3,000.
+	w.exec(t, `UPDATE fee_regulatory_filing_lines SET approved_paise = CASE WHEN fee_head_id = $2 THEN 300000 ELSE proposed_paise END
+	            WHERE filing_id = $1`, filing, development)
+	w.exec(t, `UPDATE fee_regulatory_filings SET status = 'approved_with_modification', decided_on = CURRENT_DATE,
+	                                            decision_note = 'Development fee capped' WHERE id = $1`, filing)
+
+	code, out = w.raise(t, structure, "")
+	if code != http.StatusCreated || out["created"] != float64(1) {
+		t.Fatalf("raise after approval: %d %v", code, out)
+	}
+	if _, total := w.lines(t, child, "Tuition"); total != 1000000 {
+		t.Errorf("tuition billed %d, want the version's 1000000 and not the stale structure line", total)
+	}
+	if _, total := w.lines(t, child, "Development"); total != 300000 {
+		t.Errorf("development billed %d, want the committee's 300000", total)
+	}
+	var cited *uuid.UUID
+	w.scan(t, `SELECT fee_structure_version_id FROM invoices WHERE student_id = $1`, []any{&cited}, child)
+	if cited == nil || *cited != version {
+		t.Errorf("invoice cites version %v, want %s", cited, version)
+	}
+}
