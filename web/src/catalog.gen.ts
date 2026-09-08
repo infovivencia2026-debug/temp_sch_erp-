@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 398 features. */
+/** 23 roles, 399 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',

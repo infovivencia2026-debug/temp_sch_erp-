@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 398 features.
+// Roles is the catalog: 23 roles, 399 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
