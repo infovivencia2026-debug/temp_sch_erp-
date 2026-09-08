@@ -1435,7 +1435,7 @@ export default function StudentProfile() {
             qc.invalidateQueries({ queryKey: ['student-profile', selected] })
           }}
         />
-        <FeeLedger heads={detail.data?.fee_heads ?? []} />
+        <FeeLedger heads={detail.data?.fee_heads ?? []} components={detail.data?.fee_components ?? []} />
         <Receipts rows={detail.data?.payments ?? []} />
         </>
       ),

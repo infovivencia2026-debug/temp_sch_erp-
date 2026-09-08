@@ -260,14 +260,21 @@ func (s *Server) allocateTransport(w http.ResponseWriter, r *http.Request) {
 			student); err != nil {
 			return err
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO transport_allocations
 			    (institution_id, student_id, academic_year_id, route_id,
 			     pickup_stop_id, drop_stop_id, valid_from)
 			VALUES ($1,$2,(SELECT id FROM academic_years WHERE is_current LIMIT 1),
 			        $3,$4::uuid,$5::uuid,current_date)
 			RETURNING (SELECT fare_paise FROM route_stops WHERE id = $4::uuid)`,
-			id.InstitutionID, student, route, req.PickupStopID, req.DropStopID).Scan(&fare)
+			id.InstitutionID, student, route, req.PickupStopID, req.DropStopID).Scan(&fare); err != nil {
+			return err
+		}
+		/* The fare was worked out here and went no further: it was shown,
+		   and the demand run copied the class's lines and billed the bus
+		   child and the walking child the same. The charge now follows the
+		   allocation, and the next demand raised for this child carries it. */
+		return syncTransportFeeComponent(r.Context(), tx, id.InstitutionID, student)
 	})
 	if err == errStopNotOnRoute {
 		httpx.BadRequest(w, r, "that stop is not on that route")

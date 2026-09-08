@@ -752,6 +752,9 @@ func (s *Server) Routes() http.Handler {
 			// asserts for its own module.
 			s.mountConcessionGrant(r)
 			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/refunds", s.listRefunds)
+			// The write path the refunds table never had: request on
+			// fees.write, decide and pay out on refunds.write.
+			s.mountRefunds(r)
 		})
 
 		// --- Admissions & Front Office ------------------------------------

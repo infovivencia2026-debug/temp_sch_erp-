@@ -53,6 +53,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 	crew := []map[string]any{}
 	activities := []map[string]any{}
 	concessions := []map[string]any{}
+	components := []map[string]any{}
 	coScholastic := []map[string]any{}
 	invoices := []map[string]any{}
 	var classID *string
@@ -424,6 +425,37 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		/* WHAT THIS CHILD IS CHARGED THAT THEIR CLASS IS NOT.
+
+		   The bus fare, today. A family reading "why is our bill more than
+		   the neighbour's" is answered here: the stop, the fare, and since
+		   when. Ended charges stay so the earlier invoice is explicable. */
+		if err := scanInto(r.Context(), tx, `
+			SELECT c.code, c.description, fh.name, c.amount_paise::text,
+			       to_char(c.valid_from,'YYYY-MM-DD'),
+			       COALESCE(to_char(c.valid_to,'YYYY-MM-DD'),''),
+			       c.valid_to IS NULL OR c.valid_to >= CURRENT_DATE
+			  FROM student_fee_components c
+			  JOIN fee_heads fh ON fh.id = c.fee_head_id
+			 WHERE c.student_id = $1
+			 ORDER BY (c.valid_to IS NULL OR c.valid_to >= CURRENT_DATE) DESC, c.valid_from DESC
+			 LIMIT 20`,
+			func(rows pgx.Rows) error {
+				var code, descr, head, amount, from, to string
+				var live bool
+				if err := rows.Scan(&code, &descr, &head, &amount, &from, &to, &live); err != nil {
+					return err
+				}
+				components = append(components, map[string]any{
+					"code": code, "description": descr, "fee_head": head,
+					"amount_paise": amount, "valid_from": from, "valid_to": to,
+					"live": live,
+				})
+				return nil
+			}, sid); err != nil {
+			return err
+		}
+
 		/* CLUBS AND COACHING, and what each one cost.
 
 		   Left enrolments are kept and shown: "did she do swimming last year"
@@ -511,6 +543,7 @@ func (s *Server) getStudentDetail(w http.ResponseWriter, r *http.Request) {
 		"transport_crew":    crew,
 		"activities":        activities,
 		"concessions":       concessions,
+		"fee_components":    components,
 		"co_scholastic":     coScholastic,
 		"invoices":          invoices,
 		// The class this child is in, so the record can quote its fee without

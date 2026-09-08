@@ -19,6 +19,10 @@ import { formatPaise, formatDate } from '@/lib/utils'
 export interface Detail {
   subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
   fee_heads: { head: string; charged_paise?: string; paid_paise?: string }[]
+  /* Charges this child carries that their class does not: the bus fare from
+     the stop they board at. Per instalment, added to every demand raised
+     while live. */
+  fee_components?: { code: string; description: string; fee_head: string; amount_paise: string; valid_from: string; valid_to: string; live: boolean }[]
   payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string }[]
   documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
   leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
@@ -119,9 +123,30 @@ export function SubjectMarks({ rows, loading }: {
    proportion to what each is worth — a payment lands on an invoice, not on a
    head, and there is no honest way to say which head a part-payment settled.
    The screen says so rather than leaving somebody to work it out. */
-export function FeeLedger({ heads }: { heads: Detail['fee_heads'] }) {
-  if (heads.length === 0) return null
+export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads']; components?: NonNullable<Detail['fee_components']> }) {
+  if (heads.length === 0 && components.length === 0) return null
   return (
+    <>
+    {components.length > 0 && (
+      <Card>
+        <CardHeader
+          title="Charged for this child"
+          description="On top of the class's fee structure, on every instalment raised while it stands. The bus fare follows the stop the child boards at."
+        />
+        <Table head={['Charge', 'Fee head', 'Per instalment', 'From', 'Until']} empty={false}>
+          {components.map((c, i) => (
+            <tr key={`${c.code}-${c.valid_from}-${i}`} className={c.live ? '' : 'text-muted-foreground'}>
+              <Td className="font-medium">{c.description}</Td>
+              <Td>{c.fee_head}</Td>
+              <Td className="tabular-nums">{formatPaise(Number(c.amount_paise))}</Td>
+              <Td>{formatDate(c.valid_from)}</Td>
+              <Td>{c.live ? <Badge tone="success">current</Badge> : formatDate(c.valid_to)}</Td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
+    )}
+    {heads.length > 0 && (
     <Card>
       <CardHeader
         title="What the fees are for"
@@ -148,6 +173,8 @@ export function FeeLedger({ heads }: { heads: Detail['fee_heads'] }) {
         })}
       </Table>
     </Card>
+    )}
+    </>
   )
 }
 
