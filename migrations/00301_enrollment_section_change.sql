@@ -1,17 +1,17 @@
 -- +goose Up
 
-/* A child can change section in the middle of the year.
- *
- * enrollments was UNIQUE on (student, academic_year): one row per child per
- * year, for ever. So the mid-year move -- 5-A to 5-B in October, the most
- * ordinary request a school office gets -- had no honest shape. The move
- * endpoint rewrote the row in place, which erased where the child had been;
- * and promotion, the other route, closed the row as 'promoted' and then hit
- * the constraint with ON CONFLICT DO NOTHING, leaving the child with no
- * active enrolment at all: off the roster, the gradebook, the invoice run.
- *
- * What is actually unique is one ACTIVE enrolment per child per year. The
- * closed rows are history and there may be several of them. */
+--  A child can change section in the middle of the year.
+--
+-- enrollments was UNIQUE on (student, academic_year): one row per child per
+-- year, for ever. So the mid-year move -- 5-A to 5-B in October, the most
+-- ordinary request a school office gets -- had no honest shape. The move
+-- endpoint rewrote the row in place, which erased where the child had been;
+-- and promotion, the other route, closed the row as 'promoted' and then hit
+-- the constraint with ON CONFLICT DO NOTHING, leaving the child with no
+-- active enrolment at all: off the roster, the gradebook, the invoice run.
+--
+-- What is actually unique is one ACTIVE enrolment per child per year. The
+-- closed rows are history and there may be several of them. 
 
 SELECT set_config('app.is_platform_admin', 'on', true);
 

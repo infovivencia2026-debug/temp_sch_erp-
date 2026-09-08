@@ -1,19 +1,19 @@
 -- +goose Up
 
-/* A report card knows which term it is for.
- *
- * generateReportCards never wrote term_id. Every card it produced was, as far
- * as the table could tell, the year's card: the family screen labelled it with
- * the year's name, the "annual card" lookups matched every one of them, and
- * the remark the class teacher wrote for the term (which IS keyed by term)
- * landed on a different row that carried no marks. One row with numbers and
- * no words, another with words and no numbers.
- *
- * The card takes its term from its exam. The old UNIQUE (student, year, term)
- * has to go for that: two exams in one term -- FA1 and FA2 both in Term 1 --
- * each get their own card (that is 00201's rule), and both now say Term 1.
- * What is left unique is the remark-only row, one per child per term, which
- * exists only until the term's card is generated and adopts it. */
+--  A report card knows which term it is for.
+--
+-- generateReportCards never wrote term_id. Every card it produced was, as far
+-- as the table could tell, the year's card: the family screen labelled it with
+-- the year's name, the "annual card" lookups matched every one of them, and
+-- the remark the class teacher wrote for the term (which IS keyed by term)
+-- landed on a different row that carried no marks. One row with numbers and
+-- no words, another with words and no numbers.
+--
+-- The card takes its term from its exam. The old UNIQUE (student, year, term)
+-- has to go for that: two exams in one term -- FA1 and FA2 both in Term 1 --
+-- each get their own card (that is 00201's rule), and both now say Term 1.
+-- What is left unique is the remark-only row, one per child per term, which
+-- exists only until the term's card is generated and adopts it. 
 
 SELECT set_config('app.is_platform_admin', 'on', true);
 
@@ -32,12 +32,12 @@ UPDATE report_cards rc
    AND rc.term_id IS NULL
    AND e.term_id IS NOT NULL;
 
-/* The two halves, joined where the join is not a guess.
- *
- * A remark-only row and an exam card for the same child and term: the words
- * go onto the card that has the numbers, and the row that only ever held the
- * words is removed. Only when the term has exactly one card, because with two
- * there is no saying which paper the teacher was writing about. */
+--  The two halves, joined where the join is not a guess.
+--
+-- A remark-only row and an exam card for the same child and term: the words
+-- go onto the card that has the numbers, and the row that only ever held the
+-- words is removed. Only when the term has exactly one card, because with two
+-- there is no saying which paper the teacher was writing about. 
 -- +goose StatementBegin
 DO $$
 BEGIN
