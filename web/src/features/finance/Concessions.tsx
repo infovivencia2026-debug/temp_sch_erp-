@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, ConfirmButton, Select, Input, SkeletonTable, ErrorState, FormNotice,
@@ -114,10 +115,10 @@ export default function Concessions() {
   const [refundStudent, setRefundStudent] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
   const [refundReason, setRefundReason] = useState('')
-  const students = useQuery({
-    queryKey: ['students-picker'],
-    queryFn: () => api.get<List<{ id: string; full_name?: string; admission_no?: string }>>('/api/v1/students?limit=400'),
-  })
+  /* The shared roster, which walks to the end of the roll. The number here
+     was asking the endpoint for more than one page may carry, so it came back
+     silently short and a child past it was in no picker at all. */
+  const students = useStudentRoster<{ id: string; full_name?: string; admission_no?: string }>()
   const requestRefund = useMutation({
     mutationFn: () =>
       api.post('/api/v1/fees/refunds', {

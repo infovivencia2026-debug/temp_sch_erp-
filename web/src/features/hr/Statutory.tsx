@@ -558,10 +558,11 @@ function Advances() {
     queryKey: ['staff-loans'],
     queryFn: () => api.get<List<Loan>>('/api/v1/payroll/loans'),
   })
-  const employees = useQuery({
-    queryKey: ['employees', 'payroll'],
-    queryFn: () => api.get<List<Named>>('/api/v1/hr/employees?limit=300'),
-  })
+  /* The shared roster, which walks to the end of the payroll. Asking for
+     `limit=300` here was two mistakes at once: the endpoint's page is 200, so
+     the request came back quietly short, and the answer was cached under a key
+     of its own beside the identical one every other HR screen already holds. */
+  const employees = useEmployeeRoster<Named>()
   const save = useMutation({
     mutationFn: () =>
       api.post('/api/v1/payroll/loans', {
