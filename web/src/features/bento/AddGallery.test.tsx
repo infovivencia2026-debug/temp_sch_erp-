@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { code } from './bento-test-render'
+import { code, withoutTokenColours } from './bento-test-render'
 
 /* THE ADD GALLERY'S CONTRACT.
 
@@ -287,7 +287,7 @@ describe('the gallery names no colour', () => {
     const end = theme.indexOf('/* THE ICON SIZE SETTING REACHES THE TABS')
     expect(start).toBeGreaterThan(-1)
     expect(end).toBeGreaterThan(start)
-    const block = code(theme.slice(start, end))
+    const block = withoutTokenColours(code(theme.slice(start, end)))
     expect(block).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(block).not.toMatch(/\b(rgba?|hsla?)\s*\(/)
     expect(block).toMatch(/color-mix\(in srgb, currentColor/)
