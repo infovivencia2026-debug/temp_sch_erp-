@@ -65,6 +65,14 @@ func (s *Server) mountHRGrowth(r chi.Router) {
 			r.Post("/me/appraisals/{id}/self-assessment", s.submitSelfAssessment)
 			r.Post("/me/appraisals/{id}/acknowledge", s.acknowledgeAppraisal)
 			r.Get("/me/training", s.getMyTrainingRecord)
+			// The target the records are measured against. Its HR twin,
+			// GET /training/requirements, sits behind EmployeesRead, which
+			// a teacher does not hold -- so the growth screen could show
+			// hours attended and never what they were supposed to add up
+			// to, which is the only number that makes the rest mean
+			// anything. Narrowed to the caller's own designation on the
+			// server, like every handler in this group.
+			r.Get("/me/training/requirement", s.getMyTrainingRequirement)
 			r.Get("/me/duties", s.listMyDuties)
 		})
 
@@ -2774,6 +2782,84 @@ func (s *Server) getMyTrainingRecord(w http.ResponseWriter, r *http.Request) {
 				&v.CertNo, &v.CertIssuedOn, &v.CountsToTotal)
 		})
 	respond(w, r, items, err)
+}
+
+/*
+WHAT THIS PERSON OWES, AND WHAT THEY HAVE DONE.
+
+	One row, not a list: the applicable requirement for the caller's own
+	designation plus the hours they have completed against it. The list
+	endpoint next door answers "what are all the rules", which is an HR
+	question; this answers "am I short", which is the teacher's.
+
+	MOST SPECIFIC RULE WINS. A requirement names a designation, or a category
+	of them, or neither -- and 00054 says both NULL means everybody on the
+	payroll. So the three are ordered and the first is taken: the rule written
+	for this designation beats the one for its category, which beats the
+	house rule. Year-specific beats year-agnostic for the same reason; a NULL
+	academic_year_id is "every year until this is changed".
+
+	Hours count only from programmes flagged counts_towards_requirement and
+	records marked 'completed' -- the same two conditions the HR-side total
+	uses. 'attended' means they turned up; 'completed' means the hours are
+	real, and the table's CHECK only guarantees hours_completed is set for the
+	latter. A teacher and the registrar disagreeing about this number would be
+	worse than neither of them seeing it.
+*/
+type myTrainingRequirementRow struct {
+	// Absent, not zero, when the school has set no rule that reaches this
+	// person: "no target" and "a target of nothing" are different answers and
+	// the screen says different things about them.
+	RequiredHours  *float64 `json:"required_hours,omitempty"`
+	CompletedHours float64  `json:"completed_hours"`
+	Authority      *string  `json:"authority,omitempty"`
+	Note           *string  `json:"note,omitempty"`
+}
+
+func (s *Server) getMyTrainingRequirement(w http.ResponseWriter, r *http.Request) {
+	emp, ok := s.ownEmployee(w, r)
+	if !ok {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	var out myTrainingRequirementRow
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `
+			SELECT COALESCE(SUM(t.hours_completed), 0)::float8
+			  FROM staff_training_records t
+			  JOIN training_programmes p ON p.id = t.programme_id
+			 WHERE t.employee_id = $1
+			   AND t.status = 'completed'
+			   AND p.counts_towards_requirement`, emp).Scan(&out.CompletedHours); err != nil {
+			return err
+		}
+		err := tx.QueryRow(r.Context(), `
+			SELECT q.required_hours::float8, q.authority, q.note
+			  FROM training_requirements q
+			  JOIN employees e ON e.id = $1
+			  LEFT JOIN designations g ON g.id = e.designation_id
+			 WHERE (q.designation_id = e.designation_id
+			        OR (q.designation_id IS NULL AND q.designation_category = g.category)
+			        OR (q.designation_id IS NULL AND q.designation_category IS NULL))
+			   AND (q.academic_year_id IS NULL
+			        OR q.academic_year_id = (SELECT y.id FROM academic_years y
+			                                  WHERE y.is_current LIMIT 1))
+			 ORDER BY (q.designation_id IS NULL),
+			          (q.designation_category IS NULL),
+			          (q.academic_year_id IS NULL)
+			 LIMIT 1`, emp).Scan(&out.RequiredHours, &out.Authority, &out.Note)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// No rule reaches this person. Not an error: a school that has
+			// set none is a school with nothing to report against.
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 // ===========================================================================

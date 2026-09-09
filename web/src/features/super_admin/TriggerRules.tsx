@@ -178,12 +178,28 @@ export default function TriggerRules() {
             title="What a rule may listen for"
             description="An event the sweep can find on its own. A feature may also report its own event, which a rule can name before this list grows"
           />
-          <Table head={['Event', 'Happens when', 'Facts a condition may test']}>
+          {/* The rule count is the point of this table now. An event with no
+              rule behind it fires, finds its occurrences, and sends nothing --
+              for ever, and silently. This screen used to look identical
+              whether an event was wired or dead, which is how ptm.upcoming sat
+              unconfigured in every school with the emit working perfectly. */}
+          <Table head={['Event', 'Happens when', 'Facts a condition may test', 'Rules']}>
             {events.map((e) => (
               <tr key={e.event}>
                 <Td className="font-mono text-[12.5px]">{e.event}</Td>
                 <Td>{e.description}</Td>
                 <Td className="font-mono text-[12.5px] text-muted-foreground">{e.facts}</Td>
+                <Td>
+                  {e.rules === 0 ? (
+                    <Badge tone="warning">Nothing listens</Badge>
+                  ) : e.active_rules === 0 ? (
+                    <Badge tone="warning">{e.rules} off</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {e.active_rules} on{e.rules > e.active_rules ? ` · ${e.rules - e.active_rules} off` : ''}
+                    </span>
+                  )}
+                </Td>
               </tr>
             ))}
           </Table>

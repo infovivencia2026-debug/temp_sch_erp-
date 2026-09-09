@@ -70,6 +70,10 @@ export interface TriggerEvent {
   /** The fact names a condition may test, comma separated. */
   facts: string
   swept: boolean
+  /** How many rules this school has for the event, and how many are on. Zero
+      means the event fires and nothing is ever sent. */
+  rules: number
+  active_rules: number
 }
 
 export interface MessageTemplate {

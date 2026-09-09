@@ -3164,6 +3164,18 @@ type eventView struct {
 	Description string `json:"description"`
 	Facts       string `json:"facts"`
 	Swept       bool   `json:"swept"`
+	/* How many rules this school has written for the event, and how many of
+	   those are switched on.
+
+	   An event the product sweeps for and nobody has written a rule against
+	   sends nothing, silently and for ever. ptm.upcoming is the standing
+	   example: the emit is correct, dispatch runs, every school gets no
+	   reminder, and the screen that exists to configure it looked exactly the
+	   same as one where the reminder was working. Counting here rather than
+	   seeding a rule server-side, because a rule is a decision to message
+	   somebody's parents and the school makes it, not the migration. */
+	Rules       int `json:"rules"`
+	ActiveRules int `json:"active_rules"`
 }
 
 /*
@@ -3232,9 +3244,22 @@ func (s *Server) listTriggerRules(w http.ResponseWriter, r *http.Request) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	// Counted from the rules just read, so the two halves of this one answer
+	// cannot disagree about what is configured.
+	total := map[string]int{}
+	active := map[string]int{}
+	for _, v := range items {
+		total[v.Event]++
+		if v.Active {
+			active[v.Event]++
+		}
+	}
 	for _, name := range names {
 		f := finders[name]
-		events = append(events, eventView{name, f.Description, f.Facts, true})
+		events = append(events, eventView{
+			Event: name, Description: f.Description, Facts: f.Facts, Swept: true,
+			Rules: total[name], ActiveRules: active[name],
+		})
 	}
 
 	httpx.JSON(w, http.StatusOK, map[string]any{

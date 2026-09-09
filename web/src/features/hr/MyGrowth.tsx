@@ -85,6 +85,15 @@ interface MyTraining {
   counts_towards_requirement: boolean
 }
 
+/** The target, narrowed to this person. required_hours is absent when the
+    school has set no rule that reaches their designation. */
+interface MyTrainingRequirement {
+  required_hours?: number
+  completed_hours: number
+  authority?: string
+  note?: string
+}
+
 interface MyDuty {
   id: string
   shift_code: string
@@ -586,13 +595,20 @@ function MyAppraisalForm({
 /* Training.
 
    The hours the school will be asked to evidence, in the name of the person
-   who sat them. The requirement itself is HR's number and this endpoint does
-   not carry it, so the panel counts what counts rather than asserting a
-   shortfall against a target it was never told. */
+   who sat them -- and, now, what they were supposed to add up to. The target
+   used to be unreachable from here: its only endpoint sits behind
+   EmployeesRead, which a teacher does not hold, so the panel could count
+   hours and never say whether they were enough. /me/training/requirement is
+   the same number narrowed to the caller on the server. */
 function MyTrainingPanel() {
   const q = useQuery({
     queryKey: ['hr-self', 'training'],
     queryFn: () => api.get<List<MyTraining>>('/api/v1/hr-growth/me/training'),
+    retry: false,
+  })
+  const req = useQuery({
+    queryKey: ['hr-self', 'training', 'requirement'],
+    queryFn: () => api.get<MyTrainingRequirement>('/api/v1/hr-growth/me/training/requirement'),
     retry: false,
   })
 
@@ -601,6 +617,10 @@ function MyTrainingPanel() {
     .filter((t) => t.status === 'completed' && t.counts_towards_requirement)
     .reduce((n, t) => n + (t.hours_completed ?? 0), 0)
   const certificates = rows.filter((t) => t.certificate_no).length
+  /* Absent, not zero, when no rule reaches this person: a school that has set
+     no requirement is not a school this person is short against. */
+  const target = req.data?.required_hours
+  const short = target != null ? Math.max(0, target - counted) : null
 
   if (notStaff(q.error)) return null
 
@@ -612,7 +632,11 @@ function MyTrainingPanel() {
         action={
           <span className="text-[13px] text-muted-foreground">
             <GraduationCap className="mr-1.5 inline h-3.5 w-3.5" aria-hidden />
-            {counted.toFixed(1)} hours counted · {certificates} certificate(s)
+            {target != null
+              ? `${counted.toFixed(1)} of ${target.toFixed(1)} hours`
+              : `${counted.toFixed(1)} hours counted`}
+            {short != null && short > 0 ? ` · ${short.toFixed(1)} short` : ''}
+            {' · '}{certificates} {certificates === 1 ? 'certificate' : 'certificates'}
           </span>
         }
       />

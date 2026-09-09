@@ -107,7 +107,32 @@ const warned = new Set<string>()
     visible wrong beats invisible wrong. */
 function fill(template: string, vars: Vars | undefined, locale: string): string {
   if (!vars) return template
-  return template.replace(/\{(\w+)\}/g, (whole, name: string) => {
+  /* THE COUNTED NOUN, CHOSEN BY THE COUNT.
+
+     "1 subjects" and "1 seats" both shipped, because a template can only say
+     one word and the plural was the one it said. The alternative was an ICU
+     dependency, which the note at the top of this file rejects for good
+     reasons that have not changed.
+
+     So: `{count#subject|subjects}` -- the same placeholder syntax with a
+     hash and the two forms after it. Intl.PluralRules picks between them, so
+     the choice is the language's rule rather than `=== 1`, which is already
+     wrong in a language where 0 is singular. Two forms, not six: every
+     locale that ships here (en, te) is a two-form language, and a locale with
+     more takes `other`, which is the correct default and is visibly a
+     limitation rather than a silent mistranslation.
+
+     Written before the plain-placeholder pass below so `{count#a|b}` is
+     consumed here and never seen as a malformed `{count}`. */
+  const plural = template.replace(
+    /\{(\w+)#([^{}|]*)\|([^{}|]*)\}/g,
+    (whole, name: string, one: string, other: string) => {
+      const v = vars[name]
+      if (typeof v !== 'number') return whole
+      return new Intl.PluralRules(locale).select(v) === 'one' ? one : other
+    },
+  )
+  return plural.replace(/\{(\w+)\}/g, (whole, name: string) => {
     const v = vars[name]
     if (v === undefined) return whole
     return typeof v === 'number' ? new Intl.NumberFormat(locale).format(v) : v

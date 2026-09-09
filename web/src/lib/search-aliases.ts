@@ -75,6 +75,17 @@ export const SEARCH_ALIASES: Record<string, string[]> = {
   fee_receipts: ['receipt', 'bill', 'proof of payment'],
   online_fee_portal: ['pay online', 'payment link', 'parent payment'],
   payment_gateway_connectors: ['razorpay', 'payment gateway', 'upi', 'online payment setup'],
+  /* Concessions and scholarships are TABS, inside these two bundles, so the
+     catalogue never names them and searching the words a school actually uses
+     -- "concession", "scholarship", "NSP", "sibling discount" -- found
+     nothing at all. Aliases rather than new catalogue keys on purpose: a key
+     would give each tab a second, competing entry point in navigation and
+     move the completeness count, for a findability problem. */
+  class_transport_fee_setup: ['concession', 'concessions', 'discount',
+    'fee waiver', 'waiver', 'sibling discount', 'staff ward', 'refund',
+    'fee refund', 'rebate'],
+  donations_aid: ['scholarship', 'scholarships', 'nsp', 'grant', 'grant in aid',
+    'freeship', 'sponsorship', 'education loan', 'government claim'],
 
   // --- staff, access ----------------------------------------------------
   roles_permissions: ['permission', 'access', 'rights', 'who can see',

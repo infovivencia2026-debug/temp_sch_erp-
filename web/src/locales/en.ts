@@ -443,7 +443,7 @@ export const en = {
   'portal.results.class_teacher': 'Class teacher',
   // One form only: the original renders "subjects" for every count, including
   // one, and extraction does not change what the screen says.
-  'portal.results.subject_count': '{count} subjects',
+  'portal.results.subject_count': '{count} {count#subject|subjects}',
   'portal.results.col_subject': 'Subject',
   'portal.results.col_marks': 'Marks',
   'portal.results.col_out_of': 'Out of',
@@ -870,7 +870,7 @@ export const en = {
   'portal.event_passes.badge_valid': 'Valid',
   // No _one form: the original had none, and inventing one would change the
   // English. See the report — "1 seats" is reachable today.
-  'portal.event_passes.seats_count': '{count} seats',
+  'portal.event_passes.seats_count': '{count} {count#seat|seats}',
   'portal.event_passes.row_seat': 'Row {row}, seat {seat}',
   'portal.event_passes.row_seats': 'Row {row}, seats {from}–{to}',
   'portal.event_passes.show_code': 'Show this number at the door.',
