@@ -180,8 +180,21 @@ export function SliderRow({
         aria-label={label}
         aria-valuetext={shown}
         onChange={(e) => onChange(Number(e.target.value))}
+        /* ROUND ENDS ON THE BAND, NOT ON THE BOX.
+
+           The track is the input's own background, clipped to a 6px content
+           box inside a 44px row. A border-radius is measured from the border
+           box and the clip inherits what is left of it after the padding, so
+           `rounded-full` -- 22px each way -- became 22px across and 3px tall
+           at every corner: a 22px-long taper to a point at both ends, which
+           is the arrowhead in the screenshot rather than a slider.
+
+           An elliptical radius states the two axes separately: 3px across so
+           the end is a semicircle on a 6px band, and half the row's height
+           down so that what survives the vertical padding is 3px too. */
+        style={{ borderRadius: '3px / calc((var(--sband-h, 44px) - 6px) / 2 + 3px)' }}
         className={cn(
-          'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none rounded-full py-[calc((var(--sband-h,44px)-6px)/2)]',
+          'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none py-[calc((var(--sband-h,44px)-6px)/2)]',
           '[background-clip:content-box]',
           TRACK, SLIDER, RING,
         )}
