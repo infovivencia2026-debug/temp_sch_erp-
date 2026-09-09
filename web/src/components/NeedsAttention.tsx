@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowRight, Bell, Check, CircleAlert, Info,
+  AlertTriangle, ArrowRight, Bell, Check, CircleAlert, Info, X as XIcon,
   IndianRupee, UserPlus, Users, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
+import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 
 /* The panel every role opens the product to read.
@@ -98,6 +99,35 @@ export default function NeedsAttention({ name }: { name?: string }) {
    * it again tomorrow will not fix that. */
   /* Chasing is oversight, not marking. */
   const canChase = useCan()('academics.attendance.read.all')
+
+  /* THE FEATURES SOMEBODY PUT HERE THEMSELVES.
+   *
+   * Keys only, resolved through the catalogue every render, which is what
+   * makes them safe to keep in the browser: a shortcut to something this
+   * account may no longer open simply stops appearing, rather than sitting
+   * there until it 404s on tap. A key the catalogue does not carry at all --
+   * a feature withdrawn between releases -- goes the same way.
+   *
+   * Order is the order they were added, so the row does not reshuffle itself
+   * under somebody who is reaching for the third tile. */
+  const dashKeys = useShortcuts()
+  const shortcuts = useMemo(() => {
+    if (!dashKeys.length) return []
+    const byKey = new Map<string, { key: string; name: string; href: string }>()
+    for (const role of catalog.roles) {
+      for (const section of role.sections) {
+        for (const f of section.features) {
+          if (!f.in_scope || !f.live) continue
+          byKey.set(f.key, {
+            key: f.key,
+            name: f.name,
+            href: `/${role.key}/${section.slug}/${f.slug}`,
+          })
+        }
+      }
+    }
+    return dashKeys.map((k) => byKey.get(k)).filter((x): x is NonNullable<typeof x> => !!x)
+  }, [dashKeys, catalog])
   const [nudged, setNudged] = useState('')
   const nudge = useMutation({
     mutationFn: () =>
@@ -267,6 +297,47 @@ export default function NeedsAttention({ name }: { name?: string }) {
                 </div>
               )
             })}
+          </div>
+        </section>
+      )}
+
+      {/* WHAT SOMEBODY PUT HERE THEMSELVES.
+       *
+       * Between the figures and the work, because that is what it is: not a
+       * summary and not a task, but the four screens this person opens and
+       * would rather not walk to. Absent entirely until somebody adds one --
+       * an empty rail captioned "Shortcuts" teaches nothing and takes the
+       * space the alerts want. */}
+      {shortcuts.length > 0 && (
+        <section>
+          <p className="eyebrow mb-2.5">Your shortcuts</p>
+          <div className="flex flex-wrap gap-2">
+            {shortcuts.map((sc) => (
+              <span
+                key={sc.key}
+                className="group inline-flex items-center overflow-hidden rounded-lg border bg-card shadow-[var(--elev-1)]"
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate(sc.href)}
+                  className="px-3.5 py-2 text-[13.5px] font-medium transition-colors hover:bg-accent"
+                >
+                  {sc.name}
+                </button>
+                {/* Taking one off is done here rather than only back in the
+                    launcher: the tile somebody wants rid of is the one in
+                    front of them. */}
+                <button
+                  type="button"
+                  onClick={() => removeFromDashboard(sc.key)}
+                  aria-label={`Take ${sc.name} off the dashboard`}
+                  title="Take off the dashboard"
+                  className="border-l px-2 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                >
+                  <XIcon className="size-3.5" aria-hidden />
+                </button>
+              </span>
+            ))}
           </div>
         </section>
       )}
