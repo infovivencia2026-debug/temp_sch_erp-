@@ -5,8 +5,19 @@
 # that .github/workflows/uptime.yml runs every ten minutes; it is also a plain
 # script so anyone can run it by hand from a laptop when the site feels slow.
 #
-#   bash scripts/uptime-check.sh https://temperp.187-127-178-100.sslip.io
-#       GET <url>/healthz. Exit 0 when it answers 200, exit 1 otherwise.
+#   bash scripts/uptime-check.sh https://school-erp-cqj.pages.dev
+#       GET <url>/api/v1/session. Exit 0 when it answers 200, exit 1 otherwise.
+#
+# WHY NOT /healthz. It was /healthz until the move to Cloud Run, and from
+# outside Cloud Run that path is a lie: Google's edge answers an external
+# GET /healthz with its own branded 404 page on every service, so the probe
+# said DOWN on a perfectly healthy deployment (docs/hosting-cloud-run.md,
+# "what actually went wrong"). /api/v1/session is the honest probe: it is
+# unauthenticated by design -- it is what the SPA asks on load to find out
+# whether anyone is signed in -- and its handler opens a tenant transaction,
+# so a 200 there proves the Go process AND Neon, which /healthz never did.
+# HEALTH_PATH still overrides it, and /healthz remains right from inside the
+# container (Cloud Run's own startup probe) and through the VPS nginx.
 #
 #   bash scripts/uptime-check.sh <url> --apk
 #       also HEAD <url>/apps/parent.apk and warn (on stdout, never in the exit
@@ -47,7 +58,7 @@ command -v curl >/dev/null || { echo "uptime-check: curl not installed" >&2; exi
 ATTEMPTS=${ATTEMPTS:-3}          # 1 try + 2 retries
 RETRY_WAIT=${RETRY_WAIT:-20}     # seconds between them; about a minute in all
 CONNECT_TIMEOUT=${CONNECT_TIMEOUT:-10}
-MAX_TIME=${MAX_TIME:-20}         # /healthz answers in milliseconds when it answers at all
+MAX_TIME=${MAX_TIME:-20}         # the probe answers in milliseconds; a cold Cloud Run start is the slow case
 TZ_SHOW=${TZ_SHOW:-Asia/Kolkata}
 
 now() { TZ=$TZ_SHOW date '+%Y-%m-%d %H:%M %Z'; }
@@ -59,7 +70,7 @@ out() {   # out key value -> a step output inside Actions, always on stdout
 }
 
 # --- /healthz -----------------------------------------------------------------
-HEALTH="$BASE${HEALTH_PATH:-/healthz}"
+HEALTH="$BASE${HEALTH_PATH:-/api/v1/session}"
 code=000; detail=""
 for (( i=1; i<=ATTEMPTS; i++ )); do
     # -w prints the code even on failure; curl's own exit code tells a timeout
