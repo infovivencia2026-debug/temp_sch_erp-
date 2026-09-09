@@ -22,8 +22,10 @@ interface Status {
  * next, in the order the data depends on itself.
  */
 export default function Checklist() {
-  // Polls only while the tab is looked at; hidden, the status can wait.
-  const every = useVisibleInterval(30_000)
+  /* Two minutes, and only while the tab is looked at. Setup is done by hand
+     over an afternoon, not by a background process: a half-minute poll asked
+     the server a hundred and twenty times an hour to be told the same list. */
+  const every = useVisibleInterval(120_000)
   const { data, isLoading, error } = useQuery({
     queryKey: ['setup-status'],
     queryFn: () => api.get<Status>('/api/v1/setup/status'),

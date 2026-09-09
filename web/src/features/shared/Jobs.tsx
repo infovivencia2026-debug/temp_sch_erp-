@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, type QueueStat, type JobStatus, type EnqueueResponse, type List, type Section } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, SkeletonTable, ErrorState } from '@/components/ui'
 import { useCan } from '@/lib/session'
-import { useTabVisible, useVisibleInterval } from '@/lib/visible'
+import { useTabVisible } from '@/lib/visible'
 
 const STATE_TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
   completed: 'success', active: 'primary', pending: 'neutral',
@@ -15,14 +15,23 @@ export default function Jobs() {
   const [tracked, setTracked] = useState<string[]>([])
   // Polling is right here (see below), but a hidden tab was polling every
   // five seconds for nobody; on a server billed per request that is the bill.
-  const queuesEvery = useVisibleInterval(5_000)
+  const visible = useTabVisible()
 
   const queues = useQuery({
     queryKey: ['queues'],
     queryFn: () => api.get<{ queues: Record<string, QueueStat> }>('/api/v1/jobs/queues'),
-    // Queue depth is the thing you watch while a backlog drains, so this is
-    // one of the few places polling is the right call.
-    refetchInterval: queuesEvery,
+    /* Queue depth is the thing you watch while a backlog drains, so this is
+       one of the few places polling is the right call — but it was polling at
+       five seconds around the clock, and an idle school's queues are empty
+       nearly all of that time. Fifteen seconds while there is work in flight,
+       and a minute once every queue has run dry — not nothing, because a job
+       enqueued from another machine would otherwise never appear here. */
+    refetchInterval: (q) => {
+      if (!visible) return false
+      const qs = Object.values(q.state.data?.queues ?? {})
+      const working = qs.some((s) => s.pending + s.active + s.scheduled + s.retry > 0)
+      return working ? 15_000 : 60_000
+    },
   })
 
   if (queues.isLoading) return <SkeletonTable columns={9} />
@@ -145,11 +154,17 @@ function JobRow({ id }: { id: string }) {
   const { data, error } = useQuery({
     queryKey: ['job', id],
     queryFn: () => api.get<JobStatus>(`/api/v1/jobs/${id}`),
-    // Stop hammering the inspector once the task reaches a terminal state.
+    /* Stop hammering the inspector once the task reaches a terminal state, and
+       back off before then: a job that is still running after ten seconds is
+       usually a long one, and asking about it every two seconds for a minute
+       is thirty billed requests to watch a spinner. Two seconds while it might
+       still be a quick one, then five, then ten. */
     refetchInterval: (q) => {
       if (!visible) return false
       const s = q.state.data?.state
-      return s === 'completed' || s === 'archived' ? false : 2_000
+      if (s === 'completed' || s === 'archived') return false
+      const asked = q.state.dataUpdateCount
+      return asked <= 5 ? 2_000 : asked <= 15 ? 5_000 : 10_000
     },
     retry: false,
   })

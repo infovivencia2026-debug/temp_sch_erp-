@@ -118,7 +118,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
     // A school day moves; a panel that answers "what needs me now" should not
     // be answering it from ten minutes ago. One of the three queries that keep
     // focus refetching now that App.tsx's default is off.
-    staleTime: 60_000,
+    staleTime: 120_000,
     refetchOnWindowFocus: true,
   })
 

@@ -6,7 +6,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
-import { useVisibleInterval } from '@/lib/visible'
+import { useTabVisible, passRefetch } from '@/lib/visible'
 import { useChildren, childOptions, readyFor } from './use-children'
 
 /* The child's identity card, rendered live.
@@ -57,6 +57,7 @@ export default function StudentIDCard() {
      child…". The code on this screen is the one the gate reads; the wrong one
      is worse than none. */
   const ready = readyFor(children, studentId)
+  const visible = useTabVisible()
   const query = useQuery({
     queryKey: ['student-id-card', studentId],
     queryFn: () =>
@@ -65,8 +66,13 @@ export default function StudentIDCard() {
       ),
     // The gate accepts the neighbouring windows, so refreshing a little inside
     // the window keeps the screen honest without a countdown that races it.
-    // Paused while the tab is hidden: a background tab was polling for nobody.
-    refetchInterval: useVisibleInterval(60_000),
+    /* The card itself never changes while it is on screen — the name, the
+       class and the photograph are the same in a minute's time. The gate pass
+       under it does: its code is derived from a 150-second window, so a copy
+       older than that is refused at the gate. So the poll follows the pass
+       rather than the clock, asking again just after the code it is holding
+       has run out instead of two or three times inside every window. */
+    refetchInterval: passRefetch(visible),
     enabled: ready,
   })
 

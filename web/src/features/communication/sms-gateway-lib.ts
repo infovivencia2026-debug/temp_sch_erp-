@@ -100,7 +100,9 @@ export function useSMSGateway(enabled = true) {
        means an administrator watching the screen sees a phone go quiet within
        about a minute of it happening. Only while the tab is visible, though;
        nobody sees a hidden screen notice anything. */
-    refetchInterval: useVisibleInterval(30_000),
+    // A minute, not thirty seconds: the shared revision poll in lib/live.ts
+    // already notices a change sooner than this ever could.
+    refetchInterval: useVisibleInterval(60_000),
   })
 }
 
