@@ -584,7 +584,21 @@ export function Shell({
             to `auto` as well. That makes the column a clipping scroll container
             on both axes, and z-index does not defeat an ancestor's clip — so
             every workspace mark on desktop lost the only label it has. */}
-        <div className="flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3
+        {/* AND ABOVE THE PANEL IT OPENS INTO.
+
+            The clip was one half of this; the paint order is the other. The
+            tooltip opens to the RIGHT of the 58px column, which is to say on
+            top of the panel next to it -- and that panel is a later sibling,
+            so it paints later. `z-index: 60` on the pseudo-element settles
+            nothing, because z-index only orders against things in the same
+            stacking context and the rail had never established one: the
+            workspace's own badge sat over the middle of every label.
+
+            One positioned column with a z-index of its own puts the whole rail
+            -- marks, focus rings and the labels that escape it -- above the
+            panel, and leaves everything inside the rail ordered exactly as it
+            was. */}
+        <div className="relative z-30 flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3
                         md:max-lg:overflow-y-auto">
           {railWorkspaces.map((ws) => {
             const Mark = markFor(ws.name)

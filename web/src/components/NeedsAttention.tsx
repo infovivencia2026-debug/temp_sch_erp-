@@ -353,16 +353,45 @@ export default function NeedsAttention({ name }: { name?: string }) {
                 2: 'col-span-2 sm:col-span-1',
                 3: 'col-span-3 sm:col-span-1',
               }
+              /* And the same at the tablet width, where the grid is four
+                 across: three stats leave one cell of the container visible,
+                 which is the same grey rectangle in a smaller size. Written
+                 out because Tailwind ships only the classes it can read. */
+              const SPAN_SM: Record<number, string> = {
+                2: 'sm:col-span-2',
+                3: 'sm:col-span-3',
+                4: 'sm:col-span-4',
+              }
               const spanOf = (s: SummaryStat) => Math.min(3, Math.max(1, Math.round(s.span ?? 1)))
               const used = summary.reduce((n, s) => n + spanOf(s), 0)
               const stranded = used % 3
               const lastSpan = stranded === 0 ? '' : SPAN[3 - stranded + spanOf(summary[summary.length - 1])] ?? ''
+              const strandedSm = used % 4
+              const lastSpanSm = strandedSm === 0
+                ? ''
+                : SPAN_SM[4 - strandedSm + spanOf(summary[summary.length - 1])] ?? ''
               return (
             <div
               className={cn(
                 'grid gap-px overflow-hidden rounded-md border bg-border',
                 'grid-cols-3 sm:grid-cols-4',
-                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-2',
+                /* ONE COLUMN ON A DESK, which is what the note above always
+                   said and what the class never did.
+
+                   Beside the attention list this section is a third of the
+                   width. Two columns in it gave three stats a row of two and
+                   a row of one -- and the empty half of that second row is
+                   not blank, it is the container: the grid is bg-border with
+                   gap-px, so every cell not covered by a tile is drawn in the
+                   border colour. A grey rectangle the size of a tile, which
+                   reads as a tile that failed to load rather than as nothing.
+
+                   The phone grid already had this guarded ("NO STRANDED TILE"
+                   below); the desk grid is the same bug at another
+                   breakpoint. Stacking removes it by construction rather than
+                   by arithmetic: one column cannot strand anything, however
+                   many stats a role turns out to have. */
+                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-1',
                 summary.length === 1 && 'grid-cols-1 sm:grid-cols-1 lg:grid-cols-1',
                 summary.length === 2 && 'grid-cols-2 sm:grid-cols-2',
               )}
@@ -373,6 +402,13 @@ export default function NeedsAttention({ name }: { name?: string }) {
                   className={cn(
                     'bg-card px-3 py-3 text-center sm:px-4 sm:text-left',
                     i === summary.length - 1 ? lastSpan || SPAN[spanOf(s)] : SPAN[spanOf(s)],
+                    i === summary.length - 1 && lastSpanSm,
+                    /* And released again where the grid is a single column.
+                       A span wider than the track count does not clamp -- the
+                       browser invents the missing columns and the tile drags
+                       the grid out of shape -- so the sm span above has to be
+                       taken back at the width where the column count drops. */
+                    items.length > 0 && 'lg:col-span-1',
                   )}
                 >
                   <p className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[24px]">
