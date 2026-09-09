@@ -4256,7 +4256,11 @@ export default function BentoPrincipalDashboard() {
   const performanceHref = useFeatureHref('institution_admin.examinations.performance_overview')
   const academicPerformanceHref = useFeatureHref('institution_admin.students.academic_performance')
   const messagesHref = useFeatureHref('institution_admin.communication.messages')
-  const myPayHref = useFeatureHref('institution_admin.my_profile.my_pay')
+  /* Filed under Staff since My Profile came off this role: the workspace held
+     nothing but this one screen, and the account it appeared to offer is the
+     person icon in the header, which every role already has. The tile stays;
+     only the key it resolves through moved. */
+  const myPayHref = useFeatureHref('institution_admin.staff.my_pay')
   const classSetupHref = useFeatureHref('institution_admin.academics.class_setup')
 
   const attentionHrefs: Record<AttentionTarget, string | undefined> = {

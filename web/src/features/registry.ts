@@ -455,7 +455,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * cared who is asking; there was simply no door to it from either menu, so
    * the two people most likely to be away were the two who had to ask somebody
    * else to enter it for them. Same screen as a teacher's. */
-  'institution_admin.my_profile.my_pay': screen(() => import('./me/MyPay')),
+  'institution_admin.staff.my_pay': screen(() => import('./me/MyPay')),
   'hod.my_profile.my_pay': screen(() => import('./me/MyPay')),
   'faculty.my_profile.my_pay': screen(() => import('./me/MyPay')),
   'hr.my_profile.my_pay': screen(() => import('./me/MyPay')),
