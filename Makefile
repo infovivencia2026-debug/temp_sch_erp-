@@ -96,7 +96,7 @@ lint: ## vet + gofmt check + frontend typecheck
 
 ## --- build ----------------------------------------------------------------
 
-.PHONY: build build-ui dist clean
+.PHONY: build build-ui build-site dist clean
 build: ## Cross-compile the three binaries into dist/
 	@mkdir -p $(DIST)
 	$(GOFLAGS) go build -trimpath -ldflags '$(LDFLAGS)' -o $(DIST)/web     ./cmd/web
@@ -107,10 +107,13 @@ build: ## Cross-compile the three binaries into dist/
 build-ui: ## Build the SPA bundle
 	cd web && npm ci --silent && npm run build
 
+build-site: ## Build the marketing site (site/, separate bundle and deploy)
+	cd site && npm ci --silent --no-audit --no-fund && npm run build
+
 dist: build build-ui ## Build everything
 
 clean: ## Remove build output
-	rm -rf $(DIST) web/dist
+	rm -rf $(DIST) web/dist site/dist
 
 ## --- deploy ---------------------------------------------------------------
 
