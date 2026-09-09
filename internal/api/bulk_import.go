@@ -75,6 +75,11 @@ type importSpec struct {
 	Columns []string
 	// Required names the columns a row cannot be built without.
 	Required []string
+	/* Identity is the column that says two rows are the same person, where
+	   there is one. Set for people and left empty for the rest: a subject or a
+	   fee head repeated in a file is a cheap mistake, and a member of staff
+	   repeated is one record holding half of each row. */
+	Identity string
 	Sample   []string
 	// Check validates one row without touching the database, during the dry
 	// run. Without it a value the writer will reject — a level that is not a
@@ -2540,7 +2545,8 @@ var importSpecs = map[string]importSpec{
 	},
 
 	"staff": {
-		Perm: rbac.EmployeesWrite,
+		Perm:     rbac.EmployeesWrite,
+		Identity: "employee_code",
 		// status is here so a sheet carrying one can be mapped to it -- which
 		// is also what lets the crossed-column swap below see both values.
 		Columns: []string{"employee_code", "first_name", "last_name", "email", "phone",
@@ -3795,6 +3801,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		data map[string]string
 	}
 	var rows []parsed
+	// Row number of the first appearance of each identity value, so a
+	// duplicate can be reported against the row it collides with.
+	seen := map[string]int{}
 	out := importResult{DryRun: !commit, Problems: []importRow{}}
 
 	for n := 2; ; n++ {
@@ -3838,6 +3847,34 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 				out.Rejected++
 				out.Problems = append(out.Problems, importRow{Row: n, Data: data, Problem: err.Error()})
 				continue
+			}
+		}
+		/* THE SAME PERSON TWICE IN ONE FILE.
+
+		   Every one of these importers writes with an upsert, so two rows
+		   carrying the same key do not collide — the second silently
+		   overwrites the first and the import reports success. What the school
+		   is left with is one record holding a mixture of two rows, which is
+		   worse than either and invisible afterwards.
+
+		   Named against the row it collides with, before anything is written,
+		   and only for the entities that have an identity column: a fee head
+		   or a subject repeated in a file is a different and much cheaper
+		   mistake. */
+		if spec.Identity != "" {
+			key := strings.ToLower(strings.TrimSpace(data[spec.Identity]))
+			if key != "" {
+				if first, dup := seen[key]; dup {
+					out.Rejected++
+					out.Problems = append(out.Problems, importRow{
+						Row: n, Data: data,
+						Problem: fmt.Sprintf("%s %q is already on row %d of this file. "+
+							"Two rows cannot be the same person",
+							spec.Identity, data[spec.Identity], first),
+					})
+					continue
+				}
+				seen[key] = n
 			}
 		}
 		out.Valid++
