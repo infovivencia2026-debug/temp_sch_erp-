@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Mail, Phone, ShieldBan, UserRound } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
@@ -271,10 +272,10 @@ function useStaff() {
   })
 }
 function useStudents() {
-  return useQuery({
-    queryKey: ['students', 'desk'],
-    queryFn: () => api.get<List<Named>>('/api/v1/students?limit=400'),
-  })
+  /* The shared roster, which walks to the end of the roll. The number here
+     was asking the endpoint for more than one page may carry, so it came back
+     silently short and a child past it was in no picker at all. */
+  return useStudentRoster<Named>()
 }
 
 function Visitors({ rows }: { rows: Visitor[] }) {

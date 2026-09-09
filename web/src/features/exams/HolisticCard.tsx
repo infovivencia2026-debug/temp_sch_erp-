@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, HeartHandshake, Activity, Info, MessageSquare } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Badge, Button, Select, Loading, SkeletonTiles, ErrorState, EmptyState, FormNotice, PrintButton,
@@ -119,13 +120,10 @@ export default function HolisticCard() {
     queryFn: () => api.get<List<Child>>('/api/v1/portal/students'),
     enabled: session.isSuccess && !isStaff,
   })
-  const roster = useQuery({
-    queryKey: ['students', 'hpc'],
-    queryFn: () => api.get<{ items: { id: string; full_name: string; class_name?: string }[] }>(
-      '/api/v1/students?limit=200',
-    ),
-    enabled: session.isSuccess && isStaff,
-  })
+  /* The shared roster, which walks to the end of the roll. The number here
+     was asking the endpoint for more than one page may carry, so it came back
+     silently short and a child past it was in no picker at all. */
+  const roster = useStudentRoster<{ id: string; full_name: string; class_name?: string }>()
 
   const options = isStaff
     ? (roster.data?.items ?? []).map((s) => ({

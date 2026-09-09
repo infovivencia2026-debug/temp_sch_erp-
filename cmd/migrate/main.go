@@ -273,6 +273,31 @@ func seed(ctx context.Context, db *database.DB) error {
 			return err
 		}
 
+		/* The vendor's own roles, before the schools'.
+
+		   seller_admin, super_admin and support_admin hang off no institution,
+		   so the loop below -- which walks `institutions` -- has never reached
+		   them: their capability grants existed only if somebody had run
+		   `create-seller` on that database, and `seed`, which is the documented
+		   way to repair roles after a deploy, left them alone. On an
+		   installation seeded any other way the vendor's own console came up
+		   with navigation and no rights, so every screen in it read "missing
+		   permission: platform.tenants.write" and the seller could not open
+		   the school list they had just provisioned.
+
+		   Seeding a nil tenant creates exactly the platform roles and skips
+		   the per-school ones, which is the same call create-seller makes.
+
+		   Capabilities only. Their NAVIGATION was never missing:
+		   SeedCatalogRoles writes a platform role against a NULL owner
+		   whatever tenant it is called for, which is why the vendor's console
+		   had a full menu behind which nothing would open -- and why calling
+		   it with a nil tenant here would try to give every SCHOOL role the
+		   all-zero institution and fail the foreign key. */
+		if err := rbac.SeedInstitution(ctx, tx, uuid.Nil); err != nil {
+			return fmt.Errorf("seed platform roles: %w", err)
+		}
+
 		for _, inst := range insts {
 			if err := seedRoles(ctx, tx, inst); err != nil {
 				return err
@@ -283,6 +308,7 @@ func seed(ctx context.Context, db *database.DB) error {
 			if err := seedMergedPersonas(ctx, tx, inst); err != nil {
 				return err
 			}
+
 		}
 		slog.Info("roles seeded", "institutions", len(insts), "roles", len(rbac.SystemRoles))
 		return nil

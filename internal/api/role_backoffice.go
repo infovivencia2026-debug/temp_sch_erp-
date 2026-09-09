@@ -452,28 +452,108 @@ type employeeRow struct {
 	PeriodsWeek int32 `json:"periods_this_week"`
 }
 
-// listEmployees powers hr.hr_workspace.employee_master_directory.
+/*
+listEmployees powers hr.hr_workspace.employee_master_directory.
+
+	PAGED BY KEYSET, for the reason listStudents gives at length: a fixed
+	`LIMIT 300` in the SQL is not a page size, it is a ceiling on how much of
+	its own payroll a school may read, and it is silent. Every HR picker in the
+	product is fed by this one call -- training, welfare, service records,
+	statutory returns, the substitution board -- so a school with 301 staff had
+	people who could not be chosen anywhere, with nothing on screen to say a
+	name was missing rather than absent.
+
+	The sort key is employee_code with the row id as a tiebreak. Codes are
+	school-issued text, are not unique in practice, and are sometimes absent
+	altogether, so the key is COALESCE'd: an employee with no code sorts first
+	and is still reachable, where a bare `(code, id) > ($1, $2)` would compare
+	against NULL, yield NULL, and drop exactly those rows from every page.
+
+	`limit` bounds one response and nothing else; follow `next_cursor` for the
+	rest. Callers that only read `items` are unaffected -- the envelope carries
+	the same field it always did.
+*/
 func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
-	items, err := collect(s, r, `
-		SELECT e.id::text, e.user_id::text, e.employee_code, e.staff_number,
-		       e.device_user_id, concat_ws(' ', e.first_name, e.last_name),
-		       d.name, dg.name, e.phone, e.email::text,
-		       to_char(e.joined_on,'YYYY-MM-DD'), e.status,
-		       (SELECT count(*)::int FROM timetable_entries te
-		         WHERE te.teacher_user_id = e.user_id)
-		  FROM employees e
-		  LEFT JOIN departments  d  ON d.id = e.department_id
-		  LEFT JOIN designations dg ON dg.id = e.designation_id
-		 WHERE ($1::text IS NULL OR e.status = $1)
-		 ORDER BY e.employee_code
-		 LIMIT 300`, []any{nullString(r.URL.Query().Get("status"))},
-		func(rows pgx.Rows) (employeeRow, error) {
+	id := httpx.IdentityFrom(r.Context())
+	q := r.URL.Query()
+	limit := clampInt(q.Get("limit"), 50, 1, 200)
+	offset := clampInt(q.Get("offset"), 0, 0, 1_000_000)
+	status := nullString(q.Get("status"))
+
+	fp := filterFingerprint("employees", q.Get("status"))
+	cur := decodeCursor(q.Get("cursor"), fp)
+	withTotal := cur == nil
+	switch q.Get("with_total") {
+	case "1":
+		withTotal = true
+	case "0":
+		withTotal = false
+	}
+
+	out := page[employeeRow]{Items: []employeeRow{}, Limit: limit, Offset: offset}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		const from = `
+			  FROM employees e
+			  LEFT JOIN departments  d  ON d.id = e.department_id
+			  LEFT JOIN designations dg ON dg.id = e.designation_id
+			 WHERE ($1::text IS NULL OR e.status = $1)
+			   AND ($2::text IS NULL OR
+			        (COALESCE(e.employee_code, ''), e.id) > ($2::text, $3::uuid))`
+
+		var curCode, curID any
+		if cur != nil {
+			curCode, curID = cur.Adm, cur.ID
+		}
+		if withTotal {
+			var n int
+			if err := tx.QueryRow(r.Context(),
+				`SELECT count(*)`+from, status, nil, nil).Scan(&n); err != nil {
+				return err
+			}
+			out.Total = &n
+		}
+
+		// limit+1 then trim, so has_more is a fact about rows rather than
+		// arithmetic on a total the later pages do not carry.
+		rows, err := tx.Query(r.Context(), `
+			SELECT e.id::text, e.user_id::text, e.employee_code, e.staff_number,
+			       e.device_user_id, concat_ws(' ', e.first_name, e.last_name),
+			       d.name, dg.name, e.phone, e.email::text,
+			       to_char(e.joined_on,'YYYY-MM-DD'), e.status,
+			       (SELECT count(*)::int FROM timetable_entries te
+			         WHERE te.teacher_user_id = e.user_id)`+from+`
+			 ORDER BY COALESCE(e.employee_code, ''), e.id
+			 LIMIT $4 OFFSET $5`,
+			status, curCode, curID, limit+1, cursorOffset(cur, offset))
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
 			var v employeeRow
-			return v, rows.Scan(&v.ID, &v.UserID, &v.Code, &v.StaffNumber, &v.DeviceUserID,
-				&v.FullName, &v.Department,
-				&v.Designation, &v.Phone, &v.Email, &v.JoinedOn, &v.Status, &v.PeriodsWeek)
-		})
-	respond(w, r, items, err)
+			if err := rows.Scan(&v.ID, &v.UserID, &v.Code, &v.StaffNumber, &v.DeviceUserID,
+				&v.FullName, &v.Department, &v.Designation, &v.Phone, &v.Email,
+				&v.JoinedOn, &v.Status, &v.PeriodsWeek); err != nil {
+				return err
+			}
+			out.Items = append(out.Items, v)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(out.Items) > limit {
+			out.Items = out.Items[:limit]
+			out.HasMore = true
+			last := out.Items[len(out.Items)-1]
+			out.NextCursor = encodeCursor(listCursor{Adm: last.Code, ID: last.ID, Filter: fp})
+		}
+		return nil
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 type leaveRow struct {

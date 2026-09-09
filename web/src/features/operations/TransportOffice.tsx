@@ -4,6 +4,7 @@ import {
   AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
 } from 'lucide-react'
 import { ApiError, api, type List } from '@/lib/api'
+import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -990,10 +991,11 @@ function Allocations() {
     queryKey: ['transport-allocations'],
     queryFn: () => api.get<List<Allocation>>('/api/v1/ops/transport/allocations'),
   })
-  const students = useQuery({
-    queryKey: ['students', 'for-transport'],
-    queryFn: () => api.get<List<Named>>('/api/v1/students?limit=400'),
-  })
+  /* The shared roster, which walks to the end of the roll. `limit=400` was
+     answered with 200 -- the endpoint's page size -- so a school past two
+     hundred children could not allocate a bus to the rest of them, and the
+     picker simply did not list the child. */
+  const students = useStudentRoster<Named>()
   const stops = useQuery({
     queryKey: ['route-stops', routeId],
     queryFn: () =>

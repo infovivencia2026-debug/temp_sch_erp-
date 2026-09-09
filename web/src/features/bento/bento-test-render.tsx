@@ -59,3 +59,16 @@ export function decl(style: string, prop: string): string {
 export function code(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 }
+
+/* The same source with every token reference taken out.
+
+   `hsl(var(--scrim))` is how this stylesheet, and index.css beside it, name
+   nearly a hundred colours: the token holds the channels and the function
+   only reads them. A rule against hard-coded colour has to let that through,
+   or it fails the moment somebody uses the convention correctly -- which is
+   what happened when the scrim landed in the customize block. What the rule
+   is actually for is a literal, `hsl(220 20% 10%)`, which names a colour
+   here rather than deferring to the one place colours are decided. */
+export function withoutTokenColours(source: string): string {
+  return source.replace(/\b(?:rgba?|hsla?)\(\s*var\(--[^)]*\)[^)]*\)/g, '')
+}
