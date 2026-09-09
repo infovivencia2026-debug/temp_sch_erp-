@@ -64,6 +64,15 @@ export default function FeeCounter() {
   const [mode, setMode] = useState('cash')
   const [reference, setReference] = useState('')
   const [bank, setBank] = useState('')
+  /* WHO IS ACTUALLY AT THE COUNTER.
+   *
+   * An uncle pays for two nephews and a driver pays for the family he works
+   * for; the register had a column for it and this did not, so three months
+   * later nobody could say who brought the money. Optional -- a receipt must
+   * never wait on it -- and free text, because the payer is often not a
+   * registered guardian. */
+  const [payer, setPayer] = useState('')
+  const [payerRel, setPayerRel] = useState('')
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
 
@@ -109,6 +118,8 @@ export default function FeeCounter() {
         reference_no: reference || undefined,
         bank_name: bank || undefined,
         cheque_date: chequeDate || undefined,
+        payer_name: payer.trim() || undefined,
+        payer_relation: payerRel.trim() || undefined,
         invoice_ids: selected.size ? [...selected] : undefined,
       }),
     onSuccess: async (res) => {
@@ -118,6 +129,7 @@ export default function FeeCounter() {
       // counter, and an unconfirmed payment is the one that gets taken twice.
       toast.ok(`Receipt ${res.receipt_no} issued`)
       setAmount(''); setReference(''); setBank(''); setChequeDate(''); setSelected(new Set())
+      setPayer(''); setPayerRel('')
       qc.invalidateQueries({ queryKey: ['fee-ledger', studentId] })
       qc.invalidateQueries({ queryKey: ['finance-dashboard'] })
     },
@@ -384,6 +396,20 @@ export default function FeeCounter() {
                       </label>
                     </>
                   )}
+
+                  {/* Left out of the cheque block on purpose: cash is where
+                      this matters most, and cash has no instrument to trace it
+                      by. */}
+                  <div className="grid grid-cols-[minmax(0,1fr)_10rem] gap-2">
+                    <label className="block">
+                      <span className="text-[13px] text-muted-foreground">Paid by (optional)</span>
+                      <Input value={payer} onChange={setPayer} placeholder="Name on the counterfoil" className="mt-1 w-full" />
+                    </label>
+                    <label className="block">
+                      <span className="text-[13px] text-muted-foreground">Relation</span>
+                      <Input value={payerRel} onChange={setPayerRel} placeholder="Father, uncle…" className="mt-1 w-full" />
+                    </label>
+                  </div>
 
                   {collect.isError && (
                     <p className="text-[13px] text-destructive">

@@ -219,15 +219,19 @@ func (s *Server) getStudentLedger(w http.ResponseWriter, r *http.Request) {
 }
 
 type collectRequest struct {
-	StudentID   string   `json:"student_id"`
-	AmountPaise int64    `json:"amount_paise"`
-	Mode        string   `json:"mode"`
-	PaidOn      string   `json:"paid_on,omitempty"`
-	ReferenceNo string   `json:"reference_no,omitempty"`
-	BankName    string   `json:"bank_name,omitempty"`
-	ChequeDate  string   `json:"cheque_date,omitempty"`
-	Remarks     string   `json:"remarks,omitempty"`
-	InvoiceIDs  []string `json:"invoice_ids,omitempty"`
+	StudentID   string `json:"student_id"`
+	AmountPaise int64  `json:"amount_paise"`
+	Mode        string `json:"mode"`
+	PaidOn      string `json:"paid_on,omitempty"`
+	ReferenceNo string `json:"reference_no,omitempty"`
+	BankName    string `json:"bank_name,omitempty"`
+	ChequeDate  string `json:"cheque_date,omitempty"`
+	Remarks     string `json:"remarks,omitempty"`
+	// Who is standing at the counter. The register had this column and the
+	// receipt often prints it; neither is served by leaving it out.
+	PayerName     string   `json:"payer_name,omitempty"`
+	PayerRelation string   `json:"payer_relation,omitempty"`
+	InvoiceIDs    []string `json:"invoice_ids,omitempty"`
 }
 
 var validModes = map[string]bool{
@@ -311,7 +315,9 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 			AmountPaise: req.AmountPaise, Mode: req.Mode, PaidOn: paidOn,
 			ReferenceNo: req.ReferenceNo, BankName: req.BankName,
 			ChequeDate: chequeDate, Remarks: req.Remarks,
-			CollectedBy: id.UserID, InvoiceIDs: invoiceIDs,
+			PayerName:     strings.TrimSpace(req.PayerName),
+			PayerRelation: strings.TrimSpace(req.PayerRelation),
+			CollectedBy:   id.UserID, InvoiceIDs: invoiceIDs,
 		})
 		if err != nil {
 			return err

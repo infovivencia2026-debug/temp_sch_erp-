@@ -17,7 +17,9 @@ package api
    already been billed for it in June, and that invoice must stay explicable. */
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -163,4 +165,52 @@ func (s *Server) setFeeOptins(w http.ResponseWriter, r *http.Request) {
 		"ended":  ended,
 		"as_of":  time.Now().Format("2006-01-02"),
 	})
+}
+
+/* THE REMARK AGAINST ONE CHILD'S BILL.
+
+   invoices carried cancelled_reason and nothing else, so "half now, the rest
+   after Diwali" had to be written against the payment -- where it attaches to
+   the money and therefore does not exist at all until somebody pays. The case
+   a note is for is precisely the bill nobody has paid yet. See migration
+   00305. */
+
+type invoiceNoteRequest struct {
+	Note string `json:"note"`
+}
+
+func (s *Server) setInvoiceNote(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	invoiceID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid invoice id")
+		return
+	}
+	var req invoiceNoteRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Cleared rather than set to an empty string: a note somebody deleted
+		// should read as absent, not as a remark that says nothing.
+		tag, err := tx.Exec(r.Context(),
+			`UPDATE invoices SET note = NULLIF($2,''), updated_at = now() WHERE id = $1`,
+			invoiceID, strings.TrimSpace(req.Note))
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return errRefGone
+		}
+		return nil
+	})
+	if errors.Is(err, errRefGone) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }

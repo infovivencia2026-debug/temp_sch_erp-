@@ -250,6 +250,11 @@ type CollectRequest struct {
 	BankName      string
 	ChequeDate    *time.Time
 	Remarks       string
+	// Who handed the money over, and how they relate to the child. Blank
+	// where the school does not record it, which is most gateway and
+	// adjustment traffic: nobody stands at a counter for those.
+	PayerName     string
+	PayerRelation string
 	CollectedBy   uuid.UUID
 	// InvoiceIDs optionally restricts allocation to specific invoices. Empty
 	// means "oldest first across everything outstanding".
@@ -316,14 +321,16 @@ func Collect(ctx context.Context, tx pgx.Tx, req CollectRequest) (*Receipt, erro
 		INSERT INTO payments (institution_id, campus_id, student_id, receipt_no,
 		                      receipt_seq, receipt_fy,
 		                      amount_paise, mode, paid_on, reference_no, bank_name,
-		                      cheque_date, status, collected_by, remarks)
-		VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		                      cheque_date, status, collected_by, remarks,
+		                      payer_name, payer_relation)
+		VALUES ($1,$2,$3,$4,$5,NULLIF($6,''),$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING id`,
 		req.InstitutionID, req.CampusID, req.StudentID, number.Text,
 		number.Seq, number.FY,
 		req.AmountPaise, req.Mode, req.PaidOn, nullText(req.ReferenceNo),
 		nullText(req.BankName), req.ChequeDate, status, nullUUID(req.CollectedBy),
-		nullText(req.Remarks)).Scan(&paymentID); err != nil {
+		nullText(req.Remarks), nullText(req.PayerName),
+		nullText(req.PayerRelation)).Scan(&paymentID); err != nil {
 		return nil, fmt.Errorf("record payment: %w", err)
 	}
 
