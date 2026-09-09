@@ -61,7 +61,20 @@
   height: var(--size);
   flex: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--ink) 7%, var(--paper));
+  /* A LIT DISC, NOT A FLAT PATCH.
+
+     Neutral is the rule (above) but neutral does not have to be flat: sixty
+     identical 7% patches read as unfinished, which is what "does not look
+     premium" means on a grid this size. So the same one ink is laid as a
+     top-lit gradient -- lighter where a light above would fall, a shade
+     deeper at the foot -- and closed with a hairline of itself. No second
+     colour is introduced; the disc simply has a surface. */
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ink) 4%, var(--paper)) 0%,
+      color-mix(in srgb, var(--ink) 9%, var(--paper)) 100%
+    );
   color: var(--ink);
 }
 .fg-plate > .msr { font-size: calc(var(--size) * 0.5); }

@@ -632,10 +632,18 @@ export function BentoLauncher({
           if (menuFor) setMenuFor(null)
         }}
       >
-        <div className="mb-5 flex items-baseline justify-between gap-4">
+        {/* The header is ruled off from the field below it. A title sitting on
+            nothing, at the top of a sheet that is otherwise all tiles, was the
+            page's one piece of chrome with no weight behind it. */}
+        <div
+          className="mb-5 flex items-baseline justify-between gap-4 border-b
+                     border-[color-mix(in_srgb,var(--ink-here)_10%,transparent)] pb-4"
+        >
           <div>
-            <p className="text-[11px] uppercase tracking-[0.08em]">{role.name}</p>
-            <h2 className="text-[22px] font-semibold">{t('bento.launcher.title')}</h2>
+            <p className="text-[11px] uppercase tracking-[0.08em] opacity-65">{role.name}</p>
+            <h2 className="text-[23px] font-semibold tracking-[-0.01em]">
+              {t('bento.launcher.title')}
+            </h2>
           </div>
           <div className="flex items-center gap-1.5">
             {homeRow && (
@@ -670,10 +678,13 @@ export function BentoLauncher({
             autoComplete="off"
             placeholder={t('bento.launcher.filter', { count: String(rows.length) })}
             aria-label={t('bento.launcher.filter', { count: String(rows.length) })}
-            className="inset-field w-full rounded-[12px] border
-                       !border-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]
+            className="inset-field w-full rounded-[13px] border
+                       !border-[color-mix(in_srgb,var(--bento-ink)_28%,transparent)]
                        bg-[var(--bento-card)] py-2.5 pl-10 pr-3.5 text-[13.5px]
-                       text-[var(--bento-ink)] focus-visible:outline-none focus-visible:ring-2
+                       text-[var(--bento-ink)] shadow-[var(--elev-1)]
+                       transition-[border-color,box-shadow] duration-150
+                       hover:!border-[color-mix(in_srgb,var(--bento-ink)_38%,transparent)]
+                       focus-visible:outline-none focus-visible:ring-2
                        focus-visible:ring-[var(--bento-ink)]"
           />
         </div>
@@ -928,7 +939,10 @@ function Label({ icon: Icon, label, tint }: { icon: typeof Home; label: string; 
          families of them, so they keep the quiet ink and only a workspace
          heading is coloured -- which is the whole of what colour now says on
          this screen. */
-      style={tint ? ({ '--t': `var(--dom-${tint}, hsl(var(--primary)))` } as CSSProperties) : undefined}
+      /* The fallback is the ink already on the heading, not a named colour:
+          this file states every tone as a token or a mix, and the one hsl()
+          left in it was failing the test that says so. */
+      style={tint ? ({ '--t': `var(--dom-${tint}, currentColor)` } as CSSProperties) : undefined}
       data-tinted={tint ? '' : undefined}
     >
       <Icon aria-hidden="true" />

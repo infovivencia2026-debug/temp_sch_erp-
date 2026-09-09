@@ -70,8 +70,35 @@
    washed out of it. */
 .lch-label[data-tinted] { opacity: 0.85; }
 .lch-label[data-tinted] svg { color: var(--t); opacity: 1; }
-.lch-section { margin-bottom: 1.75rem; }
+/* EACH FAMILY IS A PANEL, NOT A RUN OF TILES.
+
+   The sheet used to be one column of grids separated by whitespace, so sixty
+   tiles arrived as a single undifferentiated field and the eye had nothing to
+   rest against. Every other surface in the product is built out of cards with
+   an edge and a ground; this one had none, which is the whole of why it read
+   as less finished than the pages around it. A family now sits on its own
+   quiet ground -- a hairline, a radius, a wash barely off the page -- so the
+   screen has architecture and a heading has something to head. */
+.lch-section {
+  margin-bottom: 0.9rem;
+  padding: 0.95rem 1rem 1.05rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
 .lch-section:last-child { margin-bottom: 0; }
+/* The heading is ruled off from its tiles, so the label belongs to the row
+   below it rather than floating between two of them. */
+.lch-section > .lch-label {
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+}
+/* Recents scroll edge to edge of their panel: a band that stops short of the
+   rule looks clipped rather than continued. */
+.lch-section[data-band='recent'] .lch-band {
+  padding-inline: 1rem;
+  margin-inline: -1rem;
+}
 
 /* ---- the grid and the band ---------------------------------------------- */
 
@@ -154,7 +181,11 @@
    --lch-plate so it holds through the density slider and both breakpoints. */
 .lch-plate {
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent),
+    /* Two hairlines, not one: a light catch along the top inside edge and the
+       ring itself. That pair is what makes a disc look moulded instead of
+       drawn, and it costs no colour. */
+    inset 0 1px 0 color-mix(in srgb, var(--bento-card) 70%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, currentColor 11%, transparent),
     var(--elev-1);
   transition:
     transform var(--dur-fast, 200ms) var(--ease-out, ease),
@@ -209,9 +240,15 @@
   overflow: hidden;
   max-width: 100%;
   font-size: var(--lch-name);
-  line-height: 1.2;
+  line-height: 1.25;
+  letter-spacing: 0.005em;
+  /* A hair under full ink. At full strength sixty labels compete with the
+     plates they name; this is the difference between a grid and a list. */
+  opacity: 0.88;
   word-break: break-word;
 }
+.lch-app:hover .lch-name,
+.lch-app[data-cursor='true'] .lch-name { opacity: 1; }
 /* Where it belongs, said under the name in recents and results — the two
    places drawn from everywhere at once. */
 .lch-where {
