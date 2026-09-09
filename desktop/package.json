@@ -1,0 +1,44 @@
+{
+  "name": "edu-cloud-desktop",
+  "productName": "EDU CLOUD",
+  "version": "1.0.0",
+  "description": "The school's own portal as a desktop application.",
+  "license": "UNLICENSED",
+  "private": true,
+  "author": "EDU CLOUD",
+  "main": "src/main.js",
+  "portal": "https://temperp.187-127-178-100.sslip.io",
+  "scripts": {
+    "start": "electron .",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist": "electron-builder --linux --win"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.schoolerp.desktop",
+    "productName": "EDU CLOUD",
+    "copyright": "EDU CLOUD",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["src/**/*", "package.json"],
+    "linux": {
+      "target": ["AppImage", "tar.gz"],
+      "category": "Office",
+      "synopsis": "The school's portal as a desktop application",
+      "desktop": { "entry": { "StartupWMClass": "EDU CLOUD" } }
+    },
+    "win": {
+      "target": ["zip"],
+      "artifactName": "${productName}-${version}-windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    }
+  }
+}
