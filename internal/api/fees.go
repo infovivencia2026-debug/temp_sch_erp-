@@ -1066,6 +1066,28 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				 WHERE id = $1`, invoiceID); err != nil {
 				return err
 			}
+
+			/* AN INVOICE WITH NOTHING ON IT IS NOT A BILL.
+
+			   Where every head in the structure is optional and this child chose
+			   none of them, the lines above insert nothing, and what is left is a
+			   numbered demand for nought. Worse than useless: the duplicate guard
+			   counts it, so the child could never be billed for this instalment
+			   again once they did sign up. Withdraw it, and leave them out of the
+			   run's count. */
+			var lineCount int
+			if err := tx.QueryRow(r.Context(),
+				`SELECT count(*) FROM invoice_lines WHERE invoice_id = $1`,
+				invoiceID).Scan(&lineCount); err != nil {
+				return err
+			}
+			if lineCount == 0 {
+				if _, err := tx.Exec(r.Context(),
+					`DELETE FROM invoices WHERE id = $1`, invoiceID); err != nil {
+					return err
+				}
+				continue
+			}
 			created++
 		}
 		return nil

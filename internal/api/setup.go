@@ -738,6 +738,10 @@ type feeHeadRequest struct {
 	IsTaxable   bool   `json:"is_taxable"`
 	GSTRateBP   int    `json:"gst_rate_bp,omitempty"`
 	HSNSAC      string `json:"hsn_sac,omitempty"`
+	// Optional marks a head only the children who chose it owe — an
+	// after-school activity, music, a coaching batch. Left off, the head
+	// behaves as every head always has: everyone in the class owes it.
+	Optional bool `json:"optional,omitempty"`
 }
 
 func (s *Server) createFeeHead(w http.ResponseWriter, r *http.Request) {
@@ -763,15 +767,15 @@ func (s *Server) createFeeHead(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO fee_heads (institution_id, name, code, is_recurring,
-			                       is_taxable, gst_rate_bp, hsn_sac)
-			VALUES ($1,$2,upper($3),$4,$5,$6,$7)
+			                       is_taxable, gst_rate_bp, hsn_sac, optional)
+			VALUES ($1,$2,upper($3),$4,$5,$6,$7,$8)
 			ON CONFLICT (institution_id, code)
 			DO UPDATE SET name = EXCLUDED.name, is_recurring = EXCLUDED.is_recurring,
 			              is_taxable = EXCLUDED.is_taxable, gst_rate_bp = EXCLUDED.gst_rate_bp,
-			              hsn_sac = EXCLUDED.hsn_sac
+			              hsn_sac = EXCLUDED.hsn_sac, optional = EXCLUDED.optional
 			RETURNING id::text`,
 			id.InstitutionID, req.Name, req.Code, recurring,
-			req.IsTaxable, req.GSTRateBP, nullString(req.HSNSAC)).Scan(&newID)
+			req.IsTaxable, req.GSTRateBP, nullString(req.HSNSAC), req.Optional).Scan(&newID)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

@@ -471,6 +471,11 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Post("/fee-heads", s.createFeeHead)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Patch("/fee-heads/{id}", s.updateFeeHead)
 			r.With(httpx.RequirePermission(rbac.FeesWrite)).Delete("/fee-heads/{id}", s.deleteFeeHead)
+			// Who takes the optional heads. Read with fees.read because the
+			// list is the class roster with ticks; written with fees.write
+			// because the ticks decide what a family is billed.
+			r.With(httpx.RequirePermission(rbac.FeesRead)).Get("/fee-heads/{id}/optins", s.listFeeOptins)
+			r.With(httpx.RequirePermission(rbac.FeesWrite)).Put("/fee-heads/{id}/optins", s.setFeeOptins)
 			// Pricing a class means naming one. Accounts holds fees.write and
 			// not academics.read, so without this the class dropdown on the
 			// fee-structure form was empty for exactly the people who use it.

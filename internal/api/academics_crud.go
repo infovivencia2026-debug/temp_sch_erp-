@@ -325,6 +325,7 @@ type feeHeadPatch struct {
 	Code         *string `json:"code,omitempty"`
 	IsRefundable *bool   `json:"is_refundable,omitempty"`
 	IsRecurring  *bool   `json:"is_recurring,omitempty"`
+	Optional     *bool   `json:"optional,omitempty"`
 }
 
 func (s *Server) updateFeeHead(w http.ResponseWriter, r *http.Request) {
@@ -354,9 +355,11 @@ func (s *Server) updateFeeHead(w http.ResponseWriter, r *http.Request) {
 			   SET name          = COALESCE($2, name),
 			       code          = COALESCE($3, code),
 			       is_refundable = COALESCE($4, is_refundable),
-			       is_recurring  = COALESCE($5, is_recurring)
+			       is_recurring  = COALESCE($5, is_recurring),
+			       optional      = COALESCE($6, optional)
 			 WHERE id = $1`,
-			headID, req.Name, req.Code, req.IsRefundable, req.IsRecurring)
+			headID, req.Name, req.Code, req.IsRefundable, req.IsRecurring,
+			req.Optional)
 		if err != nil {
 			if strings.Contains(err.Error(), "fee_heads_institution") {
 				return errRefTaken

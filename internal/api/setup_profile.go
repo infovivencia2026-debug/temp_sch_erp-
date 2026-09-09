@@ -512,6 +512,11 @@ type feeHeadRow struct {
 	IsRecurring bool    `json:"is_recurring"`
 	HSNSAC      *string `json:"hsn_sac,omitempty"`
 	UsedIn      int     `json:"used_in"`
+	// Owed only by the children who chose it. See migration 00304.
+	Optional bool `json:"optional"`
+	// How many have, this year — so the screen can say "ECA · 24 children"
+	// rather than leaving somebody to guess whether anyone signed up.
+	ChosenBy int `json:"chosen_by"`
 }
 
 // listFeeHeads exists because a fee structure is built out of heads and there
@@ -523,12 +528,16 @@ func (s *Server) listFeeHeads(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT h.id::text, h.name, h.code, h.is_recurring, h.hsn_sac,
 		       (SELECT count(*) FROM fee_structure_items i
-		         WHERE i.fee_head_id = h.id)::int
+		         WHERE i.fee_head_id = h.id)::int,
+		       h.optional,
+		       (SELECT count(*) FROM student_fee_optins o
+		         WHERE o.fee_head_id = h.id AND o.ended_on IS NULL)::int
 		  FROM fee_heads h
 		 ORDER BY h.name`, nil,
 		func(rows pgx.Rows) (feeHeadRow, error) {
 			var v feeHeadRow
-			return v, rows.Scan(&v.ID, &v.Name, &v.Code, &v.IsRecurring, &v.HSNSAC, &v.UsedIn)
+			return v, rows.Scan(&v.ID, &v.Name, &v.Code, &v.IsRecurring, &v.HSNSAC, &v.UsedIn,
+				&v.Optional, &v.ChosenBy)
 		})
 	respond(w, r, items, err)
 }

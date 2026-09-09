@@ -2468,6 +2468,155 @@ function FeeHeadsPanel({ onDone }: PanelProps) {
   )
 }
 
+/* WHO PAYS AN OPTIONAL HEAD.
+ *
+ * Two statements, kept apart because they are answered by different people at
+ * different times: the bursar decides ECA is optional once, and the office
+ * ticks the twenty-four children who joined, again each year.
+ *
+ * The roster is sent whole rather than child by child -- the screen knows the
+ * complete answer, so Save is idempotent and a lost response is simply
+ * retried. See internal/api/fee_optins.go. */
+function OptionalTakers({
+  head,
+}: {
+  head: { id: string; name: string; optional?: boolean; chosen_by?: number }
+}) {
+  const qc = useQueryClient()
+  const [picking, setPicking] = useState(false)
+  const [chosen, setChosen] = useState<Set<string> | null>(null)
+
+  const mark = useMutation({
+    mutationFn: (optional: boolean) =>
+      api.patch(`/api/v1/setup/fee-heads/${head.id}`, { optional }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['fee-heads'] }),
+  })
+
+  const { data: roster, isLoading } = useQuery({
+    queryKey: ['fee-optins', head.id],
+    queryFn: () =>
+      api.get<List<{ student_id: string; name: string; admission_no: string; class_name: string; chosen: boolean }>>(
+        `/api/v1/setup/fee-heads/${head.id}/optins`,
+      ),
+    // Fetched only when somebody opens the list: a structure with fifteen
+    // heads must not pull fifteen class rosters to render a form.
+    enabled: picking,
+  })
+
+  useEffect(() => {
+    if (roster && chosen === null) {
+      setChosen(new Set(roster.items.filter((s) => s.chosen).map((s) => s.student_id)))
+    }
+  }, [roster, chosen])
+
+  const saveTakers = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/setup/fee-heads/${head.id}/optins`, {
+        student_ids: [...(chosen ?? [])],
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['fee-heads'] })
+      qc.invalidateQueries({ queryKey: ['fee-optins', head.id] })
+      setPicking(false)
+      setChosen(null)
+    },
+  })
+
+  if (!head.optional) {
+    return (
+      <button
+        type="button"
+        onClick={() => mark.mutate(true)}
+        className="mt-1 text-[12.5px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        Only some children pay this
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-1.5 rounded-md border border-dashed bg-muted/30 p-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-[12.5px] text-muted-foreground">
+          {head.chosen_by
+            ? `${head.chosen_by} ${head.chosen_by === 1 ? 'child takes' : 'children take'} this`
+            : 'Nobody has been put down for this yet, so nobody is billed for it.'}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPicking(!picking)}
+          className="text-[12.5px] text-primary underline underline-offset-2"
+        >
+          {picking ? 'Close the list' : 'Choose who takes it'}
+        </button>
+        <button
+          type="button"
+          onClick={() => mark.mutate(false)}
+          className="text-[12.5px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Everybody pays this
+        </button>
+      </div>
+
+      {picking && (
+        <div className="mt-2">
+          {isLoading && <p className="text-[13px] text-muted-foreground">Fetching the roll…</p>}
+          {roster && (
+            <>
+              <div className="max-h-64 divide-y overflow-y-auto rounded border bg-card">
+                {roster.items.map((st) => {
+                  const on = chosen?.has(st.student_id) ?? false
+                  return (
+                    <label
+                      key={st.student_id}
+                      className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 text-[13px] hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => {
+                          const next = new Set(chosen ?? [])
+                          on ? next.delete(st.student_id) : next.add(st.student_id)
+                          setChosen(next)
+                        }}
+                      />
+                      <span className="flex-1">{st.name}</span>
+                      <span className="text-[12px] text-muted-foreground">
+                        {st.class_name}
+                        {st.admission_no && ` · ${st.admission_no}`}
+                      </span>
+                    </label>
+                  )
+                })}
+                {roster.items.length === 0 && (
+                  <p className="px-2.5 py-2 text-[13px] text-muted-foreground">
+                    No children are enrolled for this year yet.
+                  </p>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => saveTakers.mutate()}
+                  disabled={saveTakers.isPending}
+                  className="rounded-md border border-primary bg-primary px-2.5 py-1 text-[13px] text-primary-foreground disabled:opacity-60"
+                >
+                  {saveTakers.isPending ? 'Saving…' : `Save ${chosen?.size ?? 0} on the list`}
+                </button>
+                {/* Said plainly, because it is the whole point: taking a child
+                    off does not undo a bill already raised against them. */}
+                <span className="text-[12px] text-muted-foreground">
+                  Applies from the next fee run. Invoices already raised are untouched.
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // --- 13. fee structures -----------------------------------------------------
 
 function FeeStructuresPanel({ onDone }: PanelProps) {
@@ -2477,7 +2626,10 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
   })
   const { data: heads } = useQuery({
     queryKey: ['fee-heads'],
-    queryFn: () => api.get<List<{ id: string; name: string }>>('/api/v1/setup/fee-heads'),
+    queryFn: () =>
+      api.get<List<{ id: string; name: string; optional?: boolean; chosen_by?: number }>>(
+        '/api/v1/setup/fee-heads',
+      ),
   })
   /* The structure is named after the year, because that is what it is.
 
@@ -2807,6 +2959,13 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
                 </span>
               )}
             </div>
+
+            {/* NOT EVERYBODY PAYS EVERYTHING.
+                ECA, music, a coaching batch: on the structure at one price,
+                but owed only by the children who signed up. Off by default,
+                so a head nobody touches is charged to the whole class exactly
+                as it always was. */}
+            <OptionalTakers head={h} />
 
             {(open || dueOpen) && (
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
