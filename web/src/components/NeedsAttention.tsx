@@ -293,7 +293,20 @@ export default function NeedsAttention({ name }: { name?: string }) {
                         with the list, because it belongs to the line above it
                         and read as an alert of its own at the old alignment. */}
                     {chase && (
-                      <div className="px-4 pb-3 sm:border-t sm:py-2">
+                      /* NOT ITS OWN ROW ON A DESK.
+                       *
+                       * The rule above this button made a one-alert list look
+                       * like a two-alert list: a full-width hairline across
+                       * the card, then a line of blue text under it, which is
+                       * the shape of a second item rather than of an action
+                       * belonging to the first. The indent already says it
+                       * belongs to the line above; the border only competed
+                       * with the divider between real items.
+                       *
+                       * Kept on the phone, where the rows are separate cards
+                       * and the rule is the only thing joining the action to
+                       * the alert it acts on. */
+                      <div className="px-4 pb-3 sm:pb-2.5 sm:pt-0">
                         <button
                           type="button"
                           disabled={nudge.isPending}
@@ -362,6 +375,12 @@ export default function NeedsAttention({ name }: { name?: string }) {
                 3: 'sm:col-span-3',
                 4: 'sm:col-span-4',
               }
+              const SPAN_LG: Record<number, string> = {
+                1: 'lg:col-span-1',
+                2: 'lg:col-span-2',
+                3: 'lg:col-span-3',
+                4: 'lg:col-span-4',
+              }
               const spanOf = (s: SummaryStat) => Math.min(3, Math.max(1, Math.round(s.span ?? 1)))
               const used = summary.reduce((n, s) => n + spanOf(s), 0)
               const stranded = used % 3
@@ -370,13 +389,19 @@ export default function NeedsAttention({ name }: { name?: string }) {
               const lastSpanSm = strandedSm === 0
                 ? ''
                 : SPAN_SM[4 - strandedSm + spanOf(summary[summary.length - 1])] ?? ''
+              /* Beside the list the desk grid is two across; on its own it is
+                 four, the same as sm, so the sm span already covers it. */
+              const colsLg = items.length === 0 ? 4 : 2
+              const strandedLg = used % colsLg
+              const lastSpanLg = strandedLg === 0
+                ? SPAN_LG[spanOf(summary[summary.length - 1])] ?? 'lg:col-span-1'
+                : SPAN_LG[colsLg - strandedLg + spanOf(summary[summary.length - 1])] ?? ''
               return (
             <div
               className={cn(
                 'grid gap-px overflow-hidden rounded-md border bg-border',
                 'grid-cols-3 sm:grid-cols-4',
-                /* ONE COLUMN ON A DESK, which is what the note above always
-                   said and what the class never did.
+                /* TWO COLUMNS THAT ALWAYS END ON A FULL ROW.
 
                    Beside the attention list this section is a third of the
                    width. Two columns in it gave three stats a row of two and
@@ -387,11 +412,16 @@ export default function NeedsAttention({ name }: { name?: string }) {
                    reads as a tile that failed to load rather than as nothing.
 
                    The phone grid already had this guarded ("NO STRANDED TILE"
-                   below); the desk grid is the same bug at another
-                   breakpoint. Stacking removes it by construction rather than
-                   by arithmetic: one column cannot strand anything, however
-                   many stats a role turns out to have. */
-                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-1',
+                   below); the desk grid is the same bug at another breakpoint,
+                   and it is fixed the same way -- the odd tile takes the rest
+                   of its row.
+
+                   One column would also have closed the hole, and was tried:
+                   three full-width tiles stack into a column taller than the
+                   attention list beside them, which trades a grey rectangle
+                   for a lopsided page. Two across and a wide last tile keeps
+                   this section the height of what it sits next to. */
+                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-2',
                 summary.length === 1 && 'grid-cols-1 sm:grid-cols-1 lg:grid-cols-1',
                 summary.length === 2 && 'grid-cols-2 sm:grid-cols-2',
               )}
@@ -403,12 +433,13 @@ export default function NeedsAttention({ name }: { name?: string }) {
                     'bg-card px-3 py-3 text-center sm:px-4 sm:text-left',
                     i === summary.length - 1 ? lastSpan || SPAN[spanOf(s)] : SPAN[spanOf(s)],
                     i === summary.length - 1 && lastSpanSm,
-                    /* And released again where the grid is a single column.
-                       A span wider than the track count does not clamp -- the
-                       browser invents the missing columns and the tile drags
-                       the grid out of shape -- so the sm span above has to be
-                       taken back at the width where the column count drops. */
-                    items.length > 0 && 'lg:col-span-1',
+                    /* Restated at lg rather than inherited from sm. A span is
+                       counted in tracks, not in fractions, so an sm:col-span-3
+                       carried into a two-column grid does not clamp -- the
+                       browser invents the third column and the tile drags the
+                       grid out of shape. Every tile says what it spans at this
+                       width, including the plain ones. */
+                    i === summary.length - 1 ? lastSpanLg : 'lg:col-span-1',
                   )}
                 >
                   <p className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[24px]">
