@@ -224,8 +224,14 @@ export default function StudentProfile() {
       /* A whole section is forty children and a whole class is two hundred.
          Fifteen was right for "the three people called Sharma" and wrong for
          everything this filter is for, and a list silently cut at fifteen is
-         one somebody reads as the complete roll. */
-      qs.set('limit', browsing ? '300' : '15')
+         one somebody reads as the complete roll.
+
+         200, not 300: the API clamps this parameter to 200 (students.go), so
+         asking for 300 was asking for something that never arrived and then
+         reporting the 200 that did as though it were everybody. The header
+         below now quotes the server's own total, so a roll longer than a page
+         says so instead of being quietly rounded down to the page. */
+      qs.set('limit', browsing ? '200' : '15')
       return api.get<Page<Student>>(`/api/v1/students?${qs.toString()}`)
     },
     /* Kept alive while a child is open, which is what makes Previous and Next
@@ -246,6 +252,24 @@ export default function StudentProfile() {
     .filter((x) => (roll === 'left'
       ? x.status !== 'active' && x.status !== 'suspended'
       : true))
+
+  /* THE TILE COUNTS THE SCHOOL, THE LIST COUNTS A PAGE.
+
+     The tile above reads a real count from the server and the header here
+     read `rows.length`, so a school of 345 children opened its own roll and
+     was told there were 200 of them -- the page size, wearing the words "on
+     the roll". Two numbers for one fact on one screen, and the smaller one
+     was the one with the sentence attached.
+
+     `total` is what the query counted before paging, so it is the honest
+     figure whenever this list is the server's answer unnarrowed. The one view
+     it cannot describe is "left", which asks for everybody and drops the
+     enrolled here, on the client: there the only number anyone can stand
+     behind is the number actually shown. */
+  const serverTotal = results.data?.total
+  const totalIsOurs = roll !== 'left' && typeof serverTotal === 'number'
+  const countForTitle = totalIsOurs ? (serverTotal as number) : rows.length
+  const moreThanShown = totalIsOurs && (serverTotal as number) > rows.length
 
   const profile = useQuery({
     queryKey: ['student-profile', selected],
@@ -633,8 +657,13 @@ export default function StudentProfile() {
                   it was a filtered subset is the whole risk of this screen. */}
               <CardHeader
                 title={
-                  rows.length + (rows.length === 1 ? ' student' : ' students') +
+                  countForTitle + (countForTitle === 1 ? ' student' : ' students') +
                   (roll === 'left' ? ' who have left' : roll === 'active' ? ' on the roll' : '')
+                }
+                description={
+                  moreThanShown
+                    ? `Showing the first ${rows.length}. Choose a section to see the rest.`
+                    : undefined
                 }
                 action={
                   browsing || searching ? (
