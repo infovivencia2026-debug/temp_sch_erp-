@@ -35,12 +35,24 @@
 /* The small cut, for a 20px glyph in a dock or a list row. */
 .msr-sm { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20; }
 
-/* The plate. --t is the workspace colour, set inline by the component from
-   the domain token it picked; --paper is the theme's card surface, so the
-   14% tint sits on white in the light theme and on the dark card in the
-   dark one instead of going chalky. */
+/* The plate. --paper is the theme's card surface, so the wash sits on white
+   in the light theme and on the dark card in the dark one instead of going
+   chalky.
+
+   THE FEATURE IS DRAWN IN INK; THE CATEGORY CARRIES THE COLOUR.
+
+   Every plate used to be a 14% tint of its workspace with the glyph in that
+   colour too, and a launcher of sixty features was sixty saturated discs in
+   eight hues -- the grid read as a colour chart, and the corner mark that
+   actually says which family a tile belongs to was the one thing on the
+   plate with nothing to distinguish it. So the disc and its glyph are now
+   neutral, and --t is still declared for the children who should be
+   coloured: the workspace mark in the corner, and the category icon in the
+   heading above the row. Colour then means one thing on this screen -- which
+   family -- instead of being repeated on everything at once. */
 .fg-plate {
   --paper: var(--bento-card, hsl(var(--card, 0 0% 100%)));
+  --ink: var(--bento-ink, hsl(var(--foreground, 0 0% 12%)));
   --size: 40px;
   position: relative;
   display: grid;
@@ -49,7 +61,7 @@
   height: var(--size);
   flex: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--t) 14%, var(--paper));
-  color: var(--t);
+  background: color-mix(in srgb, var(--ink) 7%, var(--paper));
+  color: var(--ink);
 }
 .fg-plate > .msr { font-size: calc(var(--size) * 0.5); }

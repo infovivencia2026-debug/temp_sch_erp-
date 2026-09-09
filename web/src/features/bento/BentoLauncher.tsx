@@ -712,7 +712,7 @@ export function BentoLauncher({
                 const Mark = markFor(g.name)
                 return (
                   <section key={g.name} className="lch-section" data-band="all" data-workspace={g.name}>
-                    <Label icon={Mark} label={g.name} />
+                    <Label icon={Mark} label={g.name} tint={hueFor(g.name)} />
                     {draw(slots.filter((s) => s.id.startsWith('all:') && s.r.workspace === g.name))}
                   </section>
                 )
@@ -919,9 +919,18 @@ function Tile({
 /** One label treatment for every band, so pinned, recents, results and
     workspaces read as the same kind of thing rather than four inventions.
     Quiet on purpose: the tiles are the content. */
-function Label({ icon: Icon, label }: { icon: typeof Home; label: string }) {
+function Label({ icon: Icon, label, tint }: { icon: typeof Home; label: string; tint?: string }) {
   return (
-    <h3 className="lch-label">
+    <h3
+      className="lch-label"
+      /* The category's own colour, where there is a category. Pinned,
+         recents and results are ways of gathering features rather than
+         families of them, so they keep the quiet ink and only a workspace
+         heading is coloured -- which is the whole of what colour now says on
+         this screen. */
+      style={tint ? ({ '--t': `var(--dom-${tint}, hsl(var(--primary)))` } as CSSProperties) : undefined}
+      data-tinted={tint ? '' : undefined}
+    >
       <Icon aria-hidden="true" />
       <span>{label}</span>
     </h3>
