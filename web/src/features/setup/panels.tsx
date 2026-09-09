@@ -2507,6 +2507,29 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
    * dropdown used to mean, so the default has not changed. */
   const [pickedClasses, setPickedClasses] = useState<Set<string>>(new Set())
   const [instalments, setInstalments] = useState('3')
+  /* TERM AMOUNTS, WHERE THE TERMS ARE NOT EQUAL.
+   *
+   * The annual figure divided by three is the common case and stays the
+   * default. It is not the only case: a first term carrying the annual charge,
+   * a third term with the exam fee in it, a transport head billed in two terms
+   * of a three-term year -- schools price those deliberately and this form
+   * could only describe them by lying about the annual total.
+   *
+   * Keyed by head. A head with no entry here is split evenly, exactly as
+   * before, so a structure nobody opens this on writes the same rows it always
+   * did. The store is what a person typed, not paise: an empty box during
+   * editing is a real state and 0 is a different answer from blank. */
+  const [byTerm, setByTerm] = useState<Record<string, string[]>>({})
+
+  /* The n boxes for a head, grown or trimmed as the instalment count changes
+     and seeded from the even split so opening it never blanks what was there. */
+  const termsFor = (headID: string, n: number): string[] => {
+    const has = byTerm[headID]
+    if (!has) return []
+    if (has.length === n) return has
+    const grown = Array.from({ length: n }, (_, i) => has[i] ?? '')
+    return grown
+  }
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   /* Which heads this structure charges.
    *
@@ -2556,6 +2579,26 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
       // A head taken off the structure is not charged even if an amount was
       // typed against it before it was removed.
       if (lines && !lines.includes(headID)) continue
+      /* A head priced term by term is written as typed. The rows already
+         carry an instalment_no and an amount of their own -- one row per head
+         per term is what fee_structure_items has always been -- so nothing
+         about the schema or the fee run changes here; this form simply stopped
+         insisting every term was the same size. */
+      const typed = byTerm[headID]
+      if (typed && typed.length) {
+        let any = false
+        for (let i = 1; i <= n; i++) {
+          const paise = rupeesToPaise(typed[i - 1] ?? '')
+          // A term charged nothing is a real answer -- a fee billed in two
+          // terms of three -- so a blank writes no row rather than a zero one.
+          if (!paise) continue
+          items.push({ fee_head_id: headID, instalment_no: i, amount_paise: paise })
+          any = true
+        }
+        if (any) continue
+        // Every box left empty falls through to the even split below, so
+        // opening the panel and typing nothing cannot silently drop the head.
+      }
       const total = rupeesToPaise(rupees)
       if (!total) continue
       // Split evenly, then push the rounding remainder onto the first
@@ -2577,7 +2620,15 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
     }
   }, onDone)
 
-  const total = Object.values(amounts).reduce((a, r) => a + (parseFloat(r) || 0), 0)
+  /* The year, counted the way each head is priced: a head set term by term
+     totals its terms, and every other head totals its annual box. Reading only
+     the annual boxes made the summary disagree with what was about to be
+     written. */
+  const total = (lines ?? Object.keys(amounts)).reduce((a, id) => {
+    const t = byTerm[id]
+    if (t && t.length) return a + t.reduce((b, v) => b + (parseFloat(v) || 0), 0)
+    return a + (parseFloat(amounts[id] ?? '') || 0)
+  }, 0)
 
   return (
     <form
@@ -2632,37 +2683,106 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
             ))}
           </div>
         </Field>
-        <Field label="Instalments" hint="Annual amounts below are divided into this many terms.">
+        <Field label="Instalments" hint="How many terms the year is billed in. Each head is split evenly unless you set its terms separately.">
           <Input value={instalments} onChange={setInstalments} />
         </Field>
       </FormGrid>
 
       <p className="eyebrow mb-2 mt-4">Annual amount per head</p>
       <div className="space-y-2">
-        {shown.map((h) => (
-          <div key={h.id} className="grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-2">
-            <span className="text-[14px]">{h.name}</span>
-            <Input
-              value={amounts[h.id] ?? ''}
-              onChange={(x) => setAmounts({ ...amounts, [h.id]: x })}
-              placeholder="₹ per year"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setLines((shown.map((x) => x.id) ?? []).filter((id) => id !== h.id))
-                // The amount goes with the line. Leaving it behind means a head
-                // removed and re-added silently carries the old figure.
-                const { [h.id]: _dropped, ...rest } = amounts
-                setAmounts(rest)
-              }}
-              className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
-              aria-label={`Do not charge ${h.name} in this structure`}
-            >
-              remove
-            </button>
+        {shown.map((h) => {
+          const n = Math.max(1, Number(instalments) || 1)
+          const terms = termsFor(h.id, n)
+          const open = terms.length > 0
+          const termTotal = terms.reduce((a, t) => a + (parseFloat(t) || 0), 0)
+          return (
+          <div key={h.id} className="rounded-md border p-2.5">
+            <div className="grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-2">
+              <span className="text-[14px]">{h.name}</span>
+              {/* While the terms are the source of truth the year is stated,
+                  not offered: a box somebody can type into that then ignores
+                  them is worse than a figure that plainly belongs to the boxes
+                  below it. */}
+              {open ? (
+                <span className="px-1 text-[14px] tabular-nums text-muted-foreground">
+                  {termTotal ? `₹${termTotal.toLocaleString('en-IN')} a year` : '—'}
+                </span>
+              ) : (
+                <Input
+                  value={amounts[h.id] ?? ''}
+                  onChange={(x) => setAmounts({ ...amounts, [h.id]: x })}
+                  placeholder="₹ per year"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setLines((shown.map((x) => x.id) ?? []).filter((id) => id !== h.id))
+                  const { [h.id]: _dropped, ...rest } = amounts
+                  setAmounts(rest)
+                  const { [h.id]: _t, ...restT } = byTerm
+                  setByTerm(restT)
+                }}
+                className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+                aria-label={`Do not charge ${h.name} in this structure`}
+              >
+                remove
+              </button>
+            </div>
+
+            {/* THE TERMS, WHERE THEY DIFFER.
+                Seeded from the even split, so opening this shows what would
+                have been written anyway and every edit is a departure from it
+                the reader can see. */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (open) {
+                    const { [h.id]: _gone, ...rest } = byTerm
+                    setByTerm(rest)
+                    return
+                  }
+                  const yearly = parseFloat(amounts[h.id] ?? '') || 0
+                  const each = yearly ? String(Math.round(yearly / n)) : ''
+                  setByTerm({ ...byTerm, [h.id]: Array.from({ length: n }, () => each) })
+                }}
+                className="text-[12.5px] text-primary underline underline-offset-2"
+              >
+                {open ? 'Charge the same every term' : 'Set each term separately'}
+              </button>
+              {open && (
+                <span className="text-[12px] text-muted-foreground">
+                  The year is what these add up to.
+                </span>
+              )}
+            </div>
+
+            {open && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {terms.map((v, i) => (
+                  <label key={i} className="flex items-center gap-1.5">
+                    <span className="text-[12.5px] text-muted-foreground">
+                      Term {i + 1}
+                    </span>
+                    <span className="w-24">
+                      <Input
+                        value={v}
+                        onChange={(x) => {
+                          const next = [...terms]
+                          next[i] = x
+                          setByTerm({ ...byTerm, [h.id]: next })
+                        }}
+                        placeholder="₹"
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
-        ))}
+          )
+        })}
         {shown.length === 0 && (
           <p className="text-[13px] text-muted-foreground">
             No heads on this structure yet — add one below.
@@ -2703,7 +2823,9 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           <span className="tabular-nums">₹{total.toLocaleString('en-IN')}</span>
           <span className="text-muted-foreground">
             {' '}
-            · {instalments} instalments of about ₹{Math.round(total / (Number(instalments) || 1)).toLocaleString('en-IN')}
+            {Object.keys(byTerm).length
+              ? ` · ${instalments} terms, priced separately where set`
+              : ` · ${instalments} instalments of about ₹${Math.round(total / (Number(instalments) || 1)).toLocaleString('en-IN')}`}
           </span>
         </p>
       )}
