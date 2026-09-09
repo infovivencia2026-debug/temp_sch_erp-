@@ -1433,6 +1433,41 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 	}
 	scope := tenantScopeFor(inst, platform)
 
+	/* Per sweep, not per message.
+
+	   The recipient guard, the school's provider set, the seller's provider
+	   set and the route for each channel are all facts about the school,
+	   not about the row, and a sweep of fifty rows used to read every one
+	   of them fifty times -- four or five queries and a credential decrypt
+	   per message before a single send. They are read on the first row
+	   that needs them and held for the rest of the sweep. A sweep is
+	   bounded by limit and by the cron minute, so a credential changed
+	   mid-sweep is seen by the next sweep, which is what the "raced with
+	   somebody clearing the credentials" case below always meant.
+
+	   Lazily, on the first row, rather than before the loop: a sweep that
+	   finds nothing queued is meant to cost one SELECT, and the cron tick
+	   now only schedules sweeps for schools with a due row, so the common
+	   case really does have a first row. */
+	var (
+		sweepLoaded    bool
+		guard          recipientGuard
+		schoolSet      providerSet
+		platformSet    providerSet
+		platformLoaded bool
+		routes         = map[string]string{}
+	)
+	sellerSet := func() (providerSet, error) {
+		if !platformLoaded {
+			set, err := s.platformProviders(ctx)
+			if err != nil {
+				return nil, err
+			}
+			platformSet, platformLoaded = set, true
+		}
+		return platformSet, nil
+	}
+
 	for i := 0; i < limit; i++ {
 		var done bool
 		err = s.DB.InTenant(ctx, scope, func(tx pgx.Tx) error {
@@ -1480,9 +1515,16 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			   not counted as failed: failing it would put it on the retry
 			   schedule to be refused four more times, and it is not a
 			   failure. See whatsapp.go for the guard itself. */
-			guard, err := s.loadRecipientGuard(ctx, tx, inst)
-			if err != nil {
-				return err
+			if !sweepLoaded {
+				g, err := s.loadRecipientGuard(ctx, tx, inst)
+				if err != nil {
+					return err
+				}
+				set, err := s.loadProviders(ctx, tx, inst)
+				if err != nil {
+					return err
+				}
+				guard, schoolSet, sweepLoaded = g, set, true
 			}
 			if allowed, why := guard.permits(channel, recipient); !allowed {
 				_, e := tx.Exec(ctx, `
@@ -1499,23 +1541,26 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			 * rather than per sweep because a school can hold its own SMS
 			 * contract — the one needing a DLT registration and weeks of
 			 * paperwork — while letting WhatsApp go through us, and the sweep
-			 * carries both channels. */
-			route, err := routeFor(ctx, tx, inst, channel)
-			if err != nil {
-				return err
+			 * carries both channels. Per channel, that is: the answer for a
+			 * channel is the same for every row on it, so it is asked once. */
+			route, known := routes[channel]
+			if !known {
+				var err error
+				if route, err = routeFor(ctx, tx, inst, channel); err != nil {
+					return err
+				}
+				routes[channel] = route
 			}
 
-			set, err := s.loadProviders(ctx, tx, inst)
-			if err != nil {
-				return err
-			}
+			set := schoolSet
 			if route == RouteEduCloud {
 				/* Ours, so the school need configure nothing and the credits
 				 * are what pays for it. Exactly the mechanism a password reset
 				 * has always used, now offered as a route a school can be on
 				 * deliberately rather than only as a fallback for one
 				 * template. */
-				if set, err = s.platformProviders(ctx); err != nil {
+				var err error
+				if set, err = sellerSet(); err != nil {
 					return err
 				}
 			}
@@ -1526,7 +1571,8 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 			   The seller keeps one mail server and one SMS channel for every
 			   school's resets, and the school need configure nothing. */
 			if code != nil && sentByPlatform[*code] {
-				if set, err = s.platformProviders(ctx); err != nil {
+				var err error
+				if set, err = sellerSet(); err != nil {
 					return err
 				}
 			}
