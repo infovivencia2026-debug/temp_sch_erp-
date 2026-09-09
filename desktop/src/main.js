@@ -95,7 +95,12 @@ function show(state, detail) {
 
 function load() {
   if (!win || win.isDestroyed()) return
-  win.webContents.loadURL(PORTAL)
+  win.webContents.loadURL(PORTAL).catch((error) => {
+    /* loadURL rejects on the same failures did-fail-load reports, and an
+       unhandled rejection here would be the only trace of a window that
+       never filled. */
+    if (error && error.code !== 'ERR_ABORTED') console.error('load failed', error.code || error)
+  })
 }
 
 /* WHY A CODE IS TURNED INTO A SENTENCE HERE.
@@ -162,18 +167,32 @@ function createWindow() {
      first is the loading page rather than a white rectangle the size of the
      screen. */
   win.once('ready-to-show', () => win.show())
+  /* SHELL_TRACE=1 prints the window's lifecycle and the page's own console.
+     A wrapper is the one place where "it just sits there" has no visible
+     cause: the page cannot report a navigation that never started, and the
+     window cannot report a page that never painted. This is how the load
+     sequencing below was found. */
   if (process.env.SHELL_TRACE) {
     for (const e of ['ready-to-show', 'show', 'close', 'closed', 'unresponsive']) {
       win.on(e, () => console.log('[trace] window', e))
     }
     win.webContents.on('did-finish-load', () => console.log('[trace] loaded', win.webContents.getURL()))
     win.webContents.on('did-fail-load', (ev, c, d, u, m) => console.log('[trace] fail', c, d, u, m))
+    win.webContents.on('console-message', (e) => console.log('[console]', e.level, String(e.message).slice(0, 220)))
     app.on('before-quit', () => console.log('[trace] before-quit'))
     app.on('window-all-closed', () => console.log('[trace] window-all-closed'))
   }
 
+  /* THE LOADING PAGE FIRST, AND THEN THE SITE.
+
+     These were two loadURL calls in the same tick, and the second cancels the
+     first: the window opened, the menu was there, and the content was a white
+     rectangle with neither page in it. A navigation has to be allowed to
+     finish before the next one starts, so the portal is asked for once the
+     loading page has actually painted -- which is also what makes
+     ready-to-show fire against something worth showing. */
+  win.webContents.once('did-finish-load', () => load())
   show('loading')
-  load()
 
   /* ANYTHING THAT IS NOT THE SCHOOL OPENS IN A REAL BROWSER.
 
@@ -299,10 +318,9 @@ if (!app.requestSingleInstanceLock()) {
     /* The retry button, and the automatic one the local page fires when the
        network comes back. */
     ipcMain.on('shell:retry', (event) => {
-      if (win && !win.isDestroyed() && event.sender === win.webContents) {
-        show('loading')
-        load()
-      }
+      if (!win || win.isDestroyed() || event.sender !== win.webContents) return
+      win.webContents.once('did-finish-load', () => load())
+      show('loading')
     })
 
     Menu.setApplicationMenu(buildMenu())
