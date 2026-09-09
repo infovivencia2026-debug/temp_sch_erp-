@@ -12,16 +12,17 @@
 # and Cloud Run only cuts a new revision when something actually changed.
 #
 #   bash deploy/cloudrun/deploy.sh                  # build HEAD, migrate, deploy web
-#   bash deploy/cloudrun/deploy.sh --scheduler      # ...and (re)create the cron tick
+#   bash deploy/cloudrun/deploy.sh --scheduler      # ...and (re)create the cron ticks
 #   bash deploy/cloudrun/deploy.sh --with-worker    # ...and the PAID always-on worker
 #   bash deploy/cloudrun/deploy.sh --dry-run        # print every command, run none
 #   SEED_ROLES=1 bash deploy/cloudrun/deploy.sh     # also reseed roles (see job-migrate.yaml)
 #
 # What is deployed by default is one service, temperp-web, which also works
 # the queue (QUEUE_INPROCESS=1). Cron is Cloud Scheduler calling its
-# /api/v1/cron every minute with X-Cron-Key; --scheduler creates or updates
-# that job and is needed once per project and again whenever CRON_KEY or the
-# service URL changes (it is idempotent, so passing it every time is fine).
+# /api/v1/cron with X-Cron-Key; --scheduler creates or updates the two jobs
+# that make those calls (a minute tick through the school day and a
+# fifteen-minute one overnight) and is needed once per project and again
+# whenever CRON_KEY or the service URL changes (it is idempotent, so passing it every time is fine).
 # The worker service costs ~₹4,000/month and is only for push notifications
 # or a job that must not share CPU with requests -- service-worker.yaml.
 #
@@ -116,7 +117,7 @@ echo "  region   $REGION"
 echo "  image    $IMAGE"
 echo "  base url $BASE_URL"
 echo "  worker   $([ "$WITH_WORKER" = "1" ] && echo 'yes (paid, always-on)' || echo 'no (jobs run in temperp-web)')"
-echo "  cron     $([ "$SCHEDULER" = "1" ] && echo 'Cloud Scheduler job will be created/updated' || echo 'left as is (pass --scheduler)')"
+echo "  cron     $([ "$SCHEDULER" = "1" ] && echo 'both Cloud Scheduler jobs will be created/updated' || echo 'left as is (pass --scheduler)')"
 [ "$DRY_RUN" = "1" ] && echo "  (dry run: nothing will be executed)"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/temperp-cloudrun.XXXXXXXX")"
@@ -279,49 +280,72 @@ say "Cron"
 # invoker check), so an OIDC token would be minted and never verified; the
 # Go handler compares the key in constant time and 401s everything else.
 #
-# Every minute because the finest entry in the schedule (message_dispatch)
-# is every minute; a tick that finds nothing due is one indexed query under
-# an advisory lock. --attempt-deadline 60s so a slow tick is abandoned
-# before the next one, and retries are off: the next minute IS the retry,
-# and two ticks racing serialise on the lock anyway.
+# Two jobs, not one, because the day and the night are not alike.
+#
+# temperp-cron runs every minute from 06:00 to 20:59 IST: that is the finest
+# entry in the schedule (message_dispatch), and during school hours a receipt
+# or an absence alert should not wait. temperp-cron-night runs every fifteen
+# minutes over 21:00-05:59, because quiet hours already hold every overnight
+# message until 09:00 -- a fifteen-minute night cadence delays nothing a
+# parent sees, and it is the difference between 1,440 wake-ups a night and
+# 36. On Cloud Run at min-instances 0 with a Neon database that suspends
+# after five idle minutes, the minute tick was what kept both awake.
+#
+# --attempt-deadline 60s so a slow tick is abandoned before the next one, and
+# retries are off: the next tick IS the retry, and two ticks racing serialise
+# on the advisory lock anyway. An entry whose occurrences were missed while
+# the night job slept fires once when the next tick reaches it, which is the
+# collapse rule cron.go has always had.
 #
 # The header value is the secret, and `gcloud scheduler jobs describe` shows
 # it to anyone with roles/cloudscheduler.viewer -- the same people who can
 # read the manifest's secret refs, so nothing new is exposed, but do not
 # paste describe output into a ticket.
 SCHED_JOB="${SCHED_JOB:-temperp-cron}"
+SCHED_JOB_NIGHT="${SCHED_JOB_NIGHT:-${SCHED_JOB}-night}"
 SCHED_LOCATION="${SCHED_LOCATION:-$REGION}"
 if [ "$SCHEDULER" = "1" ]; then
-    cron_args=(
-        --project "$PROJECT_ID" --location "$SCHED_LOCATION"
-        --schedule "* * * * *" --time-zone "Asia/Kolkata"
-        --uri "${URL}/api/v1/cron" --http-method GET
-        --attempt-deadline 60s
-        --max-retry-attempts 0
-        --description "Ticks the ERP schedule (internal/queue/cron.go); created by deploy/cloudrun/deploy.sh"
-    )
     # The header flag differs between the two verbs: create takes --headers,
     # update takes --update-headers (and would reject --headers).
     cron_header="X-Cron-Key=${CRON_KEY:-CRON_KEY_VALUE}"
-    if [ "$DRY_RUN" = "1" ]; then
-        echo "+ gcloud scheduler jobs describe $SCHED_JOB --project $PROJECT_ID --location $SCHED_LOCATION  (update if present, else create)"
-        # The key is redacted here and only here: a dry run is what gets pasted around.
-        printf '+ gcloud scheduler jobs create|update http %s' "$SCHED_JOB"
-        printf ' %q' "${cron_args[@]}"
-        printf ' %q\n' "--headers|--update-headers X-Cron-Key=<CRON_KEY>"
-    elif gcloud scheduler jobs describe "$SCHED_JOB" \
-            --project "$PROJECT_ID" --location "$SCHED_LOCATION" >/dev/null 2>&1; then
-        gcloud scheduler jobs update http "$SCHED_JOB" "${cron_args[@]}" --update-headers "$cron_header" >/dev/null
-        echo "  updated $SCHED_JOB -> ${URL}/api/v1/cron every minute"
-    else
-        gcloud scheduler jobs create http "$SCHED_JOB" "${cron_args[@]}" --headers "$cron_header" >/dev/null
-        echo "  created $SCHED_JOB -> ${URL}/api/v1/cron every minute"
-    fi
+
+    # Create or update one job. Idempotent by describe-then-choose, so
+    # re-running the deploy converges both jobs onto the current URL, key and
+    # schedule without ever needing them deleted first.
+    upsert_cron_job() {
+        local job="$1" schedule="$2" human="$3"
+        local args=(
+            --project "$PROJECT_ID" --location "$SCHED_LOCATION"
+            --schedule "$schedule" --time-zone "Asia/Kolkata"
+            --uri "${URL}/api/v1/cron" --http-method GET
+            --attempt-deadline 60s
+            --max-retry-attempts 0
+            --description "Ticks the ERP schedule ${human} (internal/queue/cron.go); created by deploy/cloudrun/deploy.sh"
+        )
+        if [ "$DRY_RUN" = "1" ]; then
+            echo "+ gcloud scheduler jobs describe $job --project $PROJECT_ID --location $SCHED_LOCATION  (update if present, else create)"
+            # The key is redacted here and only here: a dry run is what gets pasted around.
+            printf '+ gcloud scheduler jobs create|update http %s' "$job"
+            printf ' %q' "${args[@]}"
+            printf ' %q\n' "--headers|--update-headers X-Cron-Key=<CRON_KEY>"
+        elif gcloud scheduler jobs describe "$job" \
+                --project "$PROJECT_ID" --location "$SCHED_LOCATION" >/dev/null 2>&1; then
+            gcloud scheduler jobs update http "$job" "${args[@]}" --update-headers "$cron_header" >/dev/null
+            echo "  updated $job -> ${URL}/api/v1/cron, $schedule (${human})"
+        else
+            gcloud scheduler jobs create http "$job" "${args[@]}" --headers "$cron_header" >/dev/null
+            echo "  created $job -> ${URL}/api/v1/cron, $schedule (${human})"
+        fi
+    }
+
+    upsert_cron_job "$SCHED_JOB"       "* 6-20 * * *"        "every minute through the school day"
+    upsert_cron_job "$SCHED_JOB_NIGHT" "*/15 0-5,21-23 * * *" "every fifteen minutes overnight"
+
     if [ "$DRY_RUN" != "1" ]; then
-        # Fire one now rather than wait a minute, and read the answer: a 200
-        # with counts proves the key matches and the queue is reachable, which
-        # is the whole point of the endpoint. Only the run.app URL is asked;
-        # the Pages host would 404 by design.
+        # Fire one now rather than wait for the next tick, and read the
+        # answer: a 200 with counts proves the key matches and the queue is
+        # reachable, which is the whole point of the endpoint. Only the
+        # run.app URL is asked; the Pages host would 404 by design.
         gcloud scheduler jobs run "$SCHED_JOB" --project "$PROJECT_ID" --location "$SCHED_LOCATION" >/dev/null || true
         if body="$(curl -fsS --max-time 30 -H "X-Cron-Key: ${CRON_KEY}" "$URL/api/v1/cron" 2>/dev/null)"; then
             echo "  cron tick: $body"
@@ -332,7 +356,7 @@ if [ "$SCHEDULER" = "1" ]; then
         fi
     fi
 else
-    echo "  Cloud Scheduler job untouched; without one the schedule never runs (pass --scheduler)"
+    echo "  Cloud Scheduler jobs untouched; without them the schedule never runs (pass --scheduler)"
 fi
 
 say "Deployed $COMMIT"

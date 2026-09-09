@@ -184,8 +184,7 @@ entries every minute for message dispatch, every five for diary reminders and
 the message_log flush, every fifteen for reminder plans, the nightly and weekly
 ones, and `RegisterBusTrackerJobs`' trip-closing sweeps) is evaluated by
 `GET /api/v1/cron` with `X-Cron-Key`, remembering each entry's last run in
-`cron_runs`; Cloud Scheduler calls it every minute and the worker only works
-jobs. On the VPS the worker still ticks in-process (`CRON_INPROCESS=1`).
+`cron_runs`; Cloud Scheduler calls it and the worker only works jobs. On the VPS the worker still ticks in-process (`CRON_INPROCESS=1`).
 
 What would still keep a worker always-on is not cron but wake-up: River hands
 jobs to a worker over Postgres `LISTEN/NOTIFY` (with polling as fallback), and
@@ -198,19 +197,37 @@ So the default design deploys **no worker**. The web service sets
 `QUEUE_INPROCESS=1` ([cmd/web/main.go](../cmd/web/main.go)): it registers the
 same handlers `cmd/worker` does and runs River's producers, so whichever
 instance is awake works the queue. What keeps one awake is the same thing that
-ticks cron: Cloud Scheduler calls `/api/v1/cron` every minute, and that request
-is when the queue is looked at overnight; during the day the bus-position
-polls do it. The trade-off, spelled out in the header of
+ticks cron: Cloud Scheduler calls `/api/v1/cron`, and that request is when the
+queue is looked at overnight; during the day the bus-position polls do it. The trade-off, spelled out in the header of
 [service-web.yaml](../deploy/cloudrun/service-web.yaml): with
 `cpu-throttling: "true"` a job that outlives the request that woke the
 instance runs on a throttled CPU until the next request — acceptable for a
 queue whose handlers are a few SQL statements and a few gateway calls, with
-the minute tick bounding the stall — and a heavy job shares the instance with
+the tick bounding the stall — and a heavy job shares the instance with
 users' requests (the fee fan-out is already chunked). Every instance is also a
 worker and opens River's own pool (12 workers + 4), which is why `maxScale` is
 3 and `DB_MAX_CONNS` 8: 3 × (8 + 16) = 72 connections at full fan-out, under
 Neon's ~100. The limiters are shared through Postgres
 (`RATE_LIMIT_STORE=postgres`) so three instances agree on a login throttle.
+
+**The tick is not one job, it is two.** `deploy.sh --scheduler` creates
+`temperp-cron` on `* 6-20 * * *` and `temperp-cron-night` on
+`*/15 0-5,21-23 * * *`, both `Asia/Kolkata`, both hitting the same URL with the
+same header. Through the school day the finest entry in the schedule is every
+minute and a receipt or an absence alert should not wait for the next quarter
+hour. Overnight nothing is waiting: quiet hours hold every message queued after
+the evening cut-off until 09:00 the next morning (`sendAtFor`/`afterQuiet` in
+[internal/api/messaging.go](../internal/api/messaging.go)), so a fifteen-minute
+night cadence delays nothing a parent sees. It is 36 wake-ups a night instead of
+1,440, which is what lets Neon reach its five-minute idle suspend and Cloud Run
+stay at zero instances between 21:00 and 06:00 — most of what an overnight bill
+is on this plan. An entry whose occurrences pass while the night job sleeps
+fires once when the next tick reaches it rather than catching up one call per
+missed minute; that collapse is the contract `cron.go` has always had. The
+overnight entries survive it: `attendance_rollup` at 00:30 and `session_prune`
+at 03:00 land on quarter-hour boundaries the night job hits exactly, and
+`transport_position_retention` at 03:20 and the five-minute trip-timeout sweep
+are late by at most ten minutes on work nobody is waiting for.
 
 [service-worker.yaml](../deploy/cloudrun/service-worker.yaml) is kept as the
 **optional, paid** second service, applied only by `deploy.sh --with-worker`.

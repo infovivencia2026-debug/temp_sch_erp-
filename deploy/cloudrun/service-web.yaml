@@ -24,10 +24,19 @@
 #   work jobs if it is always on (minScale 1, CPU always allocated), which is
 #   ~₹4,000/month, more than everything else in the plan together. Working
 #   the queue here instead costs nothing extra: the instance is awake anyway
-#   while a request is in flight, and Cloud Scheduler's tick every minute
-#   (deploy.sh --scheduler) is a request, so the queue is looked at at least
-#   once a minute and drained while the tick and the day's polling hold the
-#   instance open.
+#   while a request is in flight, and Cloud Scheduler's tick (deploy.sh
+#   --scheduler) is a request, so the queue is looked at on every tick and
+#   drained while the tick and the day's polling hold the instance open.
+#
+#   The tick is every minute from 06:00 to 21:00 IST and every fifteen
+#   minutes overnight -- two Scheduler jobs, temperp-cron and
+#   temperp-cron-night. Overnight it does not need to be a minute: quiet
+#   hours hold every message queued after the evening cut-off until 09:00
+#   the next morning (see sendAtFor/afterQuiet in internal/api/messaging.go),
+#   so a fifteen-minute night cadence delays nothing a parent sees, and it
+#   is 36 wake-ups a night instead of 1,440. What that buys is a database
+#   that reaches its idle suspend, which is most of what an overnight bill
+#   is on a serverless plan.
 #
 #   What is given up: (1) with cpu-throttling on, a job that outlives the
 #   request that woke the instance runs on a throttled CPU until the next
@@ -80,8 +89,8 @@ spec:
         # the plan's ₹0-300 estimate assumes, and the reason the in-process
         # worker has the stall described in the header. Flipping this to
         # "false" buys background CPU and switches the whole service to
-        # instance-based billing, at which point the minute tick makes it an
-        # always-on instance and the bill becomes service-worker.yaml's. Do
+        # instance-based billing, at which point the daytime minute tick
+        # makes it an always-on instance and the bill becomes service-worker.yaml's. Do
         # not flip it here; deploy the worker instead if that day comes.
         run.googleapis.com/cpu-throttling: "true"
         # More CPU during start-up so a cold start (Go binary + pgx pool +
