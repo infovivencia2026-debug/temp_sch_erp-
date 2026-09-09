@@ -385,11 +385,25 @@ func (s *Server) decideLeave(w http.ResponseWriter, r *http.Request) {
 		if req.Decision != "approved" || employeeID == nil || leaveTypeID == nil {
 			return nil
 		}
-		// Deduct from the balance so the entitlement means something. Without
-		// this a teacher could take thirty casual leaves and the counter would
-		// still read twelve.
+		/* Deduct from the balance so the entitlement means something. Without
+		   this a teacher could take thirty casual leaves and the counter would
+		   still read twelve.
+
+		   THE COLUMN IS `taken`. It has been `taken` since the baseline --
+		   leave_balances is (entitled, taken) and every screen that reads a
+		   balance subtracts one from the other. This statement asked for
+		   `used`, which is not a column, so Postgres refused it, the refusal
+		   failed the transaction the decision was written in, and the whole
+		   approval came back as a 500 the screen showed as "something went
+		   wrong".
+
+		   Every approval of a leave that named a kind failed this way, which
+		   is every approval the form can now produce: the kind became required
+		   when the Type column started reading "—" down the whole list. A
+		   leave with no kind skipped this line and appeared to work, so the
+		   fault arrived looking like it was about one school's data. */
 		_, err := tx.Exec(r.Context(), `
-			UPDATE leave_balances SET used = used + $3
+			UPDATE leave_balances SET taken = taken + $3
 			 WHERE employee_id = $1 AND leave_type_id = $2`,
 			*employeeID, *leaveTypeID, days)
 		return err
