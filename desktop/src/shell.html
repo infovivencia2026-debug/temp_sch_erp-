@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+<title>EDU CLOUD</title>
+<style>
+  /* The page's own ground is passed in, so this never flashes a colour the
+     school's site does not use. */
+  :root { color-scheme: light dark; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: grid; place-items: center; text-align: center;
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 32px;
+  }
+  main { max-width: 30rem; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  p { margin: 0; opacity: .72; }
+  code { opacity: .55; font-size: 12px; }
+  button {
+    margin-top: 22px; padding: 9px 22px; font: inherit; font-size: 14px;
+    border-radius: 8px; border: 1px solid currentColor; background: transparent;
+    color: inherit; cursor: pointer; min-height: 36px;
+  }
+  button:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+  /* The mark is drawn rather than fetched: this page must render with no
+     network at all, which is the only time anybody sees it. */
+  .mark {
+    width: 46px; height: 46px; margin: 0 auto 18px; border-radius: 12px;
+    border: 2px solid currentColor; opacity: .35;
+  }
+  .spin { animation: turn 1.4s linear infinite; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+</style>
+</head>
+<body>
+  <main>
+    <div class="mark" id="mark"></div>
+    <h1 id="title"></h1>
+    <p id="body"></p>
+    <p><code id="detail"></code></p>
+    <button id="retry" hidden>Try again</button>
+  </main>
+<script>
+  const q = new URLSearchParams(location.search)
+  const state = q.get('state') || 'loading'
+  document.body.style.background = q.get('ground') || '#F7F8FA'
+
+  /* Four states, and the difference between them is what the person reading
+     has to do next: wait, switch the wifi on, ring the school, or ring
+     whoever runs the machine. One "could not connect" for all four is how a
+     school ends up telephoning about a fault that was on their own desk. */
+  const says = {
+    loading: ['Opening the school’s site', 'One moment.'],
+    offline: ['No connection', 'This window shows the school’s own site, so it needs the internet. Check the network and try again.'],
+    unreachable: ['The school’s site is not answering', 'The address is reachable from this machine only when the school’s server is running. It is usually back within a minute.'],
+    server: ['The school’s site is being updated', 'The server answered with an error rather than a page. This usually clears within a minute.'],
+    insecure: ['This connection could not be verified', 'The certificate the server offered is not valid. Do not sign in; tell whoever runs the school’s system.'],
+  }
+  const [title, body] = says[state] || says.unreachable
+  document.getElementById('title').textContent = title
+  document.getElementById('body').textContent = body
+  document.getElementById('detail').textContent = q.get('detail') || ''
+  document.getElementById('mark').classList.toggle('spin', state === 'loading')
+
+  const retry = document.getElementById('retry')
+  if (state !== 'loading') {
+    retry.hidden = false
+    retry.addEventListener('click', () => window.ShellHost.retry())
+    retry.focus()
+  }
+
+  /* The network coming back retries by itself. Somebody who plugged the cable
+     in should not also have to find a button, and both phone shells already
+     behave this way. */
+  addEventListener('online', () => window.ShellHost.retry())
+</script>
+</body>
+</html>

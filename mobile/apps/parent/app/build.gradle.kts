@@ -55,8 +55,26 @@ android {
            field he can only get wrong, and app data survives a reinstall, so
            a typed address outlives the build that asked for it. */
         val portal = (project.findProperty("portalUrl") as String?)
-            ?: "https://temperp.187-127-178-100.sslip.io"
+            ?: "https://school-erp-cqj.pages.dev"
         buildConfigField("String", "PORTAL_URL", "\"$portal\"")
+
+        /* EVERY OTHER NAME THE SAME SCHOOL ANSWERS ON.
+
+           One host compared against the compiled-in address is right until the
+           day the site moves, and then it is the worst possible wrong: the old
+           name answers 301 to the new one, a redirect IS a navigation, so the
+           shell asked "is this the school?", got no because the host had
+           changed, and did what it does with a foreign page -- handed it to
+           Chrome and left its own window empty. The app became a shortcut to
+           the browser, which is exactly what a parent said it had become.
+
+           So the check is a set: the address this build points at, plus the
+           names it is also reachable on. The sslip.io name stays because it is
+           compiled into every handset already in the field and will go on
+           redirecting for as long as that box is up. */
+        val portalAliases = (project.findProperty("portalAliases") as String?)
+            ?: "temperp.187-127-178-100.sslip.io"
+        buildConfigField("String", "PORTAL_ALIASES", "\"$portalAliases\"")
 
         /* THE SAME HOST, FOR THE DEEP LINK FILTER.
 
