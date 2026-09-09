@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, DoorOpen, Users } from 'lucide-react'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* Relatives visiting a boarder.
 
@@ -74,10 +75,7 @@ export default function HostelVisitors() {
     remarks: '',
   })
 
-  const students = useQuery({
-    queryKey: ['students', 'hostel-visitors'],
-    queryFn: () => api.get<List<Student>>('/api/v1/students?limit=300'),
-  })
+  const students = useStudentRoster()
   const list = useQuery({
     queryKey: ['hostel-visits', date, onSite],
     queryFn: () =>

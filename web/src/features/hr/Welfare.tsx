@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
   Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* The three things a school does for its staff that cost nothing.
 
@@ -73,12 +74,7 @@ const TABS = [
 
 const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 
-function useEmployees() {
-  return useQuery({
-    queryKey: ['employees', 'welfare'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=300'),
-  })
-}
+const useEmployees = () => useEmployeeRoster<Employee>()
 
 export default function Welfare() {
   const [tab, setTab] = useState<(typeof TABS)[number][0]>('diary')

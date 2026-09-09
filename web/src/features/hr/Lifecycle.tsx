@@ -10,6 +10,7 @@ import {
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
 import { invalidateKeys } from '@/lib/invalidate'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* Joining and leaving.
 
@@ -126,12 +127,7 @@ const TABS = [
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 
-function useEmployees() {
-  return useQuery({
-    queryKey: ['employees', 'lifecycle'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=300'),
-  })
-}
+const useEmployees = () => useEmployeeRoster<Employee>()
 
 export default function Lifecycle() {
   const can = useCan()

@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HeartPulse, Ruler, Stethoscope } from 'lucide-react'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* Screening: the annual card, and the camps that fill it in.
 
@@ -114,12 +115,7 @@ function bmiTone(bmi?: string): 'neutral' | 'warning' | 'danger' | undefined {
   return 'neutral'
 }
 
-function useStudents() {
-  return useQuery({
-    queryKey: ['students', 'screening'],
-    queryFn: () => api.get<List<Student>>('/api/v1/students?limit=300'),
-  })
-}
+const useStudents = () => useStudentRoster()
 
 export default function InfirmaryScreening() {
   const [tab, setTab] = useState<'checkups' | 'camps'>('checkups')

@@ -21,6 +21,7 @@ import {
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
+import { useStudentRoster } from '@/lib/rosters'
 
 interface Note {
   id: string
@@ -63,10 +64,7 @@ export default function Behaviour() {
     queryKey: ['discipline-notes'],
     queryFn: () => api.get<List<Note>>('/api/v1/students/notes'),
   })
-  const pupils = useQuery({
-    queryKey: ['my-students'],
-    queryFn: () => api.get<List<Pupil>>('/api/v1/students?limit=500'),
-  })
+  const pupils = useStudentRoster<Pupil>()
 
   const record = useMutation({
     mutationFn: () => api.post('/api/v1/students/notes', {
