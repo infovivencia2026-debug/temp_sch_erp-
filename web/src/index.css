@@ -852,6 +852,22 @@
     box-shadow: none;
   }
 
+  /* A table's scroller paints over the card's bottom corners.
+
+     .scroll-x carries an opaque, card-coloured background (the covers that
+     hide its edge shadows), and a background does not care what shape its
+     parent is. Inside a card whose last block is a table, that square paint
+     showed past the rounded corners: the card had a radius at the top and
+     none at the bottom, and every finance summary looked chipped. The card
+     cannot simply clip its overflow -- menus and date pickers open out of
+     cards -- so the last block takes the card's own curve instead, one
+     pixel tighter to sit inside the hairline. */
+  .card > .table-frame:last-child,
+  .card > .table-frame:last-child > .scroll-x {
+    border-bottom-left-radius: calc(var(--radius-card) - 1px);
+    border-bottom-right-radius: calc(var(--radius-card) - 1px);
+  }
+
   /* A table header is a label row, not a band. The tint is enough to hold the
      header still while the body scrolls under it. */
   .responsive-table thead th {
