@@ -131,12 +131,12 @@ const (
 	smsGatewayDefaultPoll = 20
 	smsGatewayDefaultCap  = 6
 
-	// The school's waking hours, in local time. Inside them the phone polls at
-	// the rate the admin set; outside them it is slowed to at least
-	// smsGatewayNightPoll. See smsGatewayPollFor.
+	// The school's waking hours, in local time, and the three intervals the
+	// server hands out inside and outside them. See smsGatewayPollFor.
 	smsGatewayDayStartHour = 6
-	smsGatewayDayEndHour   = 20
-	smsGatewayNightPoll    = 300
+	smsGatewayDayEndHour   = 21
+	smsGatewayNightPoll    = 900
+	smsGatewayIdlePoll     = 60
 
 	// Most a single poll may take, whatever the phone asks for. A handset that
 	// requests a thousand is a handset that will hold a thousand leases and
@@ -1087,29 +1087,49 @@ smsGatewayPollFor is the interval the server hands a phone at this moment.
 	parent before they have left the counter, and pointless at two in the
 	morning when nothing is queued and nothing will be. On a host that scales
 	to zero, a twenty-second poll all night is the one thing keeping an
-	instance awake, so outside 06:00-20:00 the phone is told to come back in
-	at least five minutes. An admin who has already set something slower keeps
-	it; the night floor only ever lengthens the interval.
+	instance awake and a serverless database out of its idle suspend.
+
+	So the answer depends on the hour and on whether the last poll found
+	anything:
+
+	  06:00-21:00, work returned  -- the admin's rate, unchanged. A phone that
+	                                 has just sent something is a phone in the
+	                                 middle of a batch, and the next message is
+	                                 probably already queued.
+	  06:00-21:00, nothing found  -- at least a minute. Nothing was waiting, so
+	                                 nothing is made late by asking again in a
+	                                 minute instead of in twenty seconds.
+	  21:00-06:00                 -- at least fifteen minutes. Quiet hours hold
+	                                 every overnight message until the morning
+	                                 anyway, so there is nothing for a night
+	                                 poll to find and nothing for it to delay.
+
+	An admin who has already set something slower keeps it: every floor here
+	only ever lengthens the interval, never shortens one.
 
 	The stored column is untouched -- what the admin screen shows and edits
 	stays the daytime rate -- and the phone re-reads the interval from every
 	outbox and heartbeat response, so dawn takes effect within one (night)
-	poll. The heartbeat cadence follows for free: the handset derives it as
-	five times poll_seconds, clamped to 60-300 s, so a night poll of 300
-	pins the heartbeat to its ceiling.
+	poll, and the first message of the day pulls the phone back to the admin's
+	rate on the poll that carries it. The heartbeat cadence follows for free:
+	the handset derives it as five times poll_seconds, clamped to 60-300 s, so
+	any of these floors pins the heartbeat to its ceiling.
 
 	Hours are judged in the product's one timezone (see nowInIndia); the box
 	runs UTC and its clock would put dawn at half past eleven.
 */
-func smsGatewayPollFor(now time.Time, configured int) int {
-	h := now.In(indiaTZ()).Hour()
-	if h >= smsGatewayDayStartHour && h < smsGatewayDayEndHour {
+func smsGatewayPollFor(now time.Time, configured int, foundWork bool) int {
+	floor := smsGatewayNightPoll
+	if h := now.In(indiaTZ()).Hour(); h >= smsGatewayDayStartHour && h < smsGatewayDayEndHour {
+		if foundWork {
+			return configured
+		}
+		floor = smsGatewayIdlePoll
+	}
+	if configured > floor {
 		return configured
 	}
-	if configured > smsGatewayNightPoll {
-		return configured
-	}
-	return smsGatewayNightPoll
+	return floor
 }
 
 type smsGatewayOutboxMessage struct {
@@ -1170,7 +1190,6 @@ func (s *Server) smsGatewayOutbox(w http.ResponseWriter, r *http.Request) {
 
 	out := smsGatewayOutboxResponse{
 		Messages:     []smsGatewayOutboxMessage{},
-		PollSeconds:  smsGatewayPollFor(time.Now(), dev.PollSeconds),
 		PerMinuteCap: dev.PerMinuteCap,
 		Paused:       dev.Paused,
 	}
@@ -1179,6 +1198,7 @@ func (s *Server) smsGatewayOutbox(w http.ResponseWriter, r *http.Request) {
 	// un-pausing takes effect within one poll without anybody touching the
 	// phone.
 	if dev.Paused {
+		out.PollSeconds = smsGatewayPollFor(time.Now(), dev.PollSeconds, false)
 		httpx.JSON(w, http.StatusOK, out)
 		return
 	}
@@ -1297,6 +1317,11 @@ func (s *Server) smsGatewayOutbox(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	/* Set last, because it depends on the answer. A poll that came back with
+	   work keeps the admin's rate; one that came back empty is told to wait
+	   longer. The paused early return above sets it the same way, for the
+	   same reason: it will be given nothing until somebody un-pauses it. */
+	out.PollSeconds = smsGatewayPollFor(time.Now(), dev.PollSeconds, len(out.Messages) > 0)
 	httpx.JSON(w, http.StatusOK, out)
 }
 
@@ -1522,7 +1547,9 @@ func (s *Server) smsGatewayHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out := smsGatewayHeartbeatResponse{
-		PollSeconds:  smsGatewayPollFor(time.Now(), dev.PollSeconds),
+		// A heartbeat carries no work, so it answers as an empty poll would.
+		// The outbox is the response that shortens the interval again.
+		PollSeconds:  smsGatewayPollFor(time.Now(), dev.PollSeconds, false),
 		PerMinuteCap: dev.PerMinuteCap,
 		Paused:       dev.Paused,
 	}
