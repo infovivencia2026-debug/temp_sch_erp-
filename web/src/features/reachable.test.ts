@@ -11,12 +11,16 @@ import { join, resolve, relative, normalize, dirname } from 'node:path'
  * returns undefined and App renders `CataloguedStub`, the "catalogued but not
  * built" placeholder, for something that is very much built.
  *
- * Forty-four components were in that state when this test was written: about
- * twelve thousand lines that nothing imports, lazily or otherwise. Some are
- * superseded twins of a screen that IS wired (SQAACompliance beside the wired
- * SQAAFramework); some look like finished work that never got its line. Which
- * is which is a product decision and not one a test can make, so this does not
- * try to: it freezes the list.
+ * Forty-four components were in that state when this test was written. Twelve
+ * have since been deleted: every endpoint each of them called was already
+ * served by a screen that IS wired, so they were duplicates of live work
+ * rather than work waiting for a door -- portal/Alerts against the wired
+ * Notifications, ops2/Hostel against WardenDay, and so on.
+ *
+ * The thirty-two left are not duplicates. Each one is the ONLY caller of at
+ * least one endpoint the server actually serves, so deleting it would strand
+ * a working API with nothing to reach it. Whether each gets a catalogue key
+ * or goes is a product decision a test cannot make, so this freezes them.
  *
  * The number can only go down. Wire one, or delete one, and take it out of
  * KNOWN. Add a new unreachable screen and this fails, naming it -- which is
@@ -63,7 +67,6 @@ const KNOWN = new Set([
   'features/analytics/Today',
   'features/bento/BentoMenuBar',
   'features/communication/AbsenceAlerts',
-  'features/communication/PTMReminders',
   'features/compliance/BoardLOC',
   'features/compliance/ChildInfoReconciliation',
   'features/compliance/SQAACompliance',
@@ -75,25 +78,14 @@ const KNOWN = new Set([
   'features/faculty/ExamGrading',
   'features/faculty/MontessoriTracking',
   'features/faculty/PortfolioBuilder',
-  'features/faculty/StudyMaterials',
   'features/faculty/VirtualClasses',
   'features/learning/CreditBank',
   'features/operations/FeeFiling',
   'features/operations/MDMRegister',
   'features/operations/MDMUtilisation',
   'features/operations/Workspace',
-  'features/ops2/Hostel',
-  'features/ops2/Inventory',
-  'features/portal/Alerts',
   'features/portal/Concerns',
-  'features/portal/Documents',
-  'features/portal/DriverCall',
   'features/portal/Forum',
-  'features/portal/ParentAttention',
-  'features/portal/Reminders',
-  'features/portal/TransportSnapshot',
-  'features/principal/StaffWorkload',
-  'features/setup/Checklist',
   'features/setup/PeriodUpload',
   'features/students/Alumni',
   'features/students/CertificateTemplates',
