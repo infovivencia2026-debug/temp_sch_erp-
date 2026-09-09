@@ -27,3 +27,9 @@ scripts/__pycache__/
 # Upstash URLs, the pepper copied from the VPS, the R2 keys. Secret Manager is
 # where these live once uploaded; this file is the one local copy.
 deploy/cloudrun/.env.cloudrun
+
+# The marketing site (site/) is a separate build with its own install and its
+# own bundle; neither belongs in source any more than web/dist does.
+/site/dist/
+/site/node_modules/
+site/tsconfig.tsbuildinfo

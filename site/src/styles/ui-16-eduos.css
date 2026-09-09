@@ -1,0 +1,480 @@
+/* ===========================================================================
+   UI-16 · CAMPUS INTELLIGENCE OS
+
+   A dark command rail and dark hero surfaces against a warm ivory workspace.
+   The contrast is the idea: navigation and the institutional hero are night,
+   the records you work in are daylight.
+
+   Colour means status, interaction, hierarchy or progress — never decoration.
+   There is deliberately no purple card / blue card / green card per statistic;
+   almost every surface is neutral and the accent appears in small indicators.
+   =========================================================================== */
+
+[data-ui="ui-16"] {
+  color-scheme: light;
+  --radius: calc(1rem * var(--radius-scale, 1));
+
+  /* foundation — used by the rail and the hero */
+  --edu-midnight: 226 48% 8%;      /* #0B1020 */
+  --edu-ink: 226 40% 12%;          /* #12182B */
+  --edu-deep: 226 34% 15%;         /* #171E32 */
+
+  /* workspace */
+  --background: 40 27% 96%;        /* #F8F6F1 warm ivory */
+  --ground: 40 20% 93%;            /* #F3F1EC */
+  --card: 0 0% 100%;
+  --foreground: 225 18% 12%;       /* #171A23 */
+  --card-foreground: 225 18% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 225 18% 12%;
+
+  --primary: 245 100% 70%;         /* #6C63FF electric indigo */
+  --primary-foreground: 0 0% 100%;
+  --ink: 226 40% 12%;
+  --ink-foreground: 40 27% 96%;
+  --ring: 245 100% 70%;
+
+  --secondary: 40 22% 95%;
+  --secondary-foreground: 225 18% 16%;
+  --muted: 40 20% 94%;
+  --muted-foreground: 222 8% 49%;  /* #72798A */
+  --accent: 245 60% 96%;
+  --accent-foreground: 245 50% 32%;
+  --border: 36 15% 88%;            /* #E5E2DC */
+  --input: 36 15% 88%;
+
+  --destructive: 0 84% 60%;        /* #EF4444 */
+  --success: 142 71% 45%;          /* #22C55E */
+  --warning: 38 92% 50%;           /* #F59E0B */
+
+  --chrome: 0 0% 100%;
+  /* Light appearance means light throughout: the rail and the hero follow the
+     workspace rather than staying midnight inside it. Their own ink token is
+     what lets the rules below stop hard-coding white. */
+  --rail: 40 24% 93%;
+  --rail-ink: 225 18% 14%;
+  --hero-from: 40 30% 98%;
+  --hero-to: 40 22% 92%;
+  --hero-ink: 225 18% 12%;
+  --th: 40 22% 95%;
+
+  /* accents, used sparingly */
+  --edu-cyan: 199 89% 60%;         /* #38BDF8 */
+  --edu-teal: 172 66% 50%;         /* #2DD4BF */
+  --edu-coral: 351 95% 71%;        /* #FB7185 */
+  --edu-track: 38 18% 90%;
+  --edu-hairline: 36 15% 88%;
+
+  /* typeface comes from the user's preference, not from the interface */
+}
+[data-ui="ui-16"].dark {
+  color-scheme: dark;
+  --background: 226 40% 9%;
+  --ground: 226 48% 6%;
+  --card: 226 32% 13%;
+  --foreground: 40 22% 95%;
+  --card-foreground: 40 22% 95%;
+  --popover: 226 32% 14%;
+  --popover-foreground: 40 22% 95%;
+  --primary: 245 100% 74%;
+  --primary-foreground: 226 48% 8%;
+  --ink: 40 22% 95%;
+  --ink-foreground: 226 48% 8%;
+  --secondary: 226 26% 18%;
+  --secondary-foreground: 40 22% 95%;
+  --muted: 226 26% 18%;
+  --muted-foreground: 222 12% 66%;
+  --accent: 245 34% 24%;
+  --accent-foreground: 40 22% 95%;
+  --border: 226 20% 22%;
+  --input: 226 20% 22%;
+  --chrome: 226 34% 12%;
+  --rail: 226 48% 5%;
+  --rail-ink: 0 0% 100%;
+  --hero-from: var(--edu-ink);
+  --hero-to: var(--edu-midnight);
+  --hero-ink: 0 0% 100%;
+  --th: 226 26% 18%;
+  --edu-track: 226 24% 22%;
+  --edu-hairline: 226 20% 22%;
+}
+
+/* ------------------------------------------------------- Command rail --- */
+[data-ui="ui-16"] .edu-sidebar {
+  background: hsl(var(--rail));
+  transition: width 180ms cubic-bezier(.16, 1, .3, 1);
+}
+[data-ui="ui-16"] .edu-nav-group {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: hsl(var(--rail-ink) / 0.55);
+  transition: color 150ms ease;
+}
+[data-ui="ui-16"] .edu-nav-group:hover { color: hsl(var(--rail-ink) / 0.85); }
+[data-ui="ui-16"] .edu-nav-item {
+  color: hsl(var(--rail-ink) / 0.75);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+[data-ui="ui-16"] .edu-nav-item:hover { background: hsl(var(--rail-ink) / 0.06); color: hsl(var(--rail-ink) / 0.98); }
+/* Active: a small indigo indicator and a soft tint — not a filled block. */
+[data-ui="ui-16"] .edu-nav-item.is-active {
+  position: relative;
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--rail-ink));
+}
+[data-ui="ui-16"] .edu-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: -8px; top: 50%;
+  height: 16px; width: 3px;
+  translate: 0 -50%;
+  border-radius: 0 3px 3px 0;
+  background: hsl(var(--primary));
+}
+[data-ui="ui-16"] .edu-nav-count { color: hsl(var(--rail-ink) / 0.45); }
+[data-ui="ui-16"] .edu-nav-collapse {
+  border-top: 1px solid hsl(var(--rail-ink) / 0.12);
+  color: hsl(var(--rail-ink) / 0.65);
+}
+[data-ui="ui-16"] .edu-nav-collapse:hover { color: #fff; }
+
+/* ---------------------------------------------- Floating command bar --- */
+/* Not a full-width header: a surface that floats with air around it. */
+[data-ui="ui-16"] .edu-topbar {
+  height: 58px;
+  margin: 12px 14px 0;
+  border-radius: calc(15px * var(--radius-scale, 1));
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card) / 0.82);
+  backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: 0 1px 2px rgb(20 18 12 / 0.04), 0 12px 28px -22px rgb(20 18 12 / 0.35);
+}
+[data-ui="ui-16"] .edu-search {
+  border: 1px solid transparent;
+  background: hsl(var(--ground) / 0.8);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+[data-ui="ui-16"] .edu-search:hover {
+  border-color: hsl(var(--primary) / 0.35);
+  background: hsl(var(--card));
+}
+[data-ui="ui-16"] .edu-scope {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card) / 0.6);
+}
+[data-ui="ui-16"] .edu-scope:hover { border-color: hsl(var(--primary) / 0.35); }
+
+/* --------------------------------------------------------- Workspace --- */
+[data-ui="ui-16"] .edu-workspace { background: transparent; }
+[data-ui="ui-16"] .edu-panel {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(18px * var(--radius-scale, 1));
+  padding: 22px;
+}
+[data-ui="ui-16"] .edu-sub {
+  background: hsl(var(--ground) / 0.55);
+  border: 1px solid hsl(var(--edu-hairline));
+  border-radius: calc(13px * var(--radius-scale, 1));
+}
+[data-ui="ui-16"] .edu-hover {
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+[data-ui="ui-16"] .edu-hover:hover {
+  transform: translateY(-2px);
+  border-color: hsl(var(--primary) / 0.4);
+  box-shadow: 0 8px 22px -16px rgb(20 18 12 / 0.5);
+}
+
+/* ------------------------------------------- Institution Pulse (dark) --- */
+[data-ui="ui-16"] .edu-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(20px * var(--radius-scale, 1));
+  border: 1px solid hsl(var(--hero-ink) / 0.1);
+  background: linear-gradient(155deg, hsl(var(--hero-from)) 0%, hsl(var(--hero-to)) 100%);
+  color: hsl(var(--hero-ink) / 0.94);
+}
+/* a faint academic grid, at the threshold of visibility */
+[data-ui="ui-16"] .edu-hero::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(hsl(var(--hero-ink) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--hero-ink) / 0.05) 1px, transparent 1px);
+  background-size: 46px 46px;
+  pointer-events: none;
+}
+[data-ui="ui-16"] .edu-hero-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+  color: hsl(var(--hero-ink) / 0.55);
+}
+[data-ui="ui-16"] .edu-hero-value { color: hsl(var(--hero-ink)); letter-spacing: -0.035em; }
+[data-ui="ui-16"] .edu-hero-muted { color: hsl(var(--hero-ink) / 0.68); }
+[data-ui="ui-16"] .edu-hero-rule { border-color: hsl(var(--hero-ink) / 0.12); }
+[data-ui="ui-16"] .edu-hero-cell {
+  border-radius: calc(12px * var(--radius-scale, 1));
+  transition: background-color 160ms ease;
+}
+[data-ui="ui-16"] .edu-hero-cell:hover { background: hsl(var(--hero-ink) / 0.05); }
+[data-ui="ui-16"] .edu-live {
+  height: 7px; width: 7px; border-radius: calc(999px * var(--radius-scale, 1));
+  background: hsl(var(--edu-teal));
+  box-shadow: 0 0 0 0 hsl(var(--edu-teal) / 0.5);
+  animation: edu-breathe 3.4s ease-in-out infinite;
+}
+@keyframes edu-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--edu-teal) / 0.45); }
+  50% { box-shadow: 0 0 0 7px hsl(var(--edu-teal) / 0); }
+}
+/* the activity curve draws itself once, slowly */
+[data-ui="ui-16"] .edu-curve path.line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: edu-draw 2200ms cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes edu-draw { to { stroke-dashoffset: 0; } }
+[data-ui="ui-16"] .edu-curve circle.node { opacity: 0; animation: edu-node 400ms ease forwards; }
+@keyframes edu-node { to { opacity: 1; } }
+
+/* ------------------------------------------------------------- Flows --- */
+[data-ui="ui-16"] .edu-flow-node {
+  border: 1px solid hsl(var(--edu-hairline));
+  background: hsl(var(--card));
+  border-radius: calc(13px * var(--radius-scale, 1));
+  transition: border-color 150ms ease, transform 150ms ease;
+}
+[data-ui="ui-16"] .edu-flow-node:hover { border-color: hsl(var(--primary) / 0.45); transform: translateY(-1px); }
+[data-ui="ui-16"] .edu-flow-link { background: hsl(var(--edu-hairline)); }
+[data-ui="ui-16"] .edu-bar { background: hsl(var(--edu-track)); border-radius: calc(999px * var(--radius-scale, 1)); overflow: hidden; }
+[data-ui="ui-16"] .edu-bar > span {
+  display: block; height: 100%; border-radius: calc(999px * var(--radius-scale, 1));
+  background: hsl(var(--primary));
+  transition: width 520ms cubic-bezier(.16, 1, .3, 1);
+}
+[data-ui="ui-16"] .edu-bar.teal > span { background: hsl(var(--edu-teal)); }
+[data-ui="ui-16"] .edu-bar.cyan > span { background: hsl(var(--edu-cyan)); }
+
+/* --------------------------------------------------- Attention feed --- */
+/* A coloured status line, never a filled red row. */
+[data-ui="ui-16"] .edu-attn {
+  position: relative;
+  border: 1px solid hsl(var(--edu-hairline));
+  border-radius: calc(12px * var(--radius-scale, 1));
+  background: hsl(var(--card));
+  padding-left: 14px;
+  transition: border-color 150ms ease;
+}
+[data-ui="ui-16"] .edu-attn::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px;
+  width: 3px; border-radius: 0 3px 3px 0; background: hsl(var(--muted-foreground));
+}
+[data-ui="ui-16"] .edu-attn.sev-high::before { background: hsl(var(--destructive)); }
+[data-ui="ui-16"] .edu-attn.sev-finance::before { background: hsl(var(--warning)); }
+[data-ui="ui-16"] .edu-attn.sev-academic::before { background: hsl(var(--primary)); }
+[data-ui="ui-16"] .edu-attn.sev-hr::before { background: hsl(var(--edu-teal)); }
+[data-ui="ui-16"] .edu-attn:hover { border-color: hsl(var(--primary) / 0.4); }
+/* actions appear on hover, not permanently */
+[data-ui="ui-16"] .edu-attn-actions { opacity: 0; transition: opacity 150ms ease; }
+[data-ui="ui-16"] .edu-attn:hover .edu-attn-actions,
+[data-ui="ui-16"] .edu-attn:focus-within .edu-attn-actions { opacity: 1; }
+
+/* ------------------------------------------------------- Timeline ------ */
+[data-ui="ui-16"] .edu-tl { position: relative; padding-left: 18px; }
+[data-ui="ui-16"] .edu-tl::before {
+  content: ""; position: absolute; left: 4px; top: 6px; bottom: 6px;
+  width: 1px; background: hsl(var(--edu-hairline));
+}
+/* The row marker is gone: absolutely positioned at the row's own left edge it
+   sat on top of the timestamp rather than on the spine beside it. The spine
+   line alone carries the sequence. */
+
+/* -------------------------------------------------------- Chips etc. --- */
+[data-ui="ui-16"] .edu-chip-slate,
+[data-ui="ui-16"] .edu-chip-indigo,
+[data-ui="ui-16"] .edu-chip-green,
+[data-ui="ui-16"] .edu-chip-amber {
+  border-color: hsl(var(--edu-hairline));
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+}
+[data-ui="ui-16"] .edu-chip-indigo { color: hsl(var(--accent-foreground)); border-color: hsl(var(--primary) / 0.28); }
+[data-ui="ui-16"] .edu-chip-green { color: hsl(var(--success)); border-color: hsl(var(--success) / 0.28); }
+[data-ui="ui-16"] .edu-chip-amber { color: hsl(38 92% 36%); border-color: hsl(var(--warning) / 0.3); }
+[data-ui="ui-16"].dark .edu-chip-amber { color: hsl(38 92% 62%); }
+
+[data-ui="ui-16"] .edu-tab {
+  border: 1px solid transparent; color: hsl(var(--muted-foreground));
+  transition: all 150ms ease;
+}
+[data-ui="ui-16"] .edu-tab:hover { background: hsl(var(--ground)); }
+[data-ui="ui-16"] .edu-tab.is-active {
+  background: hsl(var(--accent)); border-color: hsl(var(--primary) / 0.28);
+  color: hsl(var(--accent-foreground));
+}
+[data-ui="ui-16"] .edu-link { color: hsl(var(--primary)); }
+[data-ui="ui-16"] .edu-link:hover { text-decoration: underline; }
+[data-ui="ui-16"] .edu-btn,
+[data-ui="ui-16"] .edu-btn-primary {
+  height: 36px; border-radius: calc(10px * var(--radius-scale, 1)); font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+[data-ui="ui-16"] .edu-btn { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); }
+[data-ui="ui-16"] .edu-btn:hover { background: hsl(var(--ground)); }
+[data-ui="ui-16"] .edu-btn-primary { background: hsl(var(--primary)); color: #fff; }
+[data-ui="ui-16"] .edu-btn-primary:hover { background: hsl(245 100% 64%); }
+
+/* ------------------------------------------------------ Context drawer -- */
+[data-ui="ui-16"] .edu-drawer {
+  background: hsl(var(--card) / 0.97);
+  backdrop-filter: blur(10px);
+  border-color: hsl(var(--border));
+  border-radius: 20px 0 0 20px;
+  box-shadow: -22px 0 60px -30px rgb(11 16 32 / 0.5);
+  transition: transform 280ms cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ------------------------------------------------------ Page furniture -- */
+[data-ui="ui-16"] .display { font-size: 24px; font-weight: 600; letter-spacing: -0.025em; }
+[data-ui="ui-16"] .display-2 { font-size: 15px; font-weight: 600; }
+[data-ui="ui-16"] .eyebrow { font-size: 10px; letter-spacing: 0.14em; color: hsl(var(--muted-foreground)); }
+[data-ui="ui-16"] .section-no { display: none; }
+[data-ui="ui-16"] .card { border-radius: calc(16px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(20 18 12 / 0.03); }
+[data-ui="ui-16"] .float { border-radius: calc(16px * var(--radius-scale, 1)); }
+[data-ui="ui-16"] .field { height: 38px; border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-16"] .page-head { padding-block: 1.1rem; border-bottom: 0; }
+[data-ui="ui-16"] .head-row { flex-direction: row; align-items: center; gap: 1rem; }
+[data-ui="ui-16"] .head-copy { max-width: none; }
+[data-ui="ui-16"] .head-sub { margin-top: 0.15rem; font-size: 13px; max-width: none; }
+[data-ui="ui-16"] table th {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Only the canvas transitions; the rail and the command bar hold still. */
+[data-ui="ui-16"] #main > .page-shell { animation: edu-enter 200ms cubic-bezier(.16, 1, .3, 1); }
+@keyframes edu-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="ui-16"] .edu-live { animation: none; }
+  [data-ui="ui-16"] .edu-curve path.line { animation: none; stroke-dashoffset: 0; }
+  [data-ui="ui-16"] .edu-curve circle.node { animation: none; opacity: 1; }
+  [data-ui="ui-16"] #main > .page-shell { animation: none; }
+}
+
+/* ===========================================================================
+   TEXT HOVER SYSTEM
+
+   Hover communicates interactivity — it is not decoration. Static headings,
+   body copy, plain labels and non-clickable figures deliberately have no
+   hover state at all. Everything below is opt-in via a class, so nothing
+   reacts by accident.
+   =========================================================================== */
+
+/* Entity links: a student, an employee, a vendor, an invoice number. */
+[data-ui="ui-16"] .edu-entity {
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 140ms ease-out;
+}
+[data-ui="ui-16"] .edu-entity:hover {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* Secondary navigation: "View all", "See details". The arrow moves, the text
+   takes the accent; nothing else shifts. */
+[data-ui="ui-16"] .edu-more {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: hsl(var(--muted-foreground));
+  transition: color 140ms ease-out;
+}
+[data-ui="ui-16"] .edu-more svg { transition: transform 140ms ease-out; }
+[data-ui="ui-16"] .edu-more:hover { color: hsl(var(--primary)); }
+[data-ui="ui-16"] .edu-more:hover svg { transform: translateX(3px); }
+
+/* Metric labels brighten and reveal a cue; the figure itself does not move. */
+[data-ui="ui-16"] .edu-metric { cursor: pointer; }
+[data-ui="ui-16"] .edu-metric .edu-metric-label { transition: color 140ms ease-out; }
+[data-ui="ui-16"] .edu-metric:hover .edu-metric-label { color: hsl(var(--foreground)); }
+[data-ui="ui-16"] .edu-metric .edu-metric-cue {
+  opacity: 0;
+  color: hsl(var(--primary));
+  transition: opacity 140ms ease-out;
+}
+[data-ui="ui-16"] .edu-metric:hover .edu-metric-cue,
+[data-ui="ui-16"] .edu-metric:focus-visible .edu-metric-cue { opacity: 1; }
+
+/* Breadcrumbs: ancestors are links, the current page is not. */
+[data-ui="ui-16"] .crumbs a { color: hsl(var(--muted-foreground)); transition: color 140ms ease-out; }
+[data-ui="ui-16"] .crumbs a:hover { color: hsl(var(--primary)); }
+[data-ui="ui-16"] .crumbs > span:last-child { color: hsl(var(--foreground)); cursor: default; }
+
+/* Table rows: only the identity column takes the accent. Every other cell
+   stays exactly as it was, so a hover does not repaint the row. */
+[data-ui="ui-16"] tbody tr:hover .edu-entity,
+[data-ui="ui-16"] tbody tr:hover td:first-of-type .truncate { color: hsl(var(--primary)); }
+
+/* Timeline rows reveal their actions rather than showing them permanently. */
+[data-ui="ui-16"] .edu-tl-row .edu-tl-actions { opacity: 0; transition: opacity 140ms ease-out; }
+[data-ui="ui-16"] .edu-tl-row:hover .edu-tl-actions,
+[data-ui="ui-16"] .edu-tl-row:focus-within .edu-tl-actions { opacity: 1; }
+[data-ui="ui-16"] .edu-tl-row:hover .edu-tl-subject { color: hsl(var(--primary)); }
+
+/* Chart legends: highlight the series you point at, dim the rest. */
+[data-ui="ui-16"] .recharts-legend-item { cursor: pointer; transition: opacity 140ms ease-out; }
+[data-ui="ui-16"] .recharts-legend-wrapper:hover .recharts-legend-item { opacity: 0.45; }
+[data-ui="ui-16"] .recharts-legend-wrapper:hover .recharts-legend-item:hover { opacity: 1; }
+
+/* Disabled text never reacts. */
+[data-ui="ui-16"] [aria-disabled="true"],
+[data-ui="ui-16"] :disabled {
+  color: hsl(var(--muted-foreground));
+  cursor: not-allowed;
+}
+[data-ui="ui-16"] [aria-disabled="true"]:hover,
+[data-ui="ui-16"] :disabled:hover { color: hsl(var(--muted-foreground)); }
+
+/* ---------------------------------------------------------------------------
+   NO OVERFLOW OUT OF A PANEL
+
+   Grid and flex children default to min-width: auto, so the live-class strip —
+   a row of fixed 190px cards — widened the column that held it instead of
+   scrolling inside it, and the panel then reached across its neighbour. Zeroing
+   the minimum is what makes .scroll-x actually scroll.
+   --------------------------------------------------------------------------- */
+[data-ui="ui-16"] .edu-panel,
+[data-ui="ui-16"] .edu-hero,
+[data-ui="ui-16"] .edu-panel > *,
+[data-ui="ui-16"] .edu-bento > * { min-width: 0; }
+[data-ui="ui-16"] .edu-panel .scroll-x { max-width: 100%; }
+
+/* ---------------------------------------------------------------------------
+   TOUCH
+
+   Three affordances were revealed on hover alone — the row actions on the
+   activity timeline, the actions on an attention item, and the drill-in cue on
+   a metric. A phone has no hover, so on a touch screen those controls existed
+   but could never be brought out. Where there is no hover they are simply
+   always there.
+   --------------------------------------------------------------------------- */
+@media (hover: none) {
+  [data-ui="ui-16"] .edu-tl-row .edu-tl-actions,
+  [data-ui="ui-16"] .edu-attn-actions,
+  [data-ui="ui-16"] .edu-metric .edu-metric-cue { opacity: 1; }
+}
+
+/* Text sitting on the rail follows the rail's ink, so it stays readable
+   whether the rail is midnight or ivory. */
+[data-ui="ui-16"] .edu-rail-title { color: hsl(var(--rail-ink)); }
+[data-ui="ui-16"] .edu-rail-sub { color: hsl(var(--rail-ink) / 0.6); }
+[data-ui="ui-16"] .edu-rail-btn { color: hsl(var(--rail-ink) / 0.7); }
+[data-ui="ui-16"] .edu-rail-btn:hover { color: hsl(var(--rail-ink)); }

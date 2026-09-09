@@ -1,0 +1,63 @@
+
+/* ===========================================================================
+   TYPEFACE PREFERENCE
+
+   One variable, set from a data attribute on <html>, consumed by the body.
+   Every interface inherits it, so the choice survives switching interface or
+   industry. UI-16 reads the same variable rather than declaring its own face.
+   =========================================================================== */
+:root { --app-font: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+[data-font="inter"]   { --app-font: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+[data-font="geist"]   { --app-font: Geist, Inter, -apple-system, 'Segoe UI', Arial, sans-serif; }
+[data-font="manrope"] { --app-font: Manrope, Inter, -apple-system, 'Segoe UI', Arial, sans-serif; }
+[data-font="plex"]    { --app-font: 'IBM Plex Sans', Inter, -apple-system, 'Segoe UI', Arial, sans-serif; }
+[data-font="dm"]      { --app-font: 'DM Sans', Inter, -apple-system, 'Segoe UI', Arial, sans-serif; }
+[data-font="system"]  { --app-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+
+body { font-family: var(--app-font); }
+/* Inter's alternates only apply to Inter. */
+[data-font="inter"] body { font-feature-settings: 'cv05' 1, 'ss01' 1; }
+[data-font="geist"] body,
+[data-font="manrope"] body,
+[data-font="plex"] body,
+[data-font="dm"] body,
+[data-font="system"] body { font-feature-settings: normal; }
+
+/* ------------------------------------------------------------ more faces -- */
+[data-font="alata"]       { --app-font: Alata, Inter, sans-serif; }
+[data-font="barlow"]      { --app-font: Barlow, Inter, sans-serif; }
+[data-font="josefin"]     { --app-font: 'Josefin Sans', Inter, sans-serif; }
+[data-font="outfit"]      { --app-font: Outfit, Inter, sans-serif; }
+[data-font="figtree"]     { --app-font: Figtree, Inter, sans-serif; }
+[data-font="sourceserif"] { --app-font: 'Source Serif 4', Georgia, serif; }
+[data-font="mono"]        { --app-font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ===========================================================================
+   TEXT SIZE
+
+   Scales the whole interface rather than one element, so proportions hold: a
+   heading stays a heading against its body. It multiplies the type scale set
+   in type-scale.css, which is why it is expressed as a factor and not a size.
+   =========================================================================== */
+:root { --text-scale: 1; }
+[data-textsize="small"]   { --text-scale: 0.92; }
+[data-textsize="medium"]  { --text-scale: 1; }
+[data-textsize="large"]   { --text-scale: 1.1; }
+[data-textsize="x-large"] { --text-scale: 1.22; }
+
+[data-textsize] body { font-size: calc(15px * var(--text-scale)); }
+[data-textsize] table { font-size: calc(14px * var(--text-scale)); }
+
+/* ------------------------------------------------- the designer selection -- */
+[data-font="bebas"]     { --app-font: 'Bebas Neue', Impact, sans-serif; }
+[data-font="cinzel"]    { --app-font: Cinzel, Georgia, serif; }
+[data-font="roboto"]    { --app-font: Roboto, Inter, sans-serif; }
+[data-font="lato"]      { --app-font: Lato, Inter, sans-serif; }
+[data-font="jost"]      { --app-font: Jost, Futura, Inter, sans-serif; }
+[data-font="playfair"]  { --app-font: 'Playfair Display', Didot, Georgia, serif; }
+[data-font="cormorant"] { --app-font: Cormorant, Garamond, Georgia, serif; }
+[data-font="oswald"]    { --app-font: Oswald, 'Arial Narrow', sans-serif; }
+
+/* Display faces are drawn for headlines, so at 12px in a table they close up.
+   A little tracking and a floor on the smallest sizes keeps them readable. */
+[data-font="bebas"] body, [data-font="oswald"] body, [data-font="cinzel"] body { letter-spacing: 0.012em; }

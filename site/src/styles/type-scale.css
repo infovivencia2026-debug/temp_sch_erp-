@@ -1,0 +1,31 @@
+/* ===========================================================================
+   TYPE SCALE
+
+   The interfaces were drawn against a dense scale — 11px and 13px carry most
+   of the text, with 10px on eyebrows and metadata. That is fine on a designer's
+   display and tiring on everyone else's, so the small end moves up by about a
+   pixel. The display figures are left alone: they are already large, and
+   growing them would only push the layouts around.
+
+   These are Tailwind arbitrary utilities, which live in a cascade layer this
+   file cannot outrank on specificity alone — hence !important. It is a scale
+   override, which is exactly the case the keyword is for.
+   =========================================================================== */
+
+.text-\[9px\]    { font-size: calc(10px * var(--text-scale)) !important; }
+.text-\[9\.5px\] { font-size: calc(10.5px * var(--text-scale)) !important; }
+.text-\[10px\]   { font-size: calc(11px * var(--text-scale)) !important; }
+.text-\[10\.5px\]{ font-size: calc(11.5px * var(--text-scale)) !important; }
+.text-\[11px\]   { font-size: calc(12px * var(--text-scale)) !important; }
+.text-\[11\.5px\]{ font-size: calc(12.5px * var(--text-scale)) !important; }
+.text-\[12px\]   { font-size: calc(13px * var(--text-scale)) !important; }
+.text-\[12\.5px\]{ font-size: calc(13.5px * var(--text-scale)) !important; }
+.text-\[13px\]   { font-size: calc(14px * var(--text-scale)) !important; }
+.text-\[13\.5px\]{ font-size: calc(14.5px * var(--text-scale)) !important; }
+.text-\[14px\]   { font-size: calc(15px * var(--text-scale)) !important; }
+.text-\[15px\]   { font-size: calc(16px * var(--text-scale)) !important; }
+.text-\[17px\]   { font-size: calc(18px * var(--text-scale)) !important; }
+
+/* Body copy and table cells inherit from here rather than from a utility. */
+body { font-size: 15px; }
+table { font-size: 14px; }

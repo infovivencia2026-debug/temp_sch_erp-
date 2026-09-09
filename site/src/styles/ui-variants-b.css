@@ -1,0 +1,414 @@
+/* ===========================================================================
+   UI VARIANTS — UI-11 to UI-15, the dashboard-led half of the set.
+
+   These borrow a shell from the first ten but wear it quietly: the identity is
+   the page skeleton, so the palettes are more restrained.
+
+   Same rule as ui-variants.css — every interface has a full light palette on
+   [data-ui="ui-N"] and a full dark palette on [data-ui="ui-N"].dark, and no
+   component rule carries a literal colour. The shared chrome rules that
+   consume --chrome, --rail and --th live at the foot of ui-variants.css and
+   apply here too.
+   =========================================================================== */
+
+/* --------------------------------------------- UI-11 · EDITORIAL SPLIT ---- */
+/* Paper and ink. Warm white stock with a deep ink-blue for emphasis; dark is
+   the same spread printed on black paper. */
+
+/* ---------------------------------------------- UI-12 · RADIAL COMMAND ---- */
+/* A control room. The ring and the sectors should be the only lit objects, so
+   the ground is flat in both modes and the teal does the work. */
+
+/* ------------------------------------------------- UI-10 · MATRIX WALL ---- */
+/* Instrument grey. Flat and square so eight charts at once do not fight. */
+[data-ui="ui-10"] {
+  color-scheme: light;
+  --radius: calc(0.125rem * var(--radius-scale, 1));
+  --background: 210 16% 97%;
+  --card: 0 0% 100%;
+  --ground: 210 14% 94%;
+  --foreground: 213 22% 12%;
+  --card-foreground: 213 22% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 213 22% 12%;
+  --primary: 199 89% 38%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 213 22% 16%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 199 89% 38%;
+  --secondary: 210 16% 96%;
+  --secondary-foreground: 213 22% 16%;
+  --muted: 210 16% 95%;
+  --muted-foreground: 212 8% 44%;
+  --accent: 205 24% 93%;
+  --accent-foreground: 213 22% 16%;
+  --border: 210 14% 88%;
+  --input: 210 14% 88%;
+  --chrome: 0 0% 100%;
+  --rail: 210 14% 95%;
+  --th: 205 22% 93%;
+}
+[data-ui="ui-10"].dark {
+  color-scheme: dark;
+  --background: 213 22% 11%;
+  --card: 213 20% 14%;
+  --ground: 213 26% 8%;
+  --foreground: 210 16% 94%;
+  --card-foreground: 210 16% 94%;
+  --popover: 213 20% 15%;
+  --popover-foreground: 210 16% 94%;
+  --primary: 199 89% 56%;
+  --primary-foreground: 213 26% 8%;
+  --ink: 210 16% 94%;
+  --ink-foreground: 213 26% 8%;
+  --ring: 199 89% 56%;
+  --secondary: 213 16% 18%;
+  --secondary-foreground: 210 16% 94%;
+  --muted: 213 16% 18%;
+  --muted-foreground: 211 10% 62%;
+  --accent: 213 16% 20%;
+  --accent-foreground: 210 16% 94%;
+  --border: 213 12% 23%;
+  --input: 213 12% 23%;
+  --chrome: 213 22% 12%;
+  --rail: 213 24% 9%;
+  --th: 213 16% 17%;
+}
+[data-ui="ui-10"] .card,
+[data-ui="ui-10"] .hairline,
+[data-ui="ui-10"] .float { border-radius: calc(2px * var(--radius-scale, 1)); }
+[data-ui="ui-10"] .card { box-shadow: none; }
+[data-ui="ui-10"] .field { height: 30px; border-radius: calc(2px * var(--radius-scale, 1)); font-size: 12px; }
+[data-ui="ui-10"] .eyebrow { font-size: 9.5px; letter-spacing: 0.14em; }
+[data-ui="ui-10"] .chrome { backdrop-filter: none; }
+[data-ui="ui-10"] td,
+[data-ui="ui-10"] .tabular-nums { font-feature-settings: "tnum" 1; }
+
+/* ----------------------------------------------- UI-14 · SPATIAL CANVAS --- */
+/* Drafting paper. A cool blueprint ground with a single indigo, so the nodes
+   and the lines between them are the only figures on it. */
+
+/* ---------------------------------------- UI-11 · INTELLIGENCE TRIPTYCH --- */
+/* An archive. Panes divided by hairlines, one saturated signal colour for
+   whatever is currently under examination. */
+[data-ui="ui-11"] {
+  color-scheme: light;
+  --radius: calc(0.5rem * var(--radius-scale, 1));
+  --background: 0 0% 100%;
+  --card: 0 0% 100%;
+  --ground: 30 8% 97%;
+  --foreground: 20 10% 9%;
+  --card-foreground: 20 10% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 10% 9%;
+  --primary: 14 88% 48%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 20 10% 12%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 14 88% 48%;
+  --secondary: 30 8% 97%;
+  --secondary-foreground: 20 10% 12%;
+  --muted: 30 8% 96%;
+  --muted-foreground: 24 5% 44%;
+  --accent: 24 20% 95%;
+  --accent-foreground: 20 10% 12%;
+  --border: 28 10% 89%;
+  --input: 28 10% 89%;
+  --chrome: 0 0% 100%;
+  --rail: 30 8% 98%;
+  --th: 30 8% 96%;
+}
+[data-ui="ui-11"].dark {
+  color-scheme: dark;
+  --background: 20 10% 8%;
+  --card: 20 8% 11%;
+  --ground: 20 12% 6%;
+  --foreground: 30 10% 95%;
+  --card-foreground: 30 10% 95%;
+  --popover: 20 8% 12%;
+  --popover-foreground: 30 10% 95%;
+  --primary: 14 92% 60%;
+  --primary-foreground: 20 12% 6%;
+  --ink: 30 10% 95%;
+  --ink-foreground: 20 12% 6%;
+  --ring: 14 92% 60%;
+  --secondary: 20 8% 15%;
+  --secondary-foreground: 30 10% 95%;
+  --muted: 20 8% 15%;
+  --muted-foreground: 26 6% 62%;
+  --accent: 20 8% 17%;
+  --accent-foreground: 30 10% 95%;
+  --border: 20 6% 20%;
+  --input: 20 6% 20%;
+  --chrome: 20 8% 11%;
+  --rail: 20 10% 9%;
+  --th: 20 8% 14%;
+}
+[data-ui="ui-11"] .card { border-radius: calc(8px * var(--radius-scale, 1)); box-shadow: none; }
+[data-ui="ui-11"] .field { height: 36px; border-radius: calc(7px * var(--radius-scale, 1)); }
+[data-ui="ui-11"] .chrome,
+[data-ui="ui-11"] .prism-menu { backdrop-filter: none; }
+[data-ui="ui-11"] .eyebrow { font-size: 10px; letter-spacing: 0.14em; }
+
+/* --------------------------------------------- UI-12 · FULL-SCREEN STAGE -- */
+/* A stage. Dark is the house lights down; light is the same slide printed for
+   a handout — the amber spotlight survives both. */
+[data-ui="ui-12"] {
+  color-scheme: light;
+  --radius: calc(1rem * var(--radius-scale, 1));
+  --background: 40 22% 97%;
+  --card: 0 0% 100%;
+  --ground: 40 18% 94%;
+  --foreground: 240 8% 10%;
+  --card-foreground: 240 8% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 8% 10%;
+  --primary: 33 92% 42%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 240 8% 12%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 33 92% 42%;
+  --secondary: 40 18% 95%;
+  --secondary-foreground: 240 8% 14%;
+  --muted: 40 18% 95%;
+  --muted-foreground: 40 6% 44%;
+  --accent: 36 30% 92%;
+  --accent-foreground: 240 8% 14%;
+  --border: 38 14% 87%;
+  --input: 38 14% 87%;
+  --chrome: 0 0% 100%;
+  --rail: 40 20% 96%;
+  --th: 36 26% 93%;
+}
+[data-ui="ui-12"].dark {
+  color-scheme: dark;
+  --background: 240 6% 7%;
+  --card: 240 5% 10%;
+  --ground: 240 8% 5%;
+  --foreground: 0 0% 98%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 5% 12%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 33 96% 58%;
+  --primary-foreground: 240 8% 5%;
+  --ink: 33 96% 58%;
+  --ink-foreground: 240 8% 5%;
+  --ring: 33 96% 58%;
+  --secondary: 240 5% 15%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 5% 15%;
+  --muted-foreground: 240 4% 62%;
+  --accent: 240 5% 17%;
+  --accent-foreground: 0 0% 98%;
+  --border: 240 4% 19%;
+  --input: 240 4% 19%;
+  --chrome: 240 6% 8%;
+  --rail: 240 5% 10%;
+  --th: 240 5% 15%;
+}
+[data-ui="ui-12"] .card { border-radius: calc(16px * var(--radius-scale, 1)); }
+[data-ui="ui-12"] .field { height: 40px; border-radius: calc(12px * var(--radius-scale, 1)); }
+[data-ui="ui-12"] .chrome { backdrop-filter: none; }
+[data-ui="ui-12"] .halo-dock {
+  background: hsl(var(--rail) / 0.92);
+  border: 1px solid hsl(var(--border));
+  backdrop-filter: blur(16px);
+}
+[data-ui="ui-12"] .eyebrow { letter-spacing: 0.22em; }
+/* the stage does not need a module panel floating over it */
+[data-ui="ui-12"] .halo-panel { display: none; }
+[data-ui="ui-12"] .page-shell { max-width: none; padding-left: 0; padding-bottom: 96px; }
+
+/* ------------------------------------------------ UI-17 · COMMAND DRAWER -- */
+/* A terminal that happens to be legible. Phosphor green on off-black, or the
+   same green darkened onto paper. */
+
+/* ---------------------------------------------- UI-13 · TERRACE STACK ----- */
+/* Warm bands. Each terrace gets a tinted surface so the stack reads as layers
+   rather than as a list — in both modes. */
+[data-ui="ui-13"] {
+  color-scheme: light;
+  --radius: calc(0.75rem * var(--radius-scale, 1));
+  --background: 32 40% 96%;
+  --card: 36 60% 99%;
+  --ground: 32 34% 92%;
+  --foreground: 24 16% 13%;
+  --card-foreground: 24 16% 13%;
+  --popover: 36 60% 99%;
+  --popover-foreground: 24 16% 13%;
+  --primary: 14 62% 42%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 24 30% 20%;
+  --ink-foreground: 36 60% 99%;
+  --ring: 14 62% 42%;
+  --secondary: 32 32% 95%;
+  --secondary-foreground: 24 16% 18%;
+  --muted: 32 32% 94%;
+  --muted-foreground: 26 10% 42%;
+  --accent: 20 34% 92%;
+  --accent-foreground: 24 16% 18%;
+  --border: 30 22% 87%;
+  --input: 30 22% 87%;
+  --chrome: 32 34% 92%;
+  --rail: 36 60% 99%;
+  --th: 20 30% 93%;
+}
+[data-ui="ui-13"].dark {
+  color-scheme: dark;
+  --background: 24 14% 11%;
+  --card: 24 12% 14%;
+  --ground: 24 16% 8%;
+  --foreground: 32 20% 94%;
+  --card-foreground: 32 20% 94%;
+  --popover: 24 12% 15%;
+  --popover-foreground: 32 20% 94%;
+  --primary: 14 72% 60%;
+  --primary-foreground: 24 16% 8%;
+  --ink: 32 20% 94%;
+  --ink-foreground: 24 16% 8%;
+  --ring: 14 72% 60%;
+  --secondary: 24 10% 18%;
+  --secondary-foreground: 32 20% 94%;
+  --muted: 24 10% 18%;
+  --muted-foreground: 28 8% 62%;
+  --accent: 14 20% 20%;
+  --accent-foreground: 32 20% 94%;
+  --border: 24 10% 22%;
+  --input: 24 10% 22%;
+  --chrome: 24 15% 10%;
+  --rail: 24 12% 14%;
+  --th: 14 16% 18%;
+}
+[data-ui="ui-13"] .card { border-radius: calc(12px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(70 40 20 / 0.05); }
+[data-ui="ui-13"] .field { height: 40px; border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-13"] .chrome,
+[data-ui="ui-13"] .terrace-nav { backdrop-filter: none; }
+[data-ui="ui-13"] .terrace-sub { background: hsl(var(--card)); }
+
+/* ------------------------------------------------- UI-14 · EVENT SPINE ---- */
+/* Midnight. The spine and its dots carry the eye, with violet for anything
+   that just happened; light keeps the violet and drops the ground. */
+[data-ui="ui-14"] {
+  color-scheme: light;
+  --radius: calc(0.625rem * var(--radius-scale, 1));
+  --background: 250 40% 98%;
+  --card: 0 0% 100%;
+  --ground: 250 36% 95%;
+  --foreground: 245 30% 13%;
+  --card-foreground: 245 30% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 245 30% 13%;
+  --primary: 265 72% 50%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 265 72% 44%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 265 72% 50%;
+  --secondary: 250 30% 96%;
+  --secondary-foreground: 245 30% 17%;
+  --muted: 250 30% 95%;
+  --muted-foreground: 246 10% 45%;
+  --accent: 265 34% 94%;
+  --accent-foreground: 245 30% 17%;
+  --border: 248 22% 89%;
+  --input: 248 22% 89%;
+  --chrome: 0 0% 100%;
+  --rail: 250 38% 96%;
+  --th: 265 28% 94%;
+}
+[data-ui="ui-14"].dark {
+  color-scheme: dark;
+  --background: 245 30% 11%;
+  --card: 245 26% 14%;
+  --ground: 246 34% 8%;
+  --foreground: 240 20% 95%;
+  --card-foreground: 240 20% 95%;
+  --popover: 245 26% 15%;
+  --popover-foreground: 240 20% 95%;
+  --primary: 265 90% 68%;
+  --primary-foreground: 246 34% 8%;
+  --ink: 265 90% 68%;
+  --ink-foreground: 246 34% 8%;
+  --ring: 265 90% 68%;
+  --secondary: 245 20% 19%;
+  --secondary-foreground: 240 20% 95%;
+  --muted: 245 20% 19%;
+  --muted-foreground: 243 12% 66%;
+  --accent: 245 22% 21%;
+  --accent-foreground: 240 20% 96%;
+  --border: 245 16% 24%;
+  --input: 245 16% 24%;
+  --chrome: 245 32% 9%;
+  --rail: 246 33% 9%;
+  --th: 245 22% 19%;
+}
+[data-ui="ui-14"] .card { border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-14"] .field { height: 36px; border-radius: calc(9px * var(--radius-scale, 1)); }
+[data-ui="ui-14"] .chrome { backdrop-filter: none; }
+[data-ui="ui-14"] .eyebrow { color: hsl(var(--primary)); letter-spacing: 0.14em; }
+
+/* ---------------------------------------------- UI-15 · ADAPTIVE MOSAIC --- */
+/* Bright and plural. Tiles must be told apart at a glance, so the ground stays
+   neutral and the four accents are alpha tints that work on either ground. */
+[data-ui="ui-15"] {
+  color-scheme: light;
+  --radius: calc(1.125rem * var(--radius-scale, 1));
+  --background: 240 20% 98%;
+  --card: 0 0% 100%;
+  --ground: 240 18% 95%;
+  --foreground: 245 26% 12%;
+  --card-foreground: 245 26% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 245 26% 12%;
+  --primary: 292 72% 44%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 245 30% 18%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 292 72% 44%;
+  --secondary: 240 20% 96%;
+  --secondary-foreground: 245 26% 16%;
+  --muted: 240 18% 95%;
+  --muted-foreground: 243 10% 46%;
+  --accent: 285 32% 94%;
+  --accent-foreground: 245 26% 16%;
+  --border: 243 16% 90%;
+  --input: 243 16% 90%;
+  --chrome: 0 0% 100%;
+  --rail: 0 0% 100%;
+  --th: 285 26% 95%;
+}
+[data-ui="ui-15"].dark {
+  color-scheme: dark;
+  --background: 245 26% 12%;
+  --card: 245 22% 15%;
+  --ground: 245 30% 9%;
+  --foreground: 240 20% 96%;
+  --card-foreground: 240 20% 96%;
+  --popover: 245 22% 16%;
+  --popover-foreground: 240 20% 96%;
+  --primary: 292 84% 68%;
+  --primary-foreground: 245 30% 9%;
+  --ink: 240 20% 96%;
+  --ink-foreground: 245 30% 9%;
+  --ring: 292 84% 68%;
+  --secondary: 245 20% 19%;
+  --secondary-foreground: 240 20% 96%;
+  --muted: 245 20% 19%;
+  --muted-foreground: 243 10% 66%;
+  --accent: 245 20% 21%;
+  --accent-foreground: 240 20% 96%;
+  --border: 245 16% 24%;
+  --input: 245 16% 24%;
+  --chrome: 245 22% 15%;
+  --rail: 245 22% 15%;
+  --th: 245 20% 19%;
+}
+[data-ui="ui-15"] .card { border-radius: calc(18px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(40 20 60 / 0.05), 0 12px 28px -22px rgb(40 20 60 / 0.35); }
+[data-ui="ui-15"] .float { border-radius: calc(18px * var(--radius-scale, 1)); }
+[data-ui="ui-15"] .field { height: 40px; border-radius: calc(14px * var(--radius-scale, 1)); }
+[data-ui="ui-15"] .chrome,
+[data-ui="ui-15"] .mosaic-launcher { backdrop-filter: none; }
+[data-ui="ui-15"] .mosaic-tile { border: 1px solid hsl(var(--border)); }
+[data-ui="ui-15"] .mosaic-tile[data-tone="cobalt"] { background: hsl(221 83% 53% / 0.09); border-color: hsl(221 83% 53% / 0.24); }
+[data-ui="ui-15"] .mosaic-tile[data-tone="teal"] { background: hsl(174 70% 40% / 0.09); border-color: hsl(174 70% 40% / 0.24); }
+[data-ui="ui-15"] .mosaic-tile[data-tone="coral"] { background: hsl(8 85% 62% / 0.09); border-color: hsl(8 85% 62% / 0.24); }
+[data-ui="ui-15"] .mosaic-tile[data-tone="violet"] { background: hsl(292 72% 58% / 0.09); border-color: hsl(292 72% 58% / 0.24); }
