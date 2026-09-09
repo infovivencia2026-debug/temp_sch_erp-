@@ -82,11 +82,26 @@ func OpenShard(ctx context.Context, name, url string, maxConns int32) (*Shard, e
 		return nil, fmt.Errorf("parse DSN for shard %s: %w", name, err)
 	}
 	cfg.MaxConns = maxConns
-	// A 1 vCPU box shares this pool with nginx and Postgres itself; idle connections cost
-	// backend memory for no benefit, so retire them fairly aggressively.
-	cfg.MinConns = 1
+	/* Tuned for a managed endpoint the service scales to zero away from.
+
+	   MinConns 0: a floor of one meant the pool held a connection open
+	   forever, which on Neon is a container that never gets to autosuspend --
+	   we were paying for compute to keep a socket warm on an instance serving
+	   nobody. The first request after a quiet spell pays one dial; the
+	   alternative was paying for every quiet spell.
+
+	   MaxConnIdleTime 5m: unchanged. Idle connections still cost backend
+	   memory, and five minutes is long enough that a working session never
+	   redials mid-use.
+
+	   MaxConnLifetime 6h: it was an hour, which forced every connection to
+	   redo a TLS handshake and a pooler handshake hourly for no reason. A
+	   lifetime cap earns its keep against a server that leaks per-connection
+	   state or a load balancer that needs re-spreading; six hours gets both
+	   without turning the recycle into a recurring latency spike. */
+	cfg.MinConns = 0
 	cfg.MaxConnIdleTime = 5 * time.Minute
-	cfg.MaxConnLifetime = time.Hour
+	cfg.MaxConnLifetime = 6 * time.Hour
 	cfg.HealthCheckPeriod = time.Minute
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
