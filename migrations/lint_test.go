@@ -273,6 +273,15 @@ var rlsGrandfathered = map[int]string{
 	48:  "instructional_norms seed per school inserted nothing; ensureInstructionalNorms in internal/api/statutory.go seeds a school on first read anyway",
 	49:  "tally_voucher_type_mappings seed per school inserted nothing; the connector's apply-standard-voucher-types action writes the same map on demand",
 	149: "payroll_runs.published_at backfill matched nothing; redone with the lift as 00150",
+	/* Not a missed lift: this one ran before there was anything to lift.
+	   subscriptions had no row level security until 00303 turned it on, and
+	   00154 is a hundred and fifty migrations upstream of that -- on a fresh
+	   database its backfill runs unguarded and matches every row, exactly as
+	   written. The check compares each migration against the table as it
+	   stands TODAY, which is right for a table that already had RLS and wrong
+	   for one that acquired it later; this entry is that gap, not a fault in
+	   the migration. */
+	154: "subscriptions had no row level security until 00303; 00154 runs long before it and its backfill is unguarded because nothing was guarding the table yet",
 	155: "sms_gateway_devices.approved_at backfill matched nothing; a device paired before it shows as awaiting approval and is approved by hand",
 	156: "vehicle_trackers.approved_at backfill matched nothing; a tracker paired before it shows as awaiting approval and is approved by hand",
 	160: "fee_heads.service guess by name matched nothing; schools mark transport and hostel heads themselves, which the migration said they may",
