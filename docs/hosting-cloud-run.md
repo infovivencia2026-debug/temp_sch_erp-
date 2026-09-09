@@ -1,12 +1,90 @@
 # Hosting on Cloud Run: the target architecture
 
-This is the archived plan for moving the ERP off the single VPS
+This is the plan for moving the ERP off the single VPS
 (`187.127.178.100`, see [scripts/deploy.sh](../scripts/deploy.sh)) onto
 Google Cloud Run in Mumbai with managed Postgres, and everything the code
 demands that the plan did not know about. The manifests and scripts that
-implement it live in [deploy/cloudrun/](../deploy/cloudrun/). Nothing here has
-been executed against a real project yet; this document is what to read before
-doing so.
+implement it live in [deploy/cloudrun/](../deploy/cloudrun/). It was executed
+on 2026-09-08; the section directly below records what that run found, and
+the checklist and rollback at the end are corrected to what was actually
+done. The rest is the reasoning, kept as written.
+
+## What happened on 2026-09-08
+
+The cut-over ran, and the ERP now serves from Cloud Run, Neon and Cloudflare
+Pages. The names, so nobody has to look them up again:
+
+| What | Where |
+|---|---|
+| GCP project | `project-2a0e3e6a-308a-4484-9cb` (number 480232416236), region `asia-south1`, under the Google account infovivencia2026@gmail.com |
+| Cloud Run web service | https://temperp-web-480232416236.asia-south1.run.app |
+| Cloudflare Pages | project `school-erp`, production https://school-erp-cqj.pages.dev (the bare `school-erp.pages.dev` was already taken) |
+| Neon | project `school-erp`, Singapore, Postgres 17, database `school_erp`, roles `erp_owner` and `app_user` |
+| R2 | bucket `school-erp` |
+| VPS | still up: nginx as the front door for the old hostname, tiles, the assistant, and the rollback copy of the database |
+
+Where the run disagreed with the plan (every one of these cost time, which
+is why they are written down):
+
+- **No service-account keys.** The organisation's Secure-by-Default policy
+  forbids JSON keys for service accounts, so deploys run as the signed-in
+  user (`gcloud auth login`), not as a `deployer` service account. The
+  `temperp-run` runtime service account in the manifests is unaffected; it
+  is a Cloud Run identity, not a key.
+- **`/healthz` from outside is a Google 404.** Cloud Run's edge answers an
+  external `GET /healthz` with a Google-branded 404 page on *every* service,
+  before the container is asked. The container's own startup and liveness
+  probes still reach it, so the manifests keep it and the revision was up
+  the whole time; only the external check in `deploy.sh` failed, and the
+  script exited before creating the scheduler. The check now asks
+  `/api/v1/session` (commit 0592b3f0), which is unauthenticated by design
+  and opens a tenant transaction, so a 200 proves both that the revision is
+  serving and that it can reach Neon as the app role. Do not spend an hour
+  on this again: a 404 on `/healthz` from `curl` means nothing.
+- **Nobody could invoke the service.** Cloud Run does not grant public
+  invocation by itself, and the Pages Function calls the `run.app` URL with
+  no credentials. `deploy.sh` now adds `allUsers` → `roles/run.invoker`
+  after every replace (same commit; idempotent).
+- **The image put the binary and the bundle at the same path.** The
+  Dockerfile copied the Go binary to `/app/web` and then the SPA's `dist`
+  to `/app/web` as a directory; Docker refused with "not a directory" and
+  Cloud Build never produced an image. The bundle is now `/app/dist` and
+  `WEB_DIST` follows it in the Dockerfile and `service-web.yaml` (commit
+  851754eb).
+- **Pages proxied to the box the move was leaving.** `API_ORIGIN` was a
+  dashboard field still naming the VPS, so the new backend sat idle. It now
+  lives in [web/wrangler.toml](../web/wrangler.toml) under `[vars]`, which
+  Pages honours on every git build and which makes the dashboard copy
+  read-only (commit 2029143e). The backend a deployment talks to is a line
+  in the repo, not a console setting.
+- **A custom domain was attached by mistake.** `serverless.yajur.org` was
+  added to the Pages project; the owner does not own `yajur.org`. Remove it
+  in the Pages dashboard (Custom domains). Until then it is a dangling
+  entry, harmless but wrong.
+- **Neon's role names are not the VPS's.** `temperp_owner` / `temperp_app`
+  in (d) are what `scripts/deploy.sh` creates on the VPS. On Neon they are
+  `erp_owner` (console-created, so a member of `neon_superuser`; used for
+  migrations only) and `app_user` (created via SQL, no `bypassrls`; the
+  role the app connects as). The app uses the direct endpoint, as (d)
+  recommends. `pg_restore` needs `--no-privileges` *because* of this
+  renaming; see step 5 of the checklist.
+- **Secrets pin at revision creation.** After copying `PASSWORD_PEPPER`,
+  `SESSION_SECRET` and `CREDENTIAL_KEY` from the VPS into Secret Manager as
+  version 2, the running revision kept using version 1: a revision resolves
+  `key: latest` when it is created, not per request. A new revision had to
+  be rolled (`gcloud run services update temperp-web --update-env-vars
+  DEPLOY_STAMP=<now>`) to pick them up. Any secret change needs a new
+  revision.
+- **The old hostname stays a front door, not a redirect.** The fingerprint
+  reader (`/iclock/`) and the installed phone apps are configured with
+  `temperp.187-127-178-100.sslip.io` and cannot be re-pointed remotely, so
+  nginx there proxies the API paths to Cloud Run and only the SPA
+  catch-all redirects to Pages. (g) and step 9 describe this.
+- **Tiles and the assistant did not move.** `/tiles/` (527 MB archive) and
+  `/assistant/` (ragbot) stay on the VPS with CORS for the Pages origin, and
+  the SPA build reaches them by absolute URL from
+  [web/.env.production](../web/.env.production) (`VITE_TILES_BASE`,
+  `VITE_ASSISTANT_URL`). Mirroring the tiles to R2 is still open.
 
 ## The plan, as given
 
@@ -184,15 +262,27 @@ with `TILES_R2=1 R2_BUCKET=<bucket>` and either an rclone remote (`R2_REMOTE`,
 default `r2`) or the aws cli with `R2_ENDPOINT` set, and it mirrors the
 archive, the `BUILD` stamp and `assets/` under `tiles/` in the bucket.
 
+*As of 2026-09-08 this has not been done*: `web/.env.production` sets
+`VITE_TILES_BASE=https://temperp.187-127-178-100.sslip.io/tiles`, and nginx
+on the VPS keeps serving the archive with CORS for the Pages origin. It
+works, it is one more thing the VPS must stay up for, and the R2 mirror is
+the step that removes it.
+
 ### (d) Neon: TLS in the URLs, and the two roles created by hand
 
 `pgxpool.ParseConfig` passes `sslmode` straight through, and Neon refuses
 plaintext, so both URLs need it:
 
 ```
-DATABASE_URL=postgres://temperp_app:…@ep-….ap-southeast-1.aws.neon.tech/temperp?sslmode=require
-MIGRATE_DATABASE_URL=postgres://temperp_owner:…@ep-….ap-southeast-1.aws.neon.tech/temperp?sslmode=require
+DATABASE_URL=postgres://app_user:…@ep-….ap-southeast-1.aws.neon.tech/school_erp?sslmode=require
+MIGRATE_DATABASE_URL=postgres://erp_owner:…@ep-….ap-southeast-1.aws.neon.tech/school_erp?sslmode=require
 ```
+
+(Those are the Neon names. The SQL below still says `temperp_owner` /
+`temperp_app` because it is the VPS's script with the VPS's names; on Neon
+read `erp_owner` for the first and `app_user` for the second, and
+`school_erp` for the database. The project is `school-erp` in Singapore, PG
+17.)
 
 Use Neon's **direct** endpoint, not the `-pooler` one: `internal/database`
 sets per-transaction GUCs with `SET LOCAL` and relies on pgx's own pool;
@@ -252,11 +342,14 @@ Two Neon-specific notes. `CREATE ROLE … LOGIN` works from SQL on Neon, but
 roles created that way do not appear in the Neon console's role list and are
 not managed by it; that is fine, and preferable to console-created roles,
 which are members of `neon_superuser` and would defeat the point of the app
-role. And `ALTER DEFAULT PRIVILEGES FOR ROLE temperp_owner` only applies to
-objects `temperp_owner` creates — so migrations must run as `temperp_owner`
-(they do: `MIGRATE_DATABASE_URL`), never as the Neon default role, or new
-tables come up without the app grants and every query on them fails with
-"permission denied".
+role. That is exactly how it was done: `erp_owner` is console-created (a
+`neon_superuser` member, which is acceptable for the role that only runs
+migrations) and `app_user` was created from SQL, with no `bypassrls`, so
+`FORCE ROW LEVEL SECURITY` binds it. And `ALTER DEFAULT PRIVILEGES FOR ROLE
+erp_owner` only applies to objects `erp_owner` creates — so migrations must
+run as `erp_owner` (they do: `MIGRATE_DATABASE_URL`), never as the Neon
+default role, or new tables come up without the app grants and every query
+on them fails with "permission denied".
 
 Neon also skips the `ALTER SYSTEM` tuning block deploy.sh applies
 (`shared_buffers` and friends); Neon manages those, and the block is not
@@ -276,9 +369,12 @@ would be silently lost**. There are three consequences:
    the path is at least writable and a mistake fails visibly rather than
    with "read-only file system".
 2. The files already in `/var/lib/temperp/files` on the VPS have rows in the
-   `files` table pointing at local storage. They need copying into the
-   bucket and their rows rewriting to the R2 key — a small migration script
-   to write when the count is known.
+   `files` table pointing at local storage. They needed copying into the
+   bucket — and, it turned out, nothing else: the local store lays files out
+   under `institution_id/yyyy-mm/uuid.ext`, which is the same key the R2
+   path uses, so `aws s3 sync /var/lib/temperp/files s3://school-erp/`
+   against the R2 endpoint made every row valid with no rewrite (17 objects
+   on 2026-09-08). No migration script was needed.
 3. Cloud Run's request body limit is 32 MB for HTTP/1 (unlimited when the
    service is set to HTTP/2), below `maxLocalUploadBytes` (64 MB). The R2
    presign path sidesteps this entirely because the browser uploads to R2.
@@ -345,8 +441,9 @@ Cloud Run has no equivalent for:
 | `temperp-backup.timer` / `scripts/backup-db.sh` | Nightly `pg_dump -Fc` to R2 under `backups/<db>/`, 30 days kept (`scripts/install-backup-timer.sh` installs the timer; `scripts/backup-check.sh` + `.github/workflows/nightly-backup.yml` are the Actions version for the Neon phase). Neon has point-in-time restore (7 days on Launch), but an off-provider dump is still the one copy Google or Neon cannot lose for you. Point the script at Neon's URL and keep it running on the VPS, or on any box. |
 | The assistant (`ragbot.service`, `/assistant/`) | Python + Gemini/ollama on the same host; a separate service with its own hosting decision. `VITE_ASSISTANT_URL` in the SPA build points wherever it lands. |
 | The `erp.` sibling deployment | Unrelated to this move. |
-| DNS for `temperp.187-127-178-100.sslip.io` | sslip.io encodes the VPS IP; the Cloud Run service needs a real hostname (`BASE_URL`), mapped with a Cloud Run domain mapping or a load balancer. The old hostname can 301 from nginx during the overlap. |
-| nginx | Only as a redirect and as the tile server until the archive is on R2. |
+| DNS for `temperp.187-127-178-100.sslip.io` | sslip.io encodes the VPS IP, so the hostname cannot be re-pointed; and the fingerprint reader and the installed phone apps have it baked in. nginx keeps it alive as a **front door**: `/etc/nginx/snippets/temperp-cloudrun.conf` proxies the server-owned paths (`/api/`, `/login`, `/logout`, `/iclock/`, `/static/`, `/apps`, `/buy`, `/signup`, `/forgot`, `/reset`, `/healthz`) to the Cloud Run URL with `proxy_ssl_server_name on` and `Host` set to the `run.app` host, and the SPA catch-all is a 301 to the Pages URL. |
+| nginx | The front door above; the tile server (`/tiles/`, with CORS for the Pages origin) until the archive is on R2; and the CORS-answering proxy for `/assistant/`. |
+| The local `temperp` database | Stopped services, live data, as the rollback copy for two weeks after cut-over. |
 
 ## The front end on Cloudflare Pages
 
@@ -390,12 +487,17 @@ code changes for this.
    Node version 22 (`NODE_VERSION=22` as a build env var — the same major the
    Dockerfile and the LAN build box use; the lockfile has packages that
    declare node ^22.13).
-2. Environment variable `API_ORIGIN` = the Cloud Run web service URL, no
-   trailing slash. Set it for Production and Preview. Optionally
-   `ORIGIN_SHARED_SECRET` (mark it secret), the same value uploaded by
-   `secrets.sh` and uncommented in `service-web.yaml`.
+2. `API_ORIGIN` = the Cloud Run web service URL, no trailing slash. It is
+   **not** a dashboard variable: it lives in `[vars]` in
+   [web/wrangler.toml](../web/wrangler.toml), which Pages reads on every git
+   build and which makes the dashboard's copy read-only. Optionally
+   `ORIGIN_SHARED_SECRET` (a dashboard secret, since it must not be in the
+   repo), the same value uploaded by `secrets.sh` and uncommented in
+   `service-web.yaml`.
 3. Custom domain (e.g. `app.<school>.in`) on the Pages project; the DNS is a
-   CNAME Cloudflare adds itself when the zone is on Cloudflare.
+   CNAME Cloudflare adds itself when the zone is on Cloudflare. Only a
+   domain the owner controls: `serverless.yajur.org` was attached on
+   2026-09-08 and must be removed.
 4. `BASE_URL` on the Cloud Run web service must be the **Pages** URL, not the
    `run.app` one: it is what the server puts in emails and SMS links.
 5. The Cloud Run web service can keep `WEB_DIST` set (it then serves the page
@@ -411,7 +513,8 @@ one to `BASE_URL` before cut-over.
 
 ## Cut-over checklist
 
-In order. Each step is reversible until step 9.
+In order, as it was actually run on 2026-09-08. Each step is reversible
+until step 9.
 
 1. **Code prerequisites** (Go/TS changes, out of scope for the manifests).
    Done alongside the Dockerfile: `cmd/web` serves the SPA from `WEB_DIST`
@@ -419,25 +522,28 @@ In order. Each step is reversible until step 9.
    with `/healthz`; `RealIP` takes the last hop. `TILES_BASE` reads
    `VITE_TILES_BASE`, so the R2 public host is a build-time variable, not a
    code change. Merge to `main`.
-2. **Accounts.** GCP project with billing, Neon project in `ap-southeast-1`
-   (Singapore; Neon has no Mumbai region — ~40 ms from asia-south1, fine for
-   this workload), R2 bucket
-   with CORS and a public custom domain.
-3. **Neon roles and grants.** Run the SQL in (d) as the Neon owner. Create
-   the `temperp` database owned by `temperp_owner`.
+2. **Accounts.** GCP project with billing (`project-2a0e3e6a-308a-4484-9cb`,
+   asia-south1), Neon project `school-erp` in `ap-southeast-1` (Singapore;
+   Neon has no Mumbai region — ~40 ms from asia-south1, fine for this
+   workload), R2 bucket `school-erp` with CORS and a public custom domain.
+   `gcloud auth login` as the project owner; the org policy forbids
+   service-account keys, so there is no `deployer` identity to create.
+3. **Neon roles and grants.** Create `erp_owner` in the console and
+   `app_user` from SQL, then run the grants in (d) with the names swapped.
+   Create the `school_erp` database owned by `erp_owner`.
 4. **Secrets.** Copy `PASSWORD_PEPPER`, `SESSION_SECRET`, `CREDENTIAL_KEY`
    from the VPS's `/etc/temperp.env` — they must not change, the pepper
    above all — into `deploy/cloudrun/.env.cloudrun` (gitignored) along with
    the new URLs and the R2 keys. Template:
 
    ```
-   PROJECT_ID=my-gcp-project
-   BASE_URL=https://erp.myschool.in
+   PROJECT_ID=project-2a0e3e6a-308a-4484-9cb
+   BASE_URL=https://school-erp-cqj.pages.dev
    R2_ACCOUNT_ID=…
-   R2_BUCKET=temperp
+   R2_BUCKET=school-erp
    R2_PUBLIC_HOST=files.myschool.in
-   DATABASE_URL=postgres://temperp_app:…@…neon.tech/temperp?sslmode=require
-   MIGRATE_DATABASE_URL=postgres://temperp_owner:…@…neon.tech/temperp?sslmode=require
+   DATABASE_URL=postgres://app_user:…@…neon.tech/school_erp?sslmode=require
+   MIGRATE_DATABASE_URL=postgres://erp_owner:…@…neon.tech/school_erp?sslmode=require
    SESSION_SECRET=<copied from VPS>
    PASSWORD_PEPPER=<copied from VPS>
    CREDENTIAL_KEY=<copied from VPS>
@@ -451,53 +557,103 @@ In order. Each step is reversible until step 9.
 
    Then `bash deploy/cloudrun/secrets.sh`. `CRON_KEY` is required: without
    it the endpoint answers 401 to everyone and no reminder is ever sent.
-5. **Data.** `pg_dump -Fc` the VPS database at a quiet hour with the app in
-   maintenance (stop `temperp-web`), `pg_restore --no-owner --role=temperp_owner`
-   into Neon as `temperp_owner`. Verify `SELECT count(*) FROM institutions`
-   and a sample of `users`. This is the step the schema migrations depend
-   on: the goose version table comes across with the dump, so `migrate up`
-   afterwards is a no-op unless the image is newer than the VPS.
-6. **Files.** Copy `/var/lib/temperp/files` into the bucket under the
-   institution-prefixed keys and rewrite the `files` rows. Upload the tiles
-   archive, fonts and sprites to the public host and confirm a range request
-   returns `206`.
+   If a secret is added or changed *after* a revision exists, roll a new
+   revision (`gcloud run services update temperp-web --region asia-south1
+   --update-env-vars DEPLOY_STAMP=$(date +%s)`): a revision pins secret
+   versions when it is created, even with `key: latest`. This bit on
+   2026-09-08 when the three VPS values went in as version 2.
+5. **Data.** The procedure that worked, in full:
+
+   ```
+   # On the VPS, as postgres, into /tmp (postgres cannot write /root):
+   sudo -u postgres pg_dump -Fc temperp -f /tmp/temperp.dump
+
+   # On Neon, as erp_owner, on school_erp:
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public AUTHORIZATION erp_owner;
+   GRANT USAGE ON SCHEMA public TO app_user;
+   REVOKE CREATE ON SCHEMA public FROM app_user;
+
+   pg_restore --no-owner --no-privileges --role=erp_owner --exit-on-error \
+       -d "$MIGRATE_DATABASE_URL" /tmp/temperp.dump
+
+   # Then, as erp_owner:
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
+   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+   GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO app_user;
+   ```
+
+   `--no-privileges` is **required**, not optional: the dump's `GRANT`
+   statements name `temperp_app`, which does not exist on Neon, and
+   `--exit-on-error` would stop on the first one. That is also why the
+   re-grant afterwards is not optional — without it the app role can see
+   no table. Verify the grants came back with
+   `SELECT count(*) FROM information_schema.role_table_grants WHERE
+   grantee='app_user'` (1832 on 2026-09-08), then the shape: 457 tables,
+   434 with `relforcerowsecurity`, 434 policies, goose at 302. A local
+   `pg_restore` 18 restored a `pg_dump` 16 archive into PG 17 without
+   complaint. The goose version table comes across with the dump, so
+   `migrate up` afterwards is a no-op unless the image is newer than the
+   VPS.
+6. **Files.** `aws s3 sync /var/lib/temperp/files s3://school-erp/
+   --endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`. No
+   row rewrite: the local paths are already the R2 keys ((e) above). The
+   tiles archive was **not** moved; `web/.env.production` points the map
+   at the VPS's `/tiles/` until it is.
 7. **First deploy.** `gcloud services enable run.googleapis.com
    cloudbuild.googleapis.com artifactregistry.googleapis.com
    secretmanager.googleapis.com cloudscheduler.googleapis.com` once, then
    `bash deploy/cloudrun/deploy.sh --scheduler --dry-run`, read it, then
    without `--dry-run`. It builds, migrates (`up`, `seed-permissions`) and
-   only then replaces the web service, curls `/healthz` on the `run.app`
-   URL, creates or updates the Cloud Scheduler job `temperp-cron` (every
-   minute, `X-Cron-Key`, 60 s deadline, no retries — the next minute is the
-   retry) and fires one tick, printing the counts it answered with. Add
-   `--with-worker` only if push notifications are wanted now (see (b)).
-8. **Smoke test on the `run.app` URL** with every demo role: sign in, load
-   the catalog, open a bus on the live map (tiles from R2), upload a file
-   (presign to R2), enqueue something and watch the web service's log
-   consume it (`queue workers running in-process` at boot, then the job),
-   and confirm in the admin queue screen or `cron_runs` that
-   `message_dispatch` has a `last_run` within the last minute.
-9. **DNS.** Map `BASE_URL`'s hostname to the web service. Point the VPS
-   nginx at a 301 to the new host. Sessions do not survive the hostname
-   change (the cookie is host-bound); tell the school to expect one sign-in.
+   only then replaces the web service, grants `allUsers` the invoker role,
+   curls `/api/v1/session` on the `run.app` URL (not `/healthz` — see the
+   top of this document), creates or updates the Cloud Scheduler job
+   `temperp-cron` (every minute, `X-Cron-Key`, 60 s deadline, no retries —
+   the next minute is the retry) and fires one tick, printing the counts
+   it answered with. Add `--with-worker` only if push notifications are
+   wanted now (see (b)).
+8. **Smoke test on the Pages URL** with every demo role: sign in, load the
+   catalog, open a bus on the live map (tiles from the VPS for now), upload
+   a file (presign to R2), enqueue something and watch the web service's
+   log consume it (`queue workers running in-process` at boot, then the
+   job), and confirm in the admin queue screen or `cron_runs` that
+   `message_dispatch` has a `last_run` within the last minute. Check that
+   `API_ORIGIN` in `web/wrangler.toml` is the `run.app` URL and that the
+   Pages build that is live was built after that commit.
+9. **The old hostname.** Not a plain 301. Back up the site file
+   (`/root/nginx-temperp.before-cloudrun.bak`), then install
+   `/etc/nginx/snippets/temperp-cloudrun.conf`: the server-owned paths
+   (`/api/`, `/login`, `/logout`, `/iclock/`, `/static/`, `/apps`, `/buy`,
+   `/signup`, `/forgot`, `/reset`, `/healthz`) `proxy_pass` to the Cloud
+   Run URL with `proxy_ssl_server_name on` and `proxy_set_header Host` the
+   `run.app` host; `/tiles/` and `/assistant/` stay local with
+   `Access-Control-Allow-Origin` for the Pages origin; the SPA catch-all
+   becomes a 301 to the Pages URL. The fingerprint reader and the phone
+   apps keep talking to the hostname they were given and land on Cloud
+   Run. Browser sessions do not survive the hostname change (the cookie is
+   host-bound); tell the school to expect one sign-in.
 10. **Stop the VPS services** — `systemctl disable --now temperp-web
     temperp-worker` — but leave the box, its database and the nightly backup
     running for two weeks. A stopped worker is what makes the rollback below
     clean: the queue is rows in whichever database the worker points at, and
     a VPS worker still running against the VPS database would keep ticking
     the VPS's cron (`CRON_INPROCESS=1`) and sending yesterday's reminders from
-    the old copy.
+    the old copy. Done 2026-09-08; the two weeks end 2026-09-22.
 11. **After two weeks:** repoint `backup-db.sh` at Neon (or accept Neon PITR
     plus a weekly manual dump), then decommission the VPS database.
 
 ## Rollback
 
-Within the two-week overlap, rollback is DNS plus a restore, and the VPS is
-exactly as it was:
+Within the two-week overlap, rollback is two commands on the VPS plus a
+decision about data, because nothing there was removed:
 
-1. Point `BASE_URL`'s hostname back at the VPS (or let the school use the
-   sslip.io hostname, which never stopped working).
-2. `systemctl enable --now temperp-web temperp-worker` on the VPS.
+1. `systemctl enable --now temperp-web temperp-worker` on the VPS.
+2. Restore the nginx site file from
+   `/root/nginx-temperp.before-cloudrun.bak` and `nginx -t && systemctl
+   reload nginx`. That drops the Cloud Run proxy and the 301, and
+   `temperp.187-127-178-100.sslip.io` serves the VPS build again; the
+   reader and the apps never noticed either way. No DNS is involved —
+   sslip.io never changed.
 3. Data written on Cloud Run since step 5 lives in Neon, not on the VPS.
    Either accept the gap (announce it) or `pg_dump` Neon and `pg_restore`
    over the VPS database — the schema is identical because both ran the
