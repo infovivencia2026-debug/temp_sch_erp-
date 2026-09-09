@@ -690,7 +690,23 @@ until step 9.
    ORIGIN_SHARED_SECRET=<openssl rand -hex 32>
    ```
 
-   Then `bash deploy/cloudrun/secrets.sh`. `CRON_KEY` is required: without
+   Then `bash deploy/cloudrun/secrets.sh`.
+
+   **On a second machine, do none of that.** Every value above is already in
+   Secret Manager (that is where the running service reads them from) and the
+   rest is on the deployed service, so the file is rebuilt rather than copied:
+
+   ```
+   gcloud auth login && gcloud config set project <id>
+   bash deploy/cloudrun/env-from-cloud.sh > deploy/cloudrun/.env.cloudrun
+   chmod 600 deploy/cloudrun/.env.cloudrun
+   ```
+
+   The account needs `roles/run.admin`, `roles/cloudbuild.builds.editor`,
+   `roles/artifactregistry.writer`, `roles/secretmanager.secretAccessor` and
+   `roles/iam.serviceAccountUser`. Sending a colleague the file instead would
+   be sending them the password pepper, which every stored hash depends on and
+   which must never change. `CRON_KEY` is required: without
    it the endpoint answers 401 to everyone and no reminder is ever sent.
    If a secret is added or changed *after* a revision exists, roll a new
    revision (`gcloud run services update temperp-web --region asia-south1
