@@ -62,12 +62,17 @@ export default function Students() {
   if (error) return <ErrorState error={error} />
 
   const rows = data?.items ?? []
+  /* This screen still pages by offset, which is the legacy path on the API and
+     the one that still carries a total on every page. `?? rows.length` is only
+     the honest fallback for the moment before the first answer lands, not a
+     new behaviour: absent total means "nobody counted", never zero. */
+  const total = data ? (data.total ?? rows.length) : undefined
 
   return (
     <Card>
       <CardHeader
         title="Students"
-        description={data ? `${data.total} record${data.total === 1 ? '' : 's'}` : undefined}
+        description={total != null ? `${total} record${total === 1 ? '' : 's'}` : undefined}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Input
@@ -89,7 +94,7 @@ export default function Students() {
             <ExportRows
               rows={rows}
               name="students"
-              label={data && data.total > rows.length ? 'Export this page' : 'Export'}
+              label={total != null && total > rows.length ? 'Export this page' : 'Export'}
               columns={[
                 { header: 'Admission no', value: (s) => s.admission_no },
                 { header: 'Name', value: (s) => s.full_name },
@@ -140,16 +145,16 @@ export default function Students() {
       </Table>
 
 
-      {data && data.total > PAGE && (
+      {total != null && total > PAGE && (
         <div className="flex items-center justify-between border-t px-4 py-2.5 text-sm">
           <span className="text-muted-foreground">
-            {offset + 1}–{Math.min(offset + PAGE, data.total)} of {data.total}
+            {offset + 1}–{Math.min(offset + PAGE, total)} of {total}
           </span>
           <div className="flex gap-2">
             <Button variant="ghost" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>
               Previous
             </Button>
-            <Button variant="ghost" disabled={!data.has_more} onClick={() => setOffset(offset + PAGE)}>
+            <Button variant="ghost" disabled={!data?.has_more} onClick={() => setOffset(offset + PAGE)}>
               Next
             </Button>
           </div>

@@ -543,6 +543,10 @@ export function Table({
   wide,
   loading,
   loadingRows = 6,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  total,
 }: {
   head: Column[]
   children: ReactNode
@@ -557,6 +561,37 @@ export function Table({
      rows (`isFetching` with data) must keep those rows on screen. */
   loading?: boolean
   loadingRows?: number
+  /* MORE ROWS EXIST THAN THIS TABLE WAS HANDED.
+
+     A table pages ten at a time through whatever array it was given, which
+     means the reader can only ever reach as far as one request went. Every
+     list screen therefore had to guess a limit up front, and the guess was
+     always a guess about how big a school gets.
+
+     These three props hand the far end of the list back to the caller. Pass
+     `hasMore` and the pager stops treating the last loaded row as the last
+     row: Next stays live on the final page and asks for more instead of
+     greying out, and full-screen scrolling asks as the bottom comes into
+     view. `loadingMore` puts the skeleton rows this file already draws under
+     the real ones while a page is in flight, so the answer to "there is more"
+     is never a blank.
+
+     ALL THREE ARE OPTIONAL AND OMITTING THEM CHANGES NOTHING. A table given
+     an array and no `onLoadMore` behaves exactly as it did: it pages what it
+     holds and stops there, which is right for the hundred tables whose rows
+     are a fixed set. */
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
+  /* How many rows there are ALTOGETHER, when the server has said.
+
+     Without it the pager can only count what has been loaded, so a roll of
+     345 read ten at a time would say "of 40" and then "of 80" -- a number
+     that grows as you read is worse than no number. Given it, the pager says
+     "191–200 of 345" from the first page onward and the reader knows the size
+     of what they are in. Omitted (or absent, on the pages our API does not
+     count), the pager says "of 120+" rather than inventing an end. */
+  total?: number
   /** Supply what useSort returned to make keyed columns clickable. */
   sort?: { sortKey: string; dir: SortDir; toggle: (k: string) => void }
   /* A table with more columns than the screen has room for.
@@ -615,16 +650,35 @@ export function Table({
   const size = full ? Math.max(rows.length, 1) : PAGE_SIZE
   const pages = Math.max(1, Math.ceil(rows.length / size))
 
+  /* The list continues past the rows in hand.
+
+     `canGrow` is the whole difference between a table that has an end and one
+     that has a horizon. Where it is false every expression below reduces to
+     what it computed before, which is why the untouched call sites are
+     untouched. */
+  const canGrow = !!onLoadMore && !!hasMore
+  const more = () => { if (canGrow && !loadingMore) onLoadMore!() }
+  const sentinel = useRef<HTMLDivElement | null>(null)
+
   /* Snap back when the rows change underneath.
 
      Filter a 400-row list down to 12 while sitting on page 9 and the table is
      empty with a Previous button as the only clue about why. The row COUNT is
      the signal: a re-sort keeps its length and should keep your place, a filter
      does not. */
+  /* Snapping back must not fight the loading.
+
+     A page arriving makes the row count GROW, which is the one length change
+     that means "you are still where you were, there is simply more below". A
+     filter is what shortens it, and that is what the snap is for. So the snap
+     now triggers on a shrink only; growth leaves the reader's place alone,
+     and without this every Next past the loaded end would bounce them to
+     page one. */
   const [seen, setSeen] = useState(rows.length)
   if (seen !== rows.length) {
+    const shrank = rows.length < seen
     setSeen(rows.length)
-    if (page > 0) setPage(0)
+    if (page > 0 && (shrank || !onLoadMore)) setPage(0)
   }
 
   const at = Math.min(page, pages - 1)
@@ -643,6 +697,32 @@ export function Table({
      page size only ever existed to fit the card. */
   const start = at * size
   const shown = rows.length > size ? rows.slice(start, start + size) : rows
+
+  /* Watch the bottom marker, inside whatever is scrolling it.
+
+     `root: null` would watch the viewport, and in full screen the rows scroll
+     inside `.scroll-x` while the viewport never moves -- so the marker would
+     read as permanently visible and fetch the whole list at once, which is
+     the exact thing this is here to avoid. The scroller is the root.
+
+     Re-run when the loaded rows change: the marker moves down the document
+     with each page, and an observer holding the old geometry stops firing
+     after one. */
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !canGrow || loadingMore) return
+    if (typeof IntersectionObserver === 'undefined') return
+    const scroller = el.closest('.scroll-x') as HTMLElement | null
+    const io = new IntersectionObserver(
+      (entries) => { if (entries.some((e) => e.isIntersecting)) more() },
+      // A screen of slack, so the fetch starts before the reader arrives at
+      // the blank rather than after they have stopped at it.
+      { root: scroller, rootMargin: '400px 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [full, canGrow, loadingMore, rows.length])
 
   useEffect(() => {
     if (!full) return
@@ -744,27 +824,63 @@ export function Table({
               </td>
             </tr>
           ) : (
-            labelCells(shown, labels)
+            <>
+              {labelCells(shown, labels)}
+              {/* NEVER A BLANK WHERE ROWS ARE COMING.
+
+                  The rows already on screen stay exactly where they are and
+                  the shimmer goes underneath them, which is the shape of the
+                  answer: this is not a new table, it is more of this one. */}
+              {loadingMore && <SkeletonRows rows={3} cols={head.length} />}
+            </>
           )}
         </tbody>
       </table>
+      {/* THE BOTTOM OF THE SCROLL, ASKING FOR MORE.
+
+          Full screen is the mode where the reader scrolls rather than pages,
+          so there is no Next to press and reaching the end has to be the
+          request. A zero-height marker after the last row, watched inside the
+          scroller it lives in: when it comes into view the next page is
+          already being fetched by the time the reader gets there. */}
+      {full && canGrow && <div ref={sentinel} aria-hidden="true" className="h-px w-px" />}
       </div>
 
-        {rows.length > size && (
+        {/* Full screen scrolls; the sentinel below is its Next, so a pager there
+            would be two controls for one move. */}
+        {(rows.length > size || (canGrow && !full)) && (
           <div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
-                numbers answer it directly. */}
+                numbers answer it directly.
+
+                And "of" counts the whole list, not the part fetched so far. A
+                denominator that climbs while you read is a worse answer than
+                none, so where the server has not counted this says "120+". */}
             <p className="text-[12.5px] tabular-nums text-muted-foreground">
-              {start + 1}–{Math.min(start + size, rows.length)} of {rows.length}
+              {start + 1}–{Math.min(start + size, rows.length)} of{' '}
+              {total != null ? total : canGrow ? `${rows.length}+` : rows.length}
             </p>
             <div className="flex items-center gap-1.5">
               <Button size="sm" variant="secondary" disabled={at === 0}
                       onClick={() => setPage(at - 1)}>
                 Previous
               </Button>
-              <Button size="sm" variant="secondary" disabled={at >= pages - 1}
-                      onClick={() => setPage(at + 1)}>
+              {/* NEXT PAST THE LAST LOADED ROW.
+
+                  On the final loaded page Next used to grey out, and that grey
+                  was the product telling a school of 345 that it had 200
+                  children. Where more exists it now asks for it and advances:
+                  `page` keeps the reader's intent while `at` stays clamped to
+                  what has arrived, so the rows on screen do not blank out
+                  mid-fetch -- they are simply joined by the next ten when the
+                  answer lands. */}
+              <Button size="sm" variant="secondary"
+                      disabled={at >= pages - 1 && !canGrow}
+                      onClick={() => {
+                        if (at >= pages - 1) more()
+                        setPage(at + 1)
+                      }}>
                 Next
               </Button>
             </div>
@@ -821,7 +937,11 @@ export function Table({
     >
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-[13px] tabular-nums text-muted-foreground">
-          {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+          {/* The size of the list, not of what has loaded. Scrolling a roll
+              of 345 should not be watched over by a counter reading 40. */}
+          {total ?? rows.length} {(total ?? rows.length) === 1 ? 'row' : 'rows'}
+          {total == null && canGrow ? '+' : ''}
+          {loadingMore ? ' · loading more' : ''}
         </p>
         <Button size="sm" variant="secondary" onClick={() => {
           setFull(false)

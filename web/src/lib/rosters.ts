@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List, type Page, type Student } from '@/lib/api'
 
 /* ONE ROSTER, NOT THIRTEEN.
 
@@ -40,13 +40,44 @@ export interface EmployeeName {
   employee_code?: string
 }
 
-/* 500, not 300: six of the seven screens asked for 300 and the behaviour log
-   asked for 500. Sharing one cache means sharing one limit, and the larger is
-   the only one that cannot silently lose the child somebody is looking for. */
+/* THE PICKERS ARE STILL ASKING FOR A NUMBER, AND A NUMBER IS STILL WRONG.
+
+   A dropdown wants every child who might be typed, and there is no page size
+   that is right for that: 300 lost the behaviour log's children, 500 fits one
+   school and not the next, and a million fits nothing. The real answer is
+   server-side typeahead -- the endpoint already takes `q` -- so the picker
+   asks for the twenty names matching what has been typed instead of the roll.
+   That is a change to every picker's props, not to this file, and it is not
+   made here.
+
+   What IS made here is holding the line while that waits. The API's page size
+   is now 200, so a single `limit=500` would come back quietly short -- the
+   exact silent clamp that lost children before. So this walks the cursor
+   instead, up to a bounded number of pages: no worse than the old 500 at any
+   roll it used to serve, and honest about stopping rather than pretending the
+   first page was everybody. The bound is what says out loud that this is a
+   stopgap: a school past it needs the typeahead, not a bigger bound. */
+const ROSTER_PAGE = 200
+const ROSTER_MAX_PAGES = 5
+
+async function walkRoster<T>(path: string): Promise<List<T>> {
+  const items: T[] = []
+  let cursor = ''
+  for (let i = 0; i < ROSTER_MAX_PAGES; i++) {
+    const qs = new URLSearchParams({ limit: String(ROSTER_PAGE) })
+    if (cursor) qs.set('cursor', cursor)
+    const page = await api.get<Page<T>>(`${path}?${qs.toString()}`)
+    items.push(...page.items)
+    if (!page.next_cursor) break
+    cursor = page.next_cursor
+  }
+  return { items }
+}
+
 export function useStudentRoster<T = Student>(): UseQueryResult<List<T>> {
   return useQuery({
     queryKey: ['students', 'roster'],
-    queryFn: () => api.get<List<T>>('/api/v1/students?limit=500'),
+    queryFn: () => walkRoster<T>('/api/v1/students'),
     staleTime: ROSTER_STALE,
   })
 }
