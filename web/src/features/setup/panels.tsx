@@ -2872,7 +2872,16 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
             />
           </Field>
         )}
-        <Field label="Or a new one" hint="Created as a fee head for the whole school.">
+        {/* THE HINT IS NOT IN THE ROW, because it was setting the row's
+            height. `items-end` aligns the BOTTOMS of what it holds, and one
+            of these fields carried a line of hint under its input while the
+            other did not: the bottoms lined up, so the two labels and the two
+            controls did not, and the Add button — aligned to the bottom of
+            the tallest thing — sat a line below the box it belongs to.
+
+            Said once, under the row, where it describes what the row does
+            rather than deciding how tall one of its cells is. */}
+        <Field label="Or a new one">
           <Input value={newHead} onChange={setNewHead} placeholder="Lab Fee" />
         </Field>
         <Button
@@ -2884,6 +2893,9 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           {createHead.isPending ? 'Adding…' : 'Add'}
         </Button>
       </div>
+      <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+        A new head is created for the whole school, and priced here.
+      </p>
       {total > 0 && (
         <p className="mt-3 text-[14px]">
           <span className="text-muted-foreground">Annual total </span>
