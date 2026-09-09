@@ -72,7 +72,8 @@ vi.mock('@/lib/catalog', () => ({
   usable: (f: { live: boolean; in_scope: boolean }) => f.live && f.in_scope,
 }))
 
-import { BentoLauncher, monogram, splitMatch } from './BentoLauncher'
+import { BentoLauncher, splitMatch } from './BentoLauncher'
+import { featureIcon } from './feature-icons'
 import { recordRecent, reloadRecents } from '@/lib/recents'
 import { PINS_KEY, parsePins, reloadPins, toggled, withPin, PINS_LIMIT } from '@/lib/pins'
 import { code } from './bento-test-render'
@@ -193,12 +194,14 @@ describe('BentoLauncher grid', () => {
     expect(all[0].querySelector('.lch-grid')).not.toBeNull()
   })
 
-  it('every tile carries a monogram on a plate tinted from its workspace', async () => {
+  it('every tile carries its own icon on a plate tinted from its workspace', async () => {
     await render()
     const cell = host.querySelector<HTMLElement>('[data-key="home.fee_dashboard"]')!
-    expect(cell.querySelector('.lch-mono')!.textContent).toBe('FD')
+    // The ligature name IS the glyph, and no tile falls back to letters.
+    expect(cell.querySelector('.lch-mono')).toBeNull()
+    expect(cell.querySelector('.msr')!.textContent).toBe(featureIcon('fee-dashboard', 'home'))
     const plate = cell.querySelector<HTMLElement>('.lch-plate')!
-    expect(plate.getAttribute('style')).toMatch(/--plate:\s*color-mix\(in srgb, var\(--dom-operations\)/)
+    expect(plate.getAttribute('style')).toMatch(/--t:\s*var\(--dom-operations[,)]/)
   })
 
   it('is a labelled modal dialog', async () => {
@@ -241,14 +244,6 @@ describe('BentoLauncher search', () => {
     ])
     expect(splitMatch('Fees', 'x')).toEqual([{ text: 'Fees', hit: false }])
     expect(splitMatch('Fees', '')).toEqual([{ text: 'Fees', hit: false }])
-  })
-
-  it('monogram takes two initials, skipping the little words', () => {
-    expect(monogram('Fee Dashboard')).toBe('FD')
-    expect(monogram('Working Days & Instructional Hours')).toBe('WD')
-    expect(monogram('Fees')).toBe('Fe')
-    expect(monogram('Of Note')).toBe('ON')
-    expect(monogram('My Work')).toBe('MW')
   })
 })
 

@@ -142,27 +142,15 @@
 .lch-app[data-cursor='true'] { background: color-mix(in srgb, currentColor 10%, transparent); }
 .lch-app[aria-current='page'] .lch-name { font-weight: 600; }
 
-/* The plate. A rounded square with a glyph on a soft tint of its workspace's
-   colour — the shape every phone has taught. Its background is set inline
-   (--plate) because it is mixed from a domain token the component picks;
-   the hairline inside is what keeps a pale plate from dissolving into a pale
-   page under the lighter palettes. */
+/* The plate. A round disc, tinted from its workspace's colour, with the
+   feature's Material Symbol on it -- background, colour and size come from
+   FeatureGlyph (components/feature-glyph.css); this file only adds the
+   launcher's hairline, lift, press and corner marks. The diameter follows
+   --lch-plate so it holds through the density slider and both breakpoints. */
 .lch-plate {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: var(--lch-plate);
-  height: var(--lch-plate);
-  flex: none;
-  border-radius: 24%;
-  background: var(--plate);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent),
     var(--elev-1);
-  font-size: calc(var(--lch-plate) * 0.34);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1;
   transition:
     transform var(--dur-fast, 200ms) var(--ease-out, ease),
     box-shadow var(--dur-fast, 200ms) var(--ease-out, ease);
@@ -177,39 +165,14 @@
 /* The press. A plate that does not give under the finger is a picture. */
 .lch-app:active .lch-plate { transform: scale(0.93); transition-duration: 60ms; }
 
-/* The monogram, and the workspace's mark in the corner. The monogram is the
-   feature; the mark is the family it belongs to, which is what ties a tile to
-   its heading once the eye has left the heading. */
-.lch-mono { pointer-events: none; }
-
-/* THE DRAWN GLYPH, WHERE A FEATURE HAS ONE.
- *
- * Sized against the plate rather than in pixels, so it holds its proportion
- * through the density slider and the two breakpoints the plate already has.
- * 52% leaves the corner free for the workspace mark, which sits at 26% inset
- * by 9% and would otherwise be crossed by the drawing's lower right.
- *
- * The stroke is not scaled with it. vector-effect keeps the hairline at one
- * device pixel whatever the plate is doing, which is the whole character of
- * the set -- a 44px drawing and a 64px drawing are the same weight of line,
- * the way they were drawn. Colour comes from the plate, so the glyph takes
- * the workspace tint the monogram took. */
-.lch-glyph {
-  width: 52%;
-  height: 52%;
-  pointer-events: none;
-  overflow: visible;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.35;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
+/* The workspace's mark in the corner: the glyph is the feature, the mark is
+   the family it belongs to, which is what ties a tile to its heading once
+   the eye has left the heading. On a disc the corner is nearer the centre
+   than on a square, so the mark sits a little further in. */
 .lch-plate-mark {
   position: absolute;
-  right: 9%;
-  bottom: 9%;
+  right: 6%;
+  bottom: 6%;
   width: 26%;
   height: 26%;
   opacity: 0.8;

@@ -1,0 +1,55 @@
+/* THE FEATURE PLATE: a round disc tinted from the workspace, with a Material
+   Symbols Rounded glyph (filled, weight 500) in the workspace colour.
+
+   The font is a subset of the Rounded face -- only the names in
+   feature-icons.tsx, about 100KB -- vendored under src/assets so Vite hashes
+   it and the service worker can keep it offline like any other asset. FILL 1
+   and weight 500 are baked into the file; opsz is kept as an axis so a 20px
+   glyph in a list and a 32px one on a launcher plate each get their own cut.
+   See scripts/subset-icons.sh. */
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/material-symbols-rounded-subset.woff2') format('woff2');
+}
+
+.msr {
+  font-family: 'Material Symbols Rounded';
+  font-weight: 500;
+  font-style: normal;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 40;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  display: inline-block;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  pointer-events: none;
+}
+/* The small cut, for a 20px glyph in a dock or a list row. */
+.msr-sm { font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20; }
+
+/* The plate. --t is the workspace colour, set inline by the component from
+   the domain token it picked; --paper is the theme's card surface, so the
+   14% tint sits on white in the light theme and on the dark card in the
+   dark one instead of going chalky. */
+.fg-plate {
+  --paper: var(--bento-card, hsl(var(--card, 0 0% 100%)));
+  --size: 40px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  flex: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--t) 14%, var(--paper));
+  color: var(--t);
+}
+.fg-plate > .msr { font-size: calc(var(--size) * 0.5); }
