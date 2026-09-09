@@ -22,8 +22,29 @@ enum Portal {
        read from the second plist key, so the two cannot disagree. */
     static let host: String = url.host!.lowercased()
 
+    /* EVERY OTHER NAME THE SAME SCHOOL ANSWERS ON.
+
+       One host compared against the compiled-in address is right until the
+       site moves, and then it is the worst possible wrong: the old name
+       answers 301 to the new one, a redirect is a navigation, so the shell
+       asks "is this the school?", gets no because the host changed, and does
+       what it does with a foreign page -- opens Safari and leaves its own
+       window empty. The app becomes a shortcut to the browser.
+
+       PortalAliases is an optional comma-separated Info.plist key, so a
+       deployment that has never moved sets nothing. */
+    static let hosts: Set<String> = {
+        var all: Set<String> = [host]
+        let raw = Bundle.main.object(forInfoDictionaryKey: "PortalAliases") as? String ?? ""
+        for name in raw.split(separator: ",") {
+            let trimmed = name.trimmingCharacters(in: .whitespaces).lowercased()
+            if !trimmed.isEmpty { all.insert(trimmed) }
+        }
+        return all
+    }()
+
     static func isPortal(_ url: URL?) -> Bool {
         guard let host = url?.host?.lowercased() else { return false }
-        return host == Portal.host
+        return Portal.hosts.contains(host)
     }
 }

@@ -620,7 +620,7 @@ class MainActivity : Activity() {
                 request: WebResourceRequest,
             ): Boolean {
                 val url = request.url
-                if (url.host != null && url.host == PORTAL_HOST) return false
+                if (isPortal(url.host)) return false
                 return runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, url))
                     true
@@ -937,7 +937,7 @@ class MainActivity : Activity() {
            cookie is this origin's and must not be posted to another host, and
            a download the parent did not expect is better explained by a
            browser that has an address bar. */
-        if (uri.host != PORTAL_HOST) {
+        if (!isPortal(uri.host)) {
             val opened = runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)); true }
                 .getOrDefault(false)
             if (!opened) Toast.makeText(this, R.string.download_unsupported, Toast.LENGTH_LONG).show()
@@ -1368,7 +1368,7 @@ class MainActivity : Activity() {
     private fun deepLink(intent: Intent?): String? {
         if (intent?.action != Intent.ACTION_VIEW) return null
         val data = intent.data ?: return null
-        if (data.scheme != "https" || data.host != PORTAL_HOST) return null
+        if (data.scheme != "https" || !isPortal(data.host)) return null
         return data.toString()
     }
 
@@ -2019,6 +2019,20 @@ class MainActivity : Activity() {
 
     private companion object {
         val PORTAL_HOST: String? = Uri.parse(BuildConfig.PORTAL_URL).host
+
+        /* Every host that IS the school -- see PORTAL_ALIASES in
+           build.gradle.kts for why this is a set and not one name. */
+        val PORTAL_HOSTS: Set<String> = buildSet {
+            PORTAL_HOST?.lowercase()?.let { add(it) }
+            BuildConfig.PORTAL_ALIASES.split(',')
+                .map { it.trim().lowercase() }
+                .filter { it.isNotEmpty() }
+                .forEach { add(it) }
+        }
+
+        /** True for the school's own pages, on any of the names it answers on. */
+        fun isPortal(host: String?): Boolean =
+            host != null && PORTAL_HOSTS.contains(host.lowercase())
         const val REQUEST_FILES = 1001
         const val REQUEST_UNLOCK = 1002
         const val REQUEST_STORAGE = 1003
