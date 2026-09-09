@@ -1,25 +1,81 @@
-# Nightly pg_dump of the Neon database to Cloudflare R2 (docs/arch_lowcost.txt,
-# Stage 6), run by GitHub Actions so it does not depend on any one box.
+# Nightly pg_dump of the Neon database to Cloudflare R2, run by GitHub Actions
+# so that it does not depend on any one box (docs/arch_lowcost.txt, Stage 6).
 #
-# DISABLED until the repository is on GitHub and the secrets below exist: this
-# repo had no .github/ directory when the workflow was written, so `if: false`
-# keeps it inert. To turn it on, delete the `if: ${{ false }}` line and add
-# these repository secrets (Settings -> Secrets and variables -> Actions):
+# WHY THIS IS NOW ON. It was written with `if: ${{ false }}` because the repo
+# had no .github/ directory at the time and an inert file was better than a
+# workflow that could not run. Since then the app moved to Cloud Run + Neon +
+# Cloudflare and the only nightly dump that actually ran was a systemd timer
+# (`temperp-backup-neon.timer`, 19:45 UTC) on the VPS the move is retiring --
+# so the backup of a serverless deployment was hostage to the one machine
+# nobody intends to keep. This workflow takes that job over.
 #
-#   DATABASE_URL          Neon connection string of the database OWNER
-#                         (postgres://...@ep-xxx.neon.tech/temperp?sslmode=require);
-#                         the owner has BYPASSRLS via neon_superuser, which the
-#                         dump needs -- the app role cannot dump under FORCE RLS
-#   R2_BUCKET             e.g. temperp
-#   R2_ACCOUNT_ID         Cloudflare account id (or set R2_ENDPOINT instead)
-#   R2_ACCESS_KEY_ID      an R2 API token with Object Read & Write on the bucket
-#   R2_SECRET_ACCESS_KEY
-#   R2_PREFIX             optional; objects land under <prefix>/backups/<db>/
-#   RESTORE_URL           optional; a Neon *branch* used as the scratch database
-#                         for the restore check (its schema public is dropped)
+# BOTH COPIES RUN FOR NOW, ON PURPOSE, under different prefixes in the same
+# bucket, so it is obvious at a glance which copy came from where:
+#
+#   neon/backups/school_erp/      the VPS timer   (19:45 UTC)
+#   actions/backups/school_erp/   this workflow   (20:00 UTC)
+#
+# When the VPS is switched off, `systemctl disable --now temperp-backup-neon.timer`
+# and this is the only nightly dump left; nothing here has to change.
+#
+# ---- REPOSITORY SECRETS THIS NEEDS -----------------------------------------
+# Settings -> Secrets and variables -> Actions -> New repository secret.
+# Never put any of these values in the repo. The values live, today, in
+# deploy/cloudrun/.env.cloudrun (gitignored, on the operator's machine) and on
+# the VPS in /etc/temperp-backup-neon.env.
+#
+#   DATABASE_URL          Required. The Neon connection string of the database
+#                         OWNER, direct (non-pooler) endpoint:
+#                         postgres://...@ep-xxx.<region>.aws.neon.tech/school_erp?sslmode=require
+#                         The owner has BYPASSRLS through neon_superuser, which
+#                         the dump needs: every tenant table has FORCE ROW LEVEL
+#                         SECURITY and the app role cannot dump past it.
+#                         Source: MIGRATE_DATABASE_URL in .env.cloudrun, or
+#                         BACKUP_DATABASE_URL in /etc/temperp-backup-neon.env.
+#   R2_BUCKET             Required. `school-erp`.
+#                         Source: R2_BUCKET in either file.
+#   R2_ACCOUNT_ID         Required (or R2_ENDPOINT instead). The Cloudflare
+#                         account id; the endpoint is derived from it.
+#                         Source: R2_ACCOUNT_ID in either file.
+#   R2_ACCESS_KEY_ID      Required. An R2 API token with Object Read & Write on
+#   R2_SECRET_ACCESS_KEY  that bucket. Reuse the pair the app and the VPS timer
+#                         already use, or mint a separate one in the Cloudflare
+#                         dashboard (R2 -> Manage API tokens) so it can be
+#                         revoked without touching the app.
+#                         Source: R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY.
+#   RESTORE_URL           Optional but recommended. A Neon *branch* used as the
+#                         scratch database for the full restore check; its
+#                         schema public is DROPPED on every run, so it must not
+#                         be production and must not be the branch anything
+#                         reads. Create it in the Neon console (Branches -> New
+#                         branch from main) and paste its owner URL. Without
+#                         it the workflow still checks size and reads the dump
+#                         back with `pg_restore --list`; with it, every table
+#                         in the dump is actually restored and counted.
+#
+# R2_PREFIX is deliberately NOT a secret: it is set in plain sight below, so
+# that a person reading this file can see which prefix this copy writes to.
+#
+# ---- HOW IT PROVES ITSELF ---------------------------------------------------
+# A backup nobody has read back is a hope. scripts/backup-check.sh ->
+# scripts/backup-db.sh, in order: compare pg_dump's version with the server's
+# and refuse before spending the dump; dump to a .part name and rename only on
+# success; refuse a dump under 1 KiB; `pg_restore --list` it and refuse if it
+# names no tables; upload; list the object back and compare its byte count with
+# the local file; only then prune anything older than RETAIN_DAYS. With
+# RESTORE_URL set it also restores the dump into the scratch branch and fails
+# unless the table count matches the dump's.
+#
+# ---- THE POSTGRES VERSION TRAP ----------------------------------------------
+# Neon is PostgreSQL 17 and the Ubuntu runner's postgresql-client is older;
+# pg_dump refuses a server newer than itself. This is the exact failure that
+# bit this project on the VPS, so the PGDG apt repository is installed and
+# postgresql-client-17 with it, and backup-check.sh still compares the two
+# before dumping rather than trusting that step to have worked.
 #
 # 20:00 UTC is 01:30 IST. Actions cron is UTC only and may start late by some
-# minutes under load; it is a backup, not a bell.
+# minutes under load; it is a backup, not a bell. workflow_dispatch is there so
+# it can be proven once, by hand, without waiting a day.
 name: nightly-backup
 
 on:
@@ -34,14 +90,21 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: nightly-backup
   cancel-in-progress: false
 
+env:
+  # Objects land under <R2_PREFIX>/backups/<database>/, i.e.
+  # actions/backups/school_erp/. Distinct from the VPS timer's `neon` prefix
+  # so the two nightly copies never overwrite or prune each other.
+  R2_PREFIX: actions
+  RETAIN_DAYS: "30"
+
 jobs:
   backup:
-    if: ${{ false }}   # remove this line to enable; see the header
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -61,10 +124,11 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-${PG_MAJOR}
           pg_dump --version
+          pg_restore --version
         env:
           PG_MAJOR: "17"   # match `SHOW server_version` on Neon
 
-      - name: Back up to R2
+      - name: Back up Neon to R2
         if: ${{ !inputs.verify_only }}
         run: bash scripts/backup-check.sh
         env:
@@ -73,10 +137,8 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_PREFIX: ${{ secrets.R2_PREFIX }}
           RESTORE_URL: ${{ secrets.RESTORE_URL }}
           RESTORE_CHECK_RESET: "1"
-          RETAIN_DAYS: "30"
 
       - name: Verify last night's backup exists
         if: ${{ inputs.verify_only }}
@@ -87,4 +149,32 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_PREFIX: ${{ secrets.R2_PREFIX }}
+
+      # A backup that fails quietly is the same as no backup: the reason this
+      # workflow exists at all is that nobody was told. One open issue is the
+      # whole state -- while it is open the backup is known to be failing and
+      # nothing more is said; a good run closes it. Same channel and the same
+      # bookkeeping shape as uptime.yml, which maintainers already watch.
+      - name: Open or close the backup-failed issue
+        if: ${{ always() && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          have=$(gh label list --search backup-failed --json name --jq 'map(select(.name=="backup-failed"))|length')
+          if [ "$have" = 0 ]; then
+              gh label create backup-failed --color B60205 \
+                --description "The nightly Neon backup did not complete; opened and closed by nightly-backup.yml"
+          fi
+          open=$(gh issue list --label backup-failed --state open --json number --jq '.[0].number // empty')
+          if [ "$OUTCOME" != success ]; then
+              if [ -n "$open" ]; then echo "#$open already open"; exit 0; fi
+              gh issue create --label backup-failed \
+                --title "Nightly Neon backup failed" \
+                --body "$(printf 'The nightly dump of Neon to \\`actions/backups/school_erp/\\` in R2 did not complete.\n\nThe dump is verified before it is trusted (size, \\`pg_restore --list\\`, and the byte count of the object listed back), so a failure here means one of those checks said no -- read the log before assuming it was a blip.\n\nMost likely causes, in order: the Neon branch is suspended or its password rotated (DATABASE_URL); the R2 token was revoked or lost write access; pg_dump is older than the server again after a Neon major upgrade (bump PG_MAJOR in the workflow).\n\nWhile this is open, the VPS timer copy under \\`neon/backups/school_erp/\\` may still be current -- check its age before assuming there is no backup at all.\n\nRun: %s' "$RUN_URL")"
+          elif [ -n "$open" ]; then
+              gh issue comment "$open" --body "$(printf 'Backed up successfully again.\n\nRun: %s' "$RUN_URL")"
+              gh issue close "$open" --reason completed
+          fi
