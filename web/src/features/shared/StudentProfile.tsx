@@ -1121,7 +1121,27 @@ export default function StudentProfile() {
                     {p.admission_no}
                   </p>
                   {can('students.write') && (
-                    <div className="mt-3 flex justify-center">
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                      {/* TAKING ONE OFF, which "Change photo" could not do.
+                       *
+                       * The picker replaces a photograph and has no way to
+                       * leave the frame empty, so a face uploaded onto the
+                       * wrong child could only be corrected by finding a
+                       * photograph of the right one. That is the case where
+                       * removal matters most and it was the one case the
+                       * screen refused.
+                       *
+                       * The server already accepted this: setStudentPhoto
+                       * parses file_id into a *uuid.UUID and leaves it nil
+                       * when the string is blank, writing NULL. Nothing new
+                       * is being permitted here -- students.write is the same
+                       * right that put the photograph on -- only asked for.
+                       *
+                       * Confirmed, because it is destructive and one click
+                       * from a face. The file itself is untouched: this
+                       * clears the child's pointer to it, so a photograph
+                       * removed from the wrong child is still there to put on
+                       * the right one. */}
                       <FilePicker
                         value={photoFile}
                         onChange={(f) => {
@@ -1138,6 +1158,22 @@ export default function StudentProfile() {
                            about the wrong thing. */
                         hint="A portrait. Passport size prints best."
                       />
+                      {p.photo_file_id && (
+                        <button
+                          type="button"
+                          disabled={savePhoto.isPending}
+                          onClick={() => {
+                            if (!window.confirm(
+                              `Remove the photograph of ${p.full_name}? The picture stays in the file store; only this child stops pointing at it.`,
+                            )) return
+                            setPhotoFile(null)
+                            savePhoto.mutate('')
+                          }}
+                          className="tap-inline text-[12.5px] underline underline-offset-2 text-muted-foreground hover:text-destructive disabled:opacity-50"
+                        >
+                          {savePhoto.isPending ? 'saving\u2026' : 'Remove photo'}
+                        </button>
+                      )}
                     </div>
                   )}
                   {savePhoto.error && <FormNotice error={savePhoto.error} />}
