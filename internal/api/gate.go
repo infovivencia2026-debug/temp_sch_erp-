@@ -49,7 +49,7 @@ func (s *Server) entitlementFor(r *http.Request) (entitlement.State, error) {
 	var st entitlement.State
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var err error
-		st, err = entitlement.Resolve(r.Context(), tx, id.InstitutionID)
+		st, err = entitlement.ResolveCached(r.Context(), tx, id.InstitutionID)
 		return err
 	})
 	return st, err

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/school-erp/erp/internal/entitlement"
 	"github.com/school-erp/erp/internal/httpx"
 )
 
@@ -126,6 +127,9 @@ func (s *Server) setTenantLimits(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
+	if err == nil {
+		entitlement.Invalidate(iid)
+	}
 	if err == pgx.ErrNoRows {
 		httpx.Error(w, r, http.StatusConflict, "no_subscription",
 			"that school is not on a plan yet, so there is nothing to vary. Put it on a plan first.")

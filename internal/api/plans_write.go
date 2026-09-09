@@ -117,6 +117,12 @@ func (s *Server) createPlan(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// A new plan changes nobody's standing yet, but the modules array a
+	// cached State was built from lives on a plan row, so any write to one
+	// makes every cached State suspect. There is no index from plan back to
+	// school here, and clearing a few thousand entries a vendor edits by hand
+	// is cheaper than keeping one.
+	entitlement.InvalidateAll()
 	httpx.JSON(w, http.StatusCreated, map[string]any{"code": req.Code})
 }
 
@@ -179,6 +185,7 @@ func (s *Server) updatePlan(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	entitlement.InvalidateAll()
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"code": code, "schools_keeping_their_price": onIt,
 	})
@@ -222,5 +229,6 @@ func (s *Server) retirePlan(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	entitlement.InvalidateAll()
 	httpx.JSON(w, http.StatusOK, map[string]any{"code": code, "retired": !restore})
 }

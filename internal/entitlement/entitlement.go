@@ -25,6 +25,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/ttlcache"
 )
 
 // Module names, matching plans.modules and the labels on the pricing page.
@@ -331,3 +333,58 @@ func ApplyPlan(ctx context.Context, tx pgx.Tx, inst uuid.UUID, planCode string) 
 	}
 	return nil
 }
+
+/* --- the cache in front of Resolve -------------------------------------
+
+   Every tenant request passes the paywall, and the paywall asked the same
+   question every time: has this school paid? The answer changes when somebody
+   buys, renews, cancels or is suspended -- a handful of events a year per
+   school, against a query per request. So it is held for a minute.
+
+   A minute, and not longer, for two reasons. A trial expires on a wall clock
+   inside Resolve, so a stale State can leave a school working for up to one
+   TTL past its trial; and the seller who suspends a school on one instance
+   wants it locked on the others without being told to wait. Every write we
+   make ourselves calls Invalidate, so the process that did the deed is right
+   immediately; the TTL is only the ceiling on how wrong a SIBLING can be. */
+
+const (
+	stateTTL = time.Minute
+	// One entry per school. A seller with more than four thousand live
+	// schools has a happier problem than this cap.
+	stateCap = 4096
+)
+
+var states = ttlcache.New[uuid.UUID, State](stateTTL, stateCap)
+
+// resolveFn is the loader the cache sits in front of. A variable so a test can
+// count how often the cache reaches past itself without a database.
+var resolveFn = Resolve
+
+// ResolveCached is Resolve, answered from memory when it was asked recently.
+//
+// Use it on the read path -- the paywall, the catalog, anything rendering what
+// a school may reach. Use Resolve directly when the answer must reflect a
+// write made in the same transaction, because this cannot see uncommitted
+// rows and would happily cache the state the transaction is replacing.
+func ResolveCached(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (State, error) {
+	if st, ok := states.Get(inst); ok {
+		return st, nil
+	}
+	st, err := resolveFn(ctx, tx, inst)
+	if err != nil {
+		return st, err
+	}
+	states.Set(inst, st)
+	return st, nil
+}
+
+// Invalidate drops one school's cached standing.
+//
+// Called after any write to subscriptions, plans or module_settings. Cheap
+// enough that the right instinct when unsure is to call it.
+func Invalidate(inst uuid.UUID) { states.Delete(inst) }
+
+// InvalidateAll drops every school's, for a write to plans -- a plan is shared
+// by every school on it, and there is no index from plan back to school here.
+func InvalidateAll() { states.Clear() }
