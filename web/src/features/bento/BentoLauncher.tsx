@@ -8,7 +8,7 @@ import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
   CornerDownLeft, House, Pin, PinOff, Ellipsis,
-  Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard,
+  Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard, LayoutGrid,
   FileCheck2, FileText, FolderTree, Handshake, Inbox, KeyRound, Landmark,
   LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
   Wrench,
@@ -18,6 +18,7 @@ import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
 import { FeatureGlyph } from '@/components/FeatureGlyph'
 import { usePins, togglePin } from '@/lib/pins'
+import { useShortcuts, toggleDashboard } from '@/lib/shortcuts'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
 import './launcher.css'
@@ -248,6 +249,10 @@ export function BentoLauncher({
   const t = useT()
   const recentKeys = useRecents()
   const pinKeys = usePins()
+  /* What this person has put on their own dashboard. Read here so the menu can
+     say "remove" as readily as "add" -- a toggle that only ever offers one
+     direction is a control somebody presses twice to find out what it does. */
+  const dashKeys = useShortcuts()
   const still = useReduceMotion()
   const [q, setQ] = useState('')
   const [cursor, setCursor] = useState(0)
@@ -345,6 +350,29 @@ export function BentoLauncher({
       setMenuFor(null)
     },
     [t],
+  )
+
+  /* ON THE DASHBOARD, WHICH IS NOT THE SAME AS PINNED.
+   *
+   * A pin keeps a feature at the top of THIS screen -- the launcher, which
+   * somebody opens on purpose. A dashboard shortcut puts it on the page they
+   * land on, so they never open the launcher at all. A registrar pins
+   * Admissions because it is where they work, and puts Fee Collection on the
+   * dashboard because they want it on the way past.
+   *
+   * Same gesture, same menu, its own list. See lib/shortcuts.ts. */
+  const onDashboard = useCallback(
+    (r: Row) => {
+      const now = toggleDashboard(r.key)
+      buzz('select')
+      setNote(
+        now
+          ? `${r.name} is on your dashboard`
+          : `${r.name} is off your dashboard`,
+      )
+      setMenuFor(null)
+    },
+    [],
   )
 
   useEffect(() => {
@@ -564,7 +592,7 @@ export function BentoLauncher({
   /* What every tile needs from the launcher, handed down as props — see the
      note on Tile for why it must not simply close over these. */
   const tileProps = {
-    roleKey: role.key, pathname, cursor, setCursor, go, onPin,
+    roleKey: role.key, pathname, cursor, setCursor, go, onPin, onDashboard, dashKeys,
     needle, menuFor, setMenuFor,
   }
 
@@ -763,7 +791,7 @@ const HOLD_MS = 450
 const HOLD_SLOP = 10
 
 function Tile({
-  slot, index, pinned, roleKey, pathname, cursor, setCursor, go, onPin,
+  slot, index, pinned, roleKey, pathname, cursor, setCursor, go, onPin, onDashboard, dashKeys,
   needle, menuFor, setMenuFor,
 }: {
   slot: Slot
@@ -775,6 +803,8 @@ function Tile({
   setCursor: (i: number) => void
   go: (r: Row) => void
   onPin: (r: Row) => void
+  onDashboard: (r: Row) => void
+  dashKeys: string[]
   needle: string
   menuFor: string | null
   setMenuFor: (id: string | null) => void
@@ -920,6 +950,14 @@ function Tile({
           >
             {pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
             {t(pinned ? 'bento.launcher.unpin' : 'bento.launcher.pin')}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => onDashboard(r)}
+          >
+            <LayoutGrid aria-hidden="true" />
+            {dashKeys.includes(r.key) ? 'Remove from dashboard' : 'Add to dashboard'}
           </button>
         </div>
       )}
