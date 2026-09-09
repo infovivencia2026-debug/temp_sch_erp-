@@ -27,7 +27,13 @@ const ROSTER_STALE = 5 * 60_000
 export function useEmployeeRoster<T = EmployeeName>(): UseQueryResult<List<T>> {
   return useQuery({
     queryKey: ['employees', 'roster'],
-    queryFn: () => api.get<List<T>>('/api/v1/hr/employees?limit=300'),
+    /* Walked, not asked for in one lump. This asked for `limit=300` against
+       an endpoint whose SQL said `LIMIT 300` and which took no cursor at all,
+       so a school with 301 staff had somebody who could not be chosen in any
+       HR picker -- training, welfare, service records, statutory returns and
+       the substitution board are all fed from here -- with nothing anywhere
+       to say a name was missing rather than absent. */
+    queryFn: () => walkRoster<T>('/api/v1/hr/employees'),
     staleTime: ROSTER_STALE,
   })
 }
@@ -58,12 +64,23 @@ export interface EmployeeName {
    first page was everybody. The bound is what says out loud that this is a
    stopgap: a school past it needs the typeahead, not a bigger bound. */
 const ROSTER_PAGE = 200
-const ROSTER_MAX_PAGES = 5
 
 async function walkRoster<T>(path: string): Promise<List<T>> {
   const items: T[] = []
   let cursor = ''
-  for (let i = 0; i < ROSTER_MAX_PAGES; i++) {
+  /* To the END of the list.
+
+     This stopped after five pages, and the bound was described as holding the
+     line until server-side typeahead arrived. It was still a number standing
+     in for how big a school gets, which is the mistake this file is about: a
+     roll of 1,001 read as 1,000, silently, and the thousand-and-first child
+     was in no picker anywhere.
+
+     Walking costs one request per two hundred rows, paid once and cached for
+     five minutes. Typeahead is still the right shape for a picker over a very
+     large roll -- the endpoint already takes `q` -- and remains the change to
+     make. It is not a reason to go on losing rows in the meantime. */
+  for (;;) {
     const qs = new URLSearchParams({ limit: String(ROSTER_PAGE) })
     if (cursor) qs.set('cursor', cursor)
     const page = await api.get<Page<T>>(`${path}?${qs.toString()}`)
