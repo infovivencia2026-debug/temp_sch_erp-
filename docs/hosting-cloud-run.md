@@ -455,12 +455,130 @@ Cloud Run has no equivalent for:
 
 | Stays | Why |
 |---|---|
-| `temperp-backup.timer` / `scripts/backup-db.sh` | Nightly `pg_dump -Fc` to R2 under `backups/<db>/`, 30 days kept (`scripts/install-backup-timer.sh` installs the timer; `scripts/backup-check.sh` + `.github/workflows/nightly-backup.yml` are the Actions version for the Neon phase). Neon has point-in-time restore (7 days on Launch), but an off-provider dump is still the one copy Google or Neon cannot lose for you. Point the script at Neon's URL and keep it running on the VPS, or on any box. |
+| `temperp-backup-neon.timer` / `scripts/backup-db.sh` | **No longer the only copy** — see (h). It dumps Neon nightly at 19:45 UTC to `neon/backups/school_erp/` from the VPS; `.github/workflows/nightly-backup.yml` now does the same from GitHub Actions at 20:00 UTC to `actions/backups/school_erp/`. Keep both while the VPS lives; when it is switched off, `systemctl disable --now temperp-backup-neon.timer` and nothing else changes. |
 | The assistant (`ragbot.service`, `/assistant/`) | Python + Gemini/ollama on the same host; a separate service with its own hosting decision. `VITE_ASSISTANT_URL` in the SPA build points wherever it lands. |
 | The `erp.` sibling deployment | Unrelated to this move. |
 | DNS for `temperp.187-127-178-100.sslip.io` | sslip.io encodes the VPS IP, so the hostname cannot be re-pointed; and the fingerprint reader and the installed phone apps have it baked in. nginx keeps it alive as a **front door**: `/etc/nginx/snippets/temperp-cloudrun.conf` proxies the server-owned paths (`/api/`, `/login`, `/logout`, `/iclock/`, `/static/`, `/apps`, `/buy`, `/signup`, `/forgot`, `/reset`, `/healthz`) to the Cloud Run URL with `proxy_ssl_server_name on` and `Host` set to the `run.app` host, and the SPA catch-all is a 301 to the Pages URL. |
 | nginx | The front door above; the tile server (`/tiles/`, with CORS for the Pages origin) until the archive is on R2; and the CORS-answering proxy for `/assistant/`. |
-| The local `temperp` database | Stopped services, live data, as the rollback copy for two weeks after cut-over. |
+| The local `temperp` database | Stopped services, live data, as the rollback copy for two weeks after cut-over (the two weeks end 2026-09-22). This is the one remaining thing that would be *lost* by pulling the plug, and it is a rollback convenience, not a backup: the backups are in R2. |
+
+### (h) Backups and uptime, off the VPS
+
+Written 2026-09-09. Two operational things still pointed at the machine this
+move is retiring: the only nightly dump ran from a systemd timer on it, and
+the uptime check watched its hostname. A backup that dies with the box it is
+meant to survive is not a backup, and a monitor watching the wrong address is
+worse than none, because it is quiet for the wrong reason.
+
+**Which backups exist, and where each lands.** All three, at once, on purpose:
+
+| Copy | Runs where | When | Lands | Kept |
+|---|---|---|---|---|
+| Neon point-in-time restore | Neon | continuous | Neon's own storage | 7 days (Launch plan) |
+| `temperp-backup-neon.timer` → `scripts/backup-db.sh` | the VPS | 19:45 UTC | R2 `school-erp/neon/backups/school_erp/` | 30 days |
+| `.github/workflows/nightly-backup.yml` → `scripts/backup-check.sh` | GitHub Actions | 20:00 UTC (01:30 IST) | R2 `school-erp/actions/backups/school_erp/` | 30 days |
+
+The two prefixes are deliberately different so that it is obvious which copy
+came from where, and so neither one's retention pass can prune the other's.
+The Actions copy is the one that outlives the VPS. Neon's PITR is the fastest
+recovery for "an hour ago", but it lives inside the provider; the R2 dumps are
+the copy neither Google nor Neon can lose for you.
+
+**How the Actions backup proves itself**, rather than trusting the exit code
+of `pg_dump`: it compares `pg_dump --version` against `SHOW server_version`
+and refuses *before* spending the dump (Neon is PostgreSQL 17 and the Ubuntu
+runner ships older — the workflow installs `postgresql-client-17` from PGDG
+for exactly this reason, and the check stays because the install can silently
+be the wrong one); it writes to a `.part` name and renames only on success;
+it refuses a dump under 1 KiB; it reads the archive back with
+`pg_restore --list` and refuses if that names no tables; it uploads, lists the
+object back and compares its byte count with the local file; and only after
+all of that does it prune anything older than 30 days, so a bad night never
+deletes the good nights before it. If the optional `RESTORE_URL` secret names
+a scratch Neon branch, it also restores the dump there and fails unless the
+restored table count matches the dump's. A failed scheduled run opens a
+`backup-failed` issue and a later good run closes it.
+
+**Which secrets exist, and where.** Repository secrets (Settings → Secrets and
+variables → Actions). None of these values is in the repo; they live in
+`deploy/cloudrun/.env.cloudrun` (gitignored, on the operator's machine) and on
+the VPS in `/etc/temperp-backup-neon.env`.
+
+| Secret | Value | Where the value comes from |
+|---|---|---|
+| `DATABASE_URL` | Neon **owner** URL, direct (non-pooler) endpoint, database `school_erp` | `MIGRATE_DATABASE_URL` in `.env.cloudrun`, or `BACKUP_DATABASE_URL` on the VPS. The owner is needed because every tenant table has `FORCE ROW LEVEL SECURITY` and the app role cannot dump past it; the owner has `BYPASSRLS` through `neon_superuser`. |
+| `R2_BUCKET` | `school-erp` | either file |
+| `R2_ACCOUNT_ID` | Cloudflare account id | either file (or set `R2_ENDPOINT` instead) |
+| `R2_ACCESS_KEY_ID` | R2 API token id, Object Read & Write on that bucket | either file, or mint a separate token in the Cloudflare dashboard so it can be revoked without touching the app |
+| `R2_SECRET_ACCESS_KEY` | its secret | as above |
+| `RESTORE_URL` | *optional.* Owner URL of a scratch **Neon branch** | Neon console → Branches → new branch from main. Its `schema public` is **dropped on every run**, so it must not be production and must not be anything that is read. |
+
+`R2_PREFIX` is not a secret and is set in plain sight in the workflow, so that
+the file itself says which prefix this copy writes to.
+
+**Restoring from one of these dumps.** The dumps are `pg_dump -Fc`, so
+`pg_restore` can pull a single table out of one, which is what is actually
+wanted at eight in the morning when one table was truncated. Fetch the object
+(`aws s3 cp s3://school-erp/actions/backups/school_erp/<stamp>.dump . \
+--endpoint-url https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`), then follow
+the same procedure as step 5 of the checklist above — it is still accurate and
+it is still the one that works: `DROP SCHEMA public CASCADE; CREATE SCHEMA
+public AUTHORIZATION erp_owner;`, then `pg_restore --no-owner --no-privileges
+--role=erp_owner --exit-on-error`, then re-`GRANT` to `app_user`. The two
+flags are not optional and neither is the re-grant: the dump's `GRANT`
+statements name roles that do not exist on Neon, and without the re-grant
+afterwards the app role can see no table. Note the difference from the
+*readability* check inside `backup-db.sh --restore-check`, which uses the same
+two flags but deliberately does not re-grant: it is asking "can this file be
+read back", not "is the app running again".
+
+**What the uptime check watches.** `.github/workflows/uptime.yml`, every ten
+minutes, probes **both** ends and calls the site down if either is:
+
+- `https://school-erp-cqj.pages.dev` — what a parent opens, exercising Pages,
+  the Pages Function proxy, Cloud Run and Neon in one request.
+- `https://temperp-web-480232416236.asia-south1.run.app` — Cloud Run directly,
+  bypassing Cloudflare.
+
+They fail independently, and the case that needs both is the Pages proxy
+failing while Cloud Run is healthy: a total outage for every user, invisible
+to a probe that only asks the backend. The issue body names which of the two
+answered badly, which is most of the diagnosis.
+
+The path probed is **`/api/v1/session`, not `/healthz`**. From outside, Cloud
+Run's edge answers `GET /healthz` with a Google-branded 404 on every service
+(see "what actually went wrong" above), so `/healthz` reports a healthy
+deployment as down. `/api/v1/session` is unauthenticated by design — it is
+what the SPA asks on load — and its handler opens a tenant transaction, so a
+200 there proves the Go process *and* the database, which `/healthz` never
+did. `/healthz` remains correct as Cloud Run's own container startup probe.
+
+The parent-APK check is no longer part of the scheduled probe: `APK_DIR` is
+unset on Cloud Run and `/apps` is served by the VPS nginx, so asking
+production for it would report a permanent false alarm. `bash
+scripts/uptime-check.sh <url> --apk` still does it by hand.
+
+**What is still tied to the VPS after this change**, in the order it matters:
+
+1. **The map tiles.** `/tiles/` is the 527 MB PMTiles archive plus fonts and
+   sprites, served by nginx with CORS for the Pages origin, and
+   `web/.env.production` still points `VITE_TILES_BASE` at the VPS hostname.
+   The bus map goes blank the day that box is switched off. Mirroring it to
+   R2 with `scripts/refresh-tiles.sh` (`TILES_R2=1`) and rebuilding the SPA
+   against the R2 public host is the open item.
+2. **The local rollback database.** Live data as of cut-over, kept until
+   2026-09-22. It is the only thing here that would be *lost* by pulling the
+   plug rather than merely stopped.
+3. **The `sslip.io` front door.** The hostname encodes the VPS IP, so it
+   cannot be re-pointed, and the fingerprint reader and the installed phone
+   apps have it baked in. nginx proxies the server-owned paths to Cloud Run.
+   Retiring the box means re-provisioning the reader and reinstalling the
+   apps, which is why it is last.
+4. **The assistant** (`ragbot.service`, `/assistant/`) and the **parent APK**
+   download, both of which are separate hosting decisions.
+5. The VPS's own `temperp-backup-neon.timer` — now a second copy rather than
+   the only one, which is the point of this change.
+
 
 ## The front end on Cloudflare Pages
 
@@ -656,8 +774,10 @@ until step 9.
     a VPS worker still running against the VPS database would keep ticking
     the VPS's cron (`CRON_INPROCESS=1`) and sending yesterday's reminders from
     the old copy. Done 2026-09-08; the two weeks end 2026-09-22.
-11. **After two weeks:** repoint `backup-db.sh` at Neon (or accept Neon PITR
-    plus a weekly manual dump), then decommission the VPS database.
+11. **After two weeks:** decommission the VPS database. `backup-db.sh` was
+    repointed at Neon already (`temperp-backup-neon.timer`), and since
+    2026-09-09 GitHub Actions runs the same dump independently of the box —
+    see (h) — so nothing has to happen to the backups first.
 
 ## Rollback
 
