@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowRight, Bell, CircleAlert, Info,
+  AlertTriangle, ArrowRight, Bell, Check, CircleAlert, Info,
   IndianRupee, UserPlus, Users, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -82,14 +82,6 @@ const STAT_MARK: { test: RegExp; icon: typeof Users; tint: string }[] = [
 function markFor(label: string) {
   const hit = STAT_MARK.find((m) => m.test.test(label))
   return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
-}
-
-/* The card a severity is drawn in. Warning and critical earn a tinted head;
-   info does not -- a panel where everything is coloured says nothing. */
-const HEAD_TINT = {
-  critical: 'bg-destructive/10 border-destructive/20',
-  warning: 'bg-[hsl(var(--warn,38_92%_95%))] border-[hsl(var(--warn,38_92%_88%))]',
-  info: 'bg-muted/60 border-border',
 }
 
 export default function NeedsAttention({ name }: { name?: string }) {
@@ -295,58 +287,79 @@ export default function NeedsAttention({ name }: { name?: string }) {
             </span>
           </div>
           {nudged && <p className="mb-2.5 text-[13px] text-success">{nudged}</p>}
-          <div className="grid gap-4 lg:grid-cols-2">
+          {/* ONE ROW EACH, IN ONE CARD, HOWEVER MANY THERE ARE.
+           *
+           * A card per alert reads well at one and badly at seven: seven
+           * tinted headers and seven footers is a wall, and the page it makes
+           * is longer than the work it describes. A school on a bad morning
+           * has an unmarked register, a teacher out, two leave requests and a
+           * fee run to answer -- that is the normal case, not the edge.
+           *
+           * So each is a row: the severity as a mark, the sentence, and the
+           * one thing to do about it on the right. Seven of those is a list
+           * somebody reads down. The tint moves to the mark, which is enough
+           * to sort a critical from a warning at a glance and does not stripe
+           * the page.
+           *
+           * The rows wrap on a phone, where a button beside a sentence at
+           * 360px leaves neither of them readable. */}
+          <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-[var(--elev-1)]">
             {items.map((item) => {
               const Icon = ICON[item.severity]
               const href = hrefFor(item.href)
               const chase = item.key === 'attendance.unmarked' && canChase
+              const done = chase && nudge.isSuccess
               return (
-                <article
+                <div
                   key={item.key}
-                  className="overflow-hidden rounded-xl border bg-card shadow-[var(--elev-1)]"
+                  className="flex flex-col gap-2.5 p-4 sm:flex-row sm:items-center sm:gap-4"
                 >
-                  <div className={cn('flex items-start gap-3 border-b p-4', HEAD_TINT[item.severity])}>
-                    <span
-                      className={cn(
-                        'mt-px grid size-8 shrink-0 place-items-center rounded-lg',
-                        item.severity === 'critical' && 'bg-destructive/15 text-destructive',
-                        item.severity === 'warning' &&
-                          'bg-[hsl(var(--warn,38_92%_88%))] text-[hsl(var(--warning,38_92%_35%))]',
-                        item.severity === 'info' && 'bg-muted text-muted-foreground',
-                      )}
-                    >
-                      <Icon className="size-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="text-[15px] font-semibold leading-snug">{item.headline}</h3>
-                      {item.detail && (
-                        <p className="mt-0.5 text-[13px] text-muted-foreground">{item.detail}</p>
-                      )}
-                    </div>
+                  <span
+                    className={cn(
+                      'grid size-8 shrink-0 place-items-center rounded-lg',
+                      item.severity === 'critical' && 'bg-destructive/10 text-destructive',
+                      item.severity === 'warning' &&
+                        'bg-[hsl(var(--warn,38_92%_90%))] text-[hsl(var(--warning,38_92%_35%))]',
+                      item.severity === 'info' && 'bg-muted text-muted-foreground',
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14.5px] font-medium leading-snug">{item.headline}</p>
+                    {item.detail && (
+                      <p className="mt-0.5 text-[12.5px] text-muted-foreground">{item.detail}</p>
+                    )}
                   </div>
 
-                  {/* The buttons, and nothing between them and the sentence
-                      they answer. The primary one is whatever the reader can
-                      do themselves; chasing somebody else is secondary, and on
-                      an unmarked register it is the only honest action a
-                      principal has -- they do not mark registers. */}
-                  <div className="flex flex-wrap items-center gap-2 p-4">
-                    {/* THE BUTTON IS WHAT THIS READER ACTUALLY DOES.
-                     *
-                     * "Mark attendance" is the right answer for the person who
-                     * marks the register, and it is not an answer at all for
-                     * the person reading this because sixteen of somebody
-                     * else's are empty. A principal does not mark registers,
-                     * so offering it sends them to a screen they will look at
-                     * and leave -- and it pushes the thing they can do into
-                     * second place beside it.
-                     *
-                     * The distinction was already drawn: chasing needs
-                     * attendance.read.all, which is oversight over a school's
-                     * registers rather than ownership of one. Where somebody
-                     * holds that, the reminder is the action and it stands
-                     * alone. A class teacher holds no such thing, sees no
-                     * reminder, and keeps the button that marks. */}
+                  {/* THE ONE THING TO DO, AND WHAT IT LOOKS LIKE ONCE DONE.
+                   *
+                   * A reminder that has been sent must not offer itself again
+                   * looking untouched: the register is still unmarked, so the
+                   * row stays -- correctly, it is still true -- but the button
+                   * has to say the sending happened or the reader presses it
+                   * twice and the teachers get two. */}
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {chase && (
+                      <button
+                        type="button"
+                        disabled={nudge.isPending || done}
+                        onClick={() => nudge.mutate()}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition-colors',
+                          done
+                            ? 'border bg-card text-muted-foreground'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                          'disabled:opacity-70',
+                        )}
+                      >
+                        {done ? <Check className="size-3.5" aria-hidden />
+                              : <Bell className="size-3.5" aria-hidden />}
+                        {nudge.isPending ? 'Reminding\u2026'
+                          : done ? 'Reminded' : 'Remind the class teachers'}
+                      </button>
+                    )}
                     {href && !chase && (
                       <button
                         type="button"
@@ -357,24 +370,8 @@ export default function NeedsAttention({ name }: { name?: string }) {
                         <ArrowRight className="size-3.5" aria-hidden />
                       </button>
                     )}
-                    {chase && (
-                      <button
-                        type="button"
-                        disabled={nudge.isPending}
-                        onClick={() => nudge.mutate()}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-                      >
-                        <Bell className="size-3.5" aria-hidden />
-                        {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
-                      </button>
-                    )}
-                    {!href && !chase && (
-                      <p className="text-[13px] text-muted-foreground">
-                        Nothing to open for this one.
-                      </p>
-                    )}
                   </div>
-                </article>
+                </div>
               )
             })}
           </div>
