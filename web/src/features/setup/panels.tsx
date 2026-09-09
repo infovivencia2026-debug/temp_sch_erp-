@@ -2526,6 +2526,18 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
    * editing is a real state and 0 is a different answer from blank. */
   const [byTerm, setByTerm] = useState<Record<string, string[]>>({})
 
+  /* AND WHEN EACH TERM IS DUE.
+   *
+   * fee_structure_items has carried due_on per row since the baseline and the
+   * fee run reads it; nothing here has ever offered it, so every instalment
+   * was raised with no date and a reminder had nothing to count from. A school
+   * that says "Term 1 by 10 June, Term 2 by 5 October" was keeping that on
+   * paper.
+   *
+   * Kept beside the amounts and shaped the same: absent means the structure
+   * says nothing about dates, which is what it said before this existed. */
+  const [byDue, setByDue] = useState<Record<string, string[]>>({})
+
   /* The n boxes for a head, grown or trimmed as the instalment count changes
      and seeded from the even split so opening it never blanks what was there. */
   const termsFor = (headID: string, n: number): string[] => {
@@ -2590,6 +2602,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
          about the schema or the fee run changes here; this form simply stopped
          insisting every term was the same size. */
       const typed = byTerm[headID]
+      const dues = byDue[headID] ?? []
       if (typed && typed.length) {
         let any = false
         for (let i = 1; i <= n; i++) {
@@ -2597,7 +2610,13 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           // A term charged nothing is a real answer -- a fee billed in two
           // terms of three -- so a blank writes no row rather than a zero one.
           if (!paise) continue
-          items.push({ fee_head_id: headID, instalment_no: i, amount_paise: paise })
+          const due = (dues[i - 1] ?? '').trim()
+          items.push({
+            fee_head_id: headID, instalment_no: i, amount_paise: paise,
+            // Omitted rather than sent empty: the column is nullable and a
+            // blank string is not a date.
+            ...(due ? { due_on: due } : {}),
+          })
           any = true
         }
         if (any) continue
@@ -2610,7 +2629,12 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
       // instalment so the instalments always sum back to the annual figure.
       const each = Math.floor(total / n)
       for (let i = 1; i <= n; i++) {
-        items.push({ fee_head_id: headID, instalment_no: i, amount_paise: i === 1 ? total - each * (n - 1) : each })
+        const due = (dues[i - 1] ?? '').trim()
+        items.push({
+          fee_head_id: headID, instalment_no: i,
+          amount_paise: i === 1 ? total - each * (n - 1) : each,
+          ...(due ? { due_on: due } : {}),
+        })
       }
     }
     // One structure per class chosen, because that is what the server stores;
@@ -2699,6 +2723,8 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           const n = Math.max(1, Number(instalments) || 1)
           const terms = termsFor(h.id, n)
           const open = terms.length > 0
+          const dues = byDue[h.id] ?? []
+          const dueOpen = dues.length > 0
           const termTotal = terms.reduce((a, t) => a + (parseFloat(t) || 0), 0)
           return (
           <div key={h.id} className="rounded-md border p-2.5">
@@ -2744,6 +2770,8 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
                 type="button"
                 onClick={() => {
                   if (open) {
+                    // Only the amounts go. The dates are a separate statement
+                    // and an evenly-priced structure still has term dates.
                     const { [h.id]: _gone, ...rest } = byTerm
                     setByTerm(rest)
                     return
@@ -2751,10 +2779,27 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
                   const yearly = parseFloat(amounts[h.id] ?? '') || 0
                   const each = yearly ? String(Math.round(yearly / n)) : ''
                   setByTerm({ ...byTerm, [h.id]: Array.from({ length: n }, () => each) })
+                  if (!byDue[h.id]) {
+                    setByDue({ ...byDue, [h.id]: Array.from({ length: n }, () => '') })
+                  }
                 }}
                 className="text-[12.5px] text-primary underline underline-offset-2"
               >
                 {open ? 'Charge the same every term' : 'Set each term separately'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (dueOpen) {
+                    const { [h.id]: _gone, ...rest } = byDue
+                    setByDue(rest)
+                    return
+                  }
+                  setByDue({ ...byDue, [h.id]: Array.from({ length: n }, () => '') })
+                }}
+                className="text-[12.5px] text-primary underline underline-offset-2"
+              >
+                {dueOpen ? 'No due dates' : 'Set a last date per term'}
               </button>
               {open && (
                 <span className="text-[12px] text-muted-foreground">
@@ -2763,25 +2808,42 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
               )}
             </div>
 
-            {open && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {terms.map((v, i) => (
-                  <label key={i} className="flex items-center gap-1.5">
-                    <span className="text-[12.5px] text-muted-foreground">
+            {(open || dueOpen) && (
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                {Array.from({ length: n }, (_, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className="w-14 text-[12.5px] text-muted-foreground">
                       Term {i + 1}
                     </span>
-                    <span className="w-24">
-                      <Input
-                        value={v}
-                        onChange={(x) => {
-                          const next = [...terms]
-                          next[i] = x
-                          setByTerm({ ...byTerm, [h.id]: next })
-                        }}
-                        placeholder="₹"
-                      />
-                    </span>
-                  </label>
+                    {open && (
+                      <span className="w-24">
+                        <Input
+                          value={terms[i] ?? ''}
+                          onChange={(x) => {
+                            const next = [...termsFor(h.id, n)]
+                            next[i] = x
+                            setByTerm({ ...byTerm, [h.id]: next })
+                          }}
+                          placeholder="₹"
+                          srLabel={`${h.name} term ${i + 1} amount`}
+                        />
+                      </span>
+                    )}
+                    {dueOpen && (
+                      <span className="w-[9.5rem]">
+                        <Input
+                          type="date"
+                          value={dues[i] ?? ''}
+                          onChange={(x) => {
+                            const next = Array.from({ length: n }, (_, k) => dues[k] ?? '')
+                            next[i] = x
+                            setByDue({ ...byDue, [h.id]: next })
+                          }}
+                          srLabel={`${h.name} term ${i + 1} due date`}
+                        />
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
