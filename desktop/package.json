@@ -7,7 +7,7 @@
   "private": true,
   "author": "EDU CLOUD",
   "main": "src/main.js",
-  "portal": "https://temperp.187-127-178-100.sslip.io",
+  "portal": "https://school-erp-cqj.pages.dev",
   "scripts": {
     "start": "electron .",
     "dist:linux": "electron-builder --linux",
@@ -22,16 +22,31 @@
     "appId": "com.schoolerp.desktop",
     "productName": "EDU CLOUD",
     "copyright": "EDU CLOUD",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["src/**/*", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
     "linux": {
-      "target": ["AppImage", "tar.gz"],
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
       "category": "Office",
       "synopsis": "The school's portal as a desktop application",
-      "desktop": { "entry": { "StartupWMClass": "EDU CLOUD" } }
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "EDU CLOUD"
+        }
+      }
     },
     "win": {
-      "target": ["zip"],
+      "target": [
+        "zip"
+      ],
       "artifactName": "${productName}-${version}-windows-${arch}.${ext}"
     },
     "nsis": {
@@ -40,5 +55,8 @@
       "allowToChangeInstallationDirectory": true,
       "artifactName": "${productName}-Setup-${version}.${ext}"
     }
-  }
+  },
+  "portalHosts": [
+    "temperp.187-127-178-100.sslip.io"
+  ]
 }

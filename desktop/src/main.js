@@ -38,7 +38,26 @@ const fs = require('node:fs')
    outlives the build that asked for it. PORTAL_URL exists so a developer can
    point a build at a laptop without editing the source. */
 const PORTAL = process.env.PORTAL_URL || require('../package.json').portal
-const PORTAL_HOST = new URL(PORTAL).host
+
+/* EVERY ADDRESS THE SCHOOL ANSWERS ON, NOT JUST THE ONE WE ASK FOR.
+
+   This was a single host compared against the compiled-in address, and it
+   sent the app to a browser the day the site moved. The old name still
+   resolves and answers 301 to the new one; a redirect is a navigation, so
+   the shell asked "is this the school?", got no because the host had
+   changed, and did what it does with a foreign page -- handed it to the
+   system browser and left its own window empty. The app looked like a
+   shortcut to Chrome.
+
+   So it is a set. The address the build points at, plus every other name
+   the school is reachable on: the old one is kept because handsets and
+   desktops already in the field have it compiled in, and because it will go
+   on redirecting for as long as the box behind it is up. A name that is
+   genuinely somebody else's -- a payment gateway, the map's attribution --
+   still opens in a real browser, which is the whole point of the check. */
+const PORTAL_HOSTS = new Set(
+  [new URL(PORTAL).host, ...(require('../package.json').portalHosts || [])].filter(Boolean),
+)
 
 /* The page's own ground, from web/src/index.css, so the window does not flash
    white before the first paint and does not flash light behind a dark page.
@@ -76,7 +95,7 @@ let win = null
 /** True for the school's own pages, and only those. */
 const isPortal = (url) => {
   try {
-    return new URL(url).host === PORTAL_HOST
+    return PORTAL_HOSTS.has(new URL(url).host)
   } catch {
     return false
   }
@@ -402,7 +421,7 @@ function buildMenu() {
               type: 'none',
               message: `${app.getName()} ${app.getVersion()}`,
               detail:
-                `This window shows ${PORTAL_HOST}, the school's own site, so ` +
+                `This window shows ${new URL(PORTAL).host}, the school's own site, so ` +
                 `everything in it is as current as the site is.\n\n` +
                 `Electron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
               buttons: ['Close'],
