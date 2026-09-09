@@ -226,12 +226,14 @@ export default function StudentProfile() {
          everything this filter is for, and a list silently cut at fifteen is
          one somebody reads as the complete roll.
 
-         200, not 300: the API clamps this parameter to 200 (students.go), so
-         asking for 300 was asking for something that never arrived and then
-         reporting the 200 that did as though it were everybody. The header
-         below now quotes the server's own total, so a roll longer than a page
-         says so instead of being quietly rounded down to the page. */
-      qs.set('limit', browsing ? '200' : '15')
+         500 is the API's cap (students.go), and a whole school's roll fits
+         inside it -- the table below pages what arrives ten at a time, so the
+         cost of asking for the roll is one request rather than a walk. Asking
+         for 300 used to be worse than asking for too much: the API clamped it
+         to 200 without saying so, and the screen then reported those 200 as
+         though they were everybody. The header quotes the server's own total
+         now, so a roll longer than one answer says so. */
+      qs.set('limit', browsing ? '500' : '15')
       return api.get<Page<Student>>(`/api/v1/students?${qs.toString()}`)
     },
     /* Kept alive while a child is open, which is what makes Previous and Next

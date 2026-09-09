@@ -53,11 +53,25 @@ type page[T any] struct {
 // needs a total for its pager, and at a few thousand rows per tenant the count
 // is cheap. If a tenant ever outgrows that, the fix is a cursor, not a bigger
 // LIMIT cap.
+//
+// THE CAP WAS 200 AND CALLERS ASKED FOR MORE.
+//
+// Nothing told them they had not got it. A school of 345 children opened its
+// own roll and read "200 students on the roll", and the shared student picker
+// -- used by the infirmary, the library desk, the hostel registers and the
+// behaviour log -- asks for 500 precisely so that no child can fall off the
+// end of a dropdown, and was handed 200 with no indication that the other
+// half existed. A silent clamp is the worst shape for this: the caller gets a
+// complete-looking answer to a question it did not ask.
+//
+// 500 is the number those callers already believe in, and one school's whole
+// roll fits inside it. The comment above still holds beyond that -- the answer
+// to a tenant with thousands of children is a cursor, not another bump.
 func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	q := r.URL.Query()
 
-	limit := clampInt(q.Get("limit"), 50, 1, 200)
+	limit := clampInt(q.Get("limit"), 50, 1, 500)
 	offset := clampInt(q.Get("offset"), 0, 0, 1_000_000)
 	search := strings.TrimSpace(q.Get("q"))
 	status := q.Get("status")
