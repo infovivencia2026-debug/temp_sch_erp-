@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
+	"github.com/school-erp/erp/internal/ttlcache"
 )
 
 /*
@@ -445,8 +447,44 @@ touchAPIKey records use, at most once a minute.
 	is what an owner needs before revoking one; it is not part of any security
 	decision, so a failed write must never fail the request that carried it.
 */
+// apiKeyTouchEvery is how often last_used_at is written back per key.
+const apiKeyTouchEvery = 5 * time.Minute
+
+// apiKeyTouched remembers which keys were stamped recently. Bounded by the
+// TTL cache, so a fleet of retired keys does not accumulate.
+var apiKeyTouched = &touchLog{seen: ttlcache.New[uuid.UUID, struct{}](apiKeyTouchEvery, 4096)}
+
+type touchLog struct {
+	mu   sync.Mutex
+	seen *ttlcache.Cache[uuid.UUID, struct{}]
+}
+
+// Set records id and reports whether the caller won the right to write. Under
+// the lock so that two simultaneous requests for one key yield one writer.
+func (t *touchLog) Set(id uuid.UUID) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if _, ok := t.seen.Get(id); ok {
+		return false
+	}
+	t.seen.Set(id, struct{}{})
+	return true
+}
+
 func (s *Server) touchAPIKey(ctx context.Context, id uuid.UUID, last *time.Time) {
-	if last != nil && time.Since(*last) < time.Minute {
+	if last != nil && time.Since(*last) < apiKeyTouchEvery {
+		return
+	}
+	/* The row's own last_used_at is not enough to throttle on.
+
+	   An integration polling once a second reads a stamp that this process
+	   has already superseded but not yet committed, so every one of those
+	   requests decided it was time to write again -- the throttle held for a
+	   minute against the clock and not at all against the burst. Remembering
+	   when we last wrote turns a per-second UPDATE into one per five minutes
+	   per key, which is all a "when was this key last used" column has ever
+	   needed to be. */
+	if !apiKeyTouched.Set(id) {
 		return
 	}
 	_ = s.DB.AsPlatform(ctx, func(tx pgx.Tx) error {

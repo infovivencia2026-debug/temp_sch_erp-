@@ -156,12 +156,8 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 	   built from the session token on every request and a picture is not part
 	   of authenticating anybody. A failed read leaves it absent, which draws
 	   the initials, so a slow or broken lookup costs a photograph and never a
-	   sign-in. */
+	   sign-in. Filled in inside the transaction below. */
 	var avatar *string
-	_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		return tx.QueryRow(r.Context(),
-			`SELECT avatar_key FROM users WHERE id = $1`, id.UserID).Scan(&avatar)
-	})
 
 	resp := sessionResponse{
 		Authenticated: true,
@@ -172,11 +168,22 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			PlatformAdmin:      id.PlatformAdmin,
 			MustChangePassword: id.MustChangePassword,
 			Roles:              []string{},
-			AvatarKey:          avatar,
 		},
 	}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* Read here rather than in a transaction of its own.
+
+		   It was one, which meant the boot call opened two connections, set
+		   the tenant GUCs twice and paid two round trips to a database in
+		   another region to answer a question worth one. The error is still
+		   discarded rather than returned: sharing the transaction must not
+		   also share the failure, or a missing photograph would start costing
+		   people the boot call and with it the sign-in. */
+		_ = tx.QueryRow(r.Context(),
+			`SELECT avatar_key FROM users WHERE id = $1`, id.UserID).Scan(&avatar)
+		resp.User.AvatarKey = avatar
+
 		if !id.PlatformAdmin {
 			var inst institution
 			err := tx.QueryRow(r.Context(), `
@@ -246,7 +253,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 
 		// The commercial standing, from the same transaction so it cannot
 		// disagree with the modules read a few lines above.
-		st, err := entitlement.Resolve(r.Context(), tx, id.InstitutionID)
+		st, err := entitlement.ResolveCached(r.Context(), tx, id.InstitutionID)
 		if err != nil {
 			return err
 		}
