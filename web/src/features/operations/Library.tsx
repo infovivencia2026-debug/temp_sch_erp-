@@ -214,31 +214,28 @@ export default function Library() {
               description="Each physical copy, its rack, and who holds it"
               action={<Button variant="ghost" onClick={() => setOpenTitle(null)}>Close</Button>}
             />
-            {copies.isLoading ? (
-              <SkeletonTable columns={5} />
-            ) : (
-              <Table
-                head={['Accession no.', 'Barcode', 'Rack', 'Status', 'Due']}
-                empty={!copies.data?.items.length}
-                emptyLabel="No copies recorded against this title."
-              >
-                {(copies.data?.items ?? []).map((c) => (
-                  <tr key={c.id}>
-                    <Td className="font-mono text-[12px]">{c.accession_no}</Td>
-                    <Td className="font-mono text-[12px] text-muted-foreground">{c.barcode ?? '—'}</Td>
-                    <Td className="text-muted-foreground">{c.rack ?? '—'}</Td>
-                    <Td>
-                      {c.on_loan_to
-                        ? <span className="text-[13px]">Issued to {c.on_loan_to}</span>
-                        : <StatusPill status="available" />}
-                    </Td>
-                    <Td className="text-muted-foreground">
-                      {c.due_on ? formatDate(c.due_on) : '—'}
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
-            )}
+            <Table loading={copies.isLoading}
+              head={['Accession no.', 'Barcode', 'Rack', 'Status', 'Due']}
+              empty={!copies.data?.items.length}
+              emptyLabel="No copies recorded against this title."
+            >
+              {(copies.data?.items ?? []).map((c) => (
+                <tr key={c.id}>
+                  <Td className="font-mono text-[12px]">{c.accession_no}</Td>
+                  <Td className="font-mono text-[12px] text-muted-foreground">{c.barcode ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{c.rack ?? '—'}</Td>
+                  <Td>
+                    {c.on_loan_to
+                      ? <span className="text-[13px]">Issued to {c.on_loan_to}</span>
+                      : <StatusPill status="available" />}
+                  </Td>
+                  <Td className="text-muted-foreground">
+                    {c.due_on ? formatDate(c.due_on) : '—'}
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
           </Card>
         )}
 

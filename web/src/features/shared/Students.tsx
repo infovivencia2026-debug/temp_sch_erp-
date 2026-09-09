@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
 import { api, type Page, type Student, type List, type Section } from '@/lib/api'
 import {
-  Card, CardHeader, Table, Td, Badge, Button, Input, Select, Skeleton, ErrorState,
+  Card, CardHeader, Table, Td, Badge, Button, Input, Select, ErrorState,
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
 import { cn, formatDate } from '@/lib/utils'
@@ -106,40 +106,39 @@ export default function Students() {
         }
       />
 
-      {isLoading ? <Skeleton /> : (
-        <Table
-          head={['Admission no.', 'Name', 'Class', 'Roll', 'Admitted', 'Status', '']}
-          empty={rows.length === 0}
-          emptyLabel={
-            search.trim() || sectionId
-              ? 'No student matches that search. Try an admission number, or clear the filters.'
-              : 'No students yet. Admit one, or import a spreadsheet from Setup.'
-          }
-        >
-          {rows.map((s) => (
-            <tr
-              key={s.id}
-              onClick={() => setParams_({ student: s.id })}
-              className={cn(
-                'cursor-pointer transition-colors duration-150 hover:bg-accent',
-                isPlaceholderData && 'opacity-60',
-              )}
-            >
-              <Td className="font-mono text-xs">{s.admission_no}</Td>
-              <Td className="font-medium">{s.full_name}</Td>
-              <Td>{s.class_name ? `${s.class_name}-${s.section_name ?? '?'}` : '—'}</Td>
-              <Td className="tabular-nums">{s.roll_no ?? '—'}</Td>
-              <Td>{formatDate(s.admission_date)}</Td>
-              <Td>
-                <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge>
-              </Td>
-              <Td className="text-right">
-                <ChevronRight className="inline h-4 w-4 text-muted-foreground" />
-              </Td>
-            </tr>
-          ))}
-        </Table>
-      )}
+      <Table loading={isLoading} loadingRows={8}
+        head={['Admission no.', 'Name', 'Class', 'Roll', 'Admitted', 'Status', '']}
+        empty={rows.length === 0}
+        emptyLabel={
+          search.trim() || sectionId
+            ? 'No student matches that search. Try an admission number, or clear the filters.'
+            : 'No students yet. Admit one, or import a spreadsheet from Setup.'
+        }
+      >
+        {rows.map((s) => (
+          <tr
+            key={s.id}
+            onClick={() => setParams_({ student: s.id })}
+            className={cn(
+              'cursor-pointer transition-colors duration-150 hover:bg-accent',
+              isPlaceholderData && 'opacity-60',
+            )}
+          >
+            <Td className="font-mono text-xs">{s.admission_no}</Td>
+            <Td className="font-medium">{s.full_name}</Td>
+            <Td>{s.class_name ? `${s.class_name}-${s.section_name ?? '?'}` : '—'}</Td>
+            <Td className="tabular-nums">{s.roll_no ?? '—'}</Td>
+            <Td>{formatDate(s.admission_date)}</Td>
+            <Td>
+              <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge>
+            </Td>
+            <Td className="text-right">
+              <ChevronRight className="inline h-4 w-4 text-muted-foreground" />
+            </Td>
+          </tr>
+        ))}
+      </Table>
+
 
       {data && data.total > PAGE && (
         <div className="flex items-center justify-between border-t px-4 py-2.5 text-sm">

@@ -273,20 +273,19 @@ function VoucherRegister({ fy }: { fy: string }) {
         <Card>
           <CardHeader title={`Voucher ${detail.data?.voucher.voucher_no ?? ''}`}
             description={detail.data?.voucher.narration} />
-          {detail.isLoading ? <SkeletonTable columns={5} /> : (
-            <Table head={['Code', 'Account', 'Note', { label: 'Debit', align: 'right' }, { label: 'Credit', align: 'right' }]}
-              empty={(detail.data?.lines ?? []).length === 0}>
-              {(detail.data?.lines ?? []).map((l, i) => (
-                <tr key={i}>
-                  <Td className="tabular-nums text-muted-foreground">{l.code}</Td>
-                  <Td className="font-medium">{l.name}</Td>
-                  <Td className="text-muted-foreground">{l.memo ?? '—'}</Td>
-                  <Td className="text-right tabular-nums">{side(l.debit_paise)}</Td>
-                  <Td className="text-right tabular-nums">{side(l.credit_paise)}</Td>
-                </tr>
-              ))}
-            </Table>
-          )}
+          <Table loading={detail.isLoading} head={['Code', 'Account', 'Note', { label: 'Debit', align: 'right' }, { label: 'Credit', align: 'right' }]}
+            empty={(detail.data?.lines ?? []).length === 0}>
+            {(detail.data?.lines ?? []).map((l, i) => (
+              <tr key={i}>
+                <Td className="tabular-nums text-muted-foreground">{l.code}</Td>
+                <Td className="font-medium">{l.name}</Td>
+                <Td className="text-muted-foreground">{l.memo ?? '—'}</Td>
+                <Td className="text-right tabular-nums">{side(l.debit_paise)}</Td>
+                <Td className="text-right tabular-nums">{side(l.credit_paise)}</Td>
+              </tr>
+            ))}
+          </Table>
+
         </Card>
       )}
     </>

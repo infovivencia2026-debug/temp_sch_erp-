@@ -173,24 +173,23 @@ export default function FeeCounter() {
             }
           />
           {search.trim().length >= 2 && (
-            results.isLoading ? <SkeletonTable columns={4} /> : (
-              <Table head={['Admission no.', 'Name', 'Class', '']} empty={!results.data?.items.length}
-                emptyLabel="No student matches that search.">
-                {(results.data?.items ?? []).map((s) => (
-                  <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
-                    <Td className="font-mono text-[12px]">{s.admission_no}</Td>
-                    <Td className="font-medium">{s.full_name}</Td>
-                    <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
-                    <Td>
-                      <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
-                        onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
-                        {s.id === studentId ? 'Selected' : 'Select'}
-                      </Button>
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
-            )
+            <Table loading={results.isLoading} loadingRows={4} head={['Admission no.', 'Name', 'Class', '']} empty={!results.data?.items.length}
+              emptyLabel="No student matches that search.">
+              {(results.data?.items ?? []).map((s) => (
+                <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
+                  <Td className="font-mono text-[12px]">{s.admission_no}</Td>
+                  <Td className="font-medium">{s.full_name}</Td>
+                  <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
+                  <Td>
+                    <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
+                      onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
+                      {s.id === studentId ? 'Selected' : 'Select'}
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
           )}
         </Card>
 

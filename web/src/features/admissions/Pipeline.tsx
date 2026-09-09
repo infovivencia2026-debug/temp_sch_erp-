@@ -156,30 +156,29 @@ export default function Pipeline() {
                 />
               }
             />
-            {seats.isLoading ? <SkeletonTable columns={7} /> : (
-              <Table head={['Class', 'Capacity', 'Enrolled', 'Offered', 'Available', 'RTE quota', 'RTE filled']}
-                empty={!seats.data?.items.length}>
-                {(seats.data?.items ?? []).map((s) => (
-                  <tr key={s.class_id}>
-                    <Td className="font-medium">{s.class_name}</Td>
-                    <Td>{s.capacity}</Td>
-                    <Td>{s.enrolled}</Td>
-                    <Td>{s.offered}</Td>
-                    <Td>
-                      <Badge tone={s.available === 0 ? 'danger' : s.available < 5 ? 'warning' : 'success'}>
-                        {s.available}
-                      </Badge>
-                    </Td>
-                    <Td>{s.rte_quota}</Td>
-                    <Td>
-                      <Badge tone={s.rte_filled >= s.rte_quota ? 'success' : 'warning'}>
-                        {s.rte_filled}/{s.rte_quota}
-                      </Badge>
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
-            )}
+            <Table loading={seats.isLoading} loadingRows={5} head={['Class', 'Capacity', 'Enrolled', 'Offered', 'Available', 'RTE quota', 'RTE filled']}
+              empty={!seats.data?.items.length}>
+              {(seats.data?.items ?? []).map((s) => (
+                <tr key={s.class_id}>
+                  <Td className="font-medium">{s.class_name}</Td>
+                  <Td>{s.capacity}</Td>
+                  <Td>{s.enrolled}</Td>
+                  <Td>{s.offered}</Td>
+                  <Td>
+                    <Badge tone={s.available === 0 ? 'danger' : s.available < 5 ? 'warning' : 'success'}>
+                      {s.available}
+                    </Badge>
+                  </Td>
+                  <Td>{s.rte_quota}</Td>
+                  <Td>
+                    <Badge tone={s.rte_filled >= s.rte_quota ? 'success' : 'warning'}>
+                      {s.rte_filled}/{s.rte_quota}
+                    </Badge>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
           </Card>
   )
 
