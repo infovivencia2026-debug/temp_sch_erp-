@@ -331,7 +331,23 @@ export default function NeedsAttention({ name }: { name?: string }) {
                       an unmarked register it is the only honest action a
                       principal has -- they do not mark registers. */}
                   <div className="flex flex-wrap items-center gap-2 p-4">
-                    {href && (
+                    {/* THE BUTTON IS WHAT THIS READER ACTUALLY DOES.
+                     *
+                     * "Mark attendance" is the right answer for the person who
+                     * marks the register, and it is not an answer at all for
+                     * the person reading this because sixteen of somebody
+                     * else's are empty. A principal does not mark registers,
+                     * so offering it sends them to a screen they will look at
+                     * and leave -- and it pushes the thing they can do into
+                     * second place beside it.
+                     *
+                     * The distinction was already drawn: chasing needs
+                     * attendance.read.all, which is oversight over a school's
+                     * registers rather than ownership of one. Where somebody
+                     * holds that, the reminder is the action and it stands
+                     * alone. A class teacher holds no such thing, sees no
+                     * reminder, and keeps the button that marks. */}
+                    {href && !chase && (
                       <button
                         type="button"
                         onClick={() => navigate(href)}
@@ -346,7 +362,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
                         type="button"
                         disabled={nudge.isPending}
                         onClick={() => nudge.mutate()}
-                        className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3.5 py-2 text-[13px] font-medium transition-colors hover:bg-accent disabled:opacity-60"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                       >
                         <Bell className="size-3.5" aria-hidden />
                         {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
