@@ -60,7 +60,12 @@ if [ -f "$ENV_FILE" ]; then
 elif [ "$DRY_RUN" = "1" ]; then
     echo "note: $ENV_FILE not found; dry run continues with placeholders" >&2
 else
-    echo "missing $ENV_FILE -- copy the template from docs/hosting-cloud-run.md" >&2
+    echo "missing $ENV_FILE" >&2
+    echo "" >&2
+    echo "Every value in it is already in the cloud, so nothing needs copying" >&2
+    echo "from another machine. With gcloud signed in to this project:" >&2
+    echo "" >&2
+    echo "  bash deploy/cloudrun/env-from-cloud.sh > $ENV_FILE && chmod 600 $ENV_FILE" >&2
     exit 1
 fi
 
