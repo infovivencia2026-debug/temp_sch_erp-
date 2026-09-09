@@ -913,6 +913,7 @@ function History({
 
   const [loadingRun, setLoadingRun] = useState('')
   const [failedRun, setFailedRun] = useState('')
+  const [savingRun, setSavingRun] = useState('')
 
   /* Reading one upload back, into a window of its own.
 
@@ -940,6 +941,63 @@ function History({
       setFailedRun('Could not read that file back.')
     } finally {
       setLoadingRun('')
+    }
+  }
+
+  /* THE FILE BACK OUT, AS A FILE.
+   *
+   * Reading an upload on screen answered "which ten rows?"; it did not answer
+   * the request that follows it, which is to have the sheet again. The copy
+   * kept against the run is frequently the only one left -- the clerk uploaded
+   * from a laptop that has since been reimaged, or the sheet was pasted from
+   * cells and never existed as a file at all -- and until now the only way to
+   * get it back was to select the rows out of a preview table by hand.
+   *
+   * Fetched rather than linked, for the reason the template button beside it
+   * is: a plain <a download> that meets a 403, or a service worker, discards
+   * the response and looks like a button that does nothing. Fetching means the
+   * two outcomes are a file and a sentence.
+   *
+   * Named after the run and its date rather than after the original file, so
+   * that downloading the same sheet from two different uploads does not put
+   * two different files in the downloads folder under one name. */
+  const saveFile = async (run: ImportRun) => {
+    setSavingRun(run.id)
+    setFailedRun('')
+    try {
+      const body = await api.get<{ content: string; omitted: boolean }>(
+        `/api/v1/setup/import/history/${run.id}/content`,
+      )
+      if (body.omitted) {
+        setFailedRun('That file was too large to keep a copy of, so only the counts were recorded.')
+        return
+      }
+      if (!body.content) {
+        setFailedRun('No copy of this file was kept — it was uploaded before uploads began being stored.')
+        return
+      }
+      /* The byte order mark is deliberate. Excel opens a plain UTF-8 CSV in
+         the system codepage, which turns a Telugu name into mojibake in the
+         one program every school will open this in. Written as an escape and
+         not as the character: an invisible byte inside a string literal is a
+         thing a reformat can drop without anybody seeing it go. */
+      const blob = new Blob(['\ufeff' + body.content], { type: 'text/csv;charset=utf-8' })
+      const href = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = href
+      const stamp = run.created_at.slice(0, 10)
+      const base = (run.filename ?? `${entity}-pasted`).replace(/\.csv$/i, '')
+      a.download = `${base}-${stamp}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      // Freed on the next tick: revoking synchronously races the click on
+      // some browsers and saves an empty file.
+      setTimeout(() => URL.revokeObjectURL(href), 1000)
+    } catch {
+      setFailedRun('Could not read that file back.')
+    } finally {
+      setSavingRun('')
     }
   }
 
@@ -1055,6 +1113,22 @@ function History({
                   )}
                 </td>
                 <td className="py-1 text-right">
+                  {/* SAVE, BESIDE UNDO, AND BEFORE IT.
+                      Getting the sheet back is the safe thing somebody wants
+                      from a past upload and undo is the destructive one, so
+                      the safe one is reached first and the destructive one
+                      keeps its confirmation. Offered even on an undone run:
+                      a sheet whose rows were removed is exactly the sheet
+                      somebody wants to look at again before re-uploading it. */}
+                  <button
+                    type="button"
+                    disabled={savingRun === r.id}
+                    onClick={() => saveFile(r)}
+                    className="tap-inline mr-3 underline underline-offset-2 text-muted-foreground hover:text-primary disabled:opacity-50"
+                    title="Download this file"
+                  >
+                    {savingRun === r.id ? 'saving\u2026' : 'save'}
+                  </button>
                   {r.undone_at ? (
                     <span className="text-muted-foreground">undone</span>
                   ) : r.created_rows > 0 ? (
