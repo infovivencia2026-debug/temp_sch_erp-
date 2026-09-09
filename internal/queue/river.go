@@ -56,11 +56,18 @@ func newRiver(driver riverdriver.Driver[pgx.Tx], h *Handlers) (*river.Client[pgx
 		// rescued out from under a worker that is still on it.
 		RescueStuckJobsAfter: 45 * time.Minute,
 		ErrorHandler:         errorLogger{},
-		// Cloud Run may give the worker a container that cannot hold a
-		// LISTEN for long; polling is the fallback River uses when the
-		// notifier drops, and a two-second poll is cheap on a table this
-		// size. The notifier still wins when it is up.
-		FetchPollInterval: 2 * time.Second,
+		// LISTEN/NOTIFY is what delivers latency: an insert wakes the
+		// worker the moment it commits, and the poll only matters while
+		// the notifier is down (Cloud Run may give the worker a container
+		// that cannot hold a LISTEN for long). Fifteen seconds rather than
+		// two because every instance of the web service is a worker, and a
+		// two-second poll from each of them was the steadiest stream of
+		// queries the database saw at night -- enough on its own to keep a
+		// Neon branch from ever suspending. Fifteen seconds is the worst
+		// case for a job enqueued while the notifier is dropped, and the
+		// job kinds here (reminder sweeps, message flushes) are not
+		// waiting on that.
+		FetchPollInterval: 15 * time.Second,
 	}
 	if h != nil {
 		cfg.Workers = river.NewWorkers()
