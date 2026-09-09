@@ -7,6 +7,7 @@ import { adoptPersistedQueries, forgetPersistedQueries } from './query-persist'
 import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { claimTabs } from './tabs'
+import { SkeletonShell } from '@/components/Skeleton'
 
 const SessionContext = createContext<SessionResponse | null>(null)
 
@@ -21,13 +22,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   })
 
-  if (isLoading) {
-    return (
-      <div className="grid h-full place-items-center text-sm text-muted-foreground">
-        Loading…
-      </div>
-    )
-  }
+  /* THE FIRST PAINT IS THE SHAPE OF THE APP, NOT THE WORD "LOADING".
+   *
+   * Every single visit passes through here: nothing renders until the session
+   * request answers, and what it rendered was the word "Loading…" centred in
+   * an empty white page. So the app opened blank, then blank with one word in
+   * the middle of it, then — in one frame — a rail, a header, a dock and a
+   * screen. On a cold connection that middle state is most of what anyone
+   * sees of us.
+   *
+   * `SkeletonShell` draws the rail, the header bar, the dock and a page block
+   * at the sizes the real ones use, so the same wait now reads as the app
+   * arriving rather than as nothing happening. It carries the sentence too, in
+   * a live region, for a screen reader. */
+  if (isLoading) return <SkeletonShell />
   if (isError || !data) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">

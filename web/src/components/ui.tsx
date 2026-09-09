@@ -1,4 +1,5 @@
 import { LoaderBlock, TriLoader } from '@/components/Loader'
+import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
 import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
@@ -540,11 +541,22 @@ export function Table({
   emptyLabel = 'Nothing to show.',
   sort,
   wide,
+  loading,
+  loadingRows = 6,
 }: {
   head: Column[]
   children: ReactNode
   empty?: boolean
   emptyLabel?: string
+  /* The rows have not arrived yet.
+
+     Pass `query.isPending && !query.data` (or plain `isLoading`) and the real
+     header stays where it is while shimmering rows stand in for the body, so
+     the table does not appear out of nothing when the answer lands. Only for
+     a table with NO data: a background refetch of a table that already has
+     rows (`isFetching` with data) must keep those rows on screen. */
+  loading?: boolean
+  loadingRows?: number
   /** Supply what useSort returned to make keyed columns clickable. */
   sort?: { sortKey: string; dir: SortDir; toggle: (k: string) => void }
   /* A table with more columns than the screen has room for.
@@ -723,7 +735,9 @@ export function Table({
           </tr>
         </thead>
         <tbody>
-          {empty ? (
+          {loading ? (
+            <SkeletonRows rows={loadingRows} cols={head.length} />
+          ) : empty ? (
             <tr>
               <td colSpan={head.length} className="px-5 py-12 text-center text-[14px] text-muted-foreground">
                 {emptyLabel}
@@ -1807,8 +1821,48 @@ export function ErrorState({ error }: { error: unknown }) {
  * all between pressing the thing and the page changing under them. `role
  * status` with a polite live region says the sentence once, when it appears.
  */
-export function Loading({ label = 'Loading…', delay }: { label?: string; delay?: number }) {
-  return <LoaderBlock label={label} delay={delay} />
+export type LoadingShape = 'page' | 'table' | 'cards' | 'form' | 'inline'
+
+export function Loading({
+  label = 'Loading…',
+  delay,
+  shape = 'page',
+  rows,
+  cols,
+}: {
+  label?: string
+  delay?: number
+  /** What is coming. `page` (the default) is a heading line, three lines of
+      text and a table; `inline` is the small three-triangle mark for a strip
+      or a button-sized gap where a skeleton would be bigger than the thing. */
+  shape?: LoadingShape
+  rows?: number
+  cols?: number
+}) {
+  if (shape === 'inline') return <LoaderBlock label={label} delay={delay} className="py-3" />
+  if (shape === 'table') return <SkeletonTable rows={rows} cols={cols} delay={delay} label={label} />
+  if (shape === 'cards') return <SkeletonCards n={rows} delay={delay} label={label} />
+  if (shape === 'form') return <SkeletonForm fields={rows} delay={delay} label={label} />
+  return <SkeletonPageBlock rows={rows} cols={cols} delay={delay} label={label} />
+}
+
+/* The default `Loading` shape, sized to sit wherever the caller put it: inside
+   a card, under a PageHead, or as the whole content area. No outer padding of
+   its own, unlike `SkeletonPage`, which is App.tsx's stand-in for a whole
+   screen and carries PageHead's gutters. */
+function SkeletonPageBlock({ rows, cols, delay, label }: { rows?: number; cols?: number; delay?: number; label?: string }) {
+  const show = useDelayed(true, delay)
+  if (!show) return null
+  return (
+    <div className="space-y-5 p-5" role="status" aria-label="Loading" aria-busy="true">
+      <span className="sr-only">{label ?? 'Loading…'}</span>
+      <div aria-hidden>
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <SkeletonText lines={3} delay={0} className="max-w-xl" />
+      <SkeletonTable rows={rows ?? 5} cols={cols ?? 4} delay={0} />
+    </div>
+  )
 }
 
 /* The skeletons moved out.
@@ -1820,7 +1874,10 @@ export function Loading({ label = 'Loading…', delay }: { label?: string; delay
  * to deserve its own file. Re-exported from here so that every screen already
  * importing `Skeleton` from `@/components/ui` keeps working unchanged.
  */
-export { Skeleton, SkeletonTable, SkeletonTiles, SkeletonForm, SkeletonPage, useDelayed } from './Skeleton'
+export {
+  Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
+  SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
+} from './Skeleton'
 
 /**
  * Print this page.
