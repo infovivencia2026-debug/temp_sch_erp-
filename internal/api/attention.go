@@ -166,6 +166,9 @@ func canAny(id interface {
 type probe struct {
 	Key      string
 	Needs    string
+	// Daily marks a probe that counts what has not happened TODAY. Those are
+	// silent on a day the school is not open — see schoolOpenToday.
+	Daily bool
 	Severity Severity
 	Action   string
 	Href     string
@@ -173,6 +176,53 @@ type probe struct {
 	// Headline renders the count. Kept as a function so plural and singular
 	// read properly — "1 students absent" is the tell of a generated screen.
 	Headline func(n int, amount int64) string
+}
+
+/* IS THE SCHOOL OPEN TODAY, BY THE CALENDAR THE SCHOOL UPLOADED.
+ *
+ * Three of the probes below count what has not happened TODAY: registers not
+ * marked, children absent, staff absent and uncovered. Every one of them read
+ * CURRENT_DATE and nothing else, so on a Sunday the panel reported that
+ * sixteen sections had not marked attendance -- which is true, and is not a
+ * problem, and is the fastest way to teach somebody that this panel cries
+ * wolf. The same on Diwali, and on every day of a vacation.
+ *
+ * Two things make a day a working day, and the school states both:
+ *
+ *   work_patterns.working_days   the ISO weekdays a pattern runs (1 = Monday),
+ *                                an array because a school with alternate
+ *                                Saturdays cannot be described by seven flags
+ *   holidays                     the uploaded calendar: a row covering today
+ *                                closes it, unless its kind is 'working_day',
+ *                                which is how a school declares a working
+ *                                Saturday against its own weekly pattern
+ *
+ * A school that has uploaded neither is open, which is what it was before this
+ * existed: absence of a calendar must not silence the panel.
+ *
+ * One query, run once per request rather than per probe.
+ */
+func schoolOpenToday(ctx context.Context, tx pgx.Tx) (bool, error) {
+	var open bool
+	err := tx.QueryRow(ctx, `
+		SELECT
+		  /* The weekly pattern, where there is one. ANY pattern running today
+		     opens the day: a school whose office works Saturday and whose
+		     classes do not is open on Saturday. */
+		  (NOT EXISTS (SELECT 1 FROM work_patterns)
+		   OR EXISTS (SELECT 1 FROM work_patterns wp
+		               WHERE EXTRACT(ISODOW FROM CURRENT_DATE)::int = ANY(wp.working_days)))
+		  /* And the uploaded calendar, which overrides it in both directions. */
+		  AND NOT EXISTS (
+		      SELECT 1 FROM holidays h
+		       WHERE h.kind <> 'working_day'
+		         AND CURRENT_DATE BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date))
+		  OR EXISTS (
+		      SELECT 1 FROM holidays h
+		       WHERE h.kind = 'working_day'
+		         AND CURRENT_DATE BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date))`).
+		Scan(&open)
+	return open, err
 }
 
 // plural lives in faculty_work.go and already renders the count with the noun,
@@ -212,6 +262,7 @@ var probes = []probe{
 	// --- the register -----------------------------------------------------
 	{
 		Key: "attendance.unmarked", Needs: rbac.AttendanceWrite,
+		Daily: true,
 		Severity: SeverityWarning, Action: "Mark attendance", Href: "attendance",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "section", "sections") + " without attendance today"
@@ -245,6 +296,7 @@ var probes = []probe{
 	},
 	{
 		Key: "attendance.absent_today", Needs: rbac.AttendanceRead,
+		Daily: true,
 		Severity: SeverityInfo, Action: "View register", Href: "attendance",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "student", "students") + " absent today"
@@ -272,7 +324,19 @@ var probes = []probe{
 		},
 	},
 	{
-		Key: "staff.absent_today", Needs: rbac.EmployeesRead,
+		/* GATED ON ARRANGING, NOT ON READING.
+
+		   This asked for employees.read, which is "may see the staff list" --
+		   held by HR and by the board, neither of whom can arrange a
+		   substitute. Both were shown a warning whose only action was one they
+		   could not take: the button 403s, and a panel that asks for the
+		   impossible is one people stop reading.
+
+		   Arranging a substitute is academics.timetable.write, which is the
+		   principal and the head of department. Told to the people who answer
+		   it and nobody else. */
+		Key: "staff.absent_today", Needs: rbac.TimetableWrite,
+		Daily: true,
 		Severity: SeverityWarning, Action: "Arrange substitute", Href: "staff",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "teacher", "teachers") + " absent today"
@@ -615,6 +679,8 @@ func (s *Server) getAttention(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// Resolved lazily: a role with no daily probe never asks the calendar.
+		var openToday *bool
 		for _, p := range probes {
 			/* Any one of them. A row is about a job, and the same job can
 			   live in two workspaces under two keys -- issuing a certificate
@@ -622,6 +688,20 @@ func (s *Server) getAttention(w http.ResponseWriter, r *http.Request) {
 			   key would hide the row from whichever of them was not named. */
 			if !canAny(id, p.Needs) {
 				continue
+			}
+			/* Nothing is late on a day nobody was expected. Resolved once and
+			   reused, rather than a calendar lookup inside three probes. */
+			if p.Daily {
+				if openToday == nil {
+					v, err := schoolOpenToday(r.Context(), tx)
+					if err != nil {
+						return fmt.Errorf("attention calendar: %w", err)
+					}
+					openToday = &v
+				}
+				if !*openToday {
+					continue
+				}
 			}
 			res, err := p.Run(r.Context(), tx, sc)
 			if err != nil {

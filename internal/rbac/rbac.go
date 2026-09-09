@@ -475,9 +475,24 @@ var SystemRoles = []Role{
 	   campus_id spans every campus (see internal/scope). Optional, not seeded
 	   into every school: most schools have no board, and the ones that do add
 	   it from the Roles screen in one click. */
+	/* MONEY, AND THE TRAIL BEHIND IT.
+
+	   The five screens a board holds are all money: where it goes, the fee
+	   overview, collections and dues, the reports and the audit trail. The
+	   grant carried far more than that -- every child, every register, the
+	   staff list -- none of which had a screen to appear on, so it surfaced in
+	   exactly one place: the attention panel, which told a trustee that
+	   sixteen registers were unmarked and offered them a button they had no
+	   right to press.
+
+	   A board asks whether the school is solvent and whether the money was
+	   spent as agreed. It does not need to know which child was away on
+	   Tuesday, and under the DPDP Act a permission with no screen behind it is
+	   collection without a purpose. Students, attendance and the staff list
+	   come off. */
 	{"board_member", "Board / Trustee", []string{
-		InstitutionRead, AcademicsRead, StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
-		FeesRead, InvoicesRead, PaymentsRead, PayrollRead, EmployeesRead, InventoryRead,
+		InstitutionRead, AcademicsRead,
+		FeesRead, InvoicesRead, PaymentsRead, PayrollRead, InventoryRead,
 		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
