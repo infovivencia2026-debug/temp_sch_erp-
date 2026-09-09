@@ -14,6 +14,7 @@ import {
   ADMISSIONS_BASE as A, LOST_DIMENSIONS, errText, labelOf, useLeads, useLostReasons,
   type LostAnalysisRow, type LostLead,
 } from './growth'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* Why the family did not come.
 
@@ -55,7 +56,7 @@ export default function LostLeads() {
     queryFn: () => api.get<List<RangeOption>>('/api/v1/date-ranges'),
   })
 
-  const q = rangeQuery(range)
+  const q = useDebouncedValue(rangeQuery(range))
 
   const lost = useQuery({
     queryKey: ['admissions-lost-leads', q, reasonFilter],

@@ -13,6 +13,7 @@ import FileView, { type ViewableFile } from '@/components/FileView'
 import { formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The homework diary, from both ends.
 
@@ -133,10 +134,13 @@ export default function Homework() {
   const [onlyMine, setOnlyMine] = useState(true)
   const mine = canPublish && onlyMine
 
-  const query = new URLSearchParams([
-    ...Object.entries(filters).filter(([, v]) => v !== ''),
-    ...(mine ? [['mine', '1'] as [string, string]] : []),
-  ]).toString()
+  // Debounced: the date filters are typed, and each keystroke was a request.
+  const query = useDebouncedValue(
+    new URLSearchParams([
+      ...Object.entries(filters).filter(([, v]) => v !== ''),
+      ...(mine ? [['mine', '1'] as [string, string]] : []),
+    ]).toString(),
+  )
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['homework', query],

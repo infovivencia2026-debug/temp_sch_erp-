@@ -9,6 +9,7 @@ import {
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The library, as the counter actually works it.
  *
@@ -64,10 +65,13 @@ export default function Library() {
   const [openTitle, setOpenTitle] = useState<Title | null>(null)
   const [note, setNote] = useState('')
 
+  // Empty is the whole catalogue; one letter is a search nobody meant yet.
+  const needle = useDebouncedValue(search.trim())
   const titles = useQuery({
-    queryKey: ['library-titles', search],
+    queryKey: ['library-titles', needle],
     queryFn: () =>
-      api.get<List<Title>>(`/api/v1/ops/library/titles?q=${encodeURIComponent(search)}`),
+      api.get<List<Title>>(`/api/v1/ops/library/titles?q=${encodeURIComponent(needle)}`),
+    enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })
 

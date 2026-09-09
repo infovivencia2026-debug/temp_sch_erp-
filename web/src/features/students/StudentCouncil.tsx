@@ -8,6 +8,7 @@ import {
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The student council: the posts, who holds them, and what they actually did.
 
@@ -329,12 +330,14 @@ function SeatMember({
   const [electedOn, setElectedOn] = useState('')
   const [votes, setVotes] = useState('')
 
+  const needle = useDebouncedValue(q.trim())
   const students = useQuery({
-    queryKey: ['council-student-search', q],
+    queryKey: ['council-student-search', needle],
     queryFn: () =>
       api.get<Page<Student>>(
-        '/api/v1/students/?limit=25' + (q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''),
+        '/api/v1/students/?limit=25' + (needle ? `&q=${encodeURIComponent(needle)}` : ''),
       ),
+    enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })
 

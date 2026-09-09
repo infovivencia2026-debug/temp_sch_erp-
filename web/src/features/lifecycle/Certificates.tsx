@@ -8,6 +8,7 @@ import {
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
 import CardViewer from '@/components/CardViewer'
+import { useDebouncedValue } from '@/lib/debounce'
 
 interface Cert {
   id: string
@@ -83,10 +84,11 @@ export default function Certificates() {
     },
   })
 
+  const needle = useDebouncedValue(search.trim())
   const results = useQuery({
-    queryKey: ['cert-search', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=10`),
-    enabled: search.trim().length >= 2,
+    queryKey: ['cert-search', needle],
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`),
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
   const list = useQuery({

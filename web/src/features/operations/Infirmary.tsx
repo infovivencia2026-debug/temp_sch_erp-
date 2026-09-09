@@ -7,6 +7,7 @@ import {
   Input, Button, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The clinic's master file.
  *
@@ -35,12 +36,15 @@ export default function Infirmary() {
   const [search, setSearch] = useState('')
   const [flagged, setFlagged] = useState(false)
 
+  // Empty is the whole register; one letter is a search nobody meant yet.
+  const needle = useDebouncedValue(search.trim())
   const q = useQuery({
-    queryKey: ['health', search, flagged],
+    queryKey: ['health', needle, flagged],
     queryFn: () =>
       api.get<List<HealthRow>>(
-        `/api/v1/ops/health/students?q=${encodeURIComponent(search)}&flagged=${flagged}`,
+        `/api/v1/ops/health/students?q=${encodeURIComponent(needle)}&flagged=${flagged}`,
       ),
+    enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })
 

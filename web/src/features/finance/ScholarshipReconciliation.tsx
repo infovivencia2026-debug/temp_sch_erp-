@@ -15,6 +15,7 @@ import {
   type ImportResult, type ScholarshipAward, type ScholarshipImport,
   type DisbursementLine, type ImportReject,
 } from './concessions-lib'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* NSP scholarship reconciliation.
 
@@ -75,15 +76,17 @@ export default function ScholarshipReconciliation() {
     onSuccess: invalidate,
   })
 
+  const needle = useDebouncedValue(search.trim())
   const awards = useQuery({
-    queryKey: [concessionsKey, 'awards', schemeId, stage, search],
+    queryKey: [concessionsKey, 'awards', schemeId, stage, needle],
     queryFn: () => {
       const qs = new URLSearchParams()
       if (schemeId) qs.set('scheme_id', schemeId)
       if (stage) qs.set('stage', stage)
-      if (search) qs.set('q', search)
+      if (needle) qs.set('q', needle)
       return api.get<List<ScholarshipAward>>(`${concessionsBase}/scholarships?${qs}`)
     },
+    enabled: needle.length !== 1,
   })
   const schemes = useSchemes('student')
 

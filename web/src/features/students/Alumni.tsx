@@ -8,6 +8,7 @@ import {
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The alumni programme.
 
@@ -80,8 +81,9 @@ export default function Alumni() {
   }
   const [q, setQ] = useState('')
 
+  const needle = useDebouncedValue(q.trim())
   const directory = useQuery({
-    queryKey: ['alumni', q],
+    queryKey: ['alumni', needle],
     queryFn: () =>
       api.get<{
         items: Alumnus[]
@@ -95,8 +97,9 @@ export default function Alumni() {
         }
       }>(
         '/api/v1/academics/admin/alumni' +
-          (q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''),
+          (needle ? `?q=${encodeURIComponent(needle)}` : ''),
       ),
+    enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })
   const events = useQuery({

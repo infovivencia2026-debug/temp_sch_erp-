@@ -9,6 +9,7 @@ import {
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { useDebouncedValue } from '@/lib/debounce'
 
 interface Title {
   id: string
@@ -68,13 +69,14 @@ export default function LibraryHolds() {
      keepPreviousData holds the rows already on screen while the next answer
      arrives, so the list dims rather than disappearing and the caret stays
      where the reader left it. */
+  const needle = useDebouncedValue(q.trim())
   const catalogue = useQuery({
-    queryKey: ['library-catalogue', studentId, q],
+    queryKey: ['library-catalogue', studentId, needle],
     queryFn: () =>
       api.get<List<Title>>(
-        `/api/v1/portal/library/titles${studentQuery(studentId, q ? `q=${encodeURIComponent(q)}` : '')}`,
+        `/api/v1/portal/library/titles${studentQuery(studentId, needle ? `q=${encodeURIComponent(needle)}` : '')}`,
       ),
-    enabled: ready,
+    enabled: ready && needle.length !== 1,
     placeholderData: keepPreviousData,
   })
 

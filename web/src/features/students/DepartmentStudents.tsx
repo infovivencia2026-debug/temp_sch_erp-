@@ -7,6 +7,7 @@ import {
   Input, Select, SkeletonTable, ErrorState, EmptyState, useSort,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* Which children a department is responsible for.
 
@@ -49,13 +50,14 @@ export default function DepartmentStudents() {
     queryKey: ['classes'],
     queryFn: () => api.get<List<Klass>>('/api/v1/academics/classes'),
   })
+  const needle = useDebouncedValue(q.trim())
   const roll = useQuery({
-    queryKey: ['department-students', deptID, classId, q],
+    queryKey: ['department-students', deptID, classId, needle],
     queryFn: () => {
       const p = new URLSearchParams()
       if (deptID) p.set('department_id', deptID)
       if (classId) p.set('class_id', classId)
-      if (q.trim()) p.set('q', q.trim())
+      if (needle) p.set('q', needle)
       const qs = p.toString()
       return api.get<{
         items: DeptStudent[]

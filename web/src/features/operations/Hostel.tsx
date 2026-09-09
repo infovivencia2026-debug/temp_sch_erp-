@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate, cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The hostel, from the warden's side.
  *
@@ -63,10 +64,11 @@ export default function Hostel() {
     enabled: !!openRoom,
   })
 
+  const needle = useDebouncedValue(search.trim())
   const candidates = useQuery({
-    queryKey: ['hostel-candidates', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
-    enabled: search.trim().length >= 2,
+    queryKey: ['hostel-candidates', needle],
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
 

@@ -27,6 +27,7 @@ import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -202,12 +203,13 @@ export default function StudentProfile() {
      default, which happened to be what the list was testing for. */
   const listing = params.get('list') === '1'
   const browsing = listing || !!classID || !!sectionID || roll !== 'active'
-  const searching = search.trim().length >= 2
+  const needle = useDebouncedValue(search.trim())
+  const searching = needle.length >= 2
   const results = useQuery({
-    queryKey: ['profile-search', search, classID, sectionID, roll],
+    queryKey: ['profile-search', needle, classID, sectionID, roll],
     queryFn: () => {
       const qs = new URLSearchParams()
-      if (searching) qs.set('q', search.trim())
+      if (searching) qs.set('q', needle)
       if (sectionID) qs.set('section_id', sectionID)
       else if (classID) qs.set('class_id', classID)
       /* The API takes one status. "Left" is four of them — graduated,

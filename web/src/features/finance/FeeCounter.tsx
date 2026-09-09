@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
    read what they owe, take the money, hand over a printed receipt. Everything
@@ -66,10 +67,11 @@ export default function FeeCounter() {
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
 
+  const needle = useDebouncedValue(search.trim())
   const results = useQuery({
-    queryKey: ['fee-search', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
-    enabled: search.trim().length >= 2,
+    queryKey: ['fee-search', needle],
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
 
