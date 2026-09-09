@@ -1,5 +1,4 @@
 import { screen } from '@/lib/screen'
-import { lazy } from 'react'
 
 /* The principal's academic and student screens.
 
@@ -11,7 +10,17 @@ import { lazy } from 'react'
    is a silent way to lose a feature that looks finished from the code. */
 export const adminAcademicsKeys = {
   'institution_admin.academics.school_calendar': screen(() => import('./AcademicCalendar')),
-  'institution_admin.academics.substitutions': lazy(
+  /* screen(), like everything else, and not a bare lazy().
+   *
+   * A bare lazy() is one network request with no second chance: React caches
+   * the rejected promise, so a single blip -- a phone changing cell, the front
+   * desk wifi, a proxy dropping the connection -- kills this screen for the
+   * life of the tab. Clicking the menu entry again re-shows the same failure,
+   * and the page simply never arrives. That is exactly the fault screen() was
+   * written for, and this was the one entry not using it.
+   *
+   * The line above it always did. */
+  'institution_admin.academics.substitutions': screen(
     () => import('./SubstitutionBoard'),
   ),
 
