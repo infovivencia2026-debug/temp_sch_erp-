@@ -210,8 +210,16 @@ export default function StudentEditDialog({ student, onClose, onSaved }: {
     (k) => draft[k] !== ((student[k as keyof EditableStudent] as string | undefined) ?? ''))
 
   return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8">
-      <div className="mx-auto max-w-4xl rounded-xl border bg-background shadow-xl">
+    /* The dim fades, the panel arrives. Neither carried a role, so neither was
+       reached by the arrival rule in index.css and the whole thing was simply
+       there on the next paint -- over the record somebody was reading. */
+    <div className="scrim fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4 sm:p-8">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit student"
+        className="mx-auto max-w-4xl rounded-xl border bg-background shadow-xl"
+      >
         <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted/30">

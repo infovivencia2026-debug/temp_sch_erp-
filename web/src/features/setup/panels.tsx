@@ -191,14 +191,19 @@ function SavedDialog({ message, onClose }: { message: string; onClose: () => voi
      against that ancestor, not the viewport, and every card here carries a
      transform while it is pressed. See BulkImport's SheetViewer. */
   return createPortal(
+    /* The room dims, the card arrives. The role was on the scrim, so the
+       scrim was what the arrival rule animated -- a full-bleed dim growing
+       from 97% at top centre, which reads as the whole screen twitching.
+       The dim only fades (.scrim); the card carries the dialog and comes
+       from where a dialog comes from. */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="scrim fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={close}
-      role="alertdialog"
-      aria-modal="true"
-      aria-label="Saved"
     >
       <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Saved"
         className="w-full max-w-sm rounded-lg border bg-background p-5 text-center shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >

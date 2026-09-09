@@ -156,8 +156,11 @@ export default function FirstRunTour() {
   return (
     <>
     {coach}
+    /* .scrim, and the role moved to the card below: the dim is not an object
+       and must not scale. It was the element carrying role="dialog", so the
+       arrival rule grew the whole darkened screen from 97%. */
     <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4"
+      className="scrim fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4"
       /* Fixed elements escape the body's notch padding; the card should
          centre within the safe area, not the glass. Zero in a browser and on
          Android. */
@@ -165,14 +168,16 @@ export default function FirstRunTour() {
         paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))',
         paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="tour-title"
       onKeyDown={(e) => {
         if (e.key === 'Escape') close()
       }}
     >
-      <div className="w-full max-w-lg rounded-xl border bg-card shadow-pop">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tour-title"
+        className="w-full max-w-lg rounded-xl border bg-card shadow-pop"
+      >
         <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
           <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             {steps.map((_, i) => (

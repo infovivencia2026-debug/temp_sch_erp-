@@ -1994,6 +1994,10 @@
 [role='listbox'],
 [role='tooltip'],
 [role='dialog'],
+/* alertdialog is a dialog. It was not in this list, so the one kind of modal
+   that interrupts on purpose -- the confirm, the "Saved", the destructive
+   warning -- was also the one kind that arrived with no motion at all. */
+[role='alertdialog'],
 dialog[open],
 [data-state='open'][data-side],
 [popover]:popover-open {
@@ -2016,6 +2020,46 @@ dialog[open],
    off the edge, because the closing rule happens to carry two attributes and
    wins. In and out were different gestures at the same duration, on the most
    conspicuous piece of motion in the product. */
+/* A TOAST COMES UP OFF THE EDGE IT LIVES ON, AND A SCRIM FADES.
+
+   Neither of these is a [role='dialog'], so neither was reached by the arrival
+   rule above and both simply appeared -- the toast most of all, which is the
+   one surface in the product that shows up when nobody asked for it. A
+   confirmation that materialises in the corner is the definition of the thing
+   this file spends four hundred lines avoiding.
+
+   The host is pinned to the bottom edge, so the bottom edge is where a toast
+   comes from: it rises the small distance it would have travelled to get
+   there. 10px, not the drawer's full width -- the strip is already at the edge
+   and only has to look like it arrived from off it.
+
+   .scrim is the dim behind a modal. It has no origin because it is not an
+   object; it is the room going darker. So it only fades, and it fades on the
+   same curve as the panel it belongs to, or the panel appears to arrive before
+   the light changes. */
+.toast-in {
+  animation: toast-in var(--motion) var(--motion-ease) both;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.scrim {
+  animation: scrim-in var(--motion-enter) var(--motion-ease) both;
+}
+@keyframes scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Reduced motion takes the travel, not the arrival. Something that fades in
+   where it belongs is still calm; something that is simply there in the corner
+   of the eye is the jolt the setting is asking to be spared. */
+@media (prefers-reduced-motion: reduce) {
+  .toast-in { animation-name: scrim-in; }
+}
+
 [role='dialog'][data-side='left'] {
   animation-name: motion-enter-side;
 }

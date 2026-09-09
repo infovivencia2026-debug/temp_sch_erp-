@@ -83,6 +83,9 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
     <div
       role={t.kind === 'error' ? 'alert' : 'status'}
       className={cn(
+        /* Comes up off the bottom edge the host is pinned to, rather than
+           being there on the next paint. See .toast-in in index.css. */
+        'toast-in',
         'pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-md border px-3 py-2.5',
         'bg-card text-[14px] shadow-pop',
         t.kind === 'error' ? 'border-destructive/30' : 'border-success/30',
