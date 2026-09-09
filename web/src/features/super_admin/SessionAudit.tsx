@@ -65,7 +65,9 @@ export default function SessionAudit() {
     queryFn: () => api.get<List<SessionRow>>(`/api/v1/admin/sessions?active=${activeOnly}`),
     /* Sessions come and go while an administrator watches, so poll; but only
        while the tab is visible, since a hidden audit screen audits nothing. */
-    refetchInterval: useVisibleInterval(30_000),
+    // A minute, not thirty seconds: the shared revision poll in lib/live.ts
+    // already notices a change sooner than this ever could.
+    refetchInterval: useVisibleInterval(60_000),
   })
 
   const revoke = useMutation({

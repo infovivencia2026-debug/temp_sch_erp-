@@ -116,3 +116,71 @@ func TestBackoffCaps(t *testing.T) {
 		}
 	}
 }
+
+/*
+When the tick writes. Every evaluation used to rewrite the entry's row, so a
+quiet tick was a burst of updates that said nothing -- and on a database that
+suspends when idle, the thing that kept it awake. The row is touched when the
+entry fires and when it is first seen, and otherwise left alone: an untouched
+last_run_at is still the truth due needs.
+*/
+func TestDecideWritesOnlyWhenItMatters(t *testing.T) {
+	ist, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Skip("no tzdata")
+	}
+	at := func(s string) time.Time {
+		v, err := time.ParseInLocation("2006-01-02 15:04:05", s, ist)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	cases := []struct {
+		name       string
+		spec       string
+		last       string
+		seen       bool
+		now        string
+		wantFire   bool
+		wantRecord bool
+	}{
+		{"not due: no write", "0 9 * * *", "2026-09-05 08:58:00", true, "2026-09-05 08:59:00", false, false},
+		{"due: fires and records", "0 9 * * *", "2026-09-05 08:59:10", true, "2026-09-05 09:00:40", true, true},
+		{"first sight: baseline only", "* * * * *", "", false, "2026-09-05 10:01:00", false, true},
+		{"minute entry mid-minute: no write", "* * * * *", "2026-09-05 10:00:05", true, "2026-09-05 10:00:59", false, false},
+		// The missed-occurrence rule is untouched: an entry due four times
+		// while nobody asked fires once, and that one run is what is recorded.
+		{"long outage: one run, one write", "* * * * *", "2026-09-05 10:00:00", true, "2026-09-05 10:04:30", true, true},
+	}
+	for _, c := range cases {
+		var last time.Time
+		if c.seen {
+			last = at(c.last)
+		}
+		fire, record, err := decide(c.spec, last, c.seen, at(c.now), ist)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if fire != c.wantFire || record != c.wantRecord {
+			t.Errorf("%s: fire=%v record=%v, want fire=%v record=%v", c.name, fire, record, c.wantFire, c.wantRecord)
+		}
+	}
+}
+
+// The minute sweep must not fan out to every school on an idle tick: the
+// dispatch entry carries a target filter, and the filter is the pending
+// query. A per-institution entry without one is the shape that made an
+// idle night cost N River jobs a minute.
+func TestMessageDispatchOnlyFansOutToSchoolsWithWork(t *testing.T) {
+	for _, s := range Schedules() {
+		if s.Kind != TypeMessageDispatch {
+			continue
+		}
+		if s.Only == nil {
+			t.Fatal("message_dispatch has no Only filter; every school gets a job every minute")
+		}
+		return
+	}
+	t.Fatal("no message_dispatch entry")
+}

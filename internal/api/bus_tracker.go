@@ -1506,6 +1506,82 @@ busTrackerHeartbeatHandler is how the office knows the phone is alive.
 	would show a healthy tracker and an absent bus and offer no connection
 	between the two.
 */
+// Bounds on the interval the heartbeat may ask for when nothing is running.
+// See busTrackerIdleHeartbeat.
+const (
+	busTrackerNightHeartbeat = 900
+	busTrackerIdleHeartbeat  = 300
+	busTrackerNightStartMin  = 21 * 60   // 21:00 IST
+	busTrackerNightEndMin    = 5*60 + 30 // 05:30 IST
+	busTrackerWindowSlackMin = 30        // either side of the timetabled run
+)
+
+/*
+busTrackerHeartbeatSeconds is how long a phone with nothing to do should sleep.
+
+	The heartbeat is the tracker's only traffic between runs, and between runs
+	is most of the day: a depot handset beats every sixty seconds from the
+	moment it is paired until it is unpaired, all night, all weekend and all
+	holiday. On Cloud Run with a database that suspends when idle, that one
+	request a minute per phone is what keeps both awake, and it buys nothing --
+	location_ok on a parked bus at three in the morning is not news anybody
+	acts on before dawn.
+
+	Zero means "no opinion, use your own cadence", and it is returned whenever
+	the phone might be about to matter:
+
+	  a trip is open        -- the bus is running. Nothing here applies.
+	  inside a route window -- the timetable says a run is due within half an
+	                           hour either side, so a driver may press Start at
+	                           any moment and the office may need to reach him.
+	  no timetable at all   -- a school that has entered no pickup or drop
+	                           times has told us nothing about when its buses
+	                           run, and guessing "idle" over a real run would
+	                           be a driver whose cancelled-run notice arrives
+	                           five minutes late. Only the night floor applies.
+
+	The window is read from route_stops, which is where a school's runs are
+	already written down for the fare and the roll. It is one aggregate over a
+	small table, and only on the heartbeats that have already established no
+	trip is open.
+
+	Returned in a field of its own rather than in ping_seconds, which the app
+	stores and reuses as its *collection* cadence: telling an idle phone
+	ping_seconds=300 would mean the first fixes of the next run were 300 s
+	apart, and the map five minutes behind a bus full of children. ping_seconds
+	keeps meaning what it has always meant.
+*/
+func busTrackerHeartbeatSeconds(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
+	now time.Time, tripOpen bool) (int, error) {
+	if tripOpen {
+		return 0, nil
+	}
+	local := now.In(indiaTZ())
+	minutes := local.Hour()*60 + local.Minute()
+	if minutes >= busTrackerNightStartMin || minutes < busTrackerNightEndMin {
+		return busTrackerNightHeartbeat, nil
+	}
+
+	var first, last *int
+	if err := tx.QueryRow(ctx, `
+		SELECT MIN(EXTRACT(epoch FROM t)::int / 60),
+		       MAX(EXTRACT(epoch FROM t)::int / 60)
+		  FROM route_stops rs,
+		       LATERAL (VALUES (rs.pickup_time), (rs.drop_time)) AS v(t)
+		 WHERE rs.institution_id = $1 AND v.t IS NOT NULL`, inst).
+		Scan(&first, &last); err != nil {
+		return 0, err
+	}
+	if first == nil || last == nil {
+		// No timetable. Say nothing rather than guess.
+		return 0, nil
+	}
+	if minutes >= *first-busTrackerWindowSlackMin && minutes <= *last+busTrackerWindowSlackMin {
+		return 0, nil
+	}
+	return busTrackerIdleHeartbeat, nil
+}
+
 func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	dev := busTrackerFrom(r.Context())
 	var req busTrackerHeartbeat
@@ -1514,6 +1590,7 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 	}
 	var ping int
 	var paused bool
+	var heartbeatSeconds int
 	notices := []driverNotice{}
 	err := s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
@@ -1534,16 +1611,40 @@ func (s *Server) busTrackerHeartbeatHandler(w http.ResponseWriter, r *http.Reque
 		// poll of their own: it already runs whether or not a trip is open,
 		// which is exactly when "come back, the run is cancelled" is sent.
 		var err error
-		notices, err = pendingDriverNotices(r, tx, dev)
+		if notices, err = pendingDriverNotices(r, tx, dev); err != nil {
+			return err
+		}
+
+		/* Whether anything is running, for the phone's own cadence below.
+		   Any open trip on this school's buses, not only this handset's: a
+		   relief driver's phone paired to the depot is still the phone the
+		   office reaches, and a school with buses out is a school whose
+		   trackers should stay responsive. */
+		var running bool
+		if err := tx.QueryRow(r.Context(), `
+			SELECT EXISTS (SELECT 1 FROM vehicle_trips
+			                WHERE institution_id = $1 AND ended_at IS NULL)`,
+			dev.Institution).Scan(&running); err != nil {
+			return err
+		}
+		heartbeatSeconds, err = busTrackerHeartbeatSeconds(
+			r.Context(), tx, dev.Institution, time.Now(), running)
 		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{
+	body := map[string]any{
 		"ping_seconds": ping, "paused": paused, "notices": notices,
-	})
+	}
+	// Omitted rather than sent as zero when the server has no opinion, so an
+	// app that reads the field can treat "absent" and "use your own rule" as
+	// the same thing.
+	if heartbeatSeconds > 0 {
+		body["heartbeat_seconds"] = heartbeatSeconds
+	}
+	httpx.JSON(w, http.StatusOK, body)
 }
 
 // --- mounting ----------------------------------------------------------------

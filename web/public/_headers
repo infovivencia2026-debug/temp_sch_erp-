@@ -9,6 +9,38 @@
 /index.html
   Cache-Control: no-cache, must-revalidate
 
+# The server-rendered pages' stylesheet and fonts, mirrored from internal/static
+# so /login does not wake Cloud Run for three files. Immutable is safe because
+# the templates put the file's content hash on the href; the mirror must stay in
+# step for that to remain true (see web/public/static/README.md, and `make lint`).
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Map tiles. Fetched dozens at a time by the bus map and never revised in place
+# — a re-cut set is a new deployment — so a week, immutable, keeps a warden who
+# watches the morning run from re-fetching the same square every pan.
+/tiles/*
+  Cache-Control: public, max-age=604800, immutable
+
+# The PWA icons and manifest. Not immutable: the manifest is how a change of
+# name or theme reaches an installed app, and it must be allowed to expire.
+/app/*
+  Cache-Control: public, max-age=604800
+
+# The APKs and their pages. A day, because publishing a build replaces the file
+# at the same name and a handset should not be a week behind the fix.
+/download/*
+  Cache-Control: public, max-age=86400
+
+# The sign-in wallpaper: one name, one picture, changed only by a deployment.
+/wallpaper.png
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts, wherever they are served from. The bytes behind a .woff2 name never
+# change; a new weight is a new file.
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
 /sw.js
   Cache-Control: no-cache, must-revalidate
 

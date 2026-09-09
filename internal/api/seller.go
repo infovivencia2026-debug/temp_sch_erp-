@@ -375,6 +375,9 @@ func (s *Server) setSubscription(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// The paywall holds this school's standing for a minute. A seller who has
+	// just taken payment should not watch it stay locked for any of it.
+	entitlement.Invalidate(instID)
 	httpx.JSON(w, http.StatusOK, map[string]any{"institution_id": instID.String()})
 }
 
@@ -398,6 +401,7 @@ func (s *Server) resetTenantAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var name, signIn string
+	var adminID uuid.UUID
 	err = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
 			UPDATE users SET password_hash = $2, status = 'active'
@@ -407,8 +411,8 @@ func (s *Server) resetTenantAdmin(w http.ResponseWriter, r *http.Request) {
 			     JOIN roles r ON r.id = ur.role_id
 			    WHERE u.institution_id = $1 AND r.key = 'institution_admin'
 			    ORDER BY u.created_at LIMIT 1)
-			 RETURNING full_name, COALESCE(username::text, email::text, phone, '')`,
-			instID, hash).Scan(&name, &signIn)
+			 RETURNING id, full_name, COALESCE(username::text, email::text, phone, '')`,
+			instID, hash).Scan(&adminID, &name, &signIn)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.BadRequest(w, r, "that school has no administrator to reset")
@@ -418,6 +422,9 @@ func (s *Server) resetTenantAdmin(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// "The previous password no longer works" has to be true of the cookie
+	// already signed in on it, not only of the next sign-in attempt.
+	s.forgetUser(adminID)
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"admin_name": name, "sign_in_as": signIn, "password": password,
 		"note": "Shown once. The previous password no longer works.",

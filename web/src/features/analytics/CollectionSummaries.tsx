@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import { CsvButton } from './shared'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /**
  * Fee collection summaries — the day book an accountant prints and signs.
@@ -41,7 +42,8 @@ const BASE = '/api/v1/rollups/fees/collections'
 export default function CollectionSummaries() {
   const [range, setRange] = useRange()
   const [group, setGroup] = useState('day')
-  const q = rangeQuery(range)
+  // Four queries hang off one range; a typed date settles before any of them ask.
+  const q = useDebouncedValue(rangeQuery(range))
 
   const presets = useQuery({
     queryKey: ['date-ranges'],

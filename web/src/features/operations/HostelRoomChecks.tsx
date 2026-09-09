@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, IndianRupee, Trash2 } from 'lucide-react'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* The room handover.
 
@@ -120,10 +121,7 @@ export default function HostelRoomChecks() {
     queryKey: ['hostel-occupancy'],
     queryFn: () => api.get<List<Room>>('/api/v1/ops/hostel/occupancy'),
   })
-  const students = useQuery({
-    queryKey: ['students', 'room-checks'],
-    queryFn: () => api.get<List<Student>>('/api/v1/students?limit=300'),
-  })
+  const students = useStudentRoster()
   const list = useQuery({
     queryKey: ['room-checks', kind],
     queryFn: () => api.get<List<Check>>(`/api/v1/ops/hostel/room-checks?kind=${kind}`),

@@ -9,6 +9,7 @@ import {
   Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, PrintButton,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* The rest of a librarian's year.
 
@@ -173,10 +174,7 @@ function Holds({ rows }: { rows: Reservation[] }) {
     queryKey: ['library-titles'],
     queryFn: () => api.get<List<Title>>('/api/v1/ops/library/titles'),
   })
-  const students = useQuery({
-    queryKey: ['students', 'for-holds'],
-    queryFn: () => api.get<List<{ id: string; full_name: string }>>('/api/v1/students?limit=300'),
-  })
+  const students = useStudentRoster<{ id: string; full_name: string }>()
 
   const place = useMutation({
     mutationFn: () =>

@@ -89,7 +89,9 @@ export default function PortalFees() {
         `/api/v1/portal/fees/pay?student_id=${child}`, v),
     onSuccess: (r) => {
       setPaid(`Paid. Receipt ${r.receipt_no}. This was a test payment — no money was taken.`)
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['portal-fees', child] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
     },
     onError: () => setPaid(''),
   })

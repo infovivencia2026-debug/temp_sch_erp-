@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Pill, Stethoscope } from 'lucide-react'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* The nurse's day: who came in, and what they were given.
 
@@ -104,12 +105,7 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function useStudents() {
-  return useQuery({
-    queryKey: ['students', 'clinic'],
-    queryFn: () => api.get<List<Student>>('/api/v1/students?limit=300'),
-  })
-}
+const useStudents = () => useStudentRoster()
 
 export default function InfirmaryClinic() {
   const [tab, setTab] = useState<'visits' | 'doses'>('visits')

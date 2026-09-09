@@ -5,10 +5,12 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
+  Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
+import { invalidateKeys } from '@/lib/invalidate'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* Joining and leaving.
 
@@ -125,12 +127,7 @@ const TABS = [
 const rupees = (p: number) => (p / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })
 const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 
-function useEmployees() {
-  return useQuery({
-    queryKey: ['employees', 'lifecycle'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=300'),
-  })
-}
+const useEmployees = () => useEmployeeRoster<Employee>()
 
 export default function Lifecycle() {
   const can = useCan()
@@ -173,7 +170,7 @@ export default function Lifecycle() {
 
             The same component, not a second implementation — it appoints the
             person, issues the login and hands over the password once. */}
-        {can('hr.employees.write') && <AddStaff onDone={() => qc.invalidateQueries()} />}
+        {can('hr.employees.write') && <AddStaff onDone={() => invalidateKeys(qc, [['employees'], ['hr'], ['setup-status']])} />}
 
         <CellGrid cols={4}>
           <Stat label="Files incomplete" value={unverified.length} icon={ClipboardCheck}
@@ -481,16 +478,13 @@ function ExitDetail({ exit }: { exit: Exit }) {
       <Card>
         <CardHeader title="Departmental clearance"
           description="Each department states what is outstanding before the money moves. Dues recorded here are deducted from the settlement, and the settlement is refused while any department is unsigned." />
-        {clearances.isLoading ? (
-          <SkeletonTable columns={6} label="Reading the checklist…" />
-        ) : (
-          <Table head={['Department', 'Status', 'Dues', 'Note', 'Signed', '']}
-            empty={(clearances.data?.items ?? []).length === 0}>
-            {(clearances.data?.items ?? []).map((c) => (
-              <ClearanceLine key={c.id} row={c} onSign={(v) => sign.mutate(v)} />
-            ))}
-          </Table>
-        )}
+        <Table loading={clearances.isLoading} head={['Department', 'Status', 'Dues', 'Note', 'Signed', '']}
+          empty={(clearances.data?.items ?? []).length === 0}>
+          {(clearances.data?.items ?? []).map((c) => (
+            <ClearanceLine key={c.id} row={c} onSign={(v) => sign.mutate(v)} />
+          ))}
+        </Table>
+
         <div className="border-t p-5">
           <FormNotice error={sign.error} />
         </div>
@@ -683,28 +677,25 @@ function LettersTab() {
     <Card>
       <CardHeader title="Letters issued"
         description="From the same serial series as a student's transfer certificate, so a serial can never be handed out twice." />
-      {letters.isLoading ? (
-        <SkeletonTable columns={6} />
-      ) : (
-        <Table head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
-          emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is relieved.">
-          {rows.map((c) => (
-            <tr key={c.serial_no}>
-              <Td className="font-medium tabular-nums">{c.serial_no}</Td>
-              <Td>{c.type}</Td>
-              <Td>{c.full_name}</Td>
-              <Td className="text-muted-foreground">{c.issued_on}</Td>
-              <Td><Badge tone="success">{c.status}</Badge></Td>
-              <Td>
-                <Button size="sm" variant="ghost"
-                  onClick={() => { printed.mutate(c.serial_no); window.print() }}>
-                  Print
-                </Button>
-              </Td>
-            </tr>
-          ))}
-        </Table>
-      )}
+      <Table loading={letters.isLoading} head={['Serial', 'Letter', 'Employee', 'Issued', 'Status', '']} empty={rows.length === 0}
+        emptyLabel="No letters issued yet. Write one above, or they are generated when an exit is relieved.">
+        {rows.map((c) => (
+          <tr key={c.serial_no}>
+            <Td className="font-medium tabular-nums">{c.serial_no}</Td>
+            <Td>{c.type}</Td>
+            <Td>{c.full_name}</Td>
+            <Td className="text-muted-foreground">{c.issued_on}</Td>
+            <Td><Badge tone="success">{c.status}</Badge></Td>
+            <Td>
+              <Button size="sm" variant="ghost"
+                onClick={() => { printed.mutate(c.serial_no); window.print() }}>
+                Print
+              </Button>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+
     </Card>
 
     {(prints.data?.items.length ?? 0) > 0 && (

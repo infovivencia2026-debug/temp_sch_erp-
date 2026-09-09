@@ -1,0 +1,333 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================================================
+   Premium editorial SaaS — Swiss typography, off-white canvas, thin structural
+   rules, one strategic accent.
+
+   The rules of this system, in order of importance:
+     1. type carries the design, so headings are large and *medium* weight —
+        oversized-and-bold reads as advertising, oversized-and-medium reads as
+        considered,
+     2. depth comes from spacing, borders and surface tone, never shadow,
+     3. the accent appears on actions and status only, never decoratively,
+     4. borders are 1px hairlines doing structural work, not outlines.
+   =========================================================================== */
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --background: 140 12% 97%;      /* #F6F8F7 — off-white, not clinical white */
+    --foreground: 0 0% 7%;          /* #111111 */
+
+    --card: 140 14% 98%;            /* #F8FAF8 — barely lifts off the canvas */
+    --card-foreground: 0 0% 7%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+
+    /* Mint. Strategic, never environmental. */
+    --primary: 163 68% 65%;         /* #68E5C2 */
+    --primary-foreground: 0 0% 7%;
+
+    --ink: 0 0% 7%;                 /* solid CTAs are near-black, not mint */
+    --ink-foreground: 0 0% 100%;
+
+    --secondary: 140 10% 95%;
+    --secondary-foreground: 0 0% 8%;
+
+    --muted: 140 10% 95%;
+    --muted-foreground: 120 2% 42%; /* #686B68 */
+
+    --accent: 140 12% 94%;
+    --accent-foreground: 0 0% 8%;
+
+    --destructive: 0 62% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 163 60% 40%;
+    --warning: 35 80% 45%;
+
+    --border: 140 8% 88%;           /* #DDE2DF */
+    --input: 140 8% 88%;
+    --ring: 163 68% 55%;
+
+    --radius: calc(0.75rem * var(--radius-scale, 1));
+    --ground: 140 12% 97%;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --background: 150 6% 7%;
+    --foreground: 0 0% 96%;
+
+    --card: 150 5% 9%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 150 5% 10%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 163 60% 60%;
+    --primary-foreground: 150 6% 7%;
+
+    --ink: 0 0% 96%;
+    --ink-foreground: 150 6% 7%;
+
+    --secondary: 150 4% 14%;
+    --secondary-foreground: 0 0% 96%;
+
+    --muted: 150 4% 14%;
+    --muted-foreground: 140 3% 62%;
+
+    --accent: 150 4% 14%;
+    --accent-foreground: 0 0% 96%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 4% 17%;
+    --input: 150 4% 17%;
+    --ring: 163 60% 50%;
+
+    --ground: 150 6% 7%;
+  }
+
+  * { border-color: hsl(var(--border)); }
+
+  html, body, #root { height: 100%; }
+
+  body {
+    background: hsl(var(--ground));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Every figure here is data — proportional digits make a column ripple. */
+  :where(body) { font-variant-numeric: tabular-nums; }
+
+  /* The heart of the system. Large type at medium weight with tight tracking;
+     the negative tracking is what makes oversized text read as compact and
+     premium rather than as a poster. */
+  h1 { font-weight: 500; letter-spacing: -0.035em; line-height: 1.0; }
+  h2 { font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; }
+  h3 { font-weight: 500; letter-spacing: -0.015em; }
+
+  :where(p, span, td, dd, h1, h2, h3, li) { overflow-wrap: anywhere; }
+  html, body { overflow-x: clip; max-width: 100%; }
+
+  /* Rules, not boxes. Horizontal hairlines only — vertical gridlines make a
+     list read as a spreadsheet. */
+  table { border-collapse: collapse; }
+  :where(table) :where(th, td) { border: 0; border-bottom: 1px solid hsl(var(--border)); }
+  :where(table) :where(tr:last-child) :where(td) { border-bottom: 0; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: calc(999px * var(--radius-scale, 1));
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  * { -webkit-tap-highlight-color: transparent; }
+  button, [role="button"], summary {
+    -webkit-user-select: none; user-select: none; touch-action: manipulation;
+  }
+
+  /* Icons are functional, not decorative. */
+  svg { stroke-width: 1.5; }
+}
+
+@layer components {
+  /* A card is a tone shift and a hairline. No shadow — depth is spacing. */
+  .card {
+    position: relative;
+    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    transition: border-color 400ms cubic-bezier(.16, 1, .3, 1);
+  }
+  .card.overflow-visible { overflow: visible; }
+  .bento-interactive:hover { border-color: hsl(var(--foreground) / 0.22); }
+
+  /* Only floating layers get shadow, and barely. */
+  .float {
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    box-shadow: 0 8px 30px rgb(20 30 25 / 0.06), 0 24px 60px -30px rgb(20 30 25 / 0.10);
+  }
+
+  .chrome {
+    background: hsl(var(--background) / 0.88);
+    backdrop-filter: blur(10px);
+    border-color: hsl(var(--border));
+  }
+
+  .surface { background: hsl(var(--card)); }
+  .muted { color: hsl(var(--muted-foreground)); }
+  .hairline { border: 1px solid hsl(var(--border)); }
+
+  /* ================================================= UI 3 Skin (Glassmorphism) */
+  [data-skin="ui-3"] .card {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(16, 185, 129, 0.18);
+    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  }
+  .dark[data-skin="ui-3"] .card,
+  [data-skin="ui-3"] .dark .card {
+    background: rgba(16, 24, 21, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(16, 185, 129, 0.22);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+  [data-skin="ui-3"] .bento-interactive:hover {
+    border-color: rgba(16, 185, 129, 0.45);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -6px rgba(16, 185, 129, 0.22);
+  }
+  [data-skin="ui-3"] .chrome {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+  .dark[data-skin="ui-3"] .chrome {
+    background: rgba(12, 18, 16, 0.85);
+    backdrop-filter: blur(16px);
+    border-color: rgba(16, 185, 129, 0.25);
+  }
+
+  /* An affordance revealed on hover does not exist on a touch screen. Mark it
+     with this instead of opacity-0 + group-hover and it is simply always there
+     where there is no pointer to hover with. */
+  .touch-reveal { @apply opacity-0 transition-opacity duration-150; }
+  .group:hover .touch-reveal, .group:focus-within .touch-reveal { opacity: 1; }
+  @media (hover: none) { .touch-reveal { opacity: 1; } }
+
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2;
+    --tw-ring-offset-color: hsl(var(--background));
+  }
+
+  /* The focus floor for every interface.
+     .focus-ring above is opt-in and compiles outline-none to a *transparent*
+     outline, so any control that missed the class — or carried it without the
+     ring resolving — had no keyboard focus indicator at all. This gives one to
+     everything focusable, in each interface's own accent, and sits after the
+     helper in the same layer so it is the one that lands. Anything that draws
+     its own opts out with data-plain-focus. */
+  a[href]:not([data-plain-focus]):focus-visible,
+  button:not([data-plain-focus]):focus-visible,
+  input:not([data-plain-focus]):focus-visible,
+  select:not([data-plain-focus]):focus-visible,
+  textarea:not([data-plain-focus]):focus-visible,
+  summary:not([data-plain-focus]):focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible,
+  [role="button"]:not([data-plain-focus]):focus-visible,
+  [role="tab"]:not([data-plain-focus]):focus-visible,
+  [role="menuitem"]:not([data-plain-focus]):focus-visible,
+  [role="option"]:not([data-plain-focus]):focus-visible {
+    /* currentColor first: if an interface leaves --ring unset the hsl() below
+       is invalid and dropped, and this is what remains — a ring in the
+       control's own text colour rather than no ring at all. */
+    outline: 2px solid currentColor;
+    outline-color: hsl(var(--ring));
+    outline-offset: 2px;
+    /* Controls carrying transition-all faded their ring in over 300ms, which
+       reads as no response to the keypress. A focus indicator has to be there
+       in the same frame as the focus. */
+    transition: none;
+  }
+
+  .field {
+    @apply w-full h-11 rounded-lg px-3.5 text-[14px] focus-ring;
+    border: 1px solid hsl(var(--input));
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    transition: border-color 300ms cubic-bezier(.16, 1, .3, 1);
+  }
+  .field::placeholder { color: hsl(var(--muted-foreground) / 0.65); }
+  .field:hover { border-color: hsl(var(--foreground) / 0.2); }
+
+  .scroll-x { @apply overflow-x-auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+
+  /* ---------------------------------------------------------- Editorial type */
+
+  /* The micro-label that precedes a headline. Editorial context-setting. */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Section numbering — the industrial-catalogue signature. Small and light,
+     never a giant decorative numeral. */
+  .section-no {
+    font-size: 12px;
+    font-weight: 400;
+    color: hsl(var(--muted-foreground));
+    font-variant-numeric: tabular-nums;
+  }
+  .section-no::before { content: "/ "; opacity: .5; }
+
+  .display   { font-size: clamp(2rem, 4.2vw, 3.25rem); font-weight: 500; letter-spacing: -0.038em; line-height: 1.0; }
+  .display-2 { font-size: clamp(1.5rem, 2.6vw, 2.125rem); font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; }
+
+  /* Editorial pacing. One idea gets room to be one idea. */
+  .section { padding-block: clamp(3rem, 7vw, 6.5rem); }
+  .stack   { display: flex; flex-direction: column; gap: clamp(2.5rem, 5vw, 4.5rem); }
+}
+
+/* Reveal on scroll: fade and a short rise, on the easing that makes motion
+   feel expensive. Anything more (bounce, parallax, particles) fights the type. */
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: reveal 800ms cubic-bezier(.16, 1, .3, 1) forwards;
+  }
+  .reveal-1 { animation-delay: 60ms }
+  .reveal-2 { animation-delay: 120ms }
+  .reveal-3 { animation-delay: 180ms }
+}
+@keyframes reveal { to { opacity: 1; transform: none } }
+
+/* Density. Comfortable is the editorial default — air is the point. */
+[data-density="compact"] table :where(th, td) { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+[data-density="comfortable"] table :where(th, td) { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+
+/* The identity column stays put when a wide table scrolls sideways. */
+.sticky-identity { position: sticky; background: hsl(var(--card)); }
+tr:hover > .sticky-identity { background: hsl(var(--accent) / 0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; animation: none }
+  * { transition-duration: 0.01ms !important }
+}
+
+/* 767.98px, not 640: DataTable swaps to its card layout at md, so anything
+   below 768 is the phone layout and needs the phone rules. */
+@media (max-width: 767.98px) {
+  input, select, textarea { font-size: 16px }
+  button, [type="submit"], [type="button"], select,
+  input[type="date"], input[type="datetime-local"] { min-height: 44px }
+}
+
+@media print {
+  .no-print { display: none !important }
+  .print-area { position: static !important; overflow: visible !important }
+  body { background: #fff }
+  .card { box-shadow: none; border: 1px solid #ddd }
+}
+

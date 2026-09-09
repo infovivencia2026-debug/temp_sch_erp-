@@ -1598,13 +1598,77 @@ export function CellError({
   )
 }
 
-export function BentoLoading({ message }: { message: string }) {
+/** One bar of the board's own ink, shimmering, while the figure is on the wire. */
+export function BentoBone({ className }: { className?: string }) {
+  return <div className={cn('skeleton skeleton-ink rounded-[6px]', className)} aria-hidden="true" />
+}
+
+/** A cell whose figure has not arrived: the three rows CardShell lays out —
+    a label, a figure, and the drawing row — as bars instead of content.
+
+    Exported because a board with several queries wants ONE cell waiting, not
+    the whole board; `PersonaCard`'s `loading` prop renders this in place of
+    its own value and drawing. */
+export function BentoCellSkeleton({ span = 'one' }: { span?: CellSpan }) {
   return (
     <div
-      className="bento-surface min-h-full bg-[var(--bento-bg)] p-3 text-[13.5px] text-[var(--bento-muted)] sm:p-4"
+      className={cn(
+        `bento-cell relative flex min-h-[120px] min-w-0 flex-col overflow-hidden
+         rounded-[var(--bento-radius)] border p-4 lg:p-3`,
+        SPAN[span],
+        TONE.plain,
+      )}
+      aria-hidden="true"
+    >
+      <BentoBone className="h-2.5 w-20" />
+      <BentoBone className="mt-3 h-6 w-24" />
+      <div className="mt-auto pt-4">
+        <BentoBone className="h-2 w-full" />
+        <BentoBone className="mt-1.5 h-2 w-4/5" />
+      </div>
+    </div>
+  )
+}
+
+/* THE HOME SCREEN WHILE IT IS STILL A REQUEST.
+ *
+ * This used to be one line of muted text on an otherwise empty board — the
+ * exact thing the owner meant by "most loading just looks blank", and it is
+ * the first screen every single person sees after signing in. Thirteen boards
+ * render it (principal, HOD, faculty, parent, student, finance, HR, ops, IT,
+ * exams, admissions, driver, my work), so the shape is fixed here once rather
+ * than thirteen times.
+ *
+ * The grid it draws is the grid `BentoPage` draws — same columns, same gap,
+ * same radius, same border, one anchor-sized tile at the head — so when the
+ * figures land they land in tiles that were already on screen at the size they
+ * end up. The board stops jumping; it fills in.
+ *
+ * The sentence is kept, in a live region, for anyone who cannot see the bars.
+ */
+export function BentoLoading({ message, tiles = 8 }: { message: string; tiles?: number }) {
+  const spans: CellSpan[] = ['anchor', 'one', 'one', 'wide', 'one', 'one', 'one', 'wide', 'one', 'one']
+  return (
+    <div
+      className="bento-surface h-full w-full flex flex-col p-3 text-[var(--bento-ink)] sm:p-4"
+      role="status"
       aria-busy="true"
     >
-      {message}
+      <p className="sr-only">{message}</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <BentoBone className="h-2.5 w-20" />
+          <BentoBone className="mt-2 h-4 w-44" />
+        </div>
+      </div>
+      <div
+        className="bento-board mt-5 grid grid-cols-1 gap-[var(--bento-gap)] sm:grid-cols-2
+                   lg:flex-1 lg:auto-rows-auto lg:grid-flow-dense lg:grid-cols-5"
+      >
+        {Array.from({ length: tiles }, (_, i) => (
+          <BentoCellSkeleton key={i} span={spans[i % spans.length]} />
+        ))}
+      </div>
     </div>
   )
 }

@@ -12,6 +12,7 @@ import {
   bankingBase, bankingQueryKey, isValidIFSC, isValidAccountNumber,
   type StudentBankAccount,
 } from './banking-lib'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The student bank account register.
 
@@ -46,14 +47,16 @@ export default function StudentBankAccounts() {
   const [search, setSearch] = useState('')
   const [active, setActive] = useState('true')
 
+  const needle = useDebouncedValue(search.trim())
   const q = useQuery({
-    queryKey: [bankingQueryKey, 'student-accounts', search, active],
+    queryKey: [bankingQueryKey, 'student-accounts', needle, active],
     queryFn: () =>
       api.get<List<StudentBankAccount>>(
         `${bankingBase}/student-accounts?active=${active}${
-          search ? `&q=${encodeURIComponent(search)}` : ''
+          needle ? `&q=${encodeURIComponent(needle)}` : ''
         }`,
       ),
+    enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })
 

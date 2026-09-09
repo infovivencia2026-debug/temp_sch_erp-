@@ -14,6 +14,7 @@ import {
   useInventoryItems, usePosSales, usePosSale, PRODUCT_CATEGORIES,
   type DraftLine, type StoreProduct, type StoreVariant, type TillSession,
 } from './collections-lib'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The school store.
 
@@ -221,11 +222,12 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
   const [buyer, setBuyer] = useState('')
   const [receipt, setReceipt] = useState<string | null>(null)
 
+  const needle = useDebouncedValue(search.trim())
   const results = useQuery({
-    queryKey: [collectionsKey, 'student-search', search],
+    queryKey: [collectionsKey, 'student-search', needle],
     queryFn: () =>
-      api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=10`),
-    enabled: search.trim().length >= 2,
+      api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`),
+    enabled: needle.length >= 2,
   })
 
   const byId = useMemo(() => {

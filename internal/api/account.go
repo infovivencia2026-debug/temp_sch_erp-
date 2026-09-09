@@ -150,6 +150,9 @@ func (s *Server) resetUserPassword(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// The old password's sessions were revoked in the database; forget the
+	// identities this process resolved from them.
+	s.forgetUser(target)
 
 	/* WHATEVER IS NOW IN EFFECT COMES BACK, TYPED OR GENERATED.
 

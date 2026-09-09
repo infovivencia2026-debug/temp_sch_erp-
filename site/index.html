@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Vivencia EduCloud — Education ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist:wght@400;450;500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=Alata&family=Barlow:wght@400;500;600;700&family=Josefin+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Figtree:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Bebas+Neue&family=Cinzel:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&family=Jost:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Cormorant:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Apply persisted theme before first paint to avoid flash.
+      try {
+        var t = localStorage.getItem('erp.theme') || '"light"'
+        if (JSON.parse(t) === 'dark') document.documentElement.classList.add('dark')
+        var s = localStorage.getItem('erp.skin') || '"shadcn"'
+        document.documentElement.dataset.skin = JSON.parse(s)
+        var d = localStorage.getItem('erp.density') || '"comfortable"'
+        document.documentElement.dataset.density = JSON.parse(d)
+        // UI-4 repaints the whole page background, so set it before first paint.
+        var u = localStorage.getItem('erp.ui') || '"ui-1"'
+        document.documentElement.dataset.ui = JSON.parse(u)
+        var f = localStorage.getItem('erp.font') || '"inter"'
+        document.documentElement.dataset.font = JSON.parse(f)
+      } catch (e) {}
+    </script>
+  </head>
+  <body class="h-full">
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

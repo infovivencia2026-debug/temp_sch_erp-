@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
    read what they owe, take the money, hand over a printed receipt. Everything
@@ -66,10 +67,11 @@ export default function FeeCounter() {
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
 
+  const needle = useDebouncedValue(search.trim())
   const results = useQuery({
-    queryKey: ['fee-search', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
-    enabled: search.trim().length >= 2,
+    queryKey: ['fee-search', needle],
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
 
@@ -90,7 +92,9 @@ export default function FeeCounter() {
       setPenaltyAmount('')
       setPenaltyReason('')
       // The bill, the balance and the family's copy all move together.
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['fee-ledger', studentId] })
+      qc.invalidateQueries({ queryKey: ['finance-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
       toast.ok('Penalty added. The family has been told.')
     },
   })
@@ -169,24 +173,23 @@ export default function FeeCounter() {
             }
           />
           {search.trim().length >= 2 && (
-            results.isLoading ? <SkeletonTable columns={4} /> : (
-              <Table head={['Admission no.', 'Name', 'Class', '']} empty={!results.data?.items.length}
-                emptyLabel="No student matches that search.">
-                {(results.data?.items ?? []).map((s) => (
-                  <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
-                    <Td className="font-mono text-[12px]">{s.admission_no}</Td>
-                    <Td className="font-medium">{s.full_name}</Td>
-                    <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
-                    <Td>
-                      <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
-                        onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
-                        {s.id === studentId ? 'Selected' : 'Select'}
-                      </Button>
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
-            )
+            <Table loading={results.isLoading} loadingRows={4} head={['Admission no.', 'Name', 'Class', '']} empty={!results.data?.items.length}
+              emptyLabel="No student matches that search.">
+              {(results.data?.items ?? []).map((s) => (
+                <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
+                  <Td className="font-mono text-[12px]">{s.admission_no}</Td>
+                  <Td className="font-medium">{s.full_name}</Td>
+                  <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
+                  <Td>
+                    <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
+                      onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
+                      {s.id === studentId ? 'Selected' : 'Select'}
+                    </Button>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
           )}
         </Card>
 

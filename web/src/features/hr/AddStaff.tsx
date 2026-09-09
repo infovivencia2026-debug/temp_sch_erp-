@@ -9,6 +9,7 @@ import RoleSelect from '@/components/RoleSelect'
 import { Select } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { type List } from '@/lib/api'
+import { ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
 
 /* Appointing somebody, from the HR account.
  *
@@ -127,7 +128,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
       return made
     },
     onSuccess: () => {
-      qc.invalidateQueries()
+      void invalidateKeys(qc, [...ROSTER_KEYS, ['sections'], ['class-subjects'], ['setup-status'], ['attention']])
       const where = sectionID && section
         ? ` — ${section.class_name}-${section.name}${classTeacher ? ', as its class teacher' : ''}`
         : ''

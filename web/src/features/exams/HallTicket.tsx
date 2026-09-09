@@ -136,7 +136,11 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
 
   const allocate = useMutation({
     mutationFn: () => api.post('/api/v1/exams/seats/allocate', { exam_id: examId }),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hall-plan', examId] })
+      qc.invalidateQueries({ queryKey: ['hall-ticket', examId] })
+      qc.invalidateQueries({ queryKey: ['exams'] })
+    },
   })
 
   const seats = plan.data?.items ?? []

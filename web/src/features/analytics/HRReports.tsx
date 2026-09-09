@@ -6,6 +6,7 @@ import {
   RangePicker, rangeQuery, useRange, type RangeOption, rangeLabel,
 } from '@/components/ui'
 import { CsvButton, pct, goodPct } from './shared'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /**
  * HR reports — headcount, movement, attendance and what has to be renewed.
@@ -48,7 +49,7 @@ const EXPIRIES = '/api/v1/rollups/hr/expiries'
 
 export default function HRReports() {
   const [range, setRange] = useRange()
-  const q = rangeQuery(range)
+  const q = useDebouncedValue(rangeQuery(range))
 
   const presets = useQuery({
     queryKey: ['date-ranges'],

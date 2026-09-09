@@ -16,7 +16,7 @@ import {
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
 import { useRecents } from '@/lib/recents'
-import { featureIcon } from './feature-icons'
+import { FeatureGlyph } from '@/components/FeatureGlyph'
 import { usePins, togglePin } from '@/lib/pins'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
@@ -46,12 +46,14 @@ const MOTION_MS = 200
    launcher notices which (recents) and lets them say which (pins), and the
    two rows are kept apart because a curated row must not reorder itself.
 
-   A MARK PER WORKSPACE, A MONOGRAM PER FEATURE. The catalogue carries no
-   icon per feature and inventing sixty-five for concepts that do not have one
-   ("Working Days & Instructional Hours") would be a wall of near-identical
-   shapes. So the plate shows the feature's initials, in a tint of its
-   workspace's colour, with the workspace's mark in the corner: the family is
-   legible from across the room and the member is legible up close.
+   AN ICON PER FEATURE, A MARK PER WORKSPACE. The plate used to show the
+   feature's two initials, because the catalogue carries no icon and nobody
+   wanted to draw sixty-five. Initials are not a picture: a grid of them is
+   read word by word, which is the slow path the launcher exists to avoid.
+   Every slug now names a Material Symbol (feature-icons.tsx, with a test that
+   fails the day one does not), drawn in a tint of its workspace's colour with
+   the workspace's mark in the corner: the family is legible from across the
+   room and the member is legible up close.
 
    OPERABLE FROM THE KEYBOARD. Typing filters, the arrows walk the grid in
    two dimensions, Enter opens, Escape leaves. */
@@ -172,28 +174,6 @@ export function hueFor(workspace: string): string {
   let h = 0
   for (let i = 0; i < workspace.length; i++) h = (h * 31 + workspace.charCodeAt(i)) >>> 0
   return DOMAINS[h % DOMAINS.length]
-}
-
-/* Two letters for a feature that has no icon.
-
-   The first letters of the first two words that carry meaning — "Fee
-   Dashboard" is FD, "Working Days & Instructional Hours" is WD — and the
-   first two letters of a one-word name, so "Fees" is Fe rather than a lone F
-   that six other features would share. The little words are skipped only
-   when there is something else to use: "Of Note" is still ON. */
-const SMALL = new Set(['and', 'of', 'the', 'for', 'to', 'a', 'an', 'in', 'on', 'by', 'or', 'my'])
-
-export function monogram(label: string): string {
-  const words = label.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
-  if (!words.length) return '·'
-  if (words.length === 1) return capitalise(words[0].slice(0, 2))
-  const meaningful = words.filter((w) => !SMALL.has(w.toLowerCase()))
-  const use = meaningful.length >= 2 ? meaningful : words
-  return (use[0][0] + use[1][0]).toUpperCase()
-}
-
-function capitalise(s: string) {
-  return s[0].toUpperCase() + s.slice(1)
 }
 
 /** The name cut around the first match, so the launcher can underline what
@@ -732,7 +712,7 @@ export function BentoLauncher({
                 const Mark = markFor(g.name)
                 return (
                   <section key={g.name} className="lch-section" data-band="all" data-workspace={g.name}>
-                    <Label icon={Mark} label={g.name} />
+                    <Label icon={Mark} label={g.name} tint={hueFor(g.name)} />
                     {draw(slots.filter((s) => s.id.startsWith('all:') && s.r.workspace === g.name))}
                   </section>
                 )
@@ -872,47 +852,20 @@ function Tile({
           setMenuFor(menuOpen ? null : slot.id)
         }}
       >
-        {/* The plate takes a tint of its workspace's colour and chooses its
-            own ink against that tint, the way every surface here does. The
-            monogram is moved toward that ink so it is a shape and not a
-            stain: the default palette's domain colours ARE its card colours,
-            and drawn neat on a plate mixed from the same colour they
-            measured 1.0-1.9:1. */}
-        <span
+        {/* The plate: a round disc tinted 14% from the workspace colour on
+            the theme's paper, and the feature's Material Symbol in the
+            workspace colour. Every feature has one -- see feature-icons.tsx,
+            whose test fails the day a slug does not -- so no plate ever
+            falls back to two letters. The workspace's own mark sits in the
+            corner so a tile still says which family it is once the eye has
+            left the heading. */}
+        <FeatureGlyph
+          slug={r.slug}
+          section={r.sectionSlug}
+          tint={hue}
           className="lch-plate"
-          aria-hidden="true"
-          style={
-            {
-              '--plate': `color-mix(in srgb, var(--dom-${hue}) 30%, var(--bento-card))`,
-              '--ink-here': 'hsl(from var(--plate) 0 0% clamp(0%, (49 - l) * 100%, 100%))',
-              color: `color-mix(in srgb, var(--dom-${hue}) 40%, var(--ink-here))`,
-            } as CSSProperties
-          }
+          style={{ '--size': 'var(--lch-plate)' } as CSSProperties}
         >
-          {/* THE DRAWING WHERE THERE IS ONE, THE INITIALS WHERE THERE IS NOT.
-           *
-           * Nine of this role's fifty-four features shared their monogram
-           * with another -- Academic Performance and Admissions Pipeline are
-           * both AP, and sit in Students together -- so for a sixth of the
-           * grid the plate pointed at the wrong screen. A drawing cannot
-           * collide with another drawing.
-           *
-           * Falling back rather than requiring one: 321 features exist and a
-           * mark invented for "Working Days & Instructional Hours" would be
-           * another document-with-something, which is worse than two letters.
-           * See feature-icons.tsx. */}
-          {featureIcon(r.slug) ? (
-            <svg
-              className="lch-glyph"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              /* The paths are ours, from the registry beside this file, and
-                 never from the catalogue or any other input. */
-              dangerouslySetInnerHTML={{ __html: featureIcon(r.slug) as string }}
-            />
-          ) : (
-            <span className="lch-mono">{monogram(r.name)}</span>
-          )}
           <span className="lch-plate-mark" title={r.workspace}>
             <Mark aria-hidden="true" />
           </span>
@@ -921,7 +874,7 @@ function Tile({
               <Pin aria-hidden="true" />
             </span>
           )}
-        </span>
+        </FeatureGlyph>
         <span className="lch-name">
           {pieces.map((p, i) =>
             p.hit ? <mark key={i} className="lch-hl">{p.text}</mark> : <Fragment key={i}>{p.text}</Fragment>,
@@ -966,9 +919,18 @@ function Tile({
 /** One label treatment for every band, so pinned, recents, results and
     workspaces read as the same kind of thing rather than four inventions.
     Quiet on purpose: the tiles are the content. */
-function Label({ icon: Icon, label }: { icon: typeof Home; label: string }) {
+function Label({ icon: Icon, label, tint }: { icon: typeof Home; label: string; tint?: string }) {
   return (
-    <h3 className="lch-label">
+    <h3
+      className="lch-label"
+      /* The category's own colour, where there is a category. Pinned,
+         recents and results are ways of gathering features rather than
+         families of them, so they keep the quiet ink and only a workspace
+         heading is coloured -- which is the whole of what colour now says on
+         this screen. */
+      style={tint ? ({ '--t': `var(--dom-${tint}, hsl(var(--primary)))` } as CSSProperties) : undefined}
+      data-tinted={tint ? '' : undefined}
+    >
       <Icon aria-hidden="true" />
       <span>{label}</span>
     </h3>

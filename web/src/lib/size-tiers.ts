@@ -25,7 +25,16 @@
 
 export type SizeTier = 'small' | 'medium' | 'large' | 'wide'
 
-export const TIERS: readonly SizeTier[] = ['small', 'medium', 'large', 'wide'] as const
+/* WIDE IS STILL A SHAPE, IT IS NO LONGER A CHOICE.
+
+   Three columns of a five-column board is most of a row for a card that is
+   usually a single figure, and the picker offered it beside Large without
+   saying what it was for. Taking it out of this list takes it out of every
+   picker at once -- the card menu, the add gallery and the phone -- while the
+   tier itself stays in the type, the dimension tables and `tierOf`, so a
+   board that already has a wide card keeps drawing it at the width it was
+   given rather than silently reshaping somebody's home screen. */
+export const TIERS: readonly SizeTier[] = ['small', 'medium', 'large'] as const
 
 /** The desktop board: five columns, three rows. */
 export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {

@@ -444,7 +444,7 @@ function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boole
   const [body, setBody] = useState('')
   // The main poll above stops with the tab; this one did not, so a hidden map
   // still asked for every bus's notices once a minute for nobody. Same gate.
-  const noticesEvery = useVisibleInterval(open ? 10_000 : 60_000)
+  const noticesEvery = useVisibleInterval(open ? 30_000 : 60_000)
   const notices = useQuery({
     queryKey: ['driver-notices', vehicleId],
     queryFn: () => api.get<List<DriverNotice>>(`/api/v1/transport/vehicles/${vehicleId}/notices`),

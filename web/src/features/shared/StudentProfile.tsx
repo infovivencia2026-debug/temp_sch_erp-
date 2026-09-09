@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
-import { api, type List, type Page, type Student, type Klass, type Section } from '@/lib/api'
+import { api, type List, type Student, type Klass, type Section } from '@/lib/api'
+import { usePagedList } from '@/lib/paged'
 import {
   PageHead, PageBody, Card, CardHeader, FormGrid, Field as FormField, Select, Textarea, FormNotice, Checkbox,
   Table, Td, Badge, Button, Input, Loading, SkeletonTable, ErrorState, EmptyState,
@@ -27,6 +28,7 @@ import MoveSection from './MoveSection'
 import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -202,38 +204,47 @@ export default function StudentProfile() {
      default, which happened to be what the list was testing for. */
   const listing = params.get('list') === '1'
   const browsing = listing || !!classID || !!sectionID || roll !== 'active'
-  const searching = search.trim().length >= 2
-  const results = useQuery({
-    queryKey: ['profile-search', search, classID, sectionID, roll],
-    queryFn: () => {
-      const qs = new URLSearchParams()
-      if (searching) qs.set('q', search.trim())
-      if (sectionID) qs.set('section_id', sectionID)
-      else if (classID) qs.set('class_id', classID)
-      /* The API takes one status. "Left" is four of them — graduated,
-         transferred, withdrawn, alumni — so that view is filtered on the
-         client from everyone rather than by four round trips that would each
-         need their own paging. */
-      if (roll === 'active' || roll === 'new') qs.set('status', 'active')
-      if (roll === 'suspended') qs.set('status', 'suspended')
-      // Served by the API, not filtered here, so the tile and the list cannot
-      // disagree about what "new this year" means.
-      if (roll === 'new') qs.set('new_this_year', '1')
-      /* A whole section is forty children and a whole class is two hundred.
-         Fifteen was right for "the three people called Sharma" and wrong for
-         everything this filter is for, and a list silently cut at fifteen is
-         one somebody reads as the complete roll. */
-      qs.set('limit', browsing ? '300' : '15')
-      return api.get<Page<Student>>(`/api/v1/students?${qs.toString()}`)
-    },
-    /* Kept alive while a child is open, which is what makes Previous and Next
-       possible: the list the arrows walk is the one the filters produced, and
-       re-deriving it on the record would be a second opinion about which
-       children are in this section. */
+  const needle = useDebouncedValue(search.trim())
+  const searching = needle.length >= 2
+  /* THE LIST NO LONGER STOPS WHERE ONE ANSWER STOPPED.
+
+     This asked for `limit=500` and showed what came back. The number was a
+     bet on how big a school gets, and it lost twice: the API clamped 300 to
+     200 in silence, then the bet was raised to 500 and a roll of 4,000 would
+     have lost it again. There is no winning number. A school of a million
+     children has to be able to reach the millionth.
+
+     So it asks for fifty and asks again as the reader moves. The server pages
+     by keyset, so the fiftieth page costs what the first did, and the table
+     below fetches the next one when Next is pressed past the loaded end or
+     when a full-screen scroll reaches the bottom. Nobody has to know: the
+     pager reads "191–200 of 345" and keeps going to 345. */
+  const filters = useMemo(() => {
+    const f: Record<string, string | undefined> = {}
+    if (searching) f.q = needle
+    if (sectionID) f.section_id = sectionID
+    else if (classID) f.class_id = classID
+    /* The API takes one status. "Left" is four of them — graduated,
+       transferred, withdrawn, alumni — so that view is filtered on the
+       client from everyone rather than by four round trips that would each
+       need their own paging. */
+    if (roll === 'active' || roll === 'new') f.status = 'active'
+    if (roll === 'suspended') f.status = 'suspended'
+    // Served by the API, not filtered here, so the tile and the list cannot
+    // disagree about what "new this year" means.
+    if (roll === 'new') f.new_this_year = '1'
+    return f
+  }, [searching, needle, sectionID, classID, roll])
+
+  const results = usePagedList<Student>('/api/v1/students', filters, {
+    /* Fifty, not five hundred. It is the size of one answer, and the only
+       thing it decides is how often the reader waits — never how far they
+       can get. */
+    pageSize: 50,
     enabled: searching || browsing,
-    placeholderData: keepPreviousData,
   })
-  const rows = (results.data?.items ?? [])
+
+  const rows = results.rows
     /* Suspended is not left. A suspended child is still enrolled and still
        has a seat, so they belong on the roll rather than in the list of
        people who have gone. */
@@ -244,6 +255,24 @@ export default function StudentProfile() {
     .filter((x) => (roll === 'left'
       ? x.status !== 'active' && x.status !== 'suspended'
       : true))
+
+  /* THE TILE COUNTS THE SCHOOL, THE LIST COUNTS A PAGE.
+
+     The tile above reads a real count from the server and the header here
+     read `rows.length`, so a school of 345 children opened its own roll and
+     was told there were 200 of them -- the page size, wearing the words "on
+     the roll". Two numbers for one fact on one screen, and the smaller one
+     was the one with the sentence attached.
+
+     `total` is what the server counted over the whole filtered set on the
+     first page, so it stays the honest figure however few pages have loaded.
+     The one view it cannot describe is "left", which asks for everybody and
+     drops the enrolled here, on the client: there the only number anyone can
+     stand behind is the number actually shown -- and that view must not
+     invite the table to keep loading against a count it cannot honour. */
+  const serverTotal = results.total
+  const totalIsOurs = roll !== 'left' && typeof serverTotal === 'number'
+  const countForTitle = totalIsOurs ? (serverTotal as number) : rows.length
 
   const profile = useQuery({
     queryKey: ['student-profile', selected],
@@ -631,9 +660,14 @@ export default function StudentProfile() {
                   it was a filtered subset is the whole risk of this screen. */}
               <CardHeader
                 title={
-                  rows.length + (rows.length === 1 ? ' student' : ' students') +
+                  countForTitle + (countForTitle === 1 ? ' student' : ' students') +
                   (roll === 'left' ? ' who have left' : roll === 'active' ? ' on the roll' : '')
                 }
+                /* The "showing the first 200, choose a section to see the
+                   rest" apology is gone with the thing it apologised for.
+                   The list reaches the whole roll now; the pager underneath
+                   says where in it you are. */
+                description={undefined}
                 action={
                   browsing || searching ? (
                     <Button
@@ -653,7 +687,13 @@ export default function StudentProfile() {
                   first before, which is the thing you look up BY rather than
                   the thing you look FOR. */}
               <Table head={['Student', 'Class / sec', 'Adm no.', 'Date of birth', 'Contact', 'Status', '']}
-                empty={!rows.length}
+                /* The three props that turn ten-at-a-time through what
+                   arrived into ten-at-a-time through the whole roll. */
+                hasMore={results.hasNextPage}
+                loadingMore={results.isFetchingNextPage}
+                onLoadMore={results.fetchNextPage}
+                total={totalIsOurs ? (serverTotal as number) : undefined}
+                empty={!rows.length && !results.isFetchingNextPage}
                 emptyLabel={roll === 'left'
                   ? 'Nobody has been recorded as leaving.'
                   : 'No student matches.'}>

@@ -229,6 +229,10 @@ func (s *Server) transferRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Both accounts changed what they may do, and one of them may have
+	// stopped being able to sign in at all.
+	s.forgetUser(from)
+	s.forgetUser(to)
 	sort.Strings(moved)
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"from":        map[string]any{"id": from.String(), "name": fromName},

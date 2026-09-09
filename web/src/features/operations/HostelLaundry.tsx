@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Shirt } from 'lucide-react'
-import { api, type List, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
   SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
+import { useStudentRoster } from '@/lib/rosters'
 
 /* Laundry.
 
@@ -71,10 +72,7 @@ export default function HostelLaundry() {
     charge_rupees: '',
   })
 
-  const students = useQuery({
-    queryKey: ['students', 'laundry'],
-    queryFn: () => api.get<List<Student>>('/api/v1/students?limit=300'),
-  })
+  const students = useStudentRoster()
   const list = useQuery({
     queryKey: ['laundry', status],
     queryFn: () => api.get<List<Bundle>>(`/api/v1/ops/hostel/laundry?status=${status}`),

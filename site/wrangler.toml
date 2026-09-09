@@ -1,0 +1,6 @@
+# The marketing site is its own Cloudflare Pages project, deliberately separate
+# from `school-erp` (built from web/). Two projects means a copy change here
+# never rebuilds or reships the application bundle.
+name = "vivencia-site"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-09"

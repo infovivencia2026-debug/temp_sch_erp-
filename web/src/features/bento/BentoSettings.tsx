@@ -194,7 +194,7 @@ export function BentoSettings({
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
 
-      <Menu open={open} anchor={btn.current} label={t('bento.settings.label')} onClose={close} width={224}>
+      <Menu open={open} anchor={btn.current} label={t('bento.settings.label')} onClose={close} width={224} centre>
         {board && (
           <>
             <button type="button" role="menuitem" className="bento-menu__item" onClick={customize}>

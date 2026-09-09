@@ -6,7 +6,7 @@ import { useT } from '@/lib/i18n'
 import { usePhone } from '@/lib/viewport'
 import { useVisibleInterval } from '@/lib/visible'
 import { cn, formatPaise } from '@/lib/utils'
-import { BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
+import { BentoCellSkeleton, BentoError, BentoLoading, useFeatureHref, type CellSpan } from './bento-kit'
 import { Compare } from './bento-cards'
 import {
   Facts, IN_SCHOOL, PersonaCard, PersonaPage, Say, Split, Part, Titled,
@@ -318,10 +318,21 @@ export default function ParentWeek() {
   )
 
   if (summary.isLoading || attendance.isLoading || ledger.isLoading) {
+    /* Cells in the grid, not a sentence where the grid was.
+
+       This is the second wait a parent sits through — the child switcher has
+       already answered, so the header and the child's name are on screen — and
+       what stood under them was one line of grey text. Now the eight tiles are
+       there at the size they will be, shimmering. */
     return header(
-      <div className="sm:col-span-2">
-        <BentoLoading message={t('bento.parent_week.loading_child', { name: child?.full_name ?? '' })} />
-      </div>,
+      <>
+        <p className="sr-only" role="status">
+          {t('bento.parent_week.loading_child', { name: child?.full_name ?? '' })}
+        </p>
+        {(['anchor', 'one', 'one', 'wide', 'one', 'one', 'one', 'wide'] as const).map((span, i) => (
+          <BentoCellSkeleton key={i} span={span} />
+        ))}
+      </>,
     )
   }
   if (summary.error || !summary.data) {

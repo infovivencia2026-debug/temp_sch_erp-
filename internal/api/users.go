@@ -322,6 +322,13 @@ func setUserRoles(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 		applied = append(applied, key)
 	}
 	sort.Strings(applied)
+	// Roles decide both what the permission map contains and which sections,
+	// campuses and departments the scope resolver returns, so both caches
+	// have to be told. See forget().
+	if uid, err := uuid.Parse(userID); err == nil {
+		forget(uid)
+	}
+	sort.Strings(applied)
 	return applied, nil
 }
 

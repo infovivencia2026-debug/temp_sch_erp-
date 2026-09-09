@@ -43,7 +43,16 @@ export default function PaneArea({
   return (
     <div
       className={cn(
-        'grid h-full min-h-0 gap-px bg-border',
+        /* The seam between panes is a LINE, not a gap.
+
+           The grid's 1px gutter showed `bg-border` -- the same hairline a
+           card draws -- and against two panes of page-coloured background
+           that reads as a rendering seam rather than a division. Two
+           registers side by side then look like one register with a crack
+           down it. Ink at a quarter strength is a line somebody can see and
+           name, and it is the only thing separating two halves that are
+           otherwise identical. */
+        'grid h-full min-h-0 gap-px bg-foreground/25',
         paths.length === 2 && dir === 'row' && 'grid-cols-2',
         paths.length === 2 && dir === 'col' && 'grid-rows-2',
         // Three panes in a row are each too narrow for a register, so three

@@ -229,9 +229,13 @@ func TestE2ECronTick(t *testing.T) {
 	scheds := Schedules()
 	perInst, global := 0, 0
 	for _, s := range scheds {
-		if s.PerInstitution {
+		switch {
+		case s.PerInstitution && s.Only != nil:
+			// Filtered entries (message_dispatch) are evaluated only for
+			// schools with work, and neither seeded school has any queued.
+		case s.PerInstitution:
 			perInst++
-		} else {
+		default:
 			global++
 		}
 	}
@@ -248,9 +252,10 @@ func TestE2ECronTick(t *testing.T) {
 		t.Fatalf("first tick = %+v, want %d checked, all started, nothing enqueued, 2 institutions", first, wantChecked)
 	}
 
-	// One minute on: 09:00:30 IST. Every-minute entries fire for both, the
-	// 5- and 15-minute ones fire (09:00 is on both grids), fee reminders
-	// fire for the Kolkata school only -- London is at 04:30.
+	// One minute on: 09:00:30 IST. The 5- and 15-minute entries fire for
+	// both (09:00 is on both grids), fee reminders fire for the Kolkata
+	// school only -- London is at 04:30 -- and message_dispatch fires for
+	// neither, because neither has a queued row: an idle minute costs no job.
 	clock = clock.Add(time.Minute)
 	var wg sync.WaitGroup
 	results := make([]TickResult, 2)
@@ -276,7 +281,7 @@ func TestE2ECronTick(t *testing.T) {
 		}
 	}
 	want := map[string]int{
-		TypeMessageDispatch:   2,
+		TypeMessageDispatch:   0,
 		TypeMessagePlans:      2,
 		TypeDiaryReminders:    1,
 		TypeFeeReminderFanout: 1,
@@ -286,8 +291,8 @@ func TestE2ECronTick(t *testing.T) {
 			t.Errorf("%s enqueued %d times across two concurrent ticks, want %d", k, total.Kinds[k], n)
 		}
 	}
-	if total.Enqueued != 6 {
-		t.Errorf("two concurrent ticks enqueued %d in total (%v), want 6: the lock did not hold", total.Enqueued, total.Kinds)
+	if total.Enqueued != 4 {
+		t.Errorf("two concurrent ticks enqueued %d in total (%v), want 4: the lock did not hold", total.Enqueued, total.Kinds)
 	}
 	if (results[0].Enqueued == 0) == (results[1].Enqueued == 0) {
 		t.Errorf("results %+v / %+v: exactly one tick should have done the work", results[0], results[1])

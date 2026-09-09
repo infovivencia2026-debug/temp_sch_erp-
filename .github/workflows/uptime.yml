@@ -9,9 +9,33 @@
 #
 # The probe itself is scripts/uptime-check.sh, which anyone can run by hand:
 #
-#   bash scripts/uptime-check.sh https://temperp.187-127-178-100.sslip.io --apk
+#   bash scripts/uptime-check.sh https://school-erp-cqj.pages.dev
 #
 # This workflow only does the issue bookkeeping around it.
+#
+# TWO URLs, because they fail independently (changed 2026-09-09, when the
+# deployment became Cloudflare Pages -> a Pages Function -> Cloud Run -> Neon
+# and this workflow was still watching the retired VPS hostname):
+#
+#   SITE_URL  the Pages URL, what a parent actually opens. It exercises the
+#             whole chain including the Pages Function proxy.
+#   API_URL   the Cloud Run service directly, bypassing Cloudflare.
+#
+# Both are probed and the site is called DOWN if either one is. The case that
+# needs both is the Pages proxy failing while Cloud Run is healthy -- a real
+# outage for every user, invisible to a probe that only asks the backend --
+# and its mirror, a green edge serving a cached shell over a dead API. The
+# issue then names which of the two answered badly, which is most of the
+# diagnosis.
+#
+# The path probed is /api/v1/session, NOT /healthz: Cloud Run's edge answers
+# an external GET /healthz with a Google 404 on every service, so /healthz is
+# not a liveness probe from outside. See scripts/uptime-check.sh.
+#
+# The parent APK check (--apk) is no longer run: APK_DIR is unset on Cloud
+# Run and /apps is served by the VPS nginx, so asking production for it would
+# report a permanent false alarm. The apk-link bookkeeping below is kept so
+# that a hand-run with --apk, or a later APK route on R2, still works.
 #
 # Cadence. Actions cron is UTC and its finest step is five minutes; ten is
 # plenty for a site whose /healthz answers in milliseconds, and a run can
@@ -35,7 +59,12 @@ on:
 env:
   # The deployment to watch. A second deployment reuses this workflow by
   # changing only this line (the host in issue titles is derived from it).
-  SITE_URL: https://temperp.187-127-178-100.sslip.io
+  # What a parent opens: Cloudflare Pages, whose Function proxies the
+  # server-owned paths to Cloud Run (web/wrangler.toml API_ORIGIN).
+  SITE_URL: https://school-erp-cqj.pages.dev
+  # The Cloud Run service itself, asked directly so that "Cloudflare is down"
+  # and "the app is down" are distinguishable from the issue alone.
+  API_URL: https://temperp-web-480232416236.asia-south1.run.app
   # Every timestamp shown to a human is in this zone; the school is in India.
   TZ_SHOW: Asia/Kolkata
 
@@ -57,10 +86,46 @@ jobs:
       # continue-on-error because DOWN is a result to act on, not a broken
       # job: the workflow itself stays green so that a red run means the
       # bookkeeping failed, which is the only thing there is to debug here.
-      - name: Probe /healthz and the parent APK
-        id: probe
+      - name: Probe the Pages URL
+        id: pages
         continue-on-error: true
-        run: bash scripts/uptime-check.sh "$SITE_URL" --apk
+        run: bash scripts/uptime-check.sh "$SITE_URL"
+
+      - name: Probe the Cloud Run URL
+        id: run
+        continue-on-error: true
+        run: bash scripts/uptime-check.sh "$API_URL"
+
+      # One verdict out of two probes: DOWN if either is, and a detail that
+      # names the layer, so the issue body is already half the diagnosis.
+      - name: Combine the two probes
+        id: probe
+        env:
+          PAGES_STATUS: ${{ steps.pages.outputs.status }}
+          PAGES_DETAIL: ${{ steps.pages.outputs.detail }}
+          PAGES_HTTP: ${{ steps.pages.outputs.http }}
+          RUN_STATUS: ${{ steps.run.outputs.status }}
+          RUN_DETAIL: ${{ steps.run.outputs.detail }}
+          RUN_HTTP: ${{ steps.run.outputs.http }}
+        run: |
+          set -euo pipefail
+          # An empty status means the probe step crashed before writing any
+          # output; that is not a verdict on the site, and the bookkeeping
+          # step below refuses to act on it.
+          if [ -z "${PAGES_STATUS:-}" ] || [ -z "${RUN_STATUS:-}" ]; then
+              echo "::error::a probe produced no result; see the steps above"; exit 1
+          fi
+          status=up
+          [ "$PAGES_STATUS" = up ] && [ "$RUN_STATUS" = up ] || status=down
+          detail="Pages ($SITE_URL): $PAGES_STATUS, $PAGES_DETAIL | Cloud Run ($API_URL): $RUN_STATUS, $RUN_DETAIL"
+          {
+            echo "status=$status"
+            echo "http=$PAGES_HTTP/$RUN_HTTP"
+            echo "detail=$detail"
+            echo "apk=skipped"
+            echo "apk_detail="
+          } >> "$GITHUB_OUTPUT"
+          echo "$status -- $detail"
 
       - name: Open, update or close the outage issue
         env:
@@ -135,10 +200,24 @@ jobs:
           minutes_between() { echo $(( ( $(date -u -d "$2" +%s) - $(date -u -d "$1" +%s) ) / 60 )); }
           checklist() {
               cat <<EOF
-          What to check, in order:
-          1. The hosting panel: is the VPS powered on, does its network show traffic? Reboot from there if SSH does not answer.
-          2. Once SSH answers: \`systemctl status temperp-web\` and \`journalctl -u temperp-web -n 100\` on the box.
-          3. From a checkout: \`make status\` for the service, nginx and the queue in one look.
+          Which layer answered badly is in the line above; check that one first.
+
+          1. Cloud Run down, Pages down -- the app or the database.
+             \`gcloud run services describe temperp-web --region asia-south1\`
+             and \`gcloud run services logs read temperp-web --region asia-south1 --limit 100\`.
+             A 500 on /api/v1/session with the service healthy points at Neon
+             (its console shows the compute state; a suspended branch reads as
+             a connection error).
+          2. Cloud Run up, Pages down -- Cloudflare, not the app. Check the
+             Pages deployment and the Function's \`API_ORIGIN\` variable, which
+             must be the run.app URL with no trailing slash (web/wrangler.toml).
+             Cloudflare's status page is worth a glance.
+          3. Both up but this still fired -- a slow cold start beat the 20 s
+             timeout; look at the probe log before believing an outage.
+
+          Note that /healthz is NOT a valid check from outside: Cloud Run's
+          edge answers it with a Google 404 on every service. The probe asks
+          /api/v1/session, which is unauthenticated and touches the database.
 
           Probe run: $RUN_URL
           EOF
@@ -157,21 +236,21 @@ jobs:
                   if [ -n "$number" ]; then
                       echo "reopening #$number (closed within the last $FLAP_WINDOW minutes)"
                       gh issue reopen "$number"
-                      gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s** -- `%s/healthz` -> %s.\n\nReopened rather than filed anew because it was closed less than %s minutes ago; this is one outage with a gap in it.\n\nProbe run: %s' \
-                          "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$FLAP_WINDOW" "$RUN_URL")"
+                      gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s** -- %s\n\nReopened rather than filed anew because it was closed less than %s minutes ago; this is one outage with a gap in it.\n\nProbe run: %s' \
+                          "$NOW_UTC" "$NOW" "$DETAIL" "$FLAP_WINDOW" "$RUN_URL")"
                   else
                       echo "opening a new outage issue"
                       gh issue create --label outage --title "Site down: $HOST" \
-                          --body "$(printf '<!-- uptime: down %s -->\n**Down since %s** (first failed probe). `%s/healthz` -> %s, after 3 attempts 20 s apart.\n\n%s\n\nThis issue is closed automatically when the probe sees a 200 again.' \
-                              "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$(checklist)")"
+                          --body "$(printf '<!-- uptime: down %s -->\n**Down since %s** (first failed probe), after 3 attempts 20 s apart:\n\n%s\n\n%s\n\nThis issue is closed automatically when the probe sees a 200 again.' \
+                              "$NOW_UTC" "$NOW" "$DETAIL" "$(checklist)")"
                   fi
               else
                   marker=$(last_marker "$number")
                   case "${marker%% *}" in
                       down) echo "#$number already reports down (${marker#* }); nothing to add" ;;
                       *)    echo "#$number last reported '${marker:-nothing}'; noting the failure"
-                            gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s** -- `%s/healthz` -> %s.\n\n%s' \
-                                "$NOW_UTC" "$NOW" "$SITE_URL" "$DETAIL" "$(checklist)")" ;;
+                            gh issue comment "$number" --body "$(printf '<!-- uptime: down %s -->\n**Down again at %s**\n\n%s\n\n%s' \
+                                "$NOW_UTC" "$NOW" "$DETAIL" "$(checklist)")" ;;
                   esac
               fi
               exit 0
@@ -186,7 +265,7 @@ jobs:
               esac
               mins=$(minutes_between "$since" "$NOW_UTC")
               apk_note=""
-              [ "$APK" = bad ] && apk_note=$(printf '\n\n**But the parent APK link is wrong:** `%s/apps/parent.apk` -> %s (want application/vnd.android.package-archive). See the Apps route block in scripts/build-on-server.sh.' "$SITE_URL" "$APK_DETAIL")
+              if [ "$APK" = bad ]; then apk_note=$(printf '\n\n**But the parent APK link is wrong:** `%s/apps/parent.apk` -> %s (want application/vnd.android.package-archive). See the Apps route block in scripts/build-on-server.sh.' "$SITE_URL" "$APK_DETAIL"); fi
               echo "closing #$number: back up after ~$mins minutes"
               gh issue comment "$number" --body "$(printf '<!-- uptime: up %s -->\n**Back up at %s**, down for approximately %s minutes.%s\n\nProbe run: %s' \
                   "$NOW_UTC" "$NOW" "$mins" "$apk_note" "$RUN_URL")"

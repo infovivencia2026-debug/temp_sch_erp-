@@ -84,7 +84,9 @@ export default function Alerts() {
     // Near-real-time without a vendor. Half a minute is often enough for a
     // circular and cheap enough not to matter. Paused while the tab is
     // hidden: a background tab was polling for nobody.
-    refetchInterval: useVisibleInterval(30_000),
+    // A minute, not thirty seconds: the shared revision poll in lib/live.ts
+    // already notices a change sooner than this ever could.
+    refetchInterval: useVisibleInterval(60_000),
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['portal-alerts'] })

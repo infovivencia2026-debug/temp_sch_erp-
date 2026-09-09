@@ -10,6 +10,7 @@ import {
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 import { commsQueryKeys } from './comms-keys'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* institution_admin.communication.school_achievements_showcase
 
@@ -100,13 +101,14 @@ export default function AchievementsShowcase() {
      /api/v1/students search the certificate counter uses, so the two screens
      that identify a child identify them the same way. */
   const [studentSearch, setStudentSearch] = useState('')
+  const needle = useDebouncedValue(studentSearch.trim())
   const studentHits = useQuery({
-    queryKey: ['achievement-student-search', studentSearch],
+    queryKey: ['achievement-student-search', needle],
     queryFn: () =>
       api.get<Page<Student>>(
-        `/api/v1/students?q=${encodeURIComponent(studentSearch)}&limit=10`,
+        `/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`,
       ),
-    enabled: studentSearch.trim().length >= 2,
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
   /* Held rather than looked back up: choosing a child rewrites the search box

@@ -32,6 +32,9 @@ import (
 // Reads are excluded: they are the overwhelming majority of traffic and
 // recording them would bury the changes in noise. Login is handled separately
 // through the sessions table, which already carries ip and user agent.
+// auditBodyCap is the largest request body an audit entry will record.
+const auditBodyCap = 64 << 10
+
 func auditable(method, path string) bool {
 	switch method {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
@@ -181,11 +184,26 @@ func AuditMiddleware(db *database.DB) func(http.Handler) http.Handler {
 
 			var payload any
 			if r.Body != nil && strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-				raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+				/* The whole body goes to the handler; only a slice of it is
+				   ever kept.
+
+				   Handlers here accept up to 8 MiB -- a bulk import, a term's
+				   marks -- so the read must not be capped or the handler is
+				   handed a truncated document and fails on valid input. What
+				   is capped is what we bother to parse and store: an audit
+				   row is a record of who did what, and past 64 KiB it is a
+				   copy of the payload masquerading as one. Those large bodies
+				   are imports and uploads whose contents live in their own
+				   tables anyway, so the entry keeps the who, the what and the
+				   when, and drops the transcript. */
+				raw, err := io.ReadAll(r.Body)
 				_ = r.Body.Close()
 				if err == nil {
 					// Hand the handler an identical body; it has not read it yet.
 					r.Body = io.NopCloser(bytes.NewReader(raw))
+					if len(raw) > auditBodyCap {
+						raw = nil
+					}
 					var parsed any
 					if json.Unmarshal(raw, &parsed) == nil {
 						payload = redact(parsed)

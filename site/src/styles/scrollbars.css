@@ -1,0 +1,129 @@
+/* ===========================================================================
+   SCROLLBARS
+
+   The base rules drew the thumb in --border, which on a light workspace is a
+   near-invisible hairline: content scrolled with no sign that it could. These
+   give every scrollable region a thumb you can actually see and grab, on both
+   axes, in both appearances, and on the dark rails as well as the light
+   canvas.
+
+   Loaded last so it wins over the base layer.
+   =========================================================================== */
+
+:root {
+  --sb-size: 12px;
+  /* 0.22 alpha was still a hairline in practice — Chrome honours
+     scrollbar-color, so this is the thumb you actually get, and it has to
+     read as a control rather than as a smudge. */
+  --sb-thumb: hsl(var(--foreground) / 0.45);
+  --sb-thumb-hover: hsl(var(--foreground) / 0.62);
+  --sb-track: hsl(var(--foreground) / 0.07);
+}
+.dark {
+  --sb-thumb: hsl(0 0% 100% / 0.38);
+  --sb-thumb-hover: hsl(0 0% 100% / 0.55);
+  --sb-track: hsl(0 0% 100% / 0.08);
+}
+
+/* Firefox */
+* { scrollbar-color: var(--sb-thumb) var(--sb-track); }
+
+/* WebKit / Blink */
+::-webkit-scrollbar { width: var(--sb-size); height: var(--sb-size); }
+::-webkit-scrollbar-track { background: var(--sb-track); }
+::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 140ms ease;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--sb-thumb-hover); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* The main canvas keeps its gutter reserved, so arriving at a page that
+   scrolls does not shove the layout sideways by ten pixels. */
+#main { scrollbar-gutter: stable; }
+
+/* ---------------------------------------------------------------------------
+   Horizontal strips — class cards, module chips, tab rows, wide tables.
+
+   These are the ones worth being explicit about: a row that clips mid-card
+   with no scrollbar reads as a layout bug rather than as more content. The bar
+   is slim and always present when the row overflows.
+   --------------------------------------------------------------------------- */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+}
+.scroll-x::-webkit-scrollbar { height: 8px; }
+.scroll-x::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Dark navigation surfaces need a light thumb, whatever the page appearance. */
+.edu-sidebar, .nexus-dock, .nexus-panel, .vector-strip,
+.pulse-rail, .pulse-timeline, .monolith-drawer {
+  --sb-thumb: hsl(0 0% 100% / 0.4);
+  --sb-thumb-hover: hsl(0 0% 100% / 0.6);
+  --sb-track: hsl(0 0% 100% / 0.1);
+}
+
+/* ------------------------------------------------------------------ UI-16 -- */
+/* The workspace is warm ivory and the rail is midnight, so they cannot share
+   one thumb colour. */
+[data-ui="ui-16"] {
+  --sb-thumb: hsl(226 24% 42% / 0.55);
+  --sb-thumb-hover: hsl(226 28% 32% / 0.75);
+  --sb-track: hsl(226 20% 40% / 0.1);
+}
+[data-ui="ui-16"].dark {
+  --sb-thumb: hsl(0 0% 100% / 0.4);
+  --sb-thumb-hover: hsl(0 0% 100% / 0.58);
+  --sb-track: hsl(0 0% 100% / 0.09);
+}
+/* The live-class strip is the one row people scroll by hand. */
+[data-ui="ui-16"] .scroll-x::-webkit-scrollbar { height: 9px; }
+
+/* Modal and drawer bodies scroll independently of the page. */
+.edu-drawer > div,
+.float [class*="overflow-y-auto"] { scrollbar-gutter: stable; }
+
+@media (pointer: coarse) {
+  /* Touch surfaces get the platform's own overlay bar; ours would only
+     occupy space that the content needs. */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  .scroll-x::-webkit-scrollbar { height: 0; }
+}
+
+/* ===========================================================================
+   PRESS FEEDBACK
+
+   A click has to acknowledge itself in the same frame, or people click twice.
+   These are deliberately tiny and instant — no transition on the way in, a
+   short one on the way out — so the acknowledgement lands before any work
+   the click triggers.
+   =========================================================================== */
+button:not(:disabled):active,
+a[href]:active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: translateY(0.5px) scale(0.995);
+  transition: none;
+}
+button, a[href], [role="button"] { transition-property: color, background-color, border-color, box-shadow, opacity, transform; }
+
+/* Anything that opens a surface says so while it is opening. */
+[aria-expanded="true"] { --press: 1; }
+
+/* Cards and rails should not scale — only their own hover treatment applies. */
+.edu-panel:active, .edu-hero:active, .card:active,
+tr:active, .scroll-x:active { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  button:active, a[href]:active, [role="button"]:active { transform: none; }
+}

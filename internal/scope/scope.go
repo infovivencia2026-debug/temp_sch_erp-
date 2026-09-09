@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -29,6 +31,7 @@ import (
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/rbac"
+	"github.com/school-erp/erp/internal/ttlcache"
 )
 
 // Resolved is the caller's concrete boundary, loaded once per request.
@@ -74,12 +77,12 @@ type Resolved struct {
 	AllCampuses bool
 }
 
-// Resolve loads every scope set for the caller in one round trip.
+// resolveUncached loads every scope set for the caller in one round trip.
 //
 // All five are loaded even if the current request only needs one: they are
 // small, indexed lookups, and resolving lazily per handler was how the
 // department filter ended up missing from three endpoints.
-func Resolve(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolved, error) {
+func resolveUncached(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolved, error) {
 	r := &Resolved{
 		UserID:        id.UserID,
 		InstitutionID: id.InstitutionID,
@@ -482,4 +485,103 @@ func (r *Resolved) OwnsStudent(studentID uuid.UUID) bool {
 		}
 	}
 	return false
+}
+
+/* --- the cache in front of Resolve -------------------------------------
+
+   Two layers, because there are two different kinds of repetition.
+
+   Within one request a handler may resolve twice -- once to filter the list
+   and once to check it may touch a row it found -- and the second resolve is
+   pure waste. FromContext/WithCache holds the answer on the request context,
+   so it is computed at most once per request, and it is never wrong because a
+   request is shorter than any write it could race with.
+
+   Across requests the sets change when a timetable is edited, a class teacher
+   is swapped, a HOD is appointed, a guardian is linked or a role is granted --
+   a few times a term, against several times a second. Five minutes, and every
+   one of those writes calls Invalidate or InvalidateInstitution so the
+   instance that made the change is correct at once.
+
+   The security property that must survive all of this: an empty set means SEE
+   NOTHING, never "no restriction". A cached Resolved with empty slices is the
+   same refusal as a freshly loaded one, because Filter reads the slices and
+   nothing else. Nothing here may substitute a zero value for a cache miss. */
+
+const (
+	resolvedTTL = 5 * time.Minute
+	// Keyed per user per school, so this is a live-user count, not a
+	// row count. Ten thousand covers a large seller's whole estate awake at
+	// once; past it the eviction costs one reload.
+	resolvedCap = 10_000
+)
+
+type cacheKey struct {
+	user uuid.UUID
+	inst uuid.UUID
+}
+
+var resolvedCache = ttlcache.New[cacheKey, *Resolved](resolvedTTL, resolvedCap)
+
+// ctxKey is the per-request memo slot.
+type ctxKey struct{}
+
+// requestCache is the memo itself. A pointer on the context, filled in on
+// first use, so WithCache can be installed by middleware before anything has
+// been resolved.
+type requestCache struct {
+	once sync.Once
+	val  *Resolved
+	err  error
+}
+
+// WithCache returns a context on which Resolve answers at most once.
+//
+// Installed by the middleware that authenticates the request, so every handler
+// downstream shares one answer.
+func WithCache(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, &requestCache{})
+}
+
+// Resolve loads the caller's boundary, from the request memo or the process
+// cache when either already holds it.
+func Resolve(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolved, error) {
+	rc, _ := ctx.Value(ctxKey{}).(*requestCache)
+	if rc == nil {
+		return resolveCached(ctx, db, id)
+	}
+	rc.once.Do(func() { rc.val, rc.err = resolveCached(ctx, db, id) })
+	return rc.val, rc.err
+}
+
+// resolveFn is the loader the cache sits in front of. A variable so a test
+// can count how often the cache reaches past itself without a database.
+var resolveFn = resolveUncached
+
+func resolveCached(ctx context.Context, db *database.DB, id *httpx.Identity) (*Resolved, error) {
+	key := cacheKey{user: id.UserID, inst: id.InstitutionID}
+	if r, ok := resolvedCache.Get(key); ok {
+		return r, nil
+	}
+	r, err := resolveFn(ctx, db, id)
+	if err != nil {
+		return nil, err
+	}
+	resolvedCache.Set(key, r)
+	return r, nil
+}
+
+// Invalidate drops one user's cached boundary, in whichever school.
+func Invalidate(userID uuid.UUID) {
+	resolvedCache.DeleteFunc(func(k cacheKey, _ *Resolved) bool { return k.user == userID })
+}
+
+// InvalidateInstitution drops every cached boundary in one school.
+//
+// The blunt one, and the right one whenever a write moves a boundary without
+// naming whose: a timetable entry names a section, not the teachers who lose
+// it. Invalidating a school costs it one reload per active user; getting it
+// wrong costs somebody a section they should no longer reach.
+func InvalidateInstitution(instID uuid.UUID) {
+	resolvedCache.DeleteFunc(func(k cacheKey, _ *Resolved) bool { return k.inst == instID })
 }

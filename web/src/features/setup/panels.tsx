@@ -10,6 +10,7 @@ import { useWorkingYear } from '@/lib/working-year'
 import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
 
 /* The forms behind each wizard step.
 
@@ -87,7 +88,7 @@ function useSave<T>(fn: (v: T) => Promise<unknown>, onDone: () => void) {
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      qc.invalidateQueries()
+      void invalidateKeys(qc, SETUP_KEYS)
       onDone()
     },
   })
@@ -649,7 +650,7 @@ function ClassesPanel({ onDone }: PanelProps) {
     setRemoving(id)
     try {
       await api.del(`/api/v1/setup/${kind}/${id}`)
-      await qc.invalidateQueries()
+      await invalidateKeys(qc, [['classes'], ['sections'], ['class-subjects'], ['setup-status'], ['attention']])
     } catch (e) {
       setRefused(`${label}: ${e instanceof Error ? e.message : 'could not be removed.'}`)
     } finally {
@@ -1725,7 +1726,7 @@ function Assignments({ onDone }: PanelProps) {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries()
+      void invalidateKeys(qc, [['sections'], ['class-subjects'], ['teachers'], ['setup-status'], ['attention']])
       setSubjectTeachers({})
       onDone()
     },
@@ -2326,7 +2327,7 @@ function ExistingScales() {
     setFailed('')
     try {
       await api.del(`/api/v1/setup/grading-scales/${scale.id}`)
-      await qc.invalidateQueries()
+      await invalidateKeys(qc, [['grading-scales'], ['setup-status']])
     } catch (e) {
       setFailed(e instanceof Error ? e.message : 'Could not remove that scale.')
     } finally {

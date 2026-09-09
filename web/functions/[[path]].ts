@@ -42,8 +42,18 @@ interface Env {
    announce that the path exists. */
 const NOT_PROXIED = ['/api/v1/cron']
 
+/* '/static/' is deliberately absent. The stylesheet and the two Inter files
+   the server-rendered pages name are mirrored into web/public/static and served
+   from the edge, so a cold visitor to /login no longer wakes a Cloud Run
+   instance for three files that never change. See web/public/static/README.md.
+
+   '/apps' stays: it is a rendered template, not a static page. It reads the
+   published builds off disk and prints each one's version, size, build date and
+   SHA-256, and with no APK_DIR it renders a different page again — the one that
+   says the download is coming from a static file. Only the APKs it links are
+   static, and those are already under /download/. */
 const SERVER_PATHS = [
-  '/api/', '/login', '/logout', '/healthz', '/static/', '/iclock/',
+  '/api/', '/login', '/logout', '/healthz', '/iclock/',
   '/buy', '/signup', '/forgot', '/reset', '/apps', '/files/',
 ]
 

@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
   Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* What the government takes, and what the school owes.
 
@@ -325,10 +326,7 @@ function IncomeTax() {
   const [amount, setAmount] = useState('')
   const [regime, setRegime] = useState('')
 
-  const employees = useQuery({
-    queryKey: ['employees', 'payroll'],
-    queryFn: () => api.get<List<Named>>('/api/v1/hr/employees?limit=300'),
-  })
+  const employees = useEmployeeRoster<Named>()
   const tax = useQuery({
     queryKey: ['tax', employeeId],
     queryFn: () =>
@@ -349,13 +347,17 @@ function IncomeTax() {
     onSuccess: () => {
       setParticulars('')
       setAmount('')
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['tax', employeeId] })
+      qc.invalidateQueries({ queryKey: ['statutory'] })
     },
   })
   const verify = useMutation({
     mutationFn: (v: { id: string; status: string; verified_paise?: number; remarks?: string }) =>
       api.post('/api/v1/payroll/declarations', v),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tax', employeeId] })
+      qc.invalidateQueries({ queryKey: ['statutory'] })
+    },
   })
 
   const t = tax.data as

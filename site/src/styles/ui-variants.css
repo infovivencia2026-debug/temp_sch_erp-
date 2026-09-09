@@ -1,0 +1,858 @@
+/* ===========================================================================
+   UI VARIANTS — UI-1 to UI-9.
+
+   These ten hold the page constant and vary the shell, so what you compare is
+   the navigation model. UI-11 to UI-15 live in ui-variants-b.css.
+
+   EVERY interface declares a full light palette on [data-ui="ui-N"] and a full
+   dark palette on [data-ui="ui-N"].dark, so the theme toggle works on all
+   twenty — including the ones whose character is dark (Nexus, Vector,
+   Monolith, Pulse), which get a light counterpart that keeps their accent and
+   their instrument feel.
+
+   Three tokens exist so that no component rule carries a literal colour, which
+   is what made those four impossible to light before:
+
+       --chrome   top bar and horizontal navigation surface
+       --rail     rails, docks and side panels
+       --th       table header band
+
+   The rules that consume them are at the foot of this file and are shared by
+   all twenty.
+   =========================================================================== */
+
+/* ------------------------------------------------ UI-1 · NEXUS COMMAND ---- */
+/* Mission control. Cyan for anything live, 7px corners, compact instrument
+   type. Dark is graphite; light is cool steel with the same cyan. */
+[data-ui="ui-1"] {
+  color-scheme: light;
+  --radius: calc(0.4375rem * var(--radius-scale, 1));
+  --background: 210 22% 97%;
+  --card: 0 0% 100%;
+  --ground: 210 20% 94%;
+  --foreground: 213 26% 12%;
+  --card-foreground: 213 26% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 213 26% 12%;
+  --primary: 191 92% 32%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 191 92% 32%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 191 92% 32%;
+  --secondary: 210 20% 96%;
+  --secondary-foreground: 213 26% 16%;
+  --muted: 210 20% 95%;
+  --muted-foreground: 212 10% 44%;
+  --accent: 205 28% 93%;
+  --accent-foreground: 213 26% 16%;
+  --border: 210 16% 88%;
+  --input: 210 16% 88%;
+  --chrome: 0 0% 100%;
+  --rail: 210 22% 96%;
+  --th: 205 26% 93%;
+}
+[data-ui="ui-1"].dark {
+  color-scheme: dark;
+  --background: 213 18% 11%;
+  --card: 214 17% 14%;
+  --ground: 213 20% 9%;
+  --foreground: 210 20% 94%;
+  --card-foreground: 210 20% 94%;
+  --popover: 214 17% 15%;
+  --popover-foreground: 210 20% 94%;
+  --primary: 187 85% 53%;
+  --primary-foreground: 213 20% 9%;
+  --ink: 187 85% 53%;
+  --ink-foreground: 213 20% 9%;
+  --ring: 187 85% 53%;
+  --secondary: 214 15% 18%;
+  --secondary-foreground: 210 20% 94%;
+  --muted: 214 15% 18%;
+  --muted-foreground: 213 10% 62%;
+  --accent: 214 16% 20%;
+  --accent-foreground: 210 20% 96%;
+  --border: 214 14% 22%;
+  --input: 214 14% 22%;
+  --chrome: 214 17% 13%;
+  --rail: 213 19% 10%;
+  --th: 214 16% 17%;
+}
+[data-ui="ui-1"] .display { font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
+[data-ui="ui-1"] .display-2 { font-size: 15px; font-weight: 600; }
+[data-ui="ui-1"] .eyebrow { font-size: 10px; letter-spacing: 0.14em; color: hsl(var(--primary)); }
+[data-ui="ui-1"] .section-no,
+[data-ui="ui-1"] .crumbs { display: none; }
+[data-ui="ui-1"] .card { border-radius: calc(7px * var(--radius-scale, 1)); }
+[data-ui="ui-1"] .float { border-radius: calc(8px * var(--radius-scale, 1)); }
+[data-ui="ui-1"] .field { height: 34px; border-radius: calc(6px * var(--radius-scale, 1)); font-size: 13px; }
+[data-ui="ui-1"] .chrome { backdrop-filter: none; }
+[data-ui="ui-1"] .page-head { padding-block: 0.9rem; }
+[data-ui="ui-1"] .head-row { flex-direction: row; align-items: center; gap: 1rem; }
+[data-ui="ui-1"] .head-copy { max-width: none; }
+[data-ui="ui-1"] .head-sub { margin-top: 0.1rem; font-size: 12px; max-width: none; }
+[data-ui="ui-1"] table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+[data-ui="ui-1"] td,
+[data-ui="ui-1"] .tabular-nums { font-feature-settings: "tnum" 1, "ss01" 1; }
+[data-ui="ui-1"] .reveal { animation: none; opacity: 1; transform: none; }
+
+/* ---------------------------------------------- UI-2 · AURORA EXECUTIVE --- */
+/* An executive report. Ivory and champagne; dark is a warm charcoal so the
+   editorial figures keep their warmth rather than turning blue. */
+[data-ui="ui-2"] {
+  color-scheme: light;
+  --radius: calc(0.625rem * var(--radius-scale, 1));
+  --background: 40 33% 97%;
+  --card: 42 50% 99%;
+  --ground: 40 30% 94%;
+  --foreground: 33 14% 11%;
+  --card-foreground: 33 14% 11%;
+  --popover: 42 50% 99%;
+  --popover-foreground: 33 14% 11%;
+  --primary: 36 42% 45%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 33 14% 11%;
+  --ink-foreground: 40 33% 97%;
+  --ring: 36 42% 45%;
+  --secondary: 40 25% 95%;
+  --secondary-foreground: 33 14% 15%;
+  --muted: 40 25% 95%;
+  --muted-foreground: 34 8% 45%;
+  --accent: 38 32% 92%;
+  --accent-foreground: 33 14% 15%;
+  --border: 38 22% 87%;
+  --input: 38 22% 87%;
+  --chrome: 42 50% 99%;
+  --rail: 42 50% 99%;
+  --th: 40 30% 96%;
+}
+[data-ui="ui-2"].dark {
+  color-scheme: dark;
+  --background: 33 12% 10%;
+  --card: 33 11% 13%;
+  --ground: 33 14% 8%;
+  --foreground: 40 20% 94%;
+  --card-foreground: 40 20% 94%;
+  --popover: 33 11% 14%;
+  --popover-foreground: 40 20% 94%;
+  --primary: 36 52% 60%;
+  --primary-foreground: 33 14% 8%;
+  --ink: 40 20% 94%;
+  --ink-foreground: 33 14% 8%;
+  --ring: 36 52% 60%;
+  --secondary: 33 10% 16%;
+  --secondary-foreground: 40 20% 94%;
+  --muted: 33 10% 16%;
+  --muted-foreground: 36 8% 62%;
+  --accent: 33 10% 18%;
+  --accent-foreground: 40 20% 94%;
+  --border: 33 9% 21%;
+  --input: 33 9% 21%;
+  --chrome: 33 11% 13%;
+  --rail: 33 11% 13%;
+  --th: 33 10% 15%;
+}
+[data-ui="ui-2"] .display { font-size: clamp(2.25rem, 5vw, 3.75rem); font-weight: 400; letter-spacing: -0.03em; line-height: 1.02; }
+[data-ui="ui-2"] .display-2 { font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 400; }
+[data-ui="ui-2"] .eyebrow { font-size: 11px; letter-spacing: 0.18em; color: hsl(var(--primary)); }
+[data-ui="ui-2"] .section-no { display: none; }
+[data-ui="ui-2"] .card { border-radius: calc(10px * var(--radius-scale, 1)); box-shadow: none; }
+[data-ui="ui-2"] .float { border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-2"] .field { height: 44px; border-radius: calc(8px * var(--radius-scale, 1)); }
+[data-ui="ui-2"] .chrome,
+[data-ui="ui-2"] .aurora-nav { backdrop-filter: none; }
+[data-ui="ui-2"] .page-head { border-bottom: 0; padding-top: 3.25rem; padding-bottom: 2rem; }
+[data-ui="ui-2"] .head-sub { margin-top: 1.1rem; font-size: 17px; }
+[data-ui="ui-2"] .page-shell { max-width: 1560px; margin-inline: auto; }
+[data-ui="ui-2"] .page-body { padding-block: 2rem 4rem; }
+[data-ui="ui-2"] table th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+[data-ui="ui-2"][data-density="comfortable"] table th,
+[data-ui="ui-2"][data-density="comfortable"] table td { padding-top: 1.1rem; padding-bottom: 1.1rem; }
+
+/* -------------------------------------------------- UI-3 · VECTOR GRID ---- */
+/* An industrial control system. Near-square corners and the densest grid in
+   the set; dark is slate, light is the same instrument grey in daylight. */
+[data-ui="ui-3"] {
+  color-scheme: light;
+  --radius: calc(0.125rem * var(--radius-scale, 1));
+  --background: 214 20% 96%;
+  --card: 0 0% 100%;
+  --ground: 214 18% 92%;
+  --foreground: 215 26% 13%;
+  --card-foreground: 215 26% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 26% 13%;
+  --primary: 205 85% 38%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 205 85% 38%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 205 85% 38%;
+  --secondary: 214 18% 95%;
+  --secondary-foreground: 215 26% 16%;
+  --muted: 214 18% 94%;
+  --muted-foreground: 214 10% 42%;
+  --accent: 210 26% 92%;
+  --accent-foreground: 215 26% 16%;
+  --border: 214 16% 86%;
+  --input: 214 16% 86%;
+  --chrome: 0 0% 100%;
+  --rail: 214 20% 94%;
+  --th: 212 24% 92%;
+}
+[data-ui="ui-3"].dark {
+  color-scheme: dark;
+  --background: 215 25% 9%;
+  --card: 215 22% 12%;
+  --ground: 215 28% 7%;
+  --foreground: 210 16% 93%;
+  --card-foreground: 210 16% 93%;
+  --popover: 215 22% 13%;
+  --popover-foreground: 210 16% 93%;
+  --primary: 205 80% 55%;
+  --primary-foreground: 215 28% 7%;
+  --ink: 205 80% 55%;
+  --ink-foreground: 215 28% 7%;
+  --ring: 205 80% 55%;
+  --secondary: 215 18% 17%;
+  --secondary-foreground: 210 16% 93%;
+  --muted: 215 18% 17%;
+  --muted-foreground: 213 10% 60%;
+  --accent: 215 18% 19%;
+  --accent-foreground: 210 16% 95%;
+  --border: 215 15% 21%;
+  --input: 215 15% 21%;
+  --chrome: 215 24% 10%;
+  --rail: 215 26% 8%;
+  --th: 215 18% 15%;
+}
+[data-ui="ui-3"] .display { font-size: 17px; font-weight: 600; letter-spacing: -0.005em; }
+[data-ui="ui-3"] .display-2 { font-size: 13px; font-weight: 600; }
+[data-ui="ui-3"] .eyebrow { font-size: 9px; letter-spacing: 0.16em; }
+[data-ui="ui-3"] .section-no,
+[data-ui="ui-3"] .crumbs { display: none; }
+[data-ui="ui-3"] .card,
+[data-ui="ui-3"] .hairline,
+[data-ui="ui-3"] .float { border-radius: calc(2px * var(--radius-scale, 1)); }
+[data-ui="ui-3"] .field { height: 30px; border-radius: calc(2px * var(--radius-scale, 1)); font-size: 12px; }
+[data-ui="ui-3"] .chrome { backdrop-filter: none; }
+[data-ui="ui-3"] .page-head { padding-block: 0.6rem; }
+[data-ui="ui-3"] .head-row { flex-direction: row; align-items: center; gap: 0.85rem; }
+[data-ui="ui-3"] .head-copy { max-width: none; }
+[data-ui="ui-3"] .head-sub { margin-top: 0; font-size: 11px; max-width: none; }
+[data-ui="ui-3"] .page-body { padding-block: 0.85rem; }
+[data-ui="ui-3"] table th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; }
+[data-ui="ui-3"] table td { font-size: 12px; }
+[data-ui="ui-3"] td,
+[data-ui="ui-3"] .tabular-nums { font-feature-settings: "tnum" 1; }
+[data-ui="ui-3"] .reveal { animation: none; opacity: 1; transform: none; }
+[data-ui="ui-3"][data-density="comfortable"] table th,
+[data-ui="ui-3"][data-density="comfortable"] table td { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+
+/* ------------------------------------------------- UI-4 · ORBIT CANVAS ---- */
+/* A planning canvas. Sand and stone with teal and coral; dark keeps the warmth
+   rather than going neutral, so the canvas still reads as a surface. */
+@media (max-width: 1023px) {
+  [data-ui="ui-4"] .page-shell { padding-left: 0; }
+}
+
+/* ------------------------------------------- UI-4 · PRISM INTELLIGENCE ---- */
+/* Monochrome with one vivid amber identity, in both directions: white paper
+   with black type, or black ground with white type. */
+[data-ui="ui-4"] {
+  color-scheme: light;
+  --radius: calc(0.5625rem * var(--radius-scale, 1));
+  --background: 0 0% 100%;
+  --card: 0 0% 100%;
+  --ground: 0 0% 97%;
+  --foreground: 0 0% 5%;
+  --card-foreground: 0 0% 5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 5%;
+  --primary: 28 100% 46%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 0 0% 8%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 28 100% 46%;
+  --secondary: 0 0% 97%;
+  --secondary-foreground: 0 0% 8%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 0 0% 95%;
+  --accent-foreground: 0 0% 8%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --chrome: 0 0% 100%;
+  --rail: 0 0% 98%;
+  --th: 0 0% 97%;
+}
+[data-ui="ui-4"].dark {
+  color-scheme: dark;
+  --background: 0 0% 7%;
+  --card: 0 0% 9%;
+  --ground: 0 0% 5%;
+  --foreground: 0 0% 96%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 11%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 28 100% 55%;
+  --primary-foreground: 0 0% 7%;
+  --ink: 0 0% 96%;
+  --ink-foreground: 0 0% 7%;
+  --ring: 28 100% 55%;
+  --secondary: 0 0% 14%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 62%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 0 0% 96%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --chrome: 0 0% 9%;
+  --rail: 0 0% 8%;
+  --th: 0 0% 12%;
+}
+[data-ui="ui-4"] .display { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+[data-ui="ui-4"] .display-2 { font-size: 15px; font-weight: 600; }
+[data-ui="ui-4"] .eyebrow { font-size: 10px; letter-spacing: 0.14em; }
+[data-ui="ui-4"] .section-no { display: none; }
+[data-ui="ui-4"] .card,
+[data-ui="ui-4"] .hairline { border-radius: calc(9px * var(--radius-scale, 1)); }
+[data-ui="ui-4"] .card { box-shadow: none; }
+[data-ui="ui-4"] .float { border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-4"] .field { height: 36px; border-radius: calc(8px * var(--radius-scale, 1)); font-size: 13px; }
+[data-ui="ui-4"] .chrome,
+[data-ui="ui-4"] .prism-menu { backdrop-filter: none; }
+[data-ui="ui-4"] .page-head { padding-block: 1rem; }
+[data-ui="ui-4"] .head-row { flex-direction: row; align-items: center; gap: 1rem; }
+[data-ui="ui-4"] .head-copy { max-width: none; }
+[data-ui="ui-4"] .head-sub { margin-top: 0.1rem; font-size: 12.5px; max-width: none; }
+[data-ui="ui-4"] table th { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ---------------------------------------------- UI-5 · HALO WORKSPACE ----- */
+/* Off-white surfaces, deep navy type and icy blue highlights; dark is the same
+   navy taken all the way down, so the dock still glows against it. */
+[data-ui="ui-5"] {
+  color-scheme: light;
+  --radius: calc(0.875rem * var(--radius-scale, 1));
+  --background: 210 30% 98%;
+  --card: 0 0% 100%;
+  --ground: 212 32% 95%;
+  --foreground: 212 62% 15%;
+  --card-foreground: 212 62% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 212 62% 15%;
+  --primary: 209 100% 45%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 212 62% 18%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 209 100% 45%;
+  --secondary: 210 30% 96%;
+  --secondary-foreground: 212 55% 20%;
+  --muted: 210 30% 96%;
+  --muted-foreground: 212 14% 46%;
+  --accent: 209 60% 94%;
+  --accent-foreground: 212 55% 20%;
+  --border: 211 28% 90%;
+  --input: 211 28% 90%;
+  --chrome: 0 0% 100%;
+  --rail: 0 0% 100%;
+  --th: 209 46% 95%;
+}
+[data-ui="ui-5"].dark {
+  color-scheme: dark;
+  --background: 212 40% 12%;
+  --card: 212 36% 15%;
+  --ground: 213 45% 9%;
+  --foreground: 210 30% 95%;
+  --card-foreground: 210 30% 95%;
+  --popover: 212 36% 16%;
+  --popover-foreground: 210 30% 95%;
+  --primary: 209 100% 66%;
+  --primary-foreground: 213 45% 9%;
+  --ink: 210 30% 95%;
+  --ink-foreground: 213 45% 9%;
+  --ring: 209 100% 66%;
+  --secondary: 212 30% 19%;
+  --secondary-foreground: 210 30% 95%;
+  --muted: 212 30% 19%;
+  --muted-foreground: 211 14% 66%;
+  --accent: 212 30% 21%;
+  --accent-foreground: 210 30% 95%;
+  --border: 212 24% 24%;
+  --input: 212 24% 24%;
+  --chrome: 212 38% 13%;
+  --rail: 212 36% 15%;
+  --th: 212 30% 19%;
+}
+[data-ui="ui-5"] .display { font-size: clamp(1.6rem, 2.4vw, 2.1rem); font-weight: 600; letter-spacing: -0.025em; }
+[data-ui="ui-5"] .eyebrow { font-size: 11px; letter-spacing: 0.08em; color: hsl(var(--primary)); }
+[data-ui="ui-5"] .section-no { display: none; }
+[data-ui="ui-5"] .card { border-radius: calc(14px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(15 37 64 / 0.05), 0 12px 30px -22px rgb(15 37 64 / 0.35); }
+[data-ui="ui-5"] .float { border-radius: calc(14px * var(--radius-scale, 1)); }
+[data-ui="ui-5"] .field { height: 40px; border-radius: calc(12px * var(--radius-scale, 1)); }
+[data-ui="ui-5"] .halo-dock,
+[data-ui="ui-5"] .halo-panel {
+  /* Neither --card nor --rail separates here: this shell draws its page, its
+     cards and its rails within a couple of points of each other, so a dock
+     from any of them measured about 1.1:1 against the page — present but
+     invisible. It takes a surface deliberately stepped away from the page,
+     mixed toward the ink so it lifts in dark and settles in light. */
+  /* The outline is drawn as SVG behind the icons now, so the element itself
+     carries no fill of its own — two would show as a seam wherever the bump
+     leaves the edge. */
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  /* Elevation does as much of the work as tone: a bar this close to its page
+     is read by its edge and its shadow. */
+  box-shadow: 0 22px 50px -18px hsl(var(--foreground) / 0.55), 0 2px 8px hsl(var(--foreground) / 0.12);
+  border: 1px solid hsl(var(--foreground) / 0.22);
+  border: 1px solid hsl(var(--border));
+  backdrop-filter: blur(16px) saturate(140%);
+}
+[data-ui="ui-5"] .page-head { border-bottom: 0; padding-top: 2rem; }
+[data-ui="ui-5"] .page-shell { max-width: 1240px; margin-inline: auto; padding-bottom: 88px; }
+[data-ui="ui-5"] table th { border-bottom-color: transparent; }
+@media (min-width: 1280px) {
+  [data-ui="ui-5"] .page-shell { padding-left: 236px; }
+}
+
+/* ---------------------------------------------------- UI-6 · MONOLITH ----- */
+/* A terminal. Panels separated by space rather than outlines, and one electric
+   lime. On white the lime has to darken hard to stay legible — the identity is
+   the hue, not the brightness. */
+[data-ui="ui-6"] {
+  color-scheme: light;
+  --radius: calc(0.125rem * var(--radius-scale, 1));
+  --background: 0 0% 99%;
+  --card: 0 0% 100%;
+  --ground: 0 0% 96%;
+  --foreground: 0 0% 6%;
+  --card-foreground: 0 0% 6%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 6%;
+  --primary: 78 72% 28%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 0 0% 8%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 78 72% 28%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 8%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 8%;
+  --border: 0 0% 89%;
+  --input: 0 0% 89%;
+  --chrome: 0 0% 100%;
+  --rail: 0 0% 98%;
+  --th: 0 0% 97%;
+}
+[data-ui="ui-6"].dark {
+  color-scheme: dark;
+  --background: 0 0% 4%;
+  --card: 0 0% 7%;
+  --ground: 0 0% 3%;
+  --foreground: 0 0% 100%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 9%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 78 100% 60%;
+  --primary-foreground: 0 0% 4%;
+  --ink: 78 100% 60%;
+  --ink-foreground: 0 0% 4%;
+  --ring: 78 100% 60%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 55%;
+  --accent: 0 0% 13%;
+  --accent-foreground: 0 0% 100%;
+  --border: 0 0% 14%;
+  --input: 0 0% 16%;
+  --chrome: 0 0% 4%;
+  --rail: 0 0% 6%;
+  --th: 0 0% 4%;
+}
+[data-ui="ui-6"] .display { font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 500; letter-spacing: -0.04em; }
+[data-ui="ui-6"] .display-2 { font-size: 18px; font-weight: 500; letter-spacing: -0.02em; }
+[data-ui="ui-6"] .eyebrow { font-size: 10px; letter-spacing: 0.2em; color: hsl(var(--primary)); }
+[data-ui="ui-6"] .section-no { display: none; }
+[data-ui="ui-6"] .card { border-color: transparent; background: hsl(var(--card)); border-radius: calc(2px * var(--radius-scale, 1)); }
+[data-ui="ui-6"] .float,
+[data-ui="ui-6"] .hairline { border-radius: calc(2px * var(--radius-scale, 1)); }
+[data-ui="ui-6"] .field { height: 38px; border-radius: calc(2px * var(--radius-scale, 1)); }
+[data-ui="ui-6"] .chrome,
+[data-ui="ui-6"] .monolith-strip { backdrop-filter: none; }
+[data-ui="ui-6"] .monolith-drawer { box-shadow: 0 30px 60px -20px rgb(0 0 0 / 0.4); }
+[data-ui="ui-6"] .page-head { border-bottom: 0; padding-top: 2.25rem; padding-bottom: 1.25rem; }
+[data-ui="ui-6"] .page-body { padding-block: 1.5rem 3rem; }
+[data-ui="ui-6"] table th { color: hsl(var(--muted-foreground)); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+[data-ui="ui-6"] td,
+[data-ui="ui-6"] .tabular-nums { font-feature-settings: "tnum" 1; }
+
+/* ----------------------------------------------------- UI-7 · TERRACE ----- */
+/* Horizontal bands on cream with emerald, terracotta and gold; dark keeps the
+   warm hue in the ground so the bands still read as layers. */
+[data-ui="ui-7"] {
+  color-scheme: light;
+  --radius: calc(0.75rem * var(--radius-scale, 1));
+  --background: 40 44% 97%;
+  --card: 0 0% 100%;
+  --ground: 39 40% 94%;
+  --foreground: 30 12% 14%;
+  --card-foreground: 30 12% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 30 12% 14%;
+  --primary: 162 45% 30%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 162 45% 24%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 162 45% 30%;
+  --secondary: 40 32% 95%;
+  --secondary-foreground: 30 12% 18%;
+  --muted: 40 32% 95%;
+  --muted-foreground: 33 9% 44%;
+  --accent: 160 26% 92%;
+  --accent-foreground: 162 40% 22%;
+  --border: 38 26% 88%;
+  --input: 38 26% 88%;
+  --destructive: 17 55% 48%;
+  --warning: 40 62% 44%;
+  --chrome: 39 40% 94%;
+  --rail: 0 0% 100%;
+  --th: 160 26% 93%;
+}
+[data-ui="ui-7"].dark {
+  color-scheme: dark;
+  --background: 30 12% 11%;
+  --card: 30 10% 14%;
+  --ground: 30 14% 8%;
+  --foreground: 40 22% 94%;
+  --card-foreground: 40 22% 94%;
+  --popover: 30 10% 15%;
+  --popover-foreground: 40 22% 94%;
+  --primary: 162 40% 52%;
+  --primary-foreground: 30 14% 8%;
+  --ink: 40 22% 94%;
+  --ink-foreground: 30 14% 8%;
+  --ring: 162 40% 52%;
+  --secondary: 30 8% 18%;
+  --secondary-foreground: 40 22% 94%;
+  --muted: 30 8% 18%;
+  --muted-foreground: 36 8% 62%;
+  --accent: 162 18% 20%;
+  --accent-foreground: 40 22% 94%;
+  --border: 30 8% 22%;
+  --input: 30 8% 22%;
+  --destructive: 17 60% 58%;
+  --warning: 40 70% 56%;
+  --chrome: 30 13% 10%;
+  --rail: 30 10% 14%;
+  --th: 162 14% 18%;
+}
+[data-ui="ui-7"] .display { font-size: clamp(1.8rem, 2.8vw, 2.4rem); font-weight: 600; letter-spacing: -0.028em; }
+[data-ui="ui-7"] .eyebrow { font-size: 11px; letter-spacing: 0.12em; color: hsl(var(--primary)); }
+[data-ui="ui-7"] .section-no { display: none; }
+[data-ui="ui-7"] .card { border-radius: calc(12px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(60 45 20 / 0.04); }
+[data-ui="ui-7"] .field { height: 40px; border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-7"] .chrome,
+[data-ui="ui-7"] .terrace-nav { backdrop-filter: none; }
+[data-ui="ui-7"] .terrace-sub { background: hsl(var(--card)); }
+[data-ui="ui-7"] .page-head { background: hsl(var(--card)); }
+[data-ui="ui-7"] table th { border-bottom-color: transparent; }
+
+/* ------------------------------------------------------- UI-8 · PULSE ----- */
+/* Event-driven, with cyan for movement. Dark is deep blue-grey; light is the
+   same blue cast in daylight so "what just changed" still jumps. */
+[data-ui="ui-8"] {
+  color-scheme: light;
+  --radius: calc(0.625rem * var(--radius-scale, 1));
+  --background: 215 40% 97%;
+  --card: 0 0% 100%;
+  --ground: 215 36% 94%;
+  --foreground: 219 42% 14%;
+  --card-foreground: 219 42% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 219 42% 14%;
+  /* #0090BF */
+  --primary: 194.8 100% 37.5%;
+  --primary-foreground: 0 0% 100%;
+  /* Solid buttons carry white labels, and white on #0090BF measures 3.7:1 —
+     under the 4.5:1 that text needs. --ink is the filled-button colour, so it
+     takes the same hue two stops darker; the brand colour itself is unchanged
+     everywhere it is not carrying small text. */
+  --ink: 194.8 100% 29%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 194.8 100% 37.5%;
+  --secondary: 215 30% 95%;
+  --secondary-foreground: 219 40% 18%;
+  --muted: 215 30% 95%;
+  --muted-foreground: 216 12% 44%;
+  --accent: 195 52% 92%;
+  --accent-foreground: 219 40% 18%;
+  --border: 215 24% 88%;
+  --input: 215 24% 88%;
+  --destructive: 330 72% 45%;
+  --warning: 40 90% 40%;
+  --chrome: 0 0% 100%;
+  --rail: 215 38% 95%;
+  --th: 195 46% 93%;
+}
+[data-ui="ui-8"].dark {
+  color-scheme: dark;
+  --background: 219 40% 11%;
+  --card: 219 36% 14%;
+  --ground: 220 45% 8%;
+  --foreground: 213 30% 95%;
+  --card-foreground: 213 30% 95%;
+  --popover: 219 36% 15%;
+  --popover-foreground: 213 30% 95%;
+  --primary: 195 95% 56%;
+  --primary-foreground: 220 45% 8%;
+  --ink: 195 95% 56%;
+  --ink-foreground: 220 45% 8%;
+  --ring: 195 95% 56%;
+  --secondary: 219 28% 19%;
+  --secondary-foreground: 213 30% 95%;
+  --muted: 219 28% 19%;
+  --muted-foreground: 215 16% 66%;
+  --accent: 219 30% 21%;
+  --accent-foreground: 213 30% 96%;
+  --border: 219 24% 24%;
+  --input: 219 24% 24%;
+  --destructive: 330 82% 62%;
+  --warning: 40 96% 56%;
+  --chrome: 220 42% 10%;
+  --rail: 220 43% 9%;
+  --th: 219 30% 18%;
+}
+[data-ui="ui-8"] .display { font-size: clamp(1.4rem, 2.2vw, 1.85rem); font-weight: 600; letter-spacing: -0.02em; }
+[data-ui="ui-8"] .display-2 { font-size: 14px; font-weight: 600; }
+[data-ui="ui-8"] .eyebrow { font-size: 10px; letter-spacing: 0.14em; color: hsl(var(--primary)); }
+[data-ui="ui-8"] .section-no { display: none; }
+[data-ui="ui-8"] .card { border-radius: calc(10px * var(--radius-scale, 1)); box-shadow: 0 0 0 1px hsl(var(--border)), 0 14px 34px -26px hsl(var(--primary) / 0.35); }
+[data-ui="ui-8"] .float { border-radius: calc(10px * var(--radius-scale, 1)); }
+[data-ui="ui-8"] .field { height: 36px; border-radius: calc(8px * var(--radius-scale, 1)); font-size: 13px; }
+[data-ui="ui-8"] .chrome { backdrop-filter: none; }
+[data-ui="ui-8"] .page-head { padding-block: 1rem; }
+[data-ui="ui-8"] .head-row { flex-direction: row; align-items: center; gap: 1rem; }
+[data-ui="ui-8"] .head-copy { max-width: none; }
+[data-ui="ui-8"] .head-sub { margin-top: 0.1rem; font-size: 12px; max-width: none; }
+[data-ui="ui-8"] table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+[data-ui="ui-8"] table td { font-size: 13px; }
+
+/* ------------------------------------------------------ UI-9 · MOSAIC ---- */
+/* Tiles told apart by four accents. The tile tints are alpha over the ground,
+   so one set of rules works in both modes. */
+[data-ui="ui-9"] {
+  color-scheme: light;
+  --radius: calc(0.875rem * var(--radius-scale, 1));
+  --background: 220 20% 98%;
+  --card: 0 0% 100%;
+  --ground: 220 20% 96%;
+  --foreground: 222 24% 12%;
+  --card-foreground: 222 24% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 24% 12%;
+  --primary: 221 83% 50%;
+  --primary-foreground: 0 0% 100%;
+  --ink: 222 30% 16%;
+  --ink-foreground: 0 0% 100%;
+  --ring: 221 83% 50%;
+  --secondary: 220 20% 96%;
+  --secondary-foreground: 222 24% 16%;
+  --muted: 220 18% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 30% 94%;
+  --accent-foreground: 222 24% 16%;
+  --border: 220 16% 91%;
+  --input: 220 16% 91%;
+  --chrome: 0 0% 100%;
+  --rail: 0 0% 100%;
+  --th: 220 26% 95%;
+}
+[data-ui="ui-9"].dark {
+  color-scheme: dark;
+  --background: 222 24% 12%;
+  --card: 222 22% 15%;
+  --ground: 222 28% 9%;
+  --foreground: 220 20% 96%;
+  --card-foreground: 220 20% 96%;
+  --popover: 222 22% 16%;
+  --popover-foreground: 220 20% 96%;
+  --primary: 221 90% 66%;
+  --primary-foreground: 222 28% 9%;
+  --ink: 220 20% 96%;
+  --ink-foreground: 222 28% 9%;
+  --ring: 221 90% 66%;
+  --secondary: 222 20% 19%;
+  --secondary-foreground: 220 20% 96%;
+  --muted: 222 20% 19%;
+  --muted-foreground: 220 10% 66%;
+  --accent: 222 20% 21%;
+  --accent-foreground: 220 20% 96%;
+  --border: 222 16% 24%;
+  --input: 222 16% 24%;
+  --chrome: 222 22% 15%;
+  --rail: 222 22% 15%;
+  --th: 222 20% 19%;
+}
+[data-ui="ui-9"] .display { font-size: clamp(1.6rem, 2.4vw, 2.05rem); font-weight: 600; letter-spacing: -0.025em; }
+[data-ui="ui-9"] .eyebrow { font-size: 11px; letter-spacing: 0.08em; color: hsl(var(--primary)); }
+[data-ui="ui-9"] .section-no { display: none; }
+[data-ui="ui-9"] .card { border-radius: calc(14px * var(--radius-scale, 1)); box-shadow: 0 1px 2px rgb(20 30 60 / 0.04), 0 10px 26px -20px rgb(20 30 60 / 0.3); }
+[data-ui="ui-9"] .float { border-radius: calc(14px * var(--radius-scale, 1)); }
+[data-ui="ui-9"] .field { height: 40px; border-radius: calc(11px * var(--radius-scale, 1)); }
+[data-ui="ui-9"] .chrome,
+[data-ui="ui-9"] .mosaic-launcher { backdrop-filter: none; }
+[data-ui="ui-9"] .page-head { border-bottom: 0; }
+[data-ui="ui-9"] .page-shell { max-width: 1520px; margin-inline: auto; }
+[data-ui="ui-9"] table th { border-bottom-color: transparent; }
+[data-ui="ui-9"] .mosaic-tile { border: 1px solid hsl(var(--border)); }
+[data-ui="ui-9"] .mosaic-tile[data-tone="cobalt"] { background: hsl(221 83% 53% / 0.09); border-color: hsl(221 83% 53% / 0.22); }
+[data-ui="ui-9"] .mosaic-tile[data-tone="teal"] { background: hsl(174 70% 40% / 0.09); border-color: hsl(174 70% 40% / 0.22); }
+[data-ui="ui-9"] .mosaic-tile[data-tone="coral"] { background: hsl(8 85% 62% / 0.09); border-color: hsl(8 85% 62% / 0.22); }
+[data-ui="ui-9"] .mosaic-tile[data-tone="violet"] { background: hsl(263 70% 58% / 0.09); border-color: hsl(263 70% 58% / 0.22); }
+
+/* ===========================================================================
+   Shared shell chrome.
+
+   These read --chrome, --rail and --th, so every navigation surface follows
+   the active interface AND the active theme without a single per-UI rule.
+   Adding an interface means adding three tokens, not three more selectors.
+   =========================================================================== */
+.nexus-dock,
+.nexus-panel,
+.vector-strip,
+.pulse-rail,
+.pulse-timeline,
+.prism-inspector { border-color: hsl(var(--border)); }
+
+[data-ui] .chrome { background: hsl(var(--chrome)); }
+[data-ui] .aurora-nav,
+[data-ui] .terrace-nav,
+[data-ui] .prism-menu,
+[data-ui] .monolith-strip,
+[data-ui] .mosaic-launcher { background: hsl(var(--chrome)); }
+[data-ui] .nexus-dock,
+[data-ui] .nexus-panel,
+[data-ui] .vector-strip,
+[data-ui] .vector-chips,
+[data-ui] .pulse-rail,
+[data-ui] .pulse-timeline,
+[data-ui] .app-rail { background: hsl(var(--rail)); }
+[data-ui] .monolith-drawer { background: hsl(var(--rail)); }
+[data-ui] .prism-inspector,
+[data-ui] .prism-inspector-tab { background: hsl(var(--ground)); }
+[data-ui] table th { background: hsl(var(--th)); }
+
+[data-shell="monolith"] .page-shell,
+[data-shell="mega"] .page-shell { width: 100%; }
+
+/* ===========================================================================
+   UI-8 — HEADER
+
+   Clean when untouched, responsive when hovered or tapped, informative when
+   opened. Institutional white and the #0090BF accent; every state is drawn,
+   nothing is only implied.
+   =========================================================================== */
+
+[data-ui="ui-8"] .ui9-header {
+  border-color: hsl(var(--border));
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.04);
+}
+
+/* Icon buttons, scope selectors and the brand share one interaction language. */
+[data-ui="ui-8"] .ui9-icon,
+[data-ui="ui-8"] .ui9-scope,
+[data-ui="ui-8"] .ui9-brand,
+[data-ui="ui-8"] .ui9-profile,
+[data-ui="ui-8"] .ui9-ghost {
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+[data-ui="ui-8"] .ui9-scope,
+[data-ui="ui-8"] .ui9-ghost { border-color: hsl(var(--border)); }
+[data-ui="ui-8"] .ui9-search {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.5);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+@media (hover: hover) {
+  [data-ui="ui-8"] .ui9-icon:hover,
+  [data-ui="ui-8"] .ui9-brand:hover,
+  [data-ui="ui-8"] .ui9-profile:hover,
+  [data-ui="ui-8"] .ui9-ghost:hover { background: hsl(var(--accent)); }
+  [data-ui="ui-8"] .ui9-scope:hover {
+    background: hsl(var(--accent));
+    border-color: hsl(var(--primary) / 0.35);
+  }
+  [data-ui="ui-8"] .ui9-search:hover {
+    background: hsl(var(--card));
+    border-color: hsl(var(--primary) / 0.4);
+    box-shadow: 0 1px 3px hsl(var(--foreground) / 0.06);
+  }
+}
+
+/* Open state: the chevron turns and the control stays lit, so it is obvious
+   which selector the panel below belongs to. */
+[data-ui="ui-8"] [aria-expanded="true"] .ui9-scope,
+[data-ui="ui-8"] .ui9-scope[aria-expanded="true"] { border-color: hsl(var(--primary)); }
+[data-ui="ui-8"] .ui9-scope svg:last-child,
+[data-ui="ui-8"] .ui9-cta svg:last-child { transition: transform 180ms ease; }
+[data-ui="ui-8"] [aria-expanded="true"] svg:last-child { transform: rotate(180deg); }
+
+[data-ui="ui-8"] .ui9-icon:active,
+[data-ui="ui-8"] .ui9-scope:active,
+[data-ui="ui-8"] .ui9-profile:active { background: hsl(var(--accent)); }
+
+/* The single strongest call to action on the page. */
+[data-ui="ui-8"] .ui9-cta {
+  background: hsl(var(--ink));
+  color: hsl(var(--ink-foreground));
+  border: 1px solid transparent;
+  transition: filter 160ms ease, box-shadow 160ms ease;
+}
+[data-ui="ui-8"] .ui9-cta:hover { filter: brightness(1.08); box-shadow: 0 2px 8px hsl(var(--primary) / 0.28); }
+[data-ui="ui-8"] .ui9-cta:active { filter: brightness(0.96); }
+[data-ui="ui-8"] .ui9-cta:disabled { opacity: 0.5; box-shadow: none; filter: none; }
+
+/* Bottom navigation: the current destination is marked by weight and a rule,
+   not by colour alone. */
+[data-ui="ui-8"] .ui9-bottom a { transition: color 160ms ease; }
+[data-ui="ui-8"] .ui9-bottom a[aria-current="page"] {
+  color: hsl(var(--primary));
+  font-weight: 600;
+  box-shadow: inset 0 2px 0 hsl(var(--primary));
+}
+/* The bar sits over the page, so the page needs room beneath it. */
+@media (max-width: 639.98px) {
+  [data-ui="ui-8"] .page-shell { padding-bottom: 72px; }
+}
+
+/* ---------------------------------------------------------------------------
+   UI-5 · the module panel floats
+
+   It is meant to hover beside the work rather than sit against an edge — that
+   is the difference between this shell and the docked ones. In dark it had
+   been reading as a flat block because it shared the page's own colour, so it
+   carries its own surface, a hairline and a shadow in both appearances.
+   --------------------------------------------------------------------------- */
+[data-ui="ui-5"] .halo-panel {
+  background: hsl(var(--rail) / 0.92);
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(18px * var(--radius-scale, 1));
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow:
+    0 24px 60px -28px hsl(var(--foreground) / 0.55),
+    0 2px 8px hsl(var(--foreground) / 0.06);
+}
+[data-ui="ui-5"].dark .halo-panel {
+  background: hsl(var(--rail) / 0.88);
+  box-shadow:
+    0 28px 70px -30px hsl(0 0% 0% / 0.8),
+    0 0 0 1px hsl(0 0% 100% / 0.06);
+}

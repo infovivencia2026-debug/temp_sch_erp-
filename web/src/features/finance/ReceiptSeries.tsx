@@ -159,32 +159,29 @@ export default function ReceiptSeries() {
             title="The series, year by year"
             description="What GST asks about: a continuous run of numbers with nothing missing"
           />
-          {series.isLoading ? (
-            <Skeleton />
-          ) : (
-            <Table
-              head={['Financial year', 'Receipts issued', 'First', 'Last', 'Gaps', 'State']}
-              empty={!years.length}
-              emptyLabel="No numbered receipts yet."
-            >
-              {years.map((y) => (
-                <tr key={y.fy}>
-                  <Td className="font-medium">{y.fy}</Td>
-                  <Td className="tabular-nums">{y.issued}</Td>
-                  <Td className="tabular-nums text-muted-foreground">{y.first_seq}</Td>
-                  <Td className="tabular-nums text-muted-foreground">{y.last_seq}</Td>
-                  <Td className="tabular-nums">{y.gaps > 0 ? y.gaps : '—'}</Td>
-                  <Td>
-                    {y.gaps > 0 ? (
-                      <Badge tone="danger">has holes</Badge>
-                    ) : (
-                      <Badge tone="success">gapless</Badge>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          )}
+          <Table loading={series.isLoading}
+            head={['Financial year', 'Receipts issued', 'First', 'Last', 'Gaps', 'State']}
+            empty={!years.length}
+            emptyLabel="No numbered receipts yet."
+          >
+            {years.map((y) => (
+              <tr key={y.fy}>
+                <Td className="font-medium">{y.fy}</Td>
+                <Td className="tabular-nums">{y.issued}</Td>
+                <Td className="tabular-nums text-muted-foreground">{y.first_seq}</Td>
+                <Td className="tabular-nums text-muted-foreground">{y.last_seq}</Td>
+                <Td className="tabular-nums">{y.gaps > 0 ? y.gaps : '—'}</Td>
+                <Td>
+                  {y.gaps > 0 ? (
+                    <Badge tone="danger">has holes</Badge>
+                  ) : (
+                    <Badge tone="success">gapless</Badge>
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </Table>
+
           <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">
             Receipts issued before numbering was tracked keep their numbers and are not counted
             here — they have a printed number but no recorded sequence, so including them would

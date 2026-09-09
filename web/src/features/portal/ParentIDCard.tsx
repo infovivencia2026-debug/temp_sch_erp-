@@ -5,7 +5,7 @@ import { PageHead, PageBody, Card, PrintButton } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
-import { useVisibleInterval } from '@/lib/visible'
+import { useTabVisible, passRefetch } from '@/lib/visible'
 
 /* The guardian's own card for the school gate.
 
@@ -44,14 +44,20 @@ interface Pass {
 
 export default function ParentIDCard() {
   const t = useT()
+  const visible = useTabVisible()
   const query = useQuery({
     queryKey: ['parent-id-card'],
     queryFn: () =>
       api.get<{ card: IDCard; children: Child[]; pass: Pass }>(
         '/api/v1/portal/profile/parent-id-card',
       ),
-    // Paused while the tab is hidden: a background tab was polling for nobody.
-    refetchInterval: useVisibleInterval(60_000),
+    /* The card itself never changes while it is on screen — the name, the
+       class and the photograph are the same in a minute's time. The gate pass
+       under it does: its code is derived from a 150-second window, so a copy
+       older than that is refused at the gate. So the poll follows the pass
+       rather than the clock, asking again just after the code it is holding
+       has run out instead of two or three times inside every window. */
+    refetchInterval: passRefetch(visible),
   })
 
   if (query.isLoading) return <ScreenSkeleton label={t('portal.parent_id_card.loading')} />

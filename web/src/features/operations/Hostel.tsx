@@ -3,10 +3,11 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, type List, type Page, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, Select, Loading, SkeletonTable, ErrorState, FormNotice, EmptyState,
+  Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { formatDate, cn } from '@/lib/utils'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* The hostel, from the warden's side.
  *
@@ -63,10 +64,11 @@ export default function Hostel() {
     enabled: !!openRoom,
   })
 
+  const needle = useDebouncedValue(search.trim())
   const candidates = useQuery({
-    queryKey: ['hostel-candidates', search],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(search)}&limit=15`),
-    enabled: search.trim().length >= 2,
+    queryKey: ['hostel-candidates', needle],
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
 
@@ -185,25 +187,22 @@ export default function Hostel() {
               description={`${openRoom.occupied} of ${openRoom.beds} beds taken`}
               action={<Button variant="ghost" onClick={() => setOpenRoom(null)}>Close</Button>}
             />
-            {boarders.isLoading ? (
-              <SkeletonTable columns={5} />
-            ) : (
-              <Table
-                head={['Bed', 'Student', 'Admission no.', 'Class', 'Since']}
-                empty={!boarders.data?.items.length}
-                emptyLabel="Nobody is in this room yet."
-              >
-                {(boarders.data?.items ?? []).map((b) => (
-                  <tr key={b.allocation_id}>
-                    <Td className="tabular-nums">{b.bed_no}</Td>
-                    <Td className="font-medium">{b.name}</Td>
-                    <Td className="font-mono text-[12px]">{b.admission_no}</Td>
-                    <Td className="text-muted-foreground">{b.class_name || '—'}</Td>
-                    <Td className="text-muted-foreground">{formatDate(b.allocated_on)}</Td>
-                  </tr>
-                ))}
-              </Table>
-            )}
+            <Table loading={boarders.isLoading}
+              head={['Bed', 'Student', 'Admission no.', 'Class', 'Since']}
+              empty={!boarders.data?.items.length}
+              emptyLabel="Nobody is in this room yet."
+            >
+              {(boarders.data?.items ?? []).map((b) => (
+                <tr key={b.allocation_id}>
+                  <Td className="tabular-nums">{b.bed_no}</Td>
+                  <Td className="font-medium">{b.name}</Td>
+                  <Td className="font-mono text-[12px]">{b.admission_no}</Td>
+                  <Td className="text-muted-foreground">{b.class_name || '—'}</Td>
+                  <Td className="text-muted-foreground">{formatDate(b.allocated_on)}</Td>
+                </tr>
+              ))}
+            </Table>
+
 
             {mayAllocate && freeBeds.length > 0 && (
               <div className="border-t p-5">

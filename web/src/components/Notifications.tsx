@@ -119,7 +119,7 @@ export default function Notifications() {
     refetchOnWindowFocus: true,
     // The count on the bell is the freshest thing on the page; nothing else
     // should be serving it out of a cache the revision poll has not touched.
-    staleTime: 10_000,
+    staleTime: 60_000,
     retry: false,
   })
   const readAll = useMutation({

@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Checkbox, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* What a school has to be able to produce when somebody asks.
 
@@ -99,12 +100,7 @@ const TABS = [
 
 const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 
-function useEmployees() {
-  return useQuery({
-    queryKey: ['employees', 'records'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=300'),
-  })
-}
+const useEmployees = () => useEmployeeRoster<Employee>()
 
 export default function ServiceRecords() {
   const [tab, setTab] = useState<(typeof TABS)[number][0]>('book')

@@ -185,6 +185,9 @@ func (s *Server) issueStudentLogin(w http.ResponseWriter, r *http.Request) {
 				*userID, hash); err != nil {
 				return err
 			}
+			// A reissued login is a new password on an existing account, so
+			// what this process remembers about it is now wrong.
+			forget(*userID)
 			return tx.QueryRow(r.Context(),
 				`SELECT COALESCE(username::text, email::text, phone, '') FROM users WHERE id = $1`,
 				*userID).Scan(&out.SignInAs)
@@ -565,6 +568,7 @@ func (s *Server) ensureGuardianAccount(ctx context.Context, tx pgx.Tx,
 			`UPDATE users SET password_hash = $2 WHERE id = $1`, *existing, hash); err != nil {
 			return out, err
 		}
+		forget(*existing)
 		out.Password = password
 		// Still Existing -- the account, the username and every record hanging
 		// off it are the ones that were already there. Only the unused secret

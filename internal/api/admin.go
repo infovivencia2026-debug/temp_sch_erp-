@@ -160,6 +160,9 @@ func (s *Server) setUserStatus(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// Suspending an account that the identity cache is still holding would
+	// otherwise leave the person working for another minute.
+	s.forgetUser(target)
 	httpx.JSON(w, http.StatusOK, map[string]any{"id": target.String(), "status": req.Status})
 }
 
@@ -362,6 +365,9 @@ func (s *Server) revokeSession(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// Being told a login is really closed is the whole point of this screen,
+	// so the cached identity for it goes with the row.
+	s.Sessions.Forget(sessionID)
 	httpx.JSON(w, http.StatusOK, map[string]any{"id": sessionID.String(), "revoked": true})
 }
 

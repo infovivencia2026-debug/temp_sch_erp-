@@ -45,9 +45,11 @@ export type GalleryItem = {
   defaultTier: SizeTier
 }
 
-/** The four tiers in the order the size row draws them; the digit keys 1-4
-    follow the same order. The same order as lib/size-tiers.ts TIERS. */
-const TIERS: readonly SizeTier[] = ['small', 'medium', 'large', 'wide']
+/** The three tiers in the order the size row draws them; the digit keys 1-3
+    follow the same order. The same order as lib/size-tiers.ts TIERS, which
+    dropped Wide from the offer while keeping it as a shape a stored board may
+    already hold. */
+const TIERS: readonly SizeTier[] = ['small', 'medium', 'large']
 
 /** The footprint each tier stands for, as drawn in the size glyphs. The
     board's own columns-and-rows for a tier live in lib/widgets; this is the

@@ -3,7 +3,7 @@ import { BookOpen, Bus, AlertTriangle, Clock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, SkeletonTable, SkeletonTiles, ErrorState,
+  Table, Td, Badge, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 
@@ -75,57 +75,51 @@ export default function OperationsWorkspace() {
         {!loans.error && (
           <Card>
             <CardHeader title="Books on loan" description="Currently issued and not returned" />
-            {loans.isLoading ? (
-              <SkeletonTable columns={6} />
-            ) : (
-              <Table
-                head={['Title', 'Borrower', 'Issued', 'Due', 'Fine', 'State']}
-                empty={!loans.data?.items.length}
-                emptyLabel="No books currently on loan."
-              >
-                {(loans.data?.items ?? []).map((l) => (
-                  <tr key={l.id}>
-                    <Td className="font-medium">{l.title}</Td>
-                    <Td>{l.borrower}</Td>
-                    <Td className="text-muted-foreground">{formatDate(l.issued_on)}</Td>
-                    <Td className="text-muted-foreground">{formatDate(l.due_on)}</Td>
-                    <Td>{l.fine_paise ? formatPaise(l.fine_paise) : '—'}</Td>
-                    <Td>
-                      <Badge tone={l.overdue ? 'danger' : 'success'}>
-                        {l.overdue ? <><Clock className="mr-1 h-3 w-3" />overdue</> : 'on time'}
-                      </Badge>
-                    </Td>
-                  </tr>
-                ))}
-              </Table>
-            )}
+            <Table loading={loans.isLoading}
+              head={['Title', 'Borrower', 'Issued', 'Due', 'Fine', 'State']}
+              empty={!loans.data?.items.length}
+              emptyLabel="No books currently on loan."
+            >
+              {(loans.data?.items ?? []).map((l) => (
+                <tr key={l.id}>
+                  <Td className="font-medium">{l.title}</Td>
+                  <Td>{l.borrower}</Td>
+                  <Td className="text-muted-foreground">{formatDate(l.issued_on)}</Td>
+                  <Td className="text-muted-foreground">{formatDate(l.due_on)}</Td>
+                  <Td>{l.fine_paise ? formatPaise(l.fine_paise) : '—'}</Td>
+                  <Td>
+                    <Badge tone={l.overdue ? 'danger' : 'success'}>
+                      {l.overdue ? <><Clock className="mr-1 h-3 w-3" />overdue</> : 'on time'}
+                    </Badge>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
           </Card>
         )}
 
         {!vehicles.error && (
           <Card>
             <CardHeader title="Vehicle registry" description="Buses, routes and statutory document expiry" />
-            {vehicles.isLoading ? (
-              <SkeletonTable columns={7} />
-            ) : (
-              <Table
-                head={['Registration', 'Model', 'Capacity', 'Route', 'Driver', 'Next expiry', 'Status']}
-                empty={!vehicles.data?.items.length}
-                emptyLabel="No vehicles registered."
-              >
-                {(vehicles.data?.items ?? []).map((v) => (
-                  <tr key={v.id}>
-                    <Td className="font-mono text-[12px]">{v.registration_no}</Td>
-                    <Td>{v.model ?? '—'}</Td>
-                    <Td>{v.capacity}</Td>
-                    <Td className="text-muted-foreground">{v.route ?? 'unassigned'}</Td>
-                    <Td className="text-muted-foreground">{v.driver ?? '—'}</Td>
-                    <Td className="text-muted-foreground">{formatDate(v.next_expiry)}</Td>
-                    <Td><Badge tone={v.status === 'active' ? 'success' : 'neutral'}>{v.status}</Badge></Td>
-                  </tr>
-                ))}
-              </Table>
-            )}
+            <Table loading={vehicles.isLoading}
+              head={['Registration', 'Model', 'Capacity', 'Route', 'Driver', 'Next expiry', 'Status']}
+              empty={!vehicles.data?.items.length}
+              emptyLabel="No vehicles registered."
+            >
+              {(vehicles.data?.items ?? []).map((v) => (
+                <tr key={v.id}>
+                  <Td className="font-mono text-[12px]">{v.registration_no}</Td>
+                  <Td>{v.model ?? '—'}</Td>
+                  <Td>{v.capacity}</Td>
+                  <Td className="text-muted-foreground">{v.route ?? 'unassigned'}</Td>
+                  <Td className="text-muted-foreground">{v.driver ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{formatDate(v.next_expiry)}</Td>
+                  <Td><Badge tone={v.status === 'active' ? 'success' : 'neutral'}>{v.status}</Badge></Td>
+                </tr>
+              ))}
+            </Table>
+
           </Card>
         )}
       </PageBody>

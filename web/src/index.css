@@ -852,6 +852,22 @@
     box-shadow: none;
   }
 
+  /* A table's scroller paints over the card's bottom corners.
+
+     .scroll-x carries an opaque, card-coloured background (the covers that
+     hide its edge shadows), and a background does not care what shape its
+     parent is. Inside a card whose last block is a table, that square paint
+     showed past the rounded corners: the card had a radius at the top and
+     none at the bottom, and every finance summary looked chipped. The card
+     cannot simply clip its overflow -- menus and date pickers open out of
+     cards -- so the last block takes the card's own curve instead, one
+     pixel tighter to sit inside the hairline. */
+  .card > .table-frame:last-child,
+  .card > .table-frame:last-child > .scroll-x {
+    border-bottom-left-radius: calc(var(--radius-card) - 1px);
+    border-bottom-right-radius: calc(var(--radius-card) - 1px);
+  }
+
   /* A table header is a label row, not a band. The tint is enough to hold the
      header still while the body scrolls under it. */
   .responsive-table thead th {
@@ -2857,4 +2873,57 @@ body[data-scroll-lock] {
   html .sm\:text-\[13px\] { font-size: calc(13px * var(--font-scale)); }
   html .sm\:text-\[22px\] { font-size: calc(22px * var(--font-scale)); }
   html .sm\:text-\[24px\] { font-size: calc(24px * var(--font-scale)); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE SKELETON'S SHIMMER.
+
+   A placeholder used to be Tailwind's `animate-pulse`: a whole block fading
+   in and out every two seconds, which on a page of forty bars reads as the
+   page blinking. This is one soft band of light sliding across each bar,
+   slowly (1.6s) and at low contrast -- the band is the card colour at 55%
+   over the muted ground, so it is a highlight passing over grey and not a
+   grey bar flashing white. `background-attachment` is not used; the band
+   is 200% wide and slides through the bar's own box.
+
+   Both themes come from the tokens: --muted is the ground and --card is the
+   band, and each already has a value under .dark.
+
+   Reduced motion stops it dead: the bar is still a grey block, which was
+   always the whole message. */
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.skeleton {
+  background-color: hsl(var(--muted));
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    hsl(var(--card) / 0.55) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background-image: none; }
+}
+
+/* The same shimmer on a surface that carries its own ink.
+
+   The bento boards do not paint on --background/--card: they paint on
+   --bento-bg and resolve an ink per cell, and twelve of those cells are a
+   saturated domain colour. A bar coloured hsl(var(--muted)) dropped onto a
+   deep green card is a grey smear, not a quieter version of what is coming.
+   So on those surfaces the bar is the CELL'S OWN INK at a low strength, which
+   is the same rule every other mark on a bento card already follows. */
+.skeleton-ink {
+  background-color: color-mix(in srgb, currentColor 13%, transparent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, currentColor 10%, transparent) 50%,
+    transparent 70%
+  );
 }

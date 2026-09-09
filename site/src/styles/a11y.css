@@ -1,0 +1,709 @@
+/* ===========================================================================
+   BASELINE — applies to all twenty-one interfaces
+
+   These are the things that should be true of every shell regardless of how
+   it is laid out, and which were previously either opt-in or absent. They are
+   written entirely against the theme tokens, so each interface gets them in
+   its own palette rather than in a borrowed one, in both appearances.
+
+   Loaded last, after the interface layers.
+   =========================================================================== */
+
+/* --------------------------------------------------------- Keyboard focus */
+/* The focus floor itself lives in index.css, inside the same Tailwind layer as
+   the .focus-ring helper — an unlayered rule here could not reliably outrank a
+   layered one whatever its specificity. What stays here is everything the
+   floor does not cover. */
+
+/* Dark rails carry their own ring, since the page ring can vanish against them. */
+.edu-sidebar :focus-visible, .nexus-dock :focus-visible, .nexus-panel :focus-visible,
+.vector-strip :focus-visible, .pulse-rail :focus-visible, .monolith-drawer :focus-visible,
+.halo-dock :focus-visible {
+  outline-color: hsl(0 0% 100% / 0.85);
+}
+/* Never remove the ring — only ever replace it. */
+:focus:not(:focus-visible) { outline: none; }
+
+/* ------------------------------------------------------------- Skip link */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 200;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 8px 24px hsl(0 0% 0% / 0.25);
+  transform: translateY(-160%);
+  transition: transform 140ms ease-out;
+}
+.skip-link:focus-visible { transform: translateY(0); outline-offset: 3px; }
+
+/* ------------------------------------------------------------ Hit targets */
+/* Rails and toolbars pack their controls tightly. Below roughly 32px a target
+   is hard to hit with a mouse and unreliable with a thumb. */
+:where(nav, [role="toolbar"], .edu-sidebar, .nexus-dock, .halo-dock, .pulse-rail)
+  :where(a[href], button, [role="button"]) {
+  min-height: 32px;
+}
+@media (pointer: coarse) {
+  :where(a[href], button, [role="button"], [role="tab"]) { min-height: 44px; }
+}
+
+/* ------------------------------------------------------------- Legibility */
+/* Secondary text is the first thing to fail contrast when a palette is tuned
+   for the headline. This holds it above the point where it stops being read. */
+/* Measured across all 21 palettes, secondary text sat between 3.8:1 and 4.5:1
+   in light — under the 4.5:1 needed for body-size text. Mixing a share of the
+   foreground in lifts every palette by the same proportion without hand-picking
+   21 replacement colours, and keeps each interface's own hue. */
+/* Mixed toward --card-foreground, not --foreground. Secondary text almost
+   always sits on a card, and --foreground is the colour for text on the page.
+   With a dark page and pale cards the two are opposites, so mixing toward the
+   page's colour turned muted text on a card nearly white on white. */
+.muted, .text-muted-foreground {
+  /* 78% left secondary text at 3.25:1 on a mid-tone page — a hot pink sits far
+     enough from both inks that the softening has to be gentler. */
+  /* Softening secondary text at all costs it contrast on a mid-tone page. A
+     hot pink is far from both inks, so the only honest answer is to stop
+     softening and use the ink itself at reduced weight. */
+  color: hsl(var(--foreground) / 0.82);
+}
+
+/* Text stays selectable — several shells set user-select: none for drag
+   affordances they do not actually have, which quietly breaks copying. */
+p, td, th, li, dd, dt, h1, h2, h3, h4 { user-select: text; }
+
+/* --------------------------------------------------------- Motion & media */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Images and media never overflow their column, whatever the shell's grid. */
+img, svg, video, canvas { max-width: 100%; }
+
+/* Long identifiers — emails, reference codes, URLs — wrap instead of forcing
+   the whole table sideways. */
+td, .break-anywhere { overflow-wrap: anywhere; }
+
+/* --------------------------------------------------- Screen-reader helpers */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------- Forced colours */
+/* Windows high-contrast mode strips backgrounds; without this, borders drawn
+   with background colour disappear and the layout collapses into a wall. */
+@media (forced-colors: active) {
+  .card, .surface, .edu-panel, .hairline { border: 1px solid CanvasText; }
+  :focus-visible { outline: 2px solid Highlight; }
+}
+
+/* ------------------------------------------------------------------ Print */
+@media print {
+  .edu-sidebar, .nexus-dock, .nexus-panel, .vector-strip, .pulse-rail,
+  .halo-dock, .skip-link, [role="toolbar"], .edu-topbar { display: none !important; }
+  #main { overflow: visible !important; }
+  body { background: #fff; color: #000; }
+}
+
+/* ===========================================================================
+   THE PHONE FLOOR
+
+   Everything below 768px, where DataTable is already showing its card layout.
+
+   These live here rather than in index.css because they have to outrank the
+   per-interface sheets: [data-ui="ui-3"] .field is specificity (0,2,0) and
+   sets a 12px, 30px-tall field, which beats a bare `input` selector. This file
+   is loaded after those sheets and matches at (0,2,1), so it wins on both
+   counts. Everything here is a min-* or a font floor — no colour, radius or
+   family — so the twenty-one interfaces stay as different from each other as
+   they are on a desktop.
+   =========================================================================== */
+
+@media (max-width: 767.98px) {
+  /* Under 16px iOS zooms the whole page when a field takes focus, and then
+     leaves it zoomed. Five interfaces set 12–13px fields. */
+  html[data-ui] .field,
+  html[data-ui] input:not([type="checkbox"]):not([type="radio"]),
+  html[data-ui] select,
+  html[data-ui] textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  html[data-ui] textarea { min-height: 88px; }
+}
+
+/* The existing coarse-pointer rule sets a height floor but never a width one,
+   so an icon-only control came out 44px tall and 24px wide — a sliver. :has(> svg)
+   catches every control drawn as an icon; on one that also carries a label the
+   floor is below its natural width and so does nothing. :only-child was too
+   strict — it missed the buttons carrying a notification dot. */
+@media (pointer: coarse), (max-width: 767.98px) {
+  :where(a[href], button, [role="button"]):not([data-tap-exempt]):has(> svg) {
+    min-width: 44px;
+  }
+}
+
+/* ===========================================================================
+   READ-ONLY REGIONS
+
+   A role can reach a page without being allowed to change what is on it — a
+   student opens LMS to find their courses. The page marks itself read-only and
+   the calls to action that would create, edit or delete are not drawn, which is
+   better than offering them and refusing afterwards. Bespoke views build their
+   own toolbars, so this catches them centrally by intent rather than by name.
+   =========================================================================== */
+[data-readonly="true"] button[data-variant="primary"],
+[data-readonly="true"] button[data-variant="danger"] { display: none !important; }
+
+/* ===========================================================================
+   SEARCH PALETTE — shared by all twenty-one interfaces
+
+   Written against the tokens, so each interface renders it in its own accent
+   while the structure and the spacing stay identical everywhere.
+   =========================================================================== */
+.cmdk {
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 24px 60px -20px hsl(var(--foreground) / 0.35), 0 2px 8px hsl(var(--foreground) / 0.06);
+}
+.cmdk-row { transition: background-color 140ms ease; }
+.cmdk-row:hover { background: hsl(var(--primary) / 0.06); }
+.cmdk-row.is-active { background: hsl(var(--primary) / 0.1); }
+.cmdk-field { border-bottom: 1px solid hsl(var(--border) / 0.7); }
+.cmdk-field input:focus, .cmdk-field input:focus-visible { outline: none; }
+.cmdk-divider { border-top: 1px solid hsl(var(--border) / 0.7); }
+
+/* Pastel tiles, cycled so a list reads as a list rather than a block of one
+   colour. Each is derived from the interface's own accent, so this stays in
+   whatever palette the interface uses. */
+.cmdk-tile { background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); }
+.cmdk-tile.tint-1 { background: hsl(var(--primary) / 0.16); }
+.cmdk-tile.tint-2 { background: hsl(var(--success, 142 71% 45%) / 0.14); color: hsl(var(--success, 142 71% 40%)); }
+.cmdk-tile.tint-3 { background: hsl(var(--warning, 38 92% 50%) / 0.16); color: hsl(var(--warning, 38 92% 38%)); }
+.cmdk-tile.tint-4 { background: hsl(var(--foreground) / 0.07); color: hsl(var(--foreground) / 0.75); }
+.cmdk-row.is-active .cmdk-tile { background: hsl(var(--primary) / 0.18); }
+.cmdk-quick {
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.cmdk-quick:hover { background: hsl(var(--primary) / 0.08); border-color: hsl(var(--primary) / 0.4); }
+.cmdk-kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 5px;
+  font-size: 10px;
+  text-align: center;
+}
+
+/* ===========================================================================
+   RAIL TOOLTIPS
+
+   The icon rails carry no labels — that is their design — so what each icon
+   means was only available through the browser's own tooltip, which takes a
+   second to appear and cannot be styled. This says it immediately, in the
+   interface's own palette, and only where there is a pointer to hover with.
+
+   Suppressed for whichever group is currently open, in every rail — not just
+   the one it was first noticed in. The panel beside the rail already shows
+   that name, and the pill landed directly on top of it: the same word twice.
+   =========================================================================== */
+@media (hover: hover) {
+  /* Zero specificity, deliberately. `.rail-tip { position: relative }` and
+     Tailwind's `.absolute` are both (0,1,0), and this file loads last — so the
+     class tied and won, turning every element that carried both into a
+     relative one. The pin button in the eduos sidebar stopped being absolute
+     and started taking a row of its own, putting a 36px gap under every
+     module in the list. :where() makes any real position class win. */
+  :where(.rail-tip) { position: relative; }
+  /* Scoped to [data-tip]: with the attribute absent, attr() resolves to an
+     empty string and the pill still painted — a small dark blob beside the
+     icon with nothing in it. */
+  .rail-tip[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    z-index: 60;
+    padding: 5px 9px;
+    border-radius: 7px;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 160ms ease-out 60ms, transform 160ms cubic-bezier(.2, .8, .3, 1) 60ms;
+    box-shadow: 0 6px 18px -6px hsl(var(--foreground) / 0.5);
+  }
+  /* The label is a pseudo-element inside the rail, and the content column
+     comes later in the document — so it painted over the pill and clipped the
+     word. These rails are static flex items, so `relative` moves nothing; it
+     only gives them a stacking order above the column beside them. Rails that
+     are already positioned (.orbit-rail is fixed) are deliberately left out —
+     restating position on those is what displaced a panel once before. */
+  /* 60, not 30: the rail now makes its own stacking context, so the label
+     inside it can never rise above the rail's own level however high its
+     z-index. The top bar sits at 40, and the label has to clear it. */
+  .nexus-dock, .vector-strip, .pulse-rail { position: relative; z-index: 60; }
+
+  /* The home button sits at the very top of a rail, or inside a horizontal
+     strip. A label centred on it and placed to the right lands in the top bar.
+     Below the icon is the one direction that is always clear. */
+  .rail-tip.tip-below[data-tip]::after {
+    /* Anchored to the icon's left edge, not centred on it: a rail is 56px and
+       the label is wider, so centring ran it off the side of the screen. */
+    left: 0;
+    /* Far enough down to clear the top bar. The rail is a full-height column
+       beside that bar, so a label level with the rail's first icon is level
+       with the bar too. Measured: the tightest rail leaves its icon 40px above
+       a 68px bar, so the drop has to be at least 32px. */
+    top: calc(100% + 38px);
+    transform: translateY(-4px);
+  }
+  .rail-tip.tip-below[data-tip]:hover::after,
+  .rail-tip.tip-below[data-tip]:focus-visible::after {
+    transform: translateY(0);
+  }
+
+  .rail-tip[data-tip]:hover::after,
+  .rail-tip[data-tip]:focus-visible::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+  /* The halo dock sits along the bottom, so its label belongs above it —
+     centred on the icon, at a gap that does not change as the icon lifts. */
+  .halo-dock .rail-tip[data-tip]::after {
+    left: 50%;
+    top: auto;
+    right: auto;
+    bottom: calc(100% + 12px);
+    transform: translateX(-50%) translateY(3px) scale(0.98);
+    transform-origin: bottom center;
+  }
+  .halo-dock .rail-tip[data-tip]:hover::after,
+  .halo-dock .rail-tip[data-tip]:focus-visible::after {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  /* A small arrow ties the label to the icon it names. */
+  .halo-dock .rail-tip[data-tip]::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    width: 8px;
+    height: 8px;
+    transform: translateX(-50%) rotate(45deg);
+    background: hsl(var(--foreground));
+    border-radius: 1px;
+    opacity: 0;
+    transition: opacity 160ms ease-out;
+    pointer-events: none;
+    z-index: 60;
+  }
+  .halo-dock .rail-tip[data-tip]:hover::before,
+  .halo-dock .rail-tip[data-tip]:focus-visible::before { opacity: 1; }
+}
+
+/* ===========================================================================
+   THE CHOSEN COLOUR AS A MESH
+
+   Set only when a background has been chosen; otherwise the interfaces keep
+   their own grounds. It is fixed to the viewport so it behaves like a surface
+   the page sits on rather than something that scrolls with the content.
+   =========================================================================== */
+/* Two layers, in one declaration, because a second rule could never win: the
+   :has(> #root) selector carries #root's ID specificity, so any later attempt
+   to add a pattern was silently discarded. The pattern sits above the mesh —
+   texture over wash — and both fall back to nothing when unset. */
+body:has(> #root) {
+  background-image: var(--bg-pattern, none), var(--bg-mesh, none);
+  background-size: var(--bg-pattern-size, auto), cover;
+  background-attachment: fixed, fixed;
+}
+#main {
+  background-image: var(--bg-mesh, none);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+/* ===========================================================================
+   TEXT FOLLOWS ITS SURFACE
+
+   --foreground is the colour for text on the page. Once a background colour is
+   chosen, the page and the panels are frequently opposites: a dark olive page
+   with white menus. Anything that paints itself a surface and leaves its text
+   inheriting from the page then puts white on white — which is what happened
+   to the menus, the dialogs and the cards.
+
+   So every surface states its own text colour. This is a pairing rule: if you
+   set a background from a token, you take the foreground that goes with it.
+   =========================================================================== */
+.float,
+.cmdk,
+.card,
+.surface,
+[role="menu"],
+[role="dialog"],
+[data-context-menu],
+[data-radix-popper-content-wrapper] {
+  color: hsl(var(--card-foreground));
+}
+
+/* The popover token has its own pair. */
+[role="menu"],
+[data-context-menu] {
+  color: hsl(var(--popover-foreground));
+}
+
+/* Anything explicitly told to be muted stays muted — the rules above set the
+   base colour only, and must not overrule a deliberate one. */
+.float .muted, .cmdk .muted, .card .muted, .surface .muted,
+[role="menu"] .muted, [role="dialog"] .muted, [data-context-menu] .muted {
+  color: color-mix(in srgb, hsl(var(--muted-foreground)) 74%, hsl(var(--card-foreground)));
+}
+
+/* ===========================================================================
+   THE DOCK'S TRAVELLING SCOOP
+
+   One transform, one transition. The disc is painted in the page colour and
+   sits half over the bar's top edge, so the bar reads as bitten rather than
+   as having something laid on it. Both the disc and the icon it lifts move on
+   the same curve, or the icon appears to arrive after its own hole.
+   =========================================================================== */
+.dock-scoop {
+  /* No overshoot. The spring curve was making the hole snap past its target
+     and come back, which reads as a flick rather than a glide. This one leaves
+     quickly and arrives slowly, so the motion settles instead of bouncing. */
+  transition: transform 520ms cubic-bezier(.22, .68, 0, 1), opacity 240ms ease;
+  will-change: transform;
+  /* No wings needed: the wave is a single path, and the curve leaving the
+     edge is drawn rather than faked with offset shadows. */
+}
+/* The whole slot rides up, not just the glyph inside it. Lifting the icon
+   alone left its button behind on the bar, so the icon appeared to float out
+   of a container that stayed put; lifting the button means a solid thing moves
+   into the scoop, which is what the scoop is a hole for. */
+.dock-item {
+  transition:
+    transform 520ms cubic-bezier(.22, .68, 0, 1),
+    background-color 300ms ease,
+    box-shadow 300ms ease;
+  will-change: transform;
+}
+/* The raised slot is a disc standing proud of the bar, so it needs to read as
+   one: a full circle, its own colour, and a shadow that sits it in the swell. */
+.dock-item.is-lifted {
+  /* It glides up and stays there. A perpetual bob was tried and removed: a
+     control that never settles is harder to click, and the movement competes
+     with the scoop travelling beside it. Smooth means the arrival, not a
+     permanent wobble. */
+  transform: translateY(-14px);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 999px;
+  box-shadow: 0 10px 22px -10px hsl(var(--primary) / 0.85);
+}
+.dock-item .dock-icon { transition: transform 520ms cubic-bezier(.22, .68, 0, 1); }
+.dock-item.is-lifted .dock-icon { transform: scale(1.06); }
+.dock-item.is-lifted ~ div .rail-tip::after,
+.dock-item.is-lifted::after { transform: translateX(-50%) translateY(-14px); }
+
+.dock-item .dock-dot {
+  position: absolute;
+  bottom: 6px;
+  height: 4px; width: 4px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  opacity: 0;
+  transition: opacity 220ms ease 120ms;
+}
+.dock-item.is-lifted .dock-dot { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-scoop, .dock-item, .dock-item .dock-icon { transition: none; }
+  .dock-item.is-lifted .dock-icon { transform: none; }
+}
+
+/* ===========================================================================
+   GLASS — the three panels
+
+   The rails, the top bar and the dock are chrome floating over a coloured
+   page, so they are glass: the page shows through, blurred, and the colour
+   underneath tints them rather than being repainted on top. The reading
+   surfaces are deliberately excluded — a table of figures on frosted glass is
+   harder to read for no gain.
+   =========================================================================== */
+/* Written at html[data-ui] weight so it outranks the per-interface rules that
+   switch the blur off — those exist to keep a flat interface flat, but once a
+   colour is chosen these three panels are glass over it. */
+html[style*="--bg-mesh"] .chrome,
+html[style*="--bg-mesh"] .edu-sidebar,
+.nexus-panel,
+.vector-strip,
+.pulse-rail,
+.halo-dock,
+.halo-panel,
+.monolith-strip {
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* Glass needs the surface behind it to show, so these carry alpha. The value
+   is high enough that text on them still passes contrast. */
+html[style*="--bg-mesh"] .chrome { background: hsl(var(--chrome) / 0.72); }
+html[style*="--bg-mesh"] .edu-sidebar,
+html[style*="--bg-mesh"] .nexus-panel,
+html[style*="--bg-mesh"] .vector-strip,
+html[style*="--bg-mesh"] .pulse-rail,
+html[style*="--bg-mesh"] .halo-panel { background: hsl(var(--rail) / 0.72); }
+html[style*="--bg-mesh"] .halo-dock { background: hsl(var(--rail) / 0.9); }
+
+/* Glass still needs an edge, or a panel whose colour happens to sit near the
+   page behind it disappears into it — which is what happened to the dock. */
+html[style*="--bg-mesh"] .chrome,
+html[style*="--bg-mesh"] .edu-sidebar,
+html[style*="--bg-mesh"] .nexus-panel,
+html[style*="--bg-mesh"] .vector-strip,
+html[style*="--bg-mesh"] .pulse-rail,
+html[style*="--bg-mesh"] .halo-panel,
+html[style*="--bg-mesh"] .halo-dock {
+  border: 1px solid hsl(var(--foreground) / 0.16);
+}
+
+/* A hairline of light along the top edge is what makes a pane read as glass
+   rather than as a flat translucent block. */
+html[style*="--bg-mesh"] .chrome,
+html[style*="--bg-mesh"] .edu-sidebar,
+html[style*="--bg-mesh"] .halo-dock,
+html[style*="--bg-mesh"] .halo-panel {
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.14), 0 18px 40px -24px hsl(var(--foreground) / 0.5);
+}
+
+/* Surfaces given their own colour also take their own ink, or a repainted bar
+   keeps the page's text colour and disappears into itself. */
+.chrome { color: hsl(var(--chrome-foreground, var(--foreground))); }
+.edu-sidebar, .nexus-panel, .vector-strip, .pulse-rail, .halo-panel {
+  color: hsl(var(--rail-foreground, var(--foreground)));
+}
+.halo-dock, nav.chrome { color: hsl(var(--dock-foreground, var(--foreground))); }
+[data-ui] .halo-dock { background: hsl(var(--dock, var(--card))); }
+
+/* Secondary text inside those surfaces has to soften from the SURFACE's ink,
+   not the page's. `.muted` resolves against --foreground; paint the work area
+   a dark gold and every sidebar label softened toward the gold page's pale ink
+   while still sitting on a pale rail, which left them barely legible. */
+.chrome .muted, .chrome .text-muted-foreground {
+  color: hsl(var(--chrome-foreground, var(--foreground)) / 0.78);
+}
+/* Written without :where() around the target — :where() contributes no
+   specificity at all, so the first attempt scored (0,0,0) and lost to the
+   plain `.muted` rule above it, leaving the labels exactly as pale as before. */
+.edu-sidebar .muted, .edu-sidebar .text-muted-foreground,
+.nexus-panel .muted, .nexus-panel .text-muted-foreground,
+.vector-strip .muted, .vector-strip .text-muted-foreground,
+.pulse-rail .muted, .pulse-rail .text-muted-foreground,
+.halo-panel .muted, .halo-panel .text-muted-foreground {
+  color: hsl(var(--rail-foreground, var(--foreground)) / 0.78);
+}
+.halo-dock .muted, .halo-dock .text-muted-foreground,
+nav.chrome .muted, nav.chrome .text-muted-foreground {
+  color: hsl(var(--dock-foreground, var(--foreground)) / 0.78);
+}
+
+/* The same trap applies to anything asked for the page ink by name: inside a
+   bar or a rail, `text-foreground` means that surface's ink, not the page's. */
+.chrome .text-foreground,
+.edu-sidebar .text-foreground, .nexus-panel .text-foreground,
+.vector-strip .text-foreground, .pulse-rail .text-foreground,
+.halo-panel .text-foreground, .halo-dock .text-foreground {
+  color: inherit;
+}
+
+
+/* ===========================================================================
+   WEIGHT CARRIES A SHADOW
+
+   Bold text gets a shadow so it sits slightly above the surface rather than
+   flat on it. It is deliberately tiny — one pixel of offset and a two pixel
+   blur — the shadow hugs the letterform rather than floating under it, so a
+   heading gains weight without a table figure turning to mush.
+
+   Close means close: one pixel down, one of blur, and enough opacity to see.
+   A wide soft drop at low opacity disappears at body size, which is what the
+   first pass got wrong.
+
+   Tuned per appearance: on light a grey drop, on dark a darker one, since a
+   light shadow on a dark ground reads as a halo rather than depth.
+
+   text-shadow never affects layout, so nothing here can shift the page.
+   =========================================================================== */
+:where(strong, b, h1, h2, h3, h4, h5, h6),
+.font-semibold,
+.font-bold,
+.display,
+.display-2 {
+  text-shadow: 0 1px 1px hsl(var(--foreground) / 0.42);
+}
+
+/* Display sizes carry a slightly longer one — at 32px and up a 1px shadow is
+   proportionally invisible. */
+.display, .display-2, h1 { text-shadow: 0 2px 2px hsl(var(--foreground) / 0.38); }
+
+.dark :where(strong, b, h1, h2, h3, h4, h5, h6),
+.dark .font-semibold,
+.dark .font-bold,
+.dark .display,
+.dark .display-2 {
+  text-shadow: 0 1px 1px hsl(0 0% 0% / 0.7);
+}
+
+.dark .display, .dark .display-2, .dark h1 { text-shadow: 0 2px 2px hsl(0 0% 0% / 0.65); }
+
+/* Where bold text sits on a coloured fill — a primary button, a badge, the
+   raised dock slot — the shadow is drawn in the same ink as the surface so it
+   deepens the letterform instead of ringing it. */
+:where(button[data-variant="primary"], button[data-variant="danger"], .dock-item.is-lifted)
+  :where(strong, b, .font-semibold, .font-bold),
+button[data-variant="primary"],
+button[data-variant="danger"] {
+  text-shadow: 0 1px 1px hsl(0 0% 0% / 0.38);
+}
+
+/* A figure being counted up redraws every frame; a shadow on it shimmers. */
+.tabular-nums.is-counting,
+[data-counting="true"] { text-shadow: none; }
+
+@media (forced-colors: active) {
+  :where(strong, b, h1, h2, h3, h4), .font-semibold, .font-bold { text-shadow: none; }
+}
+
+/* ===========================================================================
+   THE LOOK DIALS
+
+   Corners, borders, shadows, pattern and contrast, driven by data attributes
+   on <html>. Every rule here is a step from what the interface already draws,
+   never a replacement: corners multiply that interface's own --radius (set in
+   its own sheet), borders and shadows scale, and the pattern is an overlay in
+   the page's own ink. Turn every dial and the twenty-one are still as far
+   apart from each other as they were at rest, which is the whole point.
+
+   Nothing here changes a size or a position — no padding, no width, no
+   margin — so no dial can move a panel or reflow a page.
+   =========================================================================== */
+
+/* -------------------------------------------------------------- Corners */
+/* --radius-scale is set on <html> and multiplies each interface's declared
+   radius, so ui-10's 2px stays sharper than ui-5's 16px at every setting.
+   Pills and avatars use rounded-full and are deliberately left alone: a
+   half-round avatar is a bug, not a preference. */
+
+/* -------------------------------------------------------------- Borders */
+html[data-borders="none"][data-ui] :where(.card, .surface, .hairline, .float, .cmdk, .edu-panel) {
+  border-color: transparent;
+}
+html[data-borders="hairline"][data-ui] :where(.card, .surface, .hairline, .float, .cmdk, .edu-panel) {
+  border-color: hsl(var(--border) / 0.45);
+}
+html[data-borders="strong"][data-ui] :where(.card, .surface, .hairline, .float, .cmdk, .edu-panel) {
+  /* Colour, not width: a second pixel of border would move everything inside
+     the card by one, and a look control must never reflow a page. */
+  border-color: hsl(var(--foreground) / 0.38);
+}
+
+/* -------------------------------------------------------------- Shadows */
+html[data-shadows="flat"][data-ui] :where(.card, .surface, .float, .cmdk, .edu-panel, [class*="shadow"]) {
+  box-shadow: none;
+}
+html[data-shadows="lifted"][data-ui] :where(.card, .surface, .edu-panel) {
+  box-shadow: 0 10px 24px -14px hsl(var(--foreground) / 0.34);
+}
+html[data-shadows="deep"][data-ui] :where(.card, .surface, .edu-panel) {
+  box-shadow: 0 22px 46px -20px hsl(var(--foreground) / 0.46);
+}
+.dark[data-shadows="lifted"][data-ui] :where(.card, .surface, .edu-panel) {
+  box-shadow: 0 10px 26px -14px hsl(0 0% 0% / 0.66);
+}
+.dark[data-shadows="deep"][data-ui] :where(.card, .surface, .edu-panel) {
+  box-shadow: 0 24px 50px -20px hsl(0 0% 0% / 0.8);
+}
+
+/* ------------------------------------------------------------- Pattern */
+/* Fed into the --bg-pattern layer above rather than set on body directly.
+   A background layer cannot affect layout at all — the first attempt used a
+   fixed ::before and had to lift the chrome above it with `position: relative`,
+   which overrode the `fixed` those bars rely on and shrank the page by 374px.
+
+   Drawn in the page's own ink, so a repainted work area carries the texture
+   with it instead of fighting it. */
+html[data-pattern="dots"] {
+  --bg-pattern: radial-gradient(hsl(var(--foreground) / 0.14) 1px, transparent 1px);
+  --bg-pattern-size: 18px 18px;
+}
+html[data-pattern="grid"] {
+  --bg-pattern:
+    linear-gradient(hsl(var(--foreground) / 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.09) 1px, transparent 1px);
+  --bg-pattern-size: 26px 26px;
+}
+html[data-pattern="lines"] {
+  --bg-pattern: repeating-linear-gradient(45deg,
+    hsl(var(--foreground) / 0.08) 0 1px, transparent 1px 9px);
+}
+html[data-pattern="noise"] {
+  /* A single tiled SVG of fractal noise — no image file, no request. */
+  --bg-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+}
+
+/* Grid and dots need two and one layer respectively; the sizes list has to be
+   as long as the images list or the second image is left unsized. */
+html[data-pattern="grid"] body:has(> #root) {
+  background-size: 26px 26px, 26px 26px, cover;
+  background-attachment: fixed, fixed, fixed;
+}
+
+/* ------------------------------------------------------------- Contrast */
+/* Not a separate palette — the same one, pushed. Secondary text stops being
+   soft, borders stop being suggestions, and the focus ring thickens. Everything
+   still comes from the interface's own tokens, so a high-contrast ui-2 is still
+   recognisably ui-2. */
+html[data-contrast="high"] .muted,
+html[data-contrast="high"] .text-muted-foreground { color: hsl(var(--foreground)); }
+html[data-contrast="high"] .card .muted,
+html[data-contrast="high"] .surface .muted { color: hsl(var(--card-foreground)); }
+html[data-contrast="high"][data-ui] :where(.card, .surface, .hairline, .float, .cmdk, .edu-panel) {
+  border-color: hsl(var(--foreground) / 0.55);
+}
+html[data-contrast="high"] :focus-visible { outline-width: 3px; outline-offset: 2px; }
+html[data-contrast="high"] :where(strong, b, h1, h2, h3, h4, h5, h6) { text-shadow: none; }
+html[data-contrast="high"] :where(a[href]) { text-decoration-thickness: 2px; }
+
+/* A dial the reader turned is a deliberate choice; the OS's own high-contrast
+   mode is a stronger one, and wins. */
+@media (forced-colors: active) {
+  /* !important, and deliberately: the OS's own high-contrast mode outranks a
+     decorative choice the reader made. Without it this rule merely ties with
+     html[data-pattern="grid"] body on specificity and, coming later, silently
+     cancelled every pattern whether or not forced colours were active. */
+  html[data-pattern] { --bg-pattern: none; }
+  html[data-borders] :where(.card, .surface, .hairline) { border-color: CanvasText; }
+}

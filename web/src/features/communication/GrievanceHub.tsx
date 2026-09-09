@@ -521,30 +521,27 @@ export default function GrievanceHub() {
             title="What the school promises"
             description="The deadline stamped onto a case at triage. Changing it here does not move deadlines already given."
           />
-          {slas.isLoading ? (
-            <SkeletonTable columns={6} />
-          ) : (
-            <Table
-              head={['Category', 'First response', 'Resolution', 'Owner', 'Department', 'Active']}
-              empty={(slas.data?.items.length ?? 0) === 0}
-              emptyLabel="No promises set — cases will be triaged without a deadline."
-            >
-              {slas.data?.items.map((p) => (
-                <tr key={p.category}>
-                  <Td>{p.category}</Td>
-                  <Td>{p.respond_hours}h</Td>
-                  <Td>{p.resolve_hours}h</Td>
-                  <Td>{p.default_owner ?? '—'}</Td>
-                  <Td>{p.department ?? '—'}</Td>
-                  <Td>
-                    <Badge tone={p.is_active ? 'success' : 'neutral'}>
-                      {p.is_active ? 'yes' : 'no'}
-                    </Badge>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          )}
+          <Table loading={slas.isLoading}
+            head={['Category', 'First response', 'Resolution', 'Owner', 'Department', 'Active']}
+            empty={(slas.data?.items.length ?? 0) === 0}
+            emptyLabel="No promises set — cases will be triaged without a deadline."
+          >
+            {slas.data?.items.map((p) => (
+              <tr key={p.category}>
+                <Td>{p.category}</Td>
+                <Td>{p.respond_hours}h</Td>
+                <Td>{p.resolve_hours}h</Td>
+                <Td>{p.default_owner ?? '—'}</Td>
+                <Td>{p.department ?? '—'}</Td>
+                <Td>
+                  <Badge tone={p.is_active ? 'success' : 'neutral'}>
+                    {p.is_active ? 'yes' : 'no'}
+                  </Badge>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+
           {mayWork && (
             <div className="space-y-4 border-t p-5">
               <FormGrid>

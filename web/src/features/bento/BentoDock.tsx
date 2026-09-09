@@ -403,7 +403,7 @@ export function BentoDock() {
     <>
       <div
         className={`bento-dock fixed left-1/2 bottom-6 z-50 flex max-w-[calc(100vw-6rem)]
-                   -translate-x-1/2 items-center gap-2 rounded-[14px] border-none
+                   -translate-x-1/2 items-center gap-2 rounded-full border-none
                    bg-[var(--bento-dock-bg,var(--bento-card))]
                    text-[var(--ink-here)] ${adoptSearch} ${adoptBell}`}
         style={

@@ -96,7 +96,9 @@ export function useTrackers() {
        ping means an office watching the screen sees a bus drop off within
        about a minute. Only while the tab is visible; a hidden screen watches
        nothing. */
-    refetchInterval: useVisibleInterval(30_000),
+    // A minute, not thirty seconds: the shared revision poll in lib/live.ts
+    // already notices a change sooner than this ever could.
+    refetchInterval: useVisibleInterval(60_000),
   })
 }
 

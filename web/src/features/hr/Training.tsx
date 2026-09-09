@@ -9,6 +9,7 @@ import {
   Input, Select, SkeletonTiles, ErrorState,
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import { useEmployeeRoster } from '@/lib/rosters'
 
 /* Staff training and workshop logs.
 
@@ -372,10 +373,7 @@ function AttendanceCard({ programme, onDone }: { programme: Programme; onDone: (
   const [certNo, setCertNo] = useState('')
   const [certOn, setCertOn] = useState('')
 
-  const employees = useQuery({
-    queryKey: ['employees', 'training'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=300'),
-  })
+  const employees = useEmployeeRoster<Employee>()
 
   const save = useMutation({
     mutationFn: () =>

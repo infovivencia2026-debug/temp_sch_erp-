@@ -197,7 +197,7 @@ describe('customize mode', () => {
     expect(host.querySelectorAll('.bento-widget').length).toBe(CARDS.length - 1)
   })
 
-  it('the size menu lists the four tiers and marks the ones that will not fit', async () => {
+  it('the size menu lists the three tiers and marks the ones that will not fit', async () => {
     await mount()
     const pill = host.querySelector<HTMLButtonElement>('.bento-widget[data-widget-id="g"] .bento-sizebtn')
     expect(pill?.getAttribute('aria-haspopup')).toBe('menu')
@@ -208,10 +208,10 @@ describe('customize mode', () => {
     expect(menu, 'the menu opened').not.toBeNull()
     const tiers = Array.from(menu!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
     expect(tiers.map((b) => b.textContent)).toEqual([
-      'bento.size.small', 'bento.size.medium', 'bento.size.large', 'bento.size.wide',
+      'bento.size.small', 'bento.size.medium', 'bento.size.large',
     ])
-    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false'])
-    expect(tiers.map((b) => b.disabled), 'only the size it already is fits').toEqual([false, true, true, true])
+    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false'])
+    expect(tiers.map((b) => b.disabled), 'only the size it already is fits').toEqual([false, true, true])
     // The colour wheel is reachable from the last row.
     const rows = Array.from(menu!.querySelectorAll('[role^="menuitem"]'))
     expect(rows[rows.length - 1].textContent).toBe('bento.widgets.colour_row')
@@ -224,9 +224,9 @@ describe('customize mode', () => {
       pill!.click()
     })
     const tiers = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-bento-menu] [role="menuitemradio"]'))
-    // A Medium card: Small always fits, Wide (3x1) still packs, Large (2x2)
-    // pushes the last Medium off the board.
-    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true, false])
+    // A Medium card: Small always fits and Large (2x2) pushes the last Medium
+    // off the board.
+    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true])
     await act(async () => {
       tiers[0].click()
     })

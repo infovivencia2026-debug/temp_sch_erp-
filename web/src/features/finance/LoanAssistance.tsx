@@ -15,6 +15,7 @@ import {
   type LoanApplication, type LoanDetail, type LoanDocument, type LoanLender,
   type LoanStatus,
 } from './concessions-lib'
+import { useDebouncedValue } from '@/lib/debounce'
 
 /* Education loan assistance.
 
@@ -46,14 +47,16 @@ export default function LoanAssistance() {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState<string | null>(null)
 
+  const needle = useDebouncedValue(search.trim())
   const apps = useQuery({
-    queryKey: [concessionsKey, 'loans', status, search],
+    queryKey: [concessionsKey, 'loans', status, needle],
     queryFn: () => {
       const qs = new URLSearchParams()
       if (status) qs.set('status', status)
-      if (search) qs.set('q', search)
+      if (needle) qs.set('q', needle)
       return api.get<List<LoanApplication>>(`${concessionsBase}/loans/applications?${qs}`)
     },
+    enabled: needle.length !== 1,
   })
 
   if (apps.isLoading) return <SkeletonTable columns={8} label="Opening the tracker…" />

@@ -59,6 +59,7 @@ export function Menu({
   label,
   onClose,
   width = 208,
+  centre,
   phone,
   still: stillProp,
   children,
@@ -68,6 +69,14 @@ export function Menu({
   label: string
   onClose: () => void
   width?: number
+  /* Open in the middle of the screen instead of under the button.
+
+     A menu belongs beside the thing it acts on, which is why this is opt-in
+     rather than the default. Settings is the exception: it is the one menu
+     that acts on the whole screen rather than on the row it hangs off, and
+     hanging it off a dock that is itself centred at the bottom edge put it
+     in the corner of the screen, pointing at nothing. */
+  centre?: boolean
   phone?: boolean
   still?: boolean
   children: ReactNode
@@ -85,6 +94,14 @@ export function Menu({
     }
     const r = anchor?.getBoundingClientRect()
     const h = pop.current?.offsetHeight ?? 220
+    if (centre) {
+      setAt({
+        left: Math.max(8, (window.innerWidth - width) / 2),
+        top: Math.max(8, (window.innerHeight - h) / 2),
+        up: false,
+      })
+      return
+    }
     if (!r) {
       setAt({ left: 16, top: 16, up: false })
       return
@@ -95,7 +112,7 @@ export function Menu({
       top: below ? r.bottom + 6 : Math.max(8, r.top - 6 - h),
       up: !below,
     })
-  }, [open, anchor, width])
+  }, [open, anchor, width, centre])
 
   useEffect(() => {
     if (!open) return

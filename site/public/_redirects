@@ -1,0 +1,3 @@
+# react-router owns the routing; every unknown path is the SPA shell, served
+# with a 200 so the router (not the edge) decides what the URL means.
+/*  /index.html  200

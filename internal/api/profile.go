@@ -274,6 +274,9 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// The other sessions were revoked in the database; this is what makes
+	// them stop working in this process too.
+	s.forgetUser(id.UserID)
 	httpx.JSON(w, http.StatusOK, map[string]any{"changed": true, "other_sessions_revoked": true})
 }
 
@@ -306,5 +309,7 @@ func (s *Server) skipPasswordChange(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// Or the next request is still told to change the password it just kept.
+	s.forgetUser(id.UserID)
 	httpx.JSON(w, http.StatusOK, map[string]any{"skipped": true})
 }

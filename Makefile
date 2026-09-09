@@ -79,7 +79,13 @@ demo: ## Seed demo data and one signed-in-able user per role
 
 ## --- quality --------------------------------------------------------------
 
-.PHONY: test test-all lint
+.PHONY: test test-all lint static-mirror
+static-mirror: ## Copy internal/static into web/public/static (see its README)
+	@mkdir -p web/public/static/fonts
+	@cp internal/static/app.css web/public/static/app.css
+	@cp internal/static/fonts/*.woff2 web/public/static/fonts/
+	@echo "web/public/static is in step with internal/static"
+
 test: ## Unit tests (no database needed)
 	go test ./internal/...
 test-all: ## Unit + integration tests (needs Postgres)
@@ -93,10 +99,16 @@ lint: ## vet + gofmt check + frontend typecheck
 	@out=$$(gofmt -l ./cmd ./internal ./tests); \
 	  if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 	cd web && npx tsc --noEmit
+	@# The edge serves /static from web/public/static and caches it for a year.
+	@# A drifted mirror pins the wrong stylesheet in every browser. See
+	@# web/public/static/README.md.
+	@diff -r internal/static/app.css web/public/static/app.css >/dev/null \
+	  && diff -r internal/static/fonts web/public/static/fonts >/dev/null \
+	  || { echo "web/public/static has drifted from internal/static; run 'make static-mirror'"; exit 1; }
 
 ## --- build ----------------------------------------------------------------
 
-.PHONY: build build-ui dist clean
+.PHONY: build build-ui build-site dist clean
 build: ## Cross-compile the three binaries into dist/
 	@mkdir -p $(DIST)
 	$(GOFLAGS) go build -trimpath -ldflags '$(LDFLAGS)' -o $(DIST)/web     ./cmd/web
@@ -107,10 +119,13 @@ build: ## Cross-compile the three binaries into dist/
 build-ui: ## Build the SPA bundle
 	cd web && npm ci --silent && npm run build
 
+build-site: ## Build the marketing site (site/, separate bundle and deploy)
+	cd site && npm ci --silent --no-audit --no-fund && npm run build
+
 dist: build build-ui ## Build everything
 
 clean: ## Remove build output
-	rm -rf $(DIST) web/dist
+	rm -rf $(DIST) web/dist site/dist
 
 ## --- deploy ---------------------------------------------------------------
 

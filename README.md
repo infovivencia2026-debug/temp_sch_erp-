@@ -210,6 +210,9 @@ internal/
   templates   embedded server-rendered pages
 migrations/   goose SQL, embedded into cmd/migrate
 web/          Vite + React 18 + Tailwind SPA
+site/         public marketing site — a separate build and a separate
+              Cloudflare Pages project, so it never touches the app bundle
+              (see site/README.md)
 mobile/apps/  parent (Android shell), parent-ios (SwiftUI shell),
               bus-tracker, sms-gateway
 scripts/      deploy.sh (runs on the server)

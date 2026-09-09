@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { openTab } from '@/lib/tabs'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
-import { Cell, useBoardHeight, type CellSpan } from './bento-kit'
+import { BentoBone, Cell, useBoardHeight, type CellSpan } from './bento-kit'
 import { CardShell, CornerMark, Nil } from './bento-cards'
 import { WidgetLayer } from './WidgetLayer'
 
@@ -193,6 +193,7 @@ export function PersonaCard({
   change,
   to,
   cueLabel,
+  loading,
   children,
 }: {
   span?: CellSpan
@@ -214,6 +215,18 @@ export function PersonaCard({
   change?: ReactNode
   to?: string
   cueLabel: string
+  /* THIS CELL'S OWN QUERY HAS NOT ANSWERED YET.
+   *
+   * The boards used to hold the WHOLE page back until every query had landed,
+   * which meant the slowest request decided when anything appeared. With this,
+   * a cell that is still waiting draws its header and bars where its figure
+   * and drawing will be, and the ones beside it that already have their answer
+   * show it. The board arrives at once and fills in.
+   *
+   * Pass a query's pending-with-no-data, never `isFetching`: a cell that is
+   * quietly refreshing a number it already has must keep showing that number.
+   */
+  loading?: boolean
   children?: ReactNode
 }) {
   const { tall } = useShape()
@@ -229,10 +242,18 @@ export function PersonaCard({
       title={title}
       sub={who}
       glyph={glyph}
-      value={value}
-      change={change}
+      value={loading ? <BentoBone className="h-7 w-24" /> : value}
+      change={loading ? undefined : change}
     >
-      {children}
+      {loading ? (
+        <div className="mt-auto pt-3" aria-hidden="true">
+          <BentoBone className="h-2 w-full" />
+          <BentoBone className="mt-1.5 h-2 w-4/5" />
+          <BentoBone className="mt-1.5 h-2 w-2/3" />
+        </div>
+      ) : (
+        children
+      )}
     </CardShell>
   )
   return (

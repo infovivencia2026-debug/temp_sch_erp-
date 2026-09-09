@@ -11,6 +11,8 @@ import { aliasText } from '@/lib/search-aliases'
 import { api } from '@/lib/api'
 import ScrollBox from './ScrollBox'
 import { useSession } from '@/lib/session'
+import { FeatureGlyph } from './FeatureGlyph'
+import { hueFor } from '@/features/bento/BentoLauncher'
 
 /* A child or a parent, found by name, admission number or mobile.
 
@@ -65,6 +67,7 @@ export function CommandSearch() {
             roleKey: role.key,
             section: section.name,
             sectionSlug: section.slug,
+            workspace: section.workspace || section.name,
             slug: f.slug,
             summary: f.summary,
             live: f.live,
@@ -359,6 +362,9 @@ export function CommandSearch() {
                     )}
                     title={h.live ? 'Built' : 'Catalogued, not built'}
                   />
+                  {/* The same plate the launcher draws, at list size: one
+                      feature, one icon, wherever it is offered. */}
+                  <FeatureGlyph slug={h.slug} section={h.sectionSlug} tint={hueFor(h.workspace)} size={24} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-medium">{h.name}</span>
                     <span className="block truncate text-[12px] text-muted-foreground">

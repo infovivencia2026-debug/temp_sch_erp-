@@ -235,7 +235,28 @@ export interface Student {
   primary_phone?: string
 }
 
-export interface Page<T> { items: T[]; total: number; limit: number; offset: number; has_more: boolean }
+/* One page of a list, and the way to the next one.
+
+   `limit` is the size of THIS response, not a ceiling on what the caller can
+   reach: follow `next_cursor` and the list continues, however long it is.
+
+   `total` is optional because counting is not free. count(*) over a filtered
+   million rows costs the same on page fifty as on page one, so the server
+   sends it on the first page -- the one whose header says how many children
+   are on the roll -- and omits it thereafter. Absent is not zero: a screen
+   that sees no total must keep the one it already has.
+
+   `has_more` is a fact about the rows (the server fetches one more than it
+   returns), so it stays right on the pages that carry no total. */
+export interface Page<T> {
+  items: T[]
+  total?: number
+  limit: number
+  offset: number
+  has_more: boolean
+  /** Feed back as `cursor`. Empty or absent means this was the last page. */
+  next_cursor?: string
+}
 export interface List<T> { items: T[] }
 
 export interface AcademicYear { id: string; name: string; starts_on: string; ends_on: string; is_current: boolean }

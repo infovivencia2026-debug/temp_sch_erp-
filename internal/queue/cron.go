@@ -59,6 +59,13 @@ type Schedule struct {
 	// school's own timezone and with its id in the envelope. Global entries
 	// run once for the whole installation with an empty envelope.
 	PerInstitution bool
+	// Only, when set on a per-institution entry, names the schools that
+	// have anything for this entry to do right now; schools it does not
+	// return are not evaluated and get no job. Nil means every active
+	// school. The point is an idle tick: a sweep that would find an empty
+	// queue must not cost a River job per school every minute on a host
+	// that is otherwise asleep.
+	Only func(ctx context.Context, tx pgx.Tx) (map[uuid.UUID]bool, error)
 	// Payload builds the job body for the envelope it will run under.
 	Payload func(env Envelope) any
 	Opts    []Option
@@ -115,8 +122,15 @@ func Schedules() []Schedule {
 		   dispatcher's own 20-second per-send deadline in the worst case
 		   where every one of them hangs, because a task killed mid-drain
 		   leaves the rows it had not reached queued -- correct, but a tick
-		   wasted. */
+		   wasted.
+
+		   Per institution because the worker runs the sweep inside one
+		   school's RLS scope (worker.go messageDispatch), but Only the
+		   schools with a row that is due: one query over message_log's
+		   partial status index decides which, so a tick at three in the
+		   morning with nothing queued anywhere enqueues nothing at all. */
 		{Name: "message_dispatch", Spec: "* * * * *", Kind: TypeMessageDispatch, PerInstitution: true,
+			Only:    institutionsWithDueMessages,
 			Payload: func(env Envelope) any { return MessageDispatchPayload{Envelope: env, Limit: 50} },
 			Opts:    Options(QueueDefault, 3, 10*time.Minute)},
 
@@ -161,7 +175,8 @@ type Cron struct {
 // TickResult is what a tick reports back to whoever called it.
 type TickResult struct {
 	// Checked is how many (schedule, target) pairs were evaluated: global
-	// entries count once, per-institution ones once per active school.
+	// entries count once, per-institution ones once per active school --
+	// or, for an entry with an Only filter, once per school with work.
 	Checked int `json:"checked"`
 	// Enqueued is how many jobs this tick inserted.
 	Enqueued int `json:"enqueued"`
@@ -194,6 +209,14 @@ Tick evaluates every entry once and enqueues what has come due.
 	the daily ones at their next time, exactly as asynq's scheduler did on a
 	restart, instead of firing everything at once because nothing had ever
 	run.
+
+	cron_runs is written only when an entry fires or is first seen. It used
+	to be rewritten for every (entry, school) pair on every tick, which on a
+	quiet night was a few dozen row updates a minute for the sole purpose of
+	recording that nothing had happened -- enough to keep a database that
+	suspends when idle from ever suspending. An untouched row still says
+	when the entry last ran, which is all due needs; the missed-occurrence
+	rule is unchanged because it only ever compared against that.
 */
 func (c *Cron) Tick(ctx context.Context) (TickResult, error) {
 	now := time.Now()
@@ -233,22 +256,37 @@ func (c *Cron) Tick(ctx context.Context) (TickResult, error) {
 					targets = append(targets, target{key: s.Name + ":" + i.id.String(), loc: i.loc, inst: i.id})
 				}
 			}
+			if s.PerInstitution && s.Only != nil {
+				only, err := s.Only(ctx, tx)
+				if err != nil {
+					return fmt.Errorf("schedule %s targets: %w", s.Name, err)
+				}
+				kept := targets[:0]
+				for _, t := range targets {
+					if only[t.inst] {
+						kept = append(kept, t)
+					}
+				}
+				targets = kept
+			}
 			for _, t := range targets {
 				res.Checked++
 				prev, seen := last[t.key]
-				fire, err := due(s.Spec, prev, seen, now, t.loc)
+				fire, record, err := decide(s.Spec, prev, seen, now, t.loc)
 				if err != nil {
 					return fmt.Errorf("schedule %s: %w", s.Name, err)
 				}
 				if !seen {
 					res.Started++
 				}
-				if _, err := tx.Exec(ctx, `
-					INSERT INTO cron_runs (name, last_run_at)
-					VALUES ($1, $2)
-					ON CONFLICT (name) DO UPDATE SET last_run_at = EXCLUDED.last_run_at`,
-					t.key, now); err != nil {
-					return fmt.Errorf("record %s: %w", t.key, err)
+				if record {
+					if _, err := tx.Exec(ctx, `
+						INSERT INTO cron_runs (name, last_run_at)
+						VALUES ($1, $2)
+						ON CONFLICT (name) DO UPDATE SET last_run_at = EXCLUDED.last_run_at`,
+						t.key, now); err != nil {
+						return fmt.Errorf("record %s: %w", t.key, err)
+					}
 				}
 				if !fire {
 					continue
@@ -312,6 +350,45 @@ func due(spec string, last time.Time, seen bool, now time.Time, loc *time.Locati
 	}
 	next := sched.Next(last.In(loc))
 	return !next.After(now), nil
+}
+
+// decide is due plus the one question the bookkeeping asks: does this
+// tick need to touch the entry's row? Yes when it fires (the run must be
+// remembered) and on first sight (the baseline must exist); no when the
+// entry is merely not due yet, which is nearly every evaluation of nearly
+// every entry, and a write then would be a write to say nothing changed.
+func decide(spec string, last time.Time, seen bool, now time.Time, loc *time.Location) (fire, record bool, err error) {
+	fire, err = due(spec, last, seen, now, loc)
+	if err != nil {
+		return false, false, err
+	}
+	return fire, fire || !seen, nil
+}
+
+// institutionsWithDueMessages is message_dispatch's Only: the schools with
+// at least one queued row whose send_after has passed. One statement over
+// the partial index on status, run as the platform inside the tick's own
+// transaction, in place of a job per school that would each run the same
+// query to find nothing.
+func institutionsWithDueMessages(ctx context.Context, tx pgx.Tx) (map[uuid.UUID]bool, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT institution_id
+		  FROM message_log
+		 WHERE status = 'queued' AND (send_after IS NULL OR send_after <= now())
+		 GROUP BY 1`)
+	if err != nil {
+		return nil, fmt.Errorf("institutions with due messages: %w", err)
+	}
+	defer rows.Close()
+	out := map[uuid.UUID]bool{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 var (

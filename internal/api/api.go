@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/school-erp/erp/internal/auth"
 	"github.com/school-erp/erp/internal/database"
@@ -66,6 +67,15 @@ func (s *Server) Routes() http.Handler {
 
 	r.Group(func(r chi.Router) {
 		r.Use(httpx.RequireAuth)
+		/* One data boundary per request, not one per handler that asks.
+		   Several handlers resolve the caller's scope twice -- once to filter
+		   the list and once to check they may touch a row that came back --
+		   and each resolve is four indexed lookups. Sits first because the
+		   gates below it resolve scope too. */
+		r.Use(scopeMemo)
+		// And the other half of the same bargain: a write puts its school's
+		// boundaries back on the database. See scopeWriteBarrier.
+		r.Use(scopeWriteBarrier)
 		/* An account still on the password the office issued reaches exactly
 		   two things: the session it needs to render the screen, and the call
 		   that sets a real password.
@@ -1398,6 +1408,85 @@ func tenantScope(id *httpx.Identity) database.Scope {
 // this and apply the returned filter. RLS will not save them: a HOD reading
 // another department's students is reading rows from their own tenant, which
 // every tenant_isolation policy happily allows.
+/*
+forgetUser drops everything this process is holding about one account.
+
+	Two caches answer questions about a user without asking the database: who
+	a cookie is (auth) and which rows they may reach (scope). Both are held
+	for minutes, so any write that changes a role, a status, a password or a
+	guardian link has to say so, or the person keeps the access they were just
+	told they had lost. Call it after the write commits, and when in doubt
+	call it -- the cost of being wrong is one reload.
+*/
+func forget(userID uuid.UUID) {
+	auth.ForgetUser(userID)
+	scope.Invalidate(userID)
+}
+
+// forgetUser is forget as a method, for the handlers that already have a
+// Server in hand.
+func (s *Server) forgetUser(userID uuid.UUID) { forget(userID) }
+
+// forgetInstitution drops every cached boundary in one school, for the writes
+// that move a boundary without naming whose -- a timetable entry, a class
+// teacher swap, a department head.
+func (s *Server) forgetInstitution(instID uuid.UUID) {
+	scope.InvalidateInstitution(instID)
+}
+
+/*
+scopeWriteBarrier drops a school's cached data boundaries after it writes.
+
+	The sets scope resolves are moved by a long list of tables -- a timetable
+	entry, a class teacher swap, a department head, a subject allocation, a
+	guardian link, a role -- written from something like twenty handlers, and
+	several of those tables are also written by imports and rollovers that
+	touch thousands of rows at once. Asking every one of them to remember to
+	invalidate is asking to miss one, and the thing missed is not a stale
+	number on a screen: it is a teacher still reaching a section that was
+	taken off them, which the RLS policies will not catch because both rows
+	belong to the same school.
+
+	So the barrier is drawn where it cannot be forgotten. Any successful
+	mutating request invalidates its own school, and reads -- which are the
+	overwhelming majority, and the ones that were paying four lookups each --
+	keep the cache. A school in the middle of a bulk import gets no caching
+	for the duration, which is the correct trade: correctness is not
+	negotiable and the fallback is the behaviour we had yesterday.
+*/
+func scopeWriteBarrier(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+		rec := &statusOnly{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		if rec.status >= 200 && rec.status < 300 {
+			if id := httpx.IdentityFrom(r.Context()); id != nil && id.InstitutionID != uuid.Nil {
+				scope.InvalidateInstitution(id.InstitutionID)
+			}
+		}
+	})
+}
+
+// statusOnly remembers the status code and is otherwise the writer it wraps.
+type statusOnly struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusOnly) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
+
+// scopeMemo gives a request somewhere to keep the scope it resolves, so a
+// handler that needs it twice pays for it once. See scope.WithCache.
+func scopeMemo(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(scope.WithCache(r.Context())))
+	})
+}
+
 func (s *Server) resolveScope(r *http.Request) (*scope.Resolved, error) {
 	return scope.Resolve(r.Context(), s.DB, httpx.IdentityFrom(r.Context()))
 }
