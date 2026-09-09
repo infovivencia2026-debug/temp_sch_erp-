@@ -28,7 +28,7 @@ vi.mock('./bento-kit', () => ({
 import { AddGallery, placePanel, type GalleryItem, type SizeTier } from './AddGallery'
 
 const ITEMS: GalleryItem[] = [
-  { id: 'fees', label: 'Fees due', hint: 'What is outstanding', tiers: ['small', 'medium', 'large', 'wide'], defaultTier: 'medium' },
+  { id: 'fees', label: 'Fees due', hint: 'What is outstanding', tiers: ['small', 'medium', 'large'], defaultTier: 'medium' },
   { id: 'roll', label: 'On the roll', tiers: ['small'], defaultTier: 'small' },
   { id: 'exams', label: 'Exams', tiers: [], defaultTier: 'large' },
 ]
@@ -79,7 +79,7 @@ describe('AddGallery', () => {
     expect(tile('fees')!.textContent).toContain('Fees due')
     expect(tile('fees')!.textContent).toContain('What is outstanding')
     // Four size buttons on every tile, each named for a screen reader.
-    expect(tile('fees')!.querySelectorAll('button[data-tier]')).toHaveLength(4)
+    expect(tile('fees')!.querySelectorAll('button[data-tier]')).toHaveLength(3)
     expect(size('fees', 'large').getAttribute('aria-label')).toBe(
       'bento.add_gallery.add_as[Fees due,bento.size.large]',
     )
@@ -94,16 +94,16 @@ describe('AddGallery', () => {
     expect(size('roll', 'medium').disabled).toBe(true)
     expect(size('roll', 'medium').title).toBe('bento.add_gallery.no_room')
     expect(size('roll', 'small').title).toBe('')
-    for (const tier of ['small', 'medium', 'large', 'wide'] as const) {
+    for (const tier of ['small', 'medium', 'large'] as const) {
       expect(size('exams', tier).disabled, `exams ${tier}`).toBe(true)
     }
   })
 
   it('pressing a size adds at that tier and flashes Added', async () => {
     const { onAdd } = await render()
-    await act(async () => { size('fees', 'wide').click() })
+    await act(async () => { size('fees', 'large').click() })
     expect(onAdd).toHaveBeenCalledTimes(1)
-    expect(onAdd).toHaveBeenCalledWith('fees', 'wide')
+    expect(onAdd).toHaveBeenCalledWith('fees', 'large')
     expect(tile('fees')!.hasAttribute('data-added')).toBe(true)
     expect(tile('fees')!.textContent).toContain('bento.add_gallery.added')
     // A disabled tier adds nothing.
@@ -115,8 +115,8 @@ describe('AddGallery', () => {
     const { onAdd } = await render()
     await act(async () => { key(tile('fees')!, 'Enter') })
     expect(onAdd).toHaveBeenLastCalledWith('fees', 'medium')
-    await act(async () => { key(tile('fees')!, '4') })
-    expect(onAdd).toHaveBeenLastCalledWith('fees', 'wide')
+    await act(async () => { key(tile('fees')!, '3') })
+    expect(onAdd).toHaveBeenLastCalledWith('fees', 'large')
     // 2 is Medium, which does not fit on the roll: nothing happens.
     await act(async () => { key(tile('roll')!, '2') })
     expect(onAdd).toHaveBeenCalledTimes(2)

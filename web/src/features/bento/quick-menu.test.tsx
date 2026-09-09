@@ -129,9 +129,9 @@ describe('quick menu', () => {
     ])
     const tiers = Array.from(m.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
     expect(tiers.map((b) => b.textContent)).toEqual([
-      'bento.size.small', 'bento.size.medium', 'bento.size.large', 'bento.size.wide',
+      'bento.size.small', 'bento.size.medium', 'bento.size.large',
     ])
-    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false'])
+    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
     // Focus went in, to the first row.
     expect(document.activeElement).toBe(items[0])
   })
@@ -179,13 +179,13 @@ describe('quick menu', () => {
     const m = await openMenu('a')
     const tiers = Array.from(m.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
     // A Medium card among Mediums: Large (2x2) would push one off the board.
-    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true, false])
+    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true])
     await act(async () => {
-      tiers[3].click()
+      tiers[0].click()
     })
     expect(menu()).toBeNull()
-    expect(stored().placed.find((p) => p.id === 'a')).toMatchObject({ w: 3, h: 1 })
-    expect(host.querySelector('.bento-widget[data-widget-id="a"]')?.getAttribute('data-w')).toBe('3')
+    expect(stored().placed.find((p) => p.id === 'a')).toMatchObject({ w: 1, h: 1 })
+    expect(host.querySelector('.bento-widget[data-widget-id="a"]')?.getAttribute('data-w')).toBe('1')
     expect(document.querySelector('[role="toolbar"]'), 'not customizing').toBeNull()
     expect(host.querySelectorAll('.bento-widget[data-editing]').length).toBe(0)
   })
