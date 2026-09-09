@@ -45,10 +45,21 @@ func endAccess(r *http.Request, tx pgx.Tx, userID uuid.UUID) error {
 		return err
 	}
 	// The session already open matters as much as the next sign-in.
-	_, err := tx.Exec(r.Context(), `
+	if _, err := tx.Exec(r.Context(), `
 		UPDATE sessions SET revoked_at = now()
-		 WHERE user_id = $1 AND revoked_at IS NULL`, userID)
-	return err
+		 WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+		return err
+	}
+	/* And the copy of that session this process is holding in memory.
+
+	   Here rather than after the commit because endAccess is called from
+	   inside half a dozen larger transactions -- a leaver, a family, a bulk
+	   import -- and a signature that could report "also forget these" would
+	   have to be threaded through all of them. Forgetting early is the safe
+	   direction: if the transaction rolls back the entry is simply reloaded,
+	   and if it commits the access is gone from both places. */
+	forget(userID)
+	return nil
 }
 
 /*

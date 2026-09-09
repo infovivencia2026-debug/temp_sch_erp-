@@ -155,6 +155,7 @@ func (s *Server) issueAdmissionLogin(
 					if _, err := tx.Exec(ctx,
 						`UPDATE users SET password_hash = $2 WHERE id = $1`,
 						*userID, hash); err == nil {
+						forget(*userID)
 						out.Password = pw
 					}
 				}

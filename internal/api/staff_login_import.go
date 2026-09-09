@@ -124,6 +124,7 @@ func (s *Server) importStaffLogins(w http.ResponseWriter, r *http.Request) {
 				 WHERE user_id = $1 AND revoked_at IS NULL`, target); err != nil {
 				return err
 			}
+			forget(target)
 			set++
 		}
 		return nil

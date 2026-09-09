@@ -463,6 +463,9 @@ func (p *PasswordReset) Reset(w http.ResponseWriter, r *http.Request) {
 			 WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
 			return err
 		}
+		// And the cached identities resolved from those cookies, or the
+		// intruder keeps working for another minute.
+		forget(userID)
 		_ = sum
 		return nil
 	})
