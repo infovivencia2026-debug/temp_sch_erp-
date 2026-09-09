@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, CircleAlert, ChevronRight, Info, X } from 'lucide-react'
+import {
+  AlertTriangle, ArrowRight, Bell, CircleAlert, Info,
+  IndianRupee, UserPlus, Users, X,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
@@ -54,6 +57,39 @@ const ICON = {
   critical: CircleAlert,
   warning: AlertTriangle,
   info: Info,
+}
+
+/* A MARK PER FIGURE, MATCHED ON WHAT THE FIGURE COUNTS.
+ *
+ * The server sends a label and a number and no icon, and it should not send
+ * one: the tiles are whatever a role's probes returned, and a column of icon
+ * names in that response would be this file's job written somewhere it cannot
+ * be read. Matched on the words the server already uses, with a plain count
+ * as the fallback, so a new figure gets a neutral mark rather than none.
+ *
+ * The tints are the only colour on this row. They separate three numbers that
+ * are otherwise identical in shape -- which is what makes a row of figures
+ * scannable rather than a wall. */
+const STAT_MARK: { test: RegExp; icon: typeof Users; tint: string }[] = [
+  { test: /student|child|pupil|boarder/i, icon: Users,
+    tint: 'bg-primary/10 text-primary' },
+  { test: /collect|fee|paid|due|revenue|salary|pay/i, icon: IndianRupee,
+    tint: 'bg-success/10 text-success' },
+  { test: /enquir|admission|applicant|lead/i, icon: UserPlus,
+    tint: 'bg-accent-foreground/10 text-accent-foreground' },
+]
+
+function markFor(label: string) {
+  const hit = STAT_MARK.find((m) => m.test.test(label))
+  return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
+}
+
+/* The card a severity is drawn in. Warning and critical earn a tinted head;
+   info does not -- a panel where everything is coloured says nothing. */
+const HEAD_TINT = {
+  critical: 'bg-destructive/10 border-destructive/20',
+  warning: 'bg-[hsl(var(--warn,38_92%_95%))] border-[hsl(var(--warn,38_92%_88%))]',
+  info: 'bg-muted/60 border-border',
 }
 
 export default function NeedsAttention({ name }: { name?: string }) {
@@ -181,7 +217,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div>
         <h2 className="font-display text-[26px] font-semibold tracking-[-0.02em]">
           {greeting}
@@ -194,274 +230,140 @@ export default function NeedsAttention({ name }: { name?: string }) {
         )}
       </div>
 
-      {/* WHICH WORKSPACE THIS IS, SAID BEFORE THE FIGURES AND NOT AFTER.
-
-          It sat under the tiles as a grey last line, which is where a reader
-          looks once and never again -- and it is the sentence that explains
-          why the numbers above it are the numbers they are. Above the panel
-          now, and closable, because it is orientation rather than news. */}
       {catalog.roles.length > 1 && <RoleNote roleName={role?.name} />}
 
-      {/* THE READING ORDER IS NOT THE SAME ON A DESK AND IN A HAND.
-
-          On a desk the eye starts top left, so what needs doing goes there and
-          today's figures take the narrow right-hand column. On a phone there
-          is one column and no glance: the figures are three numbers worth a
-          thumb-length, and burying them under three action cards means
-          scrolling past the work to find out how the day is going. So the
-          tiles come first there, by order alone -- the markup says it once. */}
-      <div className="grid gap-5 lg:grid-cols-3 lg:items-start">
-        {items.length > 0 && (
-          <section className="order-2 lg:order-1 lg:col-span-2">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="eyebrow">Needs your attention</p>
-              {/* How many, on the phone where the list is separate cards and
-                  its length is not one glance. */}
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive sm:hidden">
-                {items.length} pending
-              </span>
-            </div>
-            {nudged && <p className="mb-2 text-[13px] text-success">{nudged}</p>}
-            <ul className="flex flex-col gap-3 sm:gap-0 sm:divide-y sm:rounded-md sm:border sm:bg-card">
-              {items.map((item) => {
-                const Icon = ICON[item.severity]
-                const href = hrefFor(item.href)
-                const chase = item.key === 'attendance.unmarked' && canChase
-                return (
-                  <li
-                    key={item.key}
-                    className="overflow-hidden rounded-md border bg-card sm:rounded-none sm:border-0"
-                  >
-                    <button
-                      type="button"
-                      disabled={!href}
-                      onClick={() => href && navigate(href)}
-                      className={cn(
-                        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors sm:items-center',
-                        href ? 'hover:bg-accent' : 'cursor-default',
-                      )}
-                    >
-                      {/* A tinted square in a hand, a bare glyph in a dense
-                          desktop row: the same severity at the weight each
-                          layout can carry. */}
-                      <span
+      {/* THE FIGURES FIRST, ACROSS THE PAGE.
+       *
+       * They used to be a narrow column beside the alerts, which made three
+       * numbers compete for a third of the width and left the grid ending on
+       * a half-empty row. They are the cheapest thing on the page to read and
+       * the thing every role opens this for, so they take the full width and
+       * one row: a card each, the figure large, the mark tinted by what it
+       * counts. Three across on a desk, one under another in a hand. */}
+      {summary.length > 0 && (
+        <section>
+          <p className="eyebrow mb-2.5">Today</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {summary.map((s) => {
+              const { icon: Mark, tint } = markFor(s.label)
+              return (
+                <div
+                  key={s.label}
+                  className="flex items-start justify-between gap-3 rounded-xl border bg-card p-4 shadow-[var(--elev-1)]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-muted-foreground">
+                      {s.label}
+                    </p>
+                    <p className="font-display mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular-nums">
+                      {s.value}
+                    </p>
+                    {s.hint && (
+                      <p
                         className={cn(
-                          'shrink-0 rounded-md p-2 sm:bg-transparent sm:p-0',
-                          item.severity === 'critical' && 'bg-destructive/10',
-                          item.severity === 'warning' && 'bg-[hsl(var(--warn,38_92%_92%))]',
-                          item.severity === 'info' && 'bg-muted',
+                          'mt-1.5 text-[12px]',
+                          s.tone === 'good' ? 'text-success' : 'text-muted-foreground',
                         )}
                       >
-                        <Icon
-                          className={cn(
-                            'h-4 w-4',
-                            item.severity === 'critical' && 'text-destructive',
-                            item.severity === 'warning' && 'text-[hsl(var(--warning,38_92%_40%))]',
-                            item.severity === 'info' && 'text-muted-foreground',
-                          )}
-                          aria-hidden
-                        />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        {/* Wraps in a hand, one line on a desk. The headline is
-                            the whole of what the row says, and an ellipsis
-                            through the middle of it at 360px is the row saying
-                            nothing. */}
-                        <span className="block text-[14px] font-medium sm:truncate">
-                          {item.headline}
-                        </span>
-                        {item.detail && (
-                          <span className="block text-[12.5px] text-muted-foreground">
-                            {item.detail}
-                          </span>
-                        )}
-                      </span>
-                      {href && (
-                        <span className="hidden shrink-0 items-center gap-1 text-[13px] text-muted-foreground sm:flex">
-                          {item.action}
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </span>
-                      )}
-                    </button>
-
-                    {/* An unmarked register is the one warning the reader
-                        cannot act on themselves: a principal does not mark
-                        registers and should not. What they do at that moment
-                        is chase somebody, so that is the button.
-
-                        Indented under its own row rather than sitting flush
-                        with the list, because it belongs to the line above it
-                        and read as an alert of its own at the old alignment. */}
-                    {chase && (
-                      /* NOT ITS OWN ROW ON A DESK.
-                       *
-                       * The rule above this button made a one-alert list look
-                       * like a two-alert list: a full-width hairline across
-                       * the card, then a line of blue text under it, which is
-                       * the shape of a second item rather than of an action
-                       * belonging to the first. The indent already says it
-                       * belongs to the line above; the border only competed
-                       * with the divider between real items.
-                       *
-                       * Kept on the phone, where the rows are separate cards
-                       * and the rule is the only thing joining the action to
-                       * the alert it acts on. */
-                      <div className="px-4 pb-3 sm:pb-2.5 sm:pt-0">
-                        <button
-                          type="button"
-                          disabled={nudge.isPending}
-                          onClick={() => nudge.mutate()}
-                          className="ml-11 text-[13px] font-medium text-primary hover:underline disabled:opacity-60 sm:ml-7"
-                        >
-                          {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
-                        </button>
-                      </div>
+                        {s.hint}
+                      </p>
                     )}
+                  </div>
+                  <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tint)}>
+                    <Mark className="size-5" aria-hidden />
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-                    {/* The same action as a thumb-sized footer, for the one
-                        layout where a chevron at the end of a row is a 13px
-                        target against the screen edge. */}
+      {/* WHAT NEEDS DOING, AS ONE CARD PER THING.
+       *
+       * A divided list made every alert the same weight as every other and
+       * gave none of them room for the action that answers it. Each is its own
+       * card now: a tinted head carrying the severity and the sentence, and a
+       * foot carrying the buttons -- the thing to do, and the thing to do
+       * about the people who should have done it. */}
+      {items.length > 0 && (
+        <section>
+          <div className="mb-2.5 flex items-center justify-between gap-3">
+            <p className="eyebrow">Needs your attention</p>
+            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive sm:hidden">
+              {items.length} pending
+            </span>
+          </div>
+          {nudged && <p className="mb-2.5 text-[13px] text-success">{nudged}</p>}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {items.map((item) => {
+              const Icon = ICON[item.severity]
+              const href = hrefFor(item.href)
+              const chase = item.key === 'attendance.unmarked' && canChase
+              return (
+                <article
+                  key={item.key}
+                  className="overflow-hidden rounded-xl border bg-card shadow-[var(--elev-1)]"
+                >
+                  <div className={cn('flex items-start gap-3 border-b p-4', HEAD_TINT[item.severity])}>
+                    <span
+                      className={cn(
+                        'mt-px grid size-8 shrink-0 place-items-center rounded-lg',
+                        item.severity === 'critical' && 'bg-destructive/15 text-destructive',
+                        item.severity === 'warning' &&
+                          'bg-[hsl(var(--warn,38_92%_88%))] text-[hsl(var(--warning,38_92%_35%))]',
+                        item.severity === 'info' && 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-[15px] font-semibold leading-snug">{item.headline}</h3>
+                      {item.detail && (
+                        <p className="mt-0.5 text-[13px] text-muted-foreground">{item.detail}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* The buttons, and nothing between them and the sentence
+                      they answer. The primary one is whatever the reader can
+                      do themselves; chasing somebody else is secondary, and on
+                      an unmarked register it is the only honest action a
+                      principal has -- they do not mark registers. */}
+                  <div className="flex flex-wrap items-center gap-2 p-4">
                     {href && (
                       <button
                         type="button"
                         onClick={() => navigate(href)}
-                        className="flex w-full items-center justify-between border-t bg-muted/40 px-4 py-2.5 text-[13px] font-medium active:bg-accent sm:hidden"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                       >
-                        <span>{item.action}</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        {item.action}
+                        <ArrowRight className="size-3.5" aria-hidden />
                       </button>
                     )}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        )}
-
-        {summary.length > 0 && (
-          <section className={cn('order-1 lg:order-2', items.length === 0 && 'lg:col-span-3')}>
-            <p className="eyebrow mb-2">Today</p>
-            {/* THREE ACROSS IN A HAND, ONE COLUMN ON A DESK.
-
-                The tiles ran the full width in a four-up strip, which on a
-                phone stacked into four full-width blocks: four screenfuls of
-                one number each. Beside the attention list they are a narrow
-                column, and on a phone a single row of small figures divided by
-                hairlines -- a glance, which is all a count of students is.
-
-                Written out rather than computed because Tailwind only ships
-                the classes it can see in the source. */}
-            {/* NO STRANDED TILE.
-
-                Four tiles on a three-column phone grid put the fourth alone
-                on a second row beside two thirds of nothing, drawn in the
-                border colour: a grey block that looked like a tile that had
-                failed to load. The grid stays three across, and a last tile
-                that would be stranded takes the rest of its row, so the grid
-                always ends on a full line. Phone only: the wider grids below
-                have their own counts. */}
-            {(() => {
-              // Written out: Tailwind only ships the classes it can read.
-              const SPAN: Record<number, string> = {
-                2: 'col-span-2 sm:col-span-1',
-                3: 'col-span-3 sm:col-span-1',
-              }
-              /* And the same at the tablet width, where the grid is four
-                 across: three stats leave one cell of the container visible,
-                 which is the same grey rectangle in a smaller size. Written
-                 out because Tailwind ships only the classes it can read. */
-              const SPAN_SM: Record<number, string> = {
-                2: 'sm:col-span-2',
-                3: 'sm:col-span-3',
-                4: 'sm:col-span-4',
-              }
-              const SPAN_LG: Record<number, string> = {
-                1: 'lg:col-span-1',
-                2: 'lg:col-span-2',
-                3: 'lg:col-span-3',
-                4: 'lg:col-span-4',
-              }
-              const spanOf = (s: SummaryStat) => Math.min(3, Math.max(1, Math.round(s.span ?? 1)))
-              const used = summary.reduce((n, s) => n + spanOf(s), 0)
-              const stranded = used % 3
-              const lastSpan = stranded === 0 ? '' : SPAN[3 - stranded + spanOf(summary[summary.length - 1])] ?? ''
-              const strandedSm = used % 4
-              const lastSpanSm = strandedSm === 0
-                ? ''
-                : SPAN_SM[4 - strandedSm + spanOf(summary[summary.length - 1])] ?? ''
-              /* Beside the list the desk grid is two across; on its own it is
-                 four, the same as sm, so the sm span already covers it. */
-              const colsLg = items.length === 0 ? 4 : 2
-              const strandedLg = used % colsLg
-              const lastSpanLg = strandedLg === 0
-                ? SPAN_LG[spanOf(summary[summary.length - 1])] ?? 'lg:col-span-1'
-                : SPAN_LG[colsLg - strandedLg + spanOf(summary[summary.length - 1])] ?? ''
-              return (
-            <div
-              className={cn(
-                'grid gap-px overflow-hidden rounded-md border bg-border',
-                'grid-cols-3 sm:grid-cols-4',
-                /* TWO COLUMNS THAT ALWAYS END ON A FULL ROW.
-
-                   Beside the attention list this section is a third of the
-                   width. Two columns in it gave three stats a row of two and
-                   a row of one -- and the empty half of that second row is
-                   not blank, it is the container: the grid is bg-border with
-                   gap-px, so every cell not covered by a tile is drawn in the
-                   border colour. A grey rectangle the size of a tile, which
-                   reads as a tile that failed to load rather than as nothing.
-
-                   The phone grid already had this guarded ("NO STRANDED TILE"
-                   below); the desk grid is the same bug at another breakpoint,
-                   and it is fixed the same way -- the odd tile takes the rest
-                   of its row.
-
-                   One column would also have closed the hole, and was tried:
-                   three full-width tiles stack into a column taller than the
-                   attention list beside them, which trades a grey rectangle
-                   for a lopsided page. Two across and a wide last tile keeps
-                   this section the height of what it sits next to. */
-                items.length === 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-2',
-                summary.length === 1 && 'grid-cols-1 sm:grid-cols-1 lg:grid-cols-1',
-                summary.length === 2 && 'grid-cols-2 sm:grid-cols-2',
-              )}
-            >
-              {summary.map((s, i) => (
-                <div
-                  key={s.label}
-                  className={cn(
-                    'bg-card px-3 py-3 text-center sm:px-4 sm:text-left',
-                    i === summary.length - 1 ? lastSpan || SPAN[spanOf(s)] : SPAN[spanOf(s)],
-                    i === summary.length - 1 && lastSpanSm,
-                    /* Restated at lg rather than inherited from sm. A span is
-                       counted in tracks, not in fractions, so an sm:col-span-3
-                       carried into a two-column grid does not clamp -- the
-                       browser invents the third column and the tile drags the
-                       grid out of shape. Every tile says what it spans at this
-                       width, including the plain ones. */
-                    i === summary.length - 1 ? lastSpanLg : 'lg:col-span-1',
-                  )}
-                >
-                  <p className="font-display text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums sm:text-[24px]">
-                    {s.value}
-                  </p>
-                  <p className="mt-1.5 text-[12px] text-muted-foreground">{s.label}</p>
-                  {s.hint && (
-                    <p className={cn(
-                      'text-[11.5px]',
-                      s.tone === 'good' ? 'text-success' : 'text-muted-foreground/70',
-                    )}>
-                      {s.hint}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {chase && (
+                      <button
+                        type="button"
+                        disabled={nudge.isPending}
+                        onClick={() => nudge.mutate()}
+                        className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3.5 py-2 text-[13px] font-medium transition-colors hover:bg-accent disabled:opacity-60"
+                      >
+                        <Bell className="size-3.5" aria-hidden />
+                        {nudge.isPending ? 'Reminding…' : 'Remind the class teachers'}
+                      </button>
+                    )}
+                    {!href && !chase && (
+                      <p className="text-[13px] text-muted-foreground">
+                        Nothing to open for this one.
+                      </p>
+                    )}
+                  </div>
+                </article>
               )
-            })()}
-          </section>
-        )}
-      </div>
+            })}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
