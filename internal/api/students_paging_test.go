@@ -92,18 +92,44 @@ func seedPagingWorld(t *testing.T, db *database.DB, n int) *pagingWorld {
 		})
 	})
 
-	/* Admission numbers in runs of four.
+	/* One admission number per child, because the schema will not have it any
+	   other way.
 
-	   ADM-0000 four times over, then ADM-0004 four times: the sort key alone
-	   cannot order these, so every fourth page boundary lands inside a run and
-	   the id tiebreak is the only thing keeping the walk exact. */
+	   This seeded runs of four equal admission numbers -- ADM-0000 four times,
+	   then ADM-0004 four times -- to drive a page boundary into the middle of
+	   a run and prove the id tiebreak. students carries
+	   UNIQUE (institution_id, admission_no), and has since 00001, so the
+	   second row of every run violated it and all four tests in this file
+	   failed on their first INSERT. They had never once run: without
+	   ERP_TEST_DATABASE_URL they skip, so `go test ./...` reported the whole
+	   file green while the paging it covers went unexercised.
+
+	   The run cannot be built in this schema, so the walk is proved on what
+	   the schema does allow: distinct admission numbers, a page size that does
+	   not divide the roll, and every boundary checked. See the note on
+	   listCursor in students.go for what is left holding the ordering total. */
 	err = db.InTenant(ctx, database.Scope{InstitutionID: w.inst}, func(tx pgx.Tx) error {
 		for i := 0; i < n; i++ {
-			adm := fmt.Sprintf("ADM-%04d", (i/4)*4)
+			adm := fmt.Sprintf("ADM-%04d", i)
+			sid := uuid.New()
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO students (id, institution_id, campus_id, admission_no, first_name, status)
 				VALUES ($1,$2,$3,$4,$5,'active')`,
-				uuid.New(), w.inst, w.campus, adm, fmt.Sprintf("Child %03d", i)); err != nil {
+				sid, w.inst, w.campus, adm, fmt.Sprintf("Child %03d", i)); err != nil {
+				return err
+			}
+			/* Enrolled, not merely admitted.
+
+			   A student with no enrolment row has no class, and the class
+			   filter this file also covers matched nothing at all -- which is
+			   why TestCursorFromAnotherFilterIsIgnored skipped itself rather
+			   than testing the fingerprint it exists for. Every child here
+			   sits in the one section the world declares. */
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO enrollments (institution_id, student_id, academic_year_id,
+				                         class_id, section_id)
+				VALUES ($1,$2,$3,$4,$5)`,
+				w.inst, sid, w.year, w.class, w.section); err != nil {
 				return err
 			}
 		}
@@ -143,11 +169,10 @@ func (w *pagingWorld) listPage(t *testing.T, query string) page[student] {
 /*
 TestPagingWalksTheWholeRoll is the property the LIMIT cap could not give.
 
-	One hundred and one children, seven to a page: fifteen pages, a run of
-	equal admission numbers straddling most of the boundaries, and every
-	child seen once. If the tiebreak were dropped from either the ORDER BY or
-	the cursor comparison, this fails with duplicates AND a short count in
-	the same run.
+	One hundred and one children, seven to a page: fifteen pages, a boundary
+	that never falls on the end of the roll, and every child seen exactly
+	once. Seven does not divide 101, so the last page is short and the walk
+	has to stop by the cursor going empty rather than by arithmetic.
 */
 func TestPagingWalksTheWholeRoll(t *testing.T) {
 	db := testDB(t)

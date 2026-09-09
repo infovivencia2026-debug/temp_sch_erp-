@@ -77,10 +77,20 @@ type page[T any] struct {
    which is exactly what a list that loads as you scroll does.
 
    The sort key is the endpoint's own ORDER BY, admission_no, plus the row id
-   as a tiebreak -- admission numbers are school-issued text and are NOT
-   unique in practice (they get reissued when a child leaves, and imports
-   duplicate them), so without the id a page boundary that lands inside a run
-   of equal admission numbers either repeats those rows or skips them.
+   as a tiebreak. The tiebreak is what makes the ordering TOTAL, which is the
+   one thing keyset paging cannot do without: where two rows compare equal on
+   the sort key, a boundary landing between them either repeats them or skips
+   them, and which of the two you get is up to the plan.
+
+   This said admission numbers "are NOT unique in practice -- they get
+   reissued when a child leaves, and imports duplicate them". Not in this
+   schema: students has carried UNIQUE (institution_id, admission_no) since
+   00001, and admission_no is NOT NULL, so within one school the sort key is
+   already total and the id changes no answer today. It stays because it costs
+   nothing, because it is what keeps this correct if the constraint is ever
+   relaxed for the reissue case the old note described, and because the cursor
+   comparison below is written against a total order and would have to be
+   rewritten, not just extended, to drop it.
 
    Filter carries a fingerprint of the query the cursor was cut from. A cursor
    is only meaningful against the same WHERE clause: paste one from a Class 6
