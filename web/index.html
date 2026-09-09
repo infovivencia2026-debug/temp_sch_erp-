@@ -44,8 +44,18 @@
     <script>
       // Apply persisted theme before first paint to avoid flash.
       try {
-        var t = localStorage.getItem('erp.theme') || '"light"'
-        if (JSON.parse(t) === 'dark') document.documentElement.classList.add('dark')
+        // 'system' is the default this product ships (lib/theme.ts
+        // DEFAULT_THEME), and this line said 'light'. So a visitor whose
+        // machine is dark, and who has never chosen anything, was painted a
+        // light page here and a dark one a moment later when the app read the
+        // same preference properly -- the exact flash this script exists to
+        // prevent, and on the front door it is the first thing anybody sees.
+        var raw = localStorage.getItem('erp.theme')
+        var t = raw ? JSON.parse(raw) : 'system'
+        var dark = t === 'dark' ||
+          (t === 'system' && window.matchMedia &&
+           matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
         var d = localStorage.getItem('erp.density') || '"comfortable"'
         document.documentElement.dataset.density = JSON.parse(d)
         var p = localStorage.getItem('erp.personality')

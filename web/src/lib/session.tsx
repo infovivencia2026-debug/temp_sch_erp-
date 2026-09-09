@@ -6,6 +6,7 @@ import { forgetCachedDataOnUserChange } from './sw-data'
 import { adoptPersistedQueries, forgetPersistedQueries } from './query-persist'
 import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
+import { Landing } from '@/features/landing/Landing'
 import { claimTabs } from './tabs'
 import { SkeletonShell } from '@/components/Skeleton'
 
@@ -57,6 +58,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        lib/query-persist.ts: the parent's stored answers go before anybody is
        sent to /login, so whoever signs in next on this phone starts clean. */
     forgetPersistedQueries()
+    /* THE ROOT ADDRESS IS A FRONT DOOR, NOT A FORM.
+
+       Everything used to go straight to /login. A school looking at the
+       product for the first time was shown a username box before it had been
+       told what it was signing in to, and so was a parent following a link
+       somebody had shared. Nobody signs in to a thing they have not been told
+       about.
+
+       Only the root, and only when nothing was asked for: a person opening a
+       link to a fee receipt wants the receipt, so any deeper address still
+       goes to the form and comes back to where they were pointed, which is
+       what `next` carries below. */
+    if (location.pathname === '/' && !location.search) return <Landing />
     // Full navigation, not a client route: /login is server-rendered by the Go
     // binary and must mint the cookie itself.
     const next = encodeURIComponent(location.pathname + location.search)
