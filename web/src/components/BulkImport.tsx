@@ -8,6 +8,7 @@ import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
+import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
 
 /* Adding a list you already have, instead of retyping it.
  *
@@ -286,9 +287,9 @@ export default function BulkImport({
       }
       setResult(body as Result)
       if (commit && (body as Result).imported > 0) {
-        // Everything on the page counts rows; none of it knows we just added
-        // several hundred.
-        qc.invalidateQueries()
+        // A sheet can fill any of the setup tables or the rosters; the counts
+        // on the page do not know which, so the whole list is named.
+        void invalidateKeys(qc, [...SETUP_KEYS, ...ROSTER_KEYS])
         onDone?.()
       }
     } catch {
@@ -903,7 +904,7 @@ function History({
                 (res.reasons?.length ? ` (${res.reasons.join('; ')})` : '')
               : ''),
       )
-      await qc.invalidateQueries()
+      await invalidateKeys(qc, [...SETUP_KEYS, ...ROSTER_KEYS])
     } catch (e) {
       setOutcome(e instanceof Error ? e.message : 'Could not undo that upload.')
     } finally {

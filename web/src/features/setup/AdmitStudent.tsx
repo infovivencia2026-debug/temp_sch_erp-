@@ -5,6 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   Button, Field, FormGrid, FormNotice, Input, Select, Checkbox,
 } from '@/components/ui'
+import { invalidateKeys } from '@/lib/invalidate'
 
 /* Admitting one child.
  *
@@ -72,8 +73,8 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
       // name — so the confirmation is built from what was typed plus what came
       // back, which is also the pair the office needs to write on the form.
       const named = [f.first_name, f.last_name].filter(Boolean).join(' ').trim()
-      // Everything on the page counts students, and none of it knows.
-      qc.invalidateQueries()
+      // Everything that counts students, named rather than the whole cache.
+      void invalidateKeys(qc, [['students'], ['sections'], ['admission-register'], ['setup-status'], ['attention']])
       setAdmitted(`${named} admitted${created.admission_no ? ` · admission no. ${created.admission_no}` : ''}`)
       /* Held so the concession agreed at the desk can be recorded against the
          child who was just admitted. The form clears for the next in the

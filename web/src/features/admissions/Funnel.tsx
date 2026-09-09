@@ -724,7 +724,12 @@ function Waitlist() {
         class_id: classId,
         seats: Number(seats),
       }),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['waitlist'] })
+      qc.invalidateQueries({ queryKey: ['admission-register'] })
+      qc.invalidateQueries({ queryKey: ['leads'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    },
   })
 
   const rows = list.data?.items ?? []
@@ -840,7 +845,11 @@ function OpenDays() {
   })
   const book = useMutation({
     mutationFn: (v: Record<string, unknown>) => api.post('/api/v1/admissions/open-days/book', v),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['open-days'] })
+      qc.invalidateQueries({ queryKey: ['open-day-slots'] })
+      qc.invalidateQueries({ queryKey: ['open-day-bookings'] })
+    },
   })
 
   const set = (k: string) => (v: string) => setForm({ ...form, [k]: v })

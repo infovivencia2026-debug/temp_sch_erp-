@@ -92,7 +92,9 @@ export default function FeeCounter() {
       setPenaltyAmount('')
       setPenaltyReason('')
       // The bill, the balance and the family's copy all move together.
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['fee-ledger', studentId] })
+      qc.invalidateQueries({ queryKey: ['finance-dashboard'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
       toast.ok('Penalty added. The family has been told.')
     },
   })

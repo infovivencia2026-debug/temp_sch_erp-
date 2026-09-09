@@ -423,7 +423,7 @@ function ChildPanel({
         <div>
           <h3 className="mb-2 text-[14px] font-medium">Support plan</h3>
           {canPlan ? (
-            <PlanForm studentId={child.student_id} plan={plan} onSaved={() => qc.invalidateQueries()} />
+            <PlanForm studentId={child.student_id} plan={plan} onSaved={() => qc.invalidateQueries({ queryKey: ['support-plans'] })} />
           ) : plan ? (
             <div className="space-y-1 text-[13px]">
               <p>{plan.concern}</p>
@@ -471,7 +471,8 @@ function NoteForm({ studentId }: { studentId: string }) {
     onSuccess: () => {
       setDescription('')
       setAction('')
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['notes', studentId] })
+      qc.invalidateQueries({ queryKey: ['student-progress'] })
     },
   })
 

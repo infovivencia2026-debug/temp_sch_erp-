@@ -124,7 +124,10 @@ export default function Syllabus() {
   const decide = useMutation({
     mutationFn: (v: { id: string; decision?: string; remarks?: string; delivered_on?: string }) =>
       api.post(`/api/v1/syllabus/lesson-plans/${v.id}/decide`, v),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lesson-plans'] })
+      qc.invalidateQueries({ queryKey: ['syllabus-coverage'] })
+    },
   })
 
   const rows = coverage.data?.items ?? []
@@ -328,7 +331,10 @@ function MyPlans({ plans, canReview }: { plans: Plan[]; canReview: boolean }) {
       api.post(`/api/v1/syllabus/lesson-plans/${id}/decide`, {
         delivered_on: new Date().toISOString().slice(0, 10),
       }),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lesson-plans'] })
+      qc.invalidateQueries({ queryKey: ['syllabus-coverage'] })
+    },
   })
 
   return (
@@ -409,7 +415,8 @@ function ChapterPlanner() {
       }),
     onSuccess: () => {
       setDraft('')
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['syllabus-units', csID] })
+      qc.invalidateQueries({ queryKey: ['syllabus-coverage'] })
     },
   })
 
@@ -539,7 +546,7 @@ function NewLessonPlan() {
     onSuccess: () => {
       setF({ ...f, objectives: '', activities: '', resources: '', homework: '' })
       setFile(null)
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['lesson-plans'] })
     },
   })
 

@@ -349,13 +349,17 @@ function IncomeTax() {
     onSuccess: () => {
       setParticulars('')
       setAmount('')
-      qc.invalidateQueries()
+      qc.invalidateQueries({ queryKey: ['tax', employeeId] })
+      qc.invalidateQueries({ queryKey: ['statutory'] })
     },
   })
   const verify = useMutation({
     mutationFn: (v: { id: string; status: string; verified_paise?: number; remarks?: string }) =>
       api.post('/api/v1/payroll/declarations', v),
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tax', employeeId] })
+      qc.invalidateQueries({ queryKey: ['statutory'] })
+    },
   })
 
   const t = tax.data as

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
+import { invalidateKeys } from '@/lib/invalidate'
 
 /* Joining and leaving.
 
@@ -173,7 +174,7 @@ export default function Lifecycle() {
 
             The same component, not a second implementation — it appoints the
             person, issues the login and hands over the password once. */}
-        {can('hr.employees.write') && <AddStaff onDone={() => qc.invalidateQueries()} />}
+        {can('hr.employees.write') && <AddStaff onDone={() => invalidateKeys(qc, [['employees'], ['hr'], ['setup-status']])} />}
 
         <CellGrid cols={4}>
           <Stat label="Files incomplete" value={unverified.length} icon={ClipboardCheck}
