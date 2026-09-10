@@ -32,9 +32,46 @@ var exportable = map[string]struct {
 	header []string
 	query  string
 }{
+	/* THE ROLL AS IT STANDS TODAY.
+
+	   "students" is every child the school has ever held, leavers included,
+	   which is the right file for an audit and the wrong one for almost
+	   everything else: a school of 326 children downloads 429 rows and has to
+	   filter a status column to find its own roll. Yajur's export is a quarter
+	   leavers.
+
+	   So the common case gets its own name and the archive keeps its. Same
+	   query, one clause apart, because two queries would drift. */
+	"students_on_roll": {
+		title:  "Students on the roll",
+		about:  "The children here now — no leavers, no transfers. The file to work from.",
+		perm:   "students.read",
+		header: []string{"Admission No", "Name", "Class", "Section", "Roll", "Gender", "Date of Birth", "Medium", "Guardian", "Phone", "Status"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               COALESCE(en.roll_no::text,''), COALESCE(st.gender,''),
+		               COALESCE(to_char(st.date_of_birth,'DD/MM/YYYY'),''),
+		               COALESCE(st.medium,''), COALESCE(g.full_name,''),
+		               COALESCE(g.phone,''), st.status
+		          FROM students st
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id, e.roll_no FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT gg.full_name, gg.phone FROM student_guardians sg
+		                JOIN guardians gg ON gg.id = sg.guardian_id
+		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
+		          ) g ON true
+		         WHERE st.status = 'active'
+		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
+	},
 	"students": {
-		title:  "Student roll",
-		about:  "Every student with their class, guardian and contact details.",
+		title:  "Student roll, including leavers",
+		about:  "Every student the school has ever held, with their status. The archive, not the working roll.",
 		perm:   "students.read",
 		header: []string{"Admission No", "Name", "Class", "Section", "Roll", "Gender", "Date of Birth", "Medium", "Guardian", "Phone", "Status"},
 		query: `SELECT st.admission_no,

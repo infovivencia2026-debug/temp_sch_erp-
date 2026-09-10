@@ -8,6 +8,7 @@ import {
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
 import CardViewer from '@/components/CardViewer'
+import BulkImport from '@/components/BulkImport'
 import { useDebouncedValue } from '@/lib/debounce'
 
 interface Cert {
@@ -400,6 +401,38 @@ export default function Certificates() {
             </Table>
           )}
         </Card>
+
+        {/* THE LEAVERS A SCHOOL ALREADY HAS ON PAPER.
+
+            This screen issues certificates one at a time, which is right for
+            the child leaving on Friday and useless for the school arriving
+            with a TC register covering three years. That register was
+            importable, but only from inside School setup -- a first-run
+            wizard nobody opens again once the school is running, and not
+            where anybody would look for it.
+
+            An importer belongs beside the work it does. Behind a line,
+            because a school does this rarely and reads the certificate list
+            daily. */}
+        <details className="mt-5 rounded-[10px] border bg-card">
+          <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
+            Load a TC register — children who have already left
+          </summary>
+          <div className="border-t p-5">
+            <BulkImport
+              entity="student_exits"
+              title="Children who have left, from your register"
+              hint={
+                'The admission number, the date they left, whether they were ' +
+                'transferred or simply did not return, and why. Only the ' +
+                'admission number is required — a school that has the dates but ' +
+                'not the reasons can upload what it has and fill the rest in ' +
+                'later. Uploading again updates a child rather than exiting them twice.'
+              }
+              onDone={() => qc.invalidateQueries({ queryKey: ['certificates'] })}
+            />
+          </div>
+        </details>
       </PageBody>
     </>
   )
