@@ -355,13 +355,6 @@ export function CommandSearch() {
                     i === cursor && 'bg-accent',
                   )}
                 >
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 shrink-0 rounded-full',
-                      h.live ? 'bg-primary' : 'bg-border',
-                    )}
-                    title={h.live ? 'Built' : 'Catalogued, not built'}
-                  />
                   {/* The same plate the launcher draws, at list size: one
                       feature, one icon, wherever it is offered. */}
                   <FeatureGlyph slug={h.slug} section={h.sectionSlug} tint={hueFor(h.workspace)} size={24} />
@@ -370,6 +363,11 @@ export function CommandSearch() {
                     <span className="block truncate text-[12px] text-muted-foreground">
                       {h.role} · {h.section}
                       {!h.inScope && ' · nothing in your scope'}
+                      {/* What the status dot used to say, in the words it
+                          meant. A coloured dot beside every row read as a
+                          bullet list; the one row in ten that is not built
+                          yet is the only one that has anything to report. */}
+                      {!h.live && ' · not built yet'}
                     </span>
                   </span>
                   {i === cursor && (
