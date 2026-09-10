@@ -157,8 +157,14 @@ fi
 # Manager and off the running service, which is why a second machine needs no
 # secret sent to it. The check for a stale file is deliberate: a file written
 # before a secret was rotated deploys the old value.
+#
+# --fix-env rebuilds whether or not the file is there, and that is the point.
+# The first version only wrote a missing file, which meant the one command
+# offered for "the env file is wrong" could not fix an env file that existed
+# and was wrong -- which is exactly how it went wrong the first time, when a
+# filter bug put "None" into BASE_URL and re-running changed nothing.
 say "Configuration"
-if [ -f "$ENV_FILE" ]; then
+if [ -f "$ENV_FILE" ] && [ "$FIX_ENV" != "1" ]; then
     MISSING=""
     for k in PROJECT_ID DATABASE_URL SESSION_SECRET PASSWORD_PEPPER CREDENTIAL_KEY BASE_URL; do
         grep -qE "^${k}=." "$ENV_FILE" || MISSING="$MISSING $k"

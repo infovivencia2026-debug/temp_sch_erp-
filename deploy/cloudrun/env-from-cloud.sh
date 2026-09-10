@@ -38,9 +38,20 @@ secret() {
 
 # The non-secret settings are read off the service rather than kept in a second
 # place that can disagree with it.
+#
+# `name=` and not `name:`. The colon is a substring match, so asking for
+# BASE_URL also matched DATABASE_URL and MIGRATE_DATABASE_URL -- both of which
+# end in those eight characters -- and both of which are secretRefs with no
+# inline value, so each contributed a literal "None". The file this wrote said
+#
+#     BASE_URL=https://school-erp-cqj.pages.dev,None,None
+#
+# and a deploy carrying that would have put a comma and two Nones into every
+# link the software sends to a parent. gcloud now warns that `:` is changing
+# meaning anyway; `=` is what was meant here all along.
 svc_env() {
     gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" \
-        --format="value(spec.template.spec.containers[0].env.filter(\"name:$1\").extract(value).flatten())" 2>/dev/null
+        --format="value(spec.template.spec.containers[0].env.filter(\"name=$1\").extract(value).flatten())" 2>/dev/null
 }
 
 BASE_URL="$(svc_env BASE_URL)"
