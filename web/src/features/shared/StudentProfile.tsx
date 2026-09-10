@@ -681,27 +681,37 @@ export default function StudentProfile() {
                      different reasons: the roll to work from, the leavers
                      for the TC register, the new admissions for the board. */
                   <span className="flex items-center gap-2">
-                    <a
-                      href="/api/v1/export/students_on_roll"
-                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
-                      title="The children here now, as a spreadsheet"
-                    >
-                      On the roll
-                    </a>
-                    <a
-                      href="/api/v1/export/students_left"
-                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
-                      title="Leavers and transfers, with dates, reasons and TC numbers"
-                    >
-                      Left / TC
-                    </a>
-                    <a
-                      href="/api/v1/export/students_new_admissions"
-                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
-                      title="Children admitted during the current academic year"
-                    >
-                      New admissions
-                    </a>
+                    {/* One button, three files behind it.
+
+                        Three buttons across the header said the same thing
+                        three times and pushed Clear filters off the edge; the
+                        header of a list is not the place to enumerate what a
+                        download could be. Export is one idea, and which file
+                        is a choice you make after deciding you want one. */}
+                    <details className="relative">
+                      <summary className="cursor-pointer list-none rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent">
+                        Export
+                      </summary>
+                      <div className="absolute right-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border bg-card shadow-[var(--elev-2)]">
+                        {[
+                          ['students_on_roll', 'Students on the roll',
+                            'The children here now'],
+                          ['students_left', 'Left / transferred',
+                            'With dates, reasons and TC numbers'],
+                          ['students_new_admissions', 'New admissions',
+                            'Admitted this academic year'],
+                        ].map(([slug, name, about]) => (
+                          <a
+                            key={slug}
+                            href={`/api/v1/export/${slug}`}
+                            className="block px-3 py-2 text-left hover:bg-accent"
+                          >
+                            <span className="block text-[13.5px] font-medium">{name}</span>
+                            <span className="block text-[12px] text-muted-foreground">{about}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </details>
                     {(browsing || searching) && (
                       <Button
                         size="sm"
