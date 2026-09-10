@@ -315,6 +315,19 @@ func (s *Server) Routes() http.Handler {
 			// terms has been in the schema from the beginning with nothing
 			// reading it. A co-scholastic grade belongs to one.
 			r.Get("/terms", s.listTerms)
+
+			/* TERM DATES, which the School Calendar screen has always drawn and
+			   never been able to create: there is no INSERT INTO terms anywhere
+			   else in this codebase. Holidays are written at
+			   /academics/admin/calendar, where that screen already sends them.
+			   See school_calendar.go. */
+			r.Get("/calendar/terms", s.listTermsFull)
+			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).Group(func(r chi.Router) {
+				r.Post("/calendar/terms", s.saveTerm)
+				r.Patch("/calendar/terms/{id}", s.saveTerm)
+				r.Delete("/calendar/terms/{id}", s.deleteTerm)
+			})
+
 			r.Get("/co-scholastic-areas", s.listCoScholasticAreas)
 			r.With(httpx.RequirePermission(rbac.AcademicsWrite)).
 				Post("/co-scholastic-areas", s.saveCoScholasticArea)
@@ -838,7 +851,6 @@ func (s *Server) Routes() http.Handler {
 			   list of leave types tells you nothing about any person; writing
 			   one is still hr.employees.write, below. */
 			r.Get("/leave-types", s.listLeaveTypes)
-
 			r.Group(func(r chi.Router) {
 				r.Use(httpx.RequirePermission(rbac.EmployeesRead))
 				r.Get("/dashboard", s.getHRDashboard)

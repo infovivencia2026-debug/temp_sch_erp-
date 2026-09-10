@@ -209,6 +209,7 @@ export default function AcademicCalendar() {
         </Card>
 
         <NewEntry />
+        <Terms />
       </PageBody>
     </>
   )
@@ -295,4 +296,127 @@ function NewEntry() {
       </div>
     </Card>
   )
+}
+
+/* TERM DATES.
+
+   This screen has always drawn three things as one sequence -- holidays,
+   exams and terms -- and could write only the first. Terms had no writer
+   anywhere in the product, so the row a school saw for "Term 1" was one it
+   had no way to put there, and every screen that files something under a
+   term found none to offer.
+
+   Its own card rather than a kind on the form above, because a term is not
+   an entry in the calendar. It is a span the calendar sits inside: three of
+   them a year, set once in April, and a report card belongs to one. */
+function Terms() {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const [startsOn, setStartsOn] = useState('')
+  const [endsOn, setEndsOn] = useState('')
+  const [sequence, setSequence] = useState('1')
+
+  const terms = useQuery({
+    queryKey: ['calendar-terms'],
+    queryFn: () => api.get<{ items: CalTerm[] }>('/api/v1/academics/calendar/terms'),
+  })
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.post('/api/v1/academics/calendar/terms', {
+        name,
+        starts_on: startsOn,
+        ends_on: endsOn,
+        sequence: Number(sequence) || 1,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-terms'] })
+      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+      setName('')
+      setStartsOn('')
+      setEndsOn('')
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.del(`/api/v1/academics/calendar/terms/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-terms'] })
+      qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+    },
+  })
+
+  const rows = terms.data?.items ?? []
+
+  return (
+    <Card className="mt-4">
+      <CardHeader
+        title="Terms"
+        description="The spans the year is divided into. A report card, a fee instalment and a co-scholastic grade each belong to one."
+      />
+      <div className="px-5 pb-5">
+        {rows.length > 0 && (
+          <ul className="mb-4 divide-y rounded-lg border">
+            {rows.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 px-3 py-2">
+                <span className="w-8 text-[12.5px] tabular-nums text-muted-foreground">
+                  {t.sequence}
+                </span>
+                <span className="flex-1">
+                  <span className="text-[14px] font-medium">{t.name}</span>
+                  {t.is_current && <> <Badge tone="success">now</Badge></>}
+                  <span className="block text-[12.5px] text-muted-foreground">
+                    {t.starts_on} to {t.ends_on} · {t.academic_year}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove.mutate(t.id)}
+                  className="text-[13px] text-muted-foreground underline underline-offset-2 hover:text-destructive"
+                >
+                  remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <FormGrid>
+          <Field label="Name" required>
+            <Input value={name} onChange={setName} placeholder="Term 1" />
+          </Field>
+          <Field label="Which term" hint="1, 2, 3 — the order they run in.">
+            <Input value={sequence} onChange={setSequence} />
+          </Field>
+          <Field label="Starts" required>
+            <Input type="date" value={startsOn} onChange={setStartsOn} />
+          </Field>
+          <Field label="Ends" required>
+            <Input type="date" value={endsOn} onChange={setEndsOn} />
+          </Field>
+        </FormGrid>
+        <div className="mt-5 flex items-center gap-3">
+          <Button
+            disabled={save.isPending || !name.trim() || !startsOn || !endsOn}
+            onClick={() => save.mutate()}
+          >
+            Add term
+          </Button>
+          <FormNotice
+            error={save.error ?? remove.error}
+            ok={save.isSuccess ? 'Added.' : undefined}
+          />
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+interface CalTerm {
+  id: string
+  name: string
+  starts_on: string
+  ends_on: string
+  sequence: number
+  academic_year: string
+  is_current: boolean
 }
