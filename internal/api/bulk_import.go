@@ -150,6 +150,8 @@ type importCtx struct {
 	// of values that cannot change during one import.
 	sections map[string]uuid.UUID
 	teachers map[string]uuid.UUID
+	// periods, keyed by every spelling a school might use for one slot.
+	periods map[string]uuid.UUID
 	/* The biometric reader a punch file names, by serial, and the punches
 	   this file has already accounted for.
 
@@ -848,6 +850,131 @@ var importSpecs = map[string]importSpec{
 					return err
 				}
 			}
+			return nil
+		},
+	},
+	/* THE TIMETABLE THE SCHOOL ALREADY HAS.
+
+	   Every school running today has a timetable, on a wall or in a workbook,
+	   and it took a term of argument to settle. The only way into this system
+	   was to build it again period by period through the generator -- which is
+	   the right tool for a school starting fresh and an insult to one that
+	   spent August on the grid it already uses.
+
+	   One row per period, which is how a timetable exports out of any
+	   spreadsheet: the section, the day, the period, what is taught and by
+	   whom. A school can upload one section to see the shape of it and then
+	   the rest of the week, or the whole school at once; nothing here cares
+	   which, because a row names its own section.
+
+	   Re-uploading replaces the period rather than doubling it. A timetable is
+	   revised all term -- a teacher leaves, a subject moves to Thursday -- and
+	   an importer that appended would leave the grid holding both answers. */
+	"timetable": {
+		Perm: rbac.TimetableWrite,
+		Columns: []string{"class", "section", "day", "period",
+			"subject", "teacher", "room"},
+		Required: []string{"class", "day", "period", "subject"},
+		Sample: []string{"Grade 6", "A", "Monday", "1",
+			"Mathematics", "Priya Rao", "6A"},
+		Check: func(row map[string]string) error {
+			if _, err := weekdayOf(row["day"]); err != nil {
+				return err
+			}
+			if strings.TrimSpace(row["period"]) == "" {
+				return errors.New("period is required: its number or its name")
+			}
+			return nil
+		},
+		/* A subject the class does not study, or a period that is not on the
+		   bell schedule, is the ordinary mistake here -- a column mapped one
+		   across, or a sheet from last year. Caught on the dry run, where it
+		   is a line in a report, rather than at commit, where it is half a
+		   timetable. */
+		Verify: func(c *importCtx, row map[string]string) error {
+			classID, err := c.classID(strings.TrimSpace(row["class"]))
+			if err != nil {
+				return err
+			}
+			if _, err := c.periodID(strings.TrimSpace(row["period"])); err != nil {
+				return err
+			}
+			var n int
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT count(*) FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.class_id = $1
+				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))`,
+				classID, strings.TrimSpace(row["subject"])).Scan(&n); err != nil {
+				return err
+			}
+			if n == 0 {
+				return fmt.Errorf("%s does not study %q. Add it under what each class studies, or check the spelling",
+					strings.TrimSpace(row["class"]), strings.TrimSpace(row["subject"]))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			yearID, err := c.workingYearID()
+			if err != nil {
+				return err
+			}
+			classID, err := c.classID(strings.TrimSpace(row["class"]))
+			if err != nil {
+				return err
+			}
+			sectionID, err := c.sectionIDFor(strings.TrimSpace(row["class"]),
+				strings.TrimSpace(row["section"]))
+			if err != nil {
+				return err
+			}
+			periodID, err := c.periodID(strings.TrimSpace(row["period"]))
+			if err != nil {
+				return err
+			}
+			weekday, err := weekdayOf(row["day"])
+			if err != nil {
+				return err
+			}
+			var classSubjectID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT cs.id FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.class_id = $1
+				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))
+				 LIMIT 1`, classID, strings.TrimSpace(row["subject"])).Scan(&classSubjectID); err != nil {
+				return err
+			}
+
+			/* The teacher is optional, and a name that matches nobody is not a
+			   reason to lose the period. A grid with the subject in it and the
+			   teacher missing is still a timetable; a rejected row is a hole. */
+			var teacher any
+			if who := strings.TrimSpace(row["teacher"]); who != "" {
+				// A name matching nobody leaves the period without a teacher
+				// rather than rejecting the row.
+				if id, err := c.teacherByEmail(who); err == nil {
+					teacher = id
+				}
+			}
+
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO timetable_entries (institution_id, academic_year_id, section_id,
+				                               period_id, weekday, class_subject_id,
+				                               teacher_user_id, room)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))
+				ON CONFLICT (section_id, period_id, weekday)
+				DO UPDATE SET class_subject_id = EXCLUDED.class_subject_id,
+				              teacher_user_id  = EXCLUDED.teacher_user_id,
+				              room             = EXCLUDED.room
+				RETURNING id, (xmax = 0)`,
+				c.inst, yearID, sectionID, periodID, weekday, classSubjectID,
+				teacher, strings.TrimSpace(row["room"])).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("timetable", id, inserted)
 			return nil
 		},
 	},
@@ -3148,6 +3275,96 @@ sheet names one the school has not set up.
 	marked itself default would silently move every class that has not been
 	told otherwise.
 */
+/* WHICH PERIOD A TIMETABLE ROW MEANS.
+
+   Schools write the same slot four ways: "1", "P1", "Period 1", or the name
+   the bell schedule gives it. All four are accepted, because the sheet being
+   uploaded was written for people and this is the one column a school is most
+   likely to have typed by hand.
+
+   Breaks are matched too. A timetable that names the lunch period is telling
+   the truth about the day, and refusing it would make the school edit a grid
+   that is already correct. */
+func (c *importCtx) periodID(want string) (uuid.UUID, error) {
+	want = strings.TrimSpace(want)
+	if want == "" {
+		return uuid.Nil, errors.New("period is required")
+	}
+	if c.periods == nil {
+		c.periods = map[string]uuid.UUID{}
+		rows, err := c.tx.Query(c.r.Context(),
+			`SELECT id, name, sequence FROM periods WHERE institution_id = $1`, c.inst)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		for rows.Next() {
+			var id uuid.UUID
+			var name string
+			var seq int
+			if err := rows.Scan(&id, &name, &seq); err != nil {
+				rows.Close()
+				return uuid.Nil, err
+			}
+			for _, k := range []string{
+				strings.ToLower(strings.TrimSpace(name)),
+				strconv.Itoa(seq),
+				"p" + strconv.Itoa(seq),
+				"period " + strconv.Itoa(seq),
+			} {
+				if _, taken := c.periods[k]; !taken {
+					c.periods[k] = id
+				}
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return uuid.Nil, err
+		}
+	}
+	if id, ok := c.periods[strings.ToLower(want)]; ok {
+		return id, nil
+	}
+	return uuid.Nil, fmt.Errorf("no period called %q -- set the school day up first, "+
+		"or use the period number", want)
+}
+
+// workingYearID is the year a timetable is filed into. A timetable without one
+// belongs to no year and appears on nobody's screen.
+func (c *importCtx) workingYearID() (uuid.UUID, error) {
+	if c.year == nil {
+		return uuid.Nil, errors.New("create an academic year before loading a timetable")
+	}
+	return *c.year, nil
+}
+
+/*
+THE DAY, HOWEVER THE SHEET SPELLS IT.
+
+	Monday, Mon, MONDAY, 1. Weekday is stored 1-7 from Monday, matching
+	ISO and what EXTRACT(ISODOW) returns, so a school writing 1 for Monday and a
+	school writing 7 for Sunday both land where they meant to.
+*/
+func weekdayOf(s string) (int, error) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return 0, errors.New("day is required")
+	}
+	if n, err := strconv.Atoi(s); err == nil {
+		if n < 1 || n > 7 {
+			return 0, errors.New("day as a number must be 1 (Monday) to 7 (Sunday)")
+		}
+		return n, nil
+	}
+	days := []string{"monday", "tuesday", "wednesday", "thursday",
+		"friday", "saturday", "sunday"}
+	for i, d := range days {
+		if s == d || s == d[:3] {
+			return i + 1, nil
+		}
+	}
+	return 0, fmt.Errorf("%q is not a day of the week", s)
+}
+
 func (c *importCtx) bellScheduleID(name string) (uuid.UUID, error) {
 	key := strings.ToLower(strings.TrimSpace(name))
 	if c.pastYears == nil {
@@ -4429,6 +4646,13 @@ var undoableTables = map[string]string{
 	   to remove" ever since. */
 	"class_subjects": "class_subjects",
 	"allocations":    "section_subject_teachers",
+	/* A timetable uploaded from the wrong file is the case undo exists for:
+	   the grid is the most visible thing in the school, and a school that has
+	   just replaced Monday with somebody else's Monday wants it back in one
+	   press. Only the periods this import created are removed -- a slot it
+	   overwrote was already somebody's decision, and undo restores no more
+	   than it wrote. */
+	"timetable": "timetable_entries",
 	// The closed-year records, which are the likeliest of all to be uploaded
 	// wrongly: a school's first attempt at a history file usually is.
 	"student_history": "student_year_history",

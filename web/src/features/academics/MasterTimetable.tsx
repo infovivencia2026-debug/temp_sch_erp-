@@ -8,6 +8,7 @@ import {
 import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
 import PeriodsNeeded from './PeriodsNeeded'
+import BulkImport from '@/components/BulkImport'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* institution_admin.academics.master_timetable_generation
@@ -305,6 +306,42 @@ export default function MasterTimetable() {
             </summary>
             <div className="border-t">
               <PeriodsNeeded mayWrite={mayWrite} onGenerated={onSectionDraft} />
+            </div>
+          </details>
+        )}
+
+        {/* THE TIMETABLE THE SCHOOL ALREADY HAS.
+
+            Every school running today has one, settled over a term of
+            argument, and until now the only way in was to build it again
+            period by period. The generator is the right tool for a school
+            starting fresh and the wrong one for a school with a grid on the
+            wall.
+
+            Behind a line, not in front of it: a school that needs this needs
+            it once, and it must not stand between anybody and the timetable
+            on every visit afterwards. */}
+        {mayWrite && (
+          <details className="rounded-[10px] border bg-card">
+            <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
+              Already have a timetable? Upload it instead
+            </summary>
+            <div className="border-t p-5">
+              <BulkImport
+                entity="timetable"
+                title="Your existing timetable, from a sheet"
+                hint={
+                  'One row per period: the class, its section, the day, the period, ' +
+                  'the subject, and who teaches it. Upload one section to see the ' +
+                  'shape of it, or the whole school at once — each row names its own ' +
+                  'section, so it does not matter which. Uploading a section again ' +
+                  'replaces those periods rather than doubling them.'
+                }
+                onDone={() => {
+                  setNote('Timetable loaded. It is live for teachers now — check a section below.')
+                  qc.invalidateQueries({ queryKey: ['master-timetable'] })
+                }}
+              />
             </div>
           </details>
         )}
