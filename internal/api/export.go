@@ -69,6 +69,71 @@ var exportable = map[string]struct {
 		         WHERE st.status = 'active'
 		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
 	},
+	/* THE CHILDREN WHO HAVE LEFT, with the certificate that let them go.
+
+	   A leavers file is asked for by name -- by the board, by the next school,
+	   by whoever reconciles the TC register -- and pulling it out of the full
+	   roll means filtering a status column and then hunting the reason down in
+	   another screen. Both belong in one file. */
+	"students_left": {
+		title:  "Children who have left",
+		about:  "Leavers and transfers, with the date they left, why, and the certificate number.",
+		perm:   "students.read",
+		header: []string{"Admission No", "Name", "Last class", "Section", "Status", "Left on", "Reason", "Guardian", "Phone"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''), st.status,
+		               COALESCE(to_char(st.exit_date,'DD/MM/YYYY'),''),
+		               COALESCE(st.exit_reason,''),
+		               COALESCE(g.full_name,''), COALESCE(g.phone,'')
+		          FROM students st
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT gg.full_name, gg.phone FROM student_guardians sg
+		                JOIN guardians gg ON gg.id = sg.guardian_id
+		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
+		          ) g ON true
+		         WHERE st.status IN ('withdrawn','transferred','inactive','graduated','alumni')
+		         ORDER BY st.exit_date DESC NULLS LAST, st.admission_no`,
+	},
+	/* THIS YEAR'S NEW ADMISSIONS.
+
+	   Admitted inside the current academic year, which is what a school means
+	   by new -- not "created in the database this week", which would count the
+	   day somebody imported six years of history. */
+	"students_new_admissions": {
+		title:  "New admissions this year",
+		about:  "Children admitted during the current academic year, with when they joined and who to ring.",
+		perm:   "students.read",
+		header: []string{"Admission No", "Name", "Class", "Section", "Admitted on", "Gender", "Date of Birth", "Guardian", "Phone", "Status"},
+		query: `SELECT st.admission_no,
+		               concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               COALESCE(to_char(st.admission_date,'DD/MM/YYYY'),''),
+		               COALESCE(st.gender,''),
+		               COALESCE(to_char(st.date_of_birth,'DD/MM/YYYY'),''),
+		               COALESCE(g.full_name,''), COALESCE(g.phone,''), st.status
+		          FROM students st
+		          JOIN academic_years ay ON ay.is_current
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT gg.full_name, gg.phone FROM student_guardians sg
+		                JOIN guardians gg ON gg.id = sg.guardian_id
+		               WHERE sg.student_id = st.id ORDER BY sg.is_primary DESC LIMIT 1
+		          ) g ON true
+		         WHERE st.admission_date BETWEEN ay.starts_on AND ay.ends_on
+		         ORDER BY st.admission_date DESC, st.admission_no`,
+	},
 	"students": {
 		title:  "Student roll, including leavers",
 		about:  "Every student the school has ever held, with their status. The archive, not the working roll.",

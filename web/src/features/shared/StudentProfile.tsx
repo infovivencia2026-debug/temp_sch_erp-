@@ -669,17 +669,51 @@ export default function StudentProfile() {
                    says where in it you are. */
                 description={undefined}
                 action={
-                  browsing || searching ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        patch({ class: null, section: null, q: null, roll: null, list: null })
-                      }}
+                  /* DOWNLOADING THE LIST YOU ARE LOOKING AT.
+
+                     The exports existed and lived on Reports, two sections
+                     away from the roll -- so the answer to "can I have this
+                     as a spreadsheet" was "yes, somewhere else". A school
+                     asks for it here, standing in front of the list.
+
+                     Three files rather than one with a status column,
+                     because they are asked for by different people for
+                     different reasons: the roll to work from, the leavers
+                     for the TC register, the new admissions for the board. */
+                  <span className="flex items-center gap-2">
+                    <a
+                      href="/api/v1/export/students_on_roll"
+                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
+                      title="The children here now, as a spreadsheet"
                     >
-                      Clear filters
-                    </Button>
-                  ) : undefined
+                      On the roll
+                    </a>
+                    <a
+                      href="/api/v1/export/students_left"
+                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
+                      title="Leavers and transfers, with dates, reasons and TC numbers"
+                    >
+                      Left / TC
+                    </a>
+                    <a
+                      href="/api/v1/export/students_new_admissions"
+                      className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
+                      title="Children admitted during the current academic year"
+                    >
+                      New admissions
+                    </a>
+                    {(browsing || searching) && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          patch({ class: null, section: null, q: null, roll: null, list: null })
+                        }}
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </span>
                 }
               />
               {/* The columns an office actually reads a roll by: who, where,
