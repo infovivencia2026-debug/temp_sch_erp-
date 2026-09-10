@@ -164,11 +164,11 @@ func canAny(id interface {
 }
 
 type probe struct {
-	Key      string
-	Needs    string
+	Key   string
+	Needs string
 	// Daily marks a probe that counts what has not happened TODAY. Those are
 	// silent on a day the school is not open — see schoolOpenToday.
-	Daily bool
+	Daily    bool
 	Severity Severity
 	Action   string
 	Href     string
@@ -262,7 +262,7 @@ var probes = []probe{
 	// --- the register -----------------------------------------------------
 	{
 		Key: "attendance.unmarked", Needs: rbac.AttendanceWrite,
-		Daily: true,
+		Daily:    true,
 		Severity: SeverityWarning, Action: "Mark attendance", Href: "attendance",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "section", "sections") + " without attendance today"
@@ -296,7 +296,7 @@ var probes = []probe{
 	},
 	{
 		Key: "attendance.absent_today", Needs: rbac.AttendanceRead,
-		Daily: true,
+		Daily:    true,
 		Severity: SeverityInfo, Action: "View register", Href: "attendance",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "student", "students") + " absent today"
@@ -336,7 +336,7 @@ var probes = []probe{
 		   principal and the head of department. Told to the people who answer
 		   it and nobody else. */
 		Key: "staff.absent_today", Needs: rbac.TimetableWrite,
-		Daily: true,
+		Daily:    true,
 		Severity: SeverityWarning, Action: "Arrange substitute", Href: "staff",
 		Headline: func(n int, _ int64) string {
 			return plural(n, "teacher", "teachers") + " absent today"

@@ -795,6 +795,55 @@ until step 9.
     2026-09-09 GitHub Actions runs the same dump independently of the box —
     see (h) — so nothing has to happen to the backups first.
 
+## Deploying, from a machine that has never deployed
+
+The cut-over section above is the one-off. This is the routine, and the
+short answer is two commands. Everything a deploy needs is already in the
+cloud, so nothing is copied between laptops and no secret is ever sent to
+anyone.
+
+```
+gcloud auth login                                # once per machine
+bash deploy/cloudrun/preflight.sh --fix-env      # checks, and writes the env file
+bash deploy/cloudrun/deploy.sh                   # build, migrate, swap
+```
+
+[preflight.sh](../deploy/cloudrun/preflight.sh) exists because `deploy.sh`
+finds its problems in the middle rather than at the start: an unauthenticated
+CLI is discovered after the image tag has been computed, a missing env file
+after the tree has been read. Neither is dangerous and both waste the ten
+minutes between deciding to deploy and learning you cannot. So the preflight
+asks every question first and, for each, prints either that it is fine or the
+one command that makes it fine. It changes nothing unless given `--fix-env`,
+and the only thing it writes then is the env file.
+
+It also prints what is live before it prints anything about the deploy —
+which revision, from which commit, how far `HEAD` has moved past it, and
+which migrations have been added since. That last one is the number worth
+reading before starting, because a migration that wants a quiet window is a
+person's decision and not the script's.
+
+**Prerequisites it will find for you, in the order they bite.** The Google
+Cloud CLI is not a repository dependency and will not be on a fresh laptop;
+it also needs Python 3.10 or newer, which macOS does not ship (it has 3.9),
+so `brew install python@3.12` and `CLOUDSDK_PYTHON` pointing at it. The sign
+-in is a browser flow, so only a person can do it. The project id is
+`project-2a0e3e6a-308a-4484-9cb`; `gcloud config set project` it once.
+
+**The env file is rebuilt, not copied.**
+[env-from-cloud.sh](../deploy/cloudrun/env-from-cloud.sh) reads every secret
+back out of Secret Manager and every plain value off the running service, so
+the account needs `roles/secretmanager.secretAccessor` and nothing else.
+`--fix-env` writes to a temporary file and moves it into place, because a
+half-fetched file replacing a good one is a deploy with a truncated pepper
+in it.
+
+**What a deploy does, in order:** build the image from the named commit,
+run the migrate job to completion, then replace the service. A failed step
+leaves the previous revision serving, which is why the order is that way
+round and not the convenient one. `--dry-run` prints every command and runs
+none; read it once on a machine that has not deployed before.
+
 ## Rollback
 
 Within the two-week overlap, rollback is two commands on the VPS plus a

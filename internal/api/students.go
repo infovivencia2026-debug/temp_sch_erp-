@@ -46,7 +46,7 @@ type student struct {
 }
 
 type page[T any] struct {
-	Items  []T `json:"items"`
+	Items []T `json:"items"`
 	/* Absent, not zero, when nobody counted.
 
 	   count(*) over the filtered set is the one part of this envelope that
@@ -68,36 +68,38 @@ type page[T any] struct {
 	NextCursor string `json:"next_cursor,omitempty"`
 }
 
-/* listCursor is where one page of students stopped.
+/*
+listCursor is where one page of students stopped.
 
-   Keyset, not offset. OFFSET 999950 makes Postgres produce and discard 999950
-   rows before it can return ten, so the last page of a big roll costs the
-   whole roll; a WHERE on the sort key costs an index seek wherever the reader
-   is. The trade is that you can only go forward from a row you have seen,
-   which is exactly what a list that loads as you scroll does.
+	Keyset, not offset. OFFSET 999950 makes Postgres produce and discard 999950
+	rows before it can return ten, so the last page of a big roll costs the
+	whole roll; a WHERE on the sort key costs an index seek wherever the reader
+	is. The trade is that you can only go forward from a row you have seen,
+	which is exactly what a list that loads as you scroll does.
 
-   The sort key is the endpoint's own ORDER BY, admission_no, plus the row id
-   as a tiebreak. The tiebreak is what makes the ordering TOTAL, which is the
-   one thing keyset paging cannot do without: where two rows compare equal on
-   the sort key, a boundary landing between them either repeats them or skips
-   them, and which of the two you get is up to the plan.
+	The sort key is the endpoint's own ORDER BY, admission_no, plus the row id
+	as a tiebreak. The tiebreak is what makes the ordering TOTAL, which is the
+	one thing keyset paging cannot do without: where two rows compare equal on
+	the sort key, a boundary landing between them either repeats them or skips
+	them, and which of the two you get is up to the plan.
 
-   This said admission numbers "are NOT unique in practice -- they get
-   reissued when a child leaves, and imports duplicate them". Not in this
-   schema: students has carried UNIQUE (institution_id, admission_no) since
-   00001, and admission_no is NOT NULL, so within one school the sort key is
-   already total and the id changes no answer today. It stays because it costs
-   nothing, because it is what keeps this correct if the constraint is ever
-   relaxed for the reissue case the old note described, and because the cursor
-   comparison below is written against a total order and would have to be
-   rewritten, not just extended, to drop it.
+	This said admission numbers "are NOT unique in practice -- they get
+	reissued when a child leaves, and imports duplicate them". Not in this
+	schema: students has carried UNIQUE (institution_id, admission_no) since
+	00001, and admission_no is NOT NULL, so within one school the sort key is
+	already total and the id changes no answer today. It stays because it costs
+	nothing, because it is what keeps this correct if the constraint is ever
+	relaxed for the reissue case the old note described, and because the cursor
+	comparison below is written against a total order and would have to be
+	rewritten, not just extended, to drop it.
 
-   Filter carries a fingerprint of the query the cursor was cut from. A cursor
-   is only meaningful against the same WHERE clause: paste one from a Class 6
-   listing into an unfiltered one and the keyset would silently start the walk
-   part-way down a different set. Mismatched fingerprints are ignored -- the
-   caller gets the first page, which is a complete answer to the question they
-   asked, rather than an error about a token they never typed. */
+	Filter carries a fingerprint of the query the cursor was cut from. A cursor
+	is only meaningful against the same WHERE clause: paste one from a Class 6
+	listing into an unfiltered one and the keyset would silently start the walk
+	part-way down a different set. Mismatched fingerprints are ignored -- the
+	caller gets the first page, which is a complete answer to the question they
+	asked, rather than an error about a token they never typed.
+*/
 type listCursor struct {
 	Adm    string `json:"a"`
 	ID     string `json:"i"`
@@ -144,30 +146,32 @@ func filterFingerprint(parts ...string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:9])
 }
 
-/* listStudents pages by KEYSET, and `limit` is a page size rather than a cap.
+/*
+listStudents pages by KEYSET, and `limit` is a page size rather than a cap.
 
-   The old comment on this handler said the fix, if a tenant ever outgrew the
-   count, was a cursor and not a bigger LIMIT cap -- and then the cap went 200,
-   then 500, because callers kept being handed a complete-looking answer to a
-   question they had not asked. Both numbers were wrong in the same way: they
-   made the size of ONE RESPONSE stand in for how much of the school a reader
-   could reach, so a roll of 345 read as 200 and a roll of 4,000 would read as
-   500.
+	The old comment on this handler said the fix, if a tenant ever outgrew the
+	count, was a cursor and not a bigger LIMIT cap -- and then the cap went 200,
+	then 500, because callers kept being handed a complete-looking answer to a
+	question they had not asked. Both numbers were wrong in the same way: they
+	made the size of ONE RESPONSE stand in for how much of the school a reader
+	could reach, so a roll of 345 read as 200 and a roll of 4,000 would read as
+	500.
 
-   THE LIMIT NOW BOUNDS ONE RESPONSE AND NOTHING ELSE. Default 50, maximum
-   200. Every row is reachable at any roll size by following next_cursor; the
-   client asks for the next page when the reader moves, so the cost of a
-   million-row list is one page at a time rather than one enormous answer.
+	THE LIMIT NOW BOUNDS ONE RESPONSE AND NOTHING ELSE. Default 50, maximum
+	200. Every row is reachable at any roll size by following next_cursor; the
+	client asks for the next page when the reader moves, so the cost of a
+	million-row list is one page at a time rather than one enormous answer.
 
-   Three ways in, and they coexist on purpose:
+	Three ways in, and they coexist on purpose:
 
-     cursor=...   the keyset walk. What new callers use.
-     offset=N     the legacy path, still exact, still supported. It is
-                  O(offset) in the database, so it belongs to the callers that
-                  already exist and not to new ones.
-     neither      the first page.
+	  cursor=...   the keyset walk. What new callers use.
+	  offset=N     the legacy path, still exact, still supported. It is
+	               O(offset) in the database, so it belongs to the callers that
+	               already exist and not to new ones.
+	  neither      the first page.
 
-   `total` is on the first page only -- see the page envelope. */
+	`total` is on the first page only -- see the page envelope.
+*/
 func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	q := r.URL.Query()
@@ -340,10 +344,13 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-/* cursorOffset keeps the legacy offset callers working without letting the
-   two schemes collide. A cursor already IS the position, so once one is in
-   play the offset is spent and must be zero, or the walk would skip a page
-   every step. */
+/*
+cursorOffset keeps the legacy offset callers working without letting the
+
+	two schemes collide. A cursor already IS the position, so once one is in
+	play the offset is spent and must be zero, or the walk would skip a page
+	every step.
+*/
 func cursorOffset(cur *listCursor, offset int) int {
 	if cur != nil {
 		return 0
