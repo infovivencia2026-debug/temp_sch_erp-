@@ -3,9 +3,27 @@ import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
   Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
+import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import { usePlatform, usePlatformSave, type BrandingResponse, type BrandingProfile } from './platform-lib'
 
 const BLANK: Partial<BrandingProfile> = {}
+
+/* A key already saved, dressed as the file the picker shows.
+
+   The picker's value is a whole uploaded file, but a logo saved last week is
+   only its key -- the name and size are gone. So it is shown as "set, with a
+   Remove", which is the true state: there is a logo, and you can replace or
+   clear it. The url points at where the files endpoint serves it, for the day
+   the picker learns to preview a saved image. */
+function asFile(key: string): UploadedFile {
+  return {
+    file_id: key,
+    name: 'Current image',
+    size_bytes: 0,
+    content_type: '',
+    url: `/api/v1/files/${key}`,
+  }
+}
 
 /**
  * Logo, name and colours, per school and per campus.
@@ -148,12 +166,46 @@ export default function Branding() {
               <Field label="Accent colour">
                 <Input value={current.accent_color ?? ''} onChange={set('accent_color')} placeholder="#f59e0b" />
               </Field>
-              <Field label="Logo key">
-                <Input value={current.logo_key ?? ''} onChange={set('logo_key')} />
-              </Field>
-              <Field label="Wordmark key">
-                <Input value={current.wordmark_key ?? ''} onChange={set('wordmark_key')} />
-              </Field>
+              {/* THE LOGO, CHOSEN RATHER THAN NAMED.
+
+                  These were two boxes asking for a "key" -- the id of a file
+                  you had to upload somewhere else first and paste back. A logo
+                  is a thing you have on your machine, so it is picked here, and
+                  what you picked is on screen before you save it. The key still
+                  travels underneath; it is just no longer yours to copy.
+
+                  Only shown where the server can store a file. Where it cannot,
+                  the boxes stay, because a recorded key still works once
+                  storage is turned on. */}
+              {data.uploads_available ? (
+                <>
+                  <Field label="Logo" hint="A square mark for the app header and favicon. PNG with a transparent background reads best.">
+                    <FilePicker
+                      label="Choose a logo"
+                      purpose="branding_logo"
+                      value={current.logo_key ? asFile(current.logo_key) : null}
+                      onChange={(f) => set('logo_key')(f?.file_id ?? '')}
+                    />
+                  </Field>
+                  <Field label="Wordmark" hint="The name set as an image, for letterheads and reports where the plain name is too small.">
+                    <FilePicker
+                      label="Choose a wordmark"
+                      purpose="branding_wordmark"
+                      value={current.wordmark_key ? asFile(current.wordmark_key) : null}
+                      onChange={(f) => set('wordmark_key')(f?.file_id ?? '')}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Logo key">
+                    <Input value={current.logo_key ?? ''} onChange={set('logo_key')} />
+                  </Field>
+                  <Field label="Wordmark key">
+                    <Input value={current.wordmark_key ?? ''} onChange={set('wordmark_key')} />
+                  </Field>
+                </>
+              )}
               <Field label="Support email" hint="Shown to parents when something goes wrong, in place of the vendor's address.">
                 <Input value={current.support_email ?? ''} onChange={set('support_email')} />
               </Field>
