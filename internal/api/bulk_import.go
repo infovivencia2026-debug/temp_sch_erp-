@@ -871,10 +871,14 @@ var importSpecs = map[string]importSpec{
 	   Re-uploading the same name on the same date edits rather than doubles,
 	   so a corrected sheet can be uploaded whole. */
 	"holidays": {
-		Perm:     rbac.AcademicsWrite,
-		Columns:  []string{"name", "from", "to", "day", "kind", "applies_to", "note"},
-		Required: []string{"name", "from"},
-		Sample: []string{"Independence Day", "2026-08-15", "", "Saturday",
+		Perm: rbac.AcademicsWrite,
+		/* date, day, event -- in that order, because that is the order every
+		   holiday sheet an office keeps is written in, and a template a person
+		   can paste their own list into without rearranging it is the whole
+		   point of offering one. */
+		Columns:  []string{"date", "day", "event", "to", "kind", "applies_to", "note"},
+		Required: []string{"date", "event"},
+		Sample: []string{"2026-08-15", "Saturday", "Independence Day", "",
 			"holiday", "all", ""},
 		Check: func(row map[string]string) error {
 			if _, err := parseSheetDate(row["date"]); err != nil {
