@@ -877,8 +877,8 @@ var importSpecs = map[string]importSpec{
 		Sample: []string{"Independence Day", "2026-08-15", "", "Saturday",
 			"holiday", "all", ""},
 		Check: func(row map[string]string) error {
-			if _, err := parseSheetDate(row["from"]); err != nil {
-				return fmt.Errorf("from: %w", err)
+			if _, err := parseSheetDate(row["date"]); err != nil {
+				return fmt.Errorf("date: %w", err)
 			}
 			if v := strings.TrimSpace(row["to"]); v != "" {
 				if _, err := parseSheetDate(v); err != nil {
@@ -895,7 +895,7 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 		Write: func(c *importCtx, row map[string]string) error {
-			from, _ := parseSheetDate(row["from"])
+			from, _ := parseSheetDate(row["date"])
 			var to any
 			if v := strings.TrimSpace(row["to"]); v != "" {
 				t, _ := parseSheetDate(v)
@@ -922,7 +922,7 @@ var importSpecs = map[string]importSpec{
 				              applies_to = EXCLUDED.applies_to,
 				              description = COALESCE(EXCLUDED.description, holidays.description)
 				RETURNING id, (xmax = 0)`,
-				c.inst, c.year, strings.TrimSpace(row["name"]), from, to, kind, applies,
+				c.inst, c.year, strings.TrimSpace(row["event"]), from, to, kind, applies,
 				strings.TrimSpace(row["note"])).Scan(&id, &inserted); err != nil {
 				return err
 			}

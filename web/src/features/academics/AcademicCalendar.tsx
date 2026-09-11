@@ -228,12 +228,12 @@ export default function AcademicCalendar() {
               entity="holidays"
               title="The school calendar, from a sheet"
               hint={
-                'One row per holiday or event: its name, the date, an end date if ' +
-                'it runs for days, and what it is — holiday, vacation, exam, event, ' +
-                'PTM, or working day for a Saturday the school opens. Dates can be ' +
-                'written 2026-08-15 or 15.08.26. The Day column is there so your ' +
-                'sheet fits; the date decides the day. Uploading a corrected sheet ' +
-                'again updates entries rather than doubling them.'
+                'Three columns: date, day, event — the way a holiday list is already ' +
+                'written. Add a "to" date for a vacation that runs several days, and a ' +
+                '"kind" if it is not a holiday: vacation, exam, event, ptm, or working_day ' +
+                'for a Saturday the school opens. Dates can be 2026-08-15 or 15.08.26. ' +
+                'The day column is read by nobody — the date decides it. Uploading a ' +
+                'corrected sheet again updates rather than doubles.'
               }
               onDone={() => qc.invalidateQueries({ queryKey: ['admin-calendar'] })}
             />
