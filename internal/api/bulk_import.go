@@ -853,6 +853,83 @@ var importSpecs = map[string]importSpec{
 			return nil
 		},
 	},
+	/* THE SCHOOL CALENDAR, AS THE OFFICE ALREADY KEEPS IT.
+
+	   A holiday list is a sheet: date, day, what it is. The screen that adds
+	   one holiday at a time is right for the bandh declared on Tuesday and
+	   wrong for the twenty-eight entries a school types in April, and until
+	   the calendar exists the system cannot tell a Sunday from a day the
+	   teachers failed to take a register.
+
+	   "day" is accepted and ignored. Every school's holiday sheet has a Day
+	   column beside the date -- Friday, Sat -- and a template that lacked it
+	   would be one the office could not paste into. The date decides the day;
+	   the column is there so the sheet fits, not so it is trusted.
+
+	   A range is one row: from and to. Dussehra is one holiday, not eleven.
+
+	   Re-uploading the same name on the same date edits rather than doubles,
+	   so a corrected sheet can be uploaded whole. */
+	"holidays": {
+		Perm:     rbac.AcademicsWrite,
+		Columns:  []string{"name", "from", "to", "day", "kind", "applies_to", "note"},
+		Required: []string{"name", "from"},
+		Sample: []string{"Independence Day", "2026-08-15", "", "Saturday",
+			"holiday", "all", ""},
+		Check: func(row map[string]string) error {
+			if _, err := parseSheetDate(row["from"]); err != nil {
+				return fmt.Errorf("from: %w", err)
+			}
+			if v := strings.TrimSpace(row["to"]); v != "" {
+				if _, err := parseSheetDate(v); err != nil {
+					return fmt.Errorf("to: %w", err)
+				}
+			}
+			if k := strings.ToLower(strings.TrimSpace(row["kind"])); k != "" && !holidayKinds[k] {
+				return errors.New("kind must be holiday, vacation, exam, event, ptm or working_day")
+			}
+			if a := strings.ToLower(strings.TrimSpace(row["applies_to"])); a != "" &&
+				a != "all" && a != "students" && a != "staff" {
+				return errors.New("applies_to must be all, students or staff")
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			from, _ := parseSheetDate(row["from"])
+			var to any
+			if v := strings.TrimSpace(row["to"]); v != "" {
+				t, _ := parseSheetDate(v)
+				to = t
+			}
+			kind := strings.ToLower(strings.TrimSpace(row["kind"]))
+			if kind == "" {
+				kind = "holiday"
+			}
+			applies := strings.ToLower(strings.TrimSpace(row["applies_to"]))
+			if applies == "" {
+				applies = "all"
+			}
+			var id uuid.UUID
+			var inserted bool
+			if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO holidays (institution_id, academic_year_id, name, on_date,
+				                      to_date, kind, applies_to, description)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,''))
+				ON CONFLICT (institution_id,
+				             COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid),
+				             on_date, kind, lower(name))
+				DO UPDATE SET to_date = EXCLUDED.to_date,
+				              applies_to = EXCLUDED.applies_to,
+				              description = COALESCE(EXCLUDED.description, holidays.description)
+				RETURNING id, (xmax = 0)`,
+				c.inst, c.year, strings.TrimSpace(row["name"]), from, to, kind, applies,
+				strings.TrimSpace(row["note"])).Scan(&id, &inserted); err != nil {
+				return err
+			}
+			c.noteCreated("holidays", id, inserted)
+			return nil
+		},
+	},
 	/* THE TIMETABLE THE SCHOOL ALREADY HAS.
 
 	   Every school running today has a timetable, on a wall or in a workbook,
@@ -3275,16 +3352,50 @@ sheet names one the school has not set up.
 	marked itself default would silently move every class that has not been
 	told otherwise.
 */
-/* WHICH PERIOD A TIMETABLE ROW MEANS.
+// What the calendar accepts as a kind; the same closed set the calendar
+// screen offers and holidays.kind is constrained to.
+var holidayKinds = map[string]bool{
+	"holiday": true, "vacation": true, "exam": true,
+	"event": true, "ptm": true, "working_day": true,
+}
 
-   Schools write the same slot four ways: "1", "P1", "Period 1", or the name
-   the bell schedule gives it. All four are accepted, because the sheet being
-   uploaded was written for people and this is the one column a school is most
-   likely to have typed by hand.
+/*
+A DATE THE WAY AN OFFICE WRITES ONE.
 
-   Breaks are matched too. A timetable that names the lunch period is telling
-   the truth about the day, and refusing it would make the school edit a grid
-   that is already correct. */
+	2026-08-15 is what a spreadsheet exports; 15.08.26 and 15/08/2026 are what
+	a person types; 15-Aug-26 is what Excel shows them. A holiday sheet has all
+	four in one column, and refusing three of them would send the office back
+	to retype a list that was already right.
+*/
+func parseSheetDate(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, errors.New("a date is required")
+	}
+	for _, layout := range []string{
+		"2006-01-02", "02.01.06", "02.01.2006", "2.1.06", "2.1.2006",
+		"02/01/2006", "2/1/2006", "02/01/06", "2/1/06",
+		"2-Jan-06", "02-Jan-06", "2-Jan-2006", "2 Jan 2006", "2 January 2006",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("%q is not a date I can read -- try 2026-08-15 or 15.08.26", s)
+}
+
+/*
+WHICH PERIOD A TIMETABLE ROW MEANS.
+
+	Schools write the same slot four ways: "1", "P1", "Period 1", or the name
+	the bell schedule gives it. All four are accepted, because the sheet being
+	uploaded was written for people and this is the one column a school is most
+	likely to have typed by hand.
+
+	Breaks are matched too. A timetable that names the lunch period is telling
+	the truth about the day, and refusing it would make the school edit a grid
+	that is already correct.
+*/
 func (c *importCtx) periodID(want string) (uuid.UUID, error) {
 	want = strings.TrimSpace(want)
 	if want == "" {
@@ -4653,6 +4764,7 @@ var undoableTables = map[string]string{
 	   overwrote was already somebody's decision, and undo restores no more
 	   than it wrote. */
 	"timetable": "timetable_entries",
+	"holidays":  "holidays",
 	// The closed-year records, which are the likeliest of all to be uploaded
 	// wrongly: a school's first attempt at a history file usually is.
 	"student_history": "student_year_history",

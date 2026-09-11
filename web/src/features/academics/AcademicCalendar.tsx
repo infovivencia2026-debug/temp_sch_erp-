@@ -10,6 +10,7 @@ import {
 import { formatDate } from '@/lib/utils'
 import CalendarDay from './CalendarDay'
 import YearPlan from './YearPlan'
+import BulkImport from '@/components/BulkImport'
 
 /* The school year on one page.
 
@@ -209,6 +210,36 @@ export default function AcademicCalendar() {
         </Card>
 
         <NewEntry />
+
+        {/* THE WHOLE YEAR IN ONE GO.
+
+            The form above is for the bandh declared on Tuesday. The twenty-
+            eight entries a school types in April are a sheet the office
+            already has, with a Day column beside every date, and retyping
+            them one at a time is how the calendar stays empty until October.
+            The template carries that Day column so the office can paste its
+            own list in without editing it. */}
+        <details className="mt-4 rounded-[10px] border bg-card">
+          <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
+            Have the year's holiday list already? Upload it
+          </summary>
+          <div className="border-t p-5">
+            <BulkImport
+              entity="holidays"
+              title="The school calendar, from a sheet"
+              hint={
+                'One row per holiday or event: its name, the date, an end date if ' +
+                'it runs for days, and what it is — holiday, vacation, exam, event, ' +
+                'PTM, or working day for a Saturday the school opens. Dates can be ' +
+                'written 2026-08-15 or 15.08.26. The Day column is there so your ' +
+                'sheet fits; the date decides the day. Uploading a corrected sheet ' +
+                'again updates entries rather than doubling them.'
+              }
+              onDone={() => qc.invalidateQueries({ queryKey: ['admin-calendar'] })}
+            />
+          </div>
+        </details>
+
         <Terms />
       </PageBody>
     </>
