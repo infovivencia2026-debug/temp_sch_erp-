@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
   Select, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
@@ -41,6 +42,13 @@ function asFile(key: string): UploadedFile {
 export default function Branding() {
   const { data, isLoading, error } = usePlatform<BrandingResponse>('branding', '/branding')
   const save = usePlatformSave('branding', '/branding')
+  /* Saving branding changes the identity the whole shell draws -- the tab, the
+     header, the logo -- and all of those read the session, which was fetched
+     at login and never refetched. Without this, a school sets its own logo,
+     presses Save, and nothing visibly happens until a hard reload, which reads
+     as "it did not work". Refetching the session on save makes the change show
+     the moment it is made. */
+  const qc = useQueryClient()
 
   const [campus, setCampus] = useState('')
   const [form, setForm] = useState<Partial<BrandingProfile>>(BLANK)
@@ -143,7 +151,14 @@ export default function Branding() {
                   onClick={() =>
                     save.mutate(
                       { ...current, campus_id: campus },
-                      { onSuccess: () => setTouched(false) },
+                      {
+                        onSuccess: () => {
+                          setTouched(false)
+                          // The shell reads the session for name, logo and
+                          // colour; refetch it so the save shows at once.
+                          qc.invalidateQueries({ queryKey: ['session'] })
+                        },
+                      },
                     )
                   }
                 >
