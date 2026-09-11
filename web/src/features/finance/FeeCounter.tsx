@@ -9,6 +9,7 @@ import {
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
+import { useSession } from '@/lib/session'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
    read what they owe, take the money, hand over a printed receipt. Everything
@@ -467,6 +468,12 @@ export default function FeeCounter() {
 /** The printable receipt. `print:` utilities strip the app chrome so the
     browser's own print dialog produces something a parent can keep. */
 function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
+  /* The school's logo on the receipt the parent keeps.
+
+     The receipt already carried the school's name; the logo is the other half
+     of a letterhead, and this is the document a family holds onto. Shown only
+     where the school has uploaded one, so a school that has not is unchanged. */
+  const logoKey = useSession().institution?.logo_key
   return (
     <Card className="border-success/40 print:border-0">
       <CardHeader
@@ -483,6 +490,13 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
       />
       <div className="p-6 text-[14px]">
         <div className="mb-5 text-center">
+          {logoKey && (
+            <img
+              src={`/api/v1/files/${logoKey}?inline=1`}
+              alt=""
+              className="mx-auto mb-2 h-12 object-contain"
+            />
+          )}
           <p className="text-[15px] font-semibold">{receipt.institution}</p>
           <p className="text-[13px] text-muted-foreground">
             Fee receipt · {receipt.financial_year}
