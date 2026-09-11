@@ -4430,61 +4430,111 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			ctx.year = &year
 		}
 
-		/* Each row inside its own savepoint.
+		/* AFTER THE FAILED ROW, THE CACHES CANNOT BE TRUSTED.
 
-		   One row's failure used to abort the transaction, and with it every
-		   row that had already succeeded. A savepoint per row means a row that
-		   cannot be written is rolled back on its own and the file carries on
-		   — which is the difference between "we could not load your sheet" and
-		   "we loaded your sheet apart from row 14, which says this". */
-		for _, p := range rows {
+		   A row that creates something and then fails takes the thing it
+		   created back with it, but the id stayed cached -- so every later row
+		   pointed at a class, a year, a schedule or an exam that no longer
+		   existed, and failed on a foreign key naming a constraint rather than
+		   anything a school could act on.
+
+		   Cleared, not emptied: a nil map reads fine and panics on write, and
+		   every reader re-creates the map it needs. */
+		forgetCaches := func() {
+			ctx.classes = nil
+			ctx.sections = nil
+			ctx.teachers = nil
+			ctx.periods = nil
+			ctx.pastYears = nil
+			ctx.pastExams = nil
+		}
+
+		/* One row inside its own savepoint: a row that cannot be written is
+		   rolled back on its own and the file carries on, which is the
+		   difference between "we could not load your sheet" and "we loaded it
+		   apart from row 14, which says this". This is the careful path, taken
+		   for a whole batch only when the fast path below has already found
+		   that batch to contain a bad row. */
+		writeRowByRow := func(batch []parsed) error {
+			for _, p := range batch {
+				sp, berr := tx.Begin(r.Context())
+				if berr != nil {
+					return berr
+				}
+				outer, madeSoFar := ctx.tx, len(ctx.created)
+				ctx.tx = sp
+				werr := spec.Write(ctx, p.data)
+				ctx.tx = outer
+				if werr != nil {
+					_ = sp.Rollback(r.Context())
+					ctx.created = ctx.created[:madeSoFar]
+					forgetCaches()
+					out.Rejected++
+					out.Problems = append(out.Problems,
+						importRow{Row: p.row, Data: p.data, Problem: werr.Error()})
+					continue
+				}
+				if cerr := sp.Commit(r.Context()); cerr != nil {
+					return cerr
+				}
+				out.Imported++
+			}
+			return nil
+		}
+
+		/* A SAVEPOINT PER ROW IS THREE ROUND TRIPS PER ROW.
+
+		   Begin, the write, and commit are each a message to the database, and
+		   the database is in another region: a 134-row calendar was 400 round
+		   trips and 33 seconds, long enough that Cloud Run severed the request
+		   before it returned -- so the import committed and the browser was
+		   told it had failed.
+
+		   The dry run has already checked every row, so a batch failing at all
+		   is the exception. Write the batch under one savepoint; if the whole
+		   batch takes, that is three round trips for fifty rows instead of a
+		   hundred and fifty. Only when a batch does fail is it rolled back and
+		   re-done row by row, to find the one row at fault and let the rest
+		   through -- the careful path, paid for only where it is needed. */
+		const batchSize = 50
+		for start := 0; start < len(rows); start += batchSize {
+			end := start + batchSize
+			if end > len(rows) {
+				end = len(rows)
+			}
+			batch := rows[start:end]
+
 			sp, berr := tx.Begin(r.Context())
 			if berr != nil {
 				return berr
 			}
-			outer, madeSoFar := ctx.tx, len(ctx.created)
+			outer, madeBefore := ctx.tx, len(ctx.created)
 			ctx.tx = sp
-			werr := spec.Write(ctx, p.data)
+			clean := true
+			for _, p := range batch {
+				if werr := spec.Write(ctx, p.data); werr != nil {
+					clean = false
+					break
+				}
+			}
 			ctx.tx = outer
-			if werr != nil {
-				_ = sp.Rollback(r.Context())
-				// Anything the failed row claimed to have created went back
-				// with it, so the undo record must not still name those rows.
-				ctx.created = ctx.created[:madeSoFar]
-				/* AND NEITHER MAY THE LOOKUP CACHES.
 
-				   A row that creates something and then fails takes the thing
-				   it created back with it, but the id stayed cached -- so
-				   every later row pointed at a class, a year, a schedule or an
-				   exam that no longer existed, and failed on a foreign key
-				   naming a constraint rather than anything a school could act
-				   on.
-
-				   Found by committing a file rather than dry-running it: one
-				   row named a class this school does not have, and the six
-				   rows after it failed on a bell schedule that had been rolled
-				   back underneath them. Cheap to clear and re-read; the cache
-				   exists to save lookups, not correctness. */
-				/* Cleared, not emptied -- and every reader creates the
-				   map it needs, because a nil map reads fine and panics on
-				   write. That distinction cost a 500 on the first commit
-				   after this was added: the classes cache was cleared
-				   correctly and the next lookup that found a class tried to
-				   remember it. */
-				ctx.classes = nil
-				ctx.sections = nil
-				ctx.teachers = nil
-				ctx.pastYears = nil
-				ctx.pastExams = nil
-				out.Rejected++
-				out.Problems = append(out.Problems,
-					importRow{Row: p.row, Data: p.data, Problem: werr.Error()})
+			if clean {
+				if cerr := sp.Commit(r.Context()); cerr != nil {
+					return cerr
+				}
+				out.Imported += len(batch)
 				continue
 			}
-			if cerr := sp.Commit(r.Context()); cerr != nil {
-				return cerr
+
+			// The batch held a bad row. Undo the lot, forget what it cached,
+			// and re-run it one row at a time to isolate the offender.
+			_ = sp.Rollback(r.Context())
+			ctx.created = ctx.created[:madeBefore]
+			forgetCaches()
+			if err := writeRowByRow(batch); err != nil {
+				return err
 			}
-			out.Imported++
 		}
 
 		/* The record of what was loaded, written in the same transaction as
