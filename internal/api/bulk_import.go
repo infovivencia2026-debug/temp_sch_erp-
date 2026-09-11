@@ -889,8 +889,14 @@ var importSpecs = map[string]importSpec{
 					return fmt.Errorf("to: %w", err)
 				}
 			}
-			if k := strings.ToLower(strings.TrimSpace(row["kind"])); k != "" && !holidayKinds[k] {
-				return errors.New("kind must be holiday, vacation, exam, event, ptm or working_day")
+			k := strings.ToLower(strings.TrimSpace(row["kind"]))
+			if k != "" && k != "term" && !holidayKinds[k] {
+				return errors.New("kind must be holiday, vacation, exam, event, ptm, working_day or term")
+			}
+			// A term is a span. One without an end is a start date and nothing
+			// else, and every screen that files things under a term needs both.
+			if k == "term" && strings.TrimSpace(row["to"]) == "" {
+				return errors.New("a term needs a 'to' date: when it ends")
 			}
 			if a := strings.ToLower(strings.TrimSpace(row["applies_to"])); a != "" &&
 				a != "all" && a != "students" && a != "staff" {
@@ -909,6 +915,52 @@ var importSpecs = map[string]importSpec{
 			if kind == "" {
 				kind = "holiday"
 			}
+
+			/* A TERM IS NOT A CALENDAR ENTRY. IT IS WHAT THE CALENDAR SITS INSIDE.
+
+			   It lives in its own table, because a report card and a fee
+			   instalment are filed under one, and it is written here so the
+			   school's year can arrive as one sheet: "Term 1, 1 April to 30
+			   September" beside "Dussehra, 2nd to 12th October". The sequence
+			   is read from the name where it says one -- "Term 2" -- and
+			   otherwise is the next free number. Same name and year edits
+			   rather than doubles, so a corrected sheet loads whole. */
+			if kind == "term" {
+				if c.year == nil {
+					return errors.New("create an academic year before loading terms")
+				}
+				name := strings.TrimSpace(row["event"])
+				endsOn, _ := parseSheetDate(row["to"])
+				seq := 0
+				for _, f := range strings.Fields(name) {
+					if n, err := strconv.Atoi(strings.Trim(f, ".:-")); err == nil && n > 0 && n < 10 {
+						seq = n
+						break
+					}
+				}
+				if seq == 0 {
+					if err := c.tx.QueryRow(c.r.Context(),
+						`SELECT COALESCE(max(sequence),0)+1 FROM terms WHERE academic_year_id = $1`,
+						*c.year).Scan(&seq); err != nil {
+						return err
+					}
+				}
+				var id uuid.UUID
+				var inserted bool
+				if err := c.tx.QueryRow(c.r.Context(), `
+					INSERT INTO terms (institution_id, academic_year_id, name, starts_on, ends_on, sequence)
+					VALUES ($1, $2, $3, $4, $5, $6)
+					ON CONFLICT (academic_year_id, lower(name))
+					DO UPDATE SET starts_on = EXCLUDED.starts_on, ends_on = EXCLUDED.ends_on,
+					              sequence = EXCLUDED.sequence
+					RETURNING id, (xmax = 0)`,
+					c.inst, *c.year, name, from, endsOn, seq).Scan(&id, &inserted); err != nil {
+					return err
+				}
+				c.noteCreated("terms", id, inserted)
+				return nil
+			}
+
 			applies := strings.ToLower(strings.TrimSpace(row["applies_to"]))
 			if applies == "" {
 				applies = "all"

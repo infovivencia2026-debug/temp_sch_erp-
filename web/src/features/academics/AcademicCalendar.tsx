@@ -221,21 +221,25 @@ export default function AcademicCalendar() {
             own list in without editing it. */}
         <details className="mt-4 rounded-[10px] border bg-card">
           <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-            Have the year's holiday list already? Upload it
+            Upload the whole year — terms, holidays, exams, events — as one sheet
           </summary>
           <div className="border-t p-5">
             <BulkImport
               entity="holidays"
-              title="The school calendar, from a sheet"
+              title="The school year, from one sheet"
               hint={
-                'Three columns: date, day, event — the way a holiday list is already ' +
-                'written. Add a "to" date for a vacation that runs several days, and a ' +
-                '"kind" if it is not a holiday: vacation, exam, event, ptm, or working_day ' +
-                'for a Saturday the school opens. Dates can be 2026-08-15 or 15.08.26. ' +
-                'The day column is read by nobody — the date decides it. Uploading a ' +
-                'corrected sheet again updates rather than doubles.'
+                'Three columns: date, day, event — the way a school calendar is already ' +
+                'written. Put the kind in the "kind" column: term, holiday, vacation, exam, ' +
+                'event, ptm, or working_day for a Saturday the school opens; blank means ' +
+                'holiday. Anything that runs for days — a term, a vacation, an exam week — ' +
+                'gets its end in "to". Dates can be 2026-08-15 or 15.08.26. The day column ' +
+                'is read by nobody; the date decides it. Uploading a corrected sheet again ' +
+                'updates rather than doubles.'
               }
-              onDone={() => qc.invalidateQueries({ queryKey: ['admin-calendar'] })}
+              onDone={() => {
+                qc.invalidateQueries({ queryKey: ['admin-calendar'] })
+                qc.invalidateQueries({ queryKey: ['calendar-terms'] })
+              }}
             />
           </div>
         </details>
