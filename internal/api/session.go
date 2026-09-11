@@ -54,6 +54,15 @@ type institution struct {
 	PrimaryColor string `json:"primary_color"`
 	Timezone     string `json:"timezone"`
 	Locale       string `json:"locale"`
+	// The white-label overrides, folded in so every surface that draws the
+	// school -- the tab, the header, the login page -- reads one place. Empty
+	// where the school has set no branding, which is most schools, and then
+	// Name and PrimaryColor above are what shows. See branding_profiles.
+	DisplayName string `json:"display_name,omitempty"`
+	Tagline     string `json:"tagline,omitempty"`
+	LogoKey     string `json:"logo_key,omitempty"`
+	FaviconKey  string `json:"favicon_key,omitempty"`
+	AccentColor string `json:"accent_color,omitempty"`
 }
 
 // subscriptionState is the commercial half of "who am I", alongside the
@@ -186,11 +195,30 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 
 		if !id.PlatformAdmin {
 			var inst institution
+			/* The school's identity, its branding folded over the top.
+
+			   The registered row carries the name and colour every school has;
+			   the school-wide branding profile (campus_id IS NULL) carries what
+			   a school that has white-labelled set instead. COALESCE takes the
+			   override where there is one and the registered value where there
+			   is not, so a school that has done nothing looks exactly as before
+			   and a school that has set a display name and a logo gets them
+			   everywhere the session reaches -- which is everywhere. */
 			err := tx.QueryRow(r.Context(), `
-				SELECT id::text, name, short_name, slug::text, primary_color, timezone, locale
-				  FROM institutions WHERE id = $1`, id.InstitutionID).
+				SELECT i.id::text, i.name, i.short_name, i.slug::text,
+				       COALESCE(NULLIF(b.primary_color,''), i.primary_color),
+				       i.timezone, i.locale,
+				       COALESCE(b.display_name,''), COALESCE(b.tagline,''),
+				       COALESCE(b.logo_key,''), COALESCE(b.favicon_key,''),
+				       COALESCE(b.accent_color,'')
+				  FROM institutions i
+				  LEFT JOIN branding_profiles b
+				         ON b.institution_id = i.id AND b.campus_id IS NULL
+				 WHERE i.id = $1`, id.InstitutionID).
 				Scan(&inst.ID, &inst.Name, &inst.ShortName, &inst.Slug,
-					&inst.PrimaryColor, &inst.Timezone, &inst.Locale)
+					&inst.PrimaryColor, &inst.Timezone, &inst.Locale,
+					&inst.DisplayName, &inst.Tagline, &inst.LogoKey,
+					&inst.FaviconKey, &inst.AccentColor)
 			if err != nil && err != pgx.ErrNoRows {
 				return err
 			}

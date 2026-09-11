@@ -203,6 +203,10 @@ export interface SessionResponse {
   institution?: {
     id: string; name: string; short_name: string; slug: string
     primary_color: string; timezone: string; locale: string
+    // The white-label overrides, folded in by the session. Empty on a school
+    // that has set no branding.
+    display_name?: string; tagline?: string
+    logo_key?: string; favicon_key?: string; accent_color?: string
   }
   permissions: string[]
   modules?: { module: string; enabled: boolean }[]

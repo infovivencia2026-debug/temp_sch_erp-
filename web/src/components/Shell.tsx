@@ -220,6 +220,47 @@ export function Shell({
      the same two numbers. */
   const viewport = useViewport()
   const asideRef = useRef<HTMLElement>(null)
+
+  /* THE SCHOOL'S NAME IN THE BROWSER TAB, AND ITS ICON.
+
+     The tab said "EDU CLOUD" on every screen a parent or a clerk had open,
+     which is the product's name, not the school's -- the one piece of the
+     vendor that showed through on every single page. The title follows the
+     session now: the school's own name, its display name where it has set
+     one, and the product's name only for platform staff who have no school.
+
+     The favicon follows too, where the school has uploaded one. Both are
+     restored to the product's on sign-out, because the login page belongs to
+     nobody in particular. */
+  const brandName =
+    session.institution?.display_name?.trim() ||
+    session.institution?.name ||
+    'EDU CLOUD'
+  const faviconKey = session.institution?.favicon_key
+  useEffect(() => {
+    const prevTitle = document.title
+    document.title = brandName
+    let restoreIcon: (() => void) | undefined
+    if (faviconKey) {
+      const link =
+        document.querySelector<HTMLLinkElement>('link[rel="icon"]') ??
+        (() => {
+          const l = document.createElement('link')
+          l.rel = 'icon'
+          document.head.appendChild(l)
+          return l
+        })()
+      const prevHref = link.href
+      link.href = `/api/v1/files/${faviconKey}?inline=1`
+      restoreIcon = () => {
+        link.href = prevHref
+      }
+    }
+    return () => {
+      document.title = prevTitle
+      restoreIcon?.()
+    }
+  }, [brandName, faviconKey])
   /* Where focus goes back to when the drawer closes. Held in a ref rather than
      read from document.activeElement at close time, because by then focus is
      inside the drawer that is about to be removed. */
@@ -701,9 +742,33 @@ export function Shell({
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[7px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground">
-              {session.institution?.short_name?.[0] ?? 'E'}
-            </span>
+            {/* THE SCHOOL'S MARK, WHERE IT HAS ONE.
+
+                A logo if the school uploaded one; otherwise the first letter
+                of its short name on a tile in its own colour, which is what a
+                school without a logo still recognises as itself. The colour is
+                the branding primary where set, so the header carries the
+                school's colour without repainting the whole application's
+                theme -- a global override would fight text contrast on every
+                screen, and this is the one square that should be the brand. */}
+            {session.institution?.logo_key ? (
+              <img
+                src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
+                alt=""
+                className="h-8 w-8 shrink-0 rounded-[7px] object-contain"
+              />
+            ) : (
+              <span
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-[7px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground"
+                style={
+                  session.institution?.primary_color
+                    ? { backgroundColor: session.institution.primary_color }
+                    : undefined
+                }
+              >
+                {session.institution?.short_name?.[0] ?? 'E'}
+              </span>
+            )}
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-1">
                 <span className="truncate text-[calc(14px*var(--font-scale,1))] font-semibold">
@@ -719,7 +784,7 @@ export function Shell({
                 )}
               </span>
               <span className="block truncate text-[calc(12px*var(--font-scale,1))] text-muted-foreground">
-                {session.institution?.name ?? 'EDU CLOUD'}
+                {brandName}
               </span>
             </span>
           </button>
