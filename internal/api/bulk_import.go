@@ -88,6 +88,15 @@ type importSpec struct {
 	// already seen and passed. A dry run that misses errors is worse than no
 	// dry run, because it is trusted.
 	Check func(row map[string]string) error
+	/* Skip says a row carries nothing to import, and is not wrong for it.
+
+	   A daily calendar lists every day of the year and most of them are
+	   empty: 01-Mar-2026, Sunday, and nothing. Without this, each such day was
+	   "event is required" -- 308 errors on a correct file -- and the only way
+	   to load a school's own calendar was to delete three hundred rows from
+	   it first. A blank day is not a mistake; it is a day. Rows Skip accepts
+	   are left out of every count, exactly as a trailing blank line is. */
+	Skip func(row map[string]string) bool
 	/* Verify checks what only the database can answer, during the dry run.
 
 	   Check runs before any connection is open, so it can catch "level must
@@ -878,8 +887,12 @@ var importSpecs = map[string]importSpec{
 		   point of offering one. */
 		Columns:  []string{"date", "day", "event", "to", "kind", "applies_to", "note"},
 		Required: []string{"date", "event"},
-		Sample: []string{"2026-08-15", "Saturday", "Independence Day", "",
-			"holiday", "all", ""},
+		Sample: []string{"2026-08-15", "Saturday", "[Holiday] Independence Day", "",
+			"", "all", ""},
+		// A day with nothing on it is a day, not an error. See Skip.
+		Skip: func(row map[string]string) bool {
+			return strings.TrimSpace(row["event"]) == ""
+		},
 		Check: func(row map[string]string) error {
 			if _, err := parseSheetDate(row["date"]); err != nil {
 				return fmt.Errorf("date: %w", err)
@@ -889,14 +902,17 @@ var importSpecs = map[string]importSpec{
 					return fmt.Errorf("to: %w", err)
 				}
 			}
-			k := strings.ToLower(strings.TrimSpace(row["kind"]))
-			if k != "" && k != "term" && !holidayKinds[k] {
+			if k := strings.ToLower(strings.TrimSpace(row["kind"])); k != "" &&
+				k != "term" && !holidayKinds[k] {
 				return errors.New("kind must be holiday, vacation, exam, event, ptm, working_day or term")
 			}
-			// A term is a span. One without an end is a start date and nothing
-			// else, and every screen that files things under a term needs both.
-			if k == "term" && strings.TrimSpace(row["to"]) == "" {
-				return errors.New("a term needs a 'to' date: when it ends")
+			for _, e := range sheetCalendarEntries(row["event"], row["kind"]) {
+				// A term is a span. One without an end is a start date and
+				// nothing else, and every screen that files things under a
+				// term needs both.
+				if e.kind == "term" && strings.TrimSpace(row["to"]) == "" {
+					return errors.New("a term needs a 'to' date: when it ends")
+				}
 			}
 			if a := strings.ToLower(strings.TrimSpace(row["applies_to"])); a != "" &&
 				a != "all" && a != "students" && a != "staff" {
@@ -911,78 +927,17 @@ var importSpecs = map[string]importSpec{
 				t, _ := parseSheetDate(v)
 				to = t
 			}
-			kind := strings.ToLower(strings.TrimSpace(row["kind"]))
-			if kind == "" {
-				kind = "holiday"
-			}
-
-			/* A TERM IS NOT A CALENDAR ENTRY. IT IS WHAT THE CALENDAR SITS INSIDE.
-
-			   It lives in its own table, because a report card and a fee
-			   instalment are filed under one, and it is written here so the
-			   school's year can arrive as one sheet: "Term 1, 1 April to 30
-			   September" beside "Dussehra, 2nd to 12th October". The sequence
-			   is read from the name where it says one -- "Term 2" -- and
-			   otherwise is the next free number. Same name and year edits
-			   rather than doubles, so a corrected sheet loads whole. */
-			if kind == "term" {
-				if c.year == nil {
-					return errors.New("create an academic year before loading terms")
-				}
-				name := strings.TrimSpace(row["event"])
-				endsOn, _ := parseSheetDate(row["to"])
-				seq := 0
-				for _, f := range strings.Fields(name) {
-					if n, err := strconv.Atoi(strings.Trim(f, ".:-")); err == nil && n > 0 && n < 10 {
-						seq = n
-						break
-					}
-				}
-				if seq == 0 {
-					if err := c.tx.QueryRow(c.r.Context(),
-						`SELECT COALESCE(max(sequence),0)+1 FROM terms WHERE academic_year_id = $1`,
-						*c.year).Scan(&seq); err != nil {
-						return err
-					}
-				}
-				var id uuid.UUID
-				var inserted bool
-				if err := c.tx.QueryRow(c.r.Context(), `
-					INSERT INTO terms (institution_id, academic_year_id, name, starts_on, ends_on, sequence)
-					VALUES ($1, $2, $3, $4, $5, $6)
-					ON CONFLICT (academic_year_id, lower(name))
-					DO UPDATE SET starts_on = EXCLUDED.starts_on, ends_on = EXCLUDED.ends_on,
-					              sequence = EXCLUDED.sequence
-					RETURNING id, (xmax = 0)`,
-					c.inst, *c.year, name, from, endsOn, seq).Scan(&id, &inserted); err != nil {
-					return err
-				}
-				c.noteCreated("terms", id, inserted)
-				return nil
-			}
-
 			applies := strings.ToLower(strings.TrimSpace(row["applies_to"]))
 			if applies == "" {
 				applies = "all"
 			}
-			var id uuid.UUID
-			var inserted bool
-			if err := c.tx.QueryRow(c.r.Context(), `
-				INSERT INTO holidays (institution_id, academic_year_id, name, on_date,
-				                      to_date, kind, applies_to, description)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,''))
-				ON CONFLICT (institution_id,
-				             COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid),
-				             on_date, kind, lower(name))
-				DO UPDATE SET to_date = EXCLUDED.to_date,
-				              applies_to = EXCLUDED.applies_to,
-				              description = COALESCE(EXCLUDED.description, holidays.description)
-				RETURNING id, (xmax = 0)`,
-				c.inst, c.year, strings.TrimSpace(row["event"]), from, to, kind, applies,
-				strings.TrimSpace(row["note"])).Scan(&id, &inserted); err != nil {
-				return err
+			// One day can carry several things -- "[Holiday] Raksha Bandhan |
+			// [Event] Raksha Bandhan" -- and each is its own entry.
+			for _, e := range sheetCalendarEntries(row["event"], row["kind"]) {
+				if err := writeCalendarEntry(c, e, from, to, applies, row); err != nil {
+					return err
+				}
 			}
-			c.noteCreated("holidays", id, inserted)
 			return nil
 		},
 	},
@@ -1019,97 +974,8 @@ var importSpecs = map[string]importSpec{
 			}
 			return nil
 		},
-		/* A subject the class does not study, or a period that is not on the
-		   bell schedule, is the ordinary mistake here -- a column mapped one
-		   across, or a sheet from last year. Caught on the dry run, where it
-		   is a line in a report, rather than at commit, where it is half a
-		   timetable. */
-		Verify: func(c *importCtx, row map[string]string) error {
-			classID, err := c.classID(strings.TrimSpace(row["class"]))
-			if err != nil {
-				return err
-			}
-			if _, err := c.periodID(strings.TrimSpace(row["period"])); err != nil {
-				return err
-			}
-			var n int
-			if err := c.tx.QueryRow(c.r.Context(), `
-				SELECT count(*) FROM class_subjects cs
-				  JOIN subjects sub ON sub.id = cs.subject_id
-				 WHERE cs.class_id = $1
-				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))`,
-				classID, strings.TrimSpace(row["subject"])).Scan(&n); err != nil {
-				return err
-			}
-			if n == 0 {
-				return fmt.Errorf("%s does not study %q. Add it under what each class studies, or check the spelling",
-					strings.TrimSpace(row["class"]), strings.TrimSpace(row["subject"]))
-			}
-			return nil
-		},
-		Write: func(c *importCtx, row map[string]string) error {
-			yearID, err := c.workingYearID()
-			if err != nil {
-				return err
-			}
-			classID, err := c.classID(strings.TrimSpace(row["class"]))
-			if err != nil {
-				return err
-			}
-			sectionID, err := c.sectionIDFor(strings.TrimSpace(row["class"]),
-				strings.TrimSpace(row["section"]))
-			if err != nil {
-				return err
-			}
-			periodID, err := c.periodID(strings.TrimSpace(row["period"]))
-			if err != nil {
-				return err
-			}
-			weekday, err := weekdayOf(row["day"])
-			if err != nil {
-				return err
-			}
-			var classSubjectID uuid.UUID
-			if err := c.tx.QueryRow(c.r.Context(), `
-				SELECT cs.id FROM class_subjects cs
-				  JOIN subjects sub ON sub.id = cs.subject_id
-				 WHERE cs.class_id = $1
-				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))
-				 LIMIT 1`, classID, strings.TrimSpace(row["subject"])).Scan(&classSubjectID); err != nil {
-				return err
-			}
-
-			/* The teacher is optional, and a name that matches nobody is not a
-			   reason to lose the period. A grid with the subject in it and the
-			   teacher missing is still a timetable; a rejected row is a hole. */
-			var teacher any
-			if who := strings.TrimSpace(row["teacher"]); who != "" {
-				// A name matching nobody leaves the period without a teacher
-				// rather than rejecting the row.
-				if id, err := c.teacherByEmail(who); err == nil {
-					teacher = id
-				}
-			}
-
-			var id uuid.UUID
-			var inserted bool
-			if err := c.tx.QueryRow(c.r.Context(), `
-				INSERT INTO timetable_entries (institution_id, academic_year_id, section_id,
-				                               period_id, weekday, class_subject_id,
-				                               teacher_user_id, room)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))
-				ON CONFLICT (section_id, period_id, weekday)
-				DO UPDATE SET class_subject_id = EXCLUDED.class_subject_id,
-				              teacher_user_id  = EXCLUDED.teacher_user_id,
-				              room             = EXCLUDED.room
-				RETURNING id, (xmax = 0)`,
-				c.inst, yearID, sectionID, periodID, weekday, classSubjectID,
-				teacher, strings.TrimSpace(row["room"])).Scan(&id, &inserted); err != nil {
-				return err
-			}
-			c.noteCreated("timetable", id, inserted)
-			return nil
-		},
+		Verify: timetableVerify,
+		Write:  timetableWrite,
 	},
 	/* Which subjects a class studies, and -- in the same row -- who teaches
 	   them. The two were separate steps, so a school listed the subject on
@@ -3285,6 +3151,224 @@ var importSpecs = map[string]importSpec{
 	},
 }
 
+// sheetCalendarEntry is one thing on one day, after the text has been read.
+type sheetCalendarEntry struct {
+	name string
+	kind string
+}
+
+/*
+WHAT A DAY'S CELL SAYS, READ THE WAY THE OFFICE WROTE IT.
+
+	A school's calendar puts the kind in the text -- "[Holiday] Ugadi",
+	"[PTM] SA-1 PTM", "[Exam] FA-1 Exam" -- and puts two things on one day with
+	a bar between them. Both are how the document is actually kept, so both are
+	read here rather than demanded in separate columns.
+
+	The bracket wins over the kind column when both are present, because it
+	sits beside the name it describes. "Revision" is the school's own word for
+	a working day with a purpose; it is filed as an event, because a revision
+	day is a day the school is open.
+*/
+func sheetCalendarEntries(cell, kindColumn string) []sheetCalendarEntry {
+	fallback := strings.ToLower(strings.TrimSpace(kindColumn))
+	var out []sheetCalendarEntry
+	for _, part := range strings.Split(cell, "|") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		e := sheetCalendarEntry{name: part, kind: fallback}
+		if strings.HasPrefix(part, "[") {
+			if end := strings.Index(part, "]"); end > 1 {
+				tag := strings.ToLower(strings.TrimSpace(part[1:end]))
+				e.name = strings.TrimSpace(part[end+1:])
+				switch tag {
+				case "holiday", "vacation", "exam", "event", "ptm", "working_day", "term":
+					e.kind = tag
+				case "revision", "activity", "celebration", "competition":
+					e.kind = "event"
+				case "working day", "working":
+					e.kind = "working_day"
+				}
+			}
+		}
+		if e.kind == "" {
+			e.kind = "holiday"
+		}
+		if e.name == "" {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
+func writeCalendarEntry(c *importCtx, e sheetCalendarEntry, from time.Time, to any,
+	applies string, row map[string]string) error {
+	kind := e.kind
+
+	/* A TERM IS NOT A CALENDAR ENTRY. IT IS WHAT THE CALENDAR SITS INSIDE.
+
+	   It lives in its own table, because a report card and a fee instalment
+	   are filed under one, and it is written here so the school's year can
+	   arrive as one sheet: "Term 1, 1 April to 30 September" beside
+	   "Dussehra, 2nd to 12th October". The sequence is read from the name
+	   where it says one -- "Term 2" -- and otherwise is the next free number.
+	   Same name and year edits rather than doubles, so a corrected sheet
+	   loads whole. */
+	if kind == "term" {
+		if c.year == nil {
+			return errors.New("create an academic year before loading terms")
+		}
+		name := e.name
+		endsOn, _ := parseSheetDate(row["to"])
+		seq := 0
+		for _, f := range strings.Fields(name) {
+			if n, err := strconv.Atoi(strings.Trim(f, ".:-")); err == nil && n > 0 && n < 10 {
+				seq = n
+				break
+			}
+		}
+		if seq == 0 {
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT COALESCE(max(sequence),0)+1 FROM terms WHERE academic_year_id = $1`,
+				*c.year).Scan(&seq); err != nil {
+				return err
+			}
+		}
+		var id uuid.UUID
+		var inserted bool
+		if err := c.tx.QueryRow(c.r.Context(), `
+					INSERT INTO terms (institution_id, academic_year_id, name, starts_on, ends_on, sequence)
+					VALUES ($1, $2, $3, $4, $5, $6)
+					ON CONFLICT (academic_year_id, lower(name))
+					DO UPDATE SET starts_on = EXCLUDED.starts_on, ends_on = EXCLUDED.ends_on,
+					              sequence = EXCLUDED.sequence
+					RETURNING id, (xmax = 0)`,
+			c.inst, *c.year, name, from, endsOn, seq).Scan(&id, &inserted); err != nil {
+			return err
+		}
+		c.noteCreated("terms", id, inserted)
+		return nil
+	}
+
+	var id uuid.UUID
+	var inserted bool
+	if err := c.tx.QueryRow(c.r.Context(), `
+		INSERT INTO holidays (institution_id, academic_year_id, name, on_date,
+		                      to_date, kind, applies_to, description)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8,''))
+		ON CONFLICT (institution_id,
+		             COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		             on_date, kind, lower(name))
+		DO UPDATE SET to_date = EXCLUDED.to_date,
+		              applies_to = EXCLUDED.applies_to,
+		              description = COALESCE(EXCLUDED.description, holidays.description)
+		RETURNING id, (xmax = 0)`,
+		c.inst, c.year, e.name, from, to, kind, applies,
+		strings.TrimSpace(row["note"])).Scan(&id, &inserted); err != nil {
+		return err
+	}
+	c.noteCreated("holidays", id, inserted)
+	return nil
+}
+
+/*
+A subject the class does not study, or a period that is not on the bell
+
+	schedule, is the ordinary mistake in a timetable upload -- a column mapped
+	one across, or a sheet from last year. Caught on the dry run, where it is a
+	line in a report, rather than at commit, where it is half a timetable.
+*/
+func timetableVerify(c *importCtx, row map[string]string) error {
+	classID, err := c.classID(strings.TrimSpace(row["class"]))
+	if err != nil {
+		return err
+	}
+	if _, err := c.periodID(strings.TrimSpace(row["period"])); err != nil {
+		return err
+	}
+	var n int
+	if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT count(*) FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.class_id = $1
+				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))`,
+		classID, strings.TrimSpace(row["subject"])).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("%s does not study %q. Add it under what each class studies, or check the spelling",
+			strings.TrimSpace(row["class"]), strings.TrimSpace(row["subject"]))
+	}
+	return nil
+}
+
+func timetableWrite(c *importCtx, row map[string]string) error {
+	yearID, err := c.workingYearID()
+	if err != nil {
+		return err
+	}
+	classID, err := c.classID(strings.TrimSpace(row["class"]))
+	if err != nil {
+		return err
+	}
+	sectionID, err := c.sectionIDFor(strings.TrimSpace(row["class"]),
+		strings.TrimSpace(row["section"]))
+	if err != nil {
+		return err
+	}
+	periodID, err := c.periodID(strings.TrimSpace(row["period"]))
+	if err != nil {
+		return err
+	}
+	weekday, err := weekdayOf(row["day"])
+	if err != nil {
+		return err
+	}
+	var classSubjectID uuid.UUID
+	if err := c.tx.QueryRow(c.r.Context(), `
+				SELECT cs.id FROM class_subjects cs
+				  JOIN subjects sub ON sub.id = cs.subject_id
+				 WHERE cs.class_id = $1
+				   AND (lower(sub.name) = lower($2) OR upper(sub.code) = upper($2))
+				 LIMIT 1`, classID, strings.TrimSpace(row["subject"])).Scan(&classSubjectID); err != nil {
+		return err
+	}
+
+	/* The teacher is optional, and a name that matches nobody is not a
+	   reason to lose the period. A grid with the subject in it and the
+	   teacher missing is still a timetable; a rejected row is a hole. */
+	var teacher any
+	if who := strings.TrimSpace(row["teacher"]); who != "" {
+		// A name matching nobody leaves the period without a teacher
+		// rather than rejecting the row.
+		if id, err := c.teacherByEmail(who); err == nil {
+			teacher = id
+		}
+	}
+
+	var id uuid.UUID
+	var inserted bool
+	if err := c.tx.QueryRow(c.r.Context(), `
+				INSERT INTO timetable_entries (institution_id, academic_year_id, section_id,
+				                               period_id, weekday, class_subject_id,
+				                               teacher_user_id, room)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))
+				ON CONFLICT (section_id, period_id, weekday)
+				DO UPDATE SET class_subject_id = EXCLUDED.class_subject_id,
+				              teacher_user_id  = EXCLUDED.teacher_user_id,
+				              room             = EXCLUDED.room
+				RETURNING id, (xmax = 0)`,
+		c.inst, yearID, sectionID, periodID, weekday, classSubjectID,
+		teacher, strings.TrimSpace(row["room"])).Scan(&id, &inserted); err != nil {
+		return err
+	}
+	c.noteCreated("timetable", id, inserted)
+	return nil
+}
+
 /*
 pastYearID finds an academic year by the name a school writes, creating it if
 it is genuinely new.
@@ -4210,6 +4294,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		// A trailing blank line is not a rejected row. Spreadsheets add them
 		// and a report that calls them errors teaches people to ignore it.
 		if allBlank(data) {
+			continue
+		}
+		if spec.Skip != nil && spec.Skip(data) {
 			continue
 		}
 		out.Total++
