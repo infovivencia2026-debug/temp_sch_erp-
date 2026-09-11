@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useSession } from '@/lib/session'
 import { openTab } from '@/lib/tabs'
 import { cn } from '@/lib/utils'
 import { useWidgetSize } from '@/lib/widget-size'
@@ -90,6 +91,17 @@ export function PersonaPage({
   dashboard?: string
   children: ReactNode
 }) {
+  /* THE SCHOOL'S OWN MARK, on the home a parent or student actually opens.
+
+     The staff shell draws the logo in its sidebar, but these three boards are
+     their own frame with their own header and never saw it — so a parent who
+     has only ever seen this screen had no sign of the school on it. The mark
+     sits left of the title, small, and only when the school has set one; a
+     school with no branding gets the title alone, exactly as before. */
+  const inst = useSession().institution
+  const logoKey = inst?.logo_key?.trim()
+  const schoolName = inst?.display_name?.trim() || inst?.name
+
   /* Measured like every other board. Without it the height stays indefinite,
      and the stylesheet's three row FRACTIONS collapse to max-content — three
      rows all sized to the tallest one, empty rows included. These boards use
@@ -139,7 +151,15 @@ export function PersonaPage({
           it — so it does not need to be the biggest thing on the page.
           Desktop keeps the eyebrow, the title and the sentence under it. */}
       <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-4">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {logoKey && (
+            <img
+              src={`/api/v1/files/${logoKey}?inline=1`}
+              alt={schoolName ?? ''}
+              className="h-8 w-8 shrink-0 rounded-md object-contain sm:h-11 sm:w-11"
+            />
+          )}
+          <div className="min-w-0">
           <p className="hidden text-[11px] font-medium uppercase tracking-[0.06em] opacity-70 sm:block">
             {eyebrow}
           </p>
@@ -151,6 +171,7 @@ export function PersonaPage({
               {description}
             </p>
           )}
+          </div>
         </div>
         {actions}
       </div>

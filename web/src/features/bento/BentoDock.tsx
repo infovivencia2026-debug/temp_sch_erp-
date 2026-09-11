@@ -195,11 +195,46 @@ export function BentoDock() {
       const f = s.features.find(usable)
       if (!f) continue
       seen.add(name)
+      /* WHERE A CATEGORY LANDS, when its own name is not enough.
+
+         A category mark opens the first thing that opens under it, in
+         catalogue order. For most workspaces that first thing is the right
+         one. For a few it is not — "Communication" opened Grievances when the
+         thing a principal wants from that word is Circulars, and "Staff"
+         opened Leaves & Subs when the register is the daily job — and those
+         features do not even sit in the workspace's first section, so no
+         reorder of one section would reach them.
+
+         So a preferred landing is named per workspace: the first of these
+         whose name is found in ANY of the workspace's sections wins, and the
+         plain "first that opens" is the fallback when none is present or
+         reachable for this account. Reordering the catalogue was the other
+         way, but that moves the sidebar for every school to fix where one tap
+         goes; this moves only the tap. */
+      const PREFER: Record<string, string[]> = {
+        Communication: ['Circulars', 'Messages', 'Classroom communication'],
+        Staff: ['Staff attendance register', 'Staff register'],
+      }
+      let href = featurePath(role.key, s.slug, f.slug)
+      const wanted = PREFER[name]
+      if (wanted) {
+        const sections = role.sections.filter((x) => (x.workspace || x.name) === name)
+        outer: for (const want of wanted) {
+          for (const sec of sections) {
+            const hit = sec.features.find(
+              (ft) => usable(ft) && ft.name.toLowerCase().includes(want.toLowerCase()),
+            )
+            if (hit) {
+              href = featurePath(role.key, sec.slug, hit.slug)
+              break outer
+            }
+          }
+        }
+      }
       /* The home workspace itself is dropped: the button before this list is
          already it. Matched on the destination rather than on the name "Home",
          because several roles call that workspace something else and one that
          called it Dashboard would keep the duplicate. */
-      const href = featurePath(role.key, s.slug, f.slug)
       if (href === homeHref) continue
       out.push({ name, href })
     }

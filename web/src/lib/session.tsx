@@ -8,6 +8,7 @@ import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { Landing } from '@/features/landing/Landing'
 import { claimTabs } from './tabs'
+import { applyBrand } from './brand'
 import { SkeletonShell } from '@/components/Skeleton'
 
 const SessionContext = createContext<SessionResponse | null>(null)
@@ -124,6 +125,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   /* And the phone's push token is pointed at this person, so alerts written
      while the app is closed reach the phone that is signed in as them. */
   registerPushToken(data.user?.id)
+  /* And the school's own colour is painted onto the primary family, so a
+     branding colour that was saved but invisible now dresses every primary
+     button, link, focus ring and active nav row. Cleared back to the theme
+     for a school that has set none. During render for the same reason as the
+     rest: it must be on the root before the first child paints. */
+  applyBrand(data.institution?.primary_color)
 
   return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
 }
