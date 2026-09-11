@@ -1686,14 +1686,16 @@ function Assignments({ onDone }: PanelProps) {
    * Deliberately not applied to the subject pickers: the class teacher of 6-A
    * teaches subjects in other sections, and hiding them there is the opposite
    * mistake. */
+  /* EVERYONE, not only the unassigned.
+
+     This asked for free_class_teacher=true, which dropped anybody already
+     holding a section — so a school with most sections assigned opened the
+     picker and read half its staff as missing. Now the whole roll is fetched
+     and the ones already holding a section say so in the list; choosing one
+     moves them, which the server does in a single step. */
   const { data: freeTeachers } = useQuery({
-    queryKey: ['teachers', 'free', sectionID],
-    queryFn: () =>
-      api.get<List<Teacher>>(
-        `/api/v1/timetable/teachers?free_class_teacher=true${
-          sectionID ? `&except_section=${sectionID}` : ''
-        }`,
-      ),
+    queryKey: ['teachers', 'all-ct'],
+    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
   })
 
   const [classTeacher, setClassTeacher] = useState('')
@@ -1764,12 +1766,19 @@ function Assignments({ onDone }: PanelProps) {
      without one is carried as "emp:<id>", and choosing the latter has the
      server create an invited account so the assignment saves. The row says
      which is which so the office knows an account is about to be made. */
-  const options = (freeTeachers?.items ?? []).map((t) => ({
-    value: t.user_id || `emp:${t.employee_id}`,
-    label:
-      (t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name) +
-      (t.user_id ? '' : ' · no login yet'),
-  }))
+  const here = section ? `${section.class_name}-${section.name}` : ''
+  const options = (freeTeachers?.items ?? []).map((t) => {
+    // The section they already hold, when it is not this one — choosing them
+    // moves them off it, so the list says where they are before you do.
+    const elsewhere = t.class_teacher_of && t.class_teacher_of !== here
+    return {
+      value: t.user_id || `emp:${t.employee_id}`,
+      label:
+        (t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name) +
+        (t.user_id ? '' : ' · no login yet') +
+        (elsewhere ? ` · already ${t.class_teacher_of}'s` : ''),
+    }
+  })
 
   return (
     <div className="mt-4 border-t pt-4">
@@ -1842,7 +1851,7 @@ function Assignments({ onDone }: PanelProps) {
           <div className="mt-4">
             <Field
               label="Class teacher"
-              hint="Marks the daily register and sees the whole section. Only teachers without a section of their own are listed."
+              hint="Marks the daily register and sees the whole section. Anyone already holding another section is marked so — choosing them moves them here."
             >
               <Select
                 value={classTeacher}

@@ -655,6 +655,24 @@ func (s *Server) setClassTeacher(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		/* ONE TEACHER, ONE SECTION — AS A MOVE, NOT A REFUSAL.
+
+		   A class teacher marks one register, so a person cannot hold two
+		   sections at once. The picker used to enforce that by hiding anyone
+		   already assigned, which read as "half my staff are missing". Now the
+		   picker shows them, marked with the section they already hold, and
+		   choosing them here MOVES them: the section they held is cleared, so
+		   the school reassigns a class teacher in one step instead of first
+		   hunting down where they were. Clearing nobody when this is a fresh
+		   assignment, and never this section, so a no-op save is a no-op. */
+		if teacher != nil {
+			if _, err := tx.Exec(r.Context(),
+				`UPDATE sections SET class_teacher_id = NULL
+				  WHERE class_teacher_id = $1 AND id <> $2`, *teacher, sec); err != nil {
+				return err
+			}
+		}
+
 		tag, err := tx.Exec(r.Context(),
 			`UPDATE sections SET class_teacher_id = $2 WHERE id = $1`, sec, teacher)
 		found = err == nil && tag.RowsAffected() > 0
