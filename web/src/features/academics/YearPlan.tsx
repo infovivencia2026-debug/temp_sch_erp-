@@ -75,9 +75,13 @@ function PlanTimeline() {
   const [subject, setSubject] = useState('')
 
   // The subjects this school runs, so the plan can be picked rather than typed.
+  /* The endpoint answers {items: [...]}, as every list endpoint here does.
+     This read it as a bare array, so the first school with any class-subjects
+     at all took the whole calendar screen down with ".map is not a function"
+     -- a school with none never reached the line. */
   const subjects = useQuery({
     queryKey: ['year-plan-subjects'],
-    queryFn: () => api.get<SubjectOption[]>('/api/v1/setup/class-subjects'),
+    queryFn: () => api.get<{ items: SubjectOption[] }>('/api/v1/setup/class-subjects'),
   })
 
   const plan = useQuery({
@@ -87,7 +91,7 @@ function PlanTimeline() {
     enabled: !!subject,
   })
 
-  const options = (subjects.data ?? []).map((s) => ({
+  const options = (subjects.data?.items ?? []).map((s) => ({
     value: s.id,
     label: [s.class_name, s.subject_name].filter(Boolean).join(' · ') || s.id,
   }))
