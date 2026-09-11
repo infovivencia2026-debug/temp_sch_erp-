@@ -10,8 +10,10 @@
 <body class="auth">
   <div class="auth-top">{{template "themebtn"}}</div>
   <main class="card">
-    <h1>Sign in</h1>
-    <p class="lede">School ERP</p>
+    {{if .LogoURL}}<img class="brand-logo" src="{{.LogoURL}}" alt="">{{end}}
+    <h1>{{if .Headline}}{{.Headline}}{{else}}Sign in{{end}}</h1>
+    <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
+    {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
     {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
     <form method="post" action="/login" autocomplete="on">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

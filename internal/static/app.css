@@ -114,6 +114,23 @@ body.auth {
   color: var(--muted);
 }
 
+/* The school's own mark and welcome on the sign-in page, shown only when the
+   host resolves to a verified custom domain. Absent, none of these render and
+   the card is exactly as it was. */
+.card .brand-logo {
+  display: block;
+  max-height: 64px;
+  max-width: 180px;
+  margin: 0 0 16px;
+  object-fit: contain;
+}
+.card .brand-message {
+  margin: -12px 0 24px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 label {
   display: block;
   margin: 16px 0 6px;

@@ -76,6 +76,20 @@ type loginPage struct {
 	// AssetVersion busts the seven-day cache nginx puts on /static. Without it
 	// a returning visitor keeps whichever stylesheet they first fetched.
 	AssetVersion string
+	/* THE SCHOOL, WHEN THE ADDRESS NAMES ONE.
+
+	   The login page is shown before anyone has signed in, so it cannot know
+	   the school from a session -- the only thing it has is the host the
+	   browser asked for. A school that visits on its own verified domain gets
+	   its name, logo and headline here; a school reached on the shared address
+	   cannot be identified and gets the product's plain page, which is the
+	   honest thing to show when the URL belongs to no one school.
+
+	   Blank fields render exactly the page that was here before. */
+	SchoolName string
+	Headline   string
+	Message    string
+	LogoURL    string
 }
 
 func (h *Handler) ShowLogin(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +101,55 @@ func (h *Handler) ShowLogin(w http.ResponseWriter, r *http.Request) {
 		CSRFToken: h.issueCSRF(w),
 		Next:      safeNext(r.URL.Query().Get("next")),
 	})
+}
+
+/* THE BRANDING FOR THE HOST THE BROWSER ASKED FOR.
+
+   Only a verified custom domain brands the page: an unverified one is a claim
+   nobody has checked, and serving a school's name under it would let anyone
+   who typed a CNAME wear that school's identity. The lookup is by host and
+   verification together, so an attacker's domain resolves to nothing and the
+   plain page is shown.
+
+   A failure to read branding is never a failure to sign in: the query's error
+   is swallowed and the plain page stands, because a login page that will not
+   load has turned a cosmetic feature into an outage. */
+func (h *Handler) brandFor(r *http.Request, page *loginPage) {
+	if h.db == nil {
+		return
+	}
+	host := r.Host
+	if i := strings.IndexByte(host, ':'); i >= 0 {
+		host = host[:i]
+	}
+	if host == "" {
+		return
+	}
+	var name, headline, message, logoKey string
+	// AsPlatform, not Pool: branding_profiles forces row-level security, and
+	// this runs before anyone has signed in, so there is no tenant to scope
+	// to -- the whole point is to find which school a host belongs to. The
+	// same bypass the credential lookup a few lines down already uses for the
+	// same reason.
+	if err := h.db.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT COALESCE(b.display_name, i.name),
+			       COALESCE(b.login_headline,''), COALESCE(b.login_message,''),
+			       COALESCE(b.logo_key,'')
+			  FROM branding_profiles b
+			  JOIN institutions i ON i.id = b.institution_id
+			 WHERE lower(b.custom_domain) = lower($1)
+			   AND b.domain_verified_at IS NOT NULL
+			 LIMIT 1`, host).Scan(&name, &headline, &message, &logoKey)
+	}); err != nil {
+		return
+	}
+	page.SchoolName = name
+	page.Headline = headline
+	page.Message = message
+	if logoKey != "" {
+		page.LogoURL = "/api/v1/files/" + logoKey + "?inline=1"
+	}
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -344,6 +407,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) render(w http.ResponseWriter, r *http.Request, status int, data loginPage) {
 	data.AssetVersion = static.Version()
+	// Every rendering of the page brands, so a failed sign-in keeps the
+	// school's identity rather than falling back to the plain page on the
+	// second view.
+	h.brandFor(r, &data)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
