@@ -1716,10 +1716,15 @@ function Assignments({ onDone }: PanelProps) {
         })
       }
       if (classTeacher) {
-        await api.post('/api/v1/setup/class-teacher', {
-          section_id: sectionID,
-          teacher_user_id: classTeacher,
-        })
+        /* A staff member with no login is carried as "emp:<id>", so the
+           server creates an invited account for them and holds the post; one
+           with a login is the plain user id it always was. */
+        await api.post(
+          '/api/v1/setup/class-teacher',
+          classTeacher.startsWith('emp:')
+            ? { section_id: sectionID, employee_id: classTeacher.slice(4) }
+            : { section_id: sectionID, teacher_user_id: classTeacher },
+        )
       }
       for (const [csID, uid] of Object.entries(subjectTeachers)) {
         if (!uid) continue
@@ -1750,14 +1755,21 @@ function Assignments({ onDone }: PanelProps) {
      They are shown, disabled, with the reason on the row. The dropdown is the
      place the question is asked, so it is the place to answer it. */
   const withoutLogin = (freeTeachers?.items ?? []).filter((t) => !t.user_id)
-  const options = (freeTeachers?.items ?? [])
-    // Only somebody who can sign in: the post is stored as a user id, and a
-    // name that cannot be saved is worse in the list than out of it.
-    .filter((t) => t.user_id)
-    .map((t) => ({
-      value: t.user_id,
-      label: t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name,
-    }))
+  /* EVERYONE ON THE ROLL, WITH OR WITHOUT A LOGIN.
+
+     The post is stored as a user id, so this used to list only staff who
+     could sign in and drop the rest — which is how "the teacher is missing"
+     happened for anybody imported from a spreadsheet without an account. Now
+     they are all here: a person with a login is their user id, a person
+     without one is carried as "emp:<id>", and choosing the latter has the
+     server create an invited account so the assignment saves. The row says
+     which is which so the office knows an account is about to be made. */
+  const options = (freeTeachers?.items ?? []).map((t) => ({
+    value: t.user_id || `emp:${t.employee_id}`,
+    label:
+      (t.subjects ? `${t.full_name} · ${t.subjects}` : t.full_name) +
+      (t.user_id ? '' : ' · no login yet'),
+  }))
 
   return (
     <div className="mt-4 border-t pt-4">
@@ -1841,12 +1853,11 @@ function Assignments({ onDone }: PanelProps) {
             </Field>
             {withoutLogin.length > 0 && (
               <p className="mt-1 text-[13px] text-muted-foreground">
-                {options.length === 0
-                  ? `All ${withoutLogin.length} of your staff are on the roll and none of them has a login yet`
-                  : `${withoutLogin.length} more are on the roll without a login`}
-                {' '}&mdash; a class teacher marks the register, so the post needs an
-                account to sign in with. Issue them under Staff &rarr; Logins &amp; access,
-                then come back. {withoutLogin.slice(0, 3).map((t) => t.full_name).join(', ')}
+                {withoutLogin.length} on the roll {withoutLogin.length === 1 ? 'has' : 'have'} no
+                login yet and {withoutLogin.length === 1 ? 'is' : 'are'} marked so in the list.
+                Choosing one creates an account for them so the post is held — a class teacher
+                marks the register, so give them a password under Staff &rarr; Logins &amp; access
+                before term. {withoutLogin.slice(0, 3).map((t) => t.full_name).join(', ')}
                 {withoutLogin.length > 3 ? ` and ${withoutLogin.length - 3} others` : ''}.
               </p>
             )}

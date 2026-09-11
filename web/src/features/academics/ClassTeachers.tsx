@@ -37,6 +37,7 @@ interface Teacher {
   user_id: string
   full_name: string
   employee_code?: string
+  employee_id: string
 }
 
 export default function ClassTeachers() {
@@ -59,7 +60,14 @@ export default function ClassTeachers() {
       // inventing a bulk shape on the client would put a second contract in
       // front of the one the server actually has.
       for (const r of rows) {
-        await api.post('/api/v1/setup/class-teacher', r)
+        // A staff member with no login is carried as "emp:<id>", which the
+        // server turns into an invited account and holds the post with.
+        await api.post(
+          '/api/v1/setup/class-teacher',
+          r.teacher_user_id.startsWith('emp:')
+            ? { section_id: r.section_id, employee_id: r.teacher_user_id.slice(4) }
+            : r,
+        )
       }
     },
     onSuccess: (_d, rows) => {
@@ -75,9 +83,16 @@ export default function ClassTeachers() {
 
   const rows = sections.data?.items ?? []
   const staff = teachers.data?.items ?? []
+  /* Everyone on the roll, whether or not they have a login. A person with no
+     account is carried as "emp:<id>"; picking them has the server create an
+     invited account so the post can be held, and the row says so. Listing only
+     staff who could already sign in was how an imported teacher went missing
+     from this dropdown entirely. */
   const options = staff.map((t) => ({
-    value: t.user_id,
-    label: t.employee_code ? `${t.full_name} · ${t.employee_code}` : t.full_name,
+    value: t.user_id || `emp:${t.employee_id}`,
+    label:
+      (t.employee_code ? `${t.full_name} · ${t.employee_code}` : t.full_name) +
+      (t.user_id ? '' : ' · no login yet'),
   }))
 
   // The dropdown holds user ids; the sections list carries the teacher's name.

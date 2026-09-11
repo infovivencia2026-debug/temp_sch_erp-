@@ -560,6 +560,12 @@ func (s *Server) listFeeHeads(w http.ResponseWriter, r *http.Request) {
 type classTeacherRequest struct {
 	SectionID     string `json:"section_id"`
 	TeacherUserID string `json:"teacher_user_id"`
+	// EmployeeID names a member of staff who has no login yet. A class teacher
+	// is stored as a user id, so such a person could never hold the post: the
+	// picker hid them, and "the teacher is missing" was the result. When this
+	// is sent instead of a user id, an invited account is created for them so
+	// the assignment can be saved, and a password issued later activates it.
+	EmployeeID string `json:"employee_id"`
 }
 
 func (s *Server) setClassTeacher(w http.ResponseWriter, r *http.Request) {
@@ -587,9 +593,68 @@ func (s *Server) setClassTeacher(w http.ResponseWriter, r *http.Request) {
 		}
 		teacher = &t
 	}
+	// A staff member with no login, named to hold the post anyway.
+	var empID *uuid.UUID
+	if teacher == nil && strings.TrimSpace(req.EmployeeID) != "" {
+		e, perr := uuid.Parse(req.EmployeeID)
+		if perr != nil {
+			httpx.BadRequest(w, r, "employee_id must be a uuid")
+			return
+		}
+		empID = &e
+	}
 
-	var found bool
+	var found, provisioned bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		/* THE ACCOUNT THAT LETS THE POST BE HELD.
+
+		   The picker offered only staff who could sign in, because the post is
+		   stored as a user id and a name that cannot be saved is worse in the
+		   list than out of it. So a teacher imported from a spreadsheet with no
+		   login could not be made class teacher at all. Now the picker offers
+		   them, and choosing one lands here as an employee id: an invited
+		   account is created, addressable by the employee code and with no
+		   password, so the assignment saves and the office issues a password
+		   later to activate it. An employee who already has an account reuses
+		   it rather than growing a second. */
+		if empID != nil {
+			var existing *uuid.UUID
+			var name, code string
+			if err := tx.QueryRow(r.Context(),
+				`SELECT user_id, btrim(concat_ws(' ', first_name, last_name)),
+				        COALESCE(employee_code, '')
+				   FROM employees WHERE id = $1`, *empID).Scan(&existing, &name, &code); err != nil {
+				return err
+			}
+			if existing != nil {
+				teacher = existing
+			} else {
+				base := code
+				if strings.TrimSpace(base) == "" {
+					base = name
+				}
+				username, uerr := uniqueUsername(r.Context(), tx, id.InstitutionID, base)
+				if uerr != nil {
+					return uerr
+				}
+				var newID uuid.UUID
+				if err := tx.QueryRow(r.Context(), `
+					INSERT INTO users (institution_id, username, full_name,
+					                   status, must_change_password)
+					VALUES ($1, $2::citext, $3, 'invited', true)
+					RETURNING id`,
+					id.InstitutionID, username, name).Scan(&newID); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(r.Context(),
+					`UPDATE employees SET user_id = $2 WHERE id = $1`, *empID, newID); err != nil {
+					return err
+				}
+				teacher = &newID
+				provisioned = true
+			}
+		}
+
 		tag, err := tx.Exec(r.Context(),
 			`UPDATE sections SET class_teacher_id = $2 WHERE id = $1`, sec, teacher)
 		found = err == nil && tag.RowsAffected() > 0
@@ -603,7 +668,13 @@ func (s *Server) setClassTeacher(w http.ResponseWriter, r *http.Request) {
 		httpx.NotFound(w, r)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"section_id": sec.String()})
+	resp := map[string]any{"section_id": sec.String()}
+	if provisioned {
+		// The client can tell the office an account was just created and needs
+		// a password before this person can sign in and mark the register.
+		resp["login_created"] = true
+	}
+	httpx.JSON(w, http.StatusOK, resp)
 }
 
 type classSubjectRow struct {
