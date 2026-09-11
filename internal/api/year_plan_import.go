@@ -33,6 +33,27 @@ import (
    subject's chapter list and a school should see what it is about to replace.
 */
 
+/* THE SHAPE, AS A FILE.
+
+   This importer was written against one school's workbook export and
+   described the shape it wanted only in the error it gave when it did not get
+   it: "expected a Subject and a Sheet_Name column". A school arriving with a
+   different workbook -- every other school -- had nothing to open and copy.
+
+   Four columns, three example rows. Sheet_Name is the class, written the way
+   the school's own workbook names its sheets, because that is what the
+   resolver below is built to read: "G-6", "Grade 6", "VI" and "6" all land. */
+func (s *Server) getYearPlanTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="year-plan-template.csv"`)
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"Subject", "Sheet_Name", "TOPICS", "NUMBER OF PERIODS"})
+	_ = cw.Write([]string{"Mathematics", "G-6", "Knowing our numbers", "8"})
+	_ = cw.Write([]string{"Mathematics", "G-6", "Whole numbers", "6"})
+	_ = cw.Write([]string{"Science", "G-6", "Food: where does it come from", "5"})
+	cw.Flush()
+}
+
 // planImportRequest carries the workbook as text. A file upload would be the
 // same bytes with a multipart envelope around them; text keeps the endpoint
 // testable and lets a browser paste as well as upload.

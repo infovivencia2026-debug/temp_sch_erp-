@@ -78,6 +78,9 @@ func (s *Server) mountAdminAcademics(r chi.Router) {
 	// The school's own workbook, read rather than retyped. Previews unless told
 	// to apply, because applying replaces a chapter list.
 	r.With(academics).Post("/admin/year-plan/import", s.importYearPlan)
+	// The shape the importer wants, as a file a person can open and fill,
+	// rather than as the error it gives when it does not get it.
+	r.Get("/admin/year-plan/template", s.getYearPlanTemplate)
 	r.With(academics).Post("/admin/calendar", s.saveCalendarEntry)
 	r.With(academics).Delete("/admin/calendar/{id}", s.deleteCalendarEntry)
 

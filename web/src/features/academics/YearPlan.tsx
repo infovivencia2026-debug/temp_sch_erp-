@@ -281,16 +281,28 @@ function ImportPlan() {
     <Card>
       <CardHeader
         title="Import a year plan"
-        description="The workbook a school already keeps, read rather than retyped. Export it as CSV — one row per spreadsheet row — and drop it here."
+        description="Four columns: the subject, which class (the sheet name), the chapter, and how many periods it takes. One row per chapter."
         action={
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => file.current?.click()}
-            title="Choose a CSV export of the year-plan workbook"
-          >
-            <Upload className="h-3.5 w-3.5" /> Choose file
-          </Button>
+          <span className="flex items-center gap-2">
+            {/* The shape this wants was described only by the error it gave
+                when it did not get it -- "expected a Subject and a Sheet_Name
+                column". A template is the description a person can open. */}
+            <a
+              href="/api/v1/academics/admin/year-plan/template"
+              className="rounded-md border px-2.5 py-1 text-[13px] hover:bg-accent"
+              title="A CSV with the four columns and three example rows"
+            >
+              Download template
+            </a>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => file.current?.click()}
+              title="Choose a CSV in the template's shape"
+            >
+              <Upload className="h-3.5 w-3.5" /> Choose file
+            </Button>
+          </span>
         }
       />
       <div className="space-y-3 px-5 py-4">
