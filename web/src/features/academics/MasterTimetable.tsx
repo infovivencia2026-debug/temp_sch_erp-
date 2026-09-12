@@ -9,6 +9,7 @@ import { useCan } from '@/lib/session'
 import WeekGrid from '@/components/WeekGrid'
 import PeriodsNeeded from './PeriodsNeeded'
 import BulkImport from '@/components/BulkImport'
+import SectionGrid from './SectionGrid'
 import { WEEKDAYS, cn } from '@/lib/utils'
 
 /* institution_admin.academics.master_timetable_generation
@@ -243,6 +244,7 @@ export default function MasterTimetable() {
         description="The whole school's week. Making one only suggests it — nothing changes for teachers until you put it in use."
       />
       <PageBody>
+        <SectionGrid />
         {/* The single instruction, and the single button that acts on it. */}
         {/* No coloured edge. The stripe said warn/go/done in a colour the
             sentence beside it already says in words, and on a wide screen it

@@ -1,8 +1,11 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
@@ -342,4 +345,129 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 			return v, nil
 		})
 	respond(w, r, items, err)
+}
+
+// --- Live timetable cell editing --------------------------------------------
+//
+// The Master Timetable screen could generate and publish a whole draft, but
+// there was no way to change one cell of the timetable already in use: a single
+// swapped teacher or a corrected subject meant regenerating the lot. These two
+// handlers edit one slot of the live grid directly, keyed by section, weekday
+// and period name (the per-day bell schedule is resolved here so the client
+// need not know it).
+
+type ttCellRequest struct {
+	SectionID     string `json:"section_id"`
+	Weekday       int    `json:"weekday"`     // 1=Monday .. 7=Sunday
+	PeriodName    string `json:"period_name"` // e.g. "Period3"
+	SubjectCode   string `json:"subject_code"`
+	TeacherUserID string `json:"teacher_user_id"` // optional; empty clears the teacher
+	Room          string `json:"room"`
+}
+
+var weekdayName = map[int]string{1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+
+func (s *Server) upsertTimetableCell(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	var req ttCellRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	sec, err := uuid.Parse(strings.TrimSpace(req.SectionID))
+	if err != nil {
+		httpx.BadRequest(w, r, "section_id must be a uuid")
+		return
+	}
+	day, ok := weekdayName[req.Weekday]
+	if !ok {
+		httpx.BadRequest(w, r, "weekday must be 1 (Monday) to 7 (Sunday)")
+		return
+	}
+	if strings.TrimSpace(req.PeriodName) == "" || strings.TrimSpace(req.SubjectCode) == "" {
+		httpx.BadRequest(w, r, "period_name and subject_code are required")
+		return
+	}
+	var teacher *string
+	if t := strings.TrimSpace(req.TeacherUserID); t != "" {
+		teacher = &t
+	}
+	var room *string
+	if rm := strings.TrimSpace(req.Room); rm != "" {
+		room = &rm
+	}
+
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var year uuid.UUID
+		if err := tx.QueryRow(r.Context(),
+			`SELECT id FROM academic_years WHERE institution_id=$1 AND is_current`, id.InstitutionID).Scan(&year); err != nil {
+			return fmt.Errorf("no current academic year set")
+		}
+		// The period slot for this weekday's own bell schedule.
+		var periodID uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
+			SELECT p.id FROM periods p
+			  JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
+			 WHERE p.institution_id=$1 AND bs.name=$2 AND p.name=$3
+			 LIMIT 1`, id.InstitutionID, day, strings.TrimSpace(req.PeriodName)).Scan(&periodID); err != nil {
+			return fmt.Errorf("no period %q on %s", req.PeriodName, day)
+		}
+		// The class-subject this section studies.
+		var csID uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
+			SELECT cs.id FROM class_subjects cs
+			  JOIN sections sec ON sec.class_id = cs.class_id
+			  JOIN subjects sub ON sub.id = cs.subject_id
+			 WHERE sec.id=$1 AND cs.institution_id=$2
+			   AND (upper(sub.code)=upper($3) OR lower(sub.name)=lower($3))`,
+			sec, id.InstitutionID, strings.TrimSpace(req.SubjectCode)).Scan(&csID); err != nil {
+			return fmt.Errorf("this class does not study %q", req.SubjectCode)
+		}
+		_, err := tx.Exec(r.Context(), `
+			INSERT INTO timetable_entries (institution_id, academic_year_id, section_id,
+			                               period_id, weekday, class_subject_id, teacher_user_id, room)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+			ON CONFLICT (section_id, weekday, period_id)
+			DO UPDATE SET class_subject_id=EXCLUDED.class_subject_id,
+			              teacher_user_id=EXCLUDED.teacher_user_id, room=EXCLUDED.room`,
+			id.InstitutionID, year, sec, periodID, req.Weekday, csID, teacher, room)
+		if err != nil && isUniqueViolation(err) {
+			return fmt.Errorf("that teacher is already taking another class this period")
+		}
+		return err
+	})
+	if err != nil {
+		httpx.Error(w, r, http.StatusConflict, "cell_rejected", err.Error())
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) deleteTimetableCell(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	entryID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid entry id")
+		return
+	}
+	var found bool
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `DELETE FROM timetable_entries WHERE id=$1`, entryID)
+		found = err == nil && tag.RowsAffected() > 0
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !found {
+		httpx.NotFound(w, r)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }

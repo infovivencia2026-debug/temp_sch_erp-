@@ -352,6 +352,10 @@ func (s *Server) Routes() http.Handler {
 			// The school days this school runs, and which classes run to each.
 			r.Get("/bell-schedules", s.listBellSchedules)
 			r.Get("/teachers", s.listTeachers)
+			// Editing one slot of the live grid, for the school that corrects a
+			// teacher or subject without regenerating the whole timetable.
+			r.With(httpx.RequirePermission(rbac.TimetableWrite)).Put("/entries/cell", s.upsertTimetableCell)
+			r.With(httpx.RequirePermission(rbac.TimetableWrite)).Delete("/entries/{id}", s.deleteTimetableCell)
 		})
 
 		r.Route("/attendance", func(r chi.Router) {
