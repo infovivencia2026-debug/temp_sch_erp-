@@ -1429,9 +1429,9 @@ var importSpecs = map[string]importSpec{
 	   pay needs the payroll permission, not merely the staff-record one. */
 	"staff_payroll": {
 		Perm:     rbac.PayrollWrite,
-		Columns:  []string{"employee_code", "name", "bank_account", "ifsc", "gross_salary"},
-		Required: []string{"employee_code"},
-		Identity: "employee_code",
+		Columns:  []string{"staff_code", "name", "bank_account", "ifsc", "gross_salary"},
+		Required: []string{"staff_code"},
+		Identity: "staff_code",
 		Sample:   []string{"YPS59100001", "RAMYA SRI RACHERLA", "7707198963", "IDIB000L009", "80143"},
 		Check: func(row map[string]string) error {
 			g := strings.TrimSpace(strings.ReplaceAll(row["gross_salary"], ",", ""))
@@ -1452,12 +1452,12 @@ var importSpecs = map[string]importSpec{
 			if err := c.tx.QueryRow(c.r.Context(),
 				`SELECT EXISTS (SELECT 1 FROM employees
 				                 WHERE institution_id=$1 AND employee_code=$2)`,
-				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&exists); err != nil {
+				c.inst, strings.TrimSpace(row["staff_code"])).Scan(&exists); err != nil {
 				return err
 			}
 			if !exists {
 				return fmt.Errorf("nobody on the roll with employee code %q. Import the staff first",
-					strings.TrimSpace(row["employee_code"]))
+					strings.TrimSpace(row["staff_code"]))
 			}
 			return nil
 		},
@@ -1465,7 +1465,7 @@ var importSpecs = map[string]importSpec{
 			var empID uuid.UUID
 			if err := c.tx.QueryRow(c.r.Context(),
 				`SELECT id FROM employees WHERE institution_id=$1 AND employee_code=$2`,
-				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&empID); err != nil {
+				c.inst, strings.TrimSpace(row["staff_code"])).Scan(&empID); err != nil {
 				return err
 			}
 			bank := strings.TrimSpace(row["bank_account"])

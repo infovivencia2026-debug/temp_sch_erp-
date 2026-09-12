@@ -288,7 +288,7 @@ export default function SalarySetup() {
           <BulkImport
             entity="staff_payroll"
             title="Bank details and salary from a sheet"
-            hint="One row per person: employee code, name, bank account, IFSC and gross salary. Sets the account and IFSC on the staff record and records the gross as their standing salary. Matched by employee code, so import your staff first."
+            hint="One row per person: staff code, name, bank account, IFSC and gross salary. Sets the account and IFSC on the staff record and records the gross as their standing salary. Matched by staff code, so import your staff first."
             onDone={refresh}
           />
         </div>
