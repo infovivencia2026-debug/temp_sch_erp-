@@ -169,14 +169,16 @@ export default function Payroll() {
                 'it should be a decision, not an accident.'
               }
             />
-            <label className="flex items-start gap-2 text-[14px]">
-              <input
-                type="checkbox"
-                onChange={(e) => { if (e.target.checked) run.mutate(true) }}
-                className="mt-1"
-              />
-              <span>I acknowledge this, and want to run payroll anyway.</span>
-            </label>
+            <div className="px-5 pb-5">
+              <label className="flex items-start gap-2 text-[14px]">
+                <input
+                  type="checkbox"
+                  onChange={(e) => { if (e.target.checked) run.mutate(true) }}
+                  className="mt-1"
+                />
+                <span>I acknowledge this, and want to run payroll anyway.</span>
+              </label>
+            </div>
           </Card>
         )}
         {note && <FormNotice ok={note} />}
