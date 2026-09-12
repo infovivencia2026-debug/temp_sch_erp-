@@ -54,6 +54,7 @@ var reportCardPlaceholders = []map[string]string{
 	{"token": "{{date_of_birth}}", "means": "date of birth"},
 	{"token": "{{admission_date}}", "means": "date of admission"},
 	{"token": "{{subject_rows}}", "means": "one table row per subject — marks, percentage and grade"},
+	{"token": "{{performance_chart}}", "means": "a bar chart of the marks, one bar per subject"},
 	{"token": "{{total_marks}}", "means": "marks the exam was out of"},
 	{"token": "{{marks_obtained}}", "means": "marks the child scored"},
 	{"token": "{{percentage}}", "means": "overall percentage"},
@@ -484,6 +485,45 @@ func fillReportCard(tpl string, c renderedCard) string {
 		rows.WriteString("</tr>")
 	}
 	out := strings.ReplaceAll(tpl, "{{subject_rows}}", rows.String())
+
+	/* THE PERFORMANCE CHART — one bar per subject, its height the percentage,
+	   labelled with the grade. Built as an inline SVG so a printed report card
+	   carries it with no chart engine, and only when a template asks for it. */
+	if strings.Contains(out, "{{performance_chart}}") {
+		var ch strings.Builder
+		n := len(c.subjects)
+		if n > 0 {
+			const bw, gap, base, top = 34, 10, 132, 8
+			w := gap + n*(bw+gap)
+			ch.WriteString(fmt.Sprintf(`<svg viewBox="0 0 %d 152" width="100%%" style="max-width:%dpx" font-family="sans-serif">`, w, w))
+			for i, sub := range c.subjects {
+				pct, _ := strconv.ParseFloat(strings.TrimSpace(sub["percent"]), 64)
+				if pct < 0 {
+					pct = 0
+				}
+				if pct > 100 {
+					pct = 100
+				}
+				bh := int(pct/100*float64(base-top)) + 5
+				x := gap + i*(bw+gap)
+				y := base - bh
+				grade := sub["subject_grade"]
+				name := sub["subject"]
+				if len(name) > 4 {
+					name = name[:4]
+				}
+				fill := "#6b8fd4"
+				if strings.HasPrefix(grade, "A1") {
+					fill = "#3f6bbf"
+				}
+				ch.WriteString(fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>`, x, y, bw, bh, fill))
+				ch.WriteString(fmt.Sprintf(`<text x="%d" y="%d" text-anchor="middle" font-size="9">%s</text>`, x+bw/2, y-3, html.EscapeString(grade)))
+				ch.WriteString(fmt.Sprintf(`<text x="%d" y="147" text-anchor="middle" font-size="8">%s</text>`, x+bw/2, html.EscapeString(name)))
+			}
+			ch.WriteString(`</svg>`)
+		}
+		out = strings.ReplaceAll(out, "{{performance_chart}}", ch.String())
+	}
 
 	/* The two values that are markup, and the only two.
 
