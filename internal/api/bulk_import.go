@@ -1419,6 +1419,103 @@ var importSpecs = map[string]importSpec{
 	   experience certificate, decides seniority, or answers an inspector
 	   asking how long somebody has taught a subject. Without it, an imported
 	   teacher has worked here since the day of the upload. */
+	/* THE BANK DETAILS AND STANDING SALARY, FROM A SHEET.
+
+	   Keyed by the employee code, so a payroll office that has everyone's
+	   account and agreed pay in one spreadsheet loads it in one pass instead
+	   of opening each staff record by hand. It sets the account and IFSC on the
+	   employee and records the gross as the employee's CTC salary structure —
+	   the standing figure a monthly payroll run later deducts LOP from. Writing
+	   pay needs the payroll permission, not merely the staff-record one. */
+	"staff_payroll": {
+		Perm:     rbac.PayrollWrite,
+		Columns:  []string{"employee_code", "name", "bank_account", "ifsc", "gross_salary"},
+		Required: []string{"employee_code"},
+		Identity: "employee_code",
+		Sample:   []string{"YPS59100001", "RAMYA SRI RACHERLA", "7707198963", "IDIB000L009", "80143"},
+		Check: func(row map[string]string) error {
+			g := strings.TrimSpace(strings.ReplaceAll(row["gross_salary"], ",", ""))
+			if g != "" {
+				n, err := strconv.Atoi(g)
+				if err != nil || n < 0 {
+					return errors.New("gross_salary must be a whole number of rupees that is not negative")
+				}
+			}
+			if strings.TrimSpace(row["bank_account"]) == "" &&
+				strings.TrimSpace(row["ifsc"]) == "" && g == "" {
+				return errors.New("a row must carry a bank account, an IFSC or a salary — this one has none")
+			}
+			return nil
+		},
+		Verify: func(c *importCtx, row map[string]string) error {
+			var exists bool
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT EXISTS (SELECT 1 FROM employees
+				                 WHERE institution_id=$1 AND employee_code=$2)`,
+				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				return fmt.Errorf("nobody on the roll with employee code %q. Import the staff first",
+					strings.TrimSpace(row["employee_code"]))
+			}
+			return nil
+		},
+		Write: func(c *importCtx, row map[string]string) error {
+			var empID uuid.UUID
+			if err := c.tx.QueryRow(c.r.Context(),
+				`SELECT id FROM employees WHERE institution_id=$1 AND employee_code=$2`,
+				c.inst, strings.TrimSpace(row["employee_code"])).Scan(&empID); err != nil {
+				return err
+			}
+			bank := strings.TrimSpace(row["bank_account"])
+			ifsc := strings.TrimSpace(row["ifsc"])
+			if bank != "" || ifsc != "" {
+				if _, err := c.tx.Exec(c.r.Context(),
+					`UPDATE employees SET bank_account=NULLIF($2,''), bank_ifsc=NULLIF($3,'')
+					  WHERE id=$1`, empID, bank, ifsc); err != nil {
+					return err
+				}
+			}
+			g := strings.TrimSpace(strings.ReplaceAll(row["gross_salary"], ",", ""))
+			if g != "" {
+				rupees, _ := strconv.Atoi(g)
+				paise := int64(rupees) * 100
+				// The current (open) structure is replaced; there is none for a
+				// first load, so one is opened effective from the academic year.
+				var sid uuid.UUID
+				err := c.tx.QueryRow(c.r.Context(), `
+					SELECT id FROM salary_structures
+					 WHERE institution_id=$1 AND employee_id=$2 AND effective_to IS NULL
+					 ORDER BY effective_from DESC LIMIT 1`, c.inst, empID).Scan(&sid)
+				if err == pgx.ErrNoRows {
+					var from any = nil
+					if c.year != nil {
+						// Start the structure at the active year's own start.
+						_ = c.tx.QueryRow(c.r.Context(),
+							`SELECT starts_on FROM academic_years WHERE id=$1`, *c.year).Scan(&from)
+					}
+					var id uuid.UUID
+					if err := c.tx.QueryRow(c.r.Context(), `
+						INSERT INTO salary_structures (institution_id, employee_id, effective_from, ctc_paise)
+						VALUES ($1,$2,COALESCE($3::date, CURRENT_DATE),$4) RETURNING id`,
+						c.inst, empID, from, paise).Scan(&id); err != nil {
+						return err
+					}
+					c.noteCreated("staff_payroll", id, true)
+				} else if err != nil {
+					return err
+				} else {
+					if _, err := c.tx.Exec(c.r.Context(),
+						`UPDATE salary_structures SET ctc_paise=$2 WHERE id=$1`, sid, paise); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		},
+	},
+
 	"staff_history": {
 		Perm: rbac.EmployeesWrite,
 		Columns: []string{"employee_code", "year", "designation", "days_present",

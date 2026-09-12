@@ -6,6 +6,7 @@ import {
   Button, Input, Field, FormGrid, FormNotice, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
+import BulkImport from '@/components/BulkImport'
 
 /* What each person is paid — the thing payroll could not run without.
  *
@@ -282,6 +283,15 @@ export default function SalarySetup() {
             </div>
           </Card>
         )}
+
+        <div className="mt-2">
+          <BulkImport
+            entity="staff_payroll"
+            title="Bank details and salary from a sheet"
+            hint="One row per person: employee code, name, bank account, IFSC and gross salary. Sets the account and IFSC on the staff record and records the gross as their standing salary. Matched by employee code, so import your staff first."
+            onDone={refresh}
+          />
+        </div>
       </PageBody>
     </>
   )
