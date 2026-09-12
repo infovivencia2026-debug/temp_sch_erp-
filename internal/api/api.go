@@ -992,8 +992,11 @@ func (s *Server) Routes() http.Handler {
 			/* What a paper is out of, and which scale grades it — set before
 			   marks are entered, which is the only safe moment. Both used to
 			   be decided invisibly when the exam was created and could never
-			   be changed. */
-			r.With(httpx.RequirePermission(rbac.ExamsWrite)).
+			   be changed. Requires MarksWrite, not ExamsWrite: the subject
+			   teacher entering marks is the one who knows the paper is out of
+			   50, and asking them to find an exam admin to say so is how a
+			   formative got graded out of 100 by mistake. */
+			r.With(httpx.RequirePermission(rbac.MarksWrite)).
 				Put("/subjects/{id}/setup", s.setPaperSetup)
 			r.Get("/gradebook", s.getGradebook)
 			r.Get("/report-cards", s.listReportCards)
