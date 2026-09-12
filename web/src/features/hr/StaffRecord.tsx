@@ -177,7 +177,15 @@ export default function StaffRecord({ employeeID, onClose }: {
       }
       return api.patch(`/api/v1/setup/employees/${employeeID}`, changed)
     },
-    onSuccess: () => { setEditing(false); setDraft({}); detail.refetch() },
+    onSuccess: () => {
+      setEditing(false)
+      setDraft({})
+      detail.refetch()
+      // The directory list is a separate query; without this a status change
+      // (or any edit) shows on the record but the list keeps the old value
+      // until a manual page reload.
+      qc.invalidateQueries({ queryKey: ['employees'] })
+    },
   })
 
   const savePhoto = useMutation({
