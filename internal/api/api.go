@@ -1150,8 +1150,10 @@ func (s *Server) Routes() http.Handler {
 
 			r.Get("/components", s.listSalaryComponents)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/components", s.saveSalaryComponent)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Delete("/components/{id}", s.deleteSalaryComponent)
 			r.Get("/structures", s.listSalaryStructures)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/structures", s.saveSalaryStructure)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Delete("/structures/{id}", s.deleteSalaryStructure)
 
 			r.Get("/settings", s.getPayrollSettings)
 			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Put("/settings", s.savePayrollSettings)

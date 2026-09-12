@@ -365,3 +365,74 @@ func (s *Server) saveSalaryStructure(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"structure_id": newID})
 }
+
+// deleteSalaryStructure removes one salary revision. A raise is kept as history
+// (a new dated revision), but a revision entered by mistake needs to go, and
+// there was no way to. The items cascade with it; a run already paid against it
+// is what the foreign key protects, and the friendly message says so.
+func (s *Server) deleteSalaryStructure(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	sid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid id")
+		return
+	}
+	var found bool
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(r.Context(), `DELETE FROM salary_structure_items WHERE salary_structure_id=$1`, sid); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(r.Context(), `DELETE FROM salary_structures WHERE id=$1`, sid)
+		found = err == nil && tag.RowsAffected() > 0
+		return err
+	})
+	if err != nil {
+		if isForeignKeyViolation(err) {
+			httpx.Error(w, r, http.StatusConflict, "in_use", "a payroll run was drawn against this salary; it cannot be deleted")
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !found {
+		httpx.NotFound(w, r)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// deleteSalaryComponent removes a pay component. Refused with a readable line
+// when a salary structure still uses it, rather than a bare foreign-key error.
+func (s *Server) deleteSalaryComponent(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	cid, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid id")
+		return
+	}
+	var found bool
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		tag, err := tx.Exec(r.Context(), `DELETE FROM salary_components WHERE id=$1`, cid)
+		found = err == nil && tag.RowsAffected() > 0
+		return err
+	})
+	if err != nil {
+		if isForeignKeyViolation(err) {
+			httpx.Error(w, r, http.StatusConflict, "in_use", "a salary uses this component; remove it from salaries first")
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
+	if !found {
+		httpx.NotFound(w, r)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}

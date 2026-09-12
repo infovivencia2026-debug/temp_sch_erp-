@@ -324,6 +324,14 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pge) && pge.Code == "23505"
 }
 
+// isForeignKeyViolation reports a 23503, raised when a row cannot be deleted
+// because another table still points at it — the signal to answer "this is in
+// use" rather than a bare 500.
+func isForeignKeyViolation(err error) bool {
+	var pge *pgconn.PgError
+	return errors.As(err, &pge) && pge.Code == "23503"
+}
+
 /*
 uniqueViolationOn reports a 23505 raised by one named index.
 

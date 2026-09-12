@@ -106,6 +106,17 @@ export default function SalarySetup() {
     },
   })
 
+  const delStructure = useMutation({
+    mutationFn: (structureId: string) => api.del(`/api/v1/payroll/structures/${structureId}`),
+    onSuccess: () => { setDone('Salary revision deleted.'); refresh() },
+    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not delete'),
+  })
+  const delComponent = useMutation({
+    mutationFn: (componentId: string) => api.del(`/api/v1/payroll/components/${componentId}`),
+    onSuccess: () => { setDone('Component removed.'); refresh() },
+    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not remove — a salary may still use it'),
+  })
+
   if (comps.isLoading || structures.isLoading) return <SkeletonTable columns={3} />
   if (comps.error) return <ErrorState error={comps.error} />
   if (structures.error) return <ErrorState error={structures.error} />
@@ -173,10 +184,21 @@ export default function SalarySetup() {
             />
             <div className="flex flex-wrap gap-2">
               {components.map((c) => (
-                <Badge key={c.id} tone={c.kind === 'earning' ? 'success' : 'neutral'}>
-                  {c.name}
-                  {c.is_percent && c.percent_of ? ` (% of ${c.percent_of})` : ''}
-                </Badge>
+                <span key={c.id} className="inline-flex items-center gap-1">
+                  <Badge tone={c.kind === 'earning' ? 'success' : 'neutral'}>
+                    {c.name}
+                    {c.is_percent && c.percent_of ? ` (% of ${c.percent_of})` : ''}
+                  </Badge>
+                  <button
+                    type="button"
+                    title={`Remove ${c.name}`}
+                    disabled={delComponent.isPending}
+                    onClick={() => { if (confirm(`Remove the ${c.name} pay component?`)) delComponent.mutate(c.id) }}
+                    className="rounded px-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </span>
               ))}
             </div>
           </Card>
@@ -226,6 +248,19 @@ export default function SalarySetup() {
                   >
                     {r.structure_id ? 'Revise' : 'Set salary'}
                   </Button>
+                  {r.structure_id && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={delStructure.isPending}
+                      onClick={() => {
+                        if (confirm(`Delete ${r.full_name}'s current salary? Their pay history is kept; this removes the active revision.`))
+                          delStructure.mutate(r.structure_id!)
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </Td>
               </tr>
             ))}
