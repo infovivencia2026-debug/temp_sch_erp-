@@ -141,7 +141,12 @@ export default function Employees() {
 
   const staff = useQuery({
     queryKey: ['employees'],
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees'),
+    // The directory searches client-side, so it must hold the whole staff, not
+    // the default first page of 50 -- otherwise anyone past the fiftieth by
+    // code (a late-series code like a bus driver's) cannot be found at all.
+    // 200 is the endpoint's ceiling; a school larger than that needs the search
+    // pushed to the server, tracked separately.
+    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=200'),
   })
   const docs = useQuery({
     queryKey: ['employee-docs', expiringOnly],
