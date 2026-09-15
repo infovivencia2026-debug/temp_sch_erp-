@@ -284,9 +284,10 @@ export function AssistantTab() {
 
   useEffect(() => {
     // Pinned to the newest message. A log that does not follow its own output
-    // makes somebody scroll to read the answer they just asked for.
+    // makes somebody scroll to read the answer they just asked for. `state` is a
+    // dep so the thinking indicator is scrolled into view when it appears.
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [turns])
+  }, [turns, state])
 
   /* Read a NEW bot answer aloud when voice output is on, and -- in hands-free
      mode -- re-open the microphone once it has finished, so the conversation
@@ -691,6 +692,19 @@ export function AssistantTab() {
                 </div>
               </div>
             ))}
+
+            {/* While the answer is being fetched, a bot-side bubble of three
+                pulsing dots -- so a question that was sent does not sit there
+                looking unanswered until the reply lands. */}
+            {state === 'thinking' && (
+              <div className="max-w-[86%]">
+                <div className="inline-flex items-center gap-1 rounded-[12px] bg-accent px-3 py-2.5 text-accent-foreground">
+                  <span className="assistant-dot" />
+                  <span className="assistant-dot" style={{ animationDelay: '0.15s' }} />
+                  <span className="assistant-dot" style={{ animationDelay: '0.3s' }} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Said above the box, where the answer to "is it hearing me?" has to

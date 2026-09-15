@@ -3072,3 +3072,22 @@ body[data-scroll-lock] {
 @media (prefers-reduced-motion: reduce) {
   .assistant-caret { animation: none; opacity: 1; }
 }
+
+/* The assistant's "thinking" dots, shown in a bubble while an answer is fetched
+   (AssistantTab). Three dots that pulse in sequence; stilled for reduced motion,
+   where they hold at a steady dim instead. */
+.assistant-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: assistant-dot-pulse 1s ease-in-out infinite;
+}
+@keyframes assistant-dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-dot { animation: none; opacity: 0.5; }
+}
