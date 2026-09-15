@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Palette, Pencil, Plus, Settings, SlidersHorizontal } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { useAppearanceRequest } from '@/lib/appearance-request'
-import { requestArrange } from '@/lib/widgets'
-import { isHomeBoard } from '@/lib/panes'
 import { usePhone } from '@/lib/viewport'
 import { useT } from '@/lib/i18n'
 import { AppearanceDialog } from './AppearanceDialog'
-import { Menu } from './Menu'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH } from './ColourDialog'
 import './dock-menus.css'
@@ -59,12 +56,10 @@ export type SettingsPlacement = 'dock' | 'sidebar' | 'rail' | 'menubar'
 
 export function BentoSettings({
   placement = 'dock',
-  home,
 }: {
   placement?: SettingsPlacement
-  /** The home board's path, from whoever knows it (the dock resolves it per
-      role). Without it the board rows are offered only while standing on a
-      board, which the address can answer on its own. */
+  /** Accepted for call-site compatibility; the cog no longer offers board rows,
+      so it is not read. */
   home?: string
 }) {
   const t = useT()
@@ -72,9 +67,25 @@ export function BentoSettings({
   const location = useLocation()
   const phone = usePhone()
   const btn = useRef<HTMLButtonElement>(null)
-  const [open, setOpen] = useState(false)
   const [showAppearance, setShowAppearance] = useState(false)
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
+
+  /* The cog opens Settings, and nothing before it.
+
+     It used to open a small menu -- Customize board, Add card, Appearance,
+     Board settings -- which was a waiting room in front of the one window that
+     holds all of it (the window has a Dashboard tab, and Customize is on the
+     board's own Edit pill and a long-press). So the cog now goes straight to the
+     Settings window on a desktop, and to the /settings route on a phone where
+     the window is a full sheet with no board behind it to judge against. */
+  const openSettings = () => {
+    if (phone) {
+      navigate('/settings')
+      return
+    }
+    setAppearanceTab('appearance')
+    setShowAppearance(true)
+  }
 
   /* Somebody else asked for this dialog — the tab menu, offering to add a
      widget to the board they right-clicked. The dialog is mounted here and
@@ -107,47 +118,14 @@ export function BentoSettings({
   const here = location.pathname === '/settings' ||
     location.pathname.startsWith('/settings/')
 
-  /* Which board the board rows act on: the one the dock named, else the one
-     under our feet. Neither, and the rows are not drawn — a "Customize
-     board" that has no board is a row that does nothing when pressed. */
-  const board = home ?? (isHomeBoard(location.pathname) ? location.pathname : undefined)
-
-  /* Referentially stable: it is a dependency of the effect that installs the
-     popover's document listeners. */
-  const close = useCallback(() => setOpen(false), [])
-
-  /* Into customize mode on the board. The board has to be the one on screen
-     before it can be arranged, so this navigates first; the intent is parked
-     rather than set (see requestArrange), because the move unmounts the old
-     board and that unmount drops arrange mode.
-
-     "Add card…" lands in the same place. The mode's own bar holds Add, and
-     the gallery it opens is state private to WidgetLayer with no request
-     hook, so the closest this row can get is the bar with Add on it. */
-  const customize = () => {
-    if (board && location.pathname !== board) navigate(board)
-    requestArrange()
-    setOpen(false)
-  }
-
-  const page = (which: 'appearance' | 'dashboard') => {
-    setOpen(false)
-    if (phone) {
-      navigate(which === 'appearance' ? '/settings' : '/settings/dashboard')
-      return
-    }
-    setAppearanceTab(which)
-    setShowAppearance(true)
-  }
-
   return (
     <div className="relative">
       <button
         ref={btn}
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
+        onClick={openSettings}
+        aria-haspopup="dialog"
+        aria-expanded={showAppearance}
         aria-current={phone && here ? 'page' : undefined}
         data-tip={placement === 'dock' ? t('bento.settings.label') : undefined}
         aria-label={t('bento.settings.label')}
@@ -193,32 +171,6 @@ export function BentoSettings({
         />
         {placement === 'sidebar' && <span>{t('bento.settings.label')}</span>}
       </button>
-
-      <Menu open={open} anchor={btn.current} label={t('bento.settings.label')} onClose={close} width={224} centre>
-        {board && (
-          <>
-            <button type="button" role="menuitem" className="bento-menu__item" onClick={customize}>
-              <Pencil aria-hidden="true" />
-              <span className="bento-menu__label">{t('bento.menu.customize')}</span>
-            </button>
-            <button type="button" role="menuitem" className="bento-menu__item" onClick={customize}>
-              <Plus aria-hidden="true" />
-              <span className="bento-menu__label">{t('bento.menu.add_card')}</span>
-            </button>
-            <div className="bento-menu__rule" role="separator" />
-          </>
-        )}
-        <button type="button" role="menuitem" className="bento-menu__item" onClick={() => page('appearance')}>
-          {phone ? <Settings aria-hidden="true" /> : <Palette aria-hidden="true" />}
-          <span className="bento-menu__label">
-            {phone ? t('bento.menu.settings') : t('bento.menu.appearance')}
-          </span>
-        </button>
-        <button type="button" role="menuitem" className="bento-menu__item" onClick={() => page('dashboard')}>
-          <SlidersHorizontal aria-hidden="true" />
-          <span className="bento-menu__label">{t('bento.menu.board_settings')}</span>
-        </button>
-      </Menu>
 
       {/* Not mounted on a phone at all. The route renders the same sections
           from the same components, and a dialog that can never open is a
