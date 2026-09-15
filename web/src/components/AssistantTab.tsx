@@ -282,11 +282,13 @@ export function AssistantTab() {
     const last = turns[i]
     if (!last || last.role !== 'bot') return
 
+    // Every answer prints -- it is how the bot shows it just wrote the reply.
+    // The one exception is reduced motion, where it lands whole. Printing runs
+    // even while the answer is spoken; the two are close enough in pace and the
+    // request is that each message type itself out.
     const reduce = typeof matchMedia !== 'undefined'
       && matchMedia('(prefers-reduced-motion: reduce)').matches
-    // The spoken answer already paces itself, so printing on top of it would be
-    // two clocks on one message; show it whole and let the voice lead.
-    if (reduce || speakRef.current || handsFreeRef.current) return
+    if (reduce) return
 
     setPrintingIdx(i)
     setPrintedLen(0)
