@@ -30,7 +30,9 @@ export type Theme = 'system' | 'light' | 'dark'
     the CHECK on user_display_preferences.theme. */
 export const THEMES: readonly Theme[] = ['system', 'light', 'dark'] as const
 
-export const DEFAULT_THEME: Theme = 'system'
+// Light is the house default -- a fresh device starts light rather than
+// following the OS, which was landing some people in dark on first open.
+export const DEFAULT_THEME: Theme = 'light'
 
 /** What the person chose. */
 const CHOICE_KEY = 'erp.theme.choice'

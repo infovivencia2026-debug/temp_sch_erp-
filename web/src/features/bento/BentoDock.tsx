@@ -490,10 +490,12 @@ export function BentoDock() {
               title={brandName}
             >
               {logoKey ? (
+                // On a white chip so a dark or transparent logo stays visible on
+                // the dark dock -- without it, a dark mark vanished in dark mode.
                 <img
                   src={`/api/v1/files/${logoKey}?inline=1`}
                   alt=""
-                  className="size-full rounded-[inherit] object-contain"
+                  className="size-full rounded-[inherit] bg-white object-contain p-0.5"
                 />
               ) : (
                 <span

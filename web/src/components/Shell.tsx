@@ -756,7 +756,7 @@ export function Shell({
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
                 alt=""
-                className="h-8 w-8 shrink-0 rounded-[7px] object-contain"
+                className="h-8 w-8 shrink-0 rounded-[7px] bg-white object-contain p-0.5"
               />
             ) : (
               <span

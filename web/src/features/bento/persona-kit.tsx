@@ -156,7 +156,7 @@ export function PersonaPage({
             <img
               src={`/api/v1/files/${logoKey}?inline=1`}
               alt={schoolName ?? ''}
-              className="h-8 w-8 shrink-0 rounded-md object-contain sm:h-11 sm:w-11"
+              className="h-8 w-8 shrink-0 rounded-md bg-white object-contain p-0.5 sm:h-11 sm:w-11"
             />
           )}
           <div className="min-w-0">
