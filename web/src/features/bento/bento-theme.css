@@ -3912,7 +3912,10 @@ html.dark [data-layout='bento'] {
    assistant, where the phone keeps its pencil. */
 .bento-edit-pill {
   position: fixed;
-  right: 84px;
+  /* Clear of the assistant orb, which is 64px wide at right:24px -- its left
+     edge sits 88px from the screen edge, so the pill starts past that with a
+     gap rather than touching it. */
+  right: 104px;
   bottom: 28px;
   z-index: 45;
   display: inline-flex;
