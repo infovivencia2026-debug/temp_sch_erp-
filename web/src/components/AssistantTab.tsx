@@ -588,18 +588,21 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          /* Sized to about half the screen on a desktop, so a fee summary or a
-             timetable answer is read without scrolling; kept to the phone's
-             own margins below the drill-in breakpoint, where half a 390px
-             screen would be unreadable. */
-          /* Height is always bounded by the viewport minus the bottom offset
-             (bottom-28 = 7rem) and a top margin, or the panel grows off the top
-             of the screen and the header and the newest messages are clipped.
-             That is what the tall desktop size did before this cap. */
-          className="fixed bottom-28 right-6 z-40 flex
-                     h-[min(560px,calc(100vh-9rem))] w-[min(380px,calc(100vw-3rem))]
+          /* FULL SCREEN ON A PHONE, a corner panel on a desktop.
+             On a phone it fills the screen and sits ABOVE the dock and the page
+             dots (z over their z-50/z-45), so the pencil and dots no longer show
+             through the chat; the safe-area padding keeps the header off the
+             notch and the input off the home indicator. Above the drill-in
+             breakpoint it becomes the ~half-screen card again -- bounded to the
+             viewport minus its bottom offset so its header is never clipped. */
+          style={{
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+          className="fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden border bg-card
+                     md:inset-auto md:bottom-28 md:right-6 md:z-40
                      md:h-[min(900px,calc(100vh-9rem))] md:w-[min(46vw,720px)]
-                     flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
+                     md:rounded-[16px] md:shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
             <AssistantOrb state={state} size={36} />

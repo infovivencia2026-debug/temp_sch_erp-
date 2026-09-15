@@ -191,12 +191,16 @@ export function unlockAudio() {
       audioCtx = audioCtx ?? new Ctor()
       if (audioCtx.state === 'suspended') void audioCtx.resume()
     }
-    // Wake speechSynthesis with one silent utterance, once.
+    // Wake speechSynthesis with one silent utterance, once. A single space, not
+    // an empty string -- iOS ignores an empty utterance and stays locked -- and
+    // resume() after it, because iOS and Chrome both park a freshly-queued
+    // utterance until the queue is nudged.
     if (!speechPrimed && 'speechSynthesis' in window) {
       speechPrimed = true
-      const u = new SpeechSynthesisUtterance('')
+      const u = new SpeechSynthesisUtterance(' ')
       u.volume = 0
       window.speechSynthesis.speak(u)
+      window.speechSynthesis.resume()
     }
   } catch {
     /* no sound is fine; text still carries the answer */
@@ -308,6 +312,10 @@ export function speak(text: string, onEnd?: () => void) {
       u.onerror = () => onEnd()
     }
     synth.speak(u)
+    // The kick that makes it actually start on mobile: iOS and Chrome both leave
+    // a freshly-queued utterance paused until resume() is called, which is why
+    // the phone was silent even after the engine was primed on the tap.
+    synth.resume()
   } catch {
     onEnd?.()
   }
