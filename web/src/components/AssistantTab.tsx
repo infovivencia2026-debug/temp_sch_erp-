@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDictation, speak, stopSpeaking, speechOutputSupported } from '@/lib/speech'
+import { useDictation, speak, stopSpeaking, speechOutputSupported, playTypeTick } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -305,8 +305,21 @@ export function AssistantTab() {
 
      Honoured off for anyone who asked for less motion, and skipped when the
      answer is being read aloud, where the voice already paces it. */
+  /* The knobs, in one place so the feel is easy to change: how long the whole
+     answer takes to type, and the floor and ceiling on the per-character delay
+     so a one-word reply is not instant and a long one is not tedious. One
+     character is revealed per tick; the delay between ticks is the answer's
+     length divided into TARGET_MS, clamped. */
+  const PRINT_TARGET_MS = 1600
+  const PRINT_MIN_MS = 9
+  const PRINT_MAX_MS = 26
+  // The caret keeps blinking this long after the last character lands, so the
+  // answer settles rather than snapping to done.
+  const CARET_LINGER_MS = 900
+
   const [printedLen, setPrintedLen] = useState(0)
   const [printingIdx, setPrintingIdx] = useState(-1)
+  const [caretIdx, setCaretIdx] = useState(-1)
   const printCount = useRef(turns.length)
   useEffect(() => {
     if (turns.length <= printCount.current) {
@@ -319,31 +332,39 @@ export function AssistantTab() {
     if (!last || last.role !== 'bot') return
 
     // Every answer prints -- it is how the bot shows it just wrote the reply.
-    // The one exception is reduced motion, where it lands whole. Printing runs
-    // even while the answer is spoken; the two are close enough in pace and the
-    // request is that each message type itself out.
+    // The one exception is reduced motion, where it lands whole.
     const reduce = typeof matchMedia !== 'undefined'
       && matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduce) return
 
-    setPrintingIdx(i)
-    setPrintedLen(0)
     const total = last.text.length
-    // A steady rate, capped so a long answer still finishes in about a second
-    // and a half rather than typing for a paragraph.
-    const step = Math.max(2, Math.ceil(total / 90))
+    if (total === 0) return
+    setPrintingIdx(i)
+    setCaretIdx(-1)
+    setPrintedLen(0)
+
+    // One character per tick, at a realistic pace: the whole answer aims to
+    // finish in about PRINT_TARGET_MS, but never faster than PRINT_MIN_MS or
+    // slower than PRINT_MAX_MS per character.
+    const delay = Math.max(PRINT_MIN_MS, Math.min(PRINT_MAX_MS, Math.round(PRINT_TARGET_MS / total)))
+    let n = 0
+    let lingerTimer = 0
+    // No printing sound while the answer is also being spoken -- the voice is
+    // enough, and ticks under it are just noise.
+    const withSound = !speakRef.current && !handsFreeRef.current
     const timer = window.setInterval(() => {
-      setPrintedLen((n) => {
-        const next = n + step
-        if (next >= total) {
-          window.clearInterval(timer)
-          setPrintingIdx(-1)
-          return total
-        }
-        return next
-      })
-    }, 16)
-    return () => window.clearInterval(timer)
+      n += 1
+      setPrintedLen(n)
+      // A tick every third character: enough to hear the machine, not a buzz.
+      if (withSound && n % 3 === 0) playTypeTick()
+      if (n >= total) {
+        window.clearInterval(timer)
+        setPrintingIdx(-1)
+        setCaretIdx(i) // caret lingers on the finished, rendered answer
+        lingerTimer = window.setTimeout(() => setCaretIdx((c) => (c === i ? -1 : c)), CARET_LINGER_MS)
+      }
+    }, delay)
+    return () => { window.clearInterval(timer); window.clearTimeout(lingerTimer) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turns])
 
@@ -615,7 +636,12 @@ export function AssistantTab() {
                   {turn.role === 'bot'
                     ? (i === printingIdx
                         ? <span className="md-answer">{turn.text.slice(0, printedLen)}<span className="assistant-caret" aria-hidden="true" /></span>
-                        : <span className="md-answer" dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />)
+                        : (
+                          <span className="md-answer">
+                            <span dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />
+                            {i === caretIdx && <span className="assistant-caret" aria-hidden="true" />}
+                          </span>
+                        ))
                     : turn.text}
                   {turn.link && i !== printingIdx && (
                     <button

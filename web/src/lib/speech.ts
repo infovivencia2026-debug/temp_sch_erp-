@@ -287,3 +287,47 @@ export function stopSpeaking() {
     /* nothing to stop */
   }
 }
+
+/* A SUBTLE TYPEWRITER TICK, for the assistant's printing answer.
+
+   A short, quiet click as characters appear -- the mechanical half of a
+   typewriter to go with the visible one. Deliberately faint (a low-gain blip a
+   few milliseconds long) and best called every few characters, not every one,
+   or it becomes a buzz.
+
+   Web Audio only, and it fails silent: no AudioContext, a blocked autoplay
+   policy, anything -- the printing still runs, just without the sound. The
+   context is created lazily and resumed on use, because it is first reached
+   from a real user gesture (asking a question), which is what the policy wants. */
+let audioCtx: AudioContext | null = null
+let lastTick = 0
+
+export function playTypeTick() {
+  try {
+    if (typeof window === 'undefined') return
+    const Ctor = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) return
+    // No faster than ~18ms apart, so a fast printer does not stack blips.
+    const now = performance.now()
+    if (now - lastTick < 18) return
+    lastTick = now
+    audioCtx = audioCtx ?? new Ctor()
+    if (audioCtx.state === 'suspended') void audioCtx.resume()
+    const ctx = audioCtx
+    const t = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    // A high, short square blip reads as a key strike rather than a tone.
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(1500 + Math.random() * 400, t)
+    gain.gain.setValueAtTime(0.0001, t)
+    gain.gain.exponentialRampToValueAtTime(0.03, t + 0.002)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03)
+    osc.connect(gain).connect(ctx.destination)
+    osc.start(t)
+    osc.stop(t + 0.035)
+  } catch {
+    /* no sound is fine; the animation carries the effect on its own */
+  }
+}
