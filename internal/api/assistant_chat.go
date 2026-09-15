@@ -1,8 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -10,13 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anthropics/anthropic-sdk-go"
-	anthropicopt "github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/catalog"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 )
 
 /* THE SLOW PATH, which was never built.
@@ -54,8 +57,86 @@ import (
    tables is a different feature with a different consent conversation, and it
    is not this one. */
 
-// assistantModel is Claude Opus 5. Named here so there is one line to change.
-const assistantModel = "claude-opus-5"
+// assistantModel is Google Gemini 2.5 Flash. Named here so there is one line
+// to change. The school moved off the local/Anthropic path to Gemini for speed.
+const assistantModel = "gemini-2.5-flash"
+
+// geminiTurn is one message in the conversation, in Gemini's own vocabulary:
+// role is "user" or "model", and the text is the turn. Kept provider-shaped so
+// the memory stores exactly what the request sends.
+type geminiTurn struct {
+	role string
+	text string
+}
+
+// geminiError carries the HTTP status a failed Gemini call returned, so the
+// failure handler can tell a rate limit from a bad key.
+type geminiError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *geminiError) Error() string { return fmt.Sprintf("gemini %d: %s", e.StatusCode, e.Body) }
+
+// callGemini sends the grounded system prompt and the conversation to Gemini
+// and returns the answer text. No SDK: one HTTPS POST, so there is nothing new
+// to vendor and one place the contract lives.
+func callGemini(ctx context.Context, key, system string, turns []geminiTurn) (string, error) {
+	type part struct {
+		Text string `json:"text"`
+	}
+	type content struct {
+		Role  string `json:"role,omitempty"`
+		Parts []part `json:"parts"`
+	}
+	contents := make([]content, 0, len(turns))
+	for _, t := range turns {
+		contents = append(contents, content{Role: t.role, Parts: []part{{Text: t.text}}})
+	}
+	payload := map[string]any{
+		"system_instruction": content{Parts: []part{{Text: system}}},
+		"contents":           contents,
+		"generationConfig":   map[string]any{"maxOutputTokens": assistantMaxTokens},
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	url := "https://generativelanguage.googleapis.com/v1beta/models/" + assistantModel + ":generateContent?key=" + key
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	rb, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", &geminiError{StatusCode: resp.StatusCode, Body: string(rb)}
+	}
+	var out struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+	if err := json.Unmarshal(rb, &out); err != nil {
+		return "", err
+	}
+	var sb strings.Builder
+	if len(out.Candidates) > 0 {
+		for _, p := range out.Candidates[0].Content.Parts {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String(), nil
+}
 
 /*
 Short answers on purpose, and not streamed.
@@ -101,7 +182,7 @@ type assistantMemory struct {
 }
 
 type assistantThread struct {
-	turns []anthropic.MessageParam
+	turns []geminiTurn
 	seen  time.Time
 }
 
@@ -113,17 +194,17 @@ const (
 
 var assistantThreads = &assistantMemory{byID: map[string]*assistantThread{}}
 
-func (m *assistantMemory) load(id string) []anthropic.MessageParam {
+func (m *assistantMemory) load(id string) []geminiTurn {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	t, ok := m.byID[id]
 	if !ok || time.Since(t.seen) > assistantThreadTTL {
 		return nil
 	}
-	return append([]anthropic.MessageParam(nil), t.turns...)
+	return append([]geminiTurn(nil), t.turns...)
 }
 
-func (m *assistantMemory) save(id string, turns []anthropic.MessageParam) {
+func (m *assistantMemory) save(id string, turns []geminiTurn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -232,10 +313,10 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 	   The tab used to fail here with a JSON parse error because nothing was
 	   listening. A school that has not bought an assistant should be told that
 	   in a sentence, not shown a broken panel. */
-	key := strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY"))
+	key := strings.TrimSpace(os.Getenv("GOOGLE_API_KEY"))
 	if key == "" {
 		httpx.Error(w, r, http.StatusServiceUnavailable, "assistant_not_configured",
-			"the assistant is not switched on for this school. Ask whoever runs the server to set ANTHROPIC_API_KEY.")
+			"the assistant is not switched on for this school. Ask whoever runs the server to set GOOGLE_API_KEY.")
 		return
 	}
 
@@ -248,51 +329,40 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 		conversationID = uuid.NewString()
 	}
 	turns := assistantThreads.load(conversationID)
-	turns = append(turns, anthropic.NewUserMessage(anthropic.NewTextBlock(req.Message)))
+	turns = append(turns, geminiTurn{role: "user", text: req.Message})
 
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	client := anthropic.NewClient(anthropicopt.WithAPIKey(key))
-	resp, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     assistantModel,
-		MaxTokens: assistantMaxTokens,
-		/* The prompt and the catalogue are cached; the question is not.
+	/* The system prompt carries the catalogue grounding and, when the question
+	   is about the asker's own data, a block of role-scoped facts fetched under
+	   their identity (see assistantData). The model never queries anything; it
+	   only ever sees rows this user is already allowed to see. */
+	system := assistantSystemPrompt + "\n\n" + assistantGrounding(roles)
+	if facts := s.assistantData(r, id, roles, req.Message); facts != "" {
+		system += "\n\n" + facts
+	}
 
-		   Every member of staff sends the same several-thousand-token screen
-		   list in front of a one-line question, and the cache is a prefix
-		   match, so the stable half goes first and carries the breakpoint. */
-		System: []anthropic.TextBlockParam{{
-			Text:         assistantSystemPrompt + "\n\n" + assistantGrounding(roles),
-			CacheControl: anthropic.NewCacheControlEphemeralParam(),
-		}},
-		Messages: turns,
-	})
+	answerText, err := callGemini(ctx, key, system, turns)
 	if err != nil {
 		s.assistantFailure(w, r, err)
 		return
 	}
 
-	var answer strings.Builder
-	for _, block := range resp.Content {
-		if text, ok := block.AsAny().(anthropic.TextBlock); ok {
-			answer.WriteString(text.Text)
-		}
-	}
 	/* A refusal is an answer, not an error.
 
 	   Returning 500 here would put "something went wrong" in front of somebody
 	   whose question was merely declined, and they would ask it again. */
-	if strings.TrimSpace(answer.String()) == "" {
-		answer.Reset()
-		answer.WriteString("I could not answer that one. Try asking it a different way, or ask the school office.")
+	answer := strings.TrimSpace(answerText)
+	if answer == "" {
+		answer = "I could not answer that one. Try asking it a different way, or ask the school office."
 	}
 
-	turns = append(turns, anthropic.NewAssistantMessage(anthropic.NewTextBlock(answer.String())))
+	turns = append(turns, geminiTurn{role: "model", text: answer})
 	assistantThreads.save(conversationID, turns)
 
 	httpx.JSON(w, http.StatusOK, assistantChatResponse{
-		Answer:         answer.String(),
+		Answer:         answer,
 		ConversationID: conversationID,
 	})
 }
@@ -307,7 +377,7 @@ The failures worth telling apart.
 func (s *Server) assistantFailure(w http.ResponseWriter, r *http.Request, err error) {
 	httpx.LogError(r, err)
 
-	var apiErr *anthropic.Error
+	var apiErr *geminiError
 	if errors.As(err, &apiErr) {
 		switch apiErr.StatusCode {
 		case http.StatusTooManyRequests:
@@ -359,4 +429,82 @@ func (s *Server) assistantRoles(r *http.Request, id *httpx.Identity) []string {
 	}
 	sort.Strings(roles)
 	return roles
+}
+
+/* assistantData — the role-scoped answer layer (feature B).
+
+   The model never touches the database. Instead, when a question looks like it
+   is about the school's own data, this fetches a few facts UNDER THE ASKER'S
+   OWN IDENTITY and permissions and hands them to the model as ground truth.
+
+   Two guards make it safe on a multi-tenant system:
+     1. Every read runs in InTenant(tenantScope(id)), so row-level security
+        confines it to the asker's own institution — no other school's rows can
+        be reached even by a crafted question.
+     2. Each fact is gated on the permission its own screen requires, so a
+        parent or a teacher without it simply gets nothing here and the bot
+        stays help-only for them. Personal, per-child answers (a single
+        family's fees) are deliberately NOT here yet — that needs per-subject
+        scoping and its own review.
+
+   Returns "" when there is nothing to add, which is the common case. */
+func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []string, q string) string {
+	if id == nil {
+		return ""
+	}
+	ql := strings.ToLower(q)
+	has := func(subs ...string) bool {
+		for _, sub := range subs {
+			if strings.Contains(ql, sub) {
+				return true
+			}
+		}
+		return false
+	}
+	var facts []string
+	_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if has("on leave", "who is away", "who's away", "leave today") && id.Can(rbac.EmployeesRead) {
+			rows, err := tx.Query(r.Context(), `
+				SELECT btrim(concat_ws(' ', e.first_name, e.last_name))
+				  FROM leave_requests lr JOIN employees e ON e.id = lr.employee_id
+				 WHERE lr.subject_kind='staff' AND lr.status='approved'
+				   AND CURRENT_DATE BETWEEN lr.from_date AND lr.to_date
+				 ORDER BY 1`)
+			if err == nil {
+				names := []string{}
+				for rows.Next() {
+					var n string
+					rows.Scan(&n)
+					names = append(names, n)
+				}
+				rows.Close()
+				if len(names) == 0 {
+					facts = append(facts, "Staff on approved leave today: none.")
+				} else {
+					facts = append(facts, "Staff on approved leave today: "+strings.Join(names, ", ")+".")
+				}
+			}
+		}
+		if has("absent", "attendance today", "present today") && id.Can(rbac.AttendanceRead) {
+			var absent, marked int
+			tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE AND status='absent'`).Scan(&absent)
+			tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE`).Scan(&marked)
+			facts = append(facts, fmt.Sprintf("Student attendance today: %d marked absent out of %d marked so far.", absent, marked))
+		}
+		if has("how many staff", "staff count", "number of staff", "total staff") && id.Can(rbac.EmployeesRead) {
+			var n int
+			tx.QueryRow(r.Context(), `SELECT count(*) FROM employees WHERE status='active'`).Scan(&n)
+			facts = append(facts, fmt.Sprintf("Active staff on the roll: %d.", n))
+		}
+		if has("how many student", "student count", "strength", "enrolment", "enrollment") && id.Can(rbac.StudentsReadAll) {
+			var n int
+			tx.QueryRow(r.Context(), `SELECT count(*) FROM students WHERE status='active'`).Scan(&n)
+			facts = append(facts, fmt.Sprintf("Active students on the roll: %d.", n))
+		}
+		return nil
+	})
+	if len(facts) == 0 {
+		return ""
+	}
+	return "FACTS (already scoped to what you are allowed to see; use these to answer, and do not guess beyond them):\n- " + strings.Join(facts, "\n- ")
 }
