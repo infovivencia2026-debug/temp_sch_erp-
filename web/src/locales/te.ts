@@ -981,6 +981,7 @@ export const te: Partial<Messages> = {
   'bento.parent_week.present_label': 'హాజరైన రోజులు',
   'bento.parent_week.present_note': '{name} పాఠశాలకు వచ్చిన రోజులు',
   'bento.size.small': 'చిన్నది',
+  'bento.size.tall': 'పొడవు',
   'bento.size.medium': 'మధ్యస్థం',
   'bento.size.large': 'పెద్దది',
   'bento.size.wide': 'వెడల్పైనది',

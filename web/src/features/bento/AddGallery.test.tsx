@@ -78,8 +78,9 @@ describe('AddGallery', () => {
     expect(document.body.querySelectorAll('[data-gallery-tile]')).toHaveLength(3)
     expect(tile('fees')!.textContent).toContain('Fees due')
     expect(tile('fees')!.textContent).toContain('What is outstanding')
-    // Four size buttons on every tile, each named for a screen reader.
-    expect(tile('fees')!.querySelectorAll('button[data-tier]')).toHaveLength(3)
+    // One size button per offered tier on every tile, each named for a screen
+    // reader: Small, Tall, Medium, Large.
+    expect(tile('fees')!.querySelectorAll('button[data-tier]')).toHaveLength(4)
     expect(size('fees', 'large').getAttribute('aria-label')).toBe(
       'bento.add_gallery.add_as[Fees due,bento.size.large]',
     )
@@ -94,7 +95,7 @@ describe('AddGallery', () => {
     expect(size('roll', 'medium').disabled).toBe(true)
     expect(size('roll', 'medium').title).toBe('bento.add_gallery.no_room')
     expect(size('roll', 'small').title).toBe('')
-    for (const tier of ['small', 'medium', 'large'] as const) {
+    for (const tier of ['small', 'tall', 'medium', 'large'] as const) {
       expect(size('exams', tier).disabled, `exams ${tier}`).toBe(true)
     }
   })
@@ -115,9 +116,11 @@ describe('AddGallery', () => {
     const { onAdd } = await render()
     await act(async () => { key(tile('fees')!, 'Enter') })
     expect(onAdd).toHaveBeenLastCalledWith('fees', 'medium')
-    await act(async () => { key(tile('fees')!, '3') })
+    // Order is Small, Tall, Medium, Large, so the fourth digit is Large.
+    await act(async () => { key(tile('fees')!, '4') })
     expect(onAdd).toHaveBeenLastCalledWith('fees', 'large')
-    // 2 is Medium, which does not fit on the roll: nothing happens.
+    // 2 is Tall, which does not fit on the roll (roll offers Small only):
+    // nothing happens.
     await act(async () => { key(tile('roll')!, '2') })
     expect(onAdd).toHaveBeenCalledTimes(2)
   })

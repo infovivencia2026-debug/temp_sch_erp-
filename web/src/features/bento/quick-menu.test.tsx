@@ -129,9 +129,9 @@ describe('quick menu', () => {
     ])
     const tiers = Array.from(m.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
     expect(tiers.map((b) => b.textContent)).toEqual([
-      'bento.size.small', 'bento.size.medium', 'bento.size.large',
+      'bento.size.small', 'bento.size.tall', 'bento.size.medium', 'bento.size.large',
     ])
-    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
+    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false'])
     // Focus went in, to the first row.
     expect(document.activeElement).toBe(items[0])
   })
@@ -178,8 +178,10 @@ describe('quick menu', () => {
     await mount()
     const m = await openMenu('a')
     const tiers = Array.from(m.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
-    // A Medium card among Mediums: Large (2x2) would push one off the board.
-    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true])
+    // A Medium card among Mediums: Small, Tall (1x2) and Medium fit -- there
+    // are two free cells stacked in the last column -- but Large (2x2) would
+    // push one off the board.
+    expect(tiers.map((b) => b.disabled)).toEqual([false, false, false, true])
     await act(async () => {
       tiers[0].click()
     })

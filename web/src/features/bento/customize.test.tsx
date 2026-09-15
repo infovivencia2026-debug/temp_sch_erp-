@@ -208,10 +208,12 @@ describe('customize mode', () => {
     expect(menu, 'the menu opened').not.toBeNull()
     const tiers = Array.from(menu!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
     expect(tiers.map((b) => b.textContent)).toEqual([
-      'bento.size.small', 'bento.size.medium', 'bento.size.large',
+      'bento.size.small', 'bento.size.tall', 'bento.size.medium', 'bento.size.large',
     ])
-    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false'])
-    expect(tiers.map((b) => b.disabled), 'only the size it already is fits').toEqual([false, true, true])
+    expect(tiers.map((b) => b.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false'])
+    // Small (its own cell) and Tall (a column up into the free cells above it)
+    // fit; Medium and Large need a width the packed board no longer has.
+    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true, true])
     // The colour wheel is reachable from the last row.
     const rows = Array.from(menu!.querySelectorAll('[role^="menuitem"]'))
     expect(rows[rows.length - 1].textContent).toBe('bento.widgets.colour_row')
@@ -224,9 +226,9 @@ describe('customize mode', () => {
       pill!.click()
     })
     const tiers = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-bento-menu] [role="menuitemradio"]'))
-    // A Medium card: Small always fits and Large (2x2) pushes the last Medium
-    // off the board.
-    expect(tiers.map((b) => b.disabled)).toEqual([false, false, true])
+    // A Medium card: Small, Tall (1x2) and Medium fit; Large (2x2) pushes the
+    // last Medium off the board.
+    expect(tiers.map((b) => b.disabled)).toEqual([false, false, false, true])
     await act(async () => {
       tiers[0].click()
     })

@@ -23,7 +23,7 @@
    spelled out in its table anyway so that a tier chosen anywhere writes a
    legal shape everywhere. */
 
-export type SizeTier = 'small' | 'medium' | 'large' | 'wide'
+export type SizeTier = 'small' | 'tall' | 'medium' | 'large' | 'wide'
 
 /* WIDE IS STILL A SHAPE, IT IS NO LONGER A CHOICE.
 
@@ -34,11 +34,12 @@ export type SizeTier = 'small' | 'medium' | 'large' | 'wide'
    tier itself stays in the type, the dimension tables and `tierOf`, so a
    board that already has a wide card keeps drawing it at the width it was
    given rather than silently reshaping somebody's home screen. */
-export const TIERS: readonly SizeTier[] = ['small', 'medium', 'large'] as const
+export const TIERS: readonly SizeTier[] = ['small', 'tall', 'medium', 'large'] as const
 
 /** The desktop board: five columns, three rows. */
 export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   small: { w: 1, h: 1 },
+  tall: { w: 1, h: 2 },
   medium: { w: 2, h: 1 },
   large: { w: 2, h: 2 },
   wide: { w: 3, h: 1 },
@@ -59,6 +60,9 @@ export const TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
     whole shape for a card that has no width yet. */
 export const PHONE_TIER_DIMS: Record<SizeTier, { w: number; h: number }> = {
   small: { w: 2, h: 1 },
+  // A phone has no width to give, so a "tall" card is the full-width two-row
+  // card -- the same shape as Large, which is what tierOf reports it back as.
+  tall: { w: 2, h: 2 },
   medium: { w: 2, h: 1 },
   large: { w: 2, h: 2 },
   wide: { w: 2, h: 1 },
@@ -94,7 +98,11 @@ export const PHONE_TIERS: readonly SizeTier[] = ['small', 'large'] as const
 export function tierOf(w: number, h: number, phone: boolean): SizeTier {
   const rows = Number.isFinite(h) ? h : 1
   const cols = Number.isFinite(w) ? w : 1
-  if (rows >= 2) return 'large'
+  // A phone draws every card the full width, so two rows is always Large there.
+  if (rows >= 2) {
+    if (!phone && cols < 2) return 'tall'
+    return 'large'
+  }
   if (phone) return 'small'
   if (cols >= 3) return 'wide'
   if (cols >= 2) return 'medium'

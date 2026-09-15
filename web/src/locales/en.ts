@@ -2463,6 +2463,7 @@ export const en = {
   'bento.widgets.size.full': 'Full',
   // The four named sizes the picker offers (lib/size-tiers.ts): a card is one of these.
   'bento.size.small': 'Small',
+  'bento.size.tall': 'Tall',
   'bento.size.medium': 'Medium',
   'bento.size.large': 'Large',
   'bento.size.wide': 'Wide',
