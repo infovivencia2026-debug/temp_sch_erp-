@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { Mic, Square, X, Volume2, VolumeX, Headphones } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation, speak, stopSpeaking, speechOutputSupported } from '@/lib/speech'
 import { useSession } from '@/lib/session'
+import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
 /* A tiny, safe Markdown render for the bot's answers.
@@ -112,6 +113,37 @@ function withRole(message: string, roles: string[] | undefined): string {
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
+  /* A place the answer is about, that the reader can open in one press. The
+     catalogue answer names the screen ("...under Students -> Student
+     directory"); telling somebody where a thing is and then making them go
+     find it is half an answer. Resolved to a real, role-checked route before
+     it is attached, so the button never points somewhere the reader cannot go. */
+  link?: { label: string; to: string }
+}
+
+/* Turn a screen's catalogue NAME into a route the reader may actually open.
+
+   The fast-path answer carries the screen it describes; this finds that screen
+   across every workspace the reader holds and returns its path, but only when
+   the feature is live and in scope for them -- usable(f). A name that matches
+   nothing they can reach returns nothing, and no button is shown, which is the
+   honest outcome for "that screen exists but not for you". */
+function resolveScreen(catalog: CatalogResponse, screen?: string): Turn['link'] {
+  const want = screen?.trim().toLowerCase()
+  if (!want) return undefined
+  for (const role of catalog.roles) {
+    for (const section of role.sections) {
+      for (const feature of section.features) {
+        if (feature.name.trim().toLowerCase() === want && usable(feature)) {
+          return {
+            label: feature.name,
+            to: featurePath(role.key, section.slug, feature.slug),
+          }
+        }
+      }
+    }
+  }
+  return undefined
 }
 
 export function AssistantTab() {
@@ -132,6 +164,8 @@ export function AssistantTab() {
    * case — above the drill-in breakpoint the same content is a dialog opened
    * from the dock, and the orb over a dialog is already handled by `open`. */
   const onSettings = useLocation().pathname.startsWith('/settings')
+  const navigate = useNavigate()
+  const catalog = useCatalog()
 
   /* Back closes the assistant rather than the app. See useOverlayHistory. */
   const closeAssistant = useCallback(() => setOpen(false), [])
@@ -272,7 +306,8 @@ export function AssistantTab() {
           const hit = await quick.json()
           if (hit.answered && hit.answer) {
             setState('answering')
-            setTurns((t) => [...t, { role: 'bot', text: hit.answer }])
+            const link = resolveScreen(catalog, hit.screen)
+            setTurns((t) => [...t, { role: 'bot', text: hit.answer, link }])
             await new Promise((r) => setTimeout(r, 250))
             return
           }
@@ -483,6 +518,23 @@ export function AssistantTab() {
                   {turn.role === 'bot'
                     ? <span className="md-answer" dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />
                     : turn.text}
+                  {turn.link && (
+                    <button
+                      type="button"
+                      onClick={() => { navigate(turn.link!.to); setOpen(false) }}
+                      /* The action chip is where the school's accent colour
+                         finally shows: brand-accent when the school set one,
+                         the primary otherwise. */
+                      className="mt-2 flex w-full items-center justify-between gap-2 rounded-[9px]
+                                 px-3 py-1.5 text-[12.5px] font-medium
+                                 transition-opacity hover:opacity-90
+                                 bg-[hsl(var(--brand-accent,var(--primary)))]
+                                 text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))]"
+                    >
+                      <span className="truncate">Open {turn.link.label}</span>
+                      <ArrowRight className="size-3.5 shrink-0" aria-hidden />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

@@ -130,7 +130,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      button, link, focus ring and active nav row. Cleared back to the theme
      for a school that has set none. During render for the same reason as the
      rest: it must be on the root before the first child paints. */
-  applyBrand(data.institution?.primary_color)
+  applyBrand(data.institution?.primary_color, data.institution?.accent_color)
 
   return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
 }
