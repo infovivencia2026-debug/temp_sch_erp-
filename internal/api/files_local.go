@@ -66,6 +66,23 @@ var blockedUploadExtensions = map[string]bool{
 	".cmd": true, ".msi": true, ".ps1": true, ".vbs": true, ".jse": true,
 	".js": true, ".jar": true, ".sh": true, ".app": true, ".apk": true,
 	".hta": true, ".cpl": true, ".reg": true, ".lnk": true, ".pif": true,
+	/* HTML and SVG are not programs a desktop runs, but they are worse here:
+	   served from the school's own origin they become a script-hosting page one
+	   click away from every signed-in session. A document store has no reason to
+	   accept a web page, so it does not. */
+	".html": true, ".htm": true, ".xhtml": true, ".svg": true, ".xml": true,
+	".mht": true, ".mhtml": true, ".xsl": true, ".xslt": true, ".wasm": true,
+}
+
+// broadcastFilePurpose lists the file purposes a school hands to everyone in
+// it: the marks that dress the product and the materials it publishes. A file
+// with one of these and no owner row is readable institution-wide; anything
+// else with no owner is limited to its uploader or to staff (see downloadFile).
+var broadcastFilePurpose = map[string]bool{
+	"branding_logo": true, "branding_wordmark": true, "favicon": true,
+	"attachment": true, "general": true, "study_material": true,
+	"question_paper": true, "lesson_plan": true,
+	"id_card_front": true, "id_card_back": true, "signature": true,
 }
 
 var errNoFileStore = errors.New("file storage is not configured on this deployment")
@@ -133,6 +150,15 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	contentType := strings.TrimSpace(header.Header.Get("Content-Type"))
 	if contentType == "" {
 		contentType = "application/octet-stream"
+	}
+	// The extension blocklist is the front door; this stops the same content
+	// arriving under an innocent extension. A stored page is a stored page
+	// whatever it is called.
+	if ct := strings.ToLower(contentType); strings.Contains(ct, "html") ||
+		strings.Contains(ct, "svg") || strings.Contains(ct, "xml") {
+		httpx.BadRequest(w, r,
+			"web pages and SVG files cannot be uploaded to the document store")
+		return
 	}
 
 	/* The name on disk is chosen here and owes nothing to the uploader.
@@ -313,14 +339,16 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 	var key, name, contentType string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		var studentOwner, appOwner, empOwner, hwOwner *uuid.UUID
+		var purpose string
+		var uploadedBy *uuid.UUID
 		err := tx.QueryRow(r.Context(), `
-			SELECT f.object_key, f.original_name, f.content_type,
+			SELECT f.object_key, f.original_name, f.content_type, f.purpose, f.uploaded_by,
 			       (SELECT student_id FROM student_documents WHERE file_id = f.id LIMIT 1),
 			       (SELECT application_id FROM application_documents WHERE file_id = f.id LIMIT 1),
 			       (SELECT employee_id FROM employee_documents WHERE file_id = f.id LIMIT 1),
 			       (SELECT homework_id FROM homework_attachments WHERE file_id = f.id LIMIT 1)
 			  FROM files f WHERE f.id = $1 AND f.deleted_at IS NULL`, fileID).
-			Scan(&key, &name, &contentType, &studentOwner, &appOwner, &empOwner, &hwOwner)
+			Scan(&key, &name, &contentType, &purpose, &uploadedBy, &studentOwner, &appOwner, &empOwner, &hwOwner)
 		if err != nil {
 			return err
 		}
@@ -370,8 +398,26 @@ func (s *Server) downloadFile(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return pgx.ErrNoRows
 			}
+		} else {
+			/* A file with no owner join used to be readable by anyone in the
+			   institution, resting on the id being an unguessable UUID. That is
+			   fine for the things the school broadcasts -- its logo, a wordmark,
+			   a circular's attachment, a study handout -- and wrong for anything
+			   personal that simply has no owner table (a payslip PDF, a letter),
+			   which a parent or student could then fetch by id.
+
+			   So: broadcast purposes stay institution-readable; everything else
+			   with no owner is limited to the person who uploaded it or to staff
+			   with a broad read permission. Deny-by-default for the unknown. */
+			if !broadcastFilePurpose[purpose] {
+				self := uploadedBy != nil && *uploadedBy == id.UserID
+				staff := id.Can(rbac.StudentsReadAll) || id.Can(rbac.EmployeesRead) ||
+					id.Can(rbac.FeesRead) || id.Can(rbac.AdmissionsRead)
+				if !self && !staff {
+					return pgx.ErrNoRows
+				}
+			}
 		}
-		// A file with no owner keeps today's institution-only behaviour.
 		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
