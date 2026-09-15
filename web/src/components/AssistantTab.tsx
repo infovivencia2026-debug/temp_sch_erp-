@@ -110,15 +110,18 @@ function withRole(message: string, roles: string[] | undefined): string {
   return `[Asked by: ${roles.join(', ')}] ${message}`
 }
 
+interface ScreenLink { label: string; to: string }
+
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
-  /* A place the answer is about, that the reader can open in one press. The
-     catalogue answer names the screen ("...under Students -> Student
-     directory"); telling somebody where a thing is and then making them go
-     find it is half an answer. Resolved to a real, role-checked route before
-     it is attached, so the button never points somewhere the reader cannot go. */
-  link?: { label: string; to: string }
+  /* The screens the answer is about, each openable in one press. An answer
+     often names several ("the Fee Dashboard ... the Fee Default screen ...
+     Fee Collection under Reports"); telling somebody where things are and then
+     making them go find each is half an answer. Every screen named is resolved
+     to a real, role-checked route, so no button points somewhere the reader
+     cannot go, and each gets its own button. */
+  links?: ScreenLink[]
 }
 
 /* Turn a screen's catalogue NAME into a route the reader may actually open.
@@ -128,7 +131,7 @@ interface Turn {
    the feature is live and in scope for them -- usable(f). A name that matches
    nothing they can reach returns nothing, and no button is shown, which is the
    honest outcome for "that screen exists but not for you". */
-function resolveScreen(catalog: CatalogResponse, screen?: string): Turn['link'] {
+function resolveScreen(catalog: CatalogResponse, screen?: string): ScreenLink | undefined {
   const want = screen?.trim().toLowerCase()
   if (!want) return undefined
   for (const role of catalog.roles) {
@@ -146,40 +149,52 @@ function resolveScreen(catalog: CatalogResponse, screen?: string): Turn['link'] 
   return undefined
 }
 
-/* Find a screen the answer NAMES inside its prose, and turn it into a button.
+/* EVERY screen the answer NAMES inside its prose, each as its own button.
 
    The exact-name match above only fires for the fast path, whose screen field
    comes from a different corpus than the catalogue, so it usually finds nothing
    -- and the model's own answers carry no screen field at all. But both kinds of
-   answer say the screen in words ("...under Students -> Student directory"), so
-   this scans the text for the longest usable feature name that appears in it.
+   answer say their screens in words ("the Fee Dashboard ... the Fee Default
+   screen ... Fee Collection under Reports"), so this scans the text for every
+   usable feature name that appears in it and returns one link per screen, in the
+   order they are mentioned.
 
-   Longest wins, so "Fee receipts" beats "Fees"; and a name must be at least six
-   characters and appear on a word boundary, so a stray "Home" or "Fees" inside
-   an unrelated sentence does not sprout a button. Only screens the reader can
-   actually open are considered. */
-function linkFromText(catalog: CatalogResponse, text?: string): Turn['link'] {
+   A name must be at least six characters and sit on a word boundary, so a stray
+   "Home" or "Fees" does not sprout a button; and a name wholly contained in
+   another matched name at an overlapping spot is dropped, so "Fees" under a
+   matched "Fee Dashboard" does not double up. Only screens the reader can
+   actually open are considered. Capped so a long answer cannot wall itself in
+   buttons. */
+const MAX_LINKS = 4
+function linksFromText(catalog: CatalogResponse, text?: string): ScreenLink[] {
   const hay = text?.toLowerCase() ?? ''
-  if (!hay) return undefined
-  let best: Turn['link'] | undefined
-  let bestLen = 0
+  if (!hay) return []
+  const found: { at: number; end: number; link: ScreenLink }[] = []
+  const seen = new Set<string>()
   for (const role of catalog.roles) {
     for (const section of role.sections) {
       for (const feature of section.features) {
         const name = feature.name.trim()
-        if (name.length < 6 || name.length <= bestLen || !usable(feature)) continue
+        if (name.length < 6 || !usable(feature)) continue
+        const to = featurePath(role.key, section.slug, feature.slug)
+        if (seen.has(to)) continue
         const n = name.toLowerCase()
         const at = hay.indexOf(n)
         if (at < 0) continue
         const before = at === 0 ? ' ' : hay[at - 1]
         const after = at + n.length >= hay.length ? ' ' : hay[at + n.length]
         if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) continue // not a whole phrase
-        best = { label: name, to: featurePath(role.key, section.slug, feature.slug) }
-        bestLen = name.length
+        seen.add(to)
+        found.push({ at, end: at + n.length, link: { label: name, to } })
       }
     }
   }
-  return best
+  // Drop a match that sits entirely inside a longer one (same span) -- keep the
+  // more specific screen name.
+  const kept = found.filter((f) =>
+    !found.some((g) => g !== f && g.at <= f.at && g.end >= f.end && (g.end - g.at) > (f.end - f.at)))
+  kept.sort((a, b) => a.at - b.at)
+  return kept.slice(0, MAX_LINKS).map((f) => f.link)
 }
 
 export function AssistantTab() {
@@ -420,8 +435,14 @@ export function AssistantTab() {
           const hit = await quick.json()
           if (hit.answered && hit.answer) {
             setState('answering')
-            const link = resolveScreen(catalog, hit.screen) ?? linkFromText(catalog, hit.answer)
-            setTurns((t) => [...t, { role: 'bot', text: hit.answer, link }])
+            // The screen the fast path names outright, plus any others the
+            // answer mentions in prose -- deduped, in order, one button each.
+            const named = resolveScreen(catalog, hit.screen)
+            const inText = linksFromText(catalog, hit.answer)
+            const links = named && !inText.some((l) => l.to === named.to)
+              ? [named, ...inText]
+              : inText
+            setTurns((t) => [...t, { role: 'bot', text: hit.answer, links }])
             await new Promise((r) => setTimeout(r, 250))
             return
           }
@@ -469,7 +490,7 @@ export function AssistantTab() {
       setTurns((t) => [...t, {
         role: 'bot',
         text: data.answer ?? '',
-        link: linkFromText(catalog, data.answer),
+        links: linksFromText(catalog, data.answer),
       }])
       // Long enough for the answering state to be seen; the orb is the only
       // thing that says the turn finished cleanly.
@@ -643,23 +664,24 @@ export function AssistantTab() {
                           </span>
                         ))
                     : turn.text}
-                  {turn.link && i !== printingIdx && (
+                  {/* One button per screen the answer names -- shown once the
+                      answer has finished printing. The chip carries the school's
+                      accent colour where it set one, the primary otherwise. */}
+                  {turn.links && i !== printingIdx && turn.links.map((lnk) => (
                     <button
+                      key={lnk.to}
                       type="button"
-                      onClick={() => { navigate(turn.link!.to); setOpen(false) }}
-                      /* The action chip is where the school's accent colour
-                         finally shows: brand-accent when the school set one,
-                         the primary otherwise. */
+                      onClick={() => { navigate(lnk.to); setOpen(false) }}
                       className="mt-2 flex w-full items-center justify-between gap-2 rounded-[9px]
                                  px-3 py-1.5 text-[12.5px] font-medium
                                  transition-opacity hover:opacity-90
                                  bg-[hsl(var(--brand-accent,var(--primary)))]
                                  text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))]"
                     >
-                      <span className="truncate">Open {turn.link.label}</span>
+                      <span className="truncate">Open {lnk.label}</span>
                       <ArrowRight className="size-3.5 shrink-0" aria-hidden />
                     </button>
-                  )}
+                  ))}
                 </div>
               </div>
             ))}
