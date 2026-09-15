@@ -170,6 +170,73 @@ export function speechOutputSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
+/* PICK A HUMAN-SOUNDING VOICE, NOT THE ONE THE OS HANDS OUT.
+
+   Left alone, speechSynthesis reads in the platform's default engine, which on
+   many machines is the old formant synth -- the flat, robotic "Stephen Hawking"
+   voice. But the browser almost always also exposes far better ones: the
+   operating system's neural voices (named "... Natural" / "... Neural" / "...
+   Online") and, in Chrome, the network-backed "Google" voices. This scores what
+   is installed and keeps the best English one.
+
+   English, and Indian English first, because that is the school. A voice is
+   scored, not matched by an exact name, because the exact names differ across
+   Windows, macOS, iOS, Android and Chrome and a fixed list would find nothing
+   on the next machine. */
+let chosenVoice: SpeechSynthesisVoice | null = null
+
+function scoreVoice(v: SpeechSynthesisVoice): number {
+  const name = v.name.toLowerCase()
+  const lang = (v.lang || '').toLowerCase().replace('_', '-')
+  if (!lang.startsWith('en')) return -1
+  let s = 0
+  // The quality signal, worth the most: a neural/natural/online engine.
+  if (/(natural|neural|online)/.test(name)) s += 100
+  // Chrome's Google voices are network-backed and markedly better than local.
+  if (name.includes('google')) s += 60
+  // Apple's better voices; and mark the low-quality ones down hard.
+  if (/(siri|premium|enhanced)/.test(name)) s += 50
+  if (/(compact|espeak|pico|robo)/.test(name)) s -= 80
+  // The school is Indian English; then British, then anything English.
+  if (lang === 'en-in') s += 25
+  else if (lang === 'en-gb') s += 12
+  else if (lang.startsWith('en')) s += 6
+  // A default flag on a poor engine should not win; a small nudge only.
+  if (v.default) s += 2
+  return s
+}
+
+function pickVoice(): SpeechSynthesisVoice | null {
+  try {
+    const voices = window.speechSynthesis?.getVoices?.() ?? []
+    let best: SpeechSynthesisVoice | null = null
+    let bestScore = -1
+    for (const v of voices) {
+      const sc = scoreVoice(v)
+      if (sc > bestScore) {
+        bestScore = sc
+        best = v
+      }
+    }
+    return bestScore >= 0 ? best : null
+  } catch {
+    return null
+  }
+}
+
+// The voice list loads asynchronously on some browsers -- getVoices() is empty
+// until 'voiceschanged' fires -- so recompute whenever it changes.
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  chosenVoice = pickVoice()
+  try {
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      chosenVoice = pickVoice()
+    })
+  } catch {
+    /* older engines expose onvoiceschanged only; the eager call above still ran */
+  }
+}
+
 /* Read one answer aloud. Cancels whatever is mid-sentence first, so a new
    answer does not queue behind the last one. onEnd fires when it finishes (or
    is cut off), which is what a hands-free loop waits on before listening
@@ -193,7 +260,15 @@ export function speak(text: string, onEnd?: () => void) {
       return
     }
     const u = new SpeechSynthesisUtterance(spoken)
-    u.rate = 1
+    // The best installed voice, recomputed if the list only just loaded.
+    const voice = chosenVoice ?? (chosenVoice = pickVoice())
+    if (voice) {
+      u.voice = voice
+      u.lang = voice.lang
+    }
+    // A touch slower and lower than default reads as calmer and less synthetic;
+    // the natural voices in particular sound rushed at exactly 1.0.
+    u.rate = 0.98
     u.pitch = 1
     if (onEnd) {
       u.onend = () => onEnd()
