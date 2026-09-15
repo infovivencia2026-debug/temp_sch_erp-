@@ -541,6 +541,82 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 			tx.QueryRow(r.Context(), `SELECT count(*) FROM students WHERE status='active'`).Scan(&n)
 			facts = append(facts, fmt.Sprintf("Active students on the roll: %d.", n))
 		}
+
+		/* A named child — their class, and (with the fees permission) what they
+		   owe. This is the "I can't see student details or their fees" gap.
+
+		   The child is found by matching an admission number or a first name of
+		   four letters or more that actually appears in the question, so a
+		   general "how are the fees going" does not drag in a student called
+		   Fee. RLS still confines the search to this institution, and the whole
+		   branch is gated on institution-wide student access, so a parent or a
+		   single-section teacher gets nothing here — their own-child view needs
+		   its own scoping and is not opened by this. At most five matches, to
+		   keep an ambiguous name from dumping the roll into the prompt. */
+		wantsFee := has("fee", "fees", "balance", "dues", "owe", "outstanding", "pending")
+		if (has("class", "section", "which grade", "roll", "who is", "details of", "detail of", "about") || wantsFee) &&
+			id.Can(rbac.StudentsReadAll) {
+			rows, err := tx.Query(r.Context(), `
+				SELECT st.id::text,
+				       btrim(concat_ws(' ', st.first_name, st.middle_name, st.last_name)),
+				       st.admission_no, c.name, sec.name, en.roll_no
+				  FROM students st
+				  LEFT JOIN LATERAL (
+				      SELECT e.class_id, e.section_id, e.roll_no
+				        FROM enrollments e
+				       WHERE e.student_id = st.id
+				       ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  LEFT JOIN classes  c   ON c.id = en.class_id
+				  LEFT JOIN sections sec ON sec.id = en.section_id
+				 WHERE st.status='active'
+				   AND ( ($1 <> '' AND position(lower(st.admission_no) in $1) > 0)
+				      OR (length(st.first_name) >= 4 AND position(lower(st.first_name) in $1) > 0) )
+				 ORDER BY st.first_name
+				 LIMIT 5`, ql)
+			if err == nil {
+				type stu struct{ id, name, adm, class, sec string; roll *int }
+				var found []stu
+				for rows.Next() {
+					var s stu
+					var cn, sn *string
+					rows.Scan(&s.id, &s.name, &s.adm, &cn, &sn, &s.roll)
+					if cn != nil {
+						s.class = *cn
+					}
+					if sn != nil {
+						s.sec = *sn
+					}
+					found = append(found, s)
+				}
+				rows.Close()
+				for _, s := range found {
+					where := "not yet placed in a class"
+					if s.class != "" {
+						where = s.class
+						if s.sec != "" {
+							where += " " + s.sec
+						}
+						if s.roll != nil {
+							where += fmt.Sprintf(", roll no %d", *s.roll)
+						}
+					}
+					line := fmt.Sprintf("%s (admission no %s): %s.", s.name, s.adm, where)
+					if wantsFee && id.Can(rbac.FeesRead) {
+						var charged, paid int64
+						tx.QueryRow(r.Context(), `
+							SELECT COALESCE((SELECT sum(net_paise) FROM invoices
+							                  WHERE student_id=$1 AND status<>'cancelled'),0),
+							       COALESCE((SELECT sum(amount_paise) FROM payments
+							                  WHERE student_id=$1 AND status='success'),0)`, s.id).Scan(&charged, &paid)
+						bal := charged - paid
+						line += fmt.Sprintf(" Fees: charged %s, paid %s, balance %s.",
+							rupees(charged), rupees(paid), rupees(bal))
+					}
+					facts = append(facts, line)
+				}
+			}
+		}
 		return nil
 	})
 	if len(facts) == 0 {

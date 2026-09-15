@@ -159,3 +159,56 @@ export function useDictation(onText: (text: string, final: boolean) => void): Di
 
   return { supported, listening, error, start, stop }
 }
+
+/* SPEAKING THE ANSWER BACK.
+
+   The recogniser hears the question; this reads the reply. Both are the
+   browser's own Web Speech API, so there is no service, no key and nothing to
+   deploy -- and, like dictation, it is simply absent where the browser has no
+   support rather than being faked. */
+export function speechOutputSupported(): boolean {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window
+}
+
+/* Read one answer aloud. Cancels whatever is mid-sentence first, so a new
+   answer does not queue behind the last one. onEnd fires when it finishes (or
+   is cut off), which is what a hands-free loop waits on before listening
+   again. Markdown is stripped to spoken words -- nobody wants "asterisk
+   asterisk" read out. */
+export function speak(text: string, onEnd?: () => void) {
+  try {
+    const synth = window.speechSynthesis
+    if (!synth) {
+      onEnd?.()
+      return
+    }
+    synth.cancel()
+    const spoken = text
+      .replace(/[*_`#>]/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!spoken) {
+      onEnd?.()
+      return
+    }
+    const u = new SpeechSynthesisUtterance(spoken)
+    u.rate = 1
+    u.pitch = 1
+    if (onEnd) {
+      u.onend = () => onEnd()
+      u.onerror = () => onEnd()
+    }
+    synth.speak(u)
+  } catch {
+    onEnd?.()
+  }
+}
+
+export function stopSpeaking() {
+  try {
+    window.speechSynthesis?.cancel()
+  } catch {
+    /* nothing to stop */
+  }
+}

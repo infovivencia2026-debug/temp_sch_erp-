@@ -1,11 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Mic, Square, X } from 'lucide-react'
+import { Mic, Square, X, Volume2, VolumeX, Headphones } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDictation } from '@/lib/speech'
+import { useDictation, speak, stopSpeaking, speechOutputSupported } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+
+/* A tiny, safe Markdown render for the bot's answers.
+
+   The model replies in Markdown -- bold, headings, bullet lists -- and the tab
+   was printing the asterisks and hashes raw. This turns the common cases into
+   HTML after escaping the text first, so a model that ever echoed a tag cannot
+   put markup onto the page. Not a full parser; a help answer does not need
+   tables or images. */
+function mdToHtml(src: string): string {
+  const esc = src
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  const lines = esc.split('\n')
+  const out: string[] = []
+  let inList = false
+  const inline = (s: string) =>
+    s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+?)`/g, '<code>$1</code>')
+      .replace(/\[(.+?)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+  for (const raw of lines) {
+    const line = raw.trimEnd()
+    const bullet = /^\s*[-*]\s+(.*)/.exec(line)
+    const h = /^(#{1,3})\s+(.*)/.exec(line)
+    if (bullet) {
+      if (!inList) { out.push('<ul>'); inList = true }
+      out.push('<li>' + inline(bullet[1]) + '</li>')
+      continue
+    }
+    if (inList) { out.push('</ul>'); inList = false }
+    if (h) {
+      out.push('<strong class="md-h">' + inline(h[2]) + '</strong>')
+    } else if (line === '') {
+      out.push('<br>')
+    } else {
+      out.push('<div>' + inline(line) + '</div>')
+    }
+  }
+  if (inList) out.push('</ul>')
+  return out.join('')
+}
 
 /* A small tab, and a small panel. Never the whole screen.
 
@@ -114,20 +156,74 @@ export function AssistantTab() {
      apart from what was typed so an interim result — which the recogniser
      revises word by word — replaces the last interim rather than accumulating
      "how how do how do I". */
+  /* Voice output and the hands-free loop. speakOn reads each answer aloud;
+     handsFree also re-opens the microphone once the answer has been spoken, so
+     a question and its reply can go back and forth without touching the
+     keyboard. Both remembered per browser. */
+  const [speakOn, setSpeakOn] = useState(() => {
+    try { return localStorage.getItem('erp.assistant.speak') === '1' } catch { return false }
+  })
+  const [handsFree, setHandsFree] = useState(false)
+  const handsFreeRef = useRef(handsFree)
+  handsFreeRef.current = handsFree
+  const speakRef = useRef(speakOn)
+  speakRef.current = speakOn
+
   const typed = useRef('')
   const dictation = useDictation((text, final) => {
     setDraft(text ? `${typed.current}${typed.current ? ' ' : ''}${text}` : typed.current)
-    if (final) typed.current = draftWith(typed.current, text)
+    if (final) {
+      typed.current = draftWith(typed.current, text)
+      // Hands-free: the recogniser's final result is the question -- send it
+      // without waiting for a keypress, and let the spoken answer restart it.
+      if (handsFreeRef.current) {
+        const m = typed.current.trim()
+        typed.current = ''
+        if (m) void ask(m)
+      }
+    }
   })
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
+    // Closing the panel silences a running answer and shuts the microphone --
+    // nobody expects a corner tab to keep talking after it is gone.
+    if (!open) {
+      stopSpeaking()
+      if (dictation.listening) dictation.stop()
+      if (handsFreeRef.current) setHandsFree(false)
+    }
+    // dictation read at call time; adding it re-runs on its own state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
     // Pinned to the newest message. A log that does not follow its own output
     // makes somebody scroll to read the answer they just asked for.
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [turns])
+
+  /* Read a NEW bot answer aloud when voice output is on, and -- in hands-free
+     mode -- re-open the microphone once it has finished, so the conversation
+     continues on its own. Guarded by a count so a re-render that does not add a
+     message never re-speaks the last one. */
+  const spokenCount = useRef(turns.length)
+  useEffect(() => {
+    if (turns.length <= spokenCount.current) {
+      spokenCount.current = turns.length
+      return
+    }
+    spokenCount.current = turns.length
+    const last = turns[turns.length - 1]
+    if (!last || last.role !== 'bot') return
+    if (speakRef.current || handsFreeRef.current) {
+      speak(last.text, () => {
+        if (handsFreeRef.current && dictation.supported && !dictation.listening) dictation.start()
+      })
+    }
+    // dictation is intentionally not a dep: it is read at call time, and adding
+    // it would re-run this on its own state changes and re-speak.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turns])
 
   useEffect(() => {
@@ -139,9 +235,10 @@ export function AssistantTab() {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  async function ask() {
-    const message = draft.trim()
+  async function ask(override?: string) {
+    const message = (override ?? draft).trim()
     if (!message || state !== 'idle') return
+    stopSpeaking()
     if (dictation.listening) dictation.stop()
     setDraft('')
     typed.current = ''
@@ -347,7 +444,7 @@ export function AssistantTab() {
             )}
             {turns.map((turn, i) => (
               <div key={i} className={cn('max-w-[86%]', turn.role === 'user' && 'ml-auto')}>
-                <p
+                <div
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
                      The question was `bg-primary-soft text-primary`, two tokens
@@ -373,8 +470,10 @@ export function AssistantTab() {
                       'bg-destructive text-destructive-foreground',
                   )}
                 >
-                  {turn.text}
-                </p>
+                  {turn.role === 'bot'
+                    ? <span className="md-answer" dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />
+                    : turn.text}
+                </div>
               </div>
             ))}
           </div>
@@ -422,6 +521,61 @@ export function AssistantTab() {
                 nothing when pressed is worse than an absent one, because the
                 person presses it, waits, and concludes the assistant is
                 broken. */}
+            {/* Read answers aloud. Persisted per browser; turning it off also
+                silences whatever is speaking right now. */}
+            {speechOutputSupported() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSpeakOn((v) => {
+                    const next = !v
+                    try { localStorage.setItem('erp.assistant.speak', next ? '1' : '0') } catch { /* private mode */ }
+                    if (!next) stopSpeaking()
+                    return next
+                  })
+                }}
+                aria-label={speakOn ? 'Turn off spoken answers' : 'Read answers aloud'}
+                aria-pressed={speakOn}
+                title={speakOn ? 'Spoken answers on' : 'Read answers aloud'}
+                className={cn(
+                  'grid size-8 shrink-0 place-items-center rounded-full border transition-colors',
+                  speakOn ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                )}
+              >
+                {speakOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+              </button>
+            )}
+            {/* Hands-free: send on the final spoken phrase and re-open the mic
+                once the answer has been read, so a whole exchange needs no
+                keypress. Only offered where both halves work. */}
+            {dictation.supported && speechOutputSupported() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHandsFree((v) => {
+                    const next = !v
+                    if (next) {
+                      setSpeakOn(true)
+                      try { localStorage.setItem('erp.assistant.speak', '1') } catch { /* private mode */ }
+                      if (dictation.supported && !dictation.listening) dictation.start()
+                    } else {
+                      stopSpeaking()
+                      if (dictation.listening) dictation.stop()
+                    }
+                    return next
+                  })
+                }}
+                aria-label={handsFree ? 'Turn off hands-free' : 'Hands-free conversation'}
+                aria-pressed={handsFree}
+                title={handsFree ? 'Hands-free on' : 'Hands-free conversation'}
+                className={cn(
+                  'grid size-8 shrink-0 place-items-center rounded-full border transition-colors',
+                  handsFree ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                )}
+              >
+                <Headphones className="size-3.5" />
+              </button>
+            )}
             {dictation.supported && (
               <button
                 type="button"
