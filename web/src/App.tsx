@@ -275,7 +275,11 @@ function FeatureRoute() {
   }, [])
 
   return (
-    <ChunkBoundary>
+    /* Keyed on the feature, so the boundary REMOUNTS on every navigation and its
+       error state cannot outlive the screen that caused it. Without the key one
+       screen throwing a render error wedged every screen after it behind the
+       error fallback until a manual reload. */
+    <ChunkBoundary key={feature.key}>
       {/* THE FALLBACK IS NOW THE SHAPE OF A SCREEN, NOT THE WORD "LOADING".
        *
        * This is the single most-seen loading state in the product: every

@@ -34,12 +34,14 @@
   --bento-muted: var(--bento-ink);
   --bento-line: #e3e6ea;
 
-  --bento-mint: #39FF14;
-  --bento-mint-tint: #ecffeb;
-  --bento-purple: #9D00FF;
-  --bento-purple-tint: #f5e6ff;
-  --bento-pink: #FF007F;
-  --bento-pink-tint: #ffe6f2;
+  /* House bold accents (light), matching the Vivid palette so a board with no
+     palette chosen still shows the lime/cyan/pink identity. */
+  --bento-mint: #bcf63c;
+  --bento-mint-tint: #eafcc4;
+  --bento-purple: #30d5e9;
+  --bento-purple-tint: #d6f4fa;
+  --bento-pink: #f57ba4;
+  --bento-pink-tint: #fde3ec;
   --bento-orange: #FF5F1F;
   --bento-orange-tint: #ffefe6;
 
@@ -364,12 +366,15 @@ html.dark[data-layout='bento'] {
   --bento-muted: var(--bento-ink);          /* 5.03:1 on the card */
   --bento-line: #2a2c35;
 
-  --bento-mint: #a8f09b;
-  --bento-mint-tint: #21301f;
-  --bento-purple: #b39bfa;
-  --bento-purple-tint: #262234;
-  --bento-pink: #ff8fa3;
-  --bento-pink-tint: #331f25;
+  /* The house bold accents in dark: the bright lime, cyan and pink read well as
+     marks on a dark card, over a deep tint behind text. Mirrors the light Vivid
+     palette so the identity is the same in both themes. */
+  --bento-mint: #bcf63c;
+  --bento-mint-tint: #2a3312;
+  --bento-purple: #30d5e9;
+  --bento-purple-tint: #123034;
+  --bento-pink: #f57ba4;
+  --bento-pink-tint: #3a1f28;
   --bento-orange: #ffb37b;
   --bento-orange-tint: #33261b;
 

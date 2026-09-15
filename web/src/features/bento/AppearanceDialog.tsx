@@ -68,6 +68,15 @@ import { useOverlayHistory } from '@/lib/overlay-history'
 function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
   const { appearance, setScale } = useAppearance()
   const r = SCALE_RANGE[axis]
+  /* The readout, made to read sensibly per axis. Text and dashboard text are a
+     type scale where 100% is the shipped size, so they stay value x 100% (95%,
+     115%). The other axes are abstract amounts on their own ranges -- density
+     runs 0-20, corners 0-3.5 -- where value x 100% produced "1600%" / "350%";
+     they now read as a plain 0-100% of how far the slider is along its range. */
+  const isType = axis === 'text' || axis === 'boardText'
+  const format = isType
+    ? (v: number) => `${Math.round(v * 100)}%`
+    : (v: number) => `${Math.round(((v - r.min) / (r.max - r.min)) * 100)}%`
   return (
     <SliderRow
       label={label}
@@ -75,6 +84,7 @@ function Scale({ axis, label }: { axis: keyof Scales; label: string }) {
       min={r.min}
       max={r.max}
       step={r.step}
+      format={format}
       onChange={(v) => setScale(axis, v)}
     />
   )
