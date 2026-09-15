@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Search, Phone, Mail, Printer } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, SkeletonTable, ErrorState,
@@ -139,15 +140,12 @@ export default function Employees() {
   const [search, setSearch] = useState('')
   const [expiringOnly, setExpiringOnly] = useState(true)
 
-  const staff = useQuery({
-    queryKey: ['employees'],
-    // The directory searches client-side, so it must hold the whole staff, not
-    // the default first page of 50 -- otherwise anyone past the fiftieth by
-    // code (a late-series code like a bus driver's) cannot be found at all.
-    // 200 is the endpoint's ceiling; a school larger than that needs the search
-    // pushed to the server, tracked separately.
-    queryFn: () => api.get<List<Employee>>('/api/v1/hr/employees?limit=200'),
-  })
+  // The directory searches client-side, so it must hold the WHOLE staff. A
+  // single ?limit=200 came back quietly short for a school past 200 -- a late
+  // bus driver's code simply could not be found. useEmployeeRoster walks the
+  // endpoint to its end (page by page) and caches under ['employees','roster'],
+  // which still clears when a mutation invalidates the ['employees'] prefix.
+  const staff = useEmployeeRoster<Employee>()
   const docs = useQuery({
     queryKey: ['employee-docs', expiringOnly],
     queryFn: () => api.get<List<Doc>>(`/api/v1/hr/documents?expiring=${expiringOnly}`),

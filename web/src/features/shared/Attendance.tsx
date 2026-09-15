@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List, type Section, type AttendanceRow, type Page, type Student } from '@/lib/api'
+import { api, type List, type Section, type AttendanceRow, type Student } from '@/lib/api'
+import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { useCan } from '@/lib/session'
@@ -55,7 +56,9 @@ export default function Attendance() {
   // on top by student_id.
   const roster = useQuery({
     queryKey: ['roster', sectionId],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?section_id=${sectionId}&limit=200`),
+    // Walked to the end: a merged or oversized section past 200 was silently
+    // dropping children off the register with no sign the list was short.
+    queryFn: () => walkRoster<Student>('/api/v1/students', { section_id: sectionId }),
     enabled: !!sectionId,
   })
 

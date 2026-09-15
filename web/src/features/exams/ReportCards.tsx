@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
+import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
@@ -246,8 +247,9 @@ export default function ReportCards() {
   const roster = useQuery({
     queryKey: ['section-roster', sectionId],
     enabled: !!sectionId,
-    queryFn: () => api.get<List<Pupil>>(
-      `/api/v1/students?section_id=${sectionId}&limit=200`),
+    // Walked to the end so a section over 200 does not silently print a short
+    // batch of report cards.
+    queryFn: () => walkRoster<Pupil>('/api/v1/students', { section_id: sectionId }),
   })
   const readiness = useQuery({
     queryKey: ['report-readiness', sectionId, examId],

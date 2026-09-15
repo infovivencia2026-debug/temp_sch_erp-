@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import DOMPurify from 'dompurify'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { useOverlayHistory } from '@/lib/overlay-history'
@@ -35,6 +36,17 @@ export default function CardViewer({
   const box = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+
+  /* The card body is a template a school ADMIN authored, rendered into a
+     teacher's or a parent's session -- so an `&lt;img onerror&gt;` or a `&lt;script&gt;`
+     in that template would run as them. It is sanitised before it is inserted:
+     layout, tables, inline styles and the SVG charts survive; scripts, event
+     handlers and javascript: URLs do not. The design is unchanged; only the
+     ways it could have run code are removed. */
+  const cleanHtml = useMemo(
+    () => DOMPurify.sanitize(card.html, { USE_PROFILES: { html: true, svg: true } }),
+    [card.html],
+  )
 
   /* Measured rather than assumed. 190mm is about 718 CSS pixels, but an
      imported design may be A5, or landscape, or 210mm edge to edge — so the
@@ -117,7 +129,7 @@ export default function CardViewer({
           ref={sheet}
           className="rc-scale mx-auto origin-top"
           style={{ transform: `scale(${scale})`, width: 'fit-content' }}
-          dangerouslySetInnerHTML={{ __html: card.html }}
+          dangerouslySetInnerHTML={{ __html: cleanHtml }}
         />
       </div>
     </div>,

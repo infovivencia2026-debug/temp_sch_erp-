@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, X } from 'lucide-react'
 import { api } from '@/lib/api'
+import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Table, Td, Badge,
   FormNotice, EmptyState, Input,
@@ -105,16 +106,11 @@ export default function StudentPhotos() {
   const roll = useQuery({
     queryKey: ['photo-import-roll'],
     staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const all: Roll[] = []
-      for (let offset = 0; offset < 5000; offset += 200) {
-        const p = await api.get<{ items: Roll[] }>(
-          `/api/v1/students?status=active&limit=200&offset=${offset}`)
-        all.push(...(p.items ?? []))
-        if ((p.items ?? []).length < 200) break
-      }
-      return all
-    },
+    // Walked by CURSOR, not offset. The students endpoint is keyset-paged, so
+    // stepping with &offset= could skip or repeat rows under a concurrent
+    // write, and the old 5000 ceiling truncated a larger roll outright.
+    queryFn: async () =>
+      (await walkRoster<Roll>('/api/v1/students', { status: 'active' })).items,
   })
 
   const byAdmission = useMemo(() => {

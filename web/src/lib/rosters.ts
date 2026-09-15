@@ -65,7 +65,10 @@ export interface EmployeeName {
    stopgap: a school past it needs the typeahead, not a bigger bound. */
 const ROSTER_PAGE = 200
 
-async function walkRoster<T>(path: string): Promise<List<T>> {
+export async function walkRoster<T>(
+  path: string,
+  extra?: Record<string, string>,
+): Promise<List<T>> {
   const items: T[] = []
   let cursor = ''
   /* To the END of the list.
@@ -82,6 +85,7 @@ async function walkRoster<T>(path: string): Promise<List<T>> {
      make. It is not a reason to go on losing rows in the meantime. */
   for (;;) {
     const qs = new URLSearchParams({ limit: String(ROSTER_PAGE) })
+    for (const [k, v] of Object.entries(extra ?? {})) qs.set(k, v)
     if (cursor) qs.set('cursor', cursor)
     const page = await api.get<Page<T>>(`${path}?${qs.toString()}`)
     items.push(...page.items)

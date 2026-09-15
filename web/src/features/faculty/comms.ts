@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List, type Student } from '@/lib/api'
+import { walkRoster } from '@/lib/rosters'
 
 /* Shapes and lookups shared by the six faculty communication screens.
 
@@ -132,7 +133,7 @@ export function useRoster(sectionID: string) {
     queryKey: ['roster', sectionID],
     enabled: !!sectionID,
     queryFn: () =>
-      api.get<Page<Student>>(`/api/v1/students?section_id=${sectionID}&limit=200`),
+      walkRoster<Student>('/api/v1/students', { section_id: sectionID }),
   })
 }
 

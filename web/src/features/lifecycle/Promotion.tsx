@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
 import { api, type List, type Section, type AcademicYear } from '@/lib/api'
+import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Button,
   Select, SkeletonTable, ErrorState, FormNotice, EmptyState, Checkbox,
@@ -46,7 +47,12 @@ export default function Promotion() {
   })
   const roster = useQuery({
     queryKey: ['section-roster', from],
-    queryFn: () => api.get<List<Student>>(`/api/v1/students?section_id=${from}&limit=200`),
+    // Walked to the END, not one page of 200. Promotion sends an explicit
+    // student_ids list whenever anyone is held back, built from these rows --
+    // so a section over 200 was silently leaving every child past row 200
+    // UNPROMOTED, with nothing on screen to say so. In a high-stakes bulk move
+    // that is the worst kind of quiet bug; the roster must be complete.
+    queryFn: () => walkRoster<Student>('/api/v1/students', { section_id: from }),
     enabled: !!from,
   })
 
