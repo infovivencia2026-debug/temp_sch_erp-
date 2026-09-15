@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 399 features. */
+/** 23 roles, 401 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1108,6 +1108,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'admissions.applications.application_forms', slug: 'application_forms', name: 'Application Forms', scope: 'institution', tier: 'core', summary: 'Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered.' },
           { key: 'admissions.applications.document_verification', slug: 'document_verification', name: 'Document Verification', scope: 'institution', tier: 'core', summary: 'Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told.' },
+          { key: 'admissions.applications.form_builder', slug: 'form_builder', name: 'Form Builder', scope: 'institution', tier: 'core', summary: 'Build the online application form the whole city fills in — add and order the fields, save drafts and publish a version — and open or close admissions for the season.' },
           { key: 'admissions.applications.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: who to ring, the guardians on record, attendance, fees and conduct. The screen the admissions desk opens to add a parent to a child and hand the family their login.' },
           { key: 'admissions.applications.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Issue a transfer, bonafide, conduct or study certificate, and read the register of every one the school has issued. The desk that admits a child is the desk a family comes back to when the child leaves, so the leaving paperwork is here and not only in the principal\'s workspace.' },
         ],
@@ -1518,6 +1519,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Circulars, announcements and permitted teacher/school messages.' },
           { key: 'parent.messages.direct_teacher_messaging', slug: 'direct_teacher_messaging', name: 'Direct Teacher Messaging', scope: 'children', tier: 'core', summary: 'Send structured query messages directly to class teacher during designated hours.' },
+          { key: 'parent.messages.concerns', slug: 'concerns', name: 'Concerns', scope: 'children', tier: 'core', summary: 'Raise a concern with the school and follow it in one place — what you asked, who is handling it and their reply — instead of it living in a chat thread nobody can find later.' },
           { key: 'parent.messages.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
         ],
       },

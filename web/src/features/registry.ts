@@ -94,6 +94,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.institution_setup.academic_year_defaults': screen(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': screen(() => import('./setup/ImportStudents')),
   'institution_admin.students.certificates_transfers': screen(() => import('./lifecycle/Certificates')),
+  // A parent raises a concern and follows it; the desk builds the application
+  // form the city fills in. Both had a screen and a live endpoint and no door.
+  'parent.messages.concerns': screen(() => import('./portal/Concerns')),
+  'admissions.applications.form_builder': screen(() => import('./admissions/FormBuilder')),
   /* The same screen, in the admissions workspace. The desk that admits a
      child is the desk the family returns to when the child leaves, and the
      dashboard was already telling them a certificate was waiting -- pointing
