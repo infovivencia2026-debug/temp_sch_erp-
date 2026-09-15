@@ -218,6 +218,14 @@ spec:
                 secretKeyRef:
                   name: temperp-cron-key
                   key: latest
+            # The in-app assistant (Gemini). Create the secret first, or the
+            # revision fails: echo -n "<your Gemini key>" | gcloud secrets \
+            #   create temperp-google-api-key --data-file=- --project=<proj>
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: temperp-google-api-key
+                  key: latest
             # Optional: with this set, RealIP believes CF-Connecting-IP only
             # on requests that also carry X-Origin-Secret with the same value,
             # which the Pages Function adds from its own ORIGIN_SHARED_SECRET.
