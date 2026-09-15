@@ -80,7 +80,7 @@ export function PageHead({
     /* No bottom border. The rule under a page title is the most-repeated line
        in the product and it separates a heading from its own content -- the
        28px of space below does the same job without drawing anything. */
-    <div className={cn('px-5 pb-6 pt-5 sm:px-7', WIDTH[width])}>
+    <div data-page-enter="" className={cn('px-5 pb-6 pt-5 sm:px-7', WIDTH[width])}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           {/* The breadcrumb must not break mid-word.
@@ -159,7 +159,7 @@ export function PageBody({
   /* px-1.5 on a phone, not px-5. The layout that hosts this already draws a
      gutter of its own, and the two stacked to 36px a side on a 390px screen.
      From sm up there is width to spare and the original padding stands. */
-  return <div className={cn('space-y-7 px-2 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
+  return <div data-page-enter="" className={cn('space-y-7 px-2 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
 }
 
 /* A panel: white where content needs containing, and nothing where it does
