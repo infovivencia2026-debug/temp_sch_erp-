@@ -1623,7 +1623,12 @@ export function Select({
             width: box_.width,
           }}
           role="listbox"
-          className="fixed z-50 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-lg"
+          /* overflow-y only. `overflow-auto` shows a horizontal scrollbar too --
+             the strip under the options in the screenshot -- the moment the
+             content is a sub-pixel wider than the box, which it routinely is once
+             a border and padding are counted. The list only ever scrolls
+             vertically. */
+          className="fixed z-50 max-h-64 overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (
@@ -1640,7 +1645,7 @@ export function Select({
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(o.value)}
               className={cn(
-                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                'block w-full break-words rounded px-2 py-1.5 text-left text-[13px]',
                 COARSE_ROW,
                 i === active ? 'bg-accent' : 'hover:bg-accent',
                 o.value === value && 'font-medium',
