@@ -170,6 +170,39 @@ export function speechOutputSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
+/* UNLOCK SOUND ON THE GESTURE THAT ASKED THE QUESTION.
+
+   Mobile browsers -- iOS Safari and Chrome especially -- only let a page make
+   sound from inside a real user gesture. The assistant's problem is that it
+   speaks and ticks AFTER an async fetch, long past the tap, so on a phone the
+   answer came back silent. This primes both engines while the tap is still on
+   the stack: it resumes (or creates) the AudioContext, and speaks one empty,
+   muted utterance to wake speechSynthesis. Once woken in a gesture, later calls
+   in the same page session are allowed. Called from ask(), which runs in the
+   send/mic tap. Safe to call repeatedly; fails silent. */
+let speechPrimed = false
+export function unlockAudio() {
+  try {
+    if (typeof window === 'undefined') return
+    // Wake the Web Audio context used by the typing tick.
+    const Ctor = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (Ctor) {
+      audioCtx = audioCtx ?? new Ctor()
+      if (audioCtx.state === 'suspended') void audioCtx.resume()
+    }
+    // Wake speechSynthesis with one silent utterance, once.
+    if (!speechPrimed && 'speechSynthesis' in window) {
+      speechPrimed = true
+      const u = new SpeechSynthesisUtterance('')
+      u.volume = 0
+      window.speechSynthesis.speak(u)
+    }
+  } catch {
+    /* no sound is fine; text still carries the answer */
+  }
+}
+
 /* PICK A HUMAN-SOUNDING VOICE, NOT THE ONE THE OS HANDS OUT.
 
    Left alone, speechSynthesis reads in the platform's default engine, which on

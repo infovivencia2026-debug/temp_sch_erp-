@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDictation, speak, stopSpeaking, speechOutputSupported, playTypeTick } from '@/lib/speech'
+import { useDictation, speak, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -401,6 +401,9 @@ export function AssistantTab() {
   async function ask(override?: string) {
     const message = (override ?? draft).trim()
     if (!message || state !== 'idle') return
+    // Prime sound on the tap that asked, so the answer -- spoken and ticking --
+    // is audible on mobile, where sound is only allowed from a gesture.
+    unlockAudio()
     stopSpeaking()
     if (dictation.listening) dictation.stop()
     setDraft('')
