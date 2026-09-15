@@ -1802,6 +1802,7 @@
   --motion: 220ms;         /* panels, menus, dialogs, anything that travels */
   --motion-slow: 320ms;    /* a sheet or drawer crossing most of the screen */
   --motion-enter: 140ms;   /* the arrival of something that was not there */
+  --motion-route: 180ms;   /* a feature screen settling in on navigation */
 
   /* THE PRESS AND THE RELEASE ARE NOT THE SAME EVENT, AND THEY WERE TIMED AS
      IF THEY WERE.
@@ -2276,6 +2277,84 @@ dialog,
 
 @media (prefers-reduced-motion: reduce) {
   [data-pane] { animation: none !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THREE SURFACES THE MOTION PASS ABOVE STILL LEFT ARRIVING WITHOUT A WORD.
+
+   The rules above cover the popover, the dialog, the toast and the pane. What
+   was left was the largest surface of all — the feature screen itself, which
+   changed under every navigation with no entrance at all — and two floating
+   pieces of the Focus layout: the dock, which was simply present the instant
+   the layout was chosen, and the assistant panel, which grew from the corner
+   opposite the one it is anchored to.
+
+   All three reuse the existing duration and easing tokens, so they read at the
+   same speed and on the same curve as everything else, and all three drop
+   their travel under prefers-reduced-motion and keep only the fade — the same
+   line the rest of this file takes: reduced motion is not no motion, it is no
+   displacement.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* A FEATURE SCREEN SETTLES IN WHEN IT IS NAVIGATED TO.
+
+   Short and small — a long slide is theatre, and an operator opens the same
+   screen dozens of times a day. PageHead and PageBody carry the hook, and both
+   remount when the router swaps the keyed feature component, so the entrance
+   re-fires on a real navigation and stays put on a same-screen re-render.
+   Opacity and a 6px rise: a transform, so nothing reflows. */
+@keyframes route-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+[data-page-enter] {
+  animation: route-enter var(--motion-route) var(--motion-ease) both;
+}
+
+/* THE DOCK ARRIVES OUT OF THE EDGE IT LIVES ON.
+
+   Entering Focus used to make the dock simply exist; it now rises the small
+   distance it floats above the bottom edge. The keyframe carries the dock's
+   own centring transform (`-translate-x-1/2`, a Tailwind utility) through both
+   ends, because animating `transform` at all would otherwise drop the centre
+   offset and leave the pill hard against the left of the screen. Origin at the
+   bottom, where the bar sits. */
+.bento-dock {
+  animation: dock-enter var(--motion) var(--motion-ease) both;
+  transform-origin: bottom center;
+}
+@keyframes dock-enter {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%); }
+}
+/* On a phone the dock is a full-width bar pinned to the bottom edge with no
+   centring transform of its own (see bento-theme.css), so it comes straight up
+   off that edge rather than carrying the -50% the floating pill needs. */
+@media (max-width: 767px) {
+  .bento-dock { animation-name: dock-enter-phone; }
+  @keyframes dock-enter-phone {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
+/* THE ASSISTANT PANEL GROWS OUT OF THE ORB IN ITS CORNER.
+
+   The generic [role='dialog'] rule already fades and scales it; this only
+   points the scale at the bottom-right corner it is anchored to, instead of
+   the top-centre a menu hanging under its button uses. Nothing else here —
+   the entrance, the duration and the curve are all the shared dialog ones. */
+[role='dialog'][aria-label='Assistant'] {
+  transform-origin: bottom right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the fade, drop the displacement, for all three. Removing the
+     transform from the dock keyframes also hands its centring back to the
+     Tailwind utility untouched. */
+  @keyframes route-enter { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dock-enter { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dock-enter-phone { from { opacity: 0; } to { opacity: 1; } }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
