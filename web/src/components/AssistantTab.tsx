@@ -411,7 +411,13 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          className="fixed bottom-28 right-6 z-40 flex h-[min(520px,calc(100vh-9rem))] w-[min(380px,calc(100vw-3rem))]
+          /* Sized to about half the screen on a desktop, so a fee summary or a
+             timetable answer is read without scrolling; kept to the phone's
+             own margins below the drill-in breakpoint, where half a 390px
+             screen would be unreadable. */
+          className="fixed bottom-28 right-6 z-40 flex
+                     h-[min(560px,calc(100vh-9rem))] w-[min(380px,calc(100vw-3rem))]
+                     md:h-[min(88vh,900px)] md:w-[min(46vw,720px)]
                      flex-col overflow-hidden rounded-[16px] border bg-card shadow-2xl"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
