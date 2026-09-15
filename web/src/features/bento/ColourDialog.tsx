@@ -263,11 +263,19 @@ export function WheelCanvas({
   // click — so it is still right after a palette is applied or the dialog is
   // reopened.
   const rad = ((value.h - 90) * Math.PI) / 180
-  const mx = SIZE / 2 + Math.cos(rad) * (value.s / 100) * (SIZE / 2)
-  const my = SIZE / 2 + Math.sin(rad) * (value.s / 100) * (SIZE / 2)
+  /* As PERCENTAGES, not pixels. The wheel is drawn at a fixed internal
+     resolution but shown at whatever width the panel allows -- 220px is wider
+     than a narrow tab, and a fixed-pixel marker (and a fixed-pixel box) spilled
+     the wheel out of its container. A percentage tracks the rendered size, so
+     the marker stays on the point it names however small the wheel is drawn. */
+  const mxPct = (0.5 + Math.cos(rad) * (value.s / 100) * 0.5) * 100
+  const myPct = (0.5 + Math.sin(rad) * (value.s / 100) * 0.5) * 100
 
   return (
-    <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
+    <div
+      className="relative mx-auto"
+      style={{ width: SIZE, maxWidth: '100%', aspectRatio: '1 / 1' }}
+    >
       <canvas
         ref={ref}
         onPointerDown={down}
@@ -276,7 +284,7 @@ export function WheelCanvas({
         onPointerCancel={up}
         // touch-none for the same reason as preventDefault above: without it
         // the browser claims the gesture as a scroll before the wheel sees it.
-        style={{ width: SIZE, height: SIZE, touchAction: 'none' }}
+        style={{ width: '100%', height: '100%', touchAction: 'none' }}
         className="cursor-crosshair rounded-full shadow-[var(--lift-panel)]"
       />
       {/* Two-tone, because this marker sits on every hue there is and a single
@@ -304,8 +312,8 @@ export function WheelCanvas({
         className="pointer-events-none absolute size-[18px] -translate-x-1/2 -translate-y-1/2
                    rounded-full border-[3px] border-white"
         style={{
-          left: mx,
-          top: my,
+          left: `${mxPct}%`,
+          top: `${myPct}%`,
           background: `hsl(${value.h} ${value.s}% ${value.l}%)`,
           boxShadow: '0 0 0 1px rgba(0,0,0,.85), inset 0 0 0 1px rgba(0,0,0,.35)',
         }}
