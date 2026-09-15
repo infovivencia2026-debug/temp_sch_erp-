@@ -146,6 +146,42 @@ function resolveScreen(catalog: CatalogResponse, screen?: string): Turn['link'] 
   return undefined
 }
 
+/* Find a screen the answer NAMES inside its prose, and turn it into a button.
+
+   The exact-name match above only fires for the fast path, whose screen field
+   comes from a different corpus than the catalogue, so it usually finds nothing
+   -- and the model's own answers carry no screen field at all. But both kinds of
+   answer say the screen in words ("...under Students -> Student directory"), so
+   this scans the text for the longest usable feature name that appears in it.
+
+   Longest wins, so "Fee receipts" beats "Fees"; and a name must be at least six
+   characters and appear on a word boundary, so a stray "Home" or "Fees" inside
+   an unrelated sentence does not sprout a button. Only screens the reader can
+   actually open are considered. */
+function linkFromText(catalog: CatalogResponse, text?: string): Turn['link'] {
+  const hay = text?.toLowerCase() ?? ''
+  if (!hay) return undefined
+  let best: Turn['link'] | undefined
+  let bestLen = 0
+  for (const role of catalog.roles) {
+    for (const section of role.sections) {
+      for (const feature of section.features) {
+        const name = feature.name.trim()
+        if (name.length < 6 || name.length <= bestLen || !usable(feature)) continue
+        const n = name.toLowerCase()
+        const at = hay.indexOf(n)
+        if (at < 0) continue
+        const before = at === 0 ? ' ' : hay[at - 1]
+        const after = at + n.length >= hay.length ? ' ' : hay[at + n.length]
+        if (/[a-z0-9]/.test(before) || /[a-z0-9]/.test(after)) continue // not a whole phrase
+        best = { label: name, to: featurePath(role.key, section.slug, feature.slug) }
+        bestLen = name.length
+      }
+    }
+  }
+  return best
+}
+
 export function AssistantTab() {
   const session = useSession()
   const [open, setOpen] = useState(false)
@@ -363,7 +399,7 @@ export function AssistantTab() {
           const hit = await quick.json()
           if (hit.answered && hit.answer) {
             setState('answering')
-            const link = resolveScreen(catalog, hit.screen)
+            const link = resolveScreen(catalog, hit.screen) ?? linkFromText(catalog, hit.answer)
             setTurns((t) => [...t, { role: 'bot', text: hit.answer, link }])
             await new Promise((r) => setTimeout(r, 250))
             return
@@ -409,7 +445,11 @@ export function AssistantTab() {
 
          The server still returns them and the field is still in its schema,
          because retrieval is worth debugging. It is simply not shown. */
-      setTurns((t) => [...t, { role: 'bot', text: data.answer ?? '' }])
+      setTurns((t) => [...t, {
+        role: 'bot',
+        text: data.answer ?? '',
+        link: linkFromText(catalog, data.answer),
+      }])
       // Long enough for the answering state to be seen; the orb is the only
       // thing that says the turn finished cleanly.
       await new Promise((r) => setTimeout(r, 450))
