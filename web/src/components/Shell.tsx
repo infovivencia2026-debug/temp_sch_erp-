@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import Outbox from '@/components/Outbox'
+import { AssistantTab } from '@/components/AssistantTab'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
 import { useSession } from '@/lib/session'
@@ -1167,8 +1168,9 @@ export function Shell({
               what is already on screen, so an assistant that covers it makes
               somebody leave the thing they wanted to ask about. Mounted outside
               <main> so it stays put while a long register scrolls. */}
-          {/* The assistant is archived: its service is off the server and its code
-             stays in components/AssistantTab.tsx for the day it returns. */}
+          {/* The assistant is back: its service now runs in-process on Gemini
+             (internal/api/assistant_chat.go), so the corner tab returns. */}
+          <AssistantTab />
           {/* Mounted here for the same reason as the tab: what is queued was
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
