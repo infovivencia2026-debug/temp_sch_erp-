@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDictation, speak, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
+import { useDictation, speak, speakServer, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -303,9 +303,12 @@ export function AssistantTab() {
     const last = turns[turns.length - 1]
     if (!last || last.role !== 'bot') return
     if (speakRef.current || handsFreeRef.current) {
-      speak(last.text, () => {
+      const done = () => {
         if (handsFreeRef.current && dictation.supported && !dictation.listening) dictation.start()
-      })
+      }
+      // The natural server voice first; the browser's own speech only if that
+      // did not start (off the cloud, or the voice service refused).
+      void speakServer(last.text, done).then((ok) => { if (!ok) speak(last.text, done) })
     }
     // dictation is intentionally not a dep: it is read at call time, and adding
     // it would re-run this on its own state changes and re-speak.

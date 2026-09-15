@@ -129,6 +129,11 @@ func (s *Server) Routes() http.Handler {
 		   assistant_chat.go for why it lives here and not beside the app. */
 		r.Post("/assistant/chat", s.assistantChat)
 
+		/* The voice for the answer: server-side neural TTS, so a phone gets a
+		   natural voice reliably where the browser's own speech is robotic or
+		   silent. Same session gate. */
+		r.Post("/assistant/tts", s.assistantTTS)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)

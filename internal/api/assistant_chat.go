@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -182,6 +183,109 @@ func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn)
 		}
 	}
 	return sb.String(), nil
+}
+
+// assistantTTSRequest is the text to read aloud.
+type assistantTTSRequest struct {
+	Text string `json:"text"`
+}
+
+/*
+assistantTTS synthesises the answer to a natural voice, server-side.
+
+	The browser's own speechSynthesis is the fast path, but on a phone it is
+	unreliable -- iOS parks an utterance queued outside a gesture, and the OS
+	default voice is the flat, robotic one. This gives a guaranteed, natural
+	voice everywhere: Google Cloud Text-to-Speech, reached with the Cloud Run
+	service account (the same metadata-server token Gemini uses, no API key), and
+	the browser plays the MP3 through an <audio> element it unlocked on the tap --
+	which iOS does allow. Session-authenticated like the rest of the assistant.
+
+	en-IN, because the school is Indian English. A Neural2 voice, which is the
+	natural tier. Capped at a couple of thousand characters -- an assistant answer
+	is short, and TTS is billed per character.
+*/
+func (s *Server) assistantTTS(w http.ResponseWriter, r *http.Request) {
+	var req assistantTTSRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
+		httpx.BadRequest(w, r, "text is required")
+		return
+	}
+	if len(text) > 2400 {
+		text = text[:2400]
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+
+	tokRaw, err := metadataValue(ctx, "instance/service-accounts/default/token")
+	if err != nil {
+		httpx.Error(w, r, http.StatusServiceUnavailable, "tts_unavailable",
+			"the voice service is only available on the cloud deployment")
+		return
+	}
+	var tok struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal([]byte(tokRaw), &tok); err != nil || tok.AccessToken == "" {
+		httpx.Internal(w, r, fmt.Errorf("no access token from metadata"))
+		return
+	}
+
+	payload := map[string]any{
+		"input": map[string]any{"text": text},
+		"voice": map[string]any{"languageCode": "en-IN", "name": "en-IN-Neural2-A"},
+		"audioConfig": map[string]any{
+			"audioEncoding": "MP3",
+			"speakingRate":  0.98,
+		},
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	req2, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		"https://texttospeech.googleapis.com/v1/text:synthesize", bytes.NewReader(b))
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	resp, err := http.DefaultClient.Do(req2)
+	if err != nil {
+		httpx.Error(w, r, http.StatusBadGateway, "tts_unavailable", "the voice service did not answer")
+		return
+	}
+	defer resp.Body.Close()
+	rb, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		httpx.Error(w, r, http.StatusBadGateway, "tts_failed",
+			"the voice service refused the request")
+		httpx.LogError(r, fmt.Errorf("tts %d: %s", resp.StatusCode, string(rb)))
+		return
+	}
+	var out struct {
+		AudioContent string `json:"audioContent"`
+	}
+	if err := json.Unmarshal(rb, &out); err != nil || out.AudioContent == "" {
+		httpx.Internal(w, r, fmt.Errorf("tts: no audio in response"))
+		return
+	}
+	audio, err := base64.StdEncoding.DecodeString(out.AudioContent)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(audio)
 }
 
 /*

@@ -476,18 +476,18 @@ export function BentoDock() {
       >
         {(logoKey || brandName) && (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                if (!homeHref) return
-                if (location.pathname === homeHref) window.location.reload()
-                else navigate(homeHref)
-              }}
+            {/* The school MARK, not a button. It used to navigate home, which
+                put a second Home control right beside the Home button and meant
+                a stray tap on the logo threw you to the dashboard. It is the
+                school's identity, shown, and nothing happens when it is pressed;
+                the Home button beside it is the one that navigates. */}
+            <span
               className={cn(item, 'overflow-hidden !p-0')}
               style={phone ? undefined : btnStyle}
               data-tip={phone ? undefined : brandName}
-              aria-label={brandName || t('bento.dock.home')}
+              aria-label={brandName || undefined}
               title={brandName}
+              role="img"
             >
               {logoKey ? (
                 // On a white chip so a dark or transparent logo stays visible on
@@ -505,7 +505,7 @@ export function BentoDock() {
                   {brandInitial}
                 </span>
               )}
-            </button>
+            </span>
             {!phone && <span className={rule} aria-hidden="true" />}
           </>
         )}

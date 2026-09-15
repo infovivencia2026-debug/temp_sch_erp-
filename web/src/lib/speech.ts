@@ -321,12 +321,73 @@ export function speak(text: string, onEnd?: () => void) {
   }
 }
 
+/* THE NATURAL VOICE: the answer synthesised server-side and played here.
+
+   The browser's own speech is the fallback; this is the good path. The server
+   returns an MP3 (Google neural, Indian English) and it is played through the
+   SAME AudioContext the tick uses -- which unlockAudio() resumed on the tap. A
+   Web Audio source started from an already-resumed context plays on iOS even
+   though the fetch that fed it finished long after the tap, which is exactly the
+   thing that made the phone silent with speechSynthesis. Returns true if it
+   actually started, so the caller can fall back to speechSynthesis if not.
+
+   (It still obeys the phone's ring/silent switch, as all web media does; only
+   speechSynthesis ignores that, and it is the fallback.) */
+let ttsSource: AudioBufferSourceNode | null = null
+
+function strip(text: string): string {
+  return text
+    .replace(/[*_`#>]/g, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export async function speakServer(text: string, onEnd?: () => void): Promise<boolean> {
+  const spoken = strip(text)
+  if (!spoken) { onEnd?.(); return false }
+  try {
+    if (typeof window === 'undefined') return false
+    const Ctor = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) return false
+    audioCtx = audioCtx ?? new Ctor()
+    if (audioCtx.state === 'suspended') await audioCtx.resume()
+
+    const res = await fetch('/api/v1/assistant/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ text: spoken }),
+    })
+    if (!res.ok) return false
+    const bytes = await res.arrayBuffer()
+    const decoded = await audioCtx.decodeAudioData(bytes)
+    stopServerSpeak()
+    const src = audioCtx.createBufferSource()
+    src.buffer = decoded
+    src.connect(audioCtx.destination)
+    src.onended = () => { if (ttsSource === src) ttsSource = null; onEnd?.() }
+    src.start()
+    ttsSource = src
+    return true
+  } catch {
+    return false
+  }
+}
+
+function stopServerSpeak() {
+  try { ttsSource?.stop() } catch { /* already stopped */ }
+  ttsSource = null
+}
+
 export function stopSpeaking() {
   try {
     window.speechSynthesis?.cancel()
   } catch {
     /* nothing to stop */
   }
+  stopServerSpeak()
 }
 
 /* A SUBTLE TYPEWRITER TICK, for the assistant's printing answer.
