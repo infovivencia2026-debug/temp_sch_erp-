@@ -2579,6 +2579,7 @@ export const en = {
   'bento.settings.reset': 'Reset appearance',
   'bento.settings.text.large': 'Large',
   'bento.settings.text.larger': 'Larger',
+  'bento.settings.language': 'Language',
   'bento.settings.layout': 'Layout',
   'bento.settings.layout.classic': 'Sidebar',
   'bento.settings.layout.bento': 'Focus',

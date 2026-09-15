@@ -11,7 +11,7 @@ import {
   CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
   type Contrast, type DockSize, type IconSize, type Scales,
 } from '@/lib/appearance'
-import { useT } from '@/lib/i18n'
+import { useT, useI18n, LOCALES } from '@/lib/i18n'
 import {
   ColourPanel,
   INK, EDGE, WASH, RING, SEAM, SURFACE,
@@ -893,6 +893,7 @@ export function SettingsPane({
   const { skin, setSkin } = useSkin()
   const { personality, setPersonality } = usePersonality()
   const { layout: frame, setLayout: setFrame } = useFrameLayout()
+  const { locale, setLocale } = useI18n()
   const sections = useSettingsLinks()
   const t = useT()
   const face = typefaceById(appearance.typeface)
@@ -907,6 +908,20 @@ export function SettingsPane({
            the page's own title says Appearance -- and no paragraph: the only
            helper is on Contrast, whose name does not say what it trades. */
         <Rows>
+          {/* Language, inline and available to everyone. It used to be only a
+              nav row gated on a catalogue feature, so a role without that
+              feature -- most of them -- had no way to reach it. This SelectRow
+              sits in the Appearance tab every account can open, and writes the
+              same per-device locale. Each language is named in itself. */}
+          {Object.keys(LOCALES).length > 1 && (
+            <SelectRow
+              label={t('bento.settings.language')}
+              value={locale}
+              options={Object.keys(LOCALES)}
+              name={(tag) => LOCALES[tag]?.endonym ?? tag}
+              onPick={setLocale}
+            />
+          )}
           <Choice<Layout>
             label={t('bento.settings.layout')}
             value={frame}
