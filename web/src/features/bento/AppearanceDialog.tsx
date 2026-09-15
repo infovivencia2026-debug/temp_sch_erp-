@@ -4,6 +4,7 @@ import {
   Building2, ChevronLeft, LayoutGrid, MessageSquare,
   Palette, ShieldCheck, Sliders, Type, UserCircle, X,
 } from 'lucide-react'
+import { api } from '@/lib/api'
 import { resetAppearance } from '@/lib/appearance'
 import { TYPEFACES, ensureAllFonts, typefaceById } from '@/lib/typefaces'
 import {
@@ -935,7 +936,29 @@ export function SettingsPane({
               value={locale}
               options={Object.keys(LOCALES)}
               name={(tag) => LOCALES[tag]?.endonym ?? tag}
-              onPick={setLocale}
+              onPick={(tag) => {
+                // Apply instantly for this session, and persist to the server so
+                // it STAYS: the app reconciles the locale from the stored
+                // preference on load, so a client-only change was reset (the
+                // "I had to reload" behaviour). The other preferences are read
+                // back and written unchanged, because the endpoint defaults any
+                // field it is not sent.
+                setLocale(tag)
+                void (async () => {
+                  try {
+                    const cur = await api.get<{ preference: {
+                      theme: string; density: string; reduce_motion: boolean
+                      high_contrast: boolean; layout: string
+                    } }>('/api/v1/portal/preferences/display')
+                    const p = cur.preference
+                    await api.put('/api/v1/portal/preferences/display', {
+                      theme: p.theme, density: p.density,
+                      reduce_motion: p.reduce_motion, high_contrast: p.high_contrast,
+                      layout: p.layout, locale: tag,
+                    })
+                  } catch { /* the client locale is already applied */ }
+                })()
+              }}
             />
           )}
           <Choice<Layout>
