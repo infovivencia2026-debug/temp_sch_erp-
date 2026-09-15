@@ -78,10 +78,54 @@ type geminiError struct {
 
 func (e *geminiError) Error() string { return fmt.Sprintf("gemini %d: %s", e.StatusCode, e.Body) }
 
-// callGemini sends the grounded system prompt and the conversation to Gemini
-// and returns the answer text. No SDK: one HTTPS POST, so there is nothing new
-// to vendor and one place the contract lives.
-func callGemini(ctx context.Context, key, system string, turns []geminiTurn) (string, error) {
+// metadataValue reads one value from the Cloud Run metadata server. It only
+// answers in the cloud; locally there is no metadata server and the assistant
+// is simply unavailable, which is the right answer off the platform.
+func metadataValue(ctx context.Context, path string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"http://metadata.google.internal/computeMetadata/v1/"+path, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("metadata %s: %d", path, resp.StatusCode)
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
+// callGemini sends the grounded prompt and conversation to Gemini through
+// Vertex AI, authenticated by the Cloud Run service account -- no API key. This
+// is what lets it run under an organisation whose policy only issues
+// service-account-bound keys: the server proves who it is with its own identity
+// and Vertex bills the project. One HTTPS POST, no SDK.
+func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn) (string, error) {
+	// The project and an OAuth token both come from the metadata server.
+	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	if project == "" {
+		p, err := metadataValue(ctx, "project/project-id")
+		if err != nil {
+			return "", err
+		}
+		project = p
+	}
+	tokRaw, err := metadataValue(ctx, "instance/service-accounts/default/token")
+	if err != nil {
+		return "", err
+	}
+	var tok struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal([]byte(tokRaw), &tok); err != nil || tok.AccessToken == "" {
+		return "", fmt.Errorf("no access token from metadata")
+	}
+
 	type part struct {
 		Text string `json:"text"`
 	}
@@ -102,12 +146,14 @@ func callGemini(ctx context.Context, key, system string, turns []geminiTurn) (st
 	if err != nil {
 		return "", err
 	}
-	url := "https://generativelanguage.googleapis.com/v1beta/models/" + assistantModel + ":generateContent?key=" + key
+	url := "https://aiplatform.googleapis.com/v1/projects/" + project +
+		"/locations/global/publishers/google/models/" + assistantModel + ":generateContent"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
@@ -308,17 +354,11 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/* No key, no pretending.
-
-	   The tab used to fail here with a JSON parse error because nothing was
-	   listening. A school that has not bought an assistant should be told that
-	   in a sentence, not shown a broken panel. */
-	key := strings.TrimSpace(os.Getenv("GOOGLE_API_KEY"))
-	if key == "" {
-		httpx.Error(w, r, http.StatusServiceUnavailable, "assistant_not_configured",
-			"the assistant is not switched on for this school. Ask whoever runs the server to set GOOGLE_API_KEY.")
-		return
-	}
+	/* No API key needed: the server calls Gemini through Vertex AI with its own
+	   Cloud Run service-account identity. That is what lets it run under an
+	   organisation whose policy issues only service-account-bound keys. Off the
+	   platform (no metadata server) the call simply fails and is reported as
+	   unreachable, which is the honest answer there. */
 
 	// The session's roles, not the body's. The client sends `roles` and it is
 	// ignored: it is the one field a curious parent could edit.
@@ -343,7 +383,7 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 		system += "\n\n" + facts
 	}
 
-	answerText, err := callGemini(ctx, key, system, turns)
+	answerText, err := callGemini(ctx, "", system, turns)
 	if err != nil {
 		s.assistantFailure(w, r, err)
 		return
