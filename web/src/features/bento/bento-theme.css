@@ -4383,17 +4383,21 @@ body:has(.bento-frost) [data-assistant-orb] {
   display: none;
 }
 
-/* NO GLASS ON A PHONE. A backdrop blur re-samples everything behind it on
-   every frame, and behind the launcher is a board of cards; on a phone GPU
-   that is the difference between the panel sliding and the panel stuttering.
-   The dock already gives up its blur at this width for the same reason. A
-   solid ground is what a phone's own sheets use. */
+/* GLASS ON A PHONE TOO, but a lighter pane. The full 44px blur re-samples the
+   board of cards behind the launcher every frame, which stuttered on older
+   phone GPUs -- so the phone keeps the glass but at a smaller radius, which is
+   far cheaper to sample while still reading as glass rather than a flat sheet.
+   A touch more tint holds the text crisp over the softer blur. Where the engine
+   has no backdrop-filter at all, the @supports rule above still falls back to a
+   solid ground. */
 @media (max-width: 767px) {
-  .bento-frost,
+  .bento-frost {
+    background: color-mix(in srgb, var(--bento-bg) 70%, transparent);
+    backdrop-filter: blur(18px) saturate(170%);
+    -webkit-backdrop-filter: blur(18px) saturate(170%);
+  }
   .dark .bento-frost,
   :root[data-theme='dark'] .bento-frost {
-    background: var(--bento-bg);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    background: color-mix(in srgb, var(--bento-bg) 80%, transparent);
   }
 }
