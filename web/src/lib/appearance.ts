@@ -129,7 +129,10 @@ export const SCALE_RANGE: Record<keyof Scales, { min: number; max: number; step:
 }
 
 export const SCALE_DEFAULTS: Scales = {
-  text: 1, boardText: 1, density: 1, corners: 1, borders: 1, shadow: 1,
+  /* The house defaults, in the sliders' own units (the dialog shows each as
+     value x 100%): the dashboard type a touch smaller at 95%, an airy board at
+     density 16 (1600%), and fully rounded corners at 3.5 (350%). Text keeps 1. */
+  text: 1, boardText: 0.95, density: 16, corners: 3.5, borders: 1, shadow: 1,
 }
 
 export interface Appearance {
@@ -158,8 +161,8 @@ const DEFAULTS: Appearance = {
   shadow: 'default',
   pattern: 'none',
   contrast: 'normal',
-  dockSize: 'default',
-  iconSize: 'default',
+  dockSize: 'compact',
+  iconSize: 'large',
   clock: '12h',
   scales: SCALE_DEFAULTS,
   hiddenDockItems: '',
