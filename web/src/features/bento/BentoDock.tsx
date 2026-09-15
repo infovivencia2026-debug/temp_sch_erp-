@@ -5,6 +5,7 @@ import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
+import { useSession } from '@/lib/session'
 import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
@@ -295,6 +296,16 @@ export function BentoDock() {
 
      `--ink-here` is the dock's ink under the name every surface in this layout
      uses for "the colour that reads on me", and the three are mixed from it. */
+  /* The school's own mark, on the one piece of chrome Focus keeps.
+     Hiding the header and the sidebar took the logo and the school name with
+     them, so Focus showed the school's colours but never its identity. The
+     dock carries it now: the logo if one is set, otherwise a coloured initial
+     tile like the classic sidebar's fallback, and clicking it goes Home. */
+  const inst = useSession().institution
+  const logoKey = inst?.logo_key?.trim()
+  const brandName = inst?.display_name?.trim() || inst?.name || ''
+  const brandInitial = brandName.charAt(0).toUpperCase()
+
   const item =
     `grid shrink-0 place-items-center rounded-full transition-colors ` +
     `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
@@ -463,6 +474,40 @@ export function BentoDock() {
           } as CSSProperties
         }
       >
+        {(logoKey || brandName) && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                if (!homeHref) return
+                if (location.pathname === homeHref) window.location.reload()
+                else navigate(homeHref)
+              }}
+              className={cn(item, 'overflow-hidden !p-0')}
+              style={phone ? undefined : btnStyle}
+              data-tip={phone ? undefined : brandName}
+              aria-label={brandName || t('bento.dock.home')}
+              title={brandName}
+            >
+              {logoKey ? (
+                <img
+                  src={`/api/v1/files/${logoKey}?inline=1`}
+                  alt=""
+                  className="size-full rounded-[inherit] object-contain"
+                />
+              ) : (
+                <span
+                  className="grid size-full place-items-center rounded-[inherit] text-[14px] font-bold text-white"
+                  style={{ background: inst?.primary_color || 'hsl(var(--primary))' }}
+                >
+                  {brandInitial}
+                </span>
+              )}
+            </button>
+            {!phone && <span className={rule} aria-hidden="true" />}
+          </>
+        )}
+
         {homeHref && (
           <button
             type="button"

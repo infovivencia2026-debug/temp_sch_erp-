@@ -525,21 +525,33 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 				}
 			}
 		}
-		if has("absent", "attendance today", "present today") && id.Can(rbac.AttendanceRead) {
+		// AttendanceReadAll, not AttendanceRead: the counts below span the whole
+		// institution with no section narrowing, so the scoped View permission
+		// -- which a subject teacher has for their own two sections -- must not
+		// unlock them, or the bot would report the school's totals to someone
+		// entitled only to a slice. A section-scoped teacher simply gets nothing
+		// here, which is the correct answer for a whole-school question.
+		if has("absent", "attendance today", "present today") && id.Can(rbac.AttendanceReadAll) {
 			var absent, marked int
-			tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE AND status='absent'`).Scan(&absent)
-			tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE`).Scan(&marked)
-			facts = append(facts, fmt.Sprintf("Student attendance today: %d marked absent out of %d marked so far.", absent, marked))
+			if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE AND status='absent'`).Scan(&absent); err == nil {
+				if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM student_attendance WHERE on_date=CURRENT_DATE`).Scan(&marked); err == nil {
+					facts = append(facts, fmt.Sprintf("Student attendance today: %d marked absent out of %d marked so far.", absent, marked))
+				}
+			}
 		}
 		if has("how many staff", "staff count", "number of staff", "total staff") && id.Can(rbac.EmployeesRead) {
 			var n int
-			tx.QueryRow(r.Context(), `SELECT count(*) FROM employees WHERE status='active'`).Scan(&n)
-			facts = append(facts, fmt.Sprintf("Active staff on the roll: %d.", n))
+			// A swallowed scan error here would report "0 staff" as fact -- worse
+			// than saying nothing -- so a failed count adds no fact at all.
+			if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM employees WHERE status='active'`).Scan(&n); err == nil {
+				facts = append(facts, fmt.Sprintf("Active staff on the roll: %d.", n))
+			}
 		}
 		if has("how many student", "student count", "strength", "enrolment", "enrollment") && id.Can(rbac.StudentsReadAll) {
 			var n int
-			tx.QueryRow(r.Context(), `SELECT count(*) FROM students WHERE status='active'`).Scan(&n)
-			facts = append(facts, fmt.Sprintf("Active students on the roll: %d.", n))
+			if err := tx.QueryRow(r.Context(), `SELECT count(*) FROM students WHERE status='active'`).Scan(&n); err == nil {
+				facts = append(facts, fmt.Sprintf("Active students on the roll: %d.", n))
+			}
 		}
 
 		/* A named child — their class, and (with the fees permission) what they
@@ -604,14 +616,17 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 					line := fmt.Sprintf("%s (admission no %s): %s.", s.name, s.adm, where)
 					if wantsFee && id.Can(rbac.FeesRead) {
 						var charged, paid int64
-						tx.QueryRow(r.Context(), `
+						// A failed scan must not report a false ₹0 balance a parent
+						// might act on; the fee clause is simply omitted on error.
+						if err := tx.QueryRow(r.Context(), `
 							SELECT COALESCE((SELECT sum(net_paise) FROM invoices
 							                  WHERE student_id=$1 AND status<>'cancelled'),0),
 							       COALESCE((SELECT sum(amount_paise) FROM payments
-							                  WHERE student_id=$1 AND status='success'),0)`, s.id).Scan(&charged, &paid)
-						bal := charged - paid
-						line += fmt.Sprintf(" Fees: charged %s, paid %s, balance %s.",
-							rupees(charged), rupees(paid), rupees(bal))
+							                  WHERE student_id=$1 AND status='success'),0)`, s.id).Scan(&charged, &paid); err == nil {
+							bal := charged - paid
+							line += fmt.Sprintf(" Fees: charged %s, paid %s, balance %s.",
+								rupees(charged), rupees(paid), rupees(bal))
+						}
 					}
 					facts = append(facts, line)
 				}
