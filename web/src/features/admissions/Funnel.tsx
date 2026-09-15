@@ -267,9 +267,17 @@ function Leads({ rows }: { rows: Lead[] }) {
   const [followUp, setFollowUp] = useState('')
   const [note, setNote] = useState('')
 
+  /* The user list the endpoint returns is capped server-side (200) and cannot
+     page, so a counsellor past that could not be chosen. Typing narrows the list
+     with the endpoint's own `q` search, which makes anyone findable regardless of
+     the cap. */
+  const [userSearch, setUserSearch] = useState('')
   const users = useQuery({
-    queryKey: ['users', 'counsellors'],
-    queryFn: () => api.get<List<Named>>('/api/v1/admin/users?limit=100'),
+    queryKey: ['users', 'counsellors', userSearch.trim()],
+    queryFn: () =>
+      api.get<List<Named>>(
+        `/api/v1/admin/users?status=active${userSearch.trim() ? `&q=${encodeURIComponent(userSearch.trim())}` : ''}`,
+      ),
   })
   const assign = useMutation({
     mutationFn: () =>
@@ -300,6 +308,12 @@ function Leads({ rows }: { rows: Lead[] }) {
         <div className="p-4">
           <FormGrid>
             <Field label="Counsellor">
+              <Input
+                value={userSearch}
+                onChange={setUserSearch}
+                placeholder="Search staff by name…"
+                className="mb-2"
+              />
               <Select
                 value={counsellor}
                 onChange={setCounsellor}
