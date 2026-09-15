@@ -3214,6 +3214,19 @@ html:not(.dark)[data-layout='bento'] {
     --bento-dot-gap: 22px;
     gap: var(--bento-dot-gap);
     pointer-events: none;
+    /* Auto-hide: faded out after a beat of no interaction, brought back on a
+       scroll or a touch (set by BentoDots). */
+    transition: opacity 0.3s var(--bento-ease, ease);
+  }
+  .bento-dots[data-dim] {
+    opacity: 0;
+  }
+  .bento-dots[data-dim] .bento-dot,
+  .bento-dots[data-dim] .bento-dots__edit {
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bento-dots { transition: none; }
   }
   .bento-dot {
     pointer-events: auto;

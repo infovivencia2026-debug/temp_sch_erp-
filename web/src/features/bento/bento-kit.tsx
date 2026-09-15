@@ -381,7 +381,15 @@ export function Cell({
   children: ReactNode
 }) {
   const t = tone ?? (dark ? 'dark' : 'plain')
-  const baseStyle = accent && t === 'plain' ? { '--bento-card': `var(--bento-${accent}-tint)` } as React.CSSProperties : {}
+  /* A picked colour wins over the accent's own tint. The cell repoints
+     --bento-card to its accent tint, which sat ON the cell and so beat the
+     customize wrapper's --bento-card -- so recolouring a severity card (the pink
+     "critical" ones) did nothing. Reading --bento-card-accent first, which the
+     wrapper sets only when a colour was picked, lets customization through while
+     the accent tint stays the default. */
+  const baseStyle = accent && t === 'plain'
+    ? { '--bento-card': `var(--bento-card-accent, var(--bento-${accent}-tint))` } as React.CSSProperties
+    : {}
   /* A coloured card carries its own ink, and its quiet text is that same ink —
      not a grey.
 

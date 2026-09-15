@@ -1045,7 +1045,32 @@ function PageDots({
   still?: boolean
 }) {
   const t = useT()
+  const phone = usePhone()
   const [at, setAt] = useState(0)
+
+  /* On a phone the pencil and dots AUTO-HIDE. They floated over the board at all
+     times; now they show for a moment, then fade, and a scroll or a touch brings
+     them back. Off while customizing -- the edit controls have to stay put --
+     and never on a desktop, where they are not in the way. */
+  const [dim, setDim] = useState(false)
+  useEffect(() => {
+    if (!phone || editing) { setDim(false); return }
+    const board = mark.current?.closest('.bento-board') as HTMLElement | null
+    let timer = 0
+    const wake = () => {
+      setDim(false)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setDim(true), 2800)
+    }
+    wake()
+    board?.addEventListener('scroll', wake, { passive: true })
+    window.addEventListener('touchstart', wake, { passive: true })
+    return () => {
+      window.clearTimeout(timer)
+      board?.removeEventListener('scroll', wake)
+      window.removeEventListener('touchstart', wake)
+    }
+  }, [phone, editing, mark])
 
   useEffect(() => {
     const board = mark.current?.closest('.bento-board') as HTMLElement | null
@@ -1082,6 +1107,7 @@ function PageDots({
       className="bento-dots"
       role="tablist"
       aria-label={t('bento.page.pages')}
+      data-dim={dim ? '' : undefined}
       style={{ color: INK_HERE_FROM_PAGE } as CSSProperties}
     >
       {!editing && (

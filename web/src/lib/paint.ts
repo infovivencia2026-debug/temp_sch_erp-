@@ -843,12 +843,15 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--bento-line': '#ece6ef',
       '--bento-dock-bg': '#fdfbfe',
       '--bento-dock-ink': '#3b1a47',
-      '--bento-mint': '#0b8551',
-      '--bento-mint-tint': '#e5f6ee',
-      '--bento-purple': '#540d6e',
-      '--bento-purple-tint': '#f1e5f6',
-      '--bento-pink': '#e61540',
-      '--bento-pink-tint': '#f6e5e8',
+      /* The house bold accents: lime, cyan and pink. These are the cell hues --
+         the mark, the rung, the accent card's own colour -- with a light tint
+         behind text so a coloured card stays legible with the dark ink above. */
+      '--bento-mint': '#bcf63c',
+      '--bento-mint-tint': '#eafcc4',
+      '--bento-purple': '#30d5e9',
+      '--bento-purple-tint': '#d6f4fa',
+      '--bento-pink': '#f57ba4',
+      '--bento-pink-tint': '#fde3ec',
       '--bento-orange': '#916f00',
       '--bento-orange-tint': '#f6f2e5',
       '--bento-anchor-from': '#e5f6f2',
