@@ -260,6 +260,61 @@ export function AssistantTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turns])
 
+  /* The answer PRINTS itself, a few characters at a time, rather than landing
+     whole. A block of text appearing at once reads as a page that was already
+     there; watching it type says the assistant just wrote it, and gives the eye
+     a place to start. Only the newest bot turn prints -- older ones are history
+     and show in full -- and it is plain text while printing, swapped for the
+     rendered Markdown on the last character so half-formed bold never flashes.
+
+     Honoured off for anyone who asked for less motion, and skipped when the
+     answer is being read aloud, where the voice already paces it. */
+  const [printedLen, setPrintedLen] = useState(0)
+  const [printingIdx, setPrintingIdx] = useState(-1)
+  const printCount = useRef(turns.length)
+  useEffect(() => {
+    if (turns.length <= printCount.current) {
+      printCount.current = turns.length
+      return
+    }
+    printCount.current = turns.length
+    const i = turns.length - 1
+    const last = turns[i]
+    if (!last || last.role !== 'bot') return
+
+    const reduce = typeof matchMedia !== 'undefined'
+      && matchMedia('(prefers-reduced-motion: reduce)').matches
+    // The spoken answer already paces itself, so printing on top of it would be
+    // two clocks on one message; show it whole and let the voice lead.
+    if (reduce || speakRef.current || handsFreeRef.current) return
+
+    setPrintingIdx(i)
+    setPrintedLen(0)
+    const total = last.text.length
+    // A steady rate, capped so a long answer still finishes in about a second
+    // and a half rather than typing for a paragraph.
+    const step = Math.max(2, Math.ceil(total / 90))
+    const timer = window.setInterval(() => {
+      setPrintedLen((n) => {
+        const next = n + step
+        if (next >= total) {
+          window.clearInterval(timer)
+          setPrintingIdx(-1)
+          return total
+        }
+        return next
+      })
+    }, 16)
+    return () => window.clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns])
+
+  // Keep the log pinned to the bottom as the answer prints, not only when a
+  // whole turn arrives.
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [printedLen])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -516,9 +571,11 @@ export function AssistantTab() {
                   )}
                 >
                   {turn.role === 'bot'
-                    ? <span className="md-answer" dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />
+                    ? (i === printingIdx
+                        ? <span className="md-answer">{turn.text.slice(0, printedLen)}<span className="assistant-caret" aria-hidden="true" /></span>
+                        : <span className="md-answer" dangerouslySetInnerHTML={{ __html: mdToHtml(turn.text) }} />)
                     : turn.text}
-                  {turn.link && (
+                  {turn.link && i !== printingIdx && (
                     <button
                       type="button"
                       onClick={() => { navigate(turn.link!.to); setOpen(false) }}

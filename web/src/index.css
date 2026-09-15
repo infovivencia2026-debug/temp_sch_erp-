@@ -3050,3 +3050,25 @@ body[data-scroll-lock] {
     transparent 70%
   );
 }
+
+/* The assistant's typing caret.
+
+   Shown at the end of an answer while it prints itself (AssistantTab), a thin
+   bar in the text's own colour that blinks. Stilled for anyone who asked for
+   less motion -- it stays visible, it just stops flashing. */
+.assistant-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: assistant-caret-blink 1s steps(2, start) infinite;
+}
+@keyframes assistant-caret-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-caret { animation: none; opacity: 1; }
+}
