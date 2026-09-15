@@ -11,7 +11,18 @@ import {
   CONTRASTS, DOCK_SIZES, ICON_SIZES, SCALE_RANGE,
   type Contrast, type DockSize, type IconSize, type Scales,
 } from '@/lib/appearance'
-import { useT, useI18n, LOCALES } from '@/lib/i18n'
+import { useT, useI18n, LOCALES, type MessageKey } from '@/lib/i18n'
+
+/* The settings tabs whose labels come from the link groups (module-scope
+   literals) rather than from a t() call. Mapped to their locale keys here so the
+   tab strip reads in the chosen language; an unknown group keeps its own label. */
+const TAB_LABEL_KEYS: Record<string, MessageKey> = {
+  school: 'bento.settings.tab.school',
+  messaging: 'bento.settings.tab.messaging',
+  account: 'bento.settings.tab.account',
+  roles: 'bento.settings.tab.roles',
+  security: 'bento.settings.tab.security',
+}
 import {
   ColourPanel,
   INK, EDGE, WASH, RING, SEAM, SURFACE,
@@ -787,11 +798,16 @@ export function useSettingsItems(): ListItem[] {
     /* 'Colour' and not `bento.colour.title`, which is "Colour settings" --
        inside a window called Settings, under a heading called Settings, the
        second word is the one thing on the row that says nothing. */
-    { id: 'colour', label: 'Colour', ...DISPLAY_META.colour },
-    { id: 'dock', label: 'Dock', ...DISPLAY_META.dock },
-    { id: 'dashboard', label: 'Dashboard', ...DISPLAY_META.dashboard },
+    { id: 'colour', label: t('bento.settings.tab.colour'), ...DISPLAY_META.colour },
+    { id: 'dock', label: t('bento.settings.tab.dock'), ...DISPLAY_META.dock },
+    { id: 'dashboard', label: t('bento.settings.tab.dashboard'), ...DISPLAY_META.dashboard },
     ...sections.map(({ group }) => ({
-      id: group.id, label: group.label, icon: group.icon, note: group.note,
+      // Translate the known settings tabs by id; an unknown group keeps its own
+      // English label rather than showing a raw key.
+      id: group.id,
+      label: TAB_LABEL_KEYS[group.id] ? t(TAB_LABEL_KEYS[group.id]) : group.label,
+      icon: group.icon,
+      note: group.note,
     })),
   ], [t, sections])
 }
