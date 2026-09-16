@@ -164,6 +164,9 @@
   :root[data-theme="dark"] .t.advanced,@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .t.advanced{background:#332711;color:#e2a961}}
   :root[data-theme="dark"] .t.advanced{background:#332711;color:#e2a961}
   .feat .fs{font-family:"IBM Plex Sans",sans-serif; font-size:14px; color:var(--muted)}
+  .fpath{margin-top:6px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint)}
+  .fpath .op{display:inline-block; font-family:"IBM Plex Sans",sans-serif; font-size:9.5px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--accent-ink); background:var(--accent-soft); border-radius:4px; padding:1px 6px; margin-right:6px; vertical-align:1px}
+  .fpath .arr{color:var(--line-strong,var(--line)); padding:0 1px}
   mark{background:#f4e9c8; color:var(--ink); border-radius:2px}
   :root[data-theme="dark"] mark{background:#3a3212;color:#f0e6c0}
   .noresult{font-family:"IBM Plex Sans",sans-serif; padding:40px; text-align:center; color:var(--muted)}
@@ -318,7 +321,7 @@
 <!-- CH 6 REFERENCE -->
 <section id="c6" class="wide prose">
   <div class="chap-open"><span class="no">06</span><h2>Every feature</h2></div>
-  <p class="lead">The complete catalogue — every screen, grouped by the role that uses it.</p>
+  <p class="lead">Every screen, grouped by the role that uses it — what it does, and the exact path to open it.</p>
   <div class="refhead">
     <div class="searchbox">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
@@ -362,7 +365,11 @@
           return (f.name+' '+(f.summary||'')+' '+sec.name+' '+sec.workspace+' '+r.name).toLowerCase().indexOf(q)>=0;
         });
         if(!feats.length) return; roleCount+=feats.length;
-        var rows=feats.map(function(f){return '<div class="feat"><div class="fn2">'+hl(f.name)+'<br><span class="t '+f.tier+'">'+f.tier+'</span></div><div class="fs">'+hl(f.summary||'—')+'</div></div>';}).join('');
+        var crumbs=[]; if(sec.workspace) crumbs.push(sec.workspace); if(sec.name && sec.name!==sec.workspace) crumbs.push(sec.name);
+        var rows=feats.map(function(f){
+          var path=crumbs.concat([f.name]).map(esc).join(' <span class="arr">→</span> ');
+          return '<div class="feat"><div class="fn2">'+hl(f.name)+'<br><span class="t '+f.tier+'">'+f.tier+'</span></div><div class="fs">'+hl(f.summary||'—')+'<div class="fpath"><span class="op">Open it</span> '+path+'</div></div></div>';
+        }).join('');
         var ws=(sec.workspace&&sec.workspace!==sec.name)?' <span class="ws">· '+esc(sec.workspace)+'</span>':'';
         secHtml+='<div class="sec"><div class="sh">'+esc(sec.name)+ws+'</div>'+rows+'</div>';
       });
