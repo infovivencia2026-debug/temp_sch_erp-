@@ -129,7 +129,11 @@
   .fl .fn{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--accent-ink); padding-top:3px}
   .fl h4{font-family:"Fraunces",serif; font-size:20px; font-weight:500; margin:0}
   .fl p{font-family:"IBM Plex Sans",sans-serif; font-size:14.5px; color:var(--muted); margin:.35rem 0 0; grid-column:2}
-  .fl .path{grid-column:2; font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; color:var(--faint); margin-top:6px}
+  .fl .path{grid-column:2; font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; color:var(--faint); margin-top:12px; padding-top:8px; border-top:1px solid var(--hair)}
+  ol.tut{grid-column:2; margin:.7rem 0 0; padding:0; list-style:none; counter-reset:tt; display:grid; gap:.5rem}
+  ol.tut li{counter-increment:tt; font-family:"IBM Plex Sans",sans-serif; font-size:14px; line-height:1.5; color:var(--ink); padding-left:1.9rem; position:relative}
+  ol.tut li::before{content:counter(tt); position:absolute; left:0; top:0; width:1.35rem; height:1.35rem; border-radius:50%; background:var(--accent-soft); color:var(--accent-ink); font-family:"IBM Plex Mono",monospace; font-size:11px; display:grid; place-items:center}
+  ol.tut li b{font-weight:600}
   .fl .path b{color:var(--accent-ink); font-weight:600}
 
   /* REFERENCE */
@@ -268,16 +272,88 @@
 <!-- CH 3 -->
 <section id="c3" class="page prose">
   <div class="chap-open"><span class="no">03</span><h2>Everyday workflows</h2></div>
-  <p class="lead">The handful of jobs most people open the system to do, and where each one lives.</p>
+  <p class="lead">The jobs most people open the system to do — each one, step by step.</p>
   <div class="flowlist">
-    <div class="fl"><span class="fn">01</span><h4>Admit a student</h4><p>Log the enquiry, take the application and documents, verify them, allocate the fee &amp; seat, and enrol — the child then flows into a class and section.</p><div class="path"><b>Admissions</b> → Enquiries · Applications · Fee &amp; Enrollment</div></div>
-    <div class="fl"><span class="fn">02</span><h4>Collect a fee</h4><p>Search the student, pick the outstanding invoices, take cash / card / UPI, print the receipt. Concessions and arrears apply automatically.</p><div class="path"><b>Finance</b> → Fee counter · Receipts</div></div>
-    <div class="fl"><span class="fn">03</span><h4>Mark attendance</h4><p>Open your section's register for the day and mark present / absent. Guardians of absentees can be alerted; biometric devices feed in where fitted.</p><div class="path"><b>Faculty</b> → Attendance register</div></div>
-    <div class="fl"><span class="fn">04</span><h4>Enter marks &amp; print cards</h4><p>Set the exam's max marks, enter each subject's marks, and generate report cards on the school's own template — sent up for the head's approval.</p><div class="path"><b>Exams</b> → Gradebook · Report cards</div></div>
-    <div class="fl"><span class="fn">05</span><h4>Send a circular</h4><p>Write a notice once — a holiday, a datesheet, an emergency — and send it to the parents and staff it concerns, through the portal, SMS and email.</p><div class="path"><b>Communication</b> → Circulars</div></div>
-    <div class="fl"><span class="fn">06</span><h4>Run payroll</h4><p>The staff directory carries pay and bank details; run the month with statutory PF, ESI, PT and TDS, and hand out payslips.</p><div class="path"><b>HR</b> → Payroll · Statutory</div></div>
-    <div class="fl"><span class="fn">07</span><h4>Track the bus</h4><p>See which child boards at which stop on which route, and follow the bus live on a map; parents get proximity alerts on their phone.</p><div class="path"><b>Operations</b> → Transport · Live tracking</div></div>
-    <div class="fl"><span class="fn">08</span><h4>Promote a class</h4><p>At year end, move a whole section up to the next class, hold back whoever needs it, and carry arrears forward — history preserved.</p><div class="path"><b>Lifecycle</b> → Promotion · Year rollover</div></div>
+
+    <div class="fl"><span class="fn">01</span><h4>Admit a student</h4>
+      <p>From a first enquiry to a child sitting in a section.</p>
+      <ol class="tut">
+        <li>Open <b>Admissions → Enquiries</b> and add the enquiry (name, class sought, a phone). Assign a counsellor so someone owns the follow-up.</li>
+        <li>When the family applies, take the form under <b>Applications</b> and upload the documents (birth certificate, Aadhaar, last report card).</li>
+        <li>Mark each document <b>verified</b> — or rejected, with the reason the parent is told.</li>
+        <li>Under <b>Fee &amp; Enrollment</b>, allocate the fee plan and the seat, then confirm — the child becomes a student in a class and section, and a parent login is offered.</li>
+      </ol>
+      <div class="path"><b>Admissions</b> → Enquiries → Applications → Fee &amp; Enrollment</div></div>
+
+    <div class="fl"><span class="fn">02</span><h4>Collect a fee</h4>
+      <p>Cash, card or UPI at the counter, with a receipt.</p>
+      <ol class="tut">
+        <li>Open <b>Finance → Fee counter</b> and search the student by name or admission number.</li>
+        <li>Their outstanding invoices are listed; tick the ones being paid. Concessions and any carried-forward arrears are already applied.</li>
+        <li>Choose the mode (cash / card / UPI / cheque), enter the amount, and record the payment.</li>
+        <li>The receipt is generated with a gapless number; print or share it. It also lands in the parent's portal.</li>
+      </ol>
+      <div class="path"><b>Finance</b> → Fee counter · Receipts</div></div>
+
+    <div class="fl"><span class="fn">03</span><h4>Mark attendance</h4>
+      <p>A class's register for the day.</p>
+      <ol class="tut">
+        <li>Open <b>Faculty → Attendance → Take attendance</b> and pick your section and the date.</li>
+        <li>The roll loads; mark each child present, absent, late, half-day or on leave. Default is present, so you only touch the exceptions.</li>
+        <li>Save. Guardians of absentees can be alerted by SMS/portal; biometric devices feed in automatically where fitted.</li>
+        <li>Got one wrong? <b>Attendance correction</b> fixes a mark and keeps an audit trail of the change.</li>
+      </ol>
+      <div class="path"><b>Faculty</b> → Attendance → Take attendance</div></div>
+
+    <div class="fl"><span class="fn">04</span><h4>Enter marks &amp; print report cards</h4>
+      <p>From an exam's marks to a card the head signs.</p>
+      <ol class="tut">
+        <li>Under <b>Exams</b>, open the exam and set each subject's <b>max marks</b> (a teacher may do this).</li>
+        <li>In the <b>Gradebook</b>, enter each student's marks per subject; the percentage and grade compute against the school's grade scale.</li>
+        <li>Generate <b>report cards</b> on the school's own template — the marks, a performance chart and attendance fill in automatically.</li>
+        <li>Send them up; the <b>head approves</b>, and the approved card carries both signatures and can be printed or released to parents.</li>
+      </ol>
+      <div class="path"><b>Exams</b> → Gradebook · Report cards</div></div>
+
+    <div class="fl"><span class="fn">05</span><h4>Send a circular</h4>
+      <p>One notice, to exactly the people it concerns.</p>
+      <ol class="tut">
+        <li>Open <b>Communication → Circulars</b> and write it once — a holiday, a datesheet, an emergency.</li>
+        <li>Choose the audience: a class, a section, all parents, staff — the circular goes only to them.</li>
+        <li>Pick the channels: the portal, SMS and email. Send.</li>
+        <li>Track who has read it; resend to just those who have not.</li>
+      </ol>
+      <div class="path"><b>Communication</b> → Circulars</div></div>
+
+    <div class="fl"><span class="fn">06</span><h4>Run payroll</h4>
+      <p>The month, with statutory deductions and payslips.</p>
+      <ol class="tut">
+        <li>The <b>staff directory</b> already carries each person's pay structure and bank details.</li>
+        <li>Under <b>HR → Payroll</b>, start the month's run; salaries, allowances and <b>PF, ESI, PT and TDS</b> are computed.</li>
+        <li>Review the run, then finalise it.</li>
+        <li>Payslips are issued to staff, and the statutory registers are ready under <b>Statutory</b>.</li>
+      </ol>
+      <div class="path"><b>HR</b> → Payroll · Statutory</div></div>
+
+    <div class="fl"><span class="fn">07</span><h4>Track the bus</h4>
+      <p>Who boards where, and where the bus is now.</p>
+      <ol class="tut">
+        <li>Under <b>Operations → Transport</b>, assign each child a route and a stop; the fee slab follows from the distance.</li>
+        <li><b>Live tracking</b> shows every bus on a map in real time.</li>
+        <li>Parents follow their child's bus from the portal and get a proximity alert as it nears their stop.</li>
+      </ol>
+      <div class="path"><b>Operations</b> → Transport · Live tracking</div></div>
+
+    <div class="fl"><span class="fn">08</span><h4>Promote a class at year end</h4>
+      <p>A whole section up a year, without losing anyone's history.</p>
+      <ol class="tut">
+        <li>Open <b>Lifecycle → Promotion</b> and choose the section moving up and the class it moves into.</li>
+        <li>The whole roll is selected by default; untick anyone <b>held back</b>.</li>
+        <li>Confirm — each child's old enrolment is closed and a new one opened, so the history survives, and unpaid <b>arrears carry forward</b>.</li>
+        <li><b>Year rollover</b> does the same across the whole school when the new session opens.</li>
+      </ol>
+      <div class="path"><b>Lifecycle</b> → Promotion · Year rollover</div></div>
+
   </div>
 </section>
 
