@@ -379,6 +379,11 @@ func (s *Server) Routes() http.Handler {
 				Post("/nudge", s.nudgeRegister)
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/", s.listAttendance)
 			r.With(httpx.RequirePermission(rbac.AttendanceWrite)).Post("/", s.markAttendance)
+			// The office's morning follow-up on the day's absentees. Reading the
+			// list and logging a call are the same job, so both gate on the read
+			// permission; the section scope inside each handler does the narrowing.
+			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/absentees", s.listAbsentees)
+			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Post("/absentees/followup", s.recordAbsenceFollowup)
 		})
 
 		r.Route("/me", func(r chi.Router) {
