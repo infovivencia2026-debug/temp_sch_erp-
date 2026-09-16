@@ -912,6 +912,12 @@
     backdrop-filter: blur(8px);
     border-color: hsl(var(--border));
   }
+  /* Without backdrop-filter the header is a 90%-opaque strip with the page
+     showing faintly through it. Make it fully opaque there, so the chrome reads
+     as a solid bar rather than a smear over whatever scrolls beneath. */
+  @supports not (backdrop-filter: blur(1px)) {
+    .chrome { background: hsl(var(--background)); }
+  }
 
   /* A field label, and the column header in a table. Sentence case at 12px:
      the uppercase letter-spaced treatment this used to have is an editorial
@@ -1710,6 +1716,16 @@
    correct behaviour rather than a compromise. */
 .bento-widget { container-type: inline-size; }
 
+/* Engines without container queries cannot resolve the cqw/cqh units the figure
+   cap is written in, so `--fig-cap` and every `--bento-fig` min() that falls
+   back to `26cqw` compute to an invalid length and the figure loses its size.
+   Give the cap a fixed px value there, so headline numbers stay a sensible size
+   rather than collapsing to the inherited body text. Modern browsers skip this
+   block and keep the fluid, card-relative sizing. */
+@supports not (width: 1cqw) {
+  .bento-widget { --fig-cap: 40px; }
+}
+
 /* Height is only measurable where the row height is fixed.
 
    container-type: size contains BOTH axes, which means the element's contents
@@ -1945,6 +1961,9 @@
   :where([data-row], .responsive-table tbody tr, .bento-sheet__row,
          [role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'],
          [role='option'], .lch-app, .parent-list__row a):active {
+    /* Fallback for engines without color-mix: a neutral translucent grey wash.
+       The color-mix line below overrides it on modern browsers. */
+    background-color: rgba(128, 128, 128, 0.12);
     background-color: color-mix(in srgb, currentColor 8%, transparent);
     transition-duration: var(--motion-press);
   }
@@ -3042,7 +3061,17 @@ body[data-scroll-lock] {
    So on those surfaces the bar is the CELL'S OWN INK at a low strength, which
    is the same rule every other mark on a bento card already follows. */
 .skeleton-ink {
+  /* Fallbacks first, for engines without color-mix: a neutral grey tint and a
+     grey shimmer band. The color-mix versions below override on modern
+     browsers, where the tint follows the cell's own ink. */
+  background-color: rgba(128, 128, 128, 0.13);
   background-color: color-mix(in srgb, currentColor 13%, transparent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(128, 128, 128, 0.1) 50%,
+    transparent 70%
+  );
   background-image: linear-gradient(
     100deg,
     transparent 30%,
