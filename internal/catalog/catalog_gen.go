@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 401 features.
+// Roles is the catalog: 23 roles, 402 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -647,6 +647,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
 					{Key: "faculty.attendance.attendance_correction", Slug: "attendance_correction", Name: "Attendance correction", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Request or process correction within permitted window/workflow."},
+					{Key: "faculty.attendance.absentee_followup", Slug: "absentee_followup", Name: "Absentee followup", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child marked away today, section by section, with the father's and mother's numbers to tap-to-call, a call status and the reason the parent gave — the same screen reviews a past day's calls."},
 					{Key: "faculty.attendance.offline_attendance_diary_capture", Slug: "offline_attendance_diary_capture", Name: "Offline Attendance & Diary Capture", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns."},
 				},
 			},

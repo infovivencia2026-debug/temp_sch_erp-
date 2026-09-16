@@ -203,6 +203,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.examinations.hall_ticket_issue': screen(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
+  // The register says who is away; this is the call home that follows. Scoped
+  // server-side, so a class teacher gets their sections and a read.all holder
+  // gets the school, from the one screen.
+  'faculty.attendance.absentee_followup': screen(() => import('./attendance/AbsenceFollowup')),
   'faculty.timetable.my_timetable': screen(() => import('./shared/Timetable')),
   // Where is my admission. The only parent screen that is not about a pupil:
   // at enquiry there is no student yet, so it scopes to the caller's own

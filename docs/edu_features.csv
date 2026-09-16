@@ -123,6 +123,7 @@ Faculty / Teacher,My Classes,My Classes,My students,"Every child in the class wi
 Faculty / Teacher,My Classes,My Classes,Student details,"One child's full record: profile, guardians, attendance, marks and remarks.",Assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Take attendance,Fast daily or period/subject-wise attendance for assigned students.,Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Attendance correction,Request or process correction within permitted window/workflow.,Self + assigned classes/subjects,Must-Have,core
+Faculty / Teacher,My Classes,Attendance,Absentee followup,"Every child marked away today, section by section, with the father's and mother's numbers to tap-to-call, a call status and the reason the parent gave — the same screen reviews a past day's calls.",Self + assigned classes/subjects,Must-Have,core
 Faculty / Teacher,My Classes,Attendance,Offline Attendance & Diary Capture,"Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.",Assigned classes/subjects,Nice-to-Have,core
 Faculty / Teacher,Teaching,Teaching,Homework / classwork,"Create homework/classwork with due date, attachments and instructions.",Self + assigned classes/subjects,Should-Have,core
 Faculty / Teacher,Teaching,Teaching,Assignments & submissions,"Create assignments, review submissions, grade and add feedback.",Self + assigned classes/subjects,Must-Have,core

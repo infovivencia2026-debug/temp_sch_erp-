@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 401 features. */
+/** 23 roles, 402 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -600,6 +600,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
+          { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with the father\'s and mother\'s numbers to tap-to-call, a call status and the reason the parent gave — the same screen reviews a past day\'s calls.' },
           { key: 'faculty.attendance.offline_attendance_diary_capture', slug: 'offline_attendance_diary_capture', name: 'Offline Attendance & Diary Capture', scope: 'assigned_classes', tier: 'core', summary: 'Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.' },
         ],
       },

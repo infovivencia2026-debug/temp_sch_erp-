@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 408 of the catalog's features are implemented.
+// 409 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -59,6 +59,7 @@ var implementedFeatures = map[string]bool{
 	"exam_controller.my_profile.profile":                                             true,
 	"faculty.assessment_schemes.cce_formative_assessment_entry":                      true,
 	"faculty.assessment_schemes.cce_summative_assessment_entry":                      true,
+	"faculty.attendance.absentee_followup":                                           true,
 	"faculty.attendance.attendance_correction":                                       true,
 	"faculty.attendance.offline_attendance_diary_capture":                            true,
 	"faculty.attendance.take_attendance":                                             true,
