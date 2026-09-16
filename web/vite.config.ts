@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import legacy from '@vitejs/plugin-legacy'
 import path from 'node:path'
 import { readFileSync } from 'node:fs'
 
@@ -58,7 +59,31 @@ function serviceWorker(): Plugin {
 
 
 export default defineConfig({
-  plugins: [react(), serviceWorker()],
+  /* THE OLD BROWSER THAT COULD NOT SAVE.
+   *
+   * A user on an outdated engine hit an error pressing Save, which is the
+   * signature of modern JavaScript the engine cannot parse (a class field, an
+   * optional chain, top-level await in a chunk) rather than of any one handler.
+   * The fix is to stop shipping that syntax to engines that predate it, in two
+   * layers:
+   *
+   *   build.target sets the floor for the MODERN bundle, so the transpiler
+   *   lowers anything newer than these engines even for browsers that get the
+   *   module build. es2019 is the meaningful baseline; the named browser
+   *   versions pin it to concrete engines.
+   *
+   *   plugin-legacy emits a SECOND, nomodule bundle for engines with no ES
+   *   module support at all, transpiled to ES5-ish and shipped with the
+   *   core-js polyfills its code needs. An old browser ignores the module
+   *   build (it does not understand `type=module`) and runs this one, so the
+   *   features degrade instead of throwing. */
+  plugins: [
+    react(),
+    legacy({
+      targets: ['chrome >= 70', 'firefox >= 68', 'safari >= 12', 'edge >= 79'],
+    }),
+    serviceWorker(),
+  ],
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   server: {
     port: 5173,
@@ -72,6 +97,11 @@ export default defineConfig({
     },
   },
   build: {
+    // A broad baseline for the MODERN bundle: the transpiler lowers anything
+    // newer than these engines, so a browser on the module build still never
+    // meets syntax it cannot parse. plugin-legacy (above) covers the engines
+    // below even this.
+    target: ['es2019', 'chrome80', 'edge88', 'firefox78', 'safari13'],
     // Chunked along the same seams as the deployed bundle: the vendor libs
     // change rarely and stay cached across deploys, while feature code does
     // not drag them back over the wire.

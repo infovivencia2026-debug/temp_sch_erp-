@@ -2041,6 +2041,54 @@ html[style*='--shadow-scale'] {
   }
 }
 
+/* GRACEFUL DEGRADATION FOR ENGINES WITHOUT color-mix().
+ *
+ * The opacity-variant surfaces above are written as a card/ground colour mixed
+ * down toward transparent, so a popover, a menu row or a scrim shows a hint of
+ * what is under it. An engine that cannot parse color-mix() drops the whole
+ * declaration and the element renders with NO background — a menu or dialog
+ * then paints its text straight over the live board behind it, which is the
+ * illegible state this block prevents. Each fallback is the nearest solid
+ * token: opaque where the surface has to hold text, the raised shade for a
+ * hover wash. Modern browsers never enter this block, so the translucency they
+ * were designed with is untouched.
+ *
+ * The frost panels and the dock are already covered by their own
+ * `@supports not (backdrop-filter…)` fallbacks elsewhere in this file. */
+@supports not (color: color-mix(in srgb, red, blue)) {
+  [data-layout='bento'] .text-background\/85 { color: var(--bento-bg); }
+
+  [data-layout='bento'] .bg-popover\/90,
+  [data-layout='bento'] .bg-popover\/80,
+  [data-layout='bento'] .hover\:bg-popover\/90:hover,
+  [data-layout='bento'] .disabled\:hover\:bg-popover\/90:hover:disabled {
+    background-color: var(--bento-card);
+  }
+
+  [data-layout='bento'] .bg-background\/70,
+  [data-layout='bento'] .bg-background\/25,
+  [data-layout='bento'] .bg-background\/20 {
+    background-color: var(--bento-bg);
+  }
+
+  [data-layout='bento'] .bg-accent,
+  [data-layout='bento'] .bg-surface-hover,
+  [data-layout='bento'] .bg-accent\/50,
+  [data-layout='bento'] .hover\:bg-accent:hover,
+  [data-layout='bento'] .hover\:bg-surface-hover:hover,
+  [data-layout='bento'] .hover\:bg-accent\/50:hover {
+    background-color: var(--bento-card-2);
+  }
+
+  /* The corner cue is a hairline square in currentColor over a faint fill.
+     Without the fill/border mixes it would be invisible; give it a plain
+     hairline border and drop the translucent face. */
+  [data-layout='bento'] .bento-cue {
+    background: transparent;
+    border-color: var(--bento-line);
+  }
+}
+
 /* ---- lines --------------------------------------------------------------
 
    `.border` and friends set a width only; the colour arrives from Tailwind's
