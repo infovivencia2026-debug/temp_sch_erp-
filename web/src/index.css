@@ -1054,7 +1054,12 @@
    and skip the label, because repeating "Name" above a person's name is
    noise. Cells with a colSpan get no label at all; they are notes, not
    fields. */
-@media (max-width: 639px) {
+/* Stack wide tables into labelled cards up to 860px, not just 639px. Below the
+   old breakpoint a multi-column table (Logins, with name/contact/roles/status/
+   sessions) still ran off the side on a large phone or a small tablet -- a
+   cramped sideways scroll with the last columns cut off. The card layout reads
+   far better at those widths, so it now covers them too. */
+@media (max-width: 860px) {
   .responsive-table,
   .responsive-table tbody,
   .responsive-table tr,
