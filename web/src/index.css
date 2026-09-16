@@ -3091,3 +3091,23 @@ body[data-scroll-lock] {
 @media (prefers-reduced-motion: reduce) {
   .assistant-dot { animation: none; opacity: 0.5; }
 }
+
+/* CLASSIC-LAYOUT FALLBACK FOR THE BENTO DIALOGS.
+
+   The Settings, Colour and launcher panels are portalled to <body> and draw with
+   --bento-* tokens, which are defined only under [data-layout='bento']. In the
+   classic (Sidebar) layout those vars are undefined, so the panel background, its
+   divider lines, toggles and sliders resolved to transparent -- invisible in dark
+   mode. Mapping the tokens to the app's own tokens on the dialog roots (only when
+   NOT in the bento layout) makes every control render; inside the bento layout
+   this rule does not match and bento's own tokens win. */
+html:not([data-layout='bento']) [data-appearance-dialog],
+html:not([data-layout='bento']) [data-bento-menu],
+html:not([data-layout='bento']) [data-add-gallery] {
+  --bento-card: hsl(var(--popover));
+  --bento-card-base: hsl(var(--popover));
+  --bento-ink: hsl(var(--popover-foreground));
+  --bento-bg: hsl(var(--background));
+  --bento-line: hsl(var(--border));
+  --bento-muted: hsl(var(--muted-foreground));
+}
