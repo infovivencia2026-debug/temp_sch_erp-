@@ -213,7 +213,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 				       COALESCE(NULLIF(b.primary_color,''), i.primary_color),
 				       i.timezone, i.locale,
 				       COALESCE(b.display_name,''), COALESCE(b.tagline,''),
-				       COALESCE(b.logo_key,''), COALESCE(b.favicon_key,''),
+				       COALESCE(NULLIF(b.logo_key,''), i.logo_key, ''), COALESCE(b.favicon_key,''),
 				       COALESCE(b.accent_color,'')
 				  FROM institutions i
 				  LEFT JOIN branding_profiles b
