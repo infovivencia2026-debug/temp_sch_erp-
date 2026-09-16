@@ -42,7 +42,10 @@ function serviceWorker(): Plugin {
        * Fonts are left out for the same reason and one more: a missing font
        * falls back to the system stack and the page still reads, so paying
        * 528KB up front to avoid that is a bad trade on a bad line. */
-      const shell = /^assets\/(index|react|router|query|vendor|icons)-[^/]*\.js$/
+      /* The legacy chunks (plugin-legacy, below) are excluded: a browser that
+       * runs this worker is by definition a modern one and would never fetch
+       * them, so precaching them is pure waste. */
+      const shell = /^assets\/(index|react|router|query|vendor|icons)-(?!legacy-)[^/]*\.js$/
       const assets = Object.keys(bundle)
         .filter((f) => f.endsWith('.css') || shell.test(f))
         .map((f) => '/' + f)

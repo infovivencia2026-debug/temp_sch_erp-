@@ -91,13 +91,13 @@ export function Landing() {
         <nav className="flex items-center gap-1.5 text-[13.5px]">
           <a
             href="/buy"
-            className="rounded-md px-3 py-1.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--surface-hover))] hover:text-[hsl(var(--foreground))]"
+            className="rounded-md px-3 py-2.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--surface-hover))] hover:text-[hsl(var(--foreground))]"
           >
             Pricing
           </a>
           <a
             href="/apps"
-            className="hidden rounded-md px-3 py-1.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--surface-hover))] hover:text-[hsl(var(--foreground))] sm:inline-block"
+            className="hidden rounded-md px-3 py-2.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--surface-hover))] hover:text-[hsl(var(--foreground))] sm:inline-block"
           >
             Apps
           </a>
@@ -194,10 +194,11 @@ export function Landing() {
       <footer className="mx-auto max-w-5xl px-6 py-10 text-[13px] text-[hsl(var(--muted-foreground))]">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-6">
           <span>EDU CLOUD</span>
-          <a href="/login" className="transition-colors hover:text-[hsl(var(--foreground))]">Sign in</a>
-          <a href="/buy" className="transition-colors hover:text-[hsl(var(--foreground))]">Pricing</a>
-          <a href="/apps" className="transition-colors hover:text-[hsl(var(--foreground))]">Apps</a>
-          <a href="/forgot" className="transition-colors hover:text-[hsl(var(--foreground))]">
+          {/* py-2.5 so each footer link is a finger-sized target; text alone is 16px tall */}
+          <a href="/login" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">Sign in</a>
+          <a href="/buy" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">Pricing</a>
+          <a href="/apps" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">Apps</a>
+          <a href="/forgot" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">
             Forgotten your password
           </a>
         </div>
