@@ -102,7 +102,15 @@ export const SEAM = '!border-[color-mix(in_srgb,var(--bento-ink)_20%,transparent
     took whatever `color` it inherited from <body> — which on this layout is
     the CARD's ink by luck rather than by construction. Stating both means the
     pair is guaranteed rather than coincidental. */
-export const SURFACE = 'bg-[var(--bento-card)] text-[var(--bento-ink)]'
+/* The fallbacks matter for the CLASSIC layout. --bento-card and --bento-ink are
+   defined only under [data-layout='bento'], but these dialogs are portalled to
+   <body> and open in the classic layout too -- where the vars are undefined and
+   the panel background resolved to TRANSPARENT, so in dark mode the page showed
+   straight through the Settings window. The app's own popover tokens (defined in
+   both layouts and both themes) are the fallback; in bento the vars win and the
+   fallback never fires. */
+export const SURFACE =
+  'bg-[var(--bento-card,hsl(var(--popover)))] text-[var(--bento-ink,hsl(var(--popover-foreground)))]'
 
 /** The handle on every slider in these dialogs. */
 export const SLIDER = 'bento-slider'
