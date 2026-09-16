@@ -111,25 +111,17 @@ export default class ChunkBoundary extends Component<Props, State> {
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           {this.state.stale
             ? 'The site was updated while this tab was open, so part of it is no longer on the server. Reloading picks up the new version — nothing you have saved is affected.'
-            : 'Something in this screen failed. Reloading usually clears it; if it does not, this is the fault worth reporting:'}
+            : 'Something on this screen did not load properly. Reloading usually clears it — nothing you have saved is affected.'}
         </p>
-        {/* The error itself, on screen.
+        {/* No stack trace on screen.
          *
-         * "Something failed" is true and useless: the person looking at it
-         * cannot act on it and cannot report it either, and the one line that
-         * would identify the bug sits in a console nobody has open. Shown for
-         * a real fault only — a stale tab needs a reload, not a stack. */}
-        {!this.state.stale && this.state.detail && (
-          <p className="mt-2 break-words rounded border bg-muted/40 px-3 py-2 text-left font-mono text-[12px] text-muted-foreground">
-            {this.state.detail}
-            {this.state.where && (
-              <>
-                <br />
-                <span className="opacity-70">in {this.state.where}</span>
-              </>
-            )}
-          </p>
-        )}
+         * A school clerk on an old phone should never be shown "TypeError:
+         * cannot read properties of undefined": it reads as the product being
+         * broken, it is the "errors I do not want to see" the office asked us to
+         * stop showing, and they cannot act on it anyway. The full error and its
+         * component stack still go to console.error in componentDidCatch, where
+         * a developer looking into a report can read them; the person in front
+         * of the screen gets a plain sentence and a button. */}
         <Button
           className="mt-4"
           onClick={() => {
