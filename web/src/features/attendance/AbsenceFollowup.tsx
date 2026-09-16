@@ -28,16 +28,30 @@ import {
 
 type CallStatus = 'not_called' | 'called' | 'no_answer' | 'reached'
 
+interface Contact {
+  name: string
+  phone: string
+  relation: string
+}
+
 interface Absentee {
   student_id: string
   name: string
   admission_no: string
-  father_name?: string
-  father_phone?: string
-  mother_name?: string
-  mother_phone?: string
+  /* Every guardian with a number on file, father first then mother then the
+     primary. Only those with a number are here, so there is nothing to draw a
+     dead "no number" row for. */
+  contacts?: Contact[]
   call_status: CallStatus
   parent_response?: string
+}
+
+/* "father" -> "Father". The relation is whatever the guardian was stored as,
+   so an unusual one still reads sensibly rather than as a raw lowercase word. */
+function relationLabel(relation: string, name: string): string {
+  const r = relation?.trim()
+  if (!r) return name || 'Guardian'
+  return r.charAt(0).toUpperCase() + r.slice(1)
 }
 
 interface AbsenteeSection {
@@ -296,24 +310,23 @@ function SectionCard({
   )
 }
 
-/* A phone number, as a button that dials it. Shown only when a number exists,
-   so an absent parent contact leaves no dead control behind. */
-function CallButton({ name, phone }: { name: string; phone?: string }) {
-  if (!phone) {
-    return (
-      <span className="text-[13px] text-muted-foreground">
-        {name || '—'} <span className="text-muted-foreground/70">no number</span>
-      </span>
-    )
-  }
+/* A phone number, as a button that dials it. Only rendered for a guardian who
+   has a number, so there is never a dead control. The relation (Father, Mother,
+   …) leads, with the guardian's own name beneath it and the number to dial. */
+function CallButton({ label, name, phone }: { label: string; name: string; phone: string }) {
   return (
     <a
       href={`tel:${phone}`}
       className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[13px] font-medium hover:bg-accent"
     >
-      <Phone className="h-3.5 w-3.5" />
+      <Phone className="h-3.5 w-3.5 shrink-0" />
       <span className="min-w-0">
-        <span className="block truncate">{name || 'Call'}</span>
+        <span className="block truncate">
+          {label}
+          {name && name !== label ? (
+            <span className="font-normal text-muted-foreground"> · {name}</span>
+          ) : null}
+        </span>
         <span className="block font-mono text-[12px] text-muted-foreground">{phone}</span>
       </span>
     </a>
@@ -339,8 +352,18 @@ function AbsenteeRow({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <CallButton name={student.father_name ?? 'Father'} phone={student.father_phone} />
-          <CallButton name={student.mother_name ?? 'Mother'} phone={student.mother_phone} />
+          {student.contacts && student.contacts.length > 0 ? (
+            student.contacts.map((c, i) => (
+              <CallButton
+                key={`${c.phone}:${i}`}
+                label={relationLabel(c.relation, c.name)}
+                name={c.name}
+                phone={c.phone}
+              />
+            ))
+          ) : (
+            <span className="text-[13px] text-muted-foreground">No number on file</span>
+          )}
         </div>
       </div>
 

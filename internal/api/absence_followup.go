@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -34,16 +35,25 @@ Absentee follow-up: the morning list the office rings round.
 	screens can never disagree about who a teacher may see.
 */
 
+// absenteeContact is one guardian the office can ring. Relation is the raw
+// stored value ('father', 'mother', 'guardian', …); the screen title-cases it.
+type absenteeContact struct {
+	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+	Relation string `json:"relation"`
+}
+
 type absenteeStudent struct {
-	StudentID      string  `json:"student_id"`
-	Name           string  `json:"name"`
-	AdmissionNo    string  `json:"admission_no"`
-	FatherName     *string `json:"father_name"`
-	FatherPhone    *string `json:"father_phone"`
-	MotherName     *string `json:"mother_name"`
-	MotherPhone    *string `json:"mother_phone"`
-	CallStatus     string  `json:"call_status"`
-	ParentResponse string  `json:"parent_response"`
+	StudentID   string `json:"student_id"`
+	Name        string `json:"name"`
+	AdmissionNo string `json:"admission_no"`
+	// Contacts is every guardian who has a number on file, father first, then
+	// mother, then whoever is marked primary. Only guardians with a number
+	// appear, so the office never sees a dead "no number" row — and a number
+	// stored under any relation, not just father/mother, is still shown.
+	Contacts       []absenteeContact `json:"contacts"`
+	CallStatus     string            `json:"call_status"`
+	ParentResponse string            `json:"parent_response"`
 }
 
 type absenteeSection struct {
@@ -86,6 +96,7 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		sectionID, sectionName, className string
 		doneBy                            *string
 		doneAt                            *time.Time
+		contactsJSON                      []byte
 		student                           absenteeStudent
 	}
 	items, err := collect(s, r, `
@@ -94,18 +105,17 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		       sa.student_id::text,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 		       st.admission_no,
-		       (SELECT g.full_name FROM student_guardians sg
-		          JOIN guardians g ON g.id = sg.guardian_id
-		         WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1),
-		       (SELECT g.phone FROM student_guardians sg
-		          JOIN guardians g ON g.id = sg.guardian_id
-		         WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1),
-		       (SELECT g.full_name FROM student_guardians sg
-		          JOIN guardians g ON g.id = sg.guardian_id
-		         WHERE sg.student_id = st.id AND g.relation = 'mother' LIMIT 1),
-		       (SELECT g.phone FROM student_guardians sg
-		          JOIN guardians g ON g.id = sg.guardian_id
-		         WHERE sg.student_id = st.id AND g.relation = 'mother' LIMIT 1),
+		       COALESCE((
+		         SELECT json_agg(json_build_object(
+		                  'name', g.full_name, 'phone', g.phone, 'relation', g.relation)
+		                ORDER BY (g.relation = 'father') DESC,
+		                         (g.relation = 'mother') DESC,
+		                         sg.is_primary DESC, g.full_name)
+		           FROM student_guardians sg
+		           JOIN guardians g ON g.id = sg.guardian_id
+		          WHERE sg.student_id = st.id
+		            AND g.phone IS NOT NULL AND btrim(g.phone) <> ''
+		       ), '[]'),
 		       COALESCE(f.call_status, 'not_called'),
 		       COALESCE(f.parent_response, '')
 		  FROM student_attendance sa
@@ -129,8 +139,7 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 			return v, rows.Scan(&v.sectionID, &v.sectionName, &v.className,
 				&v.doneBy, &v.doneAt,
 				&v.student.StudentID, &v.student.Name, &v.student.AdmissionNo,
-				&v.student.FatherName, &v.student.FatherPhone,
-				&v.student.MotherName, &v.student.MotherPhone,
+				&v.contactsJSON,
 				&v.student.CallStatus, &v.student.ParentResponse)
 		})
 	if err != nil {
@@ -156,7 +165,15 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 				DoneAt:      it.doneAt,
 			})
 		}
-		sections[i].Students = append(sections[i].Students, it.student)
+		st := it.student
+		st.Contacts = []absenteeContact{}
+		if len(it.contactsJSON) > 0 {
+			// A malformed aggregate is not worth failing the whole list over — the
+			// office still needs the names and admission numbers — so a bad decode
+			// leaves the child with no numbers rather than no row.
+			_ = json.Unmarshal(it.contactsJSON, &st.Contacts)
+		}
+		sections[i].Students = append(sections[i].Students, st)
 	}
 
 	httpx.JSON(w, http.StatusOK, map[string]any{
