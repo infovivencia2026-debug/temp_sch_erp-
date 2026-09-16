@@ -33,3 +33,4 @@ deploy/cloudrun/.env.cloudrun
 /site/dist/
 /site/node_modules/
 site/tsconfig.tsbuildinfo
+*.exe
