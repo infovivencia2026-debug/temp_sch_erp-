@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/scope"
 )
 
 // errAbsenceOutOfScope is raised inside the write transaction when the target
@@ -50,6 +51,11 @@ type absenteeSection struct {
 	SectionName string            `json:"section_name"`
 	ClassName   string            `json:"class_name"`
 	Students    []absenteeStudent `json:"students"`
+	// Done is set once the office has closed this section for the day (see
+	// finishAbsenceSection); DoneBy/DoneAt say who and when.
+	Done   bool       `json:"done"`
+	DoneBy *string    `json:"done_by"`
+	DoneAt *time.Time `json:"done_at"`
 }
 
 // listAbsentees returns the day's absentees grouped by section, with each
@@ -78,10 +84,13 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 
 	type row struct {
 		sectionID, sectionName, className string
+		doneBy                            *string
+		doneAt                            *time.Time
 		student                           absenteeStudent
 	}
 	items, err := collect(s, r, `
 		SELECT sa.section_id::text, sec.name, c.name,
+		       du.full_name, d.done_at,
 		       sa.student_id::text,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 		       st.admission_no,
@@ -105,6 +114,9 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		  JOIN classes  c   ON c.id = sec.class_id
 		  LEFT JOIN student_absence_followup f
 		         ON f.student_id = sa.student_id AND f.on_date = sa.on_date
+		  LEFT JOIN absence_followup_section_done d
+		         ON d.section_id = sa.section_id AND d.on_date = sa.on_date
+		  LEFT JOIN users du ON du.id = d.done_by
 		 WHERE sa.on_date = $1::date
 		   AND ($2::uuid IS NULL OR sa.section_id = $2)
 		   AND sa.status IS NOT NULL
@@ -115,6 +127,7 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (row, error) {
 			var v row
 			return v, rows.Scan(&v.sectionID, &v.sectionName, &v.className,
+				&v.doneBy, &v.doneAt,
 				&v.student.StudentID, &v.student.Name, &v.student.AdmissionNo,
 				&v.student.FatherName, &v.student.FatherPhone,
 				&v.student.MotherName, &v.student.MotherPhone,
@@ -138,6 +151,9 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 				SectionName: it.sectionName,
 				ClassName:   it.className,
 				Students:    []absenteeStudent{},
+				Done:        it.doneAt != nil,
+				DoneBy:      it.doneBy,
+				DoneAt:      it.doneAt,
 			})
 		}
 		sections[i].Students = append(sections[i].Students, it.student)
@@ -178,9 +194,7 @@ func (s *Server) recordAbsenceFollowup(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "on_date must be YYYY-MM-DD")
 		return
 	}
-	valid := map[string]bool{"not_called": true, "called": true,
-		"no_answer": true, "reached": true}
-	if !valid[req.CallStatus] {
+	if !validCallStatus[req.CallStatus] {
 		httpx.BadRequest(w, r, "invalid call_status: "+req.CallStatus)
 		return
 	}
@@ -193,48 +207,164 @@ func (s *Server) recordAbsenceFollowup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		// Confirm the student is inside the caller's read boundary before writing,
-		// mirroring listAbsentees exactly: academics.attendance.read.all reaches
-		// every student, otherwise only a child enrolled in a section the caller
-		// teaches / is class teacher of, or the caller's own record / children.
-		if !res.AllAttendance {
-			var visible bool
-			if err := tx.QueryRow(r.Context(), `
-				SELECT EXISTS (
-				    SELECT 1 FROM enrollments e
-				     WHERE e.student_id = $1 AND e.section_id = ANY($2))
-				    OR $1 = ANY($3)`,
-				studentID, res.SectionIDs, res.StudentIDs).Scan(&visible); err != nil {
-				return err
-			}
-			if !visible {
-				return errAbsenceOutOfScope
-			}
-		}
-
-		// Derive the tenant from the student: a platform operator has no
-		// institution_id of their own, and the column is NOT NULL.
-		var instID uuid.UUID
-		if err := tx.QueryRow(r.Context(),
-			`SELECT institution_id FROM students WHERE id = $1`, studentID).Scan(&instID); err != nil {
-			return err
-		}
-
-		_, err := tx.Exec(r.Context(), `
-			INSERT INTO student_absence_followup
-			    (institution_id, student_id, on_date, call_status, parent_response,
-			     updated_by, updated_at)
-			VALUES ($1, $2, $3::date, $4, $5, $6, now())
-			ON CONFLICT (student_id, on_date) DO UPDATE
-			   SET call_status     = EXCLUDED.call_status,
-			       parent_response = EXCLUDED.parent_response,
-			       updated_by      = EXCLUDED.updated_by,
-			       updated_at      = now()`,
-			instID, studentID, req.OnDate, req.CallStatus, req.ParentResponse, id.UserID)
-		return err
+		return s.upsertAbsenceFollowup(r, tx, res, id.UserID, studentID, req.OnDate,
+			req.CallStatus, req.ParentResponse)
 	})
 	if err == errAbsenceOutOfScope {
 		httpx.Forbidden(w, r, "academics.attendance.read for this student")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+var validCallStatus = map[string]bool{"not_called": true, "called": true,
+	"no_answer": true, "reached": true}
+
+// upsertAbsenceFollowup writes one child's call log for one day, after
+// confirming the child is inside the caller's read boundary. Shared by the
+// single-row save and the section-level Done so the two can never disagree
+// about who may write what.
+func (s *Server) upsertAbsenceFollowup(r *http.Request, tx pgx.Tx, res *scope.Resolved,
+	userID uuid.UUID, studentID uuid.UUID, onDate, callStatus, parentResponse string) error {
+	// Mirror listAbsentees exactly: academics.attendance.read.all reaches every
+	// student, otherwise only a child enrolled in a section the caller teaches /
+	// is class teacher of, or the caller's own record / children.
+	if !res.AllAttendance {
+		var visible bool
+		if err := tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			    SELECT 1 FROM enrollments e
+			     WHERE e.student_id = $1 AND e.section_id = ANY($2))
+			    OR $1 = ANY($3)`,
+			studentID, res.SectionIDs, res.StudentIDs).Scan(&visible); err != nil {
+			return err
+		}
+		if !visible {
+			return errAbsenceOutOfScope
+		}
+	}
+
+	// Derive the tenant from the student: a platform operator has no
+	// institution_id of their own, and the column is NOT NULL.
+	var instID uuid.UUID
+	if err := tx.QueryRow(r.Context(),
+		`SELECT institution_id FROM students WHERE id = $1`, studentID).Scan(&instID); err != nil {
+		return err
+	}
+
+	_, err := tx.Exec(r.Context(), `
+		INSERT INTO student_absence_followup
+		    (institution_id, student_id, on_date, call_status, parent_response,
+		     updated_by, updated_at)
+		VALUES ($1, $2, $3::date, $4, $5, $6, now())
+		ON CONFLICT (student_id, on_date) DO UPDATE
+		   SET call_status     = EXCLUDED.call_status,
+		       parent_response = EXCLUDED.parent_response,
+		       updated_by      = EXCLUDED.updated_by,
+		       updated_at      = now()`,
+		instID, studentID, onDate, callStatus, parentResponse, userID)
+	return err
+}
+
+type absenceSectionDoneRequest struct {
+	SectionID string `json:"section_id"`
+	OnDate    string `json:"on_date"`
+	Entries   []struct {
+		StudentID      string `json:"student_id"`
+		CallStatus     string `json:"call_status"`
+		ParentResponse string `json:"parent_response"`
+	} `json:"entries"`
+}
+
+// finishAbsenceSection is the "Done" at the bottom of a section's list: it
+// saves every row the office edited in one go and records that the section is
+// closed for the day, so the reviewed day can show who finished it and when.
+// Pressing Done again on a section already closed simply re-saves the rows and
+// refreshes the stamp.
+func (s *Server) finishAbsenceSection(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+
+	var req absenceSectionDoneRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	sectionID, err := uuid.Parse(req.SectionID)
+	if err != nil {
+		httpx.BadRequest(w, r, "section_id must be a uuid")
+		return
+	}
+	if req.OnDate == "" {
+		req.OnDate = time.Now().Format(time.DateOnly)
+	}
+	if _, err := time.Parse(time.DateOnly, req.OnDate); err != nil {
+		httpx.BadRequest(w, r, "on_date must be YYYY-MM-DD")
+		return
+	}
+	type entry struct {
+		studentID              uuid.UUID
+		callStatus, parentResp string
+	}
+	entries := make([]entry, 0, len(req.Entries))
+	for _, e := range req.Entries {
+		sid, err := uuid.Parse(e.StudentID)
+		if err != nil {
+			httpx.BadRequest(w, r, "student_id must be a uuid")
+			return
+		}
+		if !validCallStatus[e.CallStatus] {
+			httpx.BadRequest(w, r, "invalid call_status: "+e.CallStatus)
+			return
+		}
+		entries = append(entries, entry{sid, e.CallStatus, e.ParentResponse})
+	}
+
+	res, err := s.resolveScope(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// The section itself must be within reach, even when no row is sent —
+		// a Done with nothing to save still stamps the section.
+		if !res.AllAttendance {
+			ok := false
+			for _, sid := range res.SectionIDs {
+				if sid == sectionID {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return errAbsenceOutOfScope
+			}
+		}
+		for _, e := range entries {
+			if err := s.upsertAbsenceFollowup(r, tx, res, id.UserID, e.studentID,
+				req.OnDate, e.callStatus, e.parentResp); err != nil {
+				return err
+			}
+		}
+		var instID uuid.UUID
+		if err := tx.QueryRow(r.Context(),
+			`SELECT institution_id FROM sections WHERE id = $1`, sectionID).Scan(&instID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(r.Context(), `
+			INSERT INTO absence_followup_section_done
+			    (institution_id, section_id, on_date, done_by, done_at)
+			VALUES ($1, $2, $3::date, $4, now())
+			ON CONFLICT (section_id, on_date) DO UPDATE
+			   SET done_by = EXCLUDED.done_by, done_at = now()`,
+			instID, sectionID, req.OnDate, id.UserID)
+		return err
+	})
+	if err == errAbsenceOutOfScope {
+		httpx.Forbidden(w, r, "academics.attendance.read for this section")
 		return
 	}
 	if err != nil {

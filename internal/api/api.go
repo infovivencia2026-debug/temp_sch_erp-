@@ -384,6 +384,7 @@ func (s *Server) Routes() http.Handler {
 			// permission; the section scope inside each handler does the narrowing.
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/absentees", s.listAbsentees)
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Post("/absentees/followup", s.recordAbsenceFollowup)
+			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Post("/absentees/section-done", s.finishAbsenceSection)
 		})
 
 		r.Route("/me", func(r chi.Router) {
