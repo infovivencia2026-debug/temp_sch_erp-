@@ -3111,3 +3111,28 @@ html:not([data-layout='bento']) [data-add-gallery] {
   --bento-line: hsl(var(--border));
   --bento-muted: hsl(var(--muted-foreground));
 }
+
+/* SMOOTH LIGHT<->DARK SWITCH.
+
+   Added to <html> by applyTheme (lib/theme.ts) for ~320ms only on a real theme
+   flip -- never on page load -- so the whole interface cross-fades its colours
+   instead of snapping. Colour properties only (background, text, border, icons);
+   box-shadow and transforms are left alone to keep the fade cheap. Reduced motion
+   opts out entirely. */
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    fill 0.3s ease,
+    stroke 0.3s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim,
+  html.theme-anim *,
+  html.theme-anim *::before,
+  html.theme-anim *::after { transition: none !important; }
+}

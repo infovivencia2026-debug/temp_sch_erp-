@@ -102,9 +102,23 @@ function serverSnapshot(): Theme {
 /** Set the device's copy and re-render. Exported for the reconciliation below
     and for anything that learns the theme from a payload it already had —
     writing back what the server just told us would PUT it straight again. */
+let themePrimed = false
+let themeAnimTimer = 0
 export function applyTheme(next: Theme) {
   const resolved = resolveTheme(next)
-  document.documentElement.classList.toggle('dark', resolved === 'dark')
+  const root = document.documentElement
+  /* Smooth the light<->dark flip. A brief colour transition is added to the
+     root only when the RESOLVED theme actually changes, and never on the first
+     apply (page load), so nothing fades in on arrival -- only a deliberate
+     toggle animates. Reduced motion turns it off in the stylesheet. */
+  const flipping = themePrimed && root.classList.contains('dark') !== (resolved === 'dark')
+  themePrimed = true
+  if (flipping) {
+    root.classList.add('theme-anim')
+    window.clearTimeout(themeAnimTimer)
+    themeAnimTimer = window.setTimeout(() => root.classList.remove('theme-anim'), 320)
+  }
+  root.classList.toggle('dark', resolved === 'dark')
   try {
     localStorage.setItem(CHOICE_KEY, next)
     localStorage.setItem(RESOLVED_KEY, JSON.stringify(resolved))
