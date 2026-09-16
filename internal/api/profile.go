@@ -221,6 +221,18 @@ type changePasswordRequest struct {
 // compromise; leaving them live would make the change cosmetic.
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
+	/* Not from a day-code session. The code is shared by every teacher and
+	   typed in front of a class; a session it opened may mark attendance and
+	   enter homework, but it may not set the password, or the next child at
+	   the board sets one of their own and holds the account past midnight.
+	   The current-password check below would usually stop that -- but the
+	   day code is not the current password, and a teacher whose password is
+	   the bulk-issued phone number is exactly the one a child could guess. */
+	if id.DayCode {
+		httpx.Error(w, r, http.StatusForbidden, "day_code_session",
+			"You signed in with the day code. Change your password from a sign-in that used your password, such as on your own phone.")
+		return
+	}
 	var req changePasswordRequest
 	if !httpx.Decode(w, r, &req) {
 		return

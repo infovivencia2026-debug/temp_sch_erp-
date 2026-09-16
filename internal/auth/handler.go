@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -185,7 +186,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, instID, err := h.authenticate(r.Context(), identifier, password)
+	won, err := h.authenticate(r.Context(), identifier, password)
 	if err != nil {
 		h.throttle.Failed(identifier)
 		/* THREE DIFFERENT FACTS, SAID AS THREE.
@@ -229,11 +230,29 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	h.throttle.Succeeded(identifier)
 
-	if err := h.store.Issue(r.Context(), w, r, userID, instID); err != nil {
+	via, until := "password", time.Time{} // zero: the store's usual lifetime
+	if won.dayCode {
+		// A code that is good until the school's midnight opens a session
+		// that ends at the same moment. Tomorrow's teacher types tomorrow's
+		// code; nobody inherits a board that was left signed in overnight.
+		via = "day_code"
+		_, until = LocalDay(won.timezone, time.Now())
+		slog.Info("day-code sign-in", "user", won.userID, "institution", won.instID)
+	}
+	if err := h.store.IssueVia(r.Context(), w, r, won.userID, won.instID, via, until); err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+// signedIn is what authenticate resolves to: the account, its school, and
+// whether it was the password or the teachers' day code that opened it.
+type signedIn struct {
+	userID   uuid.UUID
+	instID   uuid.UUID
+	dayCode  bool
+	timezone string
 }
 
 // dummyHash is compared against when no user matches, so a missing account and
@@ -262,11 +281,19 @@ authenticate resolves an identifier and a password to exactly one account.
 	and an identifier shared across a dozen tenants would otherwise be a way to
 	make one unauthenticated request cost a second of CPU.
 */
-func (h *Handler) authenticate(ctx context.Context, identifier, password string) (uuid.UUID, uuid.UUID, error) {
+func (h *Handler) authenticate(ctx context.Context, identifier, password string) (signedIn, error) {
 	type candidate struct {
 		userID uuid.UUID
 		instID *uuid.UUID
 		hash   *string
+		// The school's day-code secret (nil: feature off), its timezone, and
+		// whether this account holds a teaching role -- the three facts that
+		// decide if what was typed is allowed to be today's code instead of
+		// the password. See daycode.go.
+		daySecret []byte
+		timezone  string
+		teacher   bool
+		matchedBy string
 		// The school is suspended. Carried rather than filtered out in SQL,
 		// because the difference between "no such account" and "your school
 		// is paused" is the difference between a parent concluding they were
@@ -306,20 +333,24 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		   as a column instead and is judged after the password is. */
 		rows, err := tx.Query(ctx, `
 			SELECT u.id, u.institution_id, u.password_hash,
-			       (u.institution_id IS NOT NULL AND i.status <> 'active') AS paused
+			       (u.institution_id IS NOT NULL AND i.status <> 'active') AS paused,
+			       i.teacher_day_code_secret, COALESCE(i.timezone, ''),
+			       EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+			                WHERE ur.user_id = u.id AND r.key = ANY($3)) AS teacher
 			  FROM users u
 			  LEFT JOIN institutions i ON i.id = u.institution_id
 			 WHERE u.status = 'active'
 			   AND (u.email = $1::citext OR u.phone = $1 OR u.username = $1::citext)
 			 ORDER BY u.created_at
-			 LIMIT $2`, identifier, maxCandidates)
+			 LIMIT $2`, identifier, maxCandidates, DayCodeRoles)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var c candidate
-			if err := rows.Scan(&c.userID, &c.instID, &c.hash, &c.paused); err != nil {
+			if err := rows.Scan(&c.userID, &c.instID, &c.hash, &c.paused,
+				&c.daySecret, &c.timezone, &c.teacher); err != nil {
 				return err
 			}
 			candidates = append(candidates, c)
@@ -327,24 +358,37 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		return rows.Err()
 	})
 	if err != nil {
-		return uuid.Nil, uuid.Nil, err
+		return signedIn{}, err
 	}
 
 	if len(candidates) == 0 {
 		// The constant-time dummy: a number nobody uses and a wrong password
 		// must cost the same, or the latency answers which numbers exist.
 		_ = h.hasher.Verify(dummyHash, password)
-		return uuid.Nil, uuid.Nil, errNoAccount
+		return signedIn{}, errNoAccount
 	}
 
+	now := time.Now()
 	var matched []candidate
 	for _, c := range candidates {
+		/* The day code is tried first, and only for a teaching account at a
+		   school that switched it on. First because it is cheap and the hash
+		   is not; the hash is still run when the code fails, so the timing
+		   says nothing about whether the school uses codes. An invited
+		   account with no password yet still cannot sign in by code: the
+		   code is a substitute for a password, not for having one. */
+		if c.hash != nil && c.teacher && DayCodeMatches(c.daySecret, c.timezone, password, now) {
+			c.matchedBy = "day_code"
+			matched = append(matched, c)
+			continue
+		}
 		if c.hash == nil {
 			// An invited account with no password yet. Nothing to verify, and
 			// nothing to sign in as.
 			continue
 		}
 		if err := h.hasher.Verify(*c.hash, password); err == nil {
+			c.matchedBy = "password"
 			matched = append(matched, c)
 		}
 	}
@@ -367,14 +411,14 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 			slog.Warn("no password matched an identifier held at several schools",
 				"identifier", identifier, "candidates", len(candidates))
 		}
-		return uuid.Nil, uuid.Nil, ErrMismatch
+		return signedIn{}, ErrMismatch
 	default:
 		/* A real tie: the same number and the same password at two schools.
 		   The only case the ambiguity message is now about, and the only one
 		   where "use your email instead" is advice somebody can act on. */
 		slog.Warn("identifier and password match more than one account",
 			"identifier", identifier, "matches", len(matched))
-		return uuid.Nil, uuid.Nil, errAmbiguousIdentifier
+		return signedIn{}, errAmbiguousIdentifier
 	}
 
 	won := matched[0]
@@ -382,18 +426,18 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 		/* Right password, paused school. Only reachable past Verify, so a
 		   stranger enumerating addresses is still told "wrong password" and
 		   learns nothing about which schools exist or their standing. */
-		return uuid.Nil, uuid.Nil, errSchoolPaused
+		return signedIn{}, errSchoolPaused
 	}
 	_ = h.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE users SET last_login_at = now() WHERE id = $1`, won.userID)
 		return err
 	})
 
-	var inst uuid.UUID
+	out := signedIn{userID: won.userID, dayCode: won.matchedBy == "day_code", timezone: won.timezone}
 	if won.instID != nil {
-		inst = *won.instID
+		out.instID = *won.instID
 	}
-	return won.userID, inst, nil
+	return out, nil
 }
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {

@@ -394,6 +394,9 @@ func (s *Server) Routes() http.Handler {
 			// account may hold one; the token names a phone, not a right.
 			r.Put("/push-token", s.registerPushToken)
 			r.Delete("/push-token", s.forgetPushToken)
+			// Today's classroom sign-in code, for a teacher reading it off
+			// their own phone. Gated inside on holding a teaching role.
+			r.Get("/day-code", s.getMyDayCode)
 		})
 
 		// Heavy work is never done inline; these hand off to the queue and
@@ -1358,6 +1361,9 @@ func (s *Server) Routes() http.Handler {
 			// the same copy and rolls it back — see year_rollover.go.
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Get("/academic-years/{id}/rollover", s.previewYearRollover)
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/academic-years/{id}/rollover", s.postYearRollover)
+			// The teachers' daily sign-in code -- see day_code.go.
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/day-code", s.getDayCode)
+			r.With(httpx.RequirePermission(rbac.UsersWrite)).Put("/day-code", s.setDayCode)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

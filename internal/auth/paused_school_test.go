@@ -71,15 +71,15 @@ func TestAPausedSchoolIsNamedAsPausedOnlyAfterThePasswordIsRight(t *testing.T) {
 	h := &Handler{db: db, hasher: hasher, throttle: NewThrottle()}
 
 	// Right password: the honest sentence.
-	if _, _, err := h.authenticate(ctx, email, "correct-horse-battery"); !errors.Is(err, errSchoolPaused) {
+	if _, err := h.authenticate(ctx, email, "correct-horse-battery"); !errors.Is(err, errSchoolPaused) {
 		t.Fatalf("right password on a paused school: got %v, want errSchoolPaused", err)
 	}
 	// Wrong password: still "wrong password" -- nothing about the school leaks.
-	if _, _, err := h.authenticate(ctx, email, "nope"); !errors.Is(err, ErrMismatch) {
+	if _, err := h.authenticate(ctx, email, "nope"); !errors.Is(err, ErrMismatch) {
 		t.Fatalf("wrong password on a paused school: got %v, want ErrMismatch (no leak)", err)
 	}
 	// And it must not be the stranger's sentence in either case.
-	if _, _, err := h.authenticate(ctx, email, "nope"); errors.Is(err, errNoAccount) {
+	if _, err := h.authenticate(ctx, email, "nope"); errors.Is(err, errNoAccount) {
 		t.Fatal("a paused school's user was told no such account exists")
 	}
 
@@ -90,7 +90,7 @@ func TestAPausedSchoolIsNamedAsPausedOnlyAfterThePasswordIsRight(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, gotInst, err := h.authenticate(ctx, email, "correct-horse-battery"); err != nil || gotInst != inst {
-		t.Fatalf("after reactivation: err=%v inst=%v want nil, %v", err, gotInst, inst)
+	if got, err := h.authenticate(ctx, email, "correct-horse-battery"); err != nil || got.instID != inst {
+		t.Fatalf("after reactivation: err=%v inst=%v want nil, %v", err, got.instID, inst)
 	}
 }

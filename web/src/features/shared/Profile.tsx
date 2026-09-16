@@ -202,6 +202,17 @@ export default function ProfileView() {
         )}
       </Card>
 
+      <MyDayCode />
+
+      {session.user?.day_code ? (
+        <Card>
+          <CardHeader title="Change password" />
+          <p className="p-4 text-[14px] text-muted-foreground">
+            You signed in with the classroom day code, so this screen cannot change your
+            password. Sign in with your password on your own phone to change it.
+          </p>
+        </Card>
+      ) : (
       <Card>
         <CardHeader
           title="Change password"
@@ -234,6 +245,7 @@ export default function ProfileView() {
           </Button>
         </form>
       </Card>
+      )}
     </div>
 
     {/* The staff side of "my own record".
@@ -333,5 +345,32 @@ function PasswordField({ label, value, onChange, hint }: {
       </div>
       {hint && <span className="mt-0.5 block text-[12px] text-muted-foreground">{hint}</span>}
     </label>
+  )
+}
+
+
+/* Today's classroom sign-in code, for a teacher reading it off their phone.
+
+   The server answers 404 for anybody without a teaching role, and "off" for
+   a school that has not switched it on; both render nothing, so the card
+   exists only where it has something to say. */
+function MyDayCode() {
+  const { data } = useQuery({
+    queryKey: ['my-day-code'],
+    queryFn: () => api.get<{ enabled: boolean; code?: string; date?: string }>('/api/v1/me/day-code'),
+    retry: false,
+  })
+  if (!data?.enabled) return null
+  return (
+    <Card>
+      <CardHeader title="Classroom sign-in code" />
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 p-4">
+        <p className="font-mono text-[34px] font-semibold tracking-[0.18em] tabular-nums">{data.code}</p>
+        <p className="max-w-sm text-[14px] text-muted-foreground">
+          Type this instead of your password when signing in on a classroom screen. It is the
+          same for every teacher today and changes at midnight.
+        </p>
+      </div>
+    </Card>
   )
 }

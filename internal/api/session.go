@@ -44,6 +44,9 @@ type sessionUser struct {
 	// and nothing else until this is false; the API enforces the same thing,
 	// because a client is not a gate.
 	MustChangePassword bool `json:"must_change_password,omitempty"`
+	// Signed in with the teachers' day code on a shared screen. The profile
+	// screen hides the password form; the API refuses it regardless.
+	DayCode bool `json:"day_code,omitempty"`
 }
 
 type institution struct {
@@ -176,6 +179,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 			FullName:           id.FullName,
 			PlatformAdmin:      id.PlatformAdmin,
 			MustChangePassword: id.MustChangePassword,
+			DayCode:            id.DayCode,
 			Roles:              []string{},
 		},
 	}

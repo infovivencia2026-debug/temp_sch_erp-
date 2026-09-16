@@ -42,7 +42,12 @@ type Identity struct {
 	// and therefore known to anybody holding the class list. Everything except
 	// reading the session and setting a new one is refused until it is false.
 	MustChangePassword bool
-	Permissions        map[string]struct{}
+	// DayCode marks a session opened with the teachers' daily code rather than
+	// the account's password -- on a classroom board, with the class watching.
+	// It may do a teacher's work; it may not change the password, because the
+	// next person at the board is a child.
+	DayCode     bool
+	Permissions map[string]struct{}
 	/* APIKey marks an identity that came from an Authorization: Bearer key
 	   rather than from the session cookie. Nothing about tenancy or
 	   permissions depends on it -- a key is resolved into exactly the same

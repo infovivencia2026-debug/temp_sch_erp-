@@ -85,6 +85,7 @@ type sessionRecord struct {
 	lastSeen           time.Time
 	fullName           string
 	mustChangePassword bool
+	via                string
 	perms              []string
 	roleKeys           []string
 }
@@ -154,11 +155,23 @@ func hashToken(tok string) []byte {
 }
 
 func (s *Store) Issue(ctx context.Context, w http.ResponseWriter, r *http.Request, userID, instID uuid.UUID) error {
+	return s.IssueVia(ctx, w, r, userID, instID, "password", time.Now().Add(s.ttl))
+}
+
+// IssueVia is Issue with the two facts a day-code sign-in changes: how the
+// session was opened (read back by the password handler, which refuses to
+// change a password from a session the password did not open) and when it
+// ends -- a code that is good until the school's midnight opens a session
+// that is good until the same moment, and not the usual weeks. A zero
+// expires means the store's usual lifetime, which is also the ceiling.
+func (s *Store) IssueVia(ctx context.Context, w http.ResponseWriter, r *http.Request, userID, instID uuid.UUID, via string, expires time.Time) error {
 	tok, err := newToken()
 	if err != nil {
 		return err
 	}
-	expires := time.Now().Add(s.ttl)
+	if cap := time.Now().Add(s.ttl); expires.IsZero() || expires.After(cap) {
+		expires = cap
+	}
 
 	var ip *string
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
@@ -170,9 +183,9 @@ func (s *Store) Issue(ctx context.Context, w http.ResponseWriter, r *http.Reques
 
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO sessions (institution_id, user_id, token_hash, ip, user_agent, expires_at)
-			VALUES ($1, $2, $3, $4, $5, $6)`,
-			nullUUID(instID), userID, hashToken(tok), ip, r.UserAgent(), expires)
+			INSERT INTO sessions (institution_id, user_id, token_hash, ip, user_agent, expires_at, via)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			nullUUID(instID), userID, hashToken(tok), ip, r.UserAgent(), expires, via)
 		return err
 	})
 	if err != nil {
@@ -287,7 +300,7 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 		   on real data says which. */
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
-			       u.must_change_password,
+			       u.must_change_password, s.via,
 			       COALESCE((SELECT array_agg(DISTINCT k) FROM (
 			                   SELECT rp.permission_key AS k
 			                     FROM user_roles ur
@@ -313,7 +326,7 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 			   AND u.status = 'active'`,
 			tokenHash)
 		return row.Scan(&rec.sessionID, &rec.userID, &rec.instID, &rec.lastSeen, &rec.fullName,
-			&rec.mustChangePassword, &rec.perms, &rec.roleKeys)
+			&rec.mustChangePassword, &rec.via, &rec.perms, &rec.roleKeys)
 	})
 	if err != nil {
 		return nil, err
@@ -328,6 +341,15 @@ func identityFrom(rec *sessionRecord) httpx.Identity {
 		UserID:             rec.userID,
 		FullName:           rec.fullName,
 		MustChangePassword: rec.mustChangePassword,
+		DayCode:            rec.via == "day_code",
+	}
+	/* The bulk-issued password is the reason for must_change_password, and a
+	   day-code session never typed it. Forcing the change here would send a
+	   teacher standing at the classroom board to a screen that demands a new
+	   password -- from the one session that is refused the power to set one.
+	   She changes it from her phone; the board gets to work. */
+	if id.DayCode {
+		id.MustChangePassword = false
 	}
 	if rec.instID != nil {
 		id.InstitutionID = *rec.instID

@@ -211,6 +211,8 @@ export default function Logins() {
           </Card>
         )}
 
+        <DayCodeCard />
+
         {creating && (
           <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
         )}
@@ -839,4 +841,96 @@ function sentLine(res: { sent_by?: string; sent_to?: string } | undefined): stri
   if (!res?.sent_to) return null
   const by = res.sent_by === 'email' ? 'email' : res.sent_by === 'whatsapp' ? 'WhatsApp' : 'SMS'
   return `Sent to ${res.sent_to} by ${by}. It is also shown here once, in case that does not arrive.`
+}
+
+
+/* The teachers' daily sign-in code.
+
+   A teacher signing in on the classroom panel types her password with the
+   class watching the keyboard. This is the school's alternative: one
+   six-digit code, the same for every teacher, new every day, typed in the
+   password box instead. It expires at midnight, and a session it opened
+   cannot change the password -- so what a child learns by watching is
+   worth until the bell, and no more. Only accounts with a teaching role
+   (faculty, head of department) can use it; the office and the principal
+   still sign in with their own passwords.
+
+   The code is shown here for the office to put on the staffroom board, and
+   on each teacher's own profile so it reaches them on their phone. */
+interface DayCodeState {
+  enabled: boolean
+  code?: string
+  date?: string
+  expires_at?: string
+}
+
+function DayCodeCard() {
+  const qc = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['day-code'],
+    queryFn: () => api.get<DayCodeState>('/api/v1/admin/day-code'),
+  })
+  const set = useMutation({
+    mutationFn: (body: { enabled: boolean; rotate?: boolean }) =>
+      api.put<DayCodeState>('/api/v1/admin/day-code', body),
+    onSuccess: (d) => qc.setQueryData(['day-code'], d),
+  })
+  if (isLoading || !data) return null
+  return (
+    <Card>
+      <CardHeader
+        title="Classroom sign-in code"
+        action={
+          data.enabled ? (
+            <div className="flex flex-wrap gap-2">
+              <ConfirmButton
+                confirmLabel="New code"
+                question="Today's code stops working now and every teacher gets the new one."
+                onConfirm={() => set.mutate({ enabled: true, rotate: true })}
+                disabled={set.isPending}
+              >
+                New code now
+              </ConfirmButton>
+              <ConfirmButton
+                confirmLabel="Switch off"
+                question="Teachers will need their own password on classroom screens from now."
+                onConfirm={() => set.mutate({ enabled: false })}
+                disabled={set.isPending}
+                tone="danger"
+              >
+                Switch off
+              </ConfirmButton>
+            </div>
+          ) : (
+            <Button size="sm" onClick={() => set.mutate({ enabled: true })} disabled={set.isPending}>
+              <KeyRound className="h-3.5 w-3.5" />
+              Switch on
+            </Button>
+          )
+        }
+      />
+      <div className="p-5">
+        {data.enabled ? (
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div>
+              <p className="text-[12px] uppercase tracking-wide text-muted-foreground">Today, {formatDate(data.date!)}</p>
+              <p className="mt-1 font-mono text-[34px] font-semibold tracking-[0.18em] tabular-nums">{data.code}</p>
+            </div>
+            <p className="max-w-md text-[14px] text-muted-foreground">
+              Teachers type this in the password box instead of their password when signing in on
+              a classroom screen. It changes at midnight, and a sign-in that used it cannot change
+              the password. Each teacher can also read it on their own profile.
+            </p>
+          </div>
+        ) : (
+          <p className="max-w-2xl text-[14px] text-muted-foreground">
+            Off. A teacher signing in on a classroom screen types their own password in front of
+            the class. Switch this on to give teachers one shared six-digit code, new every day,
+            that works in place of the password for teaching accounts only.
+          </p>
+        )}
+        <FormNotice error={set.error} />
+      </div>
+    </Card>
+  )
 }
