@@ -118,7 +118,22 @@ export default function Logins() {
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['school-logins', params.toString()],
-    queryFn: () => api.get<List<AdminUser>>(`/api/v1/admin/users?${params}`),
+    // Walked to the END, page by page. The endpoint returns 200 at a time; a
+    // school whose students each have a login runs well past that, and a single
+    // fetch showed only the first 200 -- so people were simply missing from the
+    // list. Every page is pulled and concatenated so the whole roll is shown
+    // (and the record filter and the counts below see everyone).
+    queryFn: async () => {
+      const items: AdminUser[] = []
+      for (let offset = 0; ; offset += 200) {
+        const p = new URLSearchParams(params)
+        p.set('offset', String(offset))
+        const page = await api.get<List<AdminUser>>(`/api/v1/admin/users?${p}`)
+        items.push(...(page.items ?? []))
+        if ((page.items?.length ?? 0) < 200) break
+      }
+      return { items } as List<AdminUser>
+    },
   })
 
   const { roles, presets } = useRoleCatalog()

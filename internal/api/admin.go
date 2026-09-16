@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -51,6 +52,12 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	search := strings.TrimSpace(q.Get("q"))
 	status := q.Get("status")
+	// Paged, so the whole roll of logins is reachable rather than the first 200.
+	const pageSize = 200
+	offset := 0
+	if n, e := strconv.Atoi(q.Get("offset")); e == nil && n > 0 {
+		offset = n
+	}
 
 	items, err := collect(s, r, `
 		SELECT u.id::text, u.full_name, u.email::text, u.phone, u.status,
@@ -92,15 +99,35 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		        u.phone ILIKE '%' || $2 || '%')
 		 GROUP BY u.id, i.name
 		 ORDER BY u.full_name
-		 LIMIT 200`,
-		[]any{nullString(status), nullString(search)},
+		 LIMIT $3 OFFSET $4`,
+		[]any{nullString(status), nullString(search), pageSize, offset},
 		func(rows pgx.Rows) (adminUser, error) {
 			var v adminUser
 			return v, rows.Scan(&v.ID, &v.FullName, &v.Email, &v.Phone, &v.Status,
 				&v.MFAEnabled, &v.LastLoginAt, &v.Roles, &v.RoleKeys, &v.Institution, &v.Sessions,
 				&v.Record)
 		})
-	respond(w, r, items, err)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	// The whole count under the same filters, so the list can page to the end
+	// and the header can say how many there are -- a school's logins run past
+	// the old fixed page of 200 the moment its students each have one.
+	var total int
+	if e := s.DB.InTenant(r.Context(), tenantScope(httpx.IdentityFrom(r.Context())), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT count(*) FROM users u
+			 WHERE ($1::text IS NULL OR u.status = $1)
+			   AND ($2::text IS NULL OR
+			        u.full_name ILIKE '%' || $2 || '%' OR
+			        u.email::text ILIKE '%' || $2 || '%' OR
+			        u.phone ILIKE '%' || $2 || '%')`,
+			nullString(status), nullString(search)).Scan(&total)
+	}); e != nil {
+		total = offset + len(items)
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": items, "total": total})
 }
 
 type setUserStatusRequest struct {
