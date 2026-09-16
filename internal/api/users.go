@@ -415,6 +415,11 @@ type assignableRole struct {
 	Permissions int    `json:"permissions"`
 	Users       int    `json:"users"`
 	Description string `json:"description"`
+	// PermissionKeys is the actual capability set the role grants, so the login
+	// editor can pre-tick and lock those keys the moment a role is chosen -
+	// before anything is saved - rather than only after the assignment has been
+	// written and re-read. Empty is a valid answer (a role that grants nothing).
+	PermissionKeys []string `json:"permission_keys"`
 }
 
 // listAssignableRoles powers the role picker.
@@ -623,21 +628,61 @@ func (s *Server) listAssignableRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* The keys each installed role grants, in one pass rather than a query per
+	   role, so the editor can show a role's capabilities the instant it is
+	   ticked. */
+	type rolePermPair struct{ role, perm string }
+	pairs, err := collect(s, r, `
+		SELECT r.key, rp.permission_key
+		  FROM roles r
+		  JOIN role_permissions rp ON rp.role_id = r.id
+		 ORDER BY r.key, rp.permission_key`, nil,
+		func(rows pgx.Rows) (rolePermPair, error) {
+			var p rolePermPair
+			err := rows.Scan(&p.role, &p.perm)
+			return p, err
+		})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	byRole := map[string][]string{}
+	for _, p := range pairs {
+		byRole[p.role] = append(byRole[p.role], p.perm)
+	}
+	for i := range items {
+		items[i].PermissionKeys = byRole[items[i].Key]
+		if items[i].PermissionKeys == nil {
+			items[i].PermissionKeys = []string{}
+		}
+	}
+
 	/* The ones not installed yet, appended.
 
 	   Marked so the screen can say "not set up yet" rather than implying the
 	   school already runs a library. Choosing one installs it, which is the
 	   same act as the user-roles screen's — the role arrives with its first
-	   holder. */
+	   holder. Their keys come from the seeded definition, since no rows exist in
+	   role_permissions until the role is first installed. */
 	for _, it := range items {
 		delete(installable, it.Key)
 	}
+	seededKeys := map[string][]string{}
+	for _, sr := range rbac.SystemRoles {
+		seededKeys[sr.Key] = sr.Permissions
+	}
 	for key, name := range installable {
+		keys := seededKeys[key]
+		if keys == nil {
+			keys = []string{}
+		}
 		items = append(items, assignableRole{
-			Key:         key,
-			Name:        name,
-			Description: descriptions[key],
-			Source:      "installable",
+			Key:            key,
+			Name:           name,
+			Description:    descriptions[key],
+			Source:         "installable",
+			Permissions:    len(keys),
+			PermissionKeys: keys,
 		})
 	}
 

@@ -10,7 +10,7 @@ import {
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
-import { RolePicker, useRoleCatalog } from '../super_admin/RolePicker'
+import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 
 /* Who can sign in to this school.
 
@@ -591,7 +591,7 @@ function AccountForm({
 
         <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
 
-        {editing && <PermissionOverrides user={user!} />}
+        {editing && <PermissionOverrides user={user!} pickedRoles={picked} roles={roles} />}
 
         {editing && (
           <div className="border-t pt-5">
@@ -683,7 +683,15 @@ const MODULE_LABEL: Record<string, string> = {
   self: 'Self-service',
 }
 
-function PermissionOverrides({ user }: { user: AdminUser }) {
+function PermissionOverrides({
+  user,
+  pickedRoles,
+  roles,
+}: {
+  user: AdminUser
+  pickedRoles: string[]
+  roles: Role[]
+}) {
   const qc = useQueryClient()
   const catalog = useQuery({
     queryKey: ['permission-catalog'],
@@ -700,7 +708,16 @@ function PermissionOverrides({ user }: { user: AdminUser }) {
   const loaded = current.data?.direct_keys
   if (direct === null && loaded) setDirect(loaded)
 
-  const roleKeys = new Set(current.data?.role_keys ?? [])
+  /* What the roles grant, computed from the roles ticked RIGHT NOW rather than
+     from what was last saved. Tick "Admissions & Front Office" and its keys
+     light up ticked-and-locked here immediately, before Save. Falls back to the
+     server's role_keys until the role catalogue has loaded, so nothing flickers
+     on first paint. */
+  const pickedSet = new Set(pickedRoles)
+  const liveRoleKeys = roles
+    .filter((r) => pickedSet.has(r.key))
+    .flatMap((r) => r.permission_keys ?? [])
+  const roleKeys = new Set(liveRoleKeys.length ? liveRoleKeys : current.data?.role_keys ?? [])
   const picked = new Set(direct ?? [])
 
   const save = useMutation({

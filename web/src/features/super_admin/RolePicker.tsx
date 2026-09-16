@@ -23,6 +23,10 @@ export interface Role {
   description: string
   permissions: number
   users: number
+  /* The actual keys this role grants. The login editor unions the keys of the
+     roles currently ticked to show, live, which capabilities are already
+     covered — before the assignment is saved. */
+  permission_keys?: string[]
 }
 export interface Preset {
   key: string

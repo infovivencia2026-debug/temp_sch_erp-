@@ -189,37 +189,42 @@ function SectionCard({
   const qc = useQueryClient()
 
   type Edit = { call_status: CallStatus; parent_response: string }
-  const initial = (): Record<string, Edit> =>
-    Object.fromEntries(
-      section.students.map((st) => [
-        st.student_id,
-        { call_status: st.call_status ?? 'not_called', parent_response: st.parent_response ?? '' },
-      ]),
-    )
-  const [edits, setEdits] = useState<Record<string, Edit>>(initial)
 
-  // A refetch (after Done, or another person's save) brings new stored values;
-  // adopt them only where this section has no unsaved change of its own.
+  /* `edits` holds ONLY the rows this person has changed and not yet had
+     confirmed by the server — a thin overlay, never a full snapshot. Every
+     row's effective value is its override if one exists, otherwise whatever
+     the server last returned. Keeping it this way means fresh server data
+     (from a refetch, or another clerk's save) shows through automatically on
+     any row this person hasn't touched, and a successful save leaves the typed
+     value on screen until the refetch confirms it — no revert flash, and no
+     stale display if that refetch never lands. */
+  const [edits, setEdits] = useState<Record<string, Edit>>({})
+
+  const serverValue = (st: Absentee): Edit => ({
+    call_status: st.call_status ?? 'not_called',
+    parent_response: st.parent_response ?? '',
+  })
+  const effective = (st: Absentee): Edit => edits[st.student_id] ?? serverValue(st)
+
+  /* When new server data arrives, drop any override the server has now caught
+     up to — that change is saved, so the row can read from the server again.
+     Overrides that still differ are genuine unsaved edits and are kept. */
   useEffect(() => {
     setEdits((prev) => {
-      const next = { ...prev }
+      const next: Record<string, Edit> = {}
       for (const st of section.students) {
-        if (!next[st.student_id]) {
-          next[st.student_id] = {
-            call_status: st.call_status ?? 'not_called',
-            parent_response: st.parent_response ?? '',
-          }
+        const e = prev[st.student_id]
+        if (!e) continue
+        const srv = serverValue(st)
+        if (e.call_status !== srv.call_status || e.parent_response !== srv.parent_response) {
+          next[st.student_id] = e
         }
       }
       return next
     })
   }, [section.students])
 
-  const dirty = section.students.some((st) => {
-    const e = edits[st.student_id]
-    return e && (e.call_status !== (st.call_status ?? 'not_called') ||
-      e.parent_response !== (st.parent_response ?? ''))
-  })
+  const dirty = section.students.some((st) => Boolean(edits[st.student_id]))
 
   const finish = useMutation({
     mutationFn: () =>
@@ -228,18 +233,18 @@ function SectionCard({
         on_date: onDate,
         entries: section.students.map((st) => ({
           student_id: st.student_id,
-          ...edits[st.student_id],
+          ...effective(st),
         })),
       }),
     onSuccess: () => {
-      // Drop local edits so the refetched, stored values become the baseline.
-      setEdits({})
+      // Keep the overlay; the refetch's reconciliation above clears each row as
+      // the server confirms it, so nothing flashes back and nothing is lost.
       qc.invalidateQueries({ queryKey: ['absentees', onDate, filterSectionId] })
     },
   })
 
   const called = section.students.filter(
-    (st) => edits[st.student_id]?.call_status !== 'not_called',
+    (st) => effective(st).call_status !== 'not_called',
   ).length
 
   return (
@@ -258,10 +263,7 @@ function SectionCard({
       />
       <div className="divide-y">
         {section.students.map((st) => {
-          const e = edits[st.student_id] ?? {
-            call_status: st.call_status ?? 'not_called',
-            parent_response: st.parent_response ?? '',
-          }
+          const e = effective(st)
           return (
             <AbsenteeRow
               key={st.student_id}

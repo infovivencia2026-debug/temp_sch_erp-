@@ -380,11 +380,17 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/", s.listAttendance)
 			r.With(httpx.RequirePermission(rbac.AttendanceWrite)).Post("/", s.markAttendance)
 			// The office's morning follow-up on the day's absentees. Reading the
-			// list and logging a call are the same job, so both gate on the read
-			// permission; the section scope inside each handler does the narrowing.
-			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/absentees", s.listAbsentees)
-			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Post("/absentees/followup", s.recordAbsenceFollowup)
-			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Post("/absentees/section-done", s.finishAbsenceSection)
+			// list and logging a call are the same job, so all three gate on the
+			// read permission; the section scope inside each handler does the
+			// narrowing. Either read grant opens them: a class teacher holds the
+			// scoped AttendanceRead, while the office account a school points at
+			// school-wide follow-up is given AttendanceReadAll on its own — the
+			// widener without the opener would otherwise 403 on the very screen
+			// the grant was meant to unlock.
+			absenteeRead := httpx.RequireAnyPermission(rbac.AttendanceRead, rbac.AttendanceReadAll)
+			r.With(absenteeRead).Get("/absentees", s.listAbsentees)
+			r.With(absenteeRead).Post("/absentees/followup", s.recordAbsenceFollowup)
+			r.With(absenteeRead).Post("/absentees/section-done", s.finishAbsenceSection)
 		})
 
 		r.Route("/me", func(r chi.Router) {

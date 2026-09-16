@@ -9,6 +9,7 @@ import (
 
 	"github.com/school-erp/erp/internal/catalog"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
 )
 
@@ -455,6 +456,66 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 
 		if len(out.Sections) > 0 {
 			resp.Roles = append(resp.Roles, out)
+		}
+	}
+
+	/* Absentee follow-up for an office account that holds the school, not a class.
+
+	   The screen is catalogued under Faculty, where a class teacher reaches it
+	   for their own sections. But chasing the whole day's absentees is the front
+	   desk's job as often as a teacher's, and the way a school appoints somebody
+	   to it is by granting that one account academics.attendance.read.all — the
+	   read half of the same permission the screen already scopes its rows by.
+
+	   That grant is an rbac permission, not a feature key, so it never put the
+	   entry on their menu: the catalogue gates nav on the feature key, and a
+	   feature key can only arrive through a role. The alternatives were both
+	   wrong — make the person a teacher (a whole workspace they do not do), or
+	   grant the feature to the entire front-office role (a menu entry, and behind
+	   it either a 403 or an empty screen, for every receptionist who does not
+	   hold read.all). So the entry is added to the workspace this account already
+	   holds, keyed to the same screen, exactly for the account the school has
+	   already pointed at the task. The screen's own API still enforces the read
+	   permission and scopes every row. */
+	if id.Can(rbac.AttendanceReadAll) {
+		const fk = "faculty.attendance.absentee_followup"
+		has := false
+		for _, role := range resp.Roles {
+			for _, sec := range role.Sections {
+				for _, f := range sec.Features {
+					if f.Key == fk {
+						has = true
+					}
+				}
+			}
+		}
+		if !has && len(resp.Roles) > 0 && implementedFeatures[fk] {
+			def, ok := catalog.Lookup(fk)
+			if ok {
+				feat := catalogFeature{
+					Key: fk, Slug: def.Slug, Name: def.Name, Summary: def.Summary,
+					Scope: string(def.Scope), Tier: string(def.Tier),
+					// The whole point of the grant is the school-wide view, so it
+					// is in scope by construction — this account was handed the
+					// data boundary the screen needs.
+					InScope: true, Live: true,
+				}
+				r0 := &resp.Roles[0]
+				placed := false
+				for i := range r0.Sections {
+					if r0.Sections[i].Slug == "attendance" {
+						r0.Sections[i].Features = append(r0.Sections[i].Features, feat)
+						placed = true
+						break
+					}
+				}
+				if !placed {
+					r0.Sections = append(r0.Sections, catalogSection{
+						Slug: "attendance", Name: "Attendance", Workspace: "Attendance",
+						Features: []catalogFeature{feat},
+					})
+				}
+			}
 		}
 	}
 
