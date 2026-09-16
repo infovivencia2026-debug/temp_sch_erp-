@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
+  Check, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -9,7 +9,7 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { RolePicker, useRoleCatalog } from '../super_admin/RolePicker'
 
 /* Who can sign in to this school.
@@ -589,6 +589,8 @@ function AccountForm({
 
         <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
 
+        {editing && <PermissionOverrides user={user!} />}
+
         {editing && (
           <div className="border-t pt-5">
             <Field
@@ -636,6 +638,198 @@ function AccountForm({
         </div>
       </div>
     </Card>
+  )
+}
+
+/* One account's extra capabilities, beyond what its roles give.
+
+   Roles are the right unit for almost everybody, but now and then a single
+   login needs one key that no role it holds carries — and the alternatives were
+   inventing a whole role for one grant, or widening a shared role and handing
+   the key to everyone in it. This is the narrow door: a direct grant to this
+   account alone, unioned with the role-based keys at sign-in.
+
+   The two are kept visibly apart. A key a role already grants shows ticked and
+   locked, labelled "from a role", because taking it away means editing the role
+   and not this account. Everything else is a plain toggle, and Save replaces
+   the direct set. */
+interface PermCatalogItem {
+  key: string
+  module: string
+  description: string
+}
+interface UserPerms {
+  user_id: string
+  role_keys: string[]
+  direct_keys: string[]
+}
+
+const MODULE_LABEL: Record<string, string> = {
+  students: 'Students',
+  academics: 'Academics',
+  finance: 'Finance',
+  admissions: 'Admissions',
+  office: 'Front office',
+  hr: 'HR & payroll',
+  operations: 'Operations',
+  welfare: 'Welfare',
+  comms: 'Communication',
+  institution: 'Institution',
+  access: 'Access & roles',
+  admin: 'Administration',
+  platform: 'Platform',
+  self: 'Self-service',
+}
+
+function PermissionOverrides({ user }: { user: AdminUser }) {
+  const qc = useQueryClient()
+  const catalog = useQuery({
+    queryKey: ['permission-catalog'],
+    queryFn: () => api.get<List<PermCatalogItem>>('/api/v1/admin/permissions'),
+  })
+  const current = useQuery({
+    queryKey: ['user-permissions', user.id],
+    queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${user.id}/permissions`),
+  })
+
+  // The direct set the editor is building. Seeded once the account's current
+  // grants arrive; a plain Set kept in a piece of state keyed off the load.
+  const [direct, setDirect] = useState<string[] | null>(null)
+  const loaded = current.data?.direct_keys
+  if (direct === null && loaded) setDirect(loaded)
+
+  const roleKeys = new Set(current.data?.role_keys ?? [])
+  const picked = new Set(direct ?? [])
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.put(`/api/v1/admin/users/${user.id}/permissions`, {
+        permission_keys: direct ?? [],
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['user-permissions', user.id] })
+      qc.invalidateQueries({ queryKey: ['school-logins'] })
+    },
+  })
+
+  if (catalog.isLoading || current.isLoading) {
+    return (
+      <div className="border-t pt-5">
+        <p className="eyebrow mb-2">Extra permissions</p>
+        <p className="text-[13px] text-muted-foreground">Loading the permission list…</p>
+      </div>
+    )
+  }
+  if (catalog.error || current.error) {
+    return (
+      <div className="border-t pt-5">
+        <FormNotice error={catalog.error ?? current.error} />
+      </div>
+    )
+  }
+
+  const toggle = (key: string) =>
+    setDirect((prev) => {
+      const set = new Set(prev ?? [])
+      if (set.has(key)) set.delete(key)
+      else set.add(key)
+      return [...set]
+    })
+
+  // Group the catalogue by module, in the order the modules first appear.
+  const items = catalog.data?.items ?? []
+  const groups: { module: string; items: PermCatalogItem[] }[] = []
+  const byModule = new Map<string, PermCatalogItem[]>()
+  for (const it of items) {
+    if (!byModule.has(it.module)) {
+      byModule.set(it.module, [])
+      groups.push({ module: it.module, items: byModule.get(it.module)! })
+    }
+    byModule.get(it.module)!.push(it)
+  }
+
+  const extraCount = (direct ?? []).filter((k) => !roleKeys.has(k)).length
+
+  return (
+    <div className="border-t pt-5">
+      <div className="mb-2 flex items-baseline justify-between">
+        <p className="eyebrow">Extra permissions</p>
+        <span className="text-[13px] text-muted-foreground">
+          {extraCount} beyond this account’s roles
+        </span>
+      </div>
+      <p className="mb-3 text-[13px] text-muted-foreground">
+        A role grants a whole workspace. This adds one capability to this account only, on top of
+        its roles. Keys a role already grants are ticked and locked — change those by editing the
+        role.
+      </p>
+
+      <div className="space-y-4">
+        {groups.map((g) => (
+          <div key={g.module}>
+            <p className="mb-1.5 text-[13px] font-medium">{MODULE_LABEL[g.module] ?? g.module}</p>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {g.items.map((it) => {
+                const fromRole = roleKeys.has(it.key)
+                const on = fromRole || picked.has(it.key)
+                return (
+                  <button
+                    key={it.key}
+                    type="button"
+                    disabled={fromRole}
+                    onClick={() => !fromRole && toggle(it.key)}
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                      fromRole
+                        ? 'cursor-default border-border bg-muted/50'
+                        : on
+                          ? 'border-primary/40 bg-accent'
+                          : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
+                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                      )}
+                    >
+                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px]">{it.description}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5">
+                        <span className="block font-mono text-[12px] text-muted-foreground">
+                          {it.key}
+                        </span>
+                        {fromRole && (
+                          <Badge tone="neutral">from a role</Badge>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? 'Saving…' : 'Save extra permissions'}
+        </Button>
+        {save.isSuccess && !save.isPending && (
+          <span className="text-[13px] text-muted-foreground">
+            Saved. Takes effect the next time they sign in.
+          </span>
+        )}
+      </div>
+      {save.isError && (
+        <div className="mt-3">
+          <FormNotice error={save.error} />
+        </div>
+      )}
+    </div>
   )
 }
 

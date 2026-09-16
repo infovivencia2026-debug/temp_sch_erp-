@@ -844,3 +844,190 @@ func (s *Server) listRolePresets(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }
+
+/* Per-account permission overrides.
+
+   A role bundles a workspace, and for almost everybody that is the right unit:
+   the person is a teacher, a bursar, a warden. But now and then a single
+   account needs one extra capability that no role it holds carries, and neither
+   answer the product had was good — invent a whole role for one grant, or widen
+   a shared role and hand the key to everyone in it. These endpoints are the
+   narrow door: a direct grant to one account, unioned into the session
+   alongside the role-based keys (internal/auth/session.go), never replacing
+   them.
+
+   Read is gated on access.users.read and write on access.users.write, the same
+   rights that already govern who may edit an account on this screen. */
+
+// permissionCatalogItem is one grantable capability, described the way rbac.All
+// stores it.
+type permissionCatalogItem struct {
+	Key         string `json:"key"`
+	Module      string `json:"module"`
+	Description string `json:"description"`
+}
+
+// listPermissionCatalog serves the full capability vocabulary, so the override
+// editor can offer every key grouped by module. Platform keys are withheld from
+// a tenant administrator: they span every school and are the vendor's to grant.
+func (s *Server) listPermissionCatalog(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	items := make([]permissionCatalogItem, 0, len(rbac.All))
+	for _, p := range rbac.All {
+		if !id.PlatformAdmin && (p.Key == rbac.PlatformTenantsRW || p.Key == rbac.PlatformPlansRW) {
+			continue
+		}
+		items = append(items, permissionCatalogItem{Key: p.Key, Module: p.Module, Description: p.Description})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+type userPermissions struct {
+	UserID string `json:"user_id"`
+	// RoleKeys are the capability keys the account gets from its roles. Read-only
+	// here: the screen shows them ticked and locked, because removing one means
+	// editing a role, not this account.
+	RoleKeys []string `json:"role_keys"`
+	// DirectKeys are the per-account grants stored in user_permissions — the ones
+	// this editor adds and removes.
+	DirectKeys []string `json:"direct_keys"`
+}
+
+// getUserPermissions returns one account's role-granted keys and its direct
+// per-account grants, so the editor can tell the two apart.
+func (s *Server) getUserPermissions(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	target, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid user id")
+		return
+	}
+	out := userPermissions{UserID: target.String(), RoleKeys: []string{}, DirectKeys: []string{}}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT true FROM users WHERE id = $1`, target).Scan(&exists); err != nil {
+			return err
+		}
+		if err := scanInto(r.Context(), tx, `
+			SELECT DISTINCT rp.permission_key
+			  FROM user_roles ur
+			  JOIN role_permissions rp ON rp.role_id = ur.role_id
+			 WHERE ur.user_id = '`+target.String()+`'::uuid
+			 ORDER BY rp.permission_key`,
+			func(rows pgx.Rows) error {
+				var k string
+				if err := rows.Scan(&k); err != nil {
+					return err
+				}
+				out.RoleKeys = append(out.RoleKeys, k)
+				return nil
+			}); err != nil {
+			return err
+		}
+		return scanInto(r.Context(), tx, `
+			SELECT permission_key FROM user_permissions
+			 WHERE user_id = '`+target.String()+`'::uuid
+			 ORDER BY permission_key`,
+			func(rows pgx.Rows) error {
+				var k string
+				if err := rows.Scan(&k); err != nil {
+					return err
+				}
+				out.DirectKeys = append(out.DirectKeys, k)
+				return nil
+			})
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+type setUserPermissionsRequest struct {
+	PermissionKeys []string `json:"permission_keys"`
+}
+
+// setUserPermissions replaces the per-account grants on one account with the
+// set given. Only keys in the capability vocabulary are accepted, and platform
+// keys are withheld from a tenant administrator for the same reason the role
+// grid withholds them: RLS would not stop a tenant admin awarding themselves
+// the vendor's console, because the account is legitimately theirs.
+func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	target, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid user id")
+		return
+	}
+	var req setUserPermissionsRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+
+	known := make(map[string]bool, len(rbac.All))
+	for _, p := range rbac.All {
+		known[p.Key] = true
+	}
+	// De-duplicate and validate before opening a transaction, so a typo cannot
+	// half-apply.
+	seen := map[string]bool{}
+	desired := make([]string, 0, len(req.PermissionKeys))
+	for _, k := range req.PermissionKeys {
+		if !known[k] {
+			httpx.BadRequest(w, r, "unknown permission "+k)
+			return
+		}
+		if !id.PlatformAdmin && (k == rbac.PlatformTenantsRW || k == rbac.PlatformPlansRW) {
+			httpx.Denied(w, r, "platform permissions can only be granted by the vendor")
+			return
+		}
+		if !seen[k] {
+			seen[k] = true
+			desired = append(desired, k)
+		}
+	}
+
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT true FROM users WHERE id = $1`, target).Scan(&exists); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(r.Context(),
+			`DELETE FROM user_permissions WHERE user_id = $1 AND permission_key <> ALL($2)`,
+			target, desired); err != nil {
+			return err
+		}
+		for _, k := range desired {
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO user_permissions (user_id, institution_id, permission_key, granted_by)
+				VALUES ($1,$2,$3,$4)
+				ON CONFLICT (user_id, permission_key) DO NOTHING`,
+				target, id.InstitutionID, k, id.UserID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	// The permission map is cached per user; drop it so the grant takes effect
+	// on the next request rather than when the cache next expires.
+	forget(target)
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"user_id": target.String(), "direct_keys": desired,
+		"note": "The account gains these the next time it signs in.",
+	})
+}

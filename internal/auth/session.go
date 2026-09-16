@@ -288,10 +288,19 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
 			       u.must_change_password,
-			       COALESCE((SELECT array_agg(DISTINCT rp.permission_key)
-			                   FROM user_roles ur
-			                   JOIN role_permissions rp ON rp.role_id = ur.role_id
-			                  WHERE ur.user_id = s.user_id), '{}'),
+			       COALESCE((SELECT array_agg(DISTINCT k) FROM (
+			                   SELECT rp.permission_key AS k
+			                     FROM user_roles ur
+			                     JOIN role_permissions rp ON rp.role_id = ur.role_id
+			                    WHERE ur.user_id = s.user_id
+			                   UNION
+			                   -- Per-account grants, on top of the role-based keys and
+			                   -- never in place of them: see migrations/00307 and the
+			                   -- editor on the Logins & access screen.
+			                   SELECT up.permission_key AS k
+			                     FROM user_permissions up
+			                    WHERE up.user_id = s.user_id
+			                 ) merged), '{}'),
 			       COALESCE((SELECT array_agg(DISTINCT ro.key)
 			                   FROM user_roles ur
 			                   JOIN roles ro ON ro.id = ur.role_id

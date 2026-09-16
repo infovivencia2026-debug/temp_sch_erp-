@@ -1362,6 +1362,12 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/users/{id}/roles", s.setRoles)
+			// Per-account permission overrides: one extra capability granted to a
+			// single login, on top of what its roles give. Read with the account,
+			// written under the same access.users.write that edits it. The full
+			// capability list to offer is served by /admin/permissions below.
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}/permissions", s.getUserPermissions)
+			r.With(httpx.RequirePermission(rbac.UsersWrite)).Put("/users/{id}/permissions", s.setUserPermissions)
 			// Handing a job over: grant and revoke in one transaction, so the
 			// school is never left with two bursars or none.
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/users/roles/transfer", s.transferRoles)
@@ -1384,6 +1390,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users/{id}/reset-password", s.resetUserPassword)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles", s.listRoles)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/permissions", s.getRolePermissions)
+			// The whole capability vocabulary, grouped by module, for the per-account
+			// override editor on Logins & access.
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/permissions", s.listPermissionCatalog)
 			// The grid is the same data as /permissions, grouped the way a
 			// school reads it. Both stay: one configures, one audits.
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/grid", s.getRoleGrid)
