@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight } from 'lucide-react'
+import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight, Wand2, Check } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation, speak, speakServer, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
@@ -112,9 +112,26 @@ function withRole(message: string, roles: string[] | undefined): string {
 
 interface ScreenLink { label: string; to: string }
 
+/* A change the assistant has PROPOSED, drawn as a confirmation card. Nothing is
+   written until Confirm is pressed; the card shows the real before/after the
+   server computed, and its `state` tracks the one write it can make. */
+interface ProposedAction {
+  kind: string
+  title: string
+  summary: string
+  before?: string
+  after?: string
+  sensitive: boolean
+  params: Record<string, unknown>
+  state?: 'idle' | 'busy' | 'done' | 'cancelled' | 'error'
+  result?: string
+}
+
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
+  /** A proposed data change awaiting confirmation on a card. */
+  action?: ProposedAction
   /* The screens the answer is about, each openable in one press. An answer
      often names several ("the Fee Dashboard ... the Fee Default screen ...
      Fee Collection under Reports"); telling somebody where things are and then
@@ -497,7 +514,8 @@ export function AssistantTab() {
       setTurns((t) => [...t, {
         role: 'bot',
         text: data.answer ?? '',
-        links: linksFromText(catalog, data.answer),
+        links: data.action ? undefined : linksFromText(catalog, data.answer),
+        action: data.action ? { ...data.action, state: 'idle' as const } : undefined,
       }])
       // Long enough for the answering state to be seen; the orb is the only
       // thing that says the turn finished cleanly.
@@ -507,6 +525,30 @@ export function AssistantTab() {
     } finally {
       setState('idle')
       inputRef.current?.focus()
+    }
+  }
+
+  /* Confirm a proposed change. Only this -- a deliberate press on the card --
+     writes anything; the chat call only ever proposed. The write is re-checked
+     for permission on the server and runs under the person's tenant scope. */
+  function setActionState(i: number, patch: Partial<ProposedAction>) {
+    setTurns((t) => t.map((tr, idx) => (idx === i && tr.action ? { ...tr, action: { ...tr.action, ...patch } } : tr)))
+  }
+  async function confirmAction(i: number, action: ProposedAction) {
+    setActionState(i, { state: 'busy' })
+    try {
+      const res = await fetch('/api/v1/assistant/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ kind: action.kind, params: action.params }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error?.message ?? 'The change could not be made.')
+      setActionState(i, { state: 'done', result: data.message })
+      if (speakRef.current || handsFreeRef.current) void speakServer(data.message).then((ok) => { if (!ok) speak(data.message) })
+    } catch (e) {
+      setActionState(i, { state: 'error', result: (e as Error).message })
     }
   }
 
@@ -631,10 +673,34 @@ export function AssistantTab() {
 
           <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
             {turns.length === 0 && (
-              <p className="px-1 text-[12.5px] text-muted-foreground">
-                Ask about anything in the app. Answers come from the help for your
-                role, and it says so when it does not know.
-              </p>
+              <div className="px-1 pt-1">
+                <div className="mb-3 flex items-center gap-2.5">
+                  <AssistantOrb state="idle" size={30} />
+                  <p className="text-[13.5px] font-medium leading-tight">
+                    How can I help?
+                    <span className="block text-[12px] font-normal text-muted-foreground">Ask, or try one of these.</span>
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {[
+                    'How do I collect a fee?',
+                    'Where do I change the language to Telugu?',
+                    'How many students are on the roll?',
+                    'Mark a student absent today',
+                  ].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => { void ask(s) }}
+                      className="group flex items-center gap-2 rounded-[10px] border bg-card/50 px-3 py-2 text-left text-[12.5px]
+                                 transition-colors hover:border-[hsl(var(--brand-accent,var(--primary)))] hover:bg-accent"
+                    >
+                      <span className="flex-1">{s}</span>
+                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {turns.map((turn, i) => (
               <div key={i} className={cn('max-w-[86%]', turn.role === 'user' && 'ml-auto')}>
@@ -692,6 +758,62 @@ export function AssistantTab() {
                       <ArrowRight className="size-3.5 shrink-0" aria-hidden />
                     </button>
                   ))}
+
+                  {/* A proposed change, as a confirmation card. Nothing is
+                      written until Confirm is pressed. It shows the real
+                      before -> after the server computed, and once done it stays
+                      as a record of what happened. */}
+                  {turn.action && i !== printingIdx && (
+                    <div className="assistant-action mt-2 rounded-[11px] border bg-card/60 p-3 text-foreground">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Wand2 className="size-3.5 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
+                        {turn.action.title}
+                        {turn.action.sensitive && (
+                          <span className="ml-auto rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">Sensitive</span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[13px] leading-snug">{turn.action.summary}</p>
+                      {(turn.action.before || turn.action.after) && (
+                        <div className="mt-2 flex items-center gap-2 text-[12px]">
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-muted-foreground line-through">{turn.action.before || '—'}</span>
+                          <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
+                          <span className="rounded-md bg-[hsl(var(--brand-accent,var(--primary)))]/15 px-2 py-0.5 font-medium text-[hsl(var(--brand-accent,var(--primary)))]">{turn.action.after || '—'}</span>
+                        </div>
+                      )}
+                      {turn.action.state === 'done' && (
+                        <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-4" aria-hidden /> {turn.action.result}
+                        </div>
+                      )}
+                      {turn.action.state === 'cancelled' && (
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled — nothing was changed.</div>
+                      )}
+                      {turn.action.state === 'error' && (
+                        <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-destructive"><X className="size-4" aria-hidden /> {turn.action.result}</div>
+                      )}
+                      {(turn.action.state === 'idle' || turn.action.state === 'error') && (
+                        <div className="mt-2.5 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => confirmAction(i, turn.action!)}
+                            className="flex-1 rounded-[8px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
+                          >
+                            {turn.action.state === 'error' ? 'Try again' : 'Confirm'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActionState(i, { state: 'cancelled' })}
+                            className="rounded-[8px] border px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                      {turn.action.state === 'busy' && (
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Making the change…</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

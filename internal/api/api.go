@@ -134,6 +134,11 @@ func (s *Server) Routes() http.Handler {
 		   silent. Same session gate. */
 		r.Post("/assistant/tts", s.assistantTTS)
 
+		/* A change the assistant proposed, once the person has confirmed it on
+		   the card. Re-checks the permission and writes under the person's tenant
+		   scope; see assistant_actions.go. */
+		r.Post("/assistant/action", s.assistantActionExecute)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)

@@ -305,8 +305,23 @@ type assistantChatRequest struct {
 }
 
 type assistantChatResponse struct {
-	Answer         string `json:"answer"`
-	ConversationID string `json:"conversation_id"`
+	Answer         string          `json:"answer"`
+	ConversationID string          `json:"conversation_id"`
+	Action         *proposedAction `json:"action,omitempty"`
+}
+
+// assistantCanAct reports whether this person holds the permission for any
+// action in the catalogue -- the gate on offering the change protocol at all.
+func (s *Server) assistantCanAct(id *httpx.Identity) bool {
+	if id == nil {
+		return false
+	}
+	for _, spec := range assistantActions {
+		if id.Can(spec.perm) {
+			return true
+		}
+	}
+	return false
 }
 
 /*
@@ -503,6 +518,12 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 	if facts := s.assistantData(r, id, roles, req.Message); facts != "" {
 		system += "\n\n" + facts
 	}
+	// The change catalogue is only offered to someone who can act on at least
+	// one of its actions; a read-only account is never invited to propose a
+	// change it could not make.
+	if s.assistantCanAct(id) {
+		system += "\n\n" + assistantActionCatalogue
+	}
 
 	answerText, err := callGemini(ctx, "", system, turns)
 	if err != nil {
@@ -519,12 +540,41 @@ func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 		answer = "I could not answer that one. Try asking it a different way, or ask the school office."
 	}
 
+	// If the model proposed a change, pull it out of the answer, validate it,
+	// and compute a real before/after preview under this person's identity. The
+	// preview writes nothing; the browser draws a confirmation card from it and
+	// only its Confirm button (POST /assistant/action) actually writes. A
+	// proposal the person lacks the permission for, or that does not resolve
+	// (no such student), is dropped to a plain sentence and no card is shown.
+	var proposed *proposedAction
+	if clean, kind, params, ok := parseProposedAction(answer); ok {
+		answer = clean
+		if spec, known := assistantActions[kind]; known && id.Can(spec.perm) {
+			if pa, perr := spec.preview(s, r, id, params); perr == nil {
+				pa.Sensitive = spec.sensitive
+				proposed = &pa
+			} else {
+				// The model meant to act but the target was not found or not
+				// allowed; tell the person plainly instead of a broken card.
+				if answer == "" {
+					answer = perr.Error()
+				} else {
+					answer += "\n\n" + perr.Error()
+				}
+			}
+		}
+	}
+	if answer == "" {
+		answer = "Done."
+	}
+
 	turns = append(turns, geminiTurn{role: "model", text: answer})
 	assistantThreads.save(conversationID, turns)
 
 	httpx.JSON(w, http.StatusOK, assistantChatResponse{
 		Answer:         answer,
 		ConversationID: conversationID,
+		Action:         proposed,
 	})
 }
 
