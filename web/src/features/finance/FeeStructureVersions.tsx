@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 import { inr, toPaise } from './ledger-lib'
+import { ImportButton } from '@/components/DataPortActions'
 import {
   feeEngineBase, statusTone, useFeeEngineMutation,
   useStructureVersions, useVersionedStructures,
@@ -103,11 +104,20 @@ export default function FeeStructureVersions() {
         title="Fee structures"
         description="What each class pays, and how a fee is revised mid-year without changing what was already billed."
         actions={
-          mayEdit ? (
-            <Button variant={adding ? 'ghost' : 'primary'} onClick={() => setAdding((v) => !v)}>
-              {adding ? 'Cancel' : 'Add a structure'}
-            </Button>
-          ) : undefined
+          <>
+            {mayEdit && (
+              <ImportButton
+                entity="fee_structures"
+                title="Import fee structures"
+                hint="What each class pays, as a sheet. The dry run checks the classes and heads exist before anything is written."
+              />
+            )}
+            {mayEdit && (
+              <Button variant={adding ? 'ghost' : 'primary'} onClick={() => setAdding((v) => !v)}>
+                {adding ? 'Cancel' : 'Add a structure'}
+              </Button>
+            )}
+          </>
         }
       />
       <PageBody>

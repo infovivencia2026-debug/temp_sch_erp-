@@ -7,6 +7,7 @@ import {
   Card, CardHeader, Table, Td, Badge, Button, Input, Select, ErrorState,
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
+import { ExportButton } from '@/components/DataPortActions'
 import { cn, formatDate } from '@/lib/utils'
 import StudentProfile from './StudentProfile'
 
@@ -107,6 +108,10 @@ export default function Students() {
                 { header: 'Status', value: (s) => s.status },
               ]}
             />
+            {/* The whole roll, scoped server-side, not just this page. The
+                CSV export beside it takes what is on screen; this one takes
+                everyone this account may see. */}
+            <ExportButton name="students_on_roll" label="Export all" />
           </div>
         }
       />

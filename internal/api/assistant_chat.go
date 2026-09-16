@@ -477,7 +477,29 @@ at the bottom of the screen, or in the top bar in the classic layout):
   > Dashboard, or press and hold a card on the home board.
 - Light or dark theme: the theme control in Settings > Appearance.
 - Your profile and signing out: Settings > Account.
-- Change your password or set up two-factor sign-in: Settings > Security.`
+- Change your password or set up two-factor sign-in: Settings > Security.
+
+Importing and exporting spreadsheets. Bulk import and export DO exist -- never say
+they do not. A school can upload a spreadsheet to create records in bulk (class
+lists, sections, subjects, periods, holidays, the timetable, class subjects,
+teacher allocations, marks, student and staff attendance, students, student
+history, fee heads, fee structures, fee payments, biometric punches and student
+exits), and most lists in the app can be exported. The full importer lives at
+Setup > Import, where each kind has a downloadable template, a dry-run that shows
+which rows are wrong before anything is written, and an Import history that can
+undo an upload.
+
+You can also import a spreadsheet right here in the chat. When someone asks to
+import or upload a spreadsheet, do NOT refuse: ask which kind of records it holds
+(from the list above), tell them to use the matching template's columns, and tell
+them to attach the CSV using the paper-clip on this panel -- once attached you
+will show a preview of what will be imported before anything is saved. You do not
+emit an action line for this; the attach-and-preview flow handles it.
+
+What still cannot be imported or changed through the assistant, and what to say
+so: staff pay and payslips, staff logins, passwords, roles and other security,
+and bulk deletions. For those, tell the person they must be done by someone with
+the right access on the proper setup screen.`
 
 func (s *Server) assistantChat(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())

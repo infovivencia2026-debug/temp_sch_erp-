@@ -7,6 +7,7 @@ import {
   PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
+import { ImportButton } from '@/components/DataPortActions'
 import { formatDate, cn } from '@/lib/utils'
 
 /* The academics reference tables are reached from several roles, so the tab is
@@ -48,6 +49,18 @@ export default function Academics() {
         eyebrow={nav.section?.name}
         title={nav.feature?.name ?? 'Academics'}
         description="Reference data the rest of the system hangs off: sections, classes, subjects and the academic year."
+        actions={
+          /* Import matches the tab in view: classes, sections and subjects each
+             have a server importer; the academic-year tab has none, so no
+             button shows there. */
+          tabId === 'classes' ? (
+            <ImportButton entity="classes" title="Import classes" />
+          ) : tabId === 'sections' ? (
+            <ImportButton entity="sections" title="Import sections" />
+          ) : tabId === 'subjects' ? (
+            <ImportButton entity="subjects" title="Import subjects" />
+          ) : undefined
+        }
       />
       <PageBody>
         <Card>

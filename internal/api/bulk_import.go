@@ -4307,14 +4307,40 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	out, clientMsg, serverErr := s.runBulkImportCSV(r, id, entity, spec, raw, commit)
+	if serverErr != nil {
+		httpx.Internal(w, r, serverErr)
+		return
+	}
+	if clientMsg != "" {
+		httpx.BadRequest(w, r, clientMsg)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+/* runBulkImportCSV is the shared engine behind every CSV import.
+
+   Factored out of bulkImport so the in-chat assistant importer
+   (assistant_import.go) can drive the exact same dry-run and commit pipeline
+   over a multipart upload, rather than reimplementing parsing, validation,
+   per-row savepoints and the undo record. The HTTP handler owns the request
+   plumbing (permission, MaxBytesReader, JSON responses); this owns the import.
+
+   It returns the result, a client-facing message (a 400 the caller should show,
+   e.g. "that file has no header row") and a server error (a 500). At most one of
+   the two error returns is non-empty; when both are empty the result is final.
+
+   Caller MUST have already checked spec.Perm for id: this writes under
+   InTenant(tenantScope(id)) but does not gate. */
+func (s *Server) runBulkImportCSV(r *http.Request, id *httpx.Identity, entity string, spec importSpec, raw []byte, commit bool) (importResult, string, error) {
 	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.TrimLeadingSpace = true
 	reader.FieldsPerRecord = -1 // ragged rows are reported per row, not fatal
 
 	head, err := reader.Read()
 	if err != nil {
-		httpx.BadRequest(w, r, "that file has no header row")
-		return
+		return importResult{}, "that file has no header row", nil
 	}
 	index := map[string]int{}
 	for i, h := range head {
@@ -4354,10 +4380,9 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, need := range spec.Required {
 		if _, ok := index[need]; !ok {
-			httpx.BadRequest(w, r,
-				"nothing is mapped to "+need+", and a row cannot be built without it. "+
-					"Choose which of your columns holds it.")
-			return
+			return importResult{}, "nothing is mapped to " + need +
+				", and a row cannot be built without it. " +
+				"Choose which of your columns holds it.", nil
 		}
 	}
 
@@ -4474,8 +4499,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 			return nil
 		})
 		if verr != nil {
-			httpx.Internal(w, r, verr)
-			return
+			return out, "", verr
 		}
 		if out.Rejected > 0 {
 			// Rebuilt so the rows that failed verification are not written on
@@ -4510,8 +4534,7 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 	   beside the count of what was written, and re-uploading the corrected
 	   sheet updates rather than duplicates, because every importer upserts. */
 	if !commit || len(rows) == 0 {
-		httpx.JSON(w, http.StatusOK, out)
-		return
+		return out, "", nil
 	}
 
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
@@ -4640,16 +4663,21 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 		   Outside it, a failed import could still leave a log entry claiming
 		   success -- which is worse than no log, because somebody would then
 		   not re-import a file that never landed. */
-		return recordImportRunFull(r, tx, id.InstitutionID, entity,
+		runID, rerr := recordImportRunFull(r, tx, id.InstitutionID, entity,
 			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
 			ctx.created, string(raw))
+		if rerr != nil {
+			return rerr
+		}
+		out.RunID = runID.String()
+		return nil
 	})
 	if err != nil {
 		out.Imported = 0
-		httpx.BadRequest(w, r, err.Error())
-		return
+		out.RunID = ""
+		return out, err.Error(), nil
 	}
-	httpx.JSON(w, http.StatusOK, out)
+	return out, "", nil
 }
 
 // normaliseHeader makes "Employee Code", "employee_code" and "EMPLOYEE CODE"
@@ -4728,7 +4756,8 @@ func recordImportRun(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 // is the whole of what makes undoing it possible.
 func recordImportRunWith(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 	entity, filename string, read, imported, rejected int, created []createdRow) error {
-	return recordImportRunFull(r, tx, inst, entity, filename, read, imported, rejected, created, "")
+	_, err := recordImportRunFull(r, tx, inst, entity, filename, read, imported, rejected, created, "")
+	return err
 }
 
 // maxKeptImportBytes is how much of an uploaded file is kept for later
@@ -4742,7 +4771,7 @@ const maxKeptImportBytes = 1 << 20
 // had.
 func recordImportRunFull(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 	entity, filename string, read, imported, rejected int,
-	created []createdRow, content string) error {
+	created []createdRow, content string) (uuid.UUID, error) {
 
 	kept := content
 	omitted := false
@@ -4759,17 +4788,17 @@ func recordImportRunFull(r *http.Request, tx pgx.Tx, inst uuid.UUID,
 		RETURNING id`,
 		inst, entity, strings.TrimSpace(filename), read, imported, rejected,
 		httpx.IdentityFrom(r.Context()).UserID, kept, omitted).Scan(&runID); err != nil {
-		return err
+		return uuid.Nil, err
 	}
 	for _, c := range created {
 		if _, err := tx.Exec(r.Context(), `
 			INSERT INTO import_run_rows (run_id, institution_id, entity, record_id)
 			VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
 			runID, inst, c.entity, c.id); err != nil {
-			return err
+			return uuid.Nil, err
 		}
 	}
-	return nil
+	return runID, nil
 }
 
 type importRunRow struct {

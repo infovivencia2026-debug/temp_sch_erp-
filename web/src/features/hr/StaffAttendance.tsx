@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, SkeletonTable, ErrorState, FormNotice, ExportButton, PrintButton,
 } from '@/components/ui'
+import { ImportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
@@ -85,6 +86,13 @@ export default function StaffAttendance() {
         actions={
           <>
           {/* The staff register is a document a board asks for by name. */}
+          {mayMark && (
+            <ImportButton
+              entity="staff_attendance"
+              title="Import staff attendance"
+              hint="One row per employee per day, with the mark. Nothing is written until the dry run passes."
+            />
+          )}
           <ExportButton report="staff-attendance" />
           <PrintButton />
           <Button

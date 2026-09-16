@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight, Wand2, Check } from 'lucide-react'
+import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation, speak, speakServer, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
@@ -127,11 +127,60 @@ interface ProposedAction {
   result?: string
 }
 
+/* A spreadsheet the person attached and is about to import, drawn as a confirm
+   card just like a proposed change. `file` is kept so Confirm can re-send the
+   exact bytes that were previewed to the commit endpoint; nothing is written
+   until then. The server ran the same dry-run the setup screen runs and returned
+   these counts and row problems. */
+interface ProposedImport {
+  entity: string
+  label: string
+  file: File
+  total: number
+  ok: number
+  rejected: number
+  imported?: number
+  summary: string
+  problems: { row: number; problem?: string }[]
+  runId?: string
+  state: 'preview' | 'busy' | 'done' | 'cancelled' | 'error'
+  result?: string
+}
+
+/* What the assistant may import, mirroring the server's allowlist in
+   assistant_import.go (assistantImportableEntities). Kept in the same order so
+   the two are easy to check against each other. The server re-checks every one,
+   so an edit here can only ever narrow what the panel offers, never widen what
+   is allowed. */
+const IMPORT_KINDS: { value: string; label: string }[] = [
+  { value: 'classes', label: 'Classes and sections' },
+  { value: 'sections', label: 'Sections' },
+  { value: 'subjects', label: 'Subjects' },
+  { value: 'periods', label: 'Periods' },
+  { value: 'holidays', label: 'Holidays and calendar' },
+  { value: 'timetable', label: 'Timetable' },
+  { value: 'class_subjects', label: 'Class subjects' },
+  { value: 'allocations', label: 'Teacher allocations' },
+  { value: 'marks', label: 'Marks' },
+  { value: 'marks_grid', label: 'Marks (grid)' },
+  { value: 'attendance', label: 'Student attendance' },
+  { value: 'staff_attendance', label: 'Staff attendance' },
+  { value: 'students', label: 'Students' },
+  { value: 'student_history', label: 'Student history' },
+  { value: 'fee_heads', label: 'Fee heads' },
+  { value: 'fee_structures', label: 'Fee structures' },
+  { value: 'fee_payments', label: 'Fee payments' },
+  { value: 'punches', label: 'Biometric punches' },
+  { value: 'student_exits', label: 'Student exits' },
+]
+
 interface Turn {
   role: 'user' | 'bot' | 'error'
   text: string
   /** A proposed data change awaiting confirmation on a card. */
   action?: ProposedAction
+  /** A spreadsheet awaiting confirmation to import. */
+  imprt?: ProposedImport
   /* The screens the answer is about, each openable in one press. An answer
      often names several ("the Fee Dashboard ... the Fee Default screen ...
      Fee Collection under Reports"); telling somebody where things are and then
@@ -244,6 +293,12 @@ export function AssistantTab() {
   const [draft, setDraft] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  /* A spreadsheet the person has attached but not yet previewed, and which kind
+     of records they say it holds. Held here, above the input, until Preview
+     turns it into a confirm card. */
+  const [attachFile, setAttachFile] = useState<File | null>(null)
+  const [attachEntity, setAttachEntity] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const conversation = useRef<string | null>(
     typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null,
   )
@@ -552,6 +607,94 @@ export function AssistantTab() {
     }
   }
 
+  /* Import a spreadsheet from inside the chat.
+
+     Two steps, both re-checked on the server: preview runs the importer's dry
+     run and writes nothing; the card's Confirm re-sends the SAME file to the
+     commit endpoint, which writes through the same undoable importer the setup
+     screen uses. FormData/fetch only -- nothing a low-end browser lacks. */
+  function chooseFile() {
+    fileInputRef.current?.click()
+  }
+  function onFilePicked(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files && e.target.files[0]
+    // Reset the input so picking the same file again still fires onChange.
+    e.target.value = ''
+    if (!f) return
+    setAttachFile(f)
+    setAttachEntity('')
+  }
+  function setImportState(i: number, patch: Partial<ProposedImport>) {
+    setTurns((t) => t.map((tr, idx) => (idx === i && tr.imprt ? { ...tr, imprt: { ...tr.imprt, ...patch } } : tr)))
+  }
+  async function previewImport() {
+    if (!attachFile || !attachEntity || state !== 'idle') return
+    const file = attachFile
+    const entity = attachEntity
+    const kind = IMPORT_KINDS.find((k) => k.value === entity)
+    setState('thinking')
+    setTurns((t) => [...t, { role: 'user', text: `Import “${file.name}” as ${kind?.label ?? entity}.` }])
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('entity', entity)
+      const res = await fetch('/api/v1/assistant/import/preview', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: form,
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error?.message ?? 'That file could not be previewed.')
+      setState('answering')
+      setTurns((t) => [...t, {
+        role: 'bot',
+        text: '',
+        imprt: {
+          entity: data.entity,
+          label: data.label,
+          file,
+          total: data.total,
+          ok: data.ok,
+          rejected: data.rejected,
+          summary: data.summary,
+          problems: Array.isArray(data.problems) ? data.problems : [],
+          state: 'preview',
+        },
+      }])
+      setAttachFile(null)
+      setAttachEntity('')
+      await new Promise((r) => setTimeout(r, 200))
+    } catch (err) {
+      setTurns((t) => [...t, { role: 'error', text: (err as Error).message }])
+    } finally {
+      setState('idle')
+    }
+  }
+  async function commitImport(i: number, imp: ProposedImport) {
+    setImportState(i, { state: 'busy' })
+    try {
+      const form = new FormData()
+      form.append('file', imp.file)
+      form.append('entity', imp.entity)
+      const res = await fetch('/api/v1/assistant/import/commit', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: form,
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error?.message ?? 'The import could not be completed.')
+      setImportState(i, {
+        state: 'done',
+        imported: data.imported,
+        rejected: data.rejected,
+        runId: data.run_id,
+        result: data.summary,
+      })
+    } catch (e) {
+      setImportState(i, { state: 'error', result: (e as Error).message })
+    }
+  }
+
   /* Placed after every hook, so the early return cannot change how many run. */
   if (onSettings && !open) return null
 
@@ -814,6 +957,74 @@ export function AssistantTab() {
                       )}
                     </div>
                   )}
+
+                  {/* An attached spreadsheet, as a confirm card. It shows the
+                      server's dry run -- how many rows are ready and which have
+                      problems -- and writes nothing until Confirm is pressed,
+                      which re-sends the same file to be imported. */}
+                  {turn.imprt && i !== printingIdx && (
+                    <div className="assistant-action mt-2 rounded-[11px] border bg-card/60 p-3 text-foreground">
+                      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <FileSpreadsheet className="size-3.5 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
+                        Import {turn.imprt.label}
+                      </div>
+                      <p className="mt-1.5 text-[13px] leading-snug">{turn.imprt.summary}</p>
+                      {(turn.imprt.state === 'preview' || turn.imprt.state === 'busy' || turn.imprt.state === 'error') && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-muted-foreground">{turn.imprt.total} rows</span>
+                          <span className="rounded-md bg-[hsl(var(--brand-accent,var(--primary)))]/15 px-2 py-0.5 font-medium text-[hsl(var(--brand-accent,var(--primary)))]">{turn.imprt.ok} ready</span>
+                          {turn.imprt.rejected > 0 && (
+                            <span className="rounded-md bg-destructive/15 px-2 py-0.5 font-medium text-destructive">{turn.imprt.rejected} with problems</span>
+                          )}
+                        </div>
+                      )}
+                      {turn.imprt.problems.length > 0 && turn.imprt.state !== 'done' && turn.imprt.state !== 'cancelled' && (
+                        <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-[12px] text-muted-foreground">
+                          {turn.imprt.problems.map((p, pi) => (
+                            <li key={pi} className="flex gap-1.5">
+                              <span className="shrink-0 font-medium text-foreground">Row {p.row}:</span>
+                              <span className="min-w-0">{p.problem || 'could not be read'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {turn.imprt.state === 'done' && (
+                        <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-emerald-600 dark:text-emerald-400">
+                          <Check className="size-4" aria-hidden /> {turn.imprt.result}
+                        </div>
+                      )}
+                      {turn.imprt.state === 'cancelled' && (
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled — nothing was imported.</div>
+                      )}
+                      {turn.imprt.state === 'error' && (
+                        <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-destructive"><X className="size-4" aria-hidden /> {turn.imprt.result}</div>
+                      )}
+                      {(turn.imprt.state === 'preview' || turn.imprt.state === 'error') && turn.imprt.ok > 0 && (
+                        <div className="mt-2.5 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => commitImport(i, turn.imprt!)}
+                            className="flex-1 rounded-[8px] bg-[hsl(var(--brand-accent,var(--primary)))] px-3 py-1.5 text-[12.5px] font-semibold text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))] transition-opacity hover:opacity-90"
+                          >
+                            {turn.imprt.state === 'error' ? 'Try again' : `Import ${turn.imprt.ok} row${turn.imprt.ok === 1 ? '' : 's'}`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImportState(i, { state: 'cancelled' })}
+                            className="rounded-[8px] border px-3 py-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                      {turn.imprt.state === 'preview' && turn.imprt.ok === 0 && (
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">No rows are ready to import. Fix the file and attach it again.</div>
+                      )}
+                      {turn.imprt.state === 'busy' && (
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Importing…</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -851,10 +1062,70 @@ export function AssistantTab() {
             </p>
           )}
 
+          {/* A spreadsheet has been attached: name it and say what kind of
+              records it holds, then Preview runs the server's dry run. Shown
+              above the box so it reads as a step before sending. */}
+          {attachFile && (
+            <div className="flex flex-wrap items-center gap-2 border-t bg-accent/40 px-3 py-2 text-[12px]">
+              <FileSpreadsheet className="size-4 shrink-0 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
+              <span className="min-w-0 max-w-[45%] truncate font-medium">{attachFile.name}</span>
+              <select
+                value={attachEntity}
+                onChange={(e) => setAttachEntity(e.target.value)}
+                aria-label="What kind of records this file holds"
+                className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-[12px]
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Import as…</option>
+                {IMPORT_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>{k.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void previewImport()}
+                disabled={!attachEntity || state !== 'idle'}
+                className="rounded-full bg-primary px-3 py-1 text-[12px] font-medium text-primary-foreground disabled:opacity-40"
+              >
+                Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAttachFile(null); setAttachEntity('') }}
+                aria-label="Remove attached file"
+                className="grid size-6 shrink-0 place-items-center rounded-full border hover:bg-accent"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          )}
+
           <form
             onSubmit={(e) => { e.preventDefault(); void ask() }}
             className="flex items-center gap-2 border-t px-3 py-2.5"
           >
+            {/* Attach a spreadsheet to import. FileReader/FormData only, so it
+                works on low-end browsers; the hidden input is driven by the
+                paper-clip beside it. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={onFilePicked}
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+            <button
+              type="button"
+              onClick={chooseFile}
+              disabled={state !== 'idle'}
+              aria-label="Attach a spreadsheet to import"
+              title="Attach a spreadsheet to import"
+              className="grid size-8 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+            >
+              <Paperclip className="size-3.5" />
+            </button>
             <input
               ref={inputRef}
               value={draft}

@@ -656,6 +656,9 @@ type importResult struct {
 	Imported int         `json:"imported"`
 	DryRun   bool        `json:"dry_run"`
 	Problems []importRow `json:"problems"`
+	// RunID is the undoable import run this commit recorded, empty on a dry
+	// run. Surfaced so the in-chat importer can point the person at Undo.
+	RunID string `json:"run_id,omitempty"`
 }
 
 // importStudents accepts a CSV and either validates it or writes it.
@@ -1322,12 +1325,18 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 		}
 		// Written inside the same transaction as the children, so a log entry
 		// cannot survive an import that rolled back.
-		return recordImportRunFull(r, tx, id.InstitutionID, "students",
+		runID, rerr := recordImportRunFull(r, tx, id.InstitutionID, "students",
 			r.URL.Query().Get("filename"), out.Total, out.Imported, out.Rejected,
 			createdStudents, string(raw))
+		if rerr != nil {
+			return rerr
+		}
+		out.RunID = runID.String()
+		return nil
 	})
 	if err != nil {
 		out.Imported = 0
+		out.RunID = ""
 		httpx.Error(w, r, http.StatusBadRequest, "import_failed", err.Error())
 		return
 	}

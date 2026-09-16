@@ -4,6 +4,7 @@ import { api, type List, type Section, type AttendanceRow, type Student } from '
 import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
+import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
@@ -153,6 +154,16 @@ export default function Attendance() {
               onChange={(e) => { setOnDate(e.target.value); setDraft({}) }}
               className="rounded-md border bg-background px-2.5 py-1.5 text-sm"
             />
+            {can('academics.attendance.write') && (
+              <ImportButton
+                entity="attendance"
+                title="Import attendance"
+                hint="One row per student per day, with the mark. Back-filling a term's registers from a sheet rather than a screen."
+              />
+            )}
+            {/* The whole register the school's scope allows, not just the
+                section on screen — what an inspector asks for by date. */}
+            <ExportButton name="attendance" />
           </div>
         }
       />

@@ -139,6 +139,15 @@ func (s *Server) Routes() http.Handler {
 		   scope; see assistant_actions.go. */
 		r.Post("/assistant/action", s.assistantActionExecute)
 
+		/* A spreadsheet imported from inside the chat. Multipart, because the
+		   {kind,params} action protocol above cannot carry a file. Preview is a
+		   dry run that writes nothing; commit re-runs it and writes through the
+		   same undoable importer the setup screen uses. Both re-check identity,
+		   the assistant import allowlist and the per-entity permission on the
+		   server; see assistant_import.go. */
+		r.Post("/assistant/import/preview", s.assistantImportPreview)
+		r.Post("/assistant/import/commit", s.assistantImportCommit)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)

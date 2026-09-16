@@ -9,7 +9,8 @@ import {
 import { formatPaise, formatDate, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
-import { useSession } from '@/lib/session'
+import { useSession, useCan } from '@/lib/session'
+import { ImportButton, ExportButton } from '@/components/DataPortActions'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
    read what they owe, take the money, hand over a printed receipt. Everything
@@ -52,6 +53,7 @@ const MODES = [
 
 export default function FeeCounter() {
   const toast = useToast()
+  const can = useCan()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [studentId, setStudentId] = useState<string | null>(null)
@@ -173,6 +175,19 @@ export default function FeeCounter() {
         eyebrow="Fee Workspace"
         title="Fee counter"
         description="Search a student, collect payment against outstanding invoices, and issue a numbered receipt."
+        actions={
+          <>
+            {can('finance.payments.write') && (
+              <ImportButton
+                entity="fee_payments"
+                title="Import fee payments"
+                hint="Payments already taken elsewhere — a bank statement, a term collected before the school was on the system. The dry run checks each against an outstanding invoice before anything is written."
+              />
+            )}
+            {/* The day's collection, as the report an accountant reconciles. */}
+            <ExportButton name="collections" />
+          </>
+        }
       />
       <PageBody>
         {receipt && <ReceiptView receipt={receipt} onClose={() => setReceipt(null)} />}

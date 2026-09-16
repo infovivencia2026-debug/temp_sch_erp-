@@ -8,6 +8,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, SkeletonTable, ErrorState,
 } from '@/components/ui'
+import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import IDCards from './IDCards'
 import StaffRecord from './StaffRecord'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -174,6 +175,18 @@ export default function Employees() {
         eyebrow="Employees"
         title="Staff records"
         description="Manage active staff, track which of their documents are running out, and print ID cards."
+        actions={
+          <>
+            {can('hr.employees.write') && (
+              <ImportButton
+                entity="staff"
+                title="Import staff"
+                hint="One row per employee. Nothing is written until the dry run passes; logins can be issued afterwards."
+              />
+            )}
+            <ExportButton name="staff" />
+          </>
+        }
       />
       <PageBody>
         <div className="no-print flex flex-wrap items-center gap-1 border-b">

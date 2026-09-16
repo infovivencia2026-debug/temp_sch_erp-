@@ -8,6 +8,7 @@ import {
   Table, Td, Badge, Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
 } from '@/components/ui'
 import { ExportRows } from '@/components/rows'
+import { ExportButton } from '@/components/DataPortActions'
 import { useRouteFeature } from '@/lib/catalog'
 import CardViewer from '@/components/CardViewer'
 import StudentAvatar from '@/components/StudentAvatar'
@@ -526,6 +527,9 @@ export default function ReportCards() {
         description="Every child in the section in roll order, with the subject breakdown behind each row. Publishing tells the parent."
         actions={
           <>
+            {/* The marks behind these cards, as a sheet — the raw scores a
+                board or a spreadsheet wants, scoped to what this account sees. */}
+            <ExportButton name="marks" />
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
             <div className="relative">
