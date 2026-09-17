@@ -425,7 +425,12 @@ export default function StaffRecord({ employeeID, onClose }: {
   const d = detail.data
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    /* z-[90], above the maximised-table view (z-80) as well as the ordinary
+       page. Opened from inside a full-screen table, a z-50 record rendered
+       BEHIND that table and looked like "Open does nothing"; it now sits over
+       it, and still below the printable card viewer (z-100) that prints from
+       here. */
+    <div className="fixed inset-0 z-[90] flex flex-col bg-background">
       <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted/30">

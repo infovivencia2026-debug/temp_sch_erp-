@@ -478,17 +478,10 @@ export default function Employees() {
                       onClick={() => setOpenStaff(e.id)}>
                       Open
                     </Button>
-                    {/* One card, for the person standing at the desk. The
-                        bulk tab is for September; this is for the replacement
-                        somebody lost on Tuesday. */}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      title={`Print ${e.full_name}'s ID card`}
-                      onClick={() => openTab('ids')}
-                    >
-                      <Printer className="h-3.5 w-3.5" />
-                    </Button>
+                    {/* The per-row "print this ID card" button was removed to
+                        unclutter a row that had four actions and overflowed: the
+                        IDs tab prints one card or the whole school from one
+                        place, so nothing is lost. */}
                     {can('hr.employees.write') && (
                       <Button
                         size="sm"
