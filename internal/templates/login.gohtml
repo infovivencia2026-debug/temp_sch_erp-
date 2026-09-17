@@ -36,10 +36,6 @@
       {{if .LogoURL}}<img class="brand-logo" src="{{.LogoURL}}" alt="">{{end}}
       <h1>{{if .Headline}}{{.Headline}}{{else}}Sign in{{end}}</h1>
       <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
-      <!-- A line about the product under the heading, so the form says what it
-           opens — and so the phone view, where the brand panel's copy is behind
-           the glass, still carries it. -->
-      <p class="form-desc">Admissions, fees, attendance, timetables, exams and report cards &mdash; your school&#8217;s whole day in one login, for the office, staff and parents.</p>
       {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
       {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
       <form method="post" action="/login" autocomplete="on">
@@ -50,8 +46,6 @@
         <label for="password">Password</label>
         <input id="password" type="password" name="password" required autocomplete="current-password">
         <button type="submit">Sign in</button>
-        <!-- A line about the product under the button. -->
-        <p class="fineprint" style="margin:12px 0 0">One secure sign-in for the whole school &mdash; each school&#8217;s records stay its own, reached by staff and parents from any device.</p>
       </form>
       <p class="fineprint"><a href="/forgot">Forgotten your password?</a></p>
     </main>

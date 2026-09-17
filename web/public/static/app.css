@@ -848,11 +848,11 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
    engine that blurs weakly or animates poorly still shows an intentional panel
    and a readable form. */
 .auth-split {
-  /* On a desktop browser the card takes about three-quarters of the screen so
-     the brand panel has room to breathe; it stacks and shrinks below a tablet
-     width (rules further down). */
-  width: 75vw;
-  min-height: 75vh;
+  /* On a desktop browser the card takes about 85% of the screen so the brand
+     panel has room to breathe; it stacks and shrinks below a tablet width
+     (rules further down). */
+  width: 85vw;
+  min-height: 85vh;
   display: flex;
   align-items: stretch;
   border: 1px solid var(--border);
@@ -949,17 +949,21 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
      of the notch and the home indicator. */
   body.auth {
     padding: 0;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow-y: auto;              /* a short phone can scroll rather than clip */
   }
   .auth-split {
     position: relative;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;   /* start below the toggle instead of centering
+                                      under it, which is what overlapped */
+    align-items: center;
     width: 100%;
     min-height: 100vh;
     min-height: 100dvh;            /* the real viewport, minus mobile browser chrome */
-    padding: 24px;
+    /* Clear the fixed theme toggle (top-right) so the glass card never sits
+       under it, and keep off the notch and home indicator. */
+    padding: calc(env(safe-area-inset-top, 0px) + 68px) 20px
+             calc(env(safe-area-inset-bottom, 0px) + 28px);
     border: 0;
     border-radius: 0;
     background: #1c0e33;            /* the base the mesh animates over */
