@@ -927,11 +927,68 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   .auth-brand-title { font-size: 23px; }
   .auth-split .card { padding: 32px; }
 }
-/* On a phone keep the product line but drop the longer blurb and freeze the
-   animation — cheaper on a low-end handset, and the form stays the focus. */
+/* On a phone the layout changes shape: the colour field fills the whole card
+   and the form sits on it as a frosted-glass panel, the product text stepping
+   aside so the form leads. Same markup, restyled — no second template. */
 @media (max-width: 560px) {
-  .auth-brand { padding: 24px; }
-  .auth-brand-title { font-size: 20px; margin-bottom: 0; }
-  .auth-brand-sub { display: none; }
-  .auth-brand .blob { animation: none; }
+  .auth-split {
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+    width: min(440px, 100%);
+    min-height: min(560px, calc(100vh - 3rem));
+    padding: 20px;
+    border: 0;
+    background: #1c0e33;            /* the base the mesh animates over */
+  }
+  /* The brand panel becomes the full background: its mesh fills the card and
+     its text steps out of the way. */
+  .auth-brand {
+    position: absolute;
+    inset: 0;
+    flex: none;
+    padding: 0;
+  }
+  .auth-brand-content { display: none; }
+
+  /* The form, as frosted glass over the mesh. */
+  .auth-split .card {
+    position: relative;
+    z-index: 2;
+    padding: 28px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.10);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    color: #fff;
+  }
+  .auth-split .card h1,
+  .auth-split .card label { color: #fff; }
+  .auth-split .card .lede,
+  .auth-split .card .brand-message,
+  .auth-split .card .fineprint { color: rgba(255, 255, 255, 0.8); }
+  .auth-split .card .fineprint a { color: #fff; }
+  .auth-split .card input {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+  .auth-split .card input::placeholder { color: rgba(255, 255, 255, 0.45); }
+  .auth-split .card input:focus { border-color: rgba(255, 255, 255, 0.6); }
+  .auth-split .card button[type="submit"] {
+    background: #ffffff;
+    color: #111827;
+  }
+}
+
+/* Where the browser cannot frost (older Android WebView / WebKit), the card
+   would be a barely-there wash over a busy animation and the text would fail to
+   read. Give it a near-solid dark fill instead, so the glass look degrades to a
+   plain readable card rather than an unreadable one. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 560px) {
+    .auth-split .card { background: rgba(20, 12, 38, 0.88); }
+  }
 }
