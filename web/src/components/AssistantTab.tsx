@@ -883,24 +883,46 @@ export function AssistantTab() {
                           </span>
                         ))
                     : turn.text}
-                  {/* One button per screen the answer names -- shown once the
-                      answer has finished printing. The chip carries the school's
+                  {/* One small chip per screen the answer names -- shown once the
+                      answer has finished printing, and only once per destination:
+                      the model sometimes names the same screen twice, which used
+                      to stack four full-width blue slabs down the panel. Deduped
+                      by target and laid out inline so they read as quiet "go here"
+                      cues, not a wall of buttons. The chip carries the school's
                       accent colour where it set one, the primary otherwise. */}
-                  {turn.links && i !== printingIdx && turn.links.map((lnk) => (
-                    <button
-                      key={lnk.to}
-                      type="button"
-                      onClick={() => { navigate(lnk.to); setOpen(false) }}
-                      className="mt-2 flex w-full items-center justify-between gap-2 rounded-[9px]
-                                 px-3 py-1.5 text-[12.5px] font-medium
-                                 transition-opacity hover:opacity-90
-                                 bg-[hsl(var(--brand-accent,var(--primary)))]
-                                 text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))]"
-                    >
-                      <span className="truncate">Open {lnk.label}</span>
-                      <ArrowRight className="size-3.5 shrink-0" aria-hidden />
-                    </button>
-                  ))}
+                  {turn.links && i !== printingIdx && (() => {
+                    // Collapse by BOTH destination and visible label: the answer
+                    // can name one screen twice, and two catalogue entries can
+                    // share a label ("Communication"), either of which showed the
+                    // same chip twice. One chip per destination, one per label.
+                    const seen = new Set<string>()
+                    const unique = turn.links.filter((lnk) => {
+                      const label = `l:${lnk.label.toLowerCase()}`
+                      if (seen.has(lnk.to) || seen.has(label)) return false
+                      seen.add(lnk.to)
+                      seen.add(label)
+                      return true
+                    })
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {unique.map((lnk) => (
+                          <button
+                            key={lnk.to}
+                            type="button"
+                            onClick={() => { navigate(lnk.to); setOpen(false) }}
+                            className="inline-flex items-center gap-1 rounded-full
+                                       px-2.5 py-1 text-[12px] font-medium
+                                       transition-opacity hover:opacity-90
+                                       bg-[hsl(var(--brand-accent,var(--primary)))]
+                                       text-[hsl(var(--brand-accent-foreground,var(--primary-foreground)))]"
+                          >
+                            <span className="truncate">Open {lnk.label}</span>
+                            <ArrowRight className="size-3 shrink-0" aria-hidden />
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
 
                   {/* A proposed change, as a confirmation card. Nothing is
                       written until Confirm is pressed. It shows the real
