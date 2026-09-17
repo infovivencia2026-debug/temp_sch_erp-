@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "browserslist": [
-    "chrome >= 70",
-    "firefox >= 68",
-    "safari >= 12",
-    "edge >= 79"
+    "chrome >= 61",
+    "firefox >= 60",
+    "safari >= 11",
+    "edge >= 18",
+    "android >= 5",
+    "ios_saf >= 11",
+    "samsung >= 8"
   ],
   "scripts": {
     "dev": "vite",

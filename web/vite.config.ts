@@ -82,8 +82,33 @@ export default defineConfig({
    *   features degrade instead of throwing. */
   plugins: [
     react(),
+    /* THE MIDDLE BAND, WHICH IS WHERE THE CHEAP TABLETS LIVE.
+     *
+     * plugin-legacy's second bundle is a `nomodule` fallback: a browser gets it
+     * ONLY if it does not understand `<script type=module>` at all. That misses
+     * exactly the engines these schools run — a Senses or Caltech Android tablet
+     * on WebView 65-84, or Samsung Internet — which DO support modules, so they
+     * load the modern bundle, and then choke on a method that bundle assumes:
+     * Object.fromEntries, Array.flat/flatMap, String.replaceAll, Array.at,
+     * Promise.allSettled. That is the "error when I press Save" on the old
+     * tablet: not a bad handler, a missing built-in the module build never
+     * polyfilled.
+     *
+     *   modernPolyfills injects the core-js shims those methods need INTO the
+     *   modern bundle, so a module-capable-but-old engine has them too.
+     *
+     *   targets is widened down to old Android/iOS/Samsung so the nomodule
+     *   bundle (for the truly ancient, module-less engines — old Windows, an
+     *   Android 4 WebView) is transpiled and polyfilled far enough to run there.
+     *
+     * build.target below drops the syntax floor to match, so neither bundle
+     * ships syntax one of these engines cannot parse. */
     legacy({
-      targets: ['chrome >= 70', 'firefox >= 68', 'safari >= 12', 'edge >= 79'],
+      targets: [
+        'chrome >= 61', 'firefox >= 60', 'safari >= 11', 'edge >= 18',
+        'android >= 5', 'ios >= 11', 'samsung >= 8',
+      ],
+      modernPolyfills: true,
     }),
     serviceWorker(),
   ],
@@ -101,10 +126,13 @@ export default defineConfig({
   },
   build: {
     // A broad baseline for the MODERN bundle: the transpiler lowers anything
-    // newer than these engines, so a browser on the module build still never
-    // meets syntax it cannot parse. plugin-legacy (above) covers the engines
-    // below even this.
-    target: ['es2019', 'chrome80', 'edge88', 'firefox78', 'safari13'],
+    // newer than these engines, so a module-capable engine — including the
+    // WebView 61+ on a low-end Android tablet — still never meets syntax it
+    // cannot parse (optional chaining, nullish, class fields all get lowered).
+    // es2017 is the floor because that is what a WebView in the low 60s can
+    // parse; modernPolyfills (above) covers the METHODS that floor still leaves
+    // missing, and plugin-legacy covers the module-less engines below even this.
+    target: ['es2017', 'chrome61', 'edge18', 'firefox60', 'safari11'],
     // Chunked along the same seams as the deployed bundle: the vendor libs
     // change rarely and stay cached across deploys, while feature code does
     // not drag them back over the wire.
