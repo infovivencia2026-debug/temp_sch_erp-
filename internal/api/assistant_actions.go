@@ -143,6 +143,30 @@ func resolveOneStudent(ctx context.Context, tx pgx.Tx, q string) (id uuid.UUID, 
 	if ql == "" {
 		return id, "", "", nil, fmt.Errorf("no student named")
 	}
+	/* Match on every word of the query, in any order, anywhere in the name --
+	   not on the query as one contiguous run.
+
+	   The old form was LIKE '%anitha patel%', which is exact-order AND requires
+	   the two words to be adjacent, so "Anitha Patel" found nobody the moment the
+	   child was recorded as "Anitha Kumari Patel": the middle name sat between
+	   the two words the office typed. Splitting the query into words and asking
+	   that each appear somewhere in the full name matches a first-plus-surname
+	   against a first-middle-surname, and "Patel Anitha" against "Anitha Patel"
+	   too. Everything is lower-cased on both sides, so case never mattered and
+	   still does not. Ambiguity (two children share the words) is caught below
+	   and answered by asking for the admission number. */
+	args := []any{ql}
+	tokenClause := "FALSE"
+	if toks := strings.Fields(ql); len(toks) > 0 {
+		preds := make([]string, 0, len(toks))
+		for _, t := range toks {
+			args = append(args, "%"+t+"%")
+			preds = append(preds, fmt.Sprintf(
+				"lower(concat_ws(' ', st.first_name, st.middle_name, st.last_name)) LIKE $%d",
+				len(args)))
+		}
+		tokenClause = "(" + strings.Join(preds, " AND ") + ")"
+	}
 	rows, e := tx.Query(ctx, `
 		SELECT st.id, btrim(concat_ws(' ', st.first_name, st.middle_name, st.last_name)),
 		       st.admission_no,
@@ -152,10 +176,10 @@ func resolveOneStudent(ctx context.Context, tx pgx.Tx, q string) (id uuid.UUID, 
 		 WHERE st.status='active'
 		   AND ( lower(st.admission_no) = $1
 		      OR lower(btrim(concat_ws(' ', st.first_name, st.middle_name, st.last_name))) = $1
-		      OR (length($1) >= 3 AND lower(concat_ws(' ', st.first_name, st.middle_name, st.last_name)) LIKE '%'||$1||'%') )
+		      OR (length($1) >= 3 AND `+tokenClause+`) )
 		 ORDER BY (lower(st.admission_no)=$1) DESC,
 		          (lower(btrim(concat_ws(' ', st.first_name, st.middle_name, st.last_name)))=$1) DESC
-		 LIMIT 3`, ql)
+		 LIMIT 3`, args...)
 	if e != nil {
 		return id, "", "", nil, e
 	}
