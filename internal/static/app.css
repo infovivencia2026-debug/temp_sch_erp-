@@ -851,8 +851,8 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   /* On a desktop browser the card takes about 85% of the screen so the brand
      panel has room to breathe; it stacks and shrinks below a tablet width
      (rules further down). */
-  width: 85vw;
-  min-height: 85vh;
+  width: 95vw;
+  min-height: 95vh;
   display: flex;
   align-items: stretch;
   border: 1px solid var(--border);
@@ -873,11 +873,16 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;          /* centre the compact form in its wider half */
 }
+/* The form stays a tidy narrow column even though its side of the card is now
+   large — a full-width form on a 95vw card is three oversized fields floating in
+   space. Everything in the card shares one measure and centres. */
+.auth-split .card > * { width: 100%; max-width: 360px; }
 
 .auth-brand {
   position: relative;
-  flex: 0 0 44%;
+  flex: 0 0 56%;
   overflow: hidden;
   padding: 44px;
   color: #fff;
