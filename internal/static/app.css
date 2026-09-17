@@ -848,8 +848,11 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
    engine that blurs weakly or animates poorly still shows an intentional panel
    and a readable form. */
 .auth-split {
-  width: min(960px, 100%);
-  min-height: 540px;
+  /* On a desktop browser the card takes about three-quarters of the screen so
+     the brand panel has room to breathe; it stacks and shrinks below a tablet
+     width (rules further down). */
+  width: 75vw;
+  min-height: 75vh;
   display: flex;
   align-items: stretch;
   border: 1px solid var(--border);
