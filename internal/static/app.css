@@ -828,3 +828,110 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
 @supports (-webkit-touch-callout: none) {
   input, select, textarea { font-size: max(16px, 1em); }
 }
+
+/* ── Split sign-in: the product beside the form ──────────────────────────────
+   The form above is unchanged; this only sets it next to a brand panel and, on
+   smaller screens, stacks them. Laid out with flexbox and explicit margins —
+   never flex `gap` — so it holds together on old WebKit/Android WebView. The
+   brand panel's colour field is decorative CSS: GPU transforms over a deep base
+   colour, frozen under prefers-reduced-motion and on phones, so a low-end
+   engine that blurs weakly or animates poorly still shows an intentional panel
+   and a readable form. */
+.auth-split {
+  width: min(960px, 100%);
+  min-height: 540px;
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.10);
+}
+
+/* The form was a bordered card of its own; inside the split, the split owns the
+   frame and the form simply fills its half. */
+.auth-split .card {
+  flex: 1 1 0;
+  width: auto;
+  border: 0;
+  border-radius: 0;
+  padding: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-brand {
+  position: relative;
+  flex: 0 0 44%;
+  overflow: hidden;
+  padding: 44px;
+  color: #fff;
+  background: #1c0e33;
+}
+.auth-brand .mesh {
+  position: absolute;
+  top: -15%; left: -15%; right: -15%; bottom: -15%;
+  filter: blur(42px);
+  z-index: 0;
+}
+.auth-brand .blob {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.85;
+  will-change: transform;
+}
+.auth-brand .blob-1 { width: 46%; height: 46%; top: -8%;   left: -8%;   background: #2563eb; animation: authSweep1 6s   infinite alternate ease-in-out; }
+.auth-brand .blob-2 { width: 40%; height: 40%; top: 18%;   right: -10%; background: #ec4899; animation: authSweep2 7s   infinite alternate ease-in-out; }
+.auth-brand .blob-3 { width: 36%; height: 36%; bottom: -10%; left: 8%;  background: #f97316; animation: authSweep3 5.5s infinite alternate ease-in-out; }
+.auth-brand .blob-4 { width: 38%; height: 38%; bottom: 18%; right: 18%; background: #e11d48; animation: authSweep4 8s   infinite alternate-reverse ease-in-out; }
+.auth-brand .blob-5 { width: 50%; height: 50%; top: 38%;   left: 28%;   background: #7c3aed; animation: authSweep5 6.5s infinite alternate ease-in-out; }
+
+@keyframes authSweep1 { to { transform: translate(70%, 55%)   scale(1.3); } }
+@keyframes authSweep2 { to { transform: translate(-65%, 45%)  scale(0.9); } }
+@keyframes authSweep3 { to { transform: translate(55%, -70%)  scale(1.4); } }
+@keyframes authSweep4 { to { transform: translate(-45%, -55%) scale(1.0); } }
+@keyframes authSweep5 { to { transform: translate(-28%, 35%)  scale(1.5); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-brand .blob { animation: none; }
+}
+
+.auth-brand-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.auth-brand-mark { font-size: 48px; line-height: 1; }
+.auth-brand-eyebrow { margin: 0 0 12px; font-size: 14px; font-weight: 500; opacity: 0.92; }
+.auth-brand-title {
+  margin: 0 0 14px;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.18);
+}
+.auth-brand-sub { margin: 0; font-size: 15px; line-height: 1.6; opacity: 0.9; }
+
+/* Stack below a tablet width; the panel keeps the product copy above the form. */
+@media (max-width: 900px) {
+  .auth-split { flex-direction: column; width: min(460px, 100%); min-height: 0; }
+  .auth-brand { flex: none; padding: 32px; }
+  .auth-brand-content { display: block; }
+  .auth-brand-mark { margin-bottom: 18px; }
+  .auth-brand-title { font-size: 23px; }
+  .auth-split .card { padding: 32px; }
+}
+/* On a phone keep the product line but drop the longer blurb and freeze the
+   animation — cheaper on a low-end handset, and the form stays the focus. */
+@media (max-width: 560px) {
+  .auth-brand { padding: 24px; }
+  .auth-brand-title { font-size: 20px; margin-bottom: 0; }
+  .auth-brand-sub { display: none; }
+  .auth-brand .blob { animation: none; }
+}

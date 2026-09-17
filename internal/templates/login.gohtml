@@ -9,27 +9,51 @@
 </head>
 <body class="auth">
   <div class="auth-top">{{template "themebtn"}}</div>
-  <main class="card">
-    {{if .LogoURL}}<img class="brand-logo" src="{{.LogoURL}}" alt="">{{end}}
-    <h1>{{if .Headline}}{{.Headline}}{{else}}Sign in{{end}}</h1>
-    <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
-    {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
-    {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
-    <form method="post" action="/login" autocomplete="on">
-      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <input type="hidden" name="next" value="{{.Next}}">
-      <label for="identifier">Username, email or phone</label>
-      <input id="identifier" type="text" name="identifier" required autocomplete="username" autofocus>
-      <label for="password">Password</label>
-      <input id="password" type="password" name="password" required autocomplete="current-password">
-      <button type="submit">Sign in</button>
-      <!-- Below the button, not between password and Submit: sitting in the
-           gap it pushed the primary action down and read as a note about the
-           password field itself. -->
-      <p class="fineprint" style="margin:12px 0 0">On a classroom screen, teachers may type today&#8217;s code here instead, if the school has switched it on.</p>
-    </form>
-    <p class="fineprint"><a href="/forgot">Forgotten your password?</a></p>
-  </main>
+  <div class="auth-split">
+    <!-- The brand panel: what the product is, beside where you sign in to it.
+         Its animated colour field is pure CSS and decorative (aria-hidden), and
+         it freezes under prefers-reduced-motion; the deep base colour means it
+         still reads correctly on an engine that renders the blur weakly. It is
+         hidden entirely on a narrow phone so the form leads. -->
+    <aside class="auth-brand">
+      <div class="mesh" aria-hidden="true">
+        <span class="blob blob-1"></span>
+        <span class="blob blob-2"></span>
+        <span class="blob blob-3"></span>
+        <span class="blob blob-4"></span>
+        <span class="blob blob-5"></span>
+      </div>
+      <div class="auth-brand-content">
+        <div class="auth-brand-mark" aria-hidden="true">✳</div>
+        <div class="auth-brand-text">
+          <p class="auth-brand-eyebrow">Your whole school, one login</p>
+          <h2 class="auth-brand-title">Admissions and fees, attendance and timetables, exams and report cards &mdash; the school&#8217;s whole day in one place.</h2>
+          <p class="auth-brand-sub">One system for the office, the staff room and parents &mdash; on the desk, the phone and the classroom screen.</p>
+        </div>
+      </div>
+    </aside>
+    <main class="card">
+      {{if .LogoURL}}<img class="brand-logo" src="{{.LogoURL}}" alt="">{{end}}
+      <h1>{{if .Headline}}{{.Headline}}{{else}}Sign in{{end}}</h1>
+      <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
+      {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
+      {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+      <form method="post" action="/login" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <label for="identifier">Username, email or phone</label>
+        <input id="identifier" type="text" name="identifier" required autocomplete="username" autofocus>
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" required autocomplete="current-password">
+        <button type="submit">Sign in</button>
+        <!-- Below the button, not between password and Submit: sitting in the
+             gap it pushed the primary action down and read as a note about the
+             password field itself. -->
+        <p class="fineprint" style="margin:12px 0 0">On a classroom screen, teachers may type today&#8217;s code here instead, if the school has switched it on.</p>
+      </form>
+      <p class="fineprint"><a href="/forgot">Forgotten your password?</a></p>
+    </main>
+  </div>
 {{template "themejs"}}
 {{template "pwreveal"}}
 </body>
