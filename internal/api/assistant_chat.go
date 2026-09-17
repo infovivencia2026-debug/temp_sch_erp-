@@ -695,6 +695,10 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 		return false
 	}
 	var facts []string
+	// The caller's data scope, resolved once, so a roster answer can be narrowed
+	// to the sections they actually teach (a class teacher) or opened to the
+	// whole school (an admin) without a second permission dance.
+	res, _ := s.resolveScope(r)
 	_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if has("on leave", "who is away", "who's away", "leave today") && id.Can(rbac.EmployeesRead) {
 			rows, err := tx.Query(r.Context(), `
@@ -822,6 +826,74 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 						}
 					}
 					facts = append(facts, line)
+				}
+			}
+		}
+
+		/* "List my students" — the class roster, actually listed rather than a
+		   pointer to the screen. Narrowed to what the asker may see: an admin
+		   holding school-wide access gets the whole roll (capped, with the total
+		   noted), a class teacher gets the children in the sections they teach,
+		   and anyone else gets nothing here and the help answer instead. */
+		wantsRoster := has("my student", "my students", "list student", "list all student",
+			"class list", "class roster", "students in my class", "my class list", "list of student")
+		if wantsRoster && (id.Can(rbac.StudentsRead) || res.AllStudents) {
+			where, args := "", []any(nil)
+			if res.AllStudents {
+				where = "TRUE"
+			} else if len(res.SectionIDs) > 0 {
+				where = "en.section_id = ANY($1)"
+				args = append(args, res.SectionIDs)
+			}
+			if where != "" {
+				var total int
+				_ = tx.QueryRow(r.Context(), `
+					SELECT count(*) FROM students st
+					  JOIN LATERAL (SELECT e.section_id FROM enrollments e
+					                 WHERE e.student_id=st.id AND e.status='active'
+					                 ORDER BY e.enrolled_on DESC LIMIT 1) en ON true
+					 WHERE st.status='active' AND `+where, args...).Scan(&total)
+				rows, err := tx.Query(r.Context(), `
+					SELECT btrim(concat_ws(' ', st.first_name, st.middle_name, st.last_name)),
+					       st.admission_no, c.name, sec.name
+					  FROM students st
+					  JOIN LATERAL (SELECT e.class_id, e.section_id FROM enrollments e
+					                 WHERE e.student_id=st.id AND e.status='active'
+					                 ORDER BY e.enrolled_on DESC LIMIT 1) en ON true
+					  LEFT JOIN classes  c   ON c.id = en.class_id
+					  LEFT JOIN sections sec ON sec.id = en.section_id
+					 WHERE st.status='active' AND `+where+`
+					 ORDER BY c.name, sec.name, st.first_name
+					 LIMIT 60`, args...)
+				if err == nil {
+					var lines []string
+					for rows.Next() {
+						var name, adm string
+						var cn, sn *string
+						rows.Scan(&name, &adm, &cn, &sn)
+						place := ""
+						if cn != nil {
+							place = *cn
+							if sn != nil {
+								place += " " + *sn
+							}
+						}
+						if place != "" {
+							lines = append(lines, fmt.Sprintf("%s (%s) — %s", name, adm, place))
+						} else {
+							lines = append(lines, fmt.Sprintf("%s (%s)", name, adm))
+						}
+					}
+					rows.Close()
+					if len(lines) == 0 {
+						facts = append(facts, "You have no active students in your assigned classes.")
+					} else {
+						hdr := fmt.Sprintf("Students you may see (%d)", total)
+						if total > len(lines) {
+							hdr = fmt.Sprintf("Students you may see (%d total; first %d listed, see My students for the rest)", total, len(lines))
+						}
+						facts = append(facts, hdr+": "+strings.Join(lines, "; ")+".")
+					}
 				}
 			}
 		}
