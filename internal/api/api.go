@@ -901,6 +901,14 @@ func (s *Server) Routes() http.Handler {
 				   that is where a clash, a substitution and a workload
 				   conversation all start. */
 				r.Get("/employees/{id}/detail", s.getStaffDetail)
+				// A teacher's workload and results on one page, and a
+				// printable version of the same figures (server returns
+				// {html, css, filename}, the browser prints it — the report
+				// card's contract). The whole-staff report walks every
+				// teaching member of staff, page-broken between them.
+				r.Get("/employees/{id}/overview", s.getStaffOverview)
+				r.Get("/employees/{id}/overview/report", s.getStaffOverviewReport)
+				r.Get("/staff/overview/report", s.getAllStaffOverviewReport)
 				r.Get("/documents", s.listEmployeeDocuments)
 				// The school's own ID card artwork, front and back. Reading it is
 				// open to anybody who reads staff, because printing a card is the

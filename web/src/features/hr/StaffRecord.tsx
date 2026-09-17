@@ -1,15 +1,205 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import {
+  BarChart, Bar, AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
+} from 'recharts'
+import { X, BookOpen, Layers, GraduationCap, CalendarClock, Printer } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
 import {
-  Card, CardHeader, FormGrid, Field as FormField, Select, Input, FormNotice,
+  Card, CardHeader, CellGrid, Stat, FormGrid, Field as FormField, Select, Input, FormNotice,
   Table, Td, Badge, Button, Loading, ErrorState,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
+import CardViewer from '@/components/CardViewer'
 import { formatDate, cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
+
+/* What a member of staff carries, at a glance.
+
+   The record below is the paper file — contact, employment, documents. This
+   is the working answer to "how loaded are they, and how are their classes
+   doing", drawn from the same allocation the timetable reads and the marks
+   the report cards publish. It is read far more often than it is edited, so
+   it sits at the top and it reads like a dashboard: tiles, then charts.
+
+   Charts model the principal dashboard's styling — theme tokens, muted
+   gridlines, an SVG that prints — so it matches the app and works in either
+   theme and on the schools' old tablets. */
+interface Overview {
+  staff: { id: string; name: string; designation?: string }
+  load: {
+    subjects_count: number
+    sections_count: number
+    students_count: number
+    periods_per_week: number
+    class_teacher_of: { class: string; section: string }[]
+    subjects: { class: string; section: string; subject: string; students: number }[]
+  }
+  marks: {
+    has_marks: boolean
+    overall_avg_pct: number
+    pass_rate_pct: number
+    distinction_rate_pct: number
+    by_subject: { subject: string; avg_pct: number; students: number; exams: number }[]
+    trend: { exam: string; date: string; avg_pct: number }[]
+    by_section: { class: string; section: string; avg_pct: number }[]
+  }
+}
+
+/* The tooltip and axes the principal dashboard uses, so both charts read the
+   same way and neither hard-codes a colour that breaks in dark mode. */
+const AXIS = { fontSize: 11 } as const
+const TIP = {
+  background: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: 8,
+  fontSize: 12,
+} as const
+
+function StaffOverview({ employeeID }: { employeeID: string }) {
+  const overview = useQuery({
+    queryKey: ['staff-overview', employeeID],
+    queryFn: () => api.get<Overview>(`/api/v1/hr/employees/${employeeID}/overview`),
+  })
+
+  return (
+    <Card>
+      <CardHeader title="Overview" description="Teaching load and how their classes are doing." />
+      {overview.isLoading ? (
+        <div className="p-5"><Loading shape="inline" /></div>
+      ) : overview.error ? (
+        /* Degrades rather than crashes: a 404 or a slow endpoint shows here,
+           and the paper record below still opens. */
+        <div className="p-4"><ErrorState error={overview.error} /></div>
+      ) : overview.data ? (
+        <OverviewBody o={overview.data} />
+      ) : null}
+    </Card>
+  )
+}
+
+function OverviewBody({ o }: { o: Overview }) {
+  const { load, marks } = o
+  return (
+    <div className="space-y-6 p-4">
+      <CellGrid cols={4}>
+        <Stat label="Subjects taught" value={load.subjects_count} icon={BookOpen} />
+        <Stat label="Sections" value={load.sections_count} icon={Layers} />
+        <Stat label="Students taught" value={load.students_count} icon={GraduationCap} />
+        <Stat label="Periods / week" value={load.periods_per_week} icon={CalendarClock} />
+      </CellGrid>
+
+      {load.class_teacher_of.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="eyebrow text-muted-foreground">Class teacher of</span>
+          {load.class_teacher_of.map((c) => (
+            <Badge key={`${c.class}-${c.section}`} tone="primary">
+              {c.class}-{c.section}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Subjects they teach: the average per subject as bars, and the
+          allocation rows beside it — the coverage stands whether or not marks
+          exist. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border p-4">
+          <p className="eyebrow mb-3 text-muted-foreground">Average % by subject</p>
+          {marks.has_marks && marks.by_subject.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={marks.by_subject} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="subject" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={TIP} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
+                  <Bar dataKey="avg_pct" name="Average %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
+              No published marks yet for the classes they teach.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-lg border">
+          <p className="eyebrow px-4 pb-2 pt-4 text-muted-foreground">Allocation</p>
+          <Table head={['Class', 'Subject', 'Students']} empty={!load.subjects.length}
+            emptyLabel="No subjects allocated.">
+            {load.subjects.map((s, i) => (
+              <tr key={`${s.class}-${s.section}-${s.subject}-${i}`}>
+                <Td className="font-medium">{s.class}-{s.section}</Td>
+                <Td>{s.subject}</Td>
+                <Td className="tabular-nums">{s.students}</Td>
+              </tr>
+            ))}
+          </Table>
+        </div>
+      </div>
+
+      {/* Performance across exams, and the three headline rates beside it. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,200px)]">
+        <div className="rounded-lg border p-4">
+          <p className="eyebrow mb-3 text-muted-foreground">Performance across exams</p>
+          {marks.has_marks && marks.trend.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={marks.trend} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
+                  <defs>
+                    <linearGradient id="staff-trend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="exam" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={TIP} />
+                  <Area type="monotone" dataKey="avg_pct" name="Average %"
+                    stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#staff-trend)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
+              No published marks yet for the classes they teach.
+            </p>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+          <Stat label="Overall average" value={marks.has_marks ? `${marks.overall_avg_pct}%` : '—'} />
+          <Stat label="Pass rate" value={marks.has_marks ? `${marks.pass_rate_pct}%` : '—'} />
+          <Stat label="Distinctions" value={marks.has_marks ? `${marks.distinction_rate_pct}%` : '—'} />
+        </div>
+      </div>
+
+      {/* Section-wise comparison — only where there is something to compare. */}
+      {marks.has_marks && marks.by_section.length > 0 && (
+        <div className="rounded-lg border p-4">
+          <p className="eyebrow mb-3 text-muted-foreground">Average % by section</p>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={marks.by_section.map((s) => ({ ...s, label: `${s.class}-${s.section}` }))}
+                margin={{ top: 4, right: 8, bottom: 4, left: -22 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="label" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip contentStyle={TIP} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
+                <Bar dataKey="avg_pct" name="Average %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* One member of staff, and what they actually do here.
 
@@ -116,6 +306,15 @@ export default function StaffRecord({ employeeID, onClose }: {
      changed at the desk still needed the older bulk form somewhere else. */
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>({})
+  /* The printable overview, opened in the same viewer the report cards print
+     through. The server hands back {html, css}; CardViewer sanitises it,
+     scales it to the page and prints it — the one print path in the product. */
+  const [report, setReport] = useState<{ html: string; css?: string; name?: string } | null>(null)
+  const exportReport = useMutation({
+    mutationFn: () => api.get<{ html: string; css?: string }>(
+      `/api/v1/hr/employees/${employeeID}/overview/report`),
+    onSuccess: (v) => setReport({ ...v, name: `${d?.full_name ?? 'Staff'} — overview` }),
+  })
 
   const detail = useQuery({
     queryKey: ['staff-detail', employeeID],
@@ -244,11 +443,24 @@ export default function StaffRecord({ employeeID, onClose }: {
             </p>
           </div>
         </div>
-        <button type="button" onClick={close} aria-label="Close"
-          className="rounded p-1 text-muted-foreground hover:bg-accent">
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="secondary" size="sm" disabled={exportReport.isPending}
+            onClick={() => exportReport.mutate()}>
+            <Printer className="h-3.5 w-3.5" aria-hidden />
+            {exportReport.isPending ? 'Preparing…' : 'Export PDF'}
+          </Button>
+          <button type="button" onClick={close} aria-label="Close"
+            className="rounded p-1 text-muted-foreground hover:bg-accent">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+      {report && <CardViewer card={report} onClose={() => setReport(null)} />}
+      {exportReport.error && (
+        <div className="border-b bg-destructive/10 px-6 py-2 text-[13px] text-destructive">
+          The overview could not be prepared for printing. Please try again.
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl space-y-6 px-6 py-6">
@@ -256,6 +468,8 @@ export default function StaffRecord({ employeeID, onClose }: {
             <ErrorState error={detail.error} />
           ) : d ? (
             <>
+              <StaffOverview employeeID={employeeID} />
+
               <Card>
                 <CardHeader
                   title="Details"

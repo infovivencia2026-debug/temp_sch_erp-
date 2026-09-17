@@ -6,9 +6,10 @@ import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, SkeletonTable, ErrorState,
+  Button, Input, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
+import CardViewer from '@/components/CardViewer'
 import IDCards from './IDCards'
 import StaffRecord from './StaffRecord'
 import { StatusPill } from '@/components/NeedsAttention'
@@ -141,6 +142,15 @@ export default function Employees() {
   const [search, setSearch] = useState('')
   const [expiringOnly, setExpiringOnly] = useState(true)
 
+  /* The whole-staff overview, printed through the report-card viewer — the
+     same {html, css} print path a report card uses, so there is one way the
+     product turns server-rendered pages into paper. */
+  const [staffReport, setStaffReport] = useState<{ html: string; css?: string; name?: string } | null>(null)
+  const exportOverview = useMutation({
+    mutationFn: () => api.get<{ html: string; css?: string }>('/api/v1/hr/staff/overview/report'),
+    onSuccess: (v) => setStaffReport({ ...v, name: 'Staff overview' }),
+  })
+
   // The directory searches client-side, so it must hold the WHOLE staff. A
   // single ?limit=200 came back quietly short for a school past 200 -- a late
   // bus driver's code simply could not be found. useEmployeeRoster walks the
@@ -170,6 +180,9 @@ export default function Employees() {
     <>
       {openStaff && (
         <StaffRecord employeeID={openStaff} onClose={() => setOpenStaff(null)} />
+      )}
+      {staffReport && (
+        <CardViewer card={staffReport} onClose={() => setStaffReport(null)} />
       )}
       <PageHead
         eyebrow="Employees"
@@ -394,14 +407,32 @@ export default function Employees() {
             title="Directory"
             description={`${rows.length} of ${all.length}`}
             action={
-              <span className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <span className="[&_input]:pl-8">
-                  <Input value={search} onChange={setSearch} placeholder="Name, code or role" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <span className="[&_input]:pl-8">
+                    <Input value={search} onChange={setSearch} placeholder="Name, code or role" />
+                  </span>
                 </span>
-              </span>
+                {/* One printout of every teacher's load and results — the term's
+                    staff review, off the same overview each record shows. */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={exportOverview.isPending}
+                  onClick={() => exportOverview.mutate()}
+                >
+                  <Printer className="h-3.5 w-3.5" aria-hidden />
+                  {exportOverview.isPending ? 'Preparing…' : 'Export all staff'}
+                </Button>
+              </div>
             }
           />
+          {exportOverview.error && (
+            <div className="px-5 pt-4">
+              <FormNotice error={exportOverview.error} />
+            </div>
+          )}
           {staff.isLoading ? (
             <SkeletonTable columns={8} />
           ) : staff.error ? (
