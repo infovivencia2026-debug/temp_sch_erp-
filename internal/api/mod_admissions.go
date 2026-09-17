@@ -51,16 +51,50 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	if strings.TrimSpace(req.StudentName) == "" || strings.TrimSpace(req.Phone) == "" {
-		httpx.BadRequest(w, r, "student_name and phone are required")
+	newID, linkFailed, applicant, err := s.applyCreateEnquiry(r, id, req)
+	if eie := (enquiryInputError{}); errors.As(err, &eie) {
+		httpx.BadRequest(w, r, eie.msg)
 		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, map[string]any{
+		"id": newID, "status": "new",
+		// Named separately from the login's own note because the two are fixed
+		// in different places: a form nobody has opened is an admissions job, a
+		// mail server nobody has configured is an integrations one.
+		"link_not_sent": linkFailed,
+		// The password is here because it is nowhere else: nothing can read it
+		// back out afterwards, so if no message arrives this response is the
+		// only copy that ever existed -- and the parent is usually still at
+		// the desk, which is the one moment it can be handed over by hand.
+		"parent_login": applicant,
+	})
+}
+
+// enquiryInputError is a caller-correctable problem with an enquiry request,
+// returned by applyCreateEnquiry so the HTTP handler answers 400 and the
+// assistant shows the same wording without either duplicating the checks.
+type enquiryInputError struct{ msg string }
+
+func (e enquiryInputError) Error() string { return e.msg }
+
+/* applyCreateEnquiry validates and records one admissions enquiry, returning
+   the new id, which link channels could not be reached, and the parent login it
+   minted. Shared by createEnquiry (the front-desk screen) and the assistant's
+   enquiry.create action so both capture the enquiry, send the application link
+   and issue the watch-it login in the one transaction. */
+func (s *Server) applyCreateEnquiry(r *http.Request, id *httpx.Identity, req upsertEnquiryRequest) (string, []string, applicantWelcome, error) {
+	if strings.TrimSpace(req.StudentName) == "" || strings.TrimSpace(req.Phone) == "" {
+		return "", nil, applicantWelcome{}, enquiryInputError{"student_name and phone are required"}
 	}
 	if req.Source == "" {
 		req.Source = "walk_in"
 	}
-	if err := oneOf("source", req.Source, enquirySources); err != nil {
-		httpx.BadRequest(w, r, err.Error())
-		return
+	if verr := oneOf("source", req.Source, enquirySources); verr != nil {
+		return "", nil, applicantWelcome{}, enquiryInputError{verr.Error()}
 	}
 
 	var newID string
@@ -141,26 +175,13 @@ func (s *Server) createEnquiry(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if errors.Is(err, errUnknownClass) {
-		httpx.BadRequest(w, r,
-			"class_sought must be a class id or the name of a class this school runs")
-		return
+		return "", nil, applicantWelcome{}, enquiryInputError{
+			"class_sought must be a class id or the name of a class this school runs"}
 	}
 	if err != nil {
-		httpx.Internal(w, r, err)
-		return
+		return "", nil, applicantWelcome{}, err
 	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{
-		"id": newID, "status": "new",
-		// Named separately from the login's own note because the two are fixed
-		// in different places: a form nobody has opened is an admissions job, a
-		// mail server nobody has configured is an integrations one.
-		"link_not_sent": linkFailed,
-		// The password is here because it is nowhere else: nothing can read it
-		// back out afterwards, so if no message arrives this response is the
-		// only copy that ever existed -- and the parent is usually still at
-		// the desk, which is the one moment it can be handed over by hand.
-		"parent_login": applicant,
-	})
+	return newID, linkFailed, applicant, nil
 }
 
 type enquiryStatusRequest struct {

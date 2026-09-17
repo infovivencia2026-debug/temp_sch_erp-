@@ -77,31 +77,6 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	name := strings.TrimSpace(req.FullName)
-	if name == "" {
-		httpx.BadRequest(w, r, "a parent needs a name")
-		return
-	}
-	relation := strings.ToLower(strings.TrimSpace(req.Relation))
-	if relation == "" {
-		relation = "guardian"
-	}
-	if !guardianRelations[relation] {
-		httpx.BadRequest(w, r, "relation must be father, mother, guardian or other")
-		return
-	}
-	phone := strings.TrimSpace(req.Phone)
-	email := strings.TrimSpace(req.Email)
-	/* A guardian with neither a number nor an address is a name the school
-	   cannot reach, on the record that exists to say who to reach. Refused
-	   here rather than accepted and discovered on the morning a child is hurt. */
-	if phone == "" && email == "" {
-		httpx.BadRequest(w, r,
-			"give a phone number or an email — a parent with neither is one the "+
-				"school cannot contact")
-		return
-	}
-
 	res, err := s.resolveScope(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -109,8 +84,75 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	}
 	pred, args := res.StudentPredicate("st", 2)
 
-	var guardianID string
+	var guardianID, name string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var e error
+		guardianID, name, e = s.upsertGuardianForStudent(r, id, tx, sid, pred, args, req)
+		return e
+	})
+	if gie := (guardianInputError{}); errors.As(err, &gie) {
+		httpx.BadRequest(w, r, gie.msg)
+		return
+	}
+	if err == pgx.ErrNoRows {
+		httpx.Forbidden(w, r, "this family is not one you can edit")
+		return
+	}
+	if err == errGuardianDuplicate {
+		httpx.BadRequest(w, r,
+			"another parent at this school already has that name and number — "+
+				"add the existing one to this child instead of entering them twice")
+		return
+	}
+	if err == errGuardianPhoneTaken {
+		httpx.BadRequest(w, r,
+			"that phone number or email is already the sign-in of another account "+
+				"at this school — the parent it belongs to has to be corrected first")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"id": guardianID, "full_name": name})
+}
+
+// guardianInputError is a caller-correctable problem with a guardian request,
+// returned by upsertGuardianForStudent so the HTTP handler answers 400 and the
+// assistant shows the same wording without either duplicating the checks.
+type guardianInputError struct{ msg string }
+
+func (e guardianInputError) Error() string { return e.msg }
+
+/* upsertGuardianForStudent adds or corrects one guardian of a child, returning
+   the guardian id and name. Shared by saveStudentGuardian (the family screen)
+   and the assistant's guardian.set_phone action so both apply the identical
+   contact-and-login sync and uniqueness handling. The caller runs it inside a
+   tenant transaction and supplies the student-scope predicate, so RLS and the
+   caller's own sections both bound which family may be touched. */
+func (s *Server) upsertGuardianForStudent(r *http.Request, id *httpx.Identity, tx pgx.Tx, sid uuid.UUID, pred string, args []any, req guardianWriteRequest) (string, string, error) {
+	name := strings.TrimSpace(req.FullName)
+	if name == "" {
+		return "", "", guardianInputError{"a parent needs a name"}
+	}
+	relation := strings.ToLower(strings.TrimSpace(req.Relation))
+	if relation == "" {
+		relation = "guardian"
+	}
+	if !guardianRelations[relation] {
+		return "", "", guardianInputError{"relation must be father, mother, guardian or other"}
+	}
+	phone := strings.TrimSpace(req.Phone)
+	email := strings.TrimSpace(req.Email)
+	/* A guardian with neither a number nor an address is a name the school
+	   cannot reach, on the record that exists to say who to reach. */
+	if phone == "" && email == "" {
+		return "", "", guardianInputError{
+			"give a phone number or an email — a parent with neither is one the school cannot contact"}
+	}
+
+	var guardianID string
+	err := func() error {
 		var allowed bool
 		if err := tx.QueryRow(r.Context(),
 			`SELECT true FROM students st WHERE st.id = $1 AND `+pred,
@@ -319,28 +361,8 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		return nil
-	})
-	if err == pgx.ErrNoRows {
-		httpx.Forbidden(w, r, "this family is not one you can edit")
-		return
-	}
-	if err == errGuardianDuplicate {
-		httpx.BadRequest(w, r,
-			"another parent at this school already has that name and number — "+
-				"add the existing one to this child instead of entering them twice")
-		return
-	}
-	if err == errGuardianPhoneTaken {
-		httpx.BadRequest(w, r,
-			"that phone number or email is already the sign-in of another account "+
-				"at this school — the parent it belongs to has to be corrected first")
-		return
-	}
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"id": guardianID, "full_name": name})
+	}()
+	return guardianID, name, err
 }
 
 /*

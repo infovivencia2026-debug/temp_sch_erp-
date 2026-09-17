@@ -326,6 +326,11 @@ func studentIDsOf(req marksEntryRequest) []string {
 	return out
 }
 
+// errMarksForbidden is the "you may not write on this paper" refusal, returned
+// by applyMarksEntry so both the HTTP handler and the assistant action map it
+// to their own kind of response rather than duplicating the scope query.
+var errMarksForbidden = errors.New("not permitted to write on this paper")
+
 // Marks above the paper's maximum are rejected outright rather than clamped: a
 // typo of 950 for 95 must not silently become a pass.
 func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
@@ -334,14 +339,51 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	esID, err := uuid.Parse(req.ExamSubjectID)
-	if err != nil {
+	if _, err := uuid.Parse(req.ExamSubjectID); err != nil {
 		httpx.BadRequest(w, r, "exam_subject_id must be a uuid")
 		return
 	}
 	if len(req.Entries) == 0 {
 		httpx.BadRequest(w, r, "entries must not be empty")
 		return
+	}
+
+	written, err := s.applyMarksEntry(r, id, req)
+	var ceiling *markCeilingError
+	if errors.As(err, &ceiling) {
+		httpx.BadRequest(w, r, ceiling.Error())
+		return
+	}
+	if errors.Is(err, errMarksForbidden) {
+		httpx.Forbidden(w, r,
+			"academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students")
+		return
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"written": written})
+}
+
+/* applyMarksEntry is the validated marks write, shared by enterMarks (the HTTP
+   handler) and the assistant's marks.enter action so both apply the same
+   authorisation, the same ceiling check and the same upsert. Returns the number
+   of rows written and a typed error the caller maps to its own response. */
+func (s *Server) applyMarksEntry(r *http.Request, id *httpx.Identity, req marksEntryRequest) (int, error) {
+	esID, err := uuid.Parse(req.ExamSubjectID)
+	if err != nil {
+		return 0, err
+	}
+	if len(req.Entries) == 0 {
+		return 0, errors.New("entries must not be empty")
 	}
 
 	/* Who may write on this paper.
@@ -366,8 +408,7 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	   allocated to 6-A must not be able to write 6-B's marks. */
 	res, err := s.resolveScope(r)
 	if err != nil {
-		httpx.Internal(w, r, err)
-		return
+		return 0, err
 	}
 	if !res.AnySection && !res.PlatformAdmin {
 		var mayWrite bool
@@ -396,13 +437,10 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 				     AND sec.class_teacher_id = $2
 				)`, esID, id.UserID, studentIDsOf(req)).Scan(&mayWrite)
 		}); err != nil {
-			httpx.Internal(w, r, err)
-			return
+			return 0, err
 		}
 		if !mayWrite {
-			httpx.Forbidden(w, r,
-				"academics.marks.write for this paper. You are neither its subject teacher nor the class teacher of these students")
-			return
+			return 0, errMarksForbidden
 		}
 	}
 
@@ -476,23 +514,7 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	var ceiling *markCeilingError
-	if errors.As(err, &ceiling) {
-		httpx.BadRequest(w, r, ceiling.Error())
-		return
-	}
-	if errors.Is(err, pgx.ErrNoRows) {
-		httpx.NotFound(w, r)
-		return
-	}
-	if periodClosed(w, r, err) {
-		return
-	}
-	if err != nil {
-		httpx.Internal(w, r, err)
-		return
-	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"written": written})
+	return written, err
 }
 
 type gradebookRow struct {

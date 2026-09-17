@@ -241,6 +241,14 @@ var validModes = map[string]bool{
 
 // collectFee is the counter transaction: take money, allocate it, issue a
 // numbered receipt — all inside one transaction.
+// feeInputError is a caller-correctable problem with a payment request (bad
+// mode, bad date, non-positive amount). Returned by applyFeePayment so the HTTP
+// handler answers 400 and the assistant shows the same wording on its card,
+// without either duplicating the validation.
+type feeInputError struct{ msg string }
+
+func (e feeInputError) Error() string { return e.msg }
+
 func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 
@@ -248,47 +256,88 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
+
+	receipt, err := s.applyFeePayment(r, id, req)
+	var fe feeInputError
+	if errors.As(err, &fe) {
+		httpx.BadRequest(w, r, fe.msg)
+		return
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.NotFound(w, r)
+		return
+	}
+	if errors.Is(err, fees.ErrInvoiceNotFound) {
+		httpx.BadRequest(w, r, "none of the selected invoices are outstanding for this student")
+		return
+	}
+	if periodClosed(w, r, err) {
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	allocs := make([]map[string]any, 0, len(receipt.Allocated))
+	for _, a := range receipt.Allocated {
+		allocs = append(allocs, map[string]any{
+			"invoice_id": a.InvoiceID.String(), "invoice_no": a.InvoiceNo,
+			"amount_paise": a.AmountPaise,
+		})
+	}
+	httpx.JSON(w, http.StatusCreated, map[string]any{
+		"payment_id":        receipt.PaymentID.String(),
+		"receipt_no":        receipt.ReceiptNo,
+		"amount_paise":      receipt.AmountPaise,
+		"allocated":         allocs,
+		"unallocated_paise": receipt.Unallocated,
+		"cleared":           receipt.Cleared,
+		"receipt_url":       "/api/v1/fees/receipts/" + receipt.PaymentID.String(),
+	})
+}
+
+/* applyFeePayment validates a counter payment and records it, returning the
+   receipt. Shared by collectFee (the till screen) and the assistant's
+   fee.payment action so both take an ORDINARY counter payment the same way —
+   allocate across outstanding invoices, issue a numbered receipt, tell the
+   family. It never touches bank accounts, refunds or payroll: those are not
+   payments and are not reachable from here. */
+func (s *Server) applyFeePayment(r *http.Request, id *httpx.Identity, req collectRequest) (*fees.Receipt, error) {
 	studentID, err := uuid.Parse(req.StudentID)
 	if err != nil {
-		httpx.BadRequest(w, r, "student_id must be a uuid")
-		return
+		return nil, feeInputError{"student_id must be a uuid"}
 	}
 	if req.AmountPaise <= 0 {
-		httpx.BadRequest(w, r, "amount_paise must be greater than zero")
-		return
+		return nil, feeInputError{"amount_paise must be greater than zero"}
 	}
 	if !validModes[req.Mode] {
-		httpx.BadRequest(w, r, "unsupported payment mode: "+req.Mode)
-		return
+		return nil, feeInputError{"unsupported payment mode: " + req.Mode}
 	}
 
 	paidOn := time.Now()
 	if req.PaidOn != "" {
 		if paidOn, err = time.Parse(time.DateOnly, req.PaidOn); err != nil {
-			httpx.BadRequest(w, r, "paid_on must be YYYY-MM-DD")
-			return
+			return nil, feeInputError{"paid_on must be YYYY-MM-DD"}
 		}
 	}
 	var chequeDate *time.Time
 	if req.ChequeDate != "" {
-		d, err := time.Parse(time.DateOnly, req.ChequeDate)
-		if err != nil {
-			httpx.BadRequest(w, r, "cheque_date must be YYYY-MM-DD")
-			return
+		d, derr := time.Parse(time.DateOnly, req.ChequeDate)
+		if derr != nil {
+			return nil, feeInputError{"cheque_date must be YYYY-MM-DD"}
 		}
 		chequeDate = &d
 	}
 	if (req.Mode == "cheque" || req.Mode == "dd") && req.ReferenceNo == "" {
-		httpx.BadRequest(w, r, "reference_no (instrument number) is required for cheque or DD")
-		return
+		return nil, feeInputError{"reference_no (instrument number) is required for cheque or DD"}
 	}
 
 	invoiceIDs := make([]uuid.UUID, 0, len(req.InvoiceIDs))
 	for _, raw := range req.InvoiceIDs {
-		v, err := uuid.Parse(raw)
-		if err != nil {
-			httpx.BadRequest(w, r, "invoice_ids must be uuids")
-			return
+		v, verr := uuid.Parse(raw)
+		if verr != nil {
+			return nil, feeInputError{"invoice_ids must be uuids"}
 		}
 		invoiceIDs = append(invoiceIDs, v)
 	}
@@ -383,38 +432,10 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		httpx.NotFound(w, r)
-		return
-	}
-	if errors.Is(err, fees.ErrInvoiceNotFound) {
-		httpx.BadRequest(w, r, "none of the selected invoices are outstanding for this student")
-		return
-	}
-	if periodClosed(w, r, err) {
-		return
-	}
 	if err != nil {
-		httpx.Internal(w, r, err)
-		return
+		return nil, err
 	}
-
-	allocs := make([]map[string]any, 0, len(receipt.Allocated))
-	for _, a := range receipt.Allocated {
-		allocs = append(allocs, map[string]any{
-			"invoice_id": a.InvoiceID.String(), "invoice_no": a.InvoiceNo,
-			"amount_paise": a.AmountPaise,
-		})
-	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{
-		"payment_id":        receipt.PaymentID.String(),
-		"receipt_no":        receipt.ReceiptNo,
-		"amount_paise":      receipt.AmountPaise,
-		"allocated":         allocs,
-		"unallocated_paise": receipt.Unallocated,
-		"cleared":           receipt.Cleared,
-		"receipt_url":       "/api/v1/fees/receipts/" + receipt.PaymentID.String(),
-	})
+	return receipt, nil
 }
 
 // getReceipt returns everything needed to print a receipt.
