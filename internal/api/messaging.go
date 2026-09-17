@@ -1060,6 +1060,25 @@ var builtinTemplates = map[string]builtinTemplate{
 		Subject: "Test message from {{school_name}}",
 		Body:    "This is a test message sent from the messaging settings screen. If you are reading it, the provider works.",
 	},
+	/* THE MORNING AND THE WEEK, to the people who steer the school.
+
+	   A board member does not open the ERP; an institution admin reads the same
+	   four numbers each day. The digest carries them out on a schedule. The body
+	   is a single {{body}} variable because the sections are assembled at send
+	   time from the school's own enabled reports -- there is no fixed wording to
+	   render, only the choosing of which reports to include. Held in code, like
+	   every other built-in here, so a school provisioned tomorrow gets a working
+	   digest today rather than a send that fails on a missing template code. One
+	   entry per code serves every channel; the builder tailors the body per
+	   channel before it is queued. */
+	"report_digest.daily": {
+		Subject: "{{subject}}",
+		Body:    "{{body}}",
+	},
+	"report_digest.weekly": {
+		Subject: "{{subject}}",
+		Body:    "{{body}}",
+	},
 }
 
 var templateVar = regexp.MustCompile(`\{\{\s*([a-z0-9_]+)\s*\}\}`)

@@ -43,6 +43,10 @@ type fakeMessaging struct {
 
 	plansFor []uuid.UUID
 	plansErr error
+
+	digestFor     []uuid.UUID
+	digestPeriods []string
+	digestErr     error
 }
 
 func (f *fakeMessaging) QueueOutbound(_ context.Context, inst uuid.UUID, req OutboundRequest) error {
@@ -61,6 +65,12 @@ func (f *fakeMessaging) DispatchMessages(_ context.Context, inst uuid.UUID, plat
 func (f *fakeMessaging) RunMessagePlans(_ context.Context, inst uuid.UUID) error {
 	f.plansFor = append(f.plansFor, inst)
 	return f.plansErr
+}
+
+func (f *fakeMessaging) SendReportDigest(_ context.Context, inst uuid.UUID, period string) error {
+	f.digestFor = append(f.digestFor, inst)
+	f.digestPeriods = append(f.digestPeriods, period)
+	return f.digestErr
 }
 
 func task(t *testing.T, typ string, payload any) *Task {

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 409 of the catalog's features are implemented.
+// 413 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -102,6 +102,7 @@ var implementedFeatures = map[string]bool{
 	"finance.banking_reports.match_bank_records":                                     true,
 	"finance.campus_money.cafeteria_store_sales":                                     true,
 	"finance.campus_money.donations_aid":                                             true,
+	"finance.campus_money.store_catalogue":                                           true,
 	"finance.export.tally_prime_xml_export":                                          true,
 	"finance.fees.class_transport_fee_setup":                                         true,
 	"finance.fees.online_fee_portal":                                                 true,
@@ -226,11 +227,13 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.standard.attendance_overview":                                 true,
 	"institution_admin.standard.fee_collection":                                      true,
 	"institution_admin.standard.reports":                                             true,
+	"institution_admin.standard.scheduled_digests":                                   true,
 	"institution_admin.statutory_returns.govt_returns":                               true,
 	"institution_admin.statutory_returns.instruction_hours":                          true,
 	"institution_admin.stores.department_stock_issuance":                             true,
 	"institution_admin.stores.item_category_store_setup":                             true,
 	"institution_admin.stores.purchase_order_workflow":                               true,
+	"institution_admin.stores.store_catalogue":                                       true,
 	"institution_admin.students.academic_performance":                                true,
 	"institution_admin.students.certificates_transfers":                              true,
 	"institution_admin.students.class_promotion":                                     true,
@@ -305,6 +308,7 @@ var implementedFeatures = map[string]bool{
 	"parent.school_life.live_event_seating_pass":                                     true,
 	"parent.school_life.parent_teacher_meeting_booking":                              true,
 	"parent.school_life.school_photo_video_gallery":                                  true,
+	"parent.store.product_catalogue":                                                 true,
 	"seller_admin.delivery.educloud_channels":                                        true,
 	"seller_admin.delivery.password_reset_delivery":                                  true,
 	"seller_admin.entitlements.module_entitlement_matrix":                            true,

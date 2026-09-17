@@ -397,6 +397,14 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.stores.item_category_store_setup': screen(() => import('./operations/Stores')),
   'institution_admin.stores.department_stock_issuance': screen(() => import('./operations/Stores')),
 
+  // The display-only store catalogue, the same screen for whoever may browse it.
+  'institution_admin.stores.store_catalogue': screen(() => import('./finance/StoreCatalogue')),
+  'finance.campus_money.store_catalogue': screen(() => import('./finance/StoreCatalogue')),
+  'parent.store.product_catalogue': screen(() => import('./finance/StoreCatalogue')),
+
+  // Scheduled daily/weekly report digests to board members and admins.
+  'institution_admin.standard.scheduled_digests': screen(() => import('./principal/ReportDigests')),
+
 
   /* The transport office. Live GPS tracking, geofenced arrival alerts,
      speeding detection, fuel-tank telematics, in-bus CCTV and AIS-140/VAHAN

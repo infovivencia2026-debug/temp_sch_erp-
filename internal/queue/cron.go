@@ -156,6 +156,23 @@ func Schedules() []Schedule {
 		{Name: "message_plans", Spec: "*/15 * * * *", Kind: TypeMessagePlans, PerInstitution: true,
 			Payload: func(env Envelope) any { return MessagePlansPayload{Envelope: env} },
 			Opts:    Options(QueueDefault, 3, 10*time.Minute)},
+
+		/* 07:00 daily — the morning digest to board and admins.
+
+		   Per institution and in the school's own timezone, so 07:00 is 07:00
+		   IST for an Indian fleet rather than whatever the box's clock reads. No
+		   Only filter: unlike message_dispatch this entry always has something to
+		   evaluate -- the worker decides per school whether the daily run is
+		   switched on and which reports are enabled, and a school with the digest
+		   off queues no message, but the one job that establishes that is cheap
+		   and runs once a day, not once a minute. */
+		{Name: "report_digest_daily", Spec: "0 7 * * *", Kind: TypeReportDigestDaily, PerInstitution: true,
+			Payload: func(env Envelope) any { return ReportDigestPayload{Envelope: env} },
+			Opts:    Options(QueueLow, 2, 10*time.Minute)},
+		// 07:00 Monday — the week that just closed, same shape as the daily.
+		{Name: "report_digest_weekly", Spec: "0 7 * * 1", Kind: TypeReportDigestWeekly, PerInstitution: true,
+			Payload: func(env Envelope) any { return ReportDigestPayload{Envelope: env} },
+			Opts:    Options(QueueLow, 2, 10*time.Minute)},
 	}
 }
 

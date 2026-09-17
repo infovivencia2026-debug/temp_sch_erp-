@@ -59,6 +59,15 @@ const (
 	TypeExportBuild      = "export:build"
 	TypeAttendanceRollup = "attendance:rollup"
 	TypeSessionPrune     = "session:prune"
+	/* Scheduled report digests to board members and institution admins.
+
+	   Two kinds rather than one with a period field so the cron schedule reads
+	   as two distinct entries and a stuck daily job cannot be mistaken for the
+	   weekly. Both carry only the envelope: which reports and channels are
+	   wanted is the school's config, read at send time, not a payload that goes
+	   stale the moment somebody edits it. */
+	TypeReportDigestDaily  = "report:digest_daily"
+	TypeReportDigestWeekly = "report:digest_weekly"
 )
 
 // Queue names, highest priority first. The worker weights these so a 5,000-row
@@ -182,6 +191,20 @@ type ExportBuildPayload struct {
 type AttendanceRollupPayload struct {
 	Envelope
 	On time.Time `json:"on"`
+}
+
+/*
+ReportDigestPayload drives one school's scheduled digest.
+
+	Nothing but the envelope: which reports are enabled, on which channels, and
+	whether this period runs at all are the school's own config in
+	report_digest_settings, read by the builder at send time. A payload naming
+	the reports would be a schedule that goes stale the moment an admin toggles
+	one off. Period is set by the cron entry, not carried here -- the two kinds
+	(daily, weekly) are the distinction.
+*/
+type ReportDigestPayload struct {
+	Envelope
 }
 
 // --- options ----------------------------------------------------------------

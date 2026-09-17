@@ -15,6 +15,7 @@ import {
   type DraftLine, type StoreProduct, type StoreVariant, type TillSession,
 } from './collections-lib'
 import { useDebouncedValue } from '@/lib/debounce'
+import FilePicker from '@/components/FilePicker'
 
 /* The school store.
 
@@ -602,7 +603,7 @@ function ProductEditor({
   record: {
     id: string; code: string; name: string; category: string; hsn_code?: string
     tax_rate_bp: number; sale_price_paise: number; return_window_days?: number
-    is_active: boolean
+    is_active: boolean; image_key?: string
   } | null
   onDone: () => void
 }) {
@@ -618,6 +619,10 @@ function ProductEditor({
   const [window, setWindow] = useState(
     record?.return_window_days != null ? String(record.return_window_days) : '',
   )
+  // The product picture is a files.id, uploaded through the same endpoint that
+  // takes avatars and logos. Blank means "no picture", and clearing it clears
+  // the column server-side.
+  const [imageKey, setImageKey] = useState(record?.image_key ?? '')
 
   const save = useMutation({
     mutationFn: () =>
@@ -630,6 +635,7 @@ function ProductEditor({
         tax_rate_bp: Math.round(Number(tax || 0) * 100),
         sale_price_paise: toPaise(price),
         return_window_days: window.trim() === '' ? null : Number(window),
+        image_key: imageKey,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [collectionsKey] })
@@ -657,6 +663,28 @@ function ProductEditor({
           <Field label="HSN code"><Input value={hsn} onChange={setHsn} srLabel="HSN code" /></Field>
           <Field label="Return window (days)" hint="Blank means the clerk decides.">
             <Input value={window} onChange={setWindow} type="number" srLabel="Return window in days" />
+          </Field>
+          <Field label="Picture" wide hint="Shown to parents on the store catalogue. Optional.">
+            {imageKey ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <img
+                  src={`/api/v1/files/${imageKey}?inline=1`}
+                  alt=""
+                  className="h-16 w-16 rounded border object-cover"
+                />
+                <Button size="sm" variant="ghost" tone="danger" onClick={() => setImageKey('')}>
+                  Remove picture
+                </Button>
+              </div>
+            ) : (
+              <FilePicker
+                value={null}
+                onChange={(f) => setImageKey(f?.file_id ?? '')}
+                purpose="store_product"
+                label="Upload a picture"
+                hint="A JPG, PNG or WebP of the item."
+              />
+            )}
           </Field>
         </FormGrid>
         <div className="mt-5 flex gap-3">

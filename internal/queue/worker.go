@@ -126,6 +126,8 @@ var defaultTimeouts = map[string]time.Duration{
 	TypeAttendanceRollup:   10 * time.Minute,
 	TypeSessionPrune:       5 * time.Minute,
 	TypeDiaryReminders:     2 * time.Minute,
+	TypeReportDigestDaily:  10 * time.Minute,
+	TypeReportDigestWeekly: 10 * time.Minute,
 }
 
 /*
@@ -152,6 +154,15 @@ type Messaging interface {
 	// only; DispatchMessages is still the one road out of the building, which
 	// is what keeps the recipient allowlist in front of every message.
 	RunMessagePlans(ctx context.Context, inst uuid.UUID) error
+
+	// SendReportDigest builds one school's scheduled digest for the period
+	// ("daily" or "weekly") and queues one combined message per recipient per
+	// selected channel. It reads report_digest_settings, assembles the enabled
+	// reports from the same roll-up queries the screens use, resolves recipients
+	// as the users holding board_member or institution_admin, and queues only --
+	// DispatchMessages remains the one road out. A period switched off, or no
+	// enabled report, queues nothing and is not an error.
+	SendReportDigest(ctx context.Context, inst uuid.UUID, period string) error
 }
 
 // OutboundRequest is one message to queue. Declared here for the same reason
@@ -184,6 +195,8 @@ func (h *Handlers) routes() map[string]Handler {
 		TypeAttendanceRollup:   h.attendanceRollup,
 		TypeSessionPrune:       h.sessionPrune,
 		TypeDiaryReminders:     h.diaryReminders,
+		TypeReportDigestDaily:  h.reportDigestDaily,
+		TypeReportDigestWeekly: h.reportDigestWeekly,
 	}
 }
 
@@ -404,6 +417,38 @@ func (h *Handlers) messagePlans(ctx context.Context, t *Task) error {
 		return nil
 	}
 	return h.Messaging.RunMessagePlans(ctx, p.InstitutionID)
+}
+
+/*
+reportDigestDaily and reportDigestWeekly build and queue one school's digest.
+
+	Thin on purpose, exactly like messagePlans and messageDispatch: the reports
+	are assembled from roll-up queries that live in internal/api, so the work is
+	delegated across the same inversion the rest of this file uses. A nil
+	Messaging is a supported state -- a worker built without the messaging
+	feature says so and moves on. The period is the whole difference between the
+	two, and it is a constant here rather than a payload field so a mislabelled
+	job cannot send the week's numbers under "today".
+*/
+func (h *Handlers) reportDigestDaily(ctx context.Context, t *Task) error {
+	return h.reportDigest(ctx, t, "daily")
+}
+
+func (h *Handlers) reportDigestWeekly(ctx context.Context, t *Task) error {
+	return h.reportDigest(ctx, t, "weekly")
+}
+
+func (h *Handlers) reportDigest(ctx context.Context, t *Task, period string) error {
+	p, _, err := decode[ReportDigestPayload](t)
+	if err != nil {
+		return err
+	}
+	if h.Messaging == nil {
+		slog.Warn("report digest skipped: no messaging contract wired",
+			"institution_id", p.InstitutionID, "period", period)
+		return nil
+	}
+	return h.Messaging.SendReportDigest(ctx, p.InstitutionID, period)
 }
 
 func (h *Handlers) bulkImport(ctx context.Context, t *Task) error {

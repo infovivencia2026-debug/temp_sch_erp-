@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 402 features.
+// Roles is the catalog: 23 roles, 406 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -383,6 +383,7 @@ var Roles = []Role{
 					{Key: "institution_admin.standard.reports", Slug: "reports", Name: "Reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Core enrollment, attendance, academic, fee and staff reports."},
 					{Key: "institution_admin.standard.attendance_overview", Slug: "attendance_overview", Name: "Attendance Overview", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due."},
 					{Key: "institution_admin.standard.fee_collection", Slug: "fee_collection", Name: "Fee Collection", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow."},
+					{Key: "institution_admin.standard.scheduled_digests", Slug: "scheduled_digests", Name: "Scheduled digests", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Turn the daily and weekly report digest on or off, choose which reports it carries — attendance, fees, admissions, staff — and which channels each goes out on. Board members and admins receive it automatically."},
 				},
 			},
 			{
@@ -439,6 +440,14 @@ var Roles = []Role{
 					{Key: "institution_admin.attendance_devices.staff_hours_this_month", Slug: "staff_hours_this_month", Name: "Staff Hours This Month", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One month of the fingerprint readers read against each person's own expected hours: days worked, half days, late arrivals, early departures, and the loss of pay that follows under the school's own rule -- with the rule named beside the figure."},
 					{Key: "institution_admin.attendance_devices.leave_rules_lop", Slug: "leave_rules_lop", Name: "Leave Rules & LOP", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The leave types this school grants and how many of each, whether they carry forward or are encashed, and exactly what becomes loss of pay -- absence, unpaid leave, leave taken past its quota, and how many late marks make a day. The payslip is built from these and nothing else."},
 					{Key: "institution_admin.attendance_devices.staff_attendance_reports", Slug: "staff_attendance_reports", Name: "Staff attendance reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The same register over a month or a term, per member of staff and per department, with the totals a payroll run and a confirmation-of-service letter both need."},
+				},
+			},
+			{
+				Slug: "stores",
+				Name: "Stores",
+				Workspace: "Stores",
+				Features: []Feature{
+					{Key: "institution_admin.stores.store_catalogue", Slug: "store_catalogue", Name: "Store catalogue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school store as families see it: every active product with price and stock, display only, alongside the stock and issuance screens."},
 				},
 			},
 		},
@@ -1093,6 +1102,7 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "finance.campus_money.cafeteria_store_sales", Slug: "cafeteria_store_sales", Name: "Cafeteria & store sales", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A till for the canteen and one for the store: record what a student bought for lunch, a book or a uniform, and close the drawer at the end of the day against what it should hold."},
 					{Key: "finance.campus_money.donations_aid", Slug: "donations_aid", Name: "Donations & aid", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Money that comes from outside the school — grant-in-aid, government scholarships, alumni giving, education loans — tracked apart from tuition so it can be accounted for to whoever gave it."},
+					{Key: "finance.campus_money.store_catalogue", Slug: "store_catalogue", Name: "Store catalogue", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The store's price list as families see it — every active product, its price and stock — so the counter and a parent are looking at the same shelf."},
 				},
 			},
 			{
@@ -1626,6 +1636,14 @@ var Roles = []Role{
 				Workspace: "Admissions",
 				Features: []Feature{
 					{Key: "parent.admissions.admission_status", Slug: "admission_status", Name: "Admission status", Scope: Scope("self"), Tier: Tier("core"), Summary: "Follow your own admission from the enquiry onwards: the application, the documents still wanted, the test and the decision."},
+				},
+			},
+			{
+				Slug: "store",
+				Name: "Store",
+				Workspace: "Store",
+				Features: []Feature{
+					{Key: "parent.store.product_catalogue", Slug: "product_catalogue", Name: "Product catalogue", Scope: Scope("self"), Tier: Tier("core"), Summary: "The school store, to browse — uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter."},
 				},
 			},
 		},

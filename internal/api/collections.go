@@ -851,27 +851,30 @@ type storeProductView struct {
 	PricePaise   int64   `json:"sale_price_paise"`
 	ReturnWindow *int    `json:"return_window_days,omitempty"`
 	IsActive     bool    `json:"is_active"`
+	ImageKey     *string `json:"image_key,omitempty"`
 	VariantCount int     `json:"variant_count"`
 	OnHand       int     `json:"on_hand"`
 }
 
 type storeProductRequest struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	Category     string `json:"category"`
-	HSNCode      string `json:"hsn_code"`
-	TaxRateBP    *int   `json:"tax_rate_bp"`
-	PricePaise   *int64 `json:"sale_price_paise"`
-	ReturnWindow *int   `json:"return_window_days"`
-	IsActive     *bool  `json:"is_active"`
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	Category     string  `json:"category"`
+	HSNCode      string  `json:"hsn_code"`
+	TaxRateBP    *int    `json:"tax_rate_bp"`
+	PricePaise   *int64  `json:"sale_price_paise"`
+	ReturnWindow *int    `json:"return_window_days"`
+	IsActive     *bool   `json:"is_active"`
+	// A files.id, served through /api/v1/files/{id}. Empty clears the picture.
+	ImageKey string `json:"image_key"`
 }
 
 func (s *Server) listStoreProducts(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	items, err := collect(s, r, `
 		SELECT p.id::text, p.code, p.name, p.category, p.hsn_code, p.tax_rate_bp,
-		       p.sale_price_paise, p.return_window_days, p.is_active,
+		       p.sale_price_paise, p.return_window_days, p.is_active, p.image_key,
 		       COALESCE(v.n, 0)::int, COALESCE(v.stock, 0)::int
 		  FROM store_products p
 		  LEFT JOIN LATERAL (
@@ -887,7 +890,7 @@ func (s *Server) listStoreProducts(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (storeProductView, error) {
 			var v storeProductView
 			return v, rows.Scan(&v.ID, &v.Code, &v.Name, &v.Category, &v.HSNCode,
-				&v.TaxRateBP, &v.PricePaise, &v.ReturnWindow, &v.IsActive,
+				&v.TaxRateBP, &v.PricePaise, &v.ReturnWindow, &v.IsActive, &v.ImageKey,
 				&v.VariantCount, &v.OnHand)
 		})
 	respond(w, r, items, err)
@@ -941,22 +944,131 @@ func (s *Server) saveStoreProduct(w http.ResponseWriter, r *http.Request) {
 				UPDATE store_products
 				   SET code=$3, name=$4, category=$5, hsn_code=$6, tax_rate_bp=$7,
 				       sale_price_paise=$8, return_window_days=$9, is_active=$10,
-				       updated_at=now()
+				       image_key=$11, updated_at=now()
 				 WHERE id=$1 AND institution_id=$2
 				 RETURNING id::text`,
 				u, id.InstitutionID, req.Code, req.Name, req.Category,
-				nullString(req.HSNCode), tax, price, req.ReturnWindow, active).Scan(&out)
+				nullString(req.HSNCode), tax, price, req.ReturnWindow, active,
+				nullString(req.ImageKey)).Scan(&out)
 		}
 		return tx.QueryRow(r.Context(), `
 			INSERT INTO store_products
 			    (institution_id, code, name, category, hsn_code, tax_rate_bp,
-			     sale_price_paise, return_window_days, is_active, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			     sale_price_paise, return_window_days, is_active, image_key, created_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 			RETURNING id::text`,
 			id.InstitutionID, req.Code, req.Name, req.Category,
 			nullString(req.HSNCode), tax, price, req.ReturnWindow, active,
-			id.UserID).Scan(&out)
+			nullString(req.ImageKey), id.UserID).Scan(&out)
 	}, map[string]any{"id": &out})
+}
+
+// --- the public-facing catalogue ---------------------------------------------
+
+/*
+The store catalogue, read-only, for anyone signed in.
+
+	Where the price list (listStoreProducts) is the clerk's maintenance grid,
+	this is the shop window a parent or a teacher browses: active products only,
+	each with its picture, its price and its sizes with a stock badge. It takes
+	no finance permission -- it reads nothing a catalogue in the school foyer
+	would not show -- so it is mounted under the plain authenticated group
+	rather than under /finance.
+
+	The image_url is assembled here the way every image in the app is served:
+	the stored key is a files.id, and /api/v1/files/{id}?inline=1 streams it.
+*/
+type catalogueVariant struct {
+	Label      string `json:"label"`
+	PricePaise int64  `json:"price"`
+	InStock    bool   `json:"in_stock"`
+	Stock      int    `json:"stock"`
+}
+
+type catalogueProduct struct {
+	Code        string             `json:"code"`
+	Name        string             `json:"name"`
+	Category    string             `json:"category"`
+	Description string             `json:"description"`
+	PricePaise  int64              `json:"price"`
+	ImageURL    string             `json:"image_url"`
+	Variants    []catalogueVariant `json:"variants"`
+}
+
+func (s *Server) storeCatalogue(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	out := []catalogueProduct{}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT p.id::text, p.code, p.name, p.category,
+			       COALESCE(p.notes, ''), p.sale_price_paise, p.image_key
+			  FROM store_products p
+			 WHERE p.institution_id = $1 AND p.is_active
+			 ORDER BY p.category, p.name`, id.InstitutionID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		type prow struct {
+			id   string
+			p    catalogueProduct
+			imgK *string
+		}
+		var prods []prow
+		for rows.Next() {
+			var pr prow
+			if err := rows.Scan(&pr.id, &pr.p.Code, &pr.p.Name, &pr.p.Category,
+				&pr.p.Description, &pr.p.PricePaise, &pr.imgK); err != nil {
+				return err
+			}
+			if pr.imgK != nil && strings.TrimSpace(*pr.imgK) != "" {
+				pr.p.ImageURL = "/api/v1/files/" + strings.TrimSpace(*pr.imgK) + "?inline=1"
+			}
+			pr.p.Variants = []catalogueVariant{}
+			prods = append(prods, pr)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		// Variants, joined to the same inventory row the counter draws stock
+		// from, so "in stock" here means what "out of stock" means at the till.
+		vrows, err := tx.Query(r.Context(), storeVariantSQL+`
+			 WHERE p.institution_id = $1 AND p.is_active AND v.is_active
+			 ORDER BY p.name, v.size NULLS FIRST, v.colour NULLS FIRST`,
+			id.InstitutionID)
+		if err != nil {
+			return err
+		}
+		defer vrows.Close()
+		byProduct := map[string][]catalogueVariant{}
+		for vrows.Next() {
+			var vv storeVariantView
+			if err := vrows.Scan(&vv.ID, &vv.ProductID, &vv.ProductName, &vv.ItemID,
+				&vv.ItemCode, &vv.Size, &vv.Colour, &vv.VariantNote, &vv.PricePaise,
+				&vv.TaxRateBP, &vv.OnHand, &vv.IsActive); err != nil {
+				return err
+			}
+			byProduct[vv.ProductID] = append(byProduct[vv.ProductID], catalogueVariant{
+				Label:      colVariantLabel(vv.Size, vv.Colour, vv.VariantNote),
+				PricePaise: vv.PricePaise,
+				InStock:    vv.OnHand > 0,
+				Stock:      vv.OnHand,
+			})
+		}
+		if err := vrows.Err(); err != nil {
+			return err
+		}
+
+		for _, pr := range prods {
+			if vs := byProduct[pr.id]; vs != nil {
+				pr.p.Variants = vs
+			}
+			out = append(out, pr.p)
+		}
+		return nil
+	})
+	respond(w, r, out, err)
 }
 
 type storeVariantView struct {

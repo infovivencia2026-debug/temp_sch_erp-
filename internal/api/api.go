@@ -171,6 +171,15 @@ func (s *Server) Routes() http.Handler {
 		   them. See person_groups.go. */
 		s.mountPersonGroups(r)
 
+		/* The school store's shop window.
+
+		   A read-only catalogue of what the store sells -- pictures, prices and
+		   sizes with a stock badge -- for anyone signed in, parents included. It
+		   takes no finance permission because it shows nothing a catalogue in
+		   the foyer would not: the till, the takings and the maintenance grid
+		   stay behind /finance. See storeCatalogue in collections.go. */
+		r.Get("/store/catalogue", s.storeCatalogue)
+
 		/* Credentials for the software a school runs beside this one.
 
 		   Beside the person-shaped features rather than under /admin because
@@ -299,6 +308,7 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		s.mountAdminRollups(r)
+		s.mountReportDigests(r)
 		s.mountReportBuilder(r)
 		s.mountAdminOps(r)
 		s.mountMDM(r)

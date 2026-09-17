@@ -274,8 +274,39 @@ export interface StoreProduct {
   sale_price_paise: number
   return_window_days?: number
   is_active: boolean
+  image_key?: string
   variant_count: number
   on_hand: number
+}
+
+// --- the public-facing catalogue ---------------------------------------------
+
+export interface CatalogueVariant {
+  label: string
+  price: number
+  in_stock: boolean
+  stock: number
+}
+
+export interface CatalogueProduct {
+  code: string
+  name: string
+  category: string
+  description: string
+  price: number
+  image_url: string
+  variants: CatalogueVariant[]
+}
+
+/* The shop window, readable by anyone signed in.
+
+   Not under collectionsBase: the catalogue is deliberately outside the finance
+   permission group so a parent can see it, and it lives at its own path. */
+export function useStoreCatalogue() {
+  return useQuery({
+    queryKey: [collectionsKey, 'catalogue'],
+    queryFn: () => api.get<List<CatalogueProduct>>('/api/v1/store/catalogue'),
+  })
 }
 
 export interface StoreVariant {
