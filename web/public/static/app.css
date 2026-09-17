@@ -114,6 +114,16 @@ body.auth {
   color: var(--muted);
 }
 
+/* The product line under the heading. A negative top margin tucks it close
+   under the school name (the lede keeps its own 24px for pages without this),
+   so only the sign-in page changes. */
+.card .form-desc {
+  margin: -18px 0 26px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 /* The school's own mark and welcome on the sign-in page, shown only when the
    host resolves to a verified custom domain. Absent, none of these render and
    the card is exactly as it was. */
@@ -931,16 +941,28 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
    and the form sits on it as a frosted-glass panel, the product text stepping
    aside so the form leads. Same markup, restyled — no second template. */
 @media (max-width: 560px) {
+  /* Edge to edge on a phone: no page gutter, the animated field fills the whole
+     screen and the glass form floats on it. Safe-area insets keep the form clear
+     of the notch and the home indicator. */
+  body.auth {
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
   .auth-split {
     position: relative;
     flex-direction: column;
     justify-content: center;
-    width: min(440px, 100%);
-    min-height: min(560px, calc(100vh - 3rem));
-    padding: 20px;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;            /* the real viewport, minus mobile browser chrome */
+    padding: 24px;
     border: 0;
+    border-radius: 0;
     background: #1c0e33;            /* the base the mesh animates over */
   }
+  /* The form keeps a comfortable measure rather than stretching to the edges. */
+  .auth-split .card { width: 100%; max-width: 400px; margin: 0 auto; }
   /* The brand panel becomes the full background: its mesh fills the card and
      its text steps out of the way. */
   .auth-brand {
@@ -967,9 +989,17 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
   .auth-split .card h1,
   .auth-split .card label { color: #fff; }
   .auth-split .card .lede,
+  .auth-split .card .form-desc,
   .auth-split .card .brand-message,
   .auth-split .card .fineprint { color: rgba(255, 255, 255, 0.8); }
   .auth-split .card .fineprint a { color: #fff; }
+  /* The theme toggle sits over the dark mesh here, so give it a light glass
+     skin instead of the light-mode dark-on-white it would otherwise wear. */
+  .auth-top .theme-toggle {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.30);
+    color: #fff;
+  }
   .auth-split .card input {
     background: rgba(0, 0, 0, 0.25);
     border-color: rgba(255, 255, 255, 0.18);
