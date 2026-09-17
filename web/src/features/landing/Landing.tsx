@@ -103,7 +103,7 @@ export function Landing() {
           </a>
           <a
             href="/login"
-            className="rounded-md bg-[hsl(var(--primary))] px-3.5 py-1.5 font-medium text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90"
+            className="rounded-md bg-[hsl(var(--primary))] px-4 py-2.5 font-medium text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90"
           >
             Sign in
           </a>

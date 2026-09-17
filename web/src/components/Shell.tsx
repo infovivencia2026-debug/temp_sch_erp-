@@ -434,13 +434,25 @@ export function Shell({
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
 
-     The same <aside> is three things across the width range, and only one of
-     them is a modal layer over the page. Everything below hangs off this one
-     condition so that a tablet's rail and a desktop's sidebar never acquire a
+     The same <aside> is three things across the width range, and the modal
+     ones are the phone drawer and — now — the tablet drawer. Everything below
+     hangs off this one condition so that a desktop's sidebar never acquires a
      scroll lock, a focus trap or an Escape handler — all three of which would
      be actively wrong on navigation that sits beside the content rather than
-     over it. */
-  const phoneDrawer = viewport === 'phone' && navOpen && !chromeless
+     over it.
+
+     WHY THE TABLET JOINS THE PHONE HERE.
+     At 768-1023 the label panel is not drawn beside the 58px rail, so the role
+     switcher and every feature past the first were unreachable except through
+     ⌘K — a dead-end on a 10-inch tablet. Rather than invent a second overlay,
+     the tablet reuses this exact mechanism: when navOpen, the same aside lifts
+     out of flow into the 288px drawer carrying the full panel, with the scroll
+     lock, focus trap, Escape and scrim it already has. The 58px rail is what it
+     is at rest; tapping a rail mark opens the drawer on that workspace. */
+  const drawerOpen = (viewport === 'phone' || viewport === 'tablet') && navOpen && !chromeless
+  /* Only the tablet needs its in-flow rail lifted into an overlay; the phone
+     is already fixed at every state and drives its slide off `max-md:` alone. */
+  const tabletDrawer = viewport === 'tablet' && navOpen && !chromeless
 
   /* The page behind a modal layer does not scroll.
 
@@ -449,10 +461,10 @@ export function Shell({
      half-scrolled page — which is the difference between a drawer and a panel
      that happens to be drawn on top. */
   useEffect(() => {
-    if (!phoneDrawer) return
+    if (!drawerOpen) return
     document.body.setAttribute('data-scroll-lock', '')
     return () => document.body.removeAttribute('data-scroll-lock')
-  }, [phoneDrawer])
+  }, [drawerOpen])
 
   /* Escape closes it, and Tab cannot leave it.
 
@@ -463,7 +475,7 @@ export function Shell({
      polyfill, because the drawer's contents are ordinary links and the only
      thing wrong with the rest of the document is that it is behind a scrim. */
   useEffect(() => {
-    if (!phoneDrawer) return
+    if (!drawerOpen) return
     const el = asideRef.current
     if (!el) return
     const opener = openerRef.current
@@ -505,7 +517,7 @@ export function Shell({
          document, because this also runs when the shell unmounts. */
       if (opener?.isConnected) opener.focus()
     }
-  }, [phoneDrawer])
+  }, [drawerOpen])
 
   /* Navigating closes it.
 
@@ -569,27 +581,35 @@ export function Shell({
            Only while it is actually the phone drawer, because announcing
            aria-modal on a rail that sits beside the content is a lie that
            costs a screen-reader user the rest of the page. */
-        role={phoneDrawer ? 'dialog' : undefined}
-        aria-modal={phoneDrawer ? true : undefined}
-        aria-label={phoneDrawer ? 'Navigation' : undefined}
+        role={drawerOpen ? 'dialog' : undefined}
+        aria-modal={drawerOpen ? true : undefined}
+        aria-label={drawerOpen ? 'Navigation' : undefined}
         className={cn(
           'shrink-0 flex-row bg-sidebar',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
           'max-md:border-r max-md:transition-transform',
           'md:max-lg:w-[58px] lg:w-[282px]',
           navOpen ? 'flex max-md:translate-x-0' : 'hidden md:flex max-md:-translate-x-full',
+          /* The tablet drawer: the in-flow 58px rail lifts into the same 288px
+             overlay the phone uses, so the full panel (workspace header, role
+             switcher, feature list) comes with it. Driven off the boolean
+             rather than a `md:max-lg:` variant because it toggles with navOpen,
+             not with width; `!` beats the resting rail width in the same query. */
+          tabletDrawer &&
+            'md:max-lg:!fixed md:max-lg:inset-y-0 md:max-lg:left-0 md:max-lg:z-50 md:max-lg:!w-[288px] md:max-lg:border-r',
           /* Only on lg. Below it the sidebar is either a drawer that is
              already closed by default or a rail that is the whole navigation,
              and hiding either would leave nothing to open. */
           railHidden ? 'lg:!hidden' : '',
           chromeless ? '!hidden' : ''
         )}
-        /* Only while it is the phone drawer: a fixed element escapes the
-           body's notch padding, so the top of the rail would sit under the
-           clock and the bottom under the home indicator. In flow (tablet,
-           desktop) the body already pads. Zero in a browser and on Android. */
+        /* Only while it is a drawer (phone, or the tablet once opened): a fixed
+           element escapes the body's notch padding, so the top of the rail
+           would sit under the clock and the bottom under the home indicator. In
+           flow (the resting tablet rail, desktop) the body already pads. Zero
+           in a browser and on Android. */
         style={
-          phoneDrawer
+          drawerOpen
             ? {
                 paddingTop: 'env(safe-area-inset-top, 0px)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -651,26 +671,20 @@ export function Shell({
                 type="button"
                 onClick={() => {
                   setRailPick(ws.slug)
-                  /* On a tablet the mark IS the navigation.
+                  /* On a tablet the mark OPENS the panel, it is not the whole
+                     journey.
 
-                     The panel it normally selects is not drawn at this width,
-                     so selecting a workspace and stopping there would leave a
-                     column of buttons that visibly do nothing — the rail would
-                     be decoration on the one device where it is the whole
-                     menu. So it also opens that workspace's first screen,
-                     which is what the dock's category marks do for the same
-                     reason in the chrome-less layout.
+                     It used to jump straight to the workspace's first feature,
+                     which made every other feature — and the role switcher — a
+                     dead-end reachable only through ⌘K. Now the panel is drawn
+                     in an overlay drawer, so a rail tap opens (or, if already
+                     open, refreshes onto) that workspace and lets the user pick
+                     any feature and reach the switcher. `setRailPick` above has
+                     already moved the panel to this workspace.
 
                      Desktop and phone are untouched: there the panel is beside
                      it and changing the panel is the entire job. */
-                  if (viewport !== 'tablet' || !role) return
-                  for (const sec of ws.sections) {
-                    const first = visibleFeatures(sec, showPlanned, showAdvanced)[0]
-                    if (first) {
-                      navigate(featurePath(role.key, sec.slug, first.slug))
-                      return
-                    }
-                  }
+                  if (viewport === 'tablet') setNavOpen(true)
                 }}
                 aria-label={ws.name}
                 aria-current={on ? 'true' : undefined}
@@ -697,10 +711,11 @@ export function Shell({
 
         {/* --- the panel: the selected workspace, and nothing else ---------
 
-            Not drawn at tablet width, which is what makes the sidebar a
-            collapsed rail there rather than a narrow two-pane sidebar with its
-            second pane crushed to nothing. */}
-        <div className="flex min-w-0 flex-1 flex-col md:max-lg:hidden">
+            Not drawn at the resting tablet width, which is what makes the
+            sidebar a collapsed rail there rather than a narrow two-pane sidebar
+            with its second pane crushed to nothing — but drawn once the tablet
+            drawer opens, which is the whole point of the overlay. */}
+        <div className={cn('flex min-w-0 flex-1 flex-col', !tabletDrawer && 'md:max-lg:hidden')}>
 
         {/* --- workspace header: where am I, and whose -------------------- */}
         <div className="relative shrink-0 px-3 pb-2 pt-3">
@@ -862,12 +877,20 @@ export function Shell({
             </>
           )}
 
-          {/* md, not lg: at tablet width this panel is not drawn at all, and
-              at desktop width there is a drawer to close. */}
+          {/* lg:hidden, not md:hidden: the drawer now opens on the tablet too,
+              so its close affordance has to be present there. Above lg the panel
+              is the resting sidebar and there is nothing to close.
+
+              A 44px touch target with a focus ring, matching the app's other
+              icon buttons — the bare 16px X had neither. */}
           <button
-            className="absolute right-4 top-5 md:hidden"
+            className="absolute right-4 top-5 grid h-10 w-10 place-items-center rounded-[7px]
+                       text-muted-foreground transition-colors duration-100
+                       hover:bg-surface-hover hover:text-foreground
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                       lg:hidden"
             onClick={() => setNavOpen(false)}
-            aria-label="Close navigation"
+            aria-label="Close menu"
           >
             <X className="h-4 w-4" />
           </button>
@@ -989,10 +1012,11 @@ export function Shell({
       </aside>
 
       {/* The scrim belongs to the drawer, so it stops where the drawer does.
-          A tablet's rail sits in the page and has nothing to dim. */}
+          Phone and the opened tablet drawer both dim the page; a desktop
+          sidebar sits in the page and has nothing to dim. */}
       {navOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setNavOpen(false)}
           aria-hidden
         />
@@ -1005,15 +1029,16 @@ export function Shell({
             sticky blur already says "this stays". */}
         {!chromeless && (
         <header data-paint="topbar" className="chrome sticky top-0 z-30 flex h-[56px] shrink-0 items-center gap-2 px-4 sm:gap-3 sm:px-7">
-          {/* Gone at md, because from md up the navigation is on the screen.
-              A hamburger beside a visible rail asks somebody to open what they
-              are already looking at. */}
+          {/* Gone only at lg, because from lg up the full sidebar is on the
+              screen. On a tablet the 58px rail is visible but the panel behind
+              it (features, role switcher) is not, so the hamburger is the way
+              into that panel's overlay — as it is on a phone. */}
           <button
             ref={openerRef}
             aria-label="Open navigation"
             aria-expanded={navOpen}
             aria-controls="shell-nav"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover md:hidden"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[7px] transition-colors duration-100 hover:bg-surface-hover lg:hidden"
             onClick={() => setNavOpen(true)}
           >
             <Menu className="h-5 w-5" />
