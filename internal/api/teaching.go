@@ -90,6 +90,19 @@ func (s *Server) mountTeaching(r chi.Router) {
 		r.Put("/online-tests/{id}/questions", s.setOnlineTestQuestions)
 	})
 
+	/* Generating questions from a lesson PDF is the same authority as banking
+	   one by hand -- academics.homework.write -- but it is also an AI/billed
+	   call, so it carries the assistant's per-user rate limit on top. Both legs
+	   verify the caller teaches the class-subject before anything happens;
+	   generate writes nothing, save writes only what the teacher confirmed. See
+	   question_bank_generate.go. */
+	r.Group(func(r chi.Router) {
+		r.Use(s.assistantRateLimit)
+		r.Use(httpx.RequirePermission(rbac.HomeworkWrite))
+		r.Post("/question-bank/generate", s.generateBankQuestions)
+		r.Post("/question-bank/generate/save", s.saveGeneratedBankQuestions)
+	})
+
 	// Marks are a different authority from homework: a teacher may set work
 	// without being trusted to enter the term's marks, and academics.marks.write
 	// is the permission a school revokes when it wants exactly that.
@@ -1445,11 +1458,13 @@ type bankQuestionRequest struct {
 	Stem           string  `json:"stem"`
 	DefaultMarks   float64 `json:"default_marks,omitempty"`
 	Explanation    string  `json:"explanation,omitempty"`
-	IsActive       *bool   `json:"is_active,omitempty"`
-	Options        []struct {
-		Body      string `json:"body"`
-		IsCorrect bool   `json:"is_correct"`
-	} `json:"options,omitempty"`
+	IsActive       *bool             `json:"is_active,omitempty"`
+	Options        []bankOptionInput `json:"options,omitempty"`
+}
+
+type bankOptionInput struct {
+	Body      string `json:"body"`
+	IsCorrect bool   `json:"is_correct"`
 }
 
 var errNoCorrectOption = errors.New("an objective question with no correct answer")

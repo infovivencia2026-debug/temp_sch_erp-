@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 406 features.
+// Roles is the catalog: 23 roles, 408 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -315,6 +315,7 @@ var Roles = []Role{
 					{Key: "institution_admin.students.class_promotion", Slug: "class_promotion", Name: "Class Promotion", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child's history survives the promotion."},
 					{Key: "institution_admin.students.academic_performance", Slug: "academic_performance", Name: "Academic Performance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Term results across the school: which subjects are weak, how a class has moved since last term, and one child's full mark history when a parent or the board asks. Filter by class, section or roll number."},
 					{Key: "institution_admin.students.groups_lists", Slug: "groups_lists", Name: "Groups & lists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own groupings — the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class."},
+					{Key: "institution_admin.students.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status — with quick actions to mark attendance, enter marks, edit or move a student."},
 				},
 			},
 			{
@@ -647,6 +648,7 @@ var Roles = []Role{
 					{Key: "faculty.my_classes.behaviour", Slug: "behaviour", Name: "Behaviour", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Award a badge for what a child did well, or record a concern and what was done about it — one record per child, read in order, with whether the family was told."},
 					{Key: "faculty.my_classes.my_students", Slug: "my_students", Name: "My students", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child in the class with attendance, marks and guardian contact in one place."},
 					{Key: "faculty.my_classes.student_details", Slug: "student_details", Name: "Student details", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One child's full record: profile, guardians, attendance, marks and remarks."},
+					{Key: "faculty.my_classes.class_360", Slug: "class_360", Name: "Class 360", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers — with the actions you are allowed on your own section."},
 				},
 			},
 			{

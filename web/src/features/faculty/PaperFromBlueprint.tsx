@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Plus, Shuffle, Trash2 } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
+import { Plus, Shuffle, Sparkles, Trash2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { featurePath } from '@/lib/catalog'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Select, Input, Field,
   FormNotice, PrintButton, SkeletonForm, ErrorState, EmptyState,
@@ -157,9 +159,17 @@ export default function PaperFromBlueprint() {
                 ))}
               </Table>
               <FormNotice error={draw.error} />
-              <Button disabled={!ready || draw.isPending} onClick={() => draw.mutate()}>
-                <Shuffle className="h-3.5 w-3.5" /> {paper ? 'Redraw' : 'Draw the paper'}
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button disabled={!ready || draw.isPending} onClick={() => draw.mutate()}>
+                  <Shuffle className="h-3.5 w-3.5" /> {paper ? 'Redraw' : 'Draw the paper'}
+                </Button>
+                <NavLink
+                  to={featurePath('faculty', 'question_papers_online_tests', 'question_bank_management')}
+                  className="inline-flex items-center gap-1 text-[13px] text-muted-foreground underline"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> No questions? Generate from a lesson
+                </NavLink>
+              </div>
             </div>
           )}
         </Card>

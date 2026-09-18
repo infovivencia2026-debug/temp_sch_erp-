@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Library, Plus } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { Library, Plus, Sparkles } from 'lucide-react'
+import { api, actingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -24,6 +24,7 @@ import {
 
 export default function QuestionBank() {
   const [composing, setComposing] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [subject, setSubject] = useState('')
   const [difficulty, setDifficulty] = useState('')
   const [bloom, setBloom] = useState('')
@@ -81,10 +82,16 @@ export default function QuestionBank() {
         title="Question bank"
         description="Questions tagged by chapter, difficulty and Bloom's level, ready to build a paper from."
         actions={
-          <Button onClick={() => setComposing((c) => !c)}>
-            <Plus className="h-3.5 w-3.5" />
-            {composing ? 'Close' : 'Add a question'}
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => setGenerating((g) => !g)}>
+              <Sparkles className="h-3.5 w-3.5" />
+              {generating ? 'Close' : 'Generate from a lesson (PDF)'}
+            </Button>
+            <Button onClick={() => setComposing((c) => !c)}>
+              <Plus className="h-3.5 w-3.5" />
+              {composing ? 'Close' : 'Add a question'}
+            </Button>
+          </>
         }
       />
       <PageBody>
@@ -104,6 +111,8 @@ export default function QuestionBank() {
             }}
           />
         </CellGrid>
+
+        {generating && <GenerateFromLesson onDone={() => setGenerating(false)} />}
 
         {composing && <Compose onDone={() => setComposing(false)} />}
 
@@ -377,6 +386,250 @@ function Compose({ onDone }: { onDone: () => void }) {
           </Button>
           <Button variant="secondary" onClick={onDone}>Close</Button>
         </div>
+      </div>
+    </Card>
+  )
+}
+
+/* Generate questions from an uploaded lesson PDF.
+
+   The teacher picks the subject, attaches a lesson or exercise PDF and a count,
+   and the server sends it to the model and returns a PREVIEW — nothing is saved
+   yet. Extraction from a PDF is imperfect, so every question comes back editable
+   and ticked, and only what the teacher confirms is written to the bank. */
+
+interface GenQuestion {
+  text: string
+  kind: string
+  difficulty: string
+  marks: number
+  options: string[]
+  answer: string
+}
+interface GenResult { questions: GenQuestion[]; class_subject_id: string }
+
+interface EditRow {
+  selected: boolean
+  text: string
+  kind: string
+  difficulty: string
+  marks: string
+  options: string[]
+  answer: string
+}
+
+/* Multipart cannot go through the JSON api helper (it forces a JSON
+   Content-Type), so this one call is a plain fetch. FormData sets its own
+   multipart boundary; we must not set Content-Type ourselves. */
+async function generateFromPDF(form: FormData): Promise<GenResult> {
+  const acting = actingInstitution()
+  const res = await fetch('/api/v1/teaching/question-bank/generate', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
+    body: form,
+  })
+  const text = await res.text()
+  let body: any = null
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    throw new Error('The server answered in a form this screen could not read.')
+  }
+  if (!res.ok) throw new Error(body?.error?.message ?? 'Could not generate questions')
+  return body as GenResult
+}
+
+function GenerateFromLesson({ onDone }: { onDone: () => void }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const subjects = useTeachingSubjects()
+
+  const [classSubjectID, setClassSubjectID] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [count, setCount] = useState('10')
+  const [difficulty, setDifficulty] = useState('')
+  const [rows, setRows] = useState<EditRow[]>([])
+
+  const generate = useMutation({
+    mutationFn: () => {
+      const form = new FormData()
+      form.append('class_subject_id', classSubjectID)
+      if (file) form.append('file', file)
+      form.append('count', String(Number(count) || 10))
+      if (difficulty) form.append('difficulty', difficulty)
+      return generateFromPDF(form)
+    },
+    onSuccess: (data) => {
+      setRows(
+        data.questions.map((q) => ({
+          selected: true,
+          text: q.text,
+          kind: q.kind,
+          difficulty: q.difficulty,
+          marks: String(q.marks ?? 1),
+          options: q.options ?? [],
+          answer: q.answer ?? '',
+        })),
+      )
+      if (data.questions.length === 0) {
+        toast.error('The lesson produced no usable questions. Try a clearer PDF.')
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not generate'),
+  })
+
+  const save = useMutation({
+    mutationFn: () =>
+      api.post<{ saved: number }>('/api/v1/teaching/question-bank/generate/save', {
+        class_subject_id: classSubjectID,
+        questions: rows
+          .filter((r) => r.selected && r.text.trim() !== '')
+          .map((r) => ({
+            text: r.text.trim(),
+            kind: r.kind,
+            difficulty: r.difficulty,
+            marks: Number(r.marks) || 1,
+            options: r.options,
+            answer: r.answer,
+          })),
+      }),
+    onSuccess: (res) => {
+      toast.ok(`${res.saved} question${res.saved === 1 ? '' : 's'} added to the bank`)
+      qc.invalidateQueries({ queryKey: ['question-bank'] })
+      qc.invalidateQueries({ queryKey: ['question-bank-summary'] })
+      onDone()
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : 'Could not save'),
+  })
+
+  const setRow = (i: number, patch: Partial<EditRow>) =>
+    setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...patch } : r)))
+
+  const selectedCount = rows.filter((r) => r.selected && r.text.trim() !== '').length
+
+  return (
+    <Card>
+      <CardHeader
+        title="Generate from a lesson (PDF)"
+        description="Upload a lesson or exercise PDF and the assistant drafts questions you can review."
+      />
+      <div className="px-5 pb-5">
+        <FormGrid>
+          <Field label="Subject" required>
+            <Select
+              value={classSubjectID}
+              onChange={setClassSubjectID}
+              placeholder="Choose a subject"
+              options={(subjects.data?.items ?? []).map((s) => ({
+                value: s.class_subject_id,
+                label: `${s.class_name} · ${s.subject}`,
+              }))}
+            />
+          </Field>
+          <Field label="How many" hint="Up to 50.">
+            <Input value={count} onChange={setCount} placeholder="10" />
+          </Field>
+          <Field label="Difficulty">
+            <Select
+              value={difficulty}
+              onChange={setDifficulty}
+              placeholder="Any"
+              options={DIFFICULTIES.map((d) => ({ value: d.value, label: d.label }))}
+            />
+          </Field>
+          <Field label="Lesson PDF" required>
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(e) => setFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+              className="block w-full text-[13px] text-secondary-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-[13px] file:text-secondary-foreground"
+            />
+          </Field>
+        </FormGrid>
+
+        <div className="mt-3 flex gap-2">
+          <Button
+            onClick={() => generate.mutate()}
+            pending={generate.isPending}
+            disabled={!classSubjectID || !file || generate.isPending}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {generate.isPending ? 'Reading the lesson…' : 'Generate questions'}
+          </Button>
+          <Button variant="secondary" onClick={onDone}>Close</Button>
+        </div>
+
+        {rows.length > 0 && (
+          <div className="mt-5">
+            <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px] text-secondary-foreground">
+              AI-generated — review each question before saving. Extraction can be
+              imperfect: fix the marks, correct the wording, or untick a bad one.
+            </div>
+            <div className="grid gap-3">
+              {rows.map((r, i) => (
+                <div key={i} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="pt-1">
+                      <Checkbox
+                        checked={r.selected}
+                        onChange={(v) => setRow(i, { selected: v })}
+                        label=""
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Textarea
+                        value={r.text}
+                        onChange={(v) => setRow(i, { text: v })}
+                        rows={2}
+                      />
+                      {r.options.length > 0 && (
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          {r.options.join(' · ')}
+                        </p>
+                      )}
+                      {r.answer && (
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          Answer: {r.answer}
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Select
+                          value={r.kind}
+                          onChange={(v) => setRow(i, { kind: v })}
+                          options={QUESTION_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+                        />
+                        <Select
+                          value={r.difficulty}
+                          onChange={(v) => setRow(i, { difficulty: v })}
+                          options={DIFFICULTIES.map((d) => ({ value: d.value, label: d.label }))}
+                        />
+                        <div className="w-24">
+                          <Input
+                            value={r.marks}
+                            onChange={(v) => setRow(i, { marks: v })}
+                            placeholder="Marks"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <FormNotice error={save.error} />
+            <div className="mt-3 flex gap-2">
+              <Button
+                onClick={() => save.mutate()}
+                pending={save.isPending}
+                disabled={selectedCount === 0 || save.isPending}
+              >
+                Add selected to bank{selectedCount > 0 ? ` (${selectedCount})` : ''}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   )

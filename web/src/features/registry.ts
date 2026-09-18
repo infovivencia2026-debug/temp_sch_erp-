@@ -405,6 +405,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // Scheduled daily/weekly report digests to board members and admins.
   'institution_admin.standard.scheduled_digests': screen(() => import('./principal/ReportDigests')),
 
+  // Class 360 — a whole section on one page. Same screen for admin (any class)
+  // and a teacher (their own sections); the endpoint's scope check confines it.
+  'institution_admin.students.class_360': screen(() => import('./shared/ClassOverview')),
+  'faculty.my_classes.class_360': screen(() => import('./shared/ClassOverview')),
+
 
   /* The transport office. Live GPS tracking, geofenced arrival alerts,
      speeding detection, fuel-tank telematics, in-bus CCTV and AIS-140/VAHAN

@@ -107,24 +107,9 @@ func metadataValue(ctx context.Context, path string) (string, error) {
 // service-account-bound keys: the server proves who it is with its own identity
 // and Vertex bills the project. One HTTPS POST, no SDK.
 func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn) (string, error) {
-	// The project and an OAuth token both come from the metadata server.
-	project := strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
-	if project == "" {
-		p, err := metadataValue(ctx, "project/project-id")
-		if err != nil {
-			return "", err
-		}
-		project = p
-	}
-	tokRaw, err := metadataValue(ctx, "instance/service-accounts/default/token")
+	project, token, err := geminiCredentials(ctx)
 	if err != nil {
 		return "", err
-	}
-	var tok struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := json.Unmarshal([]byte(tokRaw), &tok); err != nil || tok.AccessToken == "" {
-		return "", fmt.Errorf("no access token from metadata")
 	}
 
 	type part struct {
@@ -143,6 +128,38 @@ func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn)
 		"contents":           contents,
 		"generationConfig":   map[string]any{"maxOutputTokens": assistantMaxTokens},
 	}
+	return geminiGenerate(ctx, project, token, payload)
+}
+
+// geminiCredentials resolves the Vertex AI project id and an OAuth token from
+// the Cloud Run metadata server -- no API key. Shared by every Gemini caller so
+// the service-account-only auth story lives in one place.
+func geminiCredentials(ctx context.Context) (project, token string, err error) {
+	project = strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	if project == "" {
+		p, perr := metadataValue(ctx, "project/project-id")
+		if perr != nil {
+			return "", "", perr
+		}
+		project = p
+	}
+	tokRaw, terr := metadataValue(ctx, "instance/service-accounts/default/token")
+	if terr != nil {
+		return "", "", terr
+	}
+	var tok struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal([]byte(tokRaw), &tok); err != nil || tok.AccessToken == "" {
+		return "", "", fmt.Errorf("no access token from metadata")
+	}
+	return project, tok.AccessToken, nil
+}
+
+// geminiGenerate posts an already-built generateContent payload and returns the
+// concatenated text of the first candidate. The one HTTPS POST every caller
+// shares, so the auth header, the URL and the response shape are written once.
+func geminiGenerate(ctx context.Context, project, token string, payload map[string]any) (string, error) {
 	b, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
@@ -154,7 +171,7 @@ func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn)
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
@@ -183,6 +200,56 @@ func callGemini(ctx context.Context, _unused, system string, turns []geminiTurn)
 		}
 	}
 	return sb.String(), nil
+}
+
+// geminiPart is one part of a multimodal user turn: either text or inline
+// binary data (a PDF, base64-encoded). Provider-shaped so callBankGenerate can
+// send a document and an instruction in one turn.
+type geminiPart struct {
+	Text       string
+	InlineData *geminiInlineData
+}
+
+type geminiInlineData struct {
+	MimeType string
+	Data     string // base64-encoded bytes
+}
+
+// callGeminiParts sends a single user turn made of mixed parts (text and/or
+// inlineData) under a system instruction, and returns the model's text. This is
+// what lets the question-bank generator hand Gemini a whole lesson PDF plus a
+// strict JSON instruction without a new SDK or an API key.
+func callGeminiParts(ctx context.Context, system string, parts []geminiPart, maxTokens int) (string, error) {
+	project, token, err := geminiCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+	type inlineData struct {
+		MimeType string `json:"mimeType"`
+		Data     string `json:"data"`
+	}
+	type part struct {
+		Text       string      `json:"text,omitempty"`
+		InlineData *inlineData `json:"inlineData,omitempty"`
+	}
+	type content struct {
+		Role  string `json:"role,omitempty"`
+		Parts []part `json:"parts"`
+	}
+	ps := make([]part, 0, len(parts))
+	for _, p := range parts {
+		if p.InlineData != nil {
+			ps = append(ps, part{InlineData: &inlineData{MimeType: p.InlineData.MimeType, Data: p.InlineData.Data}})
+			continue
+		}
+		ps = append(ps, part{Text: p.Text})
+	}
+	payload := map[string]any{
+		"system_instruction": content{Parts: []part{{Text: system}}},
+		"contents":           []content{{Role: "user", Parts: ps}},
+		"generationConfig":   map[string]any{"maxOutputTokens": maxTokens},
+	}
+	return geminiGenerate(ctx, project, token, payload)
 }
 
 // assistantTTSRequest is the text to read aloud.

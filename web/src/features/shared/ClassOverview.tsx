@@ -1,0 +1,473 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
+} from 'recharts'
+import {
+  GraduationCap, ClipboardCheck, UserCheck, BookOpen, Phone, CalendarClock, Wallet,
+  ClipboardList, PencilLine, ArrowRightLeft,
+} from 'lucide-react'
+import { api, type List } from '@/lib/api'
+import {
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
+  Table, Td, Button, Field, Select, Loading, ErrorState, EmptyState,
+} from '@/components/ui'
+import { formatPaise, WEEKDAYS } from '@/lib/utils'
+import { useCan } from '@/lib/session'
+
+/* Class 360 — one section, at a glance.
+ *
+ * The staff record answers "what does this teacher do"; this answers the same
+ * question about a class. Who teaches it, who is on the roll and how to ring
+ * their families, how the register and the marks are trending, the week's
+ * timetable, and — for whoever answers for the money — where the fees stand.
+ *
+ * It is read far more often than anything is done from it, so it is view-first:
+ * tiles, then charts, styled on the principal dashboard so it matches the app
+ * and reads in either theme on the schools' old tablets. The things you might
+ * DO from here — mark a register, enter marks, edit a child — are the existing
+ * screens, reached by a gated button that only appears for somebody who holds
+ * the permission the server would demand anyway.
+ */
+
+interface SectionRow {
+  section_id: string
+  class: string
+  section: string
+  students_count: number
+  class_teacher?: string
+}
+
+interface Contact {
+  name: string
+  phone: string
+  relation: string
+}
+
+interface Overview {
+  section: { id: string; class: string; section: string; students_count: number }
+  class_teacher?: string
+  subject_teachers: { subject: string; teacher: string }[]
+  students: {
+    student_id: string
+    name: string
+    admission_no: string
+    roll?: number | string
+    contacts?: Contact[]
+  }[]
+  attendance: {
+    present_pct_today?: number
+    marked_today: boolean
+    trend: { date: string; present_pct: number }[]
+  }
+  marks: {
+    has_marks: boolean
+    by_subject: { subject: string; avg_pct: number }[]
+  }
+  timetable: { weekday: number | string; period: string | number; subject: string; teacher?: string }[]
+  fees: { visible: boolean; collected_paise?: number; outstanding_paise?: number }
+}
+
+/* The dashboard's axes and tooltip, so both charts read the same way and
+   neither hard-codes a colour that breaks in dark mode. */
+const AXIS = { fontSize: 11 } as const
+const TIP = {
+  background: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: 8,
+  fontSize: 12,
+} as const
+
+/* "father" -> "Father". Whatever the guardian was stored as still reads
+   sensibly rather than as a raw lowercase word. */
+function relationLabel(relation: string, name: string): string {
+  const r = relation?.trim()
+  if (!r) return name || 'Guardian'
+  return r.charAt(0).toUpperCase() + r.slice(1)
+}
+
+/* The weekday as a school reads it. A server sends it as a name, or as an
+   index — 0–6 (Sun-first) or 1–7 (Mon-first) — and this keeps every one of
+   those readable rather than printing a bare number. */
+function weekdayLabel(w: number | string): string {
+  if (typeof w === 'string') {
+    const n = Number(w)
+    if (!Number.isFinite(n)) return w
+    w = n
+  }
+  if (w >= 1 && w <= 7) return WEEKDAYS[w - 1] // 1 = Mon
+  if (w === 0) return 'Sun'
+  return String(w)
+}
+
+/* A guardian's number, as a button that dials it. Only drawn for a contact
+   that has a number, so there is never a dead control. Modelled on the call
+   buttons in the absentee follow-up. */
+function CallButton({ label, name, phone }: { label: string; name: string; phone: string }) {
+  return (
+    <a
+      href={`tel:${phone}`}
+      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[13px] font-medium hover:bg-accent"
+    >
+      <Phone className="h-3.5 w-3.5 shrink-0" />
+      <span className="min-w-0">
+        <span className="block truncate">
+          {label}
+          {name && name !== label ? (
+            <span className="font-normal text-muted-foreground"> · {name}</span>
+          ) : null}
+        </span>
+        <span className="block font-mono text-[12px] text-muted-foreground">{phone}</span>
+      </span>
+    </a>
+  )
+}
+
+export default function ClassOverview() {
+  const can = useCan()
+  const navigate = useNavigate()
+  const [sectionId, setSectionId] = useState('')
+
+  /* Only the sections the caller may open — the server scopes this, so a class
+     teacher sees their own and an admin sees the school, from one screen. */
+  const sections = useQuery({
+    queryKey: ['class-sections'],
+    queryFn: () => api.get<List<SectionRow>>('/api/v1/class/sections'),
+  })
+
+  /* One section? Pick it, so the single-class teacher never meets a chooser
+     with one entry in it. */
+  const items = sections.data?.items ?? []
+  useEffect(() => {
+    if (!sectionId && items.length === 1) setSectionId(items[0].section_id)
+  }, [items, sectionId])
+
+  const overview = useQuery({
+    queryKey: ['class-overview', sectionId],
+    enabled: !!sectionId,
+    queryFn: () => api.get<Overview>(`/api/v1/class/${sectionId}/overview`),
+  })
+
+  return (
+    <>
+      <PageHead
+        eyebrow="Class Information"
+        title="Class 360"
+        actions={
+          items.length > 1 ? (
+            <div className="w-60">
+              <Field label="Section">
+                <Select
+                  value={sectionId}
+                  onChange={setSectionId}
+                  placeholder="Choose a section"
+                  options={items.map((s) => ({
+                    value: s.section_id,
+                    label: `${s.class}-${s.section}`,
+                  }))}
+                />
+              </Field>
+            </div>
+          ) : undefined
+        }
+      />
+      <PageBody>
+        {sections.isLoading ? (
+          <Loading />
+        ) : sections.error ? (
+          <ErrorState error={sections.error} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            title="You do not have a class to look at yet."
+            body="Class 360 opens the sections you teach or are class teacher of. When one is assigned to you, it appears here."
+          />
+        ) : !sectionId ? (
+          <EmptyState
+            title="Choose a section to begin."
+            body="Pick a class above to see its roster, attendance, results and timetable."
+          />
+        ) : overview.isLoading ? (
+          <Loading />
+        ) : overview.error ? (
+          /* A 404 or 403 on the overview degrades to a message in place rather
+             than crashing the screen. */
+          <ErrorState error={overview.error} />
+        ) : overview.data ? (
+          <OverviewBody o={overview.data} can={can} navigate={navigate} />
+        ) : null}
+      </PageBody>
+    </>
+  )
+}
+
+function OverviewBody({
+  o,
+  can,
+  navigate,
+}: {
+  o: Overview
+  can: (perm: string) => boolean
+  navigate: (to: string) => void
+}) {
+  const { section, attendance, marks, fees } = o
+
+  /* The action buttons the caller is entitled to. Each is hidden entirely
+     where the permission is not held — the server enforces the same keys, so a
+     hidden button is a courtesy, not the guard. Every one navigates to the
+     existing screen through /go/<feature>, which resolves the right workspace
+     for whoever is signed in. */
+  const actions = [
+    can('academics.attendance.write') && (
+      <Button key="att" size="sm" variant="secondary" onClick={() => navigate('/go/take_attendance')}>
+        <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
+        Mark attendance
+      </Button>
+    ),
+    can('academics.marks.write') && (
+      <Button key="marks" size="sm" variant="secondary" onClick={() => navigate('/go/marks_entry')}>
+        <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+        Enter marks
+      </Button>
+    ),
+    can('students.write') && (
+      <Button key="edit" size="sm" variant="secondary" onClick={() => navigate('/go/student_360')}>
+        <PencilLine className="h-3.5 w-3.5" aria-hidden />
+        Edit student
+      </Button>
+    ),
+    can('students.write') && (
+      <Button key="move" size="sm" variant="secondary" onClick={() => navigate('/go/class_promotion')}>
+        <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden />
+        Move student
+      </Button>
+    ),
+  ].filter(Boolean)
+
+  const presentToday = attendance.marked_today && attendance.present_pct_today != null
+    ? `${attendance.present_pct_today}%`
+    : '—'
+
+  return (
+    <>
+      {actions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      )}
+
+      <CellGrid cols={4}>
+        <Stat label="Students" value={section.students_count} icon={GraduationCap} />
+        <Stat
+          label="Present today"
+          value={presentToday}
+          icon={ClipboardCheck}
+          hint={attendance.marked_today ? undefined : 'No register marked today'}
+        />
+        <Stat label="Class teacher" value={o.class_teacher || '—'} icon={UserCheck} />
+        <Stat label="Subjects taught" value={o.subject_teachers.length} icon={BookOpen} />
+      </CellGrid>
+
+      {/* Roster + contacts. Tap a guardian to ring them. */}
+      <Card>
+        <CardHeader title="Roster" description="Everyone on the roll, and how to reach their family." />
+        <Table
+          head={['Name', 'Admission no', 'Roll', 'Call home']}
+          empty={!o.students.length}
+          emptyLabel="No students on the roll for this section."
+        >
+          {o.students.map((s) => {
+            const withPhone = (s.contacts ?? []).filter((c) => c.phone)
+            return (
+              <tr key={s.student_id}>
+                <Td className="font-medium">{s.name}</Td>
+                <Td className="font-mono text-[13px] text-muted-foreground">{s.admission_no}</Td>
+                <Td className="tabular-nums">{s.roll ?? '—'}</Td>
+                <Td>
+                  {withPhone.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {withPhone.map((c, i) => (
+                        <CallButton
+                          key={`${c.phone}:${i}`}
+                          label={relationLabel(c.relation, c.name)}
+                          name={c.name}
+                          phone={c.phone}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[13px] text-muted-foreground">No number on file</span>
+                  )}
+                </Td>
+              </tr>
+            )
+          })}
+        </Table>
+      </Card>
+
+      {/* Attendance & results, side by side — the register's trend and the
+          average per subject. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Attendance trend" description="Percentage present, over time." />
+          <div className="p-4">
+            {attendance.trend.length > 0 ? (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={attendance.trend} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
+                    <defs>
+                      <linearGradient id="class-att" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="date" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip contentStyle={TIP} />
+                    <Area type="monotone" dataKey="present_pct" name="Present %"
+                      stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#class-att)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
+                No attendance recorded for this section yet.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Average % by subject" description="Across published marks." />
+          <div className="p-4">
+            {marks.has_marks && marks.by_subject.length > 0 ? (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={marks.by_subject} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="subject" tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis domain={[0, 100]} tick={AXIS} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip contentStyle={TIP} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
+                    <Bar dataKey="avg_pct" name="Average %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="grid h-56 place-items-center text-center text-[13px] text-muted-foreground">
+                No marks have been published for this class yet.
+              </p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Teachers & timetable — who takes the class, and the week. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader title="Teachers" />
+          <div className="space-y-4 p-4">
+            <div>
+              <p className="eyebrow mb-1.5 text-muted-foreground">Class teacher</p>
+              {o.class_teacher ? (
+                <Badge tone="primary">{o.class_teacher}</Badge>
+              ) : (
+                <p className="text-[14px] text-muted-foreground">Not assigned</p>
+              )}
+            </div>
+            <div>
+              <p className="eyebrow mb-2 text-muted-foreground">Subject teachers</p>
+              {o.subject_teachers.length > 0 ? (
+                <div className="space-y-2">
+                  {o.subject_teachers.map((st) => (
+                    <div key={st.subject} className="flex items-center justify-between gap-3 text-[14px]">
+                      <span className="font-medium">{st.subject}</span>
+                      <span className="text-muted-foreground">{st.teacher}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[14px] text-muted-foreground">No subject teachers allocated.</p>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Timetable" description="The week, by day." />
+          <div className="p-4">
+            {o.timetable.length > 0 ? (
+              <Timetable rows={o.timetable} />
+            ) : (
+              <p className="grid place-items-center py-8 text-center text-[13px] text-muted-foreground">
+                No timetable has been set for this section.
+              </p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Fees — only for whoever answers for the money. The server decides
+          `visible`; where it is false the panel does not render at all. */}
+      {fees.visible && (
+        <Card>
+          <CardHeader title="Fees" description="Collected and outstanding for this section." />
+          <CellGrid cols={2}>
+            <Stat label="Collected" value={formatPaise(fees.collected_paise ?? 0)} icon={Wallet} />
+            <Stat
+              label="Outstanding"
+              value={formatPaise(fees.outstanding_paise ?? 0)}
+              icon={Wallet}
+            />
+          </CellGrid>
+        </Card>
+      )}
+    </>
+  )
+}
+
+/* The timetable, grouped by weekday. A plain grouped list rather than a grid:
+   the periods a section actually has vary by day, and a list reads on a phone
+   where a matrix would scroll sideways. */
+function Timetable({ rows }: { rows: Overview['timetable'] }) {
+  const groups = new Map<string, Overview['timetable']>()
+  for (const r of rows) {
+    const key = String(r.weekday)
+    const list = groups.get(key) ?? []
+    list.push(r)
+    groups.set(key, list)
+  }
+  // Order the days as the week runs, keeping whatever ordering the keys sort to.
+  const keys = [...groups.keys()].sort((a, b) => {
+    const na = Number(a)
+    const nb = Number(b)
+    if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb
+    return a.localeCompare(b)
+  })
+
+  return (
+    <div className="space-y-4">
+      {keys.map((k) => {
+        const day = groups.get(k)!
+        return (
+          <div key={k}>
+            <p className="eyebrow mb-2 flex items-center gap-1.5 text-muted-foreground">
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+              {weekdayLabel(day[0].weekday)}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {day.map((p, i) => (
+                <div
+                  key={`${k}:${p.period}:${i}`}
+                  className="rounded-lg border px-3 py-2 text-[13px]"
+                >
+                  <p className="text-[12px] text-muted-foreground">Period {p.period}</p>
+                  <p className="font-medium">{p.subject}</p>
+                  {p.teacher && <p className="text-muted-foreground">{p.teacher}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

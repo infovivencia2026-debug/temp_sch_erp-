@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 406 features. */
+/** 23 roles, 408 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -268,6 +268,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
           { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
           { key: 'institution_admin.students.groups_lists', slug: 'groups_lists', name: 'Groups & lists', scope: 'institution', tier: 'core', summary: 'The school\'s own groupings — the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.' },
+          { key: 'institution_admin.students.class_360', slug: 'class_360', name: 'Class 360', scope: 'institution', tier: 'core', summary: 'One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status — with quick actions to mark attendance, enter marks, edit or move a student.' },
         ],
       },
       {
@@ -600,6 +601,7 @@ export const ROLES: Role[] = [
           { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it — one record per child, read in order, with whether the family was told.' },
           { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
           { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
+          { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers — with the actions you are allowed on your own section.' },
         ],
       },
       {
