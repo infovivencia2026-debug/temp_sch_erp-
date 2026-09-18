@@ -256,6 +256,59 @@ var exportable = map[string]struct {
 		          LEFT JOIN users u ON u.id = p.collected_by
 		         ORDER BY p.paid_on DESC, st.admission_no, inv.instalment_no NULLS LAST`,
 	},
+	/* WHAT EACH CHILD WAS BILLED, DISCOUNTED, HAS PAID, AND STILL OWES — BY TERM.
+
+	   Collections is the money side; this is the ledger side. One row per invoice,
+	   which in this school is one child for one term: the gross the structure
+	   billed, the concession (the invoice discount) taken off it, the net that
+	   leaves, what has been paid against it, and the balance still due. The fee
+	   heads on the invoice say what it was for; the modes and last-paid date come
+	   from the payments allocated to it. This is the file that reconstructs a fee
+	   register the way a bursar keeps it, and the one to reconcile a spreadsheet
+	   against — term, amount billed, concession and amount paid all in one place.
+	   Cancelled invoices are left out: a voided bill is not a due. */
+	"fee_ledger": {
+		title:  "Fee ledger (term-wise)",
+		about:  "Per child, per term: billed, concession, net, paid and due — with fee heads and how it was paid.",
+		perm:   "finance.fees.read",
+		header: []string{"Admission No", "Student", "Class", "Section", "Term", "Fee Heads", "Gross (Rs)", "Concession (Rs)", "Net (Rs)", "Paid (Rs)", "Due (Rs)", "Status", "Due On", "Modes", "Last Paid On"},
+		query: `SELECT st.admission_no, concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               CASE WHEN inv.instalment_no IS NOT NULL
+		                    THEN 'Term '||inv.instalment_no::text ELSE '' END,
+		               COALESCE(h.heads,''),
+		               to_char(inv.gross_paise/100.0,'FM999999990.00'),
+		               to_char(inv.discount_paise/100.0,'FM999999990.00'),
+		               to_char(inv.net_paise/100.0,'FM999999990.00'),
+		               to_char(inv.paid_paise/100.0,'FM999999990.00'),
+		               to_char((inv.net_paise - inv.paid_paise)/100.0,'FM999999990.00'),
+		               inv.status,
+		               COALESCE(to_char(inv.due_on,'DD/MM/YYYY'),''),
+		               COALESCE(pm.modes,''),
+		               COALESCE(to_char(pm.last_paid,'DD/MM/YYYY'),'')
+		          FROM invoices inv
+		          JOIN students st ON st.id = inv.student_id
+		          LEFT JOIN LATERAL (
+		              SELECT string_agg(DISTINCT fh.name, ', ') AS heads
+		                FROM invoice_lines il
+		                JOIN fee_heads fh ON fh.id = il.fee_head_id
+		               WHERE il.invoice_id = inv.id
+		          ) h ON true
+		          LEFT JOIN LATERAL (
+		              SELECT string_agg(DISTINCT p.mode, ', ') AS modes, max(p.paid_on) AS last_paid
+		                FROM payment_allocations pa
+		                JOIN payments p ON p.id = pa.payment_id
+		               WHERE pa.invoice_id = inv.id
+		          ) pm ON true
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		         WHERE inv.status <> 'cancelled'
+		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no, inv.instalment_no NULLS LAST`,
+	},
 	"attendance": {
 		title:  "Student attendance",
 		about:  "The register, day by day.",
