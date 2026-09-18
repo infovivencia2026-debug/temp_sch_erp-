@@ -209,19 +209,52 @@ var exportable = map[string]struct {
 		            again by somebody inserting a column. */
 		         ORDER BY sum(i.net_paise - i.paid_paise) DESC`,
 	},
+	/* MONEY TAKEN, SPLIT THE WAY IT WAS BILLED.
+
+	   The old file was one row per receipt: who paid, how, how much, and no more.
+	   It could not answer the question a bursar actually asks — "how much of Term
+	   2 has come in?" — because a receipt carries no term. A payment settles one
+	   or more invoices through payment_allocations, and the invoice is what
+	   carries the instalment (the term) and, through its lines, the fee heads
+	   (tuition, books, uniform). So this joins down that chain and emits one row
+	   per allocation: the SAME receipt appears once per term it was split across,
+	   each row carrying that term's share of the money. A payment not yet
+	   allocated to any invoice still shows once, with a blank term and its whole
+	   amount, so nothing taken is missing from the file. Class and section come
+	   from the child's latest enrolment, the way the roll export resolves them. */
 	"collections": {
 		title:  "Fee collections",
-		about:  "Money taken, by day and by mode.",
+		about:  "Every receipt, split by term and fee head, with the child, the mode and who took it.",
 		perm:   "finance.payments.read",
-		header: []string{"Receipt No", "Date", "Student", "Admission No", "Mode", "Amount (Rs)", "Status", "Collected By"},
+		header: []string{"Receipt No", "Date", "Admission No", "Student", "Class", "Section", "Term", "Fee Heads", "Mode", "Reference", "Amount (Rs)", "Status", "Collected By"},
 		query: `SELECT COALESCE(p.receipt_no,''), to_char(p.paid_on,'DD/MM/YYYY'),
-		               concat_ws(' ', st.first_name, st.last_name), st.admission_no,
-		               p.mode, to_char(p.amount_paise/100.0,'FM999999990.00'),
+		               st.admission_no, concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               CASE WHEN inv.instalment_no IS NOT NULL
+		                    THEN 'Term '||inv.instalment_no::text ELSE '' END,
+		               COALESCE(h.heads,''),
+		               p.mode,
+		               COALESCE(NULLIF(p.reference_no,''), COALESCE(p.gateway_txn_id,'')),
+		               to_char(COALESCE(pa.amount_paise, p.amount_paise)/100.0,'FM999999990.00'),
 		               p.status, COALESCE(u.full_name,'')
 		          FROM payments p
 		          JOIN students st ON st.id = p.student_id
+		          LEFT JOIN payment_allocations pa ON pa.payment_id = p.id
+		          LEFT JOIN invoices inv ON inv.id = pa.invoice_id
+		          LEFT JOIN LATERAL (
+		              SELECT string_agg(DISTINCT fh.name, ', ') AS heads
+		                FROM invoice_lines il
+		                JOIN fee_heads fh ON fh.id = il.fee_head_id
+		               WHERE il.invoice_id = inv.id
+		          ) h ON true
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
 		          LEFT JOIN users u ON u.id = p.collected_by
-		         ORDER BY p.paid_on DESC, p.receipt_no DESC`,
+		         ORDER BY p.paid_on DESC, st.admission_no, inv.instalment_no NULLS LAST`,
 	},
 	"attendance": {
 		title:  "Student attendance",
