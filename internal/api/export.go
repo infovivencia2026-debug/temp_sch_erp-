@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/xuri/excelize/v2"
 
 	"github.com/school-erp/erp/internal/httpx"
 )
@@ -18,10 +19,9 @@ import (
    spreadsheet, mailed to a trustee, or filed. A screen you cannot get data out
    of is a screen people work around by retyping. */
 
-// exportable maps a URL slug to a query. Kept as an allowlist rather than
-// accepting SQL or table names from the client, which would be an injection
-// surface wearing a convenience costume.
-var exportable = map[string]struct {
+// exportSpec is one allowlisted report: the permission that gates it, how it
+// names itself on screen, its column header and the query behind it.
+type exportSpec struct {
 	perm string
 	// What the file is called on screen. The URL slug is a slug —
 	// "staff-attendance", "library-loans" — and ten of thirteen datasets were
@@ -31,7 +31,12 @@ var exportable = map[string]struct {
 	about  string
 	header []string
 	query  string
-}{
+}
+
+// exportable maps a URL slug to a query. Kept as an allowlist rather than
+// accepting SQL or table names from the client, which would be an injection
+// surface wearing a convenience costume.
+var exportable = map[string]exportSpec{
 	/* THE ROLL AS IT STANDS TODAY.
 
 	   "students" is every child the school has ever held, leavers included,
@@ -535,11 +540,18 @@ var exportable = map[string]struct {
 	},
 }
 
-// exportCSV streams an allowlisted report.
+// exportFormats is what every report can be downloaded as. CSV and TSV open in
+// Excel directly (with the UTF-8 BOM so Telugu survives); xlsx is a real
+// workbook for people who would otherwise re-save the file by hand.
+var exportFormats = []string{"csv", "tsv", "xlsx"}
+
+// exportCSV streams an allowlisted report in the requested format.
 //
-// Rows are written as they are read rather than buffered: a whole-school
-// attendance export is tens of thousands of rows, and holding that in memory on
-// a 1 vCPU box to build one string would be the slowest thing the server does.
+// CSV and TSV are written as the rows are read rather than buffered: a
+// whole-school attendance export is tens of thousands of rows, and holding that
+// in memory on a 1 vCPU box to build one string would be the slowest thing the
+// server does. xlsx has no streaming writer, so it is built in memory — opt-in,
+// and the fee/roster files people actually open in Excel are a few thousand rows.
 func (s *Server) exportCSV(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	name := chiURLParam(r, "name")
@@ -554,12 +566,24 @@ func (s *Server) exportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := fmt.Sprintf("%s-%s.csv", name, time.Now().Format("2006-01-02"))
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	date := time.Now().Format("2006-01-02")
+	if strings.ToLower(r.URL.Query().Get("format")) == "xlsx" {
+		s.exportXLSX(w, r, id, name, date, spec)
+		return
+	}
+
+	comma, ext, ct := ',', "csv", "text/csv; charset=utf-8"
+	if strings.ToLower(r.URL.Query().Get("format")) == "tsv" {
+		comma, ext, ct = '\t', "tsv", "text/tab-separated-values; charset=utf-8"
+	}
+
+	filename := fmt.Sprintf("%s-%s.%s", name, date, ext)
+	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
 	cw := csv.NewWriter(w)
-	// Excel opens a UTF-8 CSV as ANSI unless it sees a BOM, which turns Telugu
+	cw.Comma = comma
+	// Excel opens a UTF-8 file as ANSI unless it sees a BOM, which turns Telugu
 	// names into mojibake for exactly the schools that need them most.
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
 	_ = cw.Write(spec.header)
@@ -598,6 +622,59 @@ func (s *Server) exportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// exportXLSX builds the same report as a real Excel workbook. Unlike CSV it is
+// buffered: excelize has no streaming writer that also sets a frozen header, and
+// the whole file must be finished before its ZIP central directory can be
+// written. Because nothing is sent until the workbook is complete, a query error
+// can still surface as a clean 500 rather than a truncated download.
+func (s *Server) exportXLSX(w http.ResponseWriter, r *http.Request, id *httpx.Identity, name, date string, spec exportSpec) {
+	f := excelize.NewFile()
+	defer f.Close()
+	const sheet = "Sheet1"
+
+	for i, h := range spec.header {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		_ = f.SetCellValue(sheet, cell, h)
+	}
+
+	n := len(spec.header)
+	rowNum := 2
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), spec.query)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			vals, err := rows.Values()
+			if err != nil {
+				return err
+			}
+			for i := 0; i < n && i < len(vals); i++ {
+				if vals[i] == nil {
+					continue
+				}
+				cell, _ := excelize.CoordinatesToCellName(i+1, rowNum)
+				_ = f.SetCellValue(sheet, cell, strings.TrimSpace(fmt.Sprint(vals[i])))
+			}
+			rowNum++
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+
+	// Freeze the header row so a long list stays readable while it is scrolled.
+	_ = f.SetPanes(sheet, &excelize.Panes{Freeze: true, YSplit: 1, TopLeftCell: "A2", ActivePane: "bottomLeft"})
+
+	filename := fmt.Sprintf("%s-%s.xlsx", name, date)
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	_ = f.Write(w)
+}
+
 // listExports tells the client which reports it may download.
 func (s *Server) listExports(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
@@ -613,6 +690,7 @@ func (s *Server) listExports(w http.ResponseWriter, r *http.Request) {
 		out = append(out, map[string]any{
 			"name": name, "title": title, "about": spec.about,
 			"url": "/api/v1/export/" + name, "columns": spec.header,
+			"formats": exportFormats,
 		})
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})

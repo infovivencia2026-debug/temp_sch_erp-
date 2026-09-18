@@ -30,7 +30,14 @@ interface ExportSpec {
   about?: string
   url: string
   columns: string[]
+  /* The formats this dataset can be downloaded as — csv, tsv, xlsx. Sent by the
+   * server so the buttons never claim a format the endpoint cannot produce.
+   * Older responses omit it; fall back to CSV alone. */
+  formats?: string[]
 }
+
+// What each format calls itself on its button.
+const FORMAT_LABEL: Record<string, string> = { csv: 'CSV', tsv: 'TSV', xlsx: 'Excel' }
 
 
 export default function Exports() {
@@ -46,7 +53,7 @@ export default function Exports() {
       <PageHead
         eyebrow="Reports"
         title="Data exports"
-        description="Download any dataset your role permits as CSV. The list below is filtered to what you may take out."
+        description="Download any dataset your role permits as CSV, TSV or Excel. The list below is filtered to what you may take out."
       />
       <PageBody width="form">
         <Card>
@@ -81,15 +88,21 @@ export default function Exports() {
                       <span className="block max-w-[42ch] truncate">{x.columns.join(', ')}</span>
                     </Td>
                     <Td>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          window.location.href = x.url
-                        }}
-                      >
-                        <Download className="h-3.5 w-3.5" /> CSV
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {(x.formats ?? ['csv']).map((fmt) => (
+                          <Button
+                            key={fmt}
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              window.location.href =
+                                fmt === 'csv' ? x.url : `${x.url}?format=${fmt}`
+                            }}
+                          >
+                            <Download className="h-3.5 w-3.5" /> {FORMAT_LABEL[fmt] ?? fmt.toUpperCase()}
+                          </Button>
+                        ))}
+                      </div>
                     </Td>
                   </tr>
                 )
