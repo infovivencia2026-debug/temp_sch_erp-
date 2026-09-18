@@ -127,17 +127,17 @@ func (s *Server) Routes() http.Handler {
 		/* And the slow path behind it, which the fast path's own comment
 		   promised and nothing implemented. Same gate, same roles; see
 		   assistant_chat.go for why it lives here and not beside the app. */
-		r.Post("/assistant/chat", s.assistantChat)
+		r.With(s.assistantRateLimit).Post("/assistant/chat", s.assistantChat)
 
 		/* The voice for the answer: server-side neural TTS, so a phone gets a
 		   natural voice reliably where the browser's own speech is robotic or
 		   silent. Same session gate. */
-		r.Post("/assistant/tts", s.assistantTTS)
+		r.With(s.assistantRateLimit).Post("/assistant/tts", s.assistantTTS)
 
 		/* A change the assistant proposed, once the person has confirmed it on
 		   the card. Re-checks the permission and writes under the person's tenant
 		   scope; see assistant_actions.go. */
-		r.Post("/assistant/action", s.assistantActionExecute)
+		r.With(s.assistantRateLimit).Post("/assistant/action", s.assistantActionExecute)
 
 		/* A spreadsheet imported from inside the chat. Multipart, because the
 		   {kind,params} action protocol above cannot carry a file. Preview is a
@@ -145,8 +145,8 @@ func (s *Server) Routes() http.Handler {
 		   same undoable importer the setup screen uses. Both re-check identity,
 		   the assistant import allowlist and the per-entity permission on the
 		   server; see assistant_import.go. */
-		r.Post("/assistant/import/preview", s.assistantImportPreview)
-		r.Post("/assistant/import/commit", s.assistantImportCommit)
+		r.With(s.assistantRateLimit).Post("/assistant/import/preview", s.assistantImportPreview)
+		r.With(s.assistantRateLimit).Post("/assistant/import/commit", s.assistantImportCommit)
 
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)

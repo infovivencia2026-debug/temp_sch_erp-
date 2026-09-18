@@ -186,6 +186,16 @@ const STATE_INK: Record<MapVehicle['state'], string> = {
   idle: 'text-muted-foreground',
 }
 
+/* The label is a server-stored vehicle registration and goes into innerHTML, so
+   it is escaped first: a registration typed as `<img src=x onerror=…>` would
+   otherwise run when the marker paints — on the parent portal's bus map too. */
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}
+function escapeHtml(s: string): string {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c])
+}
+
 /** Paint the marker into an element, so a poll updates a bus in place rather
  *  than replacing the node under maplibre and making every marker blink. The
  *  DOM is deliberate: it inherits the theme's own semantic tokens, rather than
@@ -208,8 +218,8 @@ function paintMarker(el: HTMLElement, v: MapVehicle, focused: boolean): HTMLElem
             fill="${stale ? 'none' : 'currentColor'}" stroke="currentColor"
             stroke-width="1.5" ${stale ? 'stroke-dasharray="3 2"' : ''} />
     </svg>
-    <span class="rounded bg-background/85 px-1 text-[11px] font-semibold">${v.label}</span>
-    ${v.note && stale ? `<span class="rounded bg-background/85 px-1 text-[10px]">${v.note}</span>` : ''}
+    <span class="rounded bg-background/85 px-1 text-[11px] font-semibold">${escapeHtml(v.label)}</span>
+    ${v.note && stale ? `<span class="rounded bg-background/85 px-1 text-[10px]">${escapeHtml(v.note)}</span>` : ''}
   `
   el.setAttribute('aria-label', `${v.label}${v.note ? ` — ${v.note}` : ''}`)
   return el

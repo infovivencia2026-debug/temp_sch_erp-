@@ -39,6 +39,10 @@ const (
 	scopeMessageTestLink = "message_test_link"
 	// API keys, per key id, with the burst on the key itself.
 	scopeAPIKey = "api_key"
+	// The AI assistant endpoints, per user. chat/tts spend third-party tokens
+	// and characters on every call, so a signed-in user (a parent included) is
+	// held to a per-minute budget to stop a bill or a quota being run up.
+	scopeAssistant = "assistant"
 )
 
 var (
@@ -46,7 +50,28 @@ var (
 	pairCodePolicy        = ratelimit.Policy{Window: smsGatewayClaimWindow, Burst: smsGatewayClaimBurst}
 	messageTestLinkPolicy = ratelimit.Policy{Window: time.Hour, Burst: 10}
 	apiKeyPerMinutePolicy = ratelimit.Policy{Window: time.Minute, Fixed: true}
+	// 30 assistant calls a minute is generous for a person typing questions and
+	// well short of what a script would use to run up a third-party bill.
+	assistantPolicy = ratelimit.Policy{Window: time.Minute, Burst: 30}
 )
+
+// assistantRateLimit caps one user's calls to the AI endpoints (chat, TTS,
+// action, import), which each cost third-party tokens or characters. Keyed per
+// user so one chatty account cannot exhaust the school's LLM/TTS quota or run
+// up the bill; falls back to the caller address before sign-in.
+func (s *Server) assistantRateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := callerAddress(r)
+		if id := httpx.IdentityFrom(r.Context()); id != nil {
+			key = id.UserID.String()
+		}
+		if s.rateLimited(w, r, scopeAssistant, assistantPolicy, key,
+			"You're using the assistant too fast — wait a moment and try again.") {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // limits is the store this Server counts in. Nil in RateLimits -- every test
 // that writes &Server{} -- means a private in-memory store, made once, so a
