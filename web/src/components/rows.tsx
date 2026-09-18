@@ -114,7 +114,10 @@ export function SearchBox({
   value,
   onChange,
   placeholder = 'Search',
-  className = 'w-56',
+  // Full width on a phone, a fixed measure from sm up. A hard w-56 in a card
+  // toolbar could not shrink and pushed the whole card past the screen edge,
+  // which is the horizontal-overflow the lists showed on mobile.
+  className = 'w-full sm:w-56',
 }: {
   value: string
   onChange: (v: string) => void

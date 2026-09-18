@@ -532,7 +532,7 @@ export default function ReportCards() {
             <ExportButton name="marks" />
             {/* The search leads, because finding one child is what this screen
                 is opened for far more often than rebuilding thirty cards. */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Input
                 value={find}
                 onChange={(v) => { setFind(v); setSuggesting(true) }}
@@ -541,10 +541,10 @@ export default function ReportCards() {
                 // from under the finger that was reaching for it.
                 onBlur={() => window.setTimeout(() => setSuggesting(false), 150)}
                 placeholder="Search roll no, name or admission no"
-                className="w-64"
+                className="w-full sm:w-64"
               />
               {suggesting && suggestions.length > 0 && (
-                <ul className="absolute left-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-md border bg-surface shadow-lg">
+                <ul className="absolute left-0 top-full z-30 mt-1 w-full min-w-[16rem] overflow-hidden rounded-md border bg-surface shadow-lg sm:w-72">
                   {suggestions.map((r) => (
                     <li key={r.id}>
                       <button
@@ -963,7 +963,7 @@ export default function ReportCards() {
                     value={note}
                     onChange={setNote}
                     placeholder="Why it is going back"
-                    className="w-72"
+                    className="w-full sm:w-72"
                   />
                   <Button
                     variant="secondary"

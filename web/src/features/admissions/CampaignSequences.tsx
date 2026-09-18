@@ -533,7 +533,7 @@ export default function CampaignSequences() {
             title="What has gone out"
             description="Every touch the runner has considered, and what became of it."
             action={
-              <div className="w-[200px]">
+              <div className="w-full sm:w-[200px]">
                 <Select
                   value={outboxStatus}
                   onChange={setOutboxStatus}

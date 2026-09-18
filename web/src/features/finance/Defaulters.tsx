@@ -163,7 +163,7 @@ export default function Defaulters() {
               value={find}
               onChange={setFind}
               placeholder="Find a student, admission no. or parent"
-              className="w-72"
+              className="w-full sm:w-72"
             />
             <ExportButton report="defaulters" />
             <Select

@@ -391,7 +391,7 @@ function DocumentRow({
                   value={reason}
                   onChange={setReason}
                   placeholder="Why is this one not needed?"
-                  className="w-80"
+                  className="w-full sm:w-80"
                 />
                 <Button size="sm" disabled={!reason || save.isPending}
                   onClick={() => save.mutate({ status: 'waived' })}>

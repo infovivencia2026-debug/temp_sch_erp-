@@ -1109,8 +1109,27 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !ok {
-			httpx.NotFound(w, r)
-			return
+			/* teacherMayWrite answers "may this teacher START a thread with this
+			   family", and it needs the caller to currently teach the child --
+			   an active enrollment in a section they take. Replying into a
+			   thread that already exists is a weaker act than opening one: the
+			   conversation is already there, addressed to this teacher, so a
+			   teacher moved off the class since it began -- a promotion, a
+			   re-section, the gap between terms when the child has no active
+			   enrollment at all -- must still be able to answer what was said
+			   to them, exactly as listTeacherParentMessages already lets them
+			   read it. A row carrying all three ids is that thread, and is the
+			   only thing this widens to: it cannot conjure a new thread against
+			   a family the teacher was never a party to. */
+			party, perr := s.teacherIsThreadParty(r, sid, teacherID, parentID)
+			if perr != nil {
+				httpx.Internal(w, r, perr)
+				return
+			}
+			if !party {
+				httpx.NotFound(w, r)
+				return
+			}
 		}
 	}
 
@@ -1215,6 +1234,24 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{"id": newID})
+}
+
+// teacherIsThreadParty reports whether a parent↔teacher thread already exists
+// for exactly these three ids. It is the reply gate for a teacher who no longer
+// teaches the child: the thread's own existence proves they were entitled to it,
+// so answering into it is safe even when teacherMayWrite (a "may start" test)
+// would now refuse. It never matches a thread the caller is not the teacher of.
+func (s *Server) teacherIsThreadParty(r *http.Request, sid, teacherID, parentID uuid.UUID) (bool, error) {
+	id := httpx.IdentityFrom(r.Context())
+	var ok bool
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT EXISTS (
+			    SELECT 1 FROM parent_teacher_messages
+			     WHERE student_id = $1 AND teacher_user_id = $2 AND parent_user_id = $3)`,
+			sid, teacherID, parentID).Scan(&ok)
+	})
+	return ok, err
 }
 
 // teacherMayWrite checks the staff end of a thread in one query: the caller

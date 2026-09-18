@@ -213,7 +213,7 @@ export default function LostLeads() {
             title="The pattern"
             description="Share is withheld below five enquiries in a group — one lost enquiry is not a rate."
             action={
-              <div className="w-[220px]">
+              <div className="w-full sm:w-[220px]">
                 <Select value={by} onChange={setBy} options={LOST_DIMENSIONS} />
               </div>
             }
@@ -280,7 +280,7 @@ export default function LostLeads() {
                     { header: 'Lost on', value: (r) => r.lost_on },
                   ]}
                 />
-                <div className="w-[220px]">
+                <div className="w-full sm:w-[220px]">
                 <Select
                   value={reasonFilter}
                   onChange={setReasonFilter}

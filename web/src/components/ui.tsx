@@ -47,7 +47,11 @@ export function CardHeader({
             figure should be read, it belongs next to that figure, not in a
             paragraph above the whole card. */}
       </div>
-      {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
+      {/* Full width on a phone (its own line under the title, so a search box +
+          filter + export wrap and fit the card), a shrink-0 toolbar from sm up.
+          It was shrink-0 at every width, so a fixed-width toolbar pushed the
+          whole card past the screen edge on mobile. */}
+      {action && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{action}</div>}
     </div>
   )
 }

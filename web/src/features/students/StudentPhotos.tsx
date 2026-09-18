@@ -310,7 +310,7 @@ export default function StudentPhotos() {
                           <Input
                             srLabel={`Child for ${r.file.name}`}
                             list="photo-roll"
-                            className="w-64"
+                            className="w-full sm:w-64"
                             value={child ? labelFor(child) : r.admissionNo}
                             onChange={(v) => point(r.file, v)}
                             placeholder={roll.isLoading ? 'Loading the roll…' : 'Type a name or admission number'}
