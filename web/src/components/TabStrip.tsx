@@ -164,7 +164,12 @@ export default function TabStrip() {
         if (el.scrollWidth <= el.clientWidth) return
         el.scrollLeft += e.deltaY
       }}
-      className="hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex"
+      /* Scroll, but without the chunky native scrollbar under the tabs — it
+         read as clutter when several screens were open. The row still scrolls
+         on the wheel (above) and auto-scrolls the active tab into view; the bar
+         itself is hidden the way browser tab strips hide theirs. */
+      className="hidden shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-card px-2 lg:flex
+                 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
       {tabs.map((t) => {
         const active = t.path === here
