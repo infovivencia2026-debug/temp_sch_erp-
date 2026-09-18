@@ -256,58 +256,98 @@ var exportable = map[string]struct {
 		          LEFT JOIN users u ON u.id = p.collected_by
 		         ORDER BY p.paid_on DESC, st.admission_no, inv.instalment_no NULLS LAST`,
 	},
-	/* WHAT EACH CHILD WAS BILLED, DISCOUNTED, HAS PAID, AND STILL OWES — BY TERM.
+	/* ONE ROW PER CHILD — THE WHOLE FEE PICTURE, LEDGER AND COLLECTION IN ONE.
 
-	   Collections is the money side; this is the ledger side. One row per invoice,
-	   which in this school is one child for one term: the gross the structure
-	   billed, the concession (the invoice discount) taken off it, the net that
-	   leaves, what has been paid against it, and the balance still due. The fee
-	   heads on the invoice say what it was for; the modes and last-paid date come
-	   from the payments allocated to it. This is the file that reconstructs a fee
-	   register the way a bursar keeps it, and the one to reconcile a spreadsheet
-	   against — term, amount billed, concession and amount paid all in one place.
-	   Cancelled invoices are left out: a voided bill is not a due. */
-	"fee_ledger": {
-		title:  "Fee ledger (term-wise)",
-		about:  "Per child, per term: billed, concession, net, paid and due — with fee heads and how it was paid.",
+	   Everything about a child's fees on a single line, the way a school keeps its
+	   own register: total billed, the concession, the net, what has come in and
+	   what is still due — then each term and each extra as its own set of columns,
+	   billed·paid·due for Term 1/2/3 (the tuition instalments) and billed·paid for
+	   Books, Uniform and Transport (bucketed by fee head, which is why the odd
+	   "Term 10/11/31" instalment numbers never leak in). Billed is the net after
+	   concession and paid is what has been allocated to that invoice, so every
+	   bucket sums back to the totals. This is the file to read a child's fees at a
+	   glance and to reconcile a spreadsheet against, cell for cell. */
+	"fees_by_student": {
+		title:  "Fees by student — everything",
+		about:  "One row per child with the whole fee picture: total billed, concession, net, paid and due, then Term 1/2/3 billed·paid·due and Books, Uniform and Transport billed·paid.",
 		perm:   "finance.fees.read",
-		header: []string{"Admission No", "Student", "Class", "Section", "Term", "Fee Heads", "Gross (Rs)", "Concession (Rs)", "Net (Rs)", "Paid (Rs)", "Due (Rs)", "Status", "Due On", "Modes", "Last Paid On"},
+		header: []string{"Admission No", "Student", "Class", "Section",
+			"Total Billed (Rs)", "Concession (Rs)", "Net (Rs)", "Total Paid (Rs)", "Total Due (Rs)",
+			"Term 1 Billed", "Term 1 Paid", "Term 1 Due",
+			"Term 2 Billed", "Term 2 Paid", "Term 2 Due",
+			"Term 3 Billed", "Term 3 Paid", "Term 3 Due",
+			"Books Billed", "Books Paid", "Uniform Billed", "Uniform Paid",
+			"Transport Billed", "Transport Paid", "Other Billed", "Other Paid"},
 		query: `SELECT st.admission_no, concat_ws(' ', st.first_name, st.last_name),
 		               COALESCE(c.name,''), COALESCE(sec.name,''),
-		               CASE WHEN inv.instalment_no IS NOT NULL
-		                    THEN 'Term '||inv.instalment_no::text ELSE '' END,
-		               COALESCE(h.heads,''),
-		               to_char(inv.gross_paise/100.0,'FM999999990.00'),
-		               to_char(inv.discount_paise/100.0,'FM999999990.00'),
-		               to_char(inv.net_paise/100.0,'FM999999990.00'),
-		               to_char(inv.paid_paise/100.0,'FM999999990.00'),
-		               to_char((inv.net_paise - inv.paid_paise)/100.0,'FM999999990.00'),
-		               inv.status,
-		               COALESCE(to_char(inv.due_on,'DD/MM/YYYY'),''),
-		               COALESCE(pm.modes,''),
-		               COALESCE(to_char(pm.last_paid,'DD/MM/YYYY'),'')
-		          FROM invoices inv
-		          JOIN students st ON st.id = inv.student_id
+		               to_char(COALESCE(iv.gross,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.disc,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.net,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.paid,0)/100.0,'FM999999990.00'),
+		               to_char((COALESCE(iv.net,0)-COALESCE(iv.paid,0))/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t1_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t1_paid,0)/100.0,'FM999999990.00'),
+		               to_char((COALESCE(iv.t1_bill,0)-COALESCE(iv.t1_paid,0))/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t2_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t2_paid,0)/100.0,'FM999999990.00'),
+		               to_char((COALESCE(iv.t2_bill,0)-COALESCE(iv.t2_paid,0))/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t3_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.t3_paid,0)/100.0,'FM999999990.00'),
+		               to_char((COALESCE(iv.t3_bill,0)-COALESCE(iv.t3_paid,0))/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.bk_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.bk_paid,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.un_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.un_paid,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.tr_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.tr_paid,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.ot_bill,0)/100.0,'FM999999990.00'),
+		               to_char(COALESCE(iv.ot_paid,0)/100.0,'FM999999990.00')
+		          FROM students st
 		          LEFT JOIN LATERAL (
-		              SELECT string_agg(DISTINCT fh.name, ', ') AS heads
-		                FROM invoice_lines il
-		                JOIN fee_heads fh ON fh.id = il.fee_head_id
-		               WHERE il.invoice_id = inv.id
-		          ) h ON true
-		          LEFT JOIN LATERAL (
-		              SELECT string_agg(DISTINCT p.mode, ', ') AS modes, max(p.paid_on) AS last_paid
-		                FROM payment_allocations pa
-		                JOIN payments p ON p.id = pa.payment_id
-		               WHERE pa.invoice_id = inv.id
-		          ) pm ON true
+		              /* Every non-cancelled invoice for the child, bucketed once.
+		                 Tuition terms go by instalment (1/2/3); Books, Uniform and
+		                 Transport by fee head; anything else to Other. Billed is the
+		                 net (post-concession) and Paid is what has been allocated to
+		                 the invoice, so the buckets sum back to the totals. */
+		              SELECT sum(inv.gross_paise) AS gross, sum(inv.discount_paise) AS disc,
+		                     sum(inv.net_paise) AS net, sum(inv.paid_paise) AS paid,
+		                     sum(inv.net_paise)  FILTER (WHERE inv.instalment_no = 1) AS t1_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE inv.instalment_no = 1) AS t1_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE inv.instalment_no = 2) AS t2_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE inv.instalment_no = 2) AS t2_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE inv.instalment_no = 3) AS t3_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE inv.instalment_no = 3) AS t3_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE hd.head ILIKE '%book%') AS bk_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE hd.head ILIKE '%book%') AS bk_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE hd.head ILIKE '%uniform%') AS un_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE hd.head ILIKE '%uniform%') AS un_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE hd.head ILIKE '%transport%') AS tr_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE hd.head ILIKE '%transport%') AS tr_paid,
+		                     sum(inv.net_paise)  FILTER (WHERE COALESCE(inv.instalment_no,0) NOT IN (1,2,3)
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%book%'
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%uniform%'
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%transport%') AS ot_bill,
+		                     sum(inv.paid_paise) FILTER (WHERE COALESCE(inv.instalment_no,0) NOT IN (1,2,3)
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%book%'
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%uniform%'
+		                          AND COALESCE(hd.head,'') NOT ILIKE '%transport%') AS ot_paid
+		                FROM invoices inv
+		                LEFT JOIN LATERAL (
+		                    SELECT string_agg(DISTINCT fh.name, ', ') AS head
+		                      FROM invoice_lines il
+		                      JOIN fee_heads fh ON fh.id = il.fee_head_id
+		                     WHERE il.invoice_id = inv.id
+		                ) hd ON true
+		               WHERE inv.student_id = st.id AND inv.status <> 'cancelled'
+		          ) iv ON true
 		          LEFT JOIN LATERAL (
 		              SELECT e.class_id, e.section_id FROM enrollments e
 		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
 		          ) en ON true
 		          LEFT JOIN classes  c   ON c.id = en.class_id
 		          LEFT JOIN sections sec ON sec.id = en.section_id
-		         WHERE inv.status <> 'cancelled'
-		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no, inv.instalment_no NULLS LAST`,
+		         WHERE st.status = 'active' AND iv.gross IS NOT NULL
+		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
 	},
 	"attendance": {
 		title:  "Student attendance",
