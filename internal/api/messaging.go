@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -116,6 +117,20 @@ type OutboundMessage struct {
 	   for a WhatsApp message with no approved template mapped -- which the
 	   Cloud provider refuses by name rather than downgrading to free text. */
 	WA *whatsappTemplateSend
+
+	/* Attachments ride on the email channel only. A digest carries a PDF
+	   summary and the underlying data as CSVs; SMS, WhatsApp and in-app have
+	   no envelope to put a file in, so the dispatcher loads these only for
+	   email and rfc822 builds a multipart/mixed message when there are any. */
+	Attachments []OutboundAttachment
+}
+
+// OutboundAttachment is one file carried on an email. Post-render like the rest
+// of OutboundMessage: resolved bytes and a name, never a query or a template.
+type OutboundAttachment struct {
+	Filename    string
+	ContentType string
+	Data        []byte
 }
 
 /*
@@ -337,18 +352,73 @@ func (p smtpProvider) rfc822(m OutboundMessage) []byte {
 	fmt.Fprintf(&b, "Subject: %s\r\n", headerSafe(m.Subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", nowInIndia().Format(time.RFC1123Z))
 	b.WriteString("MIME-Version: 1.0\r\n")
+
+	// No attachments is the common case and stays exactly as it was: a plain
+	// text/plain body, byte for byte, so a mail host and the tests both see the
+	// message they always did.
+	if len(m.Attachments) == 0 {
+		b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
+		writeDotStuffed(&b, m.Body)
+		return b.Bytes()
+	}
+
+	/* With attachments the message becomes multipart/mixed: the body as the
+	   first text/plain part, then one base64 part per file. The boundary is
+	   random so it cannot appear inside a part's own bytes; the parts keep the
+	   same CRLF line endings and the same dot-stuffing the plain body uses. */
+	boundary := mimeBoundary()
+	fmt.Fprintf(&b, "Content-Type: multipart/mixed; boundary=%q\r\n\r\n", boundary)
+
+	fmt.Fprintf(&b, "--%s\r\n", boundary)
 	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
-	// Dot-stuffing: a body line that is a single full stop ends the DATA
-	// command early, truncating the message and leaving the connection out of
-	// step with what the server thinks it is reading.
-	for _, line := range strings.Split(strings.ReplaceAll(m.Body, "\r\n", "\n"), "\n") {
+	writeDotStuffed(&b, m.Body)
+
+	for _, att := range m.Attachments {
+		ct := strings.TrimSpace(att.ContentType)
+		if ct == "" {
+			ct = "application/octet-stream"
+		}
+		fmt.Fprintf(&b, "\r\n--%s\r\n", boundary)
+		fmt.Fprintf(&b, "Content-Type: %s\r\n", headerSafe(ct))
+		b.WriteString("Content-Transfer-Encoding: base64\r\n")
+		fmt.Fprintf(&b, "Content-Disposition: attachment; filename=%q\r\n\r\n",
+			headerSafe(att.Filename))
+		// base64 wrapped at 76 columns with CRLF, as RFC 2045 asks.
+		enc := base64.StdEncoding.EncodeToString(att.Data)
+		for len(enc) > 0 {
+			n := 76
+			if n > len(enc) {
+				n = len(enc)
+			}
+			b.WriteString(enc[:n])
+			b.WriteString("\r\n")
+			enc = enc[n:]
+		}
+	}
+	fmt.Fprintf(&b, "--%s--\r\n", boundary)
+	return b.Bytes()
+}
+
+// writeDotStuffed writes a body a line at a time with CRLF endings, doubling a
+// leading full stop. A body line that is a single full stop ends the DATA
+// command early, truncating the message and leaving the connection out of step
+// with what the server thinks it is reading.
+func writeDotStuffed(b *bytes.Buffer, body string) {
+	for _, line := range strings.Split(strings.ReplaceAll(body, "\r\n", "\n"), "\n") {
 		if strings.HasPrefix(line, ".") {
 			b.WriteString(".")
 		}
 		b.WriteString(line)
 		b.WriteString("\r\n")
 	}
-	return b.Bytes()
+}
+
+// mimeBoundary is a delimiter no part's bytes can contain: a fixed marker plus
+// random hex, so two attachments in one message cannot collide with it either.
+func mimeBoundary() string {
+	var buf [16]byte
+	_, _ = rand.Read(buf[:])
+	return fmt.Sprintf("erp-boundary-%x", buf[:])
 }
 
 // headerSafe strips CR and LF. A subject rendered from a template variable is
@@ -1174,6 +1244,11 @@ type SendRequest struct {
 	// SendAfter holds the message until a moment — the end of a quiet period,
 	// or the lead time before an event. Nil sends at the next dispatch.
 	SendAfter *time.Time
+
+	// Attachments are files to send with the message. Honoured for the email
+	// channel only -- QueueMessage stores them for email and ignores them for
+	// every other channel, which has no way to carry a file.
+	Attachments []OutboundAttachment
 }
 
 // SendResult reports what QueueMessage did. Duplicate is not a failure: it is
@@ -1339,6 +1414,23 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 	}
 	if err != nil {
 		return SendResult{}, err
+	}
+
+	/* Files ride on email and nowhere else, in the same transaction as the
+	   log row so the two commit together. Other channels have no envelope for
+	   a file, so their attachments are dropped here rather than stored and
+	   silently never sent. The dispatcher reads these back for the email
+	   channel just before it hands the message to the provider. */
+	if req.Channel == "email" {
+		for _, att := range req.Attachments {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO message_attachments
+				    (institution_id, message_log_id, filename, content_type, bytes)
+				VALUES ($1, $2, $3, $4, $5)`,
+				inst, id, att.Filename, att.ContentType, att.Data); err != nil {
+				return SendResult{}, err
+			}
+		}
 	}
 	return SendResult{ID: id}, nil
 }
@@ -1659,10 +1751,38 @@ func (s *Server) DispatchMessages(ctx context.Context, inst uuid.UUID, platform 
 				}
 			}
 
+			/* Attachments, loaded only for email. Every other channel has no
+			   way to carry a file, so querying for them would be a needless
+			   read per row on a sweep that is mostly SMS. Ordered by id so a
+			   digest's PDF and CSVs arrive in the order they were queued. */
+			var atts []OutboundAttachment
+			if sendErr == nil && channel == "email" {
+				rows, e := tx.Query(ctx, `
+					SELECT filename, content_type, bytes
+					  FROM message_attachments
+					 WHERE message_log_id = $1
+					 ORDER BY id`, id)
+				if e != nil {
+					return e
+				}
+				for rows.Next() {
+					var a OutboundAttachment
+					if e := rows.Scan(&a.Filename, &a.ContentType, &a.Data); e != nil {
+						rows.Close()
+						return e
+					}
+					atts = append(atts, a)
+				}
+				rows.Close()
+				if e := rows.Err(); e != nil {
+					return e
+				}
+			}
+
 			if sendErr == nil {
 				msgID, sendErr = p.Send(sendCtx, OutboundMessage{
 					To: recipient, Subject: strVal(subject), Body: strVal(body),
-					DLTTemplateID: dlt, WA: wa,
+					DLTTemplateID: dlt, WA: wa, Attachments: atts,
 				})
 			}
 			if sendErr != nil {

@@ -1,7 +1,9 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -516,7 +518,31 @@ func (s *Server) SendReportDigest(ctx context.Context, inst uuid.UUID, period st
 		code := "report_digest." + period
 
 		for _, ch := range channels {
-			body := renderDigestBody(school, periodWord, rng, byChannel[ch], blocks)
+			/* The email alone carries the files: a PDF summary of the reports
+			   it holds and each of their datasets as a CSV, built once and
+			   attached to every recipient's copy. Other channels have no
+			   envelope for a file, so they carry a line pointing the reader at
+			   the email instead. */
+			note := digestOtherChannelNote
+			var atts []OutboundAttachment
+			if ch == "email" {
+				note = ""
+				pdf, err := renderDigestPDF(school, periodWord, rng, byChannel[ch], blocks)
+				if err != nil {
+					return err
+				}
+				atts = append(atts, OutboundAttachment{
+					Filename:    fmt.Sprintf("report-digest-%s-%s.pdf", period, occDate),
+					ContentType: "application/pdf",
+					Data:        pdf,
+				})
+				csvs, err := s.digestCSVAttachments(ctx, tx, byChannel[ch], rng)
+				if err != nil {
+					return err
+				}
+				atts = append(atts, csvs...)
+			}
+			body := renderDigestBody(school, periodWord, rng, byChannel[ch], blocks, note)
 			for _, rec := range recips {
 				uid, err := uuid.Parse(rec.UserID)
 				if err != nil {
@@ -530,6 +556,7 @@ func (s *Server) SendReportDigest(ctx context.Context, inst uuid.UUID, period st
 					ToUserID:      &u,
 					SourceKind:    "report_digest",
 					OccurrenceKey: period + ":" + ch + ":" + occDate,
+					Attachments:   atts,
 				})
 				if err != nil {
 					// A recipient with no address for this channel, or a channel
@@ -555,12 +582,137 @@ func (s *Server) queueDigestMessage(ctx context.Context, tx pgx.Tx, inst uuid.UU
 // renderDigestBody assembles the plain-text body for one channel's message from
 // the report blocks it carries. Plain text so it reads the same over SMS as
 // over email; the sections a channel does not carry are simply absent.
-func renderDigestBody(school, periodWord string, rng digestRange, reports []string, blocks map[string]string) string {
+func renderDigestBody(school, periodWord string, rng digestRange, reports []string, blocks map[string]string, note string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s report digest for %s\n%s\n\n", periodWord, school, rng.Label)
 	for _, k := range reports {
 		fmt.Fprintf(&b, "%s\n%s\n\n", digestReportLabels[k], blocks[k])
 	}
+	// The note points a reader on SMS, WhatsApp or in-app at the email, which
+	// alone carries the PDF summary and the CSV data files. Empty for email
+	// itself, whose attachments are the thing being pointed at.
+	if note != "" {
+		b.WriteString(note)
+		b.WriteString("\n\n")
+	}
 	b.WriteString(school)
 	return b.String()
+}
+
+// digestOtherChannelNote is the one line a non-email digest carries so its
+// reader knows the full report went somewhere they can open it.
+const digestOtherChannelNote = "The full PDF report and data files were sent to the email address on file."
+
+// --- attachments: the PDF summary and the CSV data ---------------------------
+
+/*
+digestExportsFor maps a digest report key to the export datasets whose CSV
+carries its underlying data.
+
+	The digest body and the PDF summarise a report in a sentence; a board member
+	who wants the rows behind "Collected: Rs X across N receipts" opens the CSV
+	beside it. The datasets are the same exportable queries the download screen
+	offers, reused rather than duplicated so the digest's data and a manual
+	export can never drift. A key with no natural tabular dataset -- there is
+	none today -- maps to nothing and is summarised by the PDF alone.
+*/
+var digestExportsFor = map[string][]string{
+	"attendance_summary":     {"attendance"},
+	"fees_collected_dues":    {"collections", "fees_by_student", "defaulters"},
+	"admissions_enrolment":   {"admissions"},
+	"staff_attendance_leave": {"staff-attendance", "leave"},
+}
+
+/*
+digestCSVAttachments builds one CSV OutboundAttachment per export dataset the
+enabled reports map to.
+
+	Each is the exportable spec's own query run in the digest's tenant
+	transaction, written with the same UTF-8 BOM and header row as the download
+	screen's exportCSV so Excel opens Telugu names correctly. The bytes are
+	buffered rather than streamed because they become an email attachment, not
+	an HTTP response. A dataset that fails to read is skipped with the rest
+	continuing -- a digest with three of four CSVs is better than no digest.
+*/
+func (s *Server) digestCSVAttachments(ctx context.Context, tx pgx.Tx, enabled []string, rng digestRange) ([]OutboundAttachment, error) {
+	dateRange := rng.ToS
+	if rng.Period == "weekly" {
+		dateRange = rng.FromS + "_" + rng.ToS
+	}
+
+	// Distinct datasets in stable order: two reports could name the same one.
+	seen := map[string]bool{}
+	var slugs []string
+	for _, k := range enabled {
+		for _, slug := range digestExportsFor[k] {
+			if !seen[slug] {
+				seen[slug] = true
+				slugs = append(slugs, slug)
+			}
+		}
+	}
+
+	var out []OutboundAttachment
+	for _, slug := range slugs {
+		spec, ok := exportable[slug]
+		if !ok {
+			continue
+		}
+		data, err := digestCSVBytes(ctx, tx, spec)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, OutboundAttachment{
+			Filename:    fmt.Sprintf("%s-%s.csv", slug, dateRange),
+			ContentType: "text/csv; charset=utf-8",
+			Data:        data,
+		})
+	}
+	return out, nil
+}
+
+// digestCSVBytes runs one export spec's query into a CSV buffer, header first,
+// mirroring exportCSV's BOM-and-header shape so the file behaves like a manual
+// download.
+func digestCSVBytes(ctx context.Context, tx pgx.Tx, spec exportSpec) ([]byte, error) {
+	var buf bytes.Buffer
+	// Excel opens a UTF-8 file as ANSI unless it sees a BOM, which turns Telugu
+	// names into mojibake for exactly the schools that need them most.
+	buf.Write([]byte{0xEF, 0xBB, 0xBF})
+	cw := csv.NewWriter(&buf)
+	if err := cw.Write(spec.header); err != nil {
+		return nil, err
+	}
+
+	rows, err := tx.Query(ctx, spec.query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	n := len(spec.header)
+	for rows.Next() {
+		vals, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+		rec := make([]string, n)
+		for i := 0; i < n && i < len(vals); i++ {
+			if vals[i] == nil {
+				continue
+			}
+			rec[i] = strings.TrimSpace(fmt.Sprint(vals[i]))
+		}
+		if err := cw.Write(rec); err != nil {
+			return nil, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	cw.Flush()
+	if err := cw.Error(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
