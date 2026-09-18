@@ -190,7 +190,7 @@ func (s *Server) transferRoles(w http.ResponseWriter, r *http.Request) {
 		// does not matter to a reader — nobody sees the middle — but it means
 		// a failure on the grant leaves the leaver holding the job rather than
 		// nobody holding it.
-		if _, err := setUserRoles(r, tx, id.InstitutionID, to.String(), moved, false); err != nil {
+		if _, err := setUserRoles(r, tx, id.InstitutionID, to.String(), moved, nil, false); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `

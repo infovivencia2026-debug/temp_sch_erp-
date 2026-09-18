@@ -413,14 +413,13 @@ func (s *Server) Routes() http.Handler {
 		})
 
 		// Class 360 — a section-centric, read-only overview (the mirror of
-		// Student 360). Either a student read or an attendance read opens it: an
-		// admin holds the widener, a class/subject teacher the scoped form. The
-		// section scope inside each handler does the confinement, so both the
-		// admin screen and the teacher's own-classes screen share one endpoint.
+		// Student 360). Gated on its own dedicated permission so a school can
+		// grant or withhold it independently of Students and Attendance read.
+		// The section scope inside each handler still does the confinement, so
+		// both the admin screen and the teacher's own-classes screen share one
+		// endpoint: a teacher sees their sections, a widener-holder sees all.
 		r.Route("/class", func(r chi.Router) {
-			r.Use(httpx.RequireAnyPermission(
-				rbac.StudentsRead, rbac.StudentsReadAll,
-				rbac.AttendanceRead, rbac.AttendanceReadAll))
+			r.Use(httpx.RequirePermission(rbac.Class360Read))
 			r.Get("/sections", s.listClassSections)
 			r.Get("/{sectionId}/overview", s.getClassOverview)
 		})

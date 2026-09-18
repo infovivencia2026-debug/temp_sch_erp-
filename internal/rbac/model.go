@@ -149,6 +149,16 @@ var Groups = []Group{
 		ScopeNote: "Widening to the whole school lets this person mark any section, not only their own.",
 	},
 	{
+		// The section-centric overview, the mirror of Student 360. A pure
+		// visibility group: one read key, no manage rung, and a reach that
+		// follows the person's posting rather than the role.
+		Key: "class360", Name: "Class 360", Band: BandCore,
+		Blurb:     "The one-page view of a section: roster, attendance, results, timetable and fees.",
+		View:      []string{Class360Read},
+		Scopes:    fixed("assigned_classes"),
+		ScopeNote: "The sections this person can open follow their Students/Attendance data scope: assigned classes for a teacher, and every section for leadership and admin roles that hold the institution widener.",
+	},
+	{
 		Key: "academics", Name: "Classes & subjects", Band: BandCore,
 		Blurb:     "The academic structure: classes, sections, subjects and allocations.",
 		View:      []string{AcademicsRead},

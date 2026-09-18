@@ -42,6 +42,12 @@ type userDetail struct {
 	Permissions int        `json:"permissions"`
 	LastLoginAt *string    `json:"last_login_at,omitempty"`
 	Sessions    int        `json:"active_sessions"`
+	// CampusIDs are the specific campuses this account is posted to. Empty means
+	// every campus, which the schema stores as a NULL campus_id on the role row;
+	// AllCampuses says which of the two "empty" means so the edit form can tell
+	// "posted everywhere" apart from "no roles at all".
+	CampusIDs   []string `json:"campus_ids"`
+	AllCampuses bool     `json:"all_campuses"`
 }
 
 // getUser returns one account with every role it holds.
@@ -55,6 +61,7 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 
 	var out userDetail
 	out.Roles = []userRole{}
+	out.CampusIDs = []string{}
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT u.id::text, u.full_name, u.email::text, u.phone, u.status,
@@ -69,7 +76,7 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 				&out.LastLoginAt, &out.Permissions, &out.Sessions); err != nil {
 			return err
 		}
-		return scanInto(r.Context(), tx, `
+		if err := scanInto(r.Context(), tx, `
 			SELECT r.key, r.name FROM user_roles ur
 			  JOIN roles r ON r.id = ur.role_id
 			 WHERE ur.user_id = '`+target.String()+`'::uuid
@@ -85,6 +92,29 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 				}
 				out.Roles = append(out.Roles, v)
 				return nil
+			}); err != nil {
+			return err
+		}
+		/* The campuses this account is posted to.
+
+		   A NULL campus_id on any row means institution-wide, which wins over any
+		   specific grant — the same rule the scope resolver applies when it unions
+		   these rows on the read side. So a single NULL row makes AllCampuses true
+		   and the specific list irrelevant. */
+		return scanInto(r.Context(), tx, `
+			SELECT DISTINCT campus_id::text FROM user_roles
+			 WHERE user_id = '`+target.String()+`'::uuid`,
+			func(rows pgx.Rows) error {
+				var c *string
+				if err := rows.Scan(&c); err != nil {
+					return err
+				}
+				if c == nil {
+					out.AllCampuses = true
+				} else {
+					out.CampusIDs = append(out.CampusIDs, *c)
+				}
+				return nil
 			})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -95,6 +125,11 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// Institution-wide wins, so a stray specific grant alongside a NULL row is
+	// not reported as a campus restriction that is not really in force.
+	if out.AllCampuses {
+		out.CampusIDs = []string{}
+	}
 	httpx.JSON(w, http.StatusOK, out)
 }
 
@@ -103,9 +138,55 @@ type createUserRequest struct {
 	Email    string   `json:"email,omitempty"`
 	Phone    string   `json:"phone,omitempty"`
 	RoleKeys []string `json:"role_keys"`
+	// CampusIDs posts the account to specific campuses. Empty or absent means
+	// every campus, today's behaviour. See resolveCampusIDs.
+	CampusIDs []string `json:"campus_ids,omitempty"`
 	// SetPassword issues a temporary password immediately, for the common case
 	// of an administrator creating an account and handing it over in person.
 	SetPassword bool `json:"set_password"`
+}
+
+var (
+	errBadCampus     = errors.New("each campus_id must be a valid uuid")
+	errUnknownCampus = errors.New("one of the campuses is not part of this school")
+)
+
+/* resolveCampusIDs turns the campus_ids payload into the ids to write.
+
+   Empty (or a platform user, who has no campuses) means every campus, which the
+   schema stores as a NULL campus_id on the role row — today's behaviour, and
+   what the scope resolver reads as "institution-wide". A non-empty list is
+   parsed, de-duplicated and checked against the caller's own campuses: RLS
+   already scopes the campuses table to the institution, so a count that comes up
+   short means an id the caller has no business naming, answered as a 400 rather
+   than a foreign-key 500 at insert time. */
+func (s *Server) resolveCampusIDs(r *http.Request, id *httpx.Identity, raw []string) ([]uuid.UUID, error) {
+	if id.InstitutionID == uuid.Nil || len(raw) == 0 {
+		return nil, nil
+	}
+	seen := make(map[uuid.UUID]bool, len(raw))
+	ids := make([]uuid.UUID, 0, len(raw))
+	for _, s := range raw {
+		u, err := uuid.Parse(strings.TrimSpace(s))
+		if err != nil {
+			return nil, errBadCampus
+		}
+		if !seen[u] {
+			seen[u] = true
+			ids = append(ids, u)
+		}
+	}
+	var found int
+	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(),
+			`SELECT count(*) FROM campuses WHERE id = ANY($1)`, ids).Scan(&found)
+	}); err != nil {
+		return nil, err
+	}
+	if found != len(ids) {
+		return nil, errUnknownCampus
+	}
+	return ids, nil
 }
 
 type createUserResponse struct {
@@ -150,6 +231,15 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "assign at least one role, or the account can see nothing")
 		return
 	}
+	campusIDs, err := s.resolveCampusIDs(r, id, req.CampusIDs)
+	if err != nil {
+		if errors.Is(err, errBadCampus) || errors.Is(err, errUnknownCampus) {
+			httpx.BadRequest(w, r, err.Error())
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
 
 	/* The same first password every other account on this system gets: the
 	   number or address the person signs in with. One rule for everybody, so
@@ -173,7 +263,7 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 	if temp != "" && !known {
 		enabled = s.platformChannels(r.Context())
 	}
-	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		status := "invited"
 		var hash any
 		if temp != "" {
@@ -201,7 +291,7 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		assigned, err := setUserRoles(r, tx, id.InstitutionID, out.ID, req.RoleKeys, false)
+		assigned, err := setUserRoles(r, tx, id.InstitutionID, out.ID, req.RoleKeys, campusIDs, false)
 		if err != nil {
 			return err
 		}
@@ -250,6 +340,9 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 
 type setRolesRequest struct {
 	RoleKeys []string `json:"role_keys"`
+	// CampusIDs posts the account to specific campuses. Empty or absent means
+	// every campus. See resolveCampusIDs.
+	CampusIDs []string `json:"campus_ids,omitempty"`
 }
 
 // setUserRoles replaces a user's role assignments.
@@ -258,9 +351,12 @@ type setRolesRequest struct {
 // revokes it. Returns the keys that were applied, which will differ from the
 // request if a key does not exist.
 func setUserRoles(r *http.Request, tx pgx.Tx, instID uuid.UUID,
-	userID string, keys []string, replace bool) ([]string, error) {
+	userID string, keys []string, campusIDs []uuid.UUID, replace bool) ([]string, error) {
 
 	if replace {
+		// Clear every prior row for this user across all campuses before
+		// re-inserting, so switching from all-campuses to specific-campuses (or
+		// back) never leaves a stale NULL-campus or per-campus row behind.
 		if _, err := tx.Exec(r.Context(),
 			`DELETE FROM user_roles WHERE user_id = $1::uuid`, userID); err != nil {
 			return nil, err
@@ -312,12 +408,34 @@ func setUserRoles(r *http.Request, tx pgx.Tx, instID uuid.UUID,
 		if roleInst == nil {
 			owner = nil
 		}
-		if _, err := tx.Exec(r.Context(), `
-			INSERT INTO user_roles (institution_id, user_id, role_id)
-			VALUES ($1,$2::uuid,$3)
-			ON CONFLICT (user_id, role_id) WHERE campus_id IS NULL DO NOTHING`,
-			owner, userID, roleID); err != nil {
-			return nil, err
+		/* Institution-wide, or one row per campus.
+
+		   Empty campus set keeps today's behaviour: a single row with campus_id
+		   NULL, deduplicated by the partial index (user_id, role_id) WHERE
+		   campus_id IS NULL. A platform role (roleInst == nil) is always written
+		   this way — it spans every tenant, so pinning it to a campus is
+		   meaningless. Otherwise one row per (role, campus), deduplicated by the
+		   unique index on (user_id, role_id, campus_id). The scope resolver
+		   unions campus_id across a user's rows, so a school reading these back
+		   sees exactly the campuses named here. */
+		if len(campusIDs) == 0 || roleInst == nil {
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO user_roles (institution_id, user_id, role_id)
+				VALUES ($1,$2::uuid,$3)
+				ON CONFLICT (user_id, role_id) WHERE campus_id IS NULL DO NOTHING`,
+				owner, userID, roleID); err != nil {
+				return nil, err
+			}
+		} else {
+			for _, campusID := range campusIDs {
+				if _, err := tx.Exec(r.Context(), `
+					INSERT INTO user_roles (institution_id, user_id, role_id, campus_id)
+					VALUES ($1,$2::uuid,$3,$4)
+					ON CONFLICT (user_id, role_id, campus_id) DO NOTHING`,
+					owner, userID, roleID, campusID); err != nil {
+					return nil, err
+				}
+			}
 		}
 		applied = append(applied, key)
 	}
@@ -352,6 +470,15 @@ func (s *Server) setRoles(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "a user needs at least one role; suspend the account instead")
 		return
 	}
+	campusIDs, err := s.resolveCampusIDs(r, id, req.CampusIDs)
+	if err != nil {
+		if errors.Is(err, errBadCampus) || errors.Is(err, errUnknownCampus) {
+			httpx.BadRequest(w, r, err.Error())
+			return
+		}
+		httpx.Internal(w, r, err)
+		return
+	}
 	// Removing your own last administrative role locks you out of the screen
 	// you are standing on, and recovering needs shell access.
 	if target == id.UserID {
@@ -376,7 +503,7 @@ func (s *Server) setRoles(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		var err error
-		applied, err = setUserRoles(r, tx, id.InstitutionID, target.String(), req.RoleKeys, true)
+		applied, err = setUserRoles(r, tx, id.InstitutionID, target.String(), req.RoleKeys, campusIDs, true)
 		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {

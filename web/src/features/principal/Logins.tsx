@@ -54,6 +54,17 @@ interface AdminUser {
   record: string
 }
 
+interface CampusRow {
+  id: string
+  name: string
+  code: string
+}
+
+interface UserDetail {
+  campus_ids: string[]
+  all_campuses: boolean
+}
+
 interface SessionRow {
   id: string
   user_id: string
@@ -478,14 +489,47 @@ function AccountForm({
   const [sent, setSent] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  /* The campuses this account is posted to. Empty means every campus — the
+     default, and the whole of a single-campus school. The selector is only
+     shown once there is more than one campus to choose between (see below), so
+     for most schools this stays empty and nothing changes. */
+  const campusList = useQuery({
+    queryKey: ['setup-campuses'],
+    queryFn: () => api.get<List<CampusRow>>('/api/v1/setup/campuses'),
+  })
+  const campuses = campusList.data?.items ?? []
+  const multiCampus = campuses.length > 1
+
+  /* Prefill when editing. The list row does not carry campuses, so the account
+     detail is fetched for its campus_ids; until it arrives the state is null so
+     an empty payload is never saved over a real restriction. */
+  const detail = useQuery({
+    enabled: editing,
+    queryKey: ['user-detail', user?.id],
+    queryFn: () => api.get<UserDetail>(`/api/v1/admin/users/${user!.id}`),
+  })
+  const [campusIDs, setCampusIDs] = useState<string[] | null>(editing ? null : [])
+  if (editing && campusIDs === null && detail.data) {
+    setCampusIDs(detail.data.all_campuses ? [] : (detail.data.campus_ids ?? []))
+  }
+  const toggleCampus = (id: string) =>
+    setCampusIDs((prev) => {
+      const set = new Set(prev ?? [])
+      if (set.has(id)) set.delete(id)
+      else set.add(id)
+      return [...set]
+    })
+
   const save = useMutation({
     mutationFn: async () => {
+      const campus_ids = campusIDs ?? []
       if (editing) {
-        return api.put(`/api/v1/admin/users/${user!.id}/roles`, { role_keys: picked })
+        return api.put(`/api/v1/admin/users/${user!.id}/roles`, { role_keys: picked, campus_ids })
       }
       return api.post<{ temporary_password?: string; sent_by?: string; sent_to?: string }>('/api/v1/admin/users', {
         ...f,
         role_keys: picked,
+        campus_ids,
         set_password: true,
       })
     },
@@ -590,6 +634,57 @@ function AccountForm({
         )}
 
         <RolePicker value={picked} onChange={setPicked} roles={roles} presets={presets} />
+
+        {/* Campuses, only when there is more than one to choose from — a
+            single-campus school has nothing to pick and the row would be noise.
+            Nothing selected means every campus, which is what most accounts
+            want and what the server stores as an institution-wide grant. */}
+        {multiCampus && (!editing || campusIDs !== null) && (
+          <div className="border-t pt-5">
+            <div className="mb-2 flex items-baseline justify-between">
+              <p className="eyebrow">Campuses</p>
+              <span className="text-[13px] text-muted-foreground">
+                {(campusIDs ?? []).length === 0
+                  ? 'All campuses'
+                  : `${(campusIDs ?? []).length} of ${campuses.length}`}
+              </span>
+            </div>
+            <p className="mb-3 text-[13px] text-muted-foreground">
+              Which campuses this account can reach. Leave all unselected to give it every campus.
+            </p>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {campuses.map((c) => {
+                const on = (campusIDs ?? []).includes(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleCampus(c.id)}
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                      on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
+                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                      )}
+                    >
+                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px]">{c.name}</span>
+                      <span className="mt-0.5 block font-mono text-[12px] text-muted-foreground">
+                        {c.code}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {editing && <PermissionOverrides user={user!} pickedRoles={picked} roles={roles} />}
 

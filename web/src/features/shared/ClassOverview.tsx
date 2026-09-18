@@ -129,10 +129,17 @@ export default function ClassOverview() {
   const navigate = useNavigate()
   const [sectionId, setSectionId] = useState('')
 
+  /* Class 360 has its own permission now, so the screen guards on it directly
+     rather than inferring access from whatever the section list came back with.
+     Without it there is nothing to fetch — the server would refuse every call —
+     so the request is disabled and the no-access message stands in its place. */
+  const mayOpen = can('academics.class360.view')
+
   /* Only the sections the caller may open — the server scopes this, so a class
      teacher sees their own and an admin sees the school, from one screen. */
   const sections = useQuery({
     queryKey: ['class-sections'],
+    enabled: mayOpen,
     queryFn: () => api.get<List<SectionRow>>('/api/v1/class/sections'),
   })
 
@@ -173,7 +180,12 @@ export default function ClassOverview() {
         }
       />
       <PageBody>
-        {sections.isLoading ? (
+        {!mayOpen ? (
+          <EmptyState
+            title="You do not have access to Class 360."
+            body="This overview is granted separately. Ask an administrator to enable Class 360 for your role."
+          />
+        ) : sections.isLoading ? (
           <Loading />
         ) : sections.error ? (
           <ErrorState error={sections.error} />

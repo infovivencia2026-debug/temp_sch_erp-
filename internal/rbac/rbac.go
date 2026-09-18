@@ -46,6 +46,11 @@ const (
 	   the marks publish them, which is the state this replaces. */
 	ReportCardsPublish = "academics.reportcards.publish"
 	HomeworkWrite      = "academics.homework.write"
+	// Class360Read gates the section-centric Class 360 overview independently
+	// of Students and Attendance read. The screen used to open on any of those
+	// four reads, which meant a school could not grant or withhold Class 360 on
+	// its own; this is the dedicated key that lets an admin do exactly that.
+	Class360Read = "academics.class360.view"
 
 	// finance
 	FeesRead      = "finance.fees.read"
@@ -167,6 +172,7 @@ var All = []Permission{
 	{ReportCardsGenerate, "academics", "Generate report cards"},
 	{ReportCardsPublish, "academics", "Approve and release report cards to families"},
 	{HomeworkWrite, "academics", "Set homework and review submissions"},
+	{Class360Read, "academics", "Open the Class 360 section overview"},
 
 	{FeesRead, "finance", "View fee heads and structures"},
 	{FeesWrite, "finance", "Manage fee heads, structures and concessions"},
@@ -344,6 +350,7 @@ var SystemRoles = []Role{
 		AttendanceRead, AttendanceReadAll, AttendanceWrite, AttendanceWriteAny,
 		ExamsRead, ExamsWrite, ExamsApprove, MarksWrite, ReportCardsGenerate, HomeworkWrite,
 		DisciplineWrite, EmployeesRead, ReportsRead, AnnouncementsWrite,
+		Class360Read,
 		SelfProfileRead, SelfProfileWrite}},
 	{"it_admin", "IT Administrator", []string{
 		UsersRead, UsersWrite, RolesRead, RolesWrite, SessionsRevoke,
@@ -369,7 +376,7 @@ var SystemRoles = []Role{
 		StudentsRead, AcademicsRead, AcademicsWrite, TimetableRead, TimetableWrite,
 		AttendanceRead, AttendanceWrite, HomeworkWrite,
 		ExamsRead, ExamsApprove, MarksWrite, ReportsRead,
-		EmployeesRead, LeaveApprove, AnnouncementsWrite,
+		EmployeesRead, LeaveApprove, AnnouncementsWrite, Class360Read,
 		/* What their own teachers said to families, and what families said
 		   back. A head answering for a subject has to be able to see the
 		   conversation that led to a complaint; the scope resolver narrows it
@@ -390,6 +397,7 @@ var SystemRoles = []Role{
 	{"faculty", "Faculty / Teacher", []string{
 		StudentsRead, AcademicsRead, TimetableRead, AttendanceRead, AttendanceWrite,
 		ExamsRead, MarksWrite, HomeworkWrite, AnnouncementsWrite, DisciplineWrite,
+		Class360Read,
 		/* Being a section's class teacher is a fact about the section, not a
 		   role somebody is given. A teacher who is class teacher of 6-B held
 		   the plain "teacher" role and met "missing permission" on the report
@@ -404,7 +412,7 @@ var SystemRoles = []Role{
 	{"class_teacher", "Class Teacher", []string{
 		StudentsRead, StudentsWrite, AcademicsRead, TimetableRead,
 		AttendanceRead, AttendanceWrite, ExamsRead, MarksWrite,
-		ReportCardsGenerate, HomeworkWrite, DisciplineWrite,
+		ReportCardsGenerate, HomeworkWrite, DisciplineWrite, Class360Read,
 		SelfProfileRead, SelfProfileWrite}},
 	// AttendanceRead is what the endpoints gate on; AttendanceReadAll only
 	// widens the rows they return. This role held the widener without the
@@ -413,7 +421,7 @@ var SystemRoles = []Role{
 	{"exam_controller", "Examination Controller", []string{
 		StudentsRead, StudentsReadAll, AttendanceRead, AttendanceReadAll,
 		AcademicsRead, ExamsRead, ExamsWrite, MarksWrite,
-		ReportCardsGenerate, ReportsRead, SelfProfileRead, SelfProfileWrite}},
+		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
 		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, ReportsRead,
