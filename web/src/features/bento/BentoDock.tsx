@@ -605,7 +605,7 @@ export function BentoDock() {
         {!phone && (
         <span
           ref={stripRef}
-          className="flex min-w-0 items-center gap-0.5 [overflow:visible]"
+          className="flex min-w-0 items-center gap-1.5 [overflow:visible]"
         >
           {/* SHOW WHAT FITS, AND SAY HOW MANY DID NOT.
 
