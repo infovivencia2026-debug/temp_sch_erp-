@@ -103,6 +103,8 @@ function fmtStamp(iso: string): string {
 export default function AbsenceFollowup() {
   const [onDate, setOnDate] = useState(today)
   const [sectionId, setSectionId] = useState('')
+  // Find one child across the day's absentees by name or admission number.
+  const [nameQ, setNameQ] = useState('')
 
   const params = new URLSearchParams({ on_date: onDate })
   if (sectionId) params.set('section_id', sectionId)
@@ -153,6 +155,9 @@ export default function AbsenceFollowup() {
                 options={allSections}
               />
             </Field>
+            <Field label="Search">
+              <Input value={nameQ} onChange={setNameQ} placeholder="Name or admission no." />
+            </Field>
           </>
         }
       />
@@ -172,16 +177,40 @@ export default function AbsenceFollowup() {
               {total} absent · {pending} pending ·{' '}
               {sections.filter((s) => s.done).length}/{sections.length} sections done
             </p>
-            {sections
-            .filter((s) => s.students.length > 0)
-            .map((s) => (
-              <SectionCard
-                key={`${s.section_id}:${onDate}`}
-                section={s}
-                onDate={onDate}
-                filterSectionId={sectionId}
-              />
-            ))}
+            {(() => {
+              /* Name/admission search narrows the rows shown, across every
+                 section, without touching what a section's Done saves (that
+                 works off the edits a person actually made, not the list). A
+                 section with no match after filtering drops out. */
+              const nq = nameQ.trim().toLowerCase()
+              const shown = nq
+                ? sections
+                    .map((s) => ({
+                      ...s,
+                      students: s.students.filter(
+                        (st) =>
+                          st.name.toLowerCase().includes(nq) ||
+                          st.admission_no.toLowerCase().includes(nq),
+                      ),
+                    }))
+                    .filter((s) => s.students.length > 0)
+                : sections.filter((s) => s.students.length > 0)
+              if (nq && shown.length === 0) {
+                return (
+                  <p className="text-[13px] text-muted-foreground">
+                    No absentee matches “{nameQ}” on this day.
+                  </p>
+                )
+              }
+              return shown.map((s) => (
+                <SectionCard
+                  key={`${s.section_id}:${onDate}`}
+                  section={s}
+                  onDate={onDate}
+                  filterSectionId={sectionId}
+                />
+              ))
+            })()}
           </>
         )}
       </PageBody>

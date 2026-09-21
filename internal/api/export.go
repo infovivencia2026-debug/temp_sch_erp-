@@ -354,6 +354,43 @@ var exportable = map[string]exportSpec{
 		         WHERE st.status = 'active' AND iv.gross IS NOT NULL
 		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no`,
 	},
+	/* THE MORNING FOLLOW-UP, AS A RECORD.
+
+	   Every absentee the office called about, day by day: which child, in which
+	   section, the numbers that were rung, whether the call was made, the reason
+	   the parent gave, and who on the staff followed it up. The screen reviews one
+	   day at a time; this is the file for a range — the month a board asks for, or
+	   the trail behind a child whose attendance is in question. One row per child
+	   per day a follow-up was recorded. */
+	"absentee_followups": {
+		title:  "Absentee follow-ups",
+		about:  "Every absence follow-up by date: child, section, the numbers called, whether they were reached, the reason and who followed up.",
+		perm:   "academics.attendance.read.all",
+		header: []string{"Date", "Admission No", "Student", "Class", "Section", "Guardian numbers", "Call status", "Parent response", "Followed up by"},
+		query: `SELECT to_char(f.on_date,'DD/MM/YYYY'),
+		               st.admission_no, concat_ws(' ', st.first_name, st.last_name),
+		               COALESCE(c.name,''), COALESCE(sec.name,''),
+		               COALESCE(ph.phones,''),
+		               f.call_status, COALESCE(f.parent_response,''),
+		               COALESCE(u.full_name,'')
+		          FROM student_absence_followup f
+		          JOIN students st ON st.id = f.student_id
+		          LEFT JOIN LATERAL (
+		              SELECT e.class_id, e.section_id FROM enrollments e
+		               WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+		          ) en ON true
+		          LEFT JOIN classes  c   ON c.id = en.class_id
+		          LEFT JOIN sections sec ON sec.id = en.section_id
+		          LEFT JOIN LATERAL (
+		              SELECT string_agg(DISTINCT g.relation||': '||g.phone, ', ') AS phones
+		                FROM student_guardians sg
+		                JOIN guardians g ON g.id = sg.guardian_id
+		               WHERE sg.student_id = st.id AND COALESCE(g.phone,'') <> ''
+		          ) ph ON true
+		          LEFT JOIN users u ON u.id = f.updated_by
+		         WHERE f.on_date >= CURRENT_DATE - INTERVAL '180 days'
+		         ORDER BY f.on_date DESC, c.level NULLS LAST, sec.name, st.admission_no`,
+	},
 	"attendance": {
 		title:  "Student attendance",
 		about:  "The register, day by day.",
