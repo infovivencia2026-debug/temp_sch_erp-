@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 408 features. */
+/** 23 roles, 409 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -103,6 +103,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.support.support', slug: 'support', name: 'Support', scope: 'platform', tier: 'core', summary: 'Tickets raised by schools, with the tenant, severity, owner and time open.' },
           { key: 'seller_admin.support.audit', slug: 'audit', name: 'Audit', scope: 'platform', tier: 'core', summary: 'Act as a school\'s administrator to reproduce a fault, with every such session recorded and visible to that school.' },
+          { key: 'seller_admin.support.support_team', slug: 'support_team', name: 'Support Team', scope: 'platform', tier: 'core', summary: 'Create and list the vendor\'s own support-desk logins — read-only platform accounts that reach across schools to reproduce faults but see no child\'s records. Add one with a name and an email or phone, and hand over the one-time password shown once.' },
         ],
       },
     ],

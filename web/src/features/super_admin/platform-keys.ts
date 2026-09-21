@@ -53,6 +53,9 @@ export const platformKeys = {
   // The vendor's own back office
   'seller_admin.support.support': screen(() => import('../seller/SupportTickets')),
   'seller_admin.support.audit': screen(() => import('../seller/Impersonation')),
+  // The vendor's own support-desk logins — read-only platform (support_admin)
+  // accounts, created and listed here rather than only from the CLI.
+  'seller_admin.support.support_team': screen(() => import('../seller/SupportTeam')),
   'seller_admin.usage_health.adoption_metrics': screen(() => import('../seller/Adoption')),
   // What each school uses against what the installation costs to run.
   'seller_admin.usage_health.usage_cost': screen(() => import('../seller/UsageCost')),

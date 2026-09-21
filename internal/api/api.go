@@ -1338,6 +1338,13 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/tenants", s.provisionTenant)
 			r.Put("/tenants/{id}/subscription", s.setSubscription)
 			r.Post("/tenants/{id}/reset-admin", s.resetTenantAdmin)
+			/* The vendor's own support-team logins — see support_accounts.go.
+			   Platform (institution_id NULL) accounts holding only the read-only
+			   support_admin role. Inside /seller so it inherits the
+			   platform.tenants.write gate; each handler re-checks
+			   PlatformAdmin so a tenant admin is refused. */
+			r.Get("/support-accounts", s.listSupportAccounts)
+			r.Post("/support-accounts", s.createSupportAccount)
 			// The recharge queue: schools asking for more messages.
 			s.mountSellerRecharge(r)
 			r.Get("/plans", s.listPlans)

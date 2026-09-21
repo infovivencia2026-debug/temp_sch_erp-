@@ -85,6 +85,30 @@ func SeedInstitution(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 	return nil
 }
 
+// EnsurePlatformRole installs one platform system role against the NULL
+// institution, whatever its default/optional standing.
+//
+// SeedInstitution(uuid.Nil) seeds the default platform roles — super_admin and
+// seller_admin — but skips the optional ones a platform does not already have,
+// and support_admin is optional. The support-team console is the thing that
+// first needs that role to exist, so it seeds it on demand here rather than
+// making an operator run a migration first. Idempotent, through upsertRole.
+func EnsurePlatformRole(ctx context.Context, tx pgx.Tx, roleKey string) (uuid.UUID, error) {
+	if !PlatformRoles[roleKey] {
+		return uuid.Nil, fmt.Errorf("%s is not a platform role", roleKey)
+	}
+	var role Role
+	for _, r := range SystemRoles {
+		if r.Key == roleKey {
+			role = r
+		}
+	}
+	if role.Key == "" {
+		return uuid.Nil, fmt.Errorf("unknown role %q", roleKey)
+	}
+	return upsertRole(ctx, tx, uuid.Nil, role)
+}
+
 // InstallRole adds one optional system role to a school that does not have it.
 //
 // Returns the role id and whether it was newly created, so the caller can tell
