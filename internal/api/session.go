@@ -66,6 +66,14 @@ type institution struct {
 	LogoKey     string `json:"logo_key,omitempty"`
 	FaviconKey  string `json:"favicon_key,omitempty"`
 	AccentColor string `json:"accent_color,omitempty"`
+	// The school's UPI address for fees, carried on the session because the
+	// two screens that draw a code for it -- the family's fee page and the
+	// counter -- already have the session and would otherwise each fetch the
+	// profile for one string. Empty when the school has set none, and then
+	// neither screen offers UPI. The payee name falls back to the school's
+	// name here so callers never have to.
+	UPIVPA       string `json:"upi_vpa,omitempty"`
+	UPIPayeeName string `json:"upi_payee_name,omitempty"`
 }
 
 // subscriptionState is the commercial half of "who am I", alongside the
@@ -214,7 +222,8 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 				       i.timezone, i.locale,
 				       COALESCE(b.display_name,''), COALESCE(b.tagline,''),
 				       COALESCE(NULLIF(b.logo_key,''), i.logo_key, ''), COALESCE(b.favicon_key,''),
-				       COALESCE(b.accent_color,'')
+				       COALESCE(b.accent_color,''),
+				       COALESCE(i.upi_vpa,''), COALESCE(NULLIF(i.upi_payee_name,''), i.name)
 				  FROM institutions i
 				  LEFT JOIN branding_profiles b
 				         ON b.institution_id = i.id AND b.campus_id IS NULL
@@ -222,7 +231,8 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 				Scan(&inst.ID, &inst.Name, &inst.ShortName, &inst.Slug,
 					&inst.PrimaryColor, &inst.Timezone, &inst.Locale,
 					&inst.DisplayName, &inst.Tagline, &inst.LogoKey,
-					&inst.FaviconKey, &inst.AccentColor)
+					&inst.FaviconKey, &inst.AccentColor,
+					&inst.UPIVPA, &inst.UPIPayeeName)
 			if err != nil && err != pgx.ErrNoRows {
 				return err
 			}

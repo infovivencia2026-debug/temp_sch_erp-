@@ -11,6 +11,8 @@ import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { useSession, useCan } from '@/lib/session'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
+import UpiQr from '@/components/UpiQr'
+import { upiNote } from '@/lib/upi'
 
 /* The fee counter. A cashier does exactly four things here: find the student,
    read what they owe, take the money, hand over a printed receipt. Everything
@@ -54,6 +56,12 @@ const MODES = [
 export default function FeeCounter() {
   const toast = useToast()
   const can = useCan()
+  const inst = useSession().institution
+  // Empty when the school has set no UPI address, and then the counter offers
+  // no code -- the mode still exists, because a parent can pay the laminated
+  // card on the desk and the clerk still records it.
+  const upiVpa = inst?.upi_vpa ?? ''
+  const upiPayee = inst?.upi_payee_name || inst?.name || ''
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [studentId, setStudentId] = useState<string | null>(null)
@@ -387,6 +395,44 @@ export default function FeeCounter() {
                       <Select value={mode} onChange={setMode} options={MODES} />
                     </div>
                   </label>
+
+                  {/* THE CODE ON THE COUNTER, WITH THE AMOUNT ALREADY IN IT.
+
+                      Every counter has a laminated QR taped to it and the
+                      parent types the amount. This one carries the amount the
+                      clerk just typed and the admission number, so the parent
+                      types nothing and the bank narration says whose money it
+                      was. The UTR is optional: a receipt must never wait on
+                      it, but it is what reconciliation matches on. */}
+                  {mode === 'upi' && (
+                    <>
+                      <label className="block">
+                        <span className="text-[13px] text-muted-foreground">UPI reference (UTR), optional</span>
+                        <Input value={reference} onChange={setReference} placeholder="The 12-digit UTR from the parent's app" className="mt-1 w-full" />
+                      </label>
+                      {!upiVpa ? (
+                        <p className="text-[12.5px] text-muted-foreground">
+                          No UPI ID is set for the school, so there is no code to show here.
+                          It goes under Setup → School profile.
+                        </p>
+                      ) : amountPaise <= 0 ? (
+                        <p className="text-[12.5px] text-muted-foreground">
+                          Enter the amount and a code for it appears here for the parent to scan.
+                        </p>
+                      ) : (
+                        <div className="rounded-xl border bg-muted/30 p-4">
+                          <p className="mb-3 text-center text-[13px] font-medium">Show the parent this code</p>
+                          <UpiQr
+                            vpa={upiVpa}
+                            payeeName={upiPayee}
+                            amountPaise={amountPaise}
+                            note={upiNote('Fee', l.admission_no)}
+                            size={200}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
 
                   {isCheque && (
                     <>

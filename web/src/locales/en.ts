@@ -314,6 +314,15 @@ export const en = {
   'portal.fees.col_reference': 'Reference',
   'portal.fees.bounced_note':
     'A payment above was returned by the bank, so the amount is still owed. Please contact the office.',
+  'portal.fees.description_due_upi':
+    'For {name}. Pay by UPI below or at the school office — the receipt appears here either way.',
+  'portal.fees.upi_title': 'Pay by UPI',
+  'portal.fees.upi_description': 'Scan with any UPI app — GPay, PhonePe, Paytm, BHIM',
+  'portal.fees.upi_caption':
+    'This pays the school directly. The office records the transfer against this account and the receipt appears here, usually the same day.',
+  'portal.fees.upi_for_invoice': 'This code is for {invoice} only.',
+  'portal.fees.upi_whole': 'Show the whole balance instead',
+  'portal.fees.action_pay_upi': 'Pay {amount} by UPI',
 
   // --- portal / Receipts.tsx ---------------------------------------------
   'portal.receipts.loading': 'Looking up your payments…',
