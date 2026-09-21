@@ -907,7 +907,7 @@ function PermissionOverrides({
     : featureGroups
 
   return (
-    <div className="border-t pt-5">
+    <div className="flex flex-col border-t pt-5">
       <div className="mb-2 flex items-baseline justify-between">
         <p className="eyebrow">Extra permissions</p>
         <span className="text-[13px] text-muted-foreground">
@@ -970,7 +970,7 @@ function PermissionOverrides({
         ))}
       </div>
 
-      <div className="mt-6 border-t pt-5">
+      <div className="order-first mb-5 border-b pb-5">
         <p className="eyebrow mb-1">Individual features (exception — prefer roles)</p>
         <p className="mb-3 text-[13px] text-muted-foreground">
           Normal access should come from a role, which carries a whole workspace. Use this only for a
