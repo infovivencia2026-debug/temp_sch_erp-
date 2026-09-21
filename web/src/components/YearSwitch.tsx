@@ -18,7 +18,7 @@ export function YearSwitch() {
   const options = openYears.some((y) => y.id === year.id) ? openYears : [year, ...openYears]
   return (
     <label
-      className="flex h-8 items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
+      className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
       title="The academic year you are working in. Admissions, sections, fee structures and timetable drafts go into this year."
     >
       <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -30,7 +30,7 @@ export function YearSwitch() {
           const picked = options.find((y) => y.id === e.target.value)
           setYear(picked?.is_current ? null : e.target.value)
         }}
-        className="max-w-[9rem] cursor-pointer truncate bg-transparent font-[550] text-foreground outline-none"
+        className="min-w-0 max-w-[6.5rem] cursor-pointer truncate bg-transparent font-[550] text-foreground outline-none sm:max-w-[9rem]"
       >
         {options.map((y) => (
           <option key={y.id} value={y.id}>
