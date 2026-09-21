@@ -151,15 +151,17 @@ var (
 	errUnknownCampus = errors.New("one of the campuses is not part of this school")
 )
 
-/* resolveCampusIDs turns the campus_ids payload into the ids to write.
+/*
+resolveCampusIDs turns the campus_ids payload into the ids to write.
 
-   Empty (or a platform user, who has no campuses) means every campus, which the
-   schema stores as a NULL campus_id on the role row — today's behaviour, and
-   what the scope resolver reads as "institution-wide". A non-empty list is
-   parsed, de-duplicated and checked against the caller's own campuses: RLS
-   already scopes the campuses table to the institution, so a count that comes up
-   short means an id the caller has no business naming, answered as a 400 rather
-   than a foreign-key 500 at insert time. */
+	Empty (or a platform user, who has no campuses) means every campus, which the
+	schema stores as a NULL campus_id on the role row — today's behaviour, and
+	what the scope resolver reads as "institution-wide". A non-empty list is
+	parsed, de-duplicated and checked against the caller's own campuses: RLS
+	already scopes the campuses table to the institution, so a count that comes up
+	short means an id the caller has no business naming, answered as a 400 rather
+	than a foreign-key 500 at insert time.
+*/
 func (s *Server) resolveCampusIDs(r *http.Request, id *httpx.Identity, raw []string) ([]uuid.UUID, error) {
 	if id.InstitutionID == uuid.Nil || len(raw) == 0 {
 		return nil, nil
@@ -1148,19 +1150,29 @@ func allCatalogFeatureKeys() map[string]bool {
 	return out
 }
 
-/* featureUnlocks maps a feature SLUG (the part after the last dot in its key) to
-   the capability keys the screen behind that tile gates on. When an admin
-   ENABLES one of these features for an account, those capabilities are unioned
-   into the persisted grant so the person can actually use the screen rather than
-   land on a permission error.
+/*
+featureUnlocks maps a feature SLUG (the part after the last dot in its key) to
 
-   Deliberately small and explicit: only the tiles a school hands out as a
-   one-off exception, keyed by slug so the same screen (Class 360 appears under
-   several workspaces) is covered wherever it is catalogued. */
+	the capability keys the screen behind that tile gates on. When an admin
+	ENABLES one of these features for an account, those capabilities are unioned
+	into the persisted grant so the person can actually use the screen rather than
+	land on a permission error.
+
+	Deliberately small and explicit: only the tiles a school hands out as a
+	one-off exception, keyed by slug so the same screen (Class 360 appears under
+	several workspaces) is covered wherever it is catalogued.
+*/
 var featureUnlocks = map[string][]string{
+	// The consolidated Attendance hub (Take / Present & Absent / Follow-up):
+	// the Take tab marks any section, the other two read the register — so the
+	// grant carries write, write.any and read together.
+	"attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny, rbac.AttendanceRead},
 	// Take attendance: mark the register, for any section (the grantee is not a
-	// timetabled teacher of it).
+	// timetabled teacher of it). Kept for the old slug, still routable.
 	"take_attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny},
+	// Absentee follow-up / Present & absent monitor: read the register.
+	"absentee_followup": {rbac.AttendanceRead},
+	"student_absentees": {rbac.AttendanceRead},
 	// Class 360: the section overview reads the class, its students and their
 	// attendance.
 	"class_360": {rbac.Class360Read, rbac.StudentsRead, rbac.AttendanceRead},
@@ -1288,9 +1300,9 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 // featureCatalogFeature is one grantable menu tile, with the capabilities that
 // granting it also unlocks named the way a person reads them.
 type featureCatalogFeature struct {
-	Key     string   `json:"key"`
-	Name    string   `json:"name"`
-	Summary string   `json:"summary"`
+	Key     string `json:"key"`
+	Name    string `json:"name"`
+	Summary string `json:"summary"`
 	// Unlocks are the human-readable capability descriptions that granting this
 	// feature also confers, so the UI can warn what enabling it widens.
 	Unlocks []string `json:"unlocks"`
