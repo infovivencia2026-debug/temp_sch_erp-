@@ -181,7 +181,23 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 	limit := clampInt(q.Get("limit"), 50, 1, 200)
 	offset := clampInt(q.Get("offset"), 0, 0, 1_000_000)
 	search := strings.TrimSpace(q.Get("q"))
+	/* The working roll by default, not the archive.
+
+	   A left child (transferred, withdrawn, a TC issued) still belongs in the
+	   record — Student 360 opens for them, and the leavers export lists them —
+	   but they have no place on the register a teacher marks today or in the
+	   pickers the office works from. With no status asked for, this returned
+	   EVERY status, so leavers turned up in Take Attendance and every roster.
+	   Default to the active roll; a caller that wants the archive asks for it
+	   explicitly with status=all (NULL filter), and a specific status still
+	   passes straight through. */
 	status := q.Get("status")
+	switch status {
+	case "":
+		status = "active"
+	case "all":
+		status = ""
+	}
 	newThisYear := q.Get("new_this_year") == "1"
 
 	var (
