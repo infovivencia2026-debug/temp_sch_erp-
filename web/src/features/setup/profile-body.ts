@@ -34,9 +34,11 @@ export type ProfileEditableKey = (typeof PROFILE_EDITABLE)[number]
 
 /** The PUT body: only the editable keys, only where the value is set. */
 export function profileBody(
-  ...layers: (Record<string, unknown> | null | undefined)[]
+  // `object`, not Record<string, unknown>: an interface such as Profile has
+  // no index signature and is not assignable to the latter.
+  ...layers: (object | null | undefined)[]
 ): Partial<Record<ProfileEditableKey, unknown>> {
-  const merged: Record<string, unknown> = Object.assign({}, ...layers.map((l) => l ?? {}))
+  const merged = Object.assign({}, ...layers.map((l) => l ?? {})) as Record<string, unknown>
   const out: Partial<Record<ProfileEditableKey, unknown>> = {}
   for (const k of PROFILE_EDITABLE) {
     if (merged[k] !== undefined) out[k] = merged[k]
