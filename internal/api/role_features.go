@@ -241,7 +241,39 @@ func (s *Server) setRoleFeatures(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	/* The change is to the ROLE, so it lands for everyone who holds it — and each
+	   of their resolved identities (the permission set id.Can reads, which is what
+	   the menu is built from) is cached for up to a minute. Drop those caches now
+	   so a newly enabled tile shows on the very next request rather than a minute
+	   later. Best-effort: a miss only means the old one-minute wait. */
+	s.forgetRoleHolders(r, id, roleID)
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+// forgetRoleHolders drops the auth and scope caches for every user holding a
+// role, called after that role's grants change so the change is not held behind
+// the resolve cache.
+func (s *Server) forgetRoleHolders(r *http.Request, id *httpx.Identity, roleID uuid.UUID) {
+	var ids []uuid.UUID
+	_ = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(),
+			`SELECT user_id FROM user_roles WHERE role_id = $1`, roleID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var u uuid.UUID
+			if err := rows.Scan(&u); err != nil {
+				return err
+			}
+			ids = append(ids, u)
+		}
+		return rows.Err()
+	})
+	for _, u := range ids {
+		s.forgetUser(u)
+	}
 }
 
 var errNoWorkspace = errors.New("role has no catalog workspace")

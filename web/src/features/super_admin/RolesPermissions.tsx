@@ -452,9 +452,13 @@ function FeaturesEditor({ roleID }: { roleID: string }) {
       return api.put(`/api/v1/admin/roles/${roleID}/features`, { enable, disable })
     },
     onSuccess: () => {
-      setSaved('Saved. People holding this role pick it up on their next sign-in.')
+      setSaved('Saved. The menu updates on the next page load; people holding this role pick it up right away.')
       qc.invalidateQueries({ queryKey: ['role-features', roleID] })
       qc.invalidateQueries({ queryKey: ['role-grid', roleID] })
+      // The server drops the resolve cache for everyone holding this role, so
+      // refetch the menu here too — if the editor is themselves in that role,
+      // a tile they just enabled appears without a reload.
+      qc.invalidateQueries({ queryKey: ['catalog'] })
     },
   })
 
