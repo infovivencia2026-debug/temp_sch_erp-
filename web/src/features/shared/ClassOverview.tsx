@@ -5,7 +5,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
 } from 'recharts'
 import {
-  GraduationCap, ClipboardCheck, UserCheck, BookOpen, Phone, CalendarClock, Wallet,
+  GraduationCap, ClipboardCheck, UserCheck, BookOpen, Phone, Mail, Wallet,
   ClipboardList, PencilLine, ArrowRightLeft,
 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -48,7 +48,9 @@ interface Contact {
 interface Overview {
   section: { id: string; class: string; section: string; students_count: number }
   class_teacher?: string
-  subject_teachers: { subject: string; teacher: string }[]
+  class_teacher_phone?: string
+  class_teacher_email?: string
+  subject_teachers: { subject: string; teacher: string; phone?: string; email?: string }[]
   students: {
     student_id: string
     name: string
@@ -65,7 +67,15 @@ interface Overview {
     has_marks: boolean
     by_subject: { subject: string; avg_pct: number }[]
   }
-  timetable: { weekday: number | string; period: string | number; subject: string; teacher?: string }[]
+  timetable: {
+    weekday: number | string
+    period: string | number
+    sequence?: number
+    starts?: string
+    ends?: string
+    subject: string
+    teacher?: string
+  }[]
   fees: { visible: boolean; collected_paise?: number; outstanding_paise?: number }
 }
 
@@ -122,6 +132,45 @@ function CallButton({ label, name, phone }: { label: string; name: string; phone
       </span>
     </a>
   )
+}
+
+/* A teacher's phone and email, as small tap-to-contact links under the name.
+   Each link is only drawn when the detail is on file, so the office never meets
+   a dead control; nothing renders at all when both are absent. */
+function TeacherContact({ phone, email }: { phone?: string; email?: string }) {
+  if (!phone && !email) return null
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px]">
+      {phone ? (
+        <a href={`tel:${phone}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+          <Phone className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="font-mono">{phone}</span>
+        </a>
+      ) : null}
+      {email ? (
+        <a href={`mailto:${email}`} className="inline-flex min-w-0 items-center gap-1 text-muted-foreground hover:text-foreground">
+          <Mail className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">{email}</span>
+        </a>
+      ) : null}
+    </div>
+  )
+}
+
+/* The period's own label, cleaned. Names are stored as "Period1", "Period 2",
+   etc., so a bare "Period {name}" read "Period Period1". This collapses a
+   "Period N" name to "PN" and otherwise keeps whatever the school named it. */
+function periodLabel(name: string | number): string {
+  const s = String(name).trim()
+  const m = s.match(/^period\s*0*(\d+)$/i)
+  if (m) return `P${m[1]}`
+  return s
+}
+
+/* The period's time window, "9:00–9:40", drawn only when both ends are known. */
+function periodTime(starts?: string, ends?: string): string {
+  if (starts && ends) return `${starts}–${ends}`
+  return starts || ends || ''
 }
 
 export default function ClassOverview() {
@@ -380,7 +429,12 @@ function OverviewBody({
             <div>
               <p className="eyebrow mb-1.5 text-muted-foreground">Class teacher</p>
               {o.class_teacher ? (
-                <Badge tone="primary">{o.class_teacher}</Badge>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge tone="primary">{o.class_teacher}</Badge>
+                  </div>
+                  <TeacherContact phone={o.class_teacher_phone} email={o.class_teacher_email} />
+                </div>
               ) : (
                 <p className="text-[14px] text-muted-foreground">Not assigned</p>
               )}
@@ -388,11 +442,14 @@ function OverviewBody({
             <div>
               <p className="eyebrow mb-2 text-muted-foreground">Subject teachers</p>
               {o.subject_teachers.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {o.subject_teachers.map((st) => (
-                    <div key={st.subject} className="flex items-center justify-between gap-3 text-[14px]">
-                      <span className="font-medium">{st.subject}</span>
-                      <span className="text-muted-foreground">{st.teacher}</span>
+                    <div key={st.subject} className="text-[14px]">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium">{st.subject}</span>
+                        <span className="text-right text-muted-foreground">{st.teacher || '—'}</span>
+                      </div>
+                      <TeacherContact phone={st.phone} email={st.email} />
                     </div>
                   ))}
                 </div>
@@ -404,7 +461,7 @@ function OverviewBody({
         </Card>
 
         <Card>
-          <CardHeader title="Timetable" description="The week, by day." />
+          <CardHeader title="Timetable" description="The week's grid, by day and period." />
           <div className="p-4">
             {o.timetable.length > 0 ? (
               <Timetable rows={o.timetable} />
@@ -436,50 +493,90 @@ function OverviewBody({
   )
 }
 
-/* The timetable, grouped by weekday. A plain grouped list rather than a grid:
-   the periods a section actually has vary by day, and a list reads on a phone
-   where a matrix would scroll sideways. */
+/* The timetable as a real grid: days down the side, periods across the top.
+   Period columns carry the school's own label and time window as headers
+   ("P1 · 9:00–9:40"), each cell the subject over the teacher. It scrolls
+   sideways inside its own box on a phone rather than breaking the page, and
+   uses a plain HTML table so it renders on the schools' old tablets. */
 function Timetable({ rows }: { rows: Overview['timetable'] }) {
-  const groups = new Map<string, Overview['timetable']>()
+  // The distinct periods (columns), ordered by the server's sequence, then by
+  // start time, then by label — so a section with gaps still lines its days up.
+  const periodMap = new Map<
+    string,
+    { key: string; label: string; time: string; sequence: number }
+  >()
   for (const r of rows) {
-    const key = String(r.weekday)
-    const list = groups.get(key) ?? []
-    list.push(r)
-    groups.set(key, list)
+    const key = String(r.period)
+    if (!periodMap.has(key)) {
+      periodMap.set(key, {
+        key,
+        label: periodLabel(r.period),
+        time: periodTime(r.starts, r.ends),
+        sequence: typeof r.sequence === 'number' ? r.sequence : Number.MAX_SAFE_INTEGER,
+      })
+    }
   }
-  // Order the days as the week runs, keeping whatever ordering the keys sort to.
-  const keys = [...groups.keys()].sort((a, b) => {
+  const periods = [...periodMap.values()].sort(
+    (a, b) => a.sequence - b.sequence || a.time.localeCompare(b.time) || a.label.localeCompare(b.label),
+  )
+
+  // The distinct days (rows), in week order.
+  const dayKeys = [...new Set(rows.map((r) => String(r.weekday)))].sort((a, b) => {
     const na = Number(a)
     const nb = Number(b)
     if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb
     return a.localeCompare(b)
   })
 
+  // cell[day][period] -> the entry, so each body cell is a direct lookup.
+  const cell = new Map<string, Overview['timetable'][number]>()
+  for (const r of rows) cell.set(`${r.weekday} ${r.period}`, r)
+
   return (
-    <div className="space-y-4">
-      {keys.map((k) => {
-        const day = groups.get(k)!
-        return (
-          <div key={k}>
-            <p className="eyebrow mb-2 flex items-center gap-1.5 text-muted-foreground">
-              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-              {weekdayLabel(day[0].weekday)}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {day.map((p, i) => (
-                <div
-                  key={`${k}:${p.period}:${i}`}
-                  className="rounded-lg border px-3 py-2 text-[13px]"
-                >
-                  <p className="text-[12px] text-muted-foreground">Period {p.period}</p>
-                  <p className="font-medium">{p.subject}</p>
-                  {p.teacher && <p className="text-muted-foreground">{p.teacher}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })}
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-10 bg-card px-2 py-2 text-left text-[12px] font-medium text-muted-foreground">
+              Day
+            </th>
+            {periods.map((p) => (
+              <th key={p.key} className="min-w-[7rem] px-2 py-2 text-left align-bottom">
+                <span className="block font-semibold">{p.label}</span>
+                {p.time ? (
+                  <span className="block font-normal text-[11px] text-muted-foreground">{p.time}</span>
+                ) : null}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dayKeys.map((dk) => (
+            <tr key={dk} className="border-t border-border">
+              <th className="sticky left-0 z-10 bg-card px-2 py-2 text-left font-medium text-muted-foreground">
+                {weekdayLabel(dk)}
+              </th>
+              {periods.map((p) => {
+                const e = cell.get(`${dk} ${p.key}`)
+                return (
+                  <td key={p.key} className="px-2 py-2 align-top">
+                    {e ? (
+                      <>
+                        <span className="block font-medium">{e.subject}</span>
+                        {e.teacher ? (
+                          <span className="block text-[12px] text-muted-foreground">{e.teacher}</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">·</span>
+                    )}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

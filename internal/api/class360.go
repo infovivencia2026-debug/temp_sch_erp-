@@ -52,6 +52,8 @@ type classStudent struct {
 type classSubjectTeacher struct {
 	Subject string `json:"subject"`
 	Teacher string `json:"teacher"`
+	Phone   string `json:"phone"`
+	Email   string `json:"email"`
 }
 
 type classAttendanceTrend struct {
@@ -76,10 +78,13 @@ type classMarks struct {
 }
 
 type classTimetableEntry struct {
-	Weekday int    `json:"weekday"`
-	Period  string `json:"period"`
-	Subject string `json:"subject"`
-	Teacher string `json:"teacher"`
+	Weekday  int    `json:"weekday"`
+	Period   string `json:"period"`
+	Sequence int    `json:"sequence"`
+	Starts   string `json:"starts"`
+	Ends     string `json:"ends"`
+	Subject  string `json:"subject"`
+	Teacher  string `json:"teacher"`
 }
 
 type classFees struct {
@@ -96,9 +101,11 @@ type classSectionHeader struct {
 }
 
 type classOverview struct {
-	Section         classSectionHeader    `json:"section"`
-	ClassTeacher    string                `json:"class_teacher"`
-	SubjectTeachers []classSubjectTeacher `json:"subject_teachers"`
+	Section           classSectionHeader    `json:"section"`
+	ClassTeacher      string                `json:"class_teacher"`
+	ClassTeacherPhone string                `json:"class_teacher_phone"`
+	ClassTeacherEmail string                `json:"class_teacher_email"`
+	SubjectTeachers   []classSubjectTeacher `json:"subject_teachers"`
 	Students        []classStudent        `json:"students"`
 	Attendance      classAttendance       `json:"attendance"`
 	Marks           classMarks            `json:"marks"`
@@ -127,13 +134,20 @@ func (s *Server) computeClassOverview(ctx context.Context, tx pgx.Tx,
 	err := tx.QueryRow(ctx, `
 		SELECT sec.id::text, c.name, sec.name, sec.class_id,
 		       COALESCE((SELECT full_name FROM users WHERE id = sec.class_teacher_id), ''),
+		       COALESCE((SELECT COALESCE(NULLIF(btrim(u.phone), ''), emp.phone)
+		                   FROM users u LEFT JOIN employees emp ON emp.user_id = u.id
+		                  WHERE u.id = sec.class_teacher_id), ''),
+		       COALESCE((SELECT COALESCE(NULLIF(btrim(u.email::text), ''), emp.email::text)
+		                   FROM users u LEFT JOIN employees emp ON emp.user_id = u.id
+		                  WHERE u.id = sec.class_teacher_id), ''),
 		       (SELECT count(*) FROM enrollments e
 		         WHERE e.section_id = sec.id AND e.status = 'active')
 		  FROM sections sec
 		  JOIN classes c ON c.id = sec.class_id
 		 WHERE sec.id = $1`, sectionID).Scan(
 		&ov.Section.ID, &ov.Section.Class, &ov.Section.Section, &classID,
-		&ov.ClassTeacher, &ov.Section.StudentsCount)
+		&ov.ClassTeacher, &ov.ClassTeacherPhone, &ov.ClassTeacherEmail,
+		&ov.Section.StudentsCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return classOverview{}, errNoSection
 	}
@@ -143,16 +157,19 @@ func (s *Server) computeClassOverview(ctx context.Context, tx pgx.Tx,
 
 	// ---- Subject teachers ----
 	if err := scanInto(ctx, tx, `
-		SELECT sub.name, COALESCE(u.full_name, '')
+		SELECT sub.name, COALESCE(u.full_name, ''),
+		       COALESCE(NULLIF(btrim(u.phone), ''), emp.phone, ''),
+		       COALESCE(NULLIF(btrim(u.email::text), ''), emp.email::text, '')
 		  FROM section_subject_teachers sst
 		  JOIN class_subjects cs ON cs.id = sst.class_subject_id
 		  JOIN subjects sub ON sub.id = cs.subject_id
 		  LEFT JOIN users u ON u.id = sst.teacher_user_id
+		  LEFT JOIN employees emp ON emp.user_id = u.id
 		 WHERE sst.section_id = $1
 		 ORDER BY sub.name`,
 		func(rows pgx.Rows) error {
 			var st classSubjectTeacher
-			if err := rows.Scan(&st.Subject, &st.Teacher); err != nil {
+			if err := rows.Scan(&st.Subject, &st.Teacher, &st.Phone, &st.Email); err != nil {
 				return err
 			}
 			ov.SubjectTeachers = append(ov.SubjectTeachers, st)
@@ -283,7 +300,9 @@ func (s *Server) computeClassOverview(ctx context.Context, tx pgx.Tx,
 
 	// ---- Timetable: the week's grid for the section. ----
 	if err := scanInto(ctx, tx, `
-		SELECT te.weekday, p.name, sub.name, COALESCE(u.full_name, '')
+		SELECT te.weekday, p.name, p.sequence,
+		       to_char(p.starts_at, 'HH24:MI'), to_char(p.ends_at, 'HH24:MI'),
+		       sub.name, COALESCE(u.full_name, '')
 		  FROM timetable_entries te
 		  JOIN periods p ON p.id = te.period_id
 		  JOIN class_subjects cs ON cs.id = te.class_subject_id
@@ -293,7 +312,8 @@ func (s *Server) computeClassOverview(ctx context.Context, tx pgx.Tx,
 		 ORDER BY te.weekday, p.sequence`,
 		func(rows pgx.Rows) error {
 			var e classTimetableEntry
-			if err := rows.Scan(&e.Weekday, &e.Period, &e.Subject, &e.Teacher); err != nil {
+			if err := rows.Scan(&e.Weekday, &e.Period, &e.Sequence,
+				&e.Starts, &e.Ends, &e.Subject, &e.Teacher); err != nil {
 				return err
 			}
 			ov.Timetable = append(ov.Timetable, e)
