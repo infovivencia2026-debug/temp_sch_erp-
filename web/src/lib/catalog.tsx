@@ -93,12 +93,13 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     queryKey: ['catalog', allRolesOn()],
     queryFn: () => api.get<CatalogResponse>(
       '/api/v1/catalog' + (allRolesOn() ? '?all_roles=1' : '')),
-    /* The menu is authority, not convenience: a feature just granted to this
-       person must appear on the next load, not up to five minutes later. So the
-       catalogue always revalidates on mount (and is excluded from the offline
-       cache in App.tsx), while a cached copy still paints instantly first. */
-    staleTime: 0,
-    refetchOnMount: 'always',
+    /* The menu is authority, not convenience: a feature just granted must show
+       on the next load. That freshness comes from being EXCLUDED from the
+       offline cache (App.tsx) — a full reload has no persisted copy, so it
+       fetches fresh. Within a session it is cached for a short while so opening
+       the command palette or navigating does not refetch the whole (large)
+       catalogue every time, which was making Ctrl-K slow. */
+    staleTime: 60_000,
   })
 
   if (isLoading) {

@@ -440,6 +440,10 @@ func (s *Server) Routes() http.Handler {
 			// Today's classroom sign-in code, for a teacher reading it off
 			// their own phone. Gated inside on holding a teaching role.
 			r.Get("/day-code", s.getMyDayCode)
+			// The schools this person may switch between — their board
+			// memberships plus home. Any signed-in user; it returns only
+			// their own. Drives the cross-school switcher. See acting.go.
+			r.Get("/institutions", s.listMyInstitutions)
 		})
 
 		// Heavy work is never done inline; these hand off to the queue and
@@ -1345,6 +1349,14 @@ func (s *Server) Routes() http.Handler {
 			   PlatformAdmin so a tenant admin is refused. */
 			r.Get("/support-accounts", s.listSupportAccounts)
 			r.Post("/support-accounts", s.createSupportAccount)
+			/* Cross-institution board members — see board_members.go. A board
+			   member is an ordinary school user granted board_member in each
+			   school they oversee; granting that across tenants is a platform
+			   action, so it lives here behind the same platform.tenants.write
+			   gate. Each handler re-checks PlatformAdmin. */
+			r.Get("/board-members", s.listBoardMembers)
+			r.Post("/board-members", s.createBoardMember)
+			r.Delete("/board-members/{userID}/institutions/{instID}", s.removeBoardMembership)
 			// The recharge queue: schools asking for more messages.
 			s.mountSellerRecharge(r)
 			r.Get("/plans", s.listPlans)

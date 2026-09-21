@@ -504,6 +504,11 @@ function PersistGate({ children }: { children: ReactNode }) {
                   'feature-catalog',
                   'role-grid',
                   'admin-roles',
+                  // 'sections' gates which classes a person may mark/open; a
+                  // just-granted whole-school reach must not be hidden by a
+                  // stale empty list from the offline cache ("nothing in your
+                  // scope"). Keep it out of offline so a reload fetches fresh.
+                  'sections',
                 ].includes(k)
               },
             },
