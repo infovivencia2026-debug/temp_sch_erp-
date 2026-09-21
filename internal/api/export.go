@@ -367,7 +367,11 @@ var exportable = map[string]exportSpec{
 		          LEFT JOIN sections sec ON sec.id = sa.section_id
 		          LEFT JOIN classes  c   ON c.id = sec.class_id
 		         WHERE sa.on_date >= CURRENT_DATE - INTERVAL '90 days'
-		         ORDER BY sa.on_date DESC, st.admission_no`,
+		         /* Class-wise: the register reads the way a school keeps it —
+		            Grade order, then section, then the child, and the days newest
+		            first within each child — rather than one flat run of dates in
+		            admission-number order. */
+		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no, sa.on_date DESC`,
 	},
 	"staff": {
 		title:  "Staff list",
