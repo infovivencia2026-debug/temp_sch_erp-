@@ -1303,28 +1303,27 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// featureCatalogFeature is one grantable menu tile, with the capabilities that
-// granting it also unlocks named the way a person reads them.
-type featureCatalogFeature struct {
-	Key     string `json:"key"`
-	Name    string `json:"name"`
-	Summary string `json:"summary"`
-	// Unlocks are the human-readable capability descriptions that granting this
-	// feature also confers, so the UI can warn what enabling it widens.
+// featureCatalogItem is one grantable feature, de-duplicated by NAME across the
+// several workspaces it may be catalogued under. Key is a canonical variant key
+// (deterministic, the first encountered in catalog.Roles order); Keys are ALL
+// the variant keys that share the name, so granting adds the canonical one and
+// revoking clears every variant. Unlocks are the human-readable capability
+// descriptions granting the feature also confers, unioned across variants.
+type featureCatalogItem struct {
+	Name    string   `json:"name"`
+	Summary string   `json:"summary"`
 	Unlocks []string `json:"unlocks"`
+	Key     string   `json:"key"`
+	Keys    []string `json:"keys"`
 }
 
-type featureCatalogGroup struct {
-	Workspace   string                  `json:"workspace"`
-	SectionSlug string                  `json:"section_slug"`
-	SectionName string                  `json:"section_name"`
-	Features    []featureCatalogFeature `json:"features"`
-}
-
-// listFeatureCatalog serves every catalog feature grouped by workspace+section,
-// for the "Individual features (exception)" editor on Logins & access. It is the
-// tile vocabulary the per-account grant screen offers, the counterpart to
-// listPermissionCatalog's capability vocabulary.
+// listFeatureCatalog serves a flat, de-duplicated (by name) list of grantable
+// features for the "Individual features (exception)" editor on Logins & access.
+// It is the tile vocabulary the per-account grant screen offers, the counterpart
+// to listPermissionCatalog's capability vocabulary. The same feature name (e.g.
+// "Attendance", "Class 360", "Student 360") exists under several workspaces with
+// different keys; here each unique name appears once, carrying all its variant
+// keys.
 func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 	// Capability descriptions, so unlocks read as sentences rather than keys.
 	desc := make(map[string]string, len(rbac.All))
@@ -1342,48 +1341,66 @@ func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 		"my_work": true, "my_calendar": true, "my_run": true,
 	}
 
-	groups := []featureCatalogGroup{}
-	// Index by workspace+section so a section that appears under several roles
-	// (Class 360 lives in more than one workspace) is one group.
+	// One accumulator per unique feature name. Walk catalog.Roles in order so the
+	// canonical key (first encountered) and the item order are deterministic.
+	items := []*featureCatalogItem{}
 	idx := map[string]int{}
+	// De-dupe variant keys and unlock descriptions within each item.
+	seenKey := map[string]map[string]bool{}
+	seenUnlock := map[string]map[string]bool{}
 	for _, role := range catalog.Roles {
 		for _, sec := range role.Sections {
-			gk := sec.Workspace + "\x00" + sec.Slug
-			gi, ok := idx[gk]
-			if !ok {
-				gi = len(groups)
-				idx[gk] = gi
-				groups = append(groups, featureCatalogGroup{
-					Workspace:   sec.Workspace,
-					SectionSlug: sec.Slug,
-					SectionName: sec.Name,
-					Features:    []featureCatalogFeature{},
-				})
-			}
 			for _, f := range sec.Features {
 				if skipSlug[featureSlug(f.Key)] {
 					continue
 				}
-				unlocks := []string{}
+				if f.Name == "" {
+					continue
+				}
+				ii, ok := idx[f.Name]
+				if !ok {
+					ii = len(items)
+					idx[f.Name] = ii
+					items = append(items, &featureCatalogItem{
+						Name: f.Name, Summary: f.Summary,
+						Unlocks: []string{}, Key: f.Key, Keys: []string{},
+					})
+					seenKey[f.Name] = map[string]bool{}
+					seenUnlock[f.Name] = map[string]bool{}
+				}
+				it := items[ii]
+				// Summary: keep the first non-empty one seen.
+				if it.Summary == "" && f.Summary != "" {
+					it.Summary = f.Summary
+				}
+				// Collect this variant's key.
+				if !seenKey[f.Name][f.Key] {
+					seenKey[f.Name][f.Key] = true
+					it.Keys = append(it.Keys, f.Key)
+				}
+				// Union this variant's unlocks (resolved to descriptions), de-duped.
 				for _, cap := range featureUnlocks[featureSlug(f.Key)] {
-					if d := desc[cap]; d != "" {
-						unlocks = append(unlocks, d)
-					} else {
-						unlocks = append(unlocks, cap)
+					d := desc[cap]
+					if d == "" {
+						d = cap
+					}
+					if !seenUnlock[f.Name][d] {
+						seenUnlock[f.Name][d] = true
+						it.Unlocks = append(it.Unlocks, d)
 					}
 				}
-				groups[gi].Features = append(groups[gi].Features, featureCatalogFeature{
-					Key: f.Key, Name: f.Name, Summary: f.Summary, Unlocks: unlocks,
-				})
 			}
 		}
 	}
-	// A section that held only a Dashboard is now empty; do not show its header.
-	nonEmpty := groups[:0]
-	for _, g := range groups {
-		if len(g.Features) > 0 {
-			nonEmpty = append(nonEmpty, g)
-		}
+
+	// Sort by name, case-insensitive.
+	sort.Slice(items, func(a, b int) bool {
+		return strings.ToLower(items[a].Name) < strings.ToLower(items[b].Name)
+	})
+
+	out := make([]featureCatalogItem, 0, len(items))
+	for _, it := range items {
+		out = append(out, *it)
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"items": nonEmpty})
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }

@@ -761,19 +761,17 @@ interface UserPerms {
   direct_keys: string[]
 }
 
-// One grantable menu tile in the "Individual features" exception editor, and its
-// workspace/section grouping, as served by GET /api/v1/admin/features.
+// One grantable feature in the "Individual features" exception editor, as served
+// by GET /api/v1/admin/features — a flat list de-duplicated by name. `key` is the
+// canonical variant to grant; `keys` are ALL variant keys sharing this name, so
+// the feature reads as "held" if the account holds any of them and revoking
+// clears every variant.
 interface FeatureItem {
   key: string
+  keys: string[]
   name: string
   summary: string
   unlocks: string[]
-}
-interface FeatureGroup {
-  workspace: string
-  section_slug: string
-  section_name: string
-  features: FeatureItem[]
 }
 
 const MODULE_LABEL: Record<string, string> = {
@@ -813,7 +811,7 @@ function PermissionOverrides({
   })
   const features = useQuery({
     queryKey: ['feature-catalog'],
-    queryFn: () => api.get<List<FeatureGroup>>('/api/v1/admin/features'),
+    queryFn: () => api.get<List<FeatureItem>>('/api/v1/admin/features'),
   })
   // The feature-tile search. Local to this editor; the tile list is long.
   const [featureSearch, setFeatureSearch] = useState('')
@@ -888,23 +886,34 @@ function PermissionOverrides({
   /* The individual-feature exception editor. A grant here is a catalog feature
      key held directly, seeded from the same direct set (so it saves in the one
      PUT alongside the capability picks above and never overwrites them). The
-     list is searchable by tile, workspace or section — it is long. */
-  const featureGroups = features.data?.items ?? []
+     list is flat and de-duplicated by name, searchable by name (ranked first)
+     or summary — it is long. */
+  const featureItems = features.data?.items ?? []
   const q = featureSearch.trim().toLowerCase()
-  const shownFeatureGroups = q
-    ? featureGroups
-        .map((g) => ({
-          ...g,
-          features: g.features.filter(
-            (f) =>
-              f.name.toLowerCase().includes(q) ||
-              f.summary.toLowerCase().includes(q) ||
-              g.workspace.toLowerCase().includes(q) ||
-              g.section_name.toLowerCase().includes(q),
-          ),
-        }))
-        .filter((g) => g.features.length > 0)
-    : featureGroups
+  const shownFeatures = q
+    ? featureItems
+        .filter((f) => f.name.toLowerCase().includes(q) || f.summary.toLowerCase().includes(q))
+        // Name matches rank above summary-only matches; order is otherwise stable.
+        .sort((a, b) => {
+          const an = a.name.toLowerCase().includes(q) ? 0 : 1
+          const bn = b.name.toLowerCase().includes(q) ? 0 : 1
+          return an - bn
+        })
+    : featureItems
+
+  // A feature is held if the account holds ANY of its variant keys.
+  const featureHeld = (f: FeatureItem) => f.keys.some((k) => picked.has(k))
+  // Toggle ON adds the canonical key; toggle OFF removes every variant key.
+  const toggleFeature = (f: FeatureItem) =>
+    setDirect((prev) => {
+      const set = new Set(prev ?? [])
+      if (featureHeld(f)) {
+        for (const k of f.keys) set.delete(k)
+      } else {
+        set.add(f.key)
+      }
+      return [...set]
+    })
 
   return (
     <div className="flex flex-col border-t pt-5">
@@ -989,61 +998,50 @@ function PermissionOverrides({
               <Input
                 value={featureSearch}
                 onChange={setFeatureSearch}
-                placeholder="Search features, workspace or section"
+                placeholder="Search features by name"
               />
             </div>
-            <div className="space-y-4">
-              {shownFeatureGroups.map((g) => (
-                <div key={g.workspace + '/' + g.section_slug}>
-                  <p className="mb-1.5 text-[13px] font-medium">
-                    {g.workspace} · {g.section_name}
-                  </p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
-                    {g.features.map((f) => {
-                      const on = picked.has(f.key)
-                      return (
-                        <button
-                          key={f.key}
-                          type="button"
-                          onClick={() => toggle(f.key)}
-                          className={cn(
-                            'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
-                            on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
-                              on
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border',
-                            )}
-                          >
-                            {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-[14px]">{f.name}</span>
-                            {f.summary && (
-                              <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                                {f.summary}
-                              </span>
-                            )}
-                            {f.unlocks.length > 0 && (
-                              <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                                Also grants: {f.unlocks.join(', ')}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-              {shownFeatureGroups.length === 0 && (
-                <p className="text-[13px] text-muted-foreground">No features match that search.</p>
-              )}
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {shownFeatures.map((f) => {
+                const on = featureHeld(f)
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => toggleFeature(f)}
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                      on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
+                        on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                      )}
+                    >
+                      {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[14px] font-medium">{f.name}</span>
+                      {f.summary && (
+                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                          {f.summary}
+                        </span>
+                      )}
+                      {f.unlocks.length > 0 && (
+                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                          Also grants: {f.unlocks.join(', ')}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
+            {shownFeatures.length === 0 && (
+              <p className="text-[13px] text-muted-foreground">No features match.</p>
+            )}
           </>
         )}
       </div>
