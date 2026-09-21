@@ -1454,6 +1454,10 @@ func (s *Server) Routes() http.Handler {
 			// school reads it. Both stay: one configures, one audits.
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/grid", s.getRoleGrid)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/roles/{id}/grid", s.setRoleGrid)
+			// Menu tiles (catalog features) for a role, kept separate from the
+			// grid: this touches only the role's own catalog feature keys.
+			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/features", s.getRoleFeatures)
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/roles/{id}/features", s.setRoleFeatures)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles", s.createRole)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/installable-roles", s.listInstallableRoles)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles/install", s.installRole)

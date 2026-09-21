@@ -63,6 +63,24 @@ interface RoleGrid {
   groups: GridGroup[]
 }
 
+interface RoleFeature {
+  key: string
+  name: string
+  summary: string
+  held: boolean
+}
+
+interface RoleFeatureSection {
+  slug: string
+  name: string
+  features: RoleFeature[]
+}
+
+interface RoleFeatures {
+  workspace: boolean
+  sections: RoleFeatureSection[]
+}
+
 interface InstallableRole {
   key: string
   name: string
@@ -291,6 +309,7 @@ export default function RolesPermissions() {
             )}
           </div>
 
+          <div className="flex flex-col gap-6">
           <Card>
             <CardHeader
               title={grid.data ? grid.data.name : 'Permissions'}
@@ -376,9 +395,146 @@ export default function RolesPermissions() {
               </>
             )}
           </Card>
+
+          {selectedID && <FeaturesEditor roleID={selectedID} />}
+          </div>
         </div>
       </PageBody>
     </>
+  )
+}
+
+/* Features (menu tiles): which navigation entries this role sees.
+
+   The grid above decides what a role can do; this decides what it shows. A tile
+   appears in the menu (from GET /api/v1/catalog) only when the role holds the
+   catalog feature key behind it, so a checkbox here is an insert or a delete of
+   that one key. It is deliberately separate from the grid, which never touches
+   these keys. */
+function FeaturesEditor({ roleID }: { roleID: string }) {
+  const qc = useQueryClient()
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [saved, setSaved] = useState('')
+
+  const features = useQuery({
+    queryKey: ['role-features', roleID],
+    queryFn: () => api.get<RoleFeatures>(`/api/v1/admin/roles/${roleID}/features`),
+  })
+
+  // Seed the local checkbox state from the server whenever the role changes.
+  useEffect(() => {
+    if (!features.data) return
+    const next: Record<string, boolean> = {}
+    for (const sec of features.data.sections) {
+      for (const f of sec.features) next[f.key] = f.held
+    }
+    setChecked(next)
+    setSaved('')
+  }, [features.data])
+
+  const dirty = useMemo(() => {
+    if (!features.data) return false
+    return features.data.sections.some((sec) =>
+      sec.features.some((f) => checked[f.key] !== f.held),
+    )
+  }, [features.data, checked])
+
+  const save = useMutation({
+    mutationFn: () => {
+      const enable: string[] = []
+      const disable: string[] = []
+      for (const sec of features.data!.sections) {
+        for (const f of sec.features) {
+          if (checked[f.key] && !f.held) enable.push(f.key)
+          if (!checked[f.key] && f.held) disable.push(f.key)
+        }
+      }
+      return api.put(`/api/v1/admin/roles/${roleID}/features`, { enable, disable })
+    },
+    onSuccess: () => {
+      setSaved('Saved. People holding this role pick it up on their next sign-in.')
+      qc.invalidateQueries({ queryKey: ['role-features', roleID] })
+      qc.invalidateQueries({ queryKey: ['role-grid', roleID] })
+    },
+  })
+
+  if (features.isLoading) {
+    return (
+      <Card>
+        <CardHeader title="Features (menu tiles)" />
+        <Loading />
+      </Card>
+    )
+  }
+  if (features.error) {
+    return (
+      <Card>
+        <CardHeader title="Features (menu tiles)" />
+        <ErrorState error={features.error} />
+      </Card>
+    )
+  }
+  if (!features.data) return null
+
+  if (!features.data.workspace) {
+    return (
+      <Card>
+        <CardHeader title="Features (menu tiles)" />
+        <div className="px-5 py-4 text-[13px] text-muted-foreground">
+          This role has no workspace of its own, so it has no feature tiles to toggle.
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Features (menu tiles)"
+        description="Which navigation tiles this role sees in its menu"
+        action={
+          <Button disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        }
+      />
+      <div className="px-5 pt-4 text-[12px] text-muted-foreground">
+        Turning a feature on adds it to this role’s menu. The person still needs the
+        matching permission above for the screen to work.
+      </div>
+      <FormNotice error={save.error} ok={saved} />
+
+      {features.data.sections.map((sec) => (
+        <section key={sec.slug} className="border-b last:border-b-0">
+          <div className="px-5 pb-1 pt-5">
+            <p className="eyebrow">{sec.name}</p>
+          </div>
+          <div className="divide-y">
+            {sec.features.map((f) => (
+              <label
+                key={f.key}
+                className="flex cursor-pointer items-start gap-3 px-5 py-3 hover:bg-accent/50"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 h-3.5 w-3.5 shrink-0"
+                  checked={!!checked[f.key]}
+                  onChange={(e) => {
+                    const on = e.target.checked
+                    setChecked((prev) => ({ ...prev, [f.key]: on }))
+                    setSaved('')
+                  }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium">{f.name}</p>
+                  <p className="text-[12px] text-muted-foreground">{f.summary}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </section>
+      ))}
+    </Card>
   )
 }
 
