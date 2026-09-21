@@ -11,7 +11,13 @@
   font-family: 'Material Symbols Rounded';
   font-style: normal;
   font-weight: 500;
-  font-display: swap;
+  /* block, not swap: this is an icon LIGATURE font, so the fallback face
+     renders the ligature's source text — "dashboard", "point_of_sale" — huge
+     and overlapping until the glyph font arrives. swap shows that flash on
+     every cold open; block keeps the glyph invisible for a short block period
+     (the subset is ~100KB and service-worker cached, so it is brief) and then
+     paints the icon, with no burst of raw names. */
+  font-display: block;
   src: url('../assets/fonts/material-symbols-rounded-subset.woff2') format('woff2');
 }
 
