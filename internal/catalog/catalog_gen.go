@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 411 features.
+// Roles is the catalog: 23 roles, 412 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -151,6 +151,7 @@ var Roles = []Role{
 					{Key: "seller_admin.support.support", Slug: "support", Name: "Support", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Tickets raised by schools, with the tenant, severity, owner and time open."},
 					{Key: "seller_admin.support.audit", Slug: "audit", Name: "Audit", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Act as a school's administrator to reproduce a fault, with every such session recorded and visible to that school."},
 					{Key: "seller_admin.support.support_team", Slug: "support_team", Name: "Support Team", Scope: Scope("platform"), Tier: Tier("core"), Summary: "Create and list the vendor's own support-desk logins — read-only platform accounts that reach across schools to reproduce faults but see no child's records. Add one with a name and an email or phone, and hand over the one-time password shown once."},
+					{Key: "seller_admin.support.board_members", Slug: "board_members", Name: "Board Members", Scope: Scope("platform"), Tier: Tier("core"), Summary: "People who oversee several schools at once — a trust's committee, a group director. Assign one to any set of schools with a name and an email or phone; they get an ordinary account holding board_member in each and switch between them from the header. A new account's one-time password is shown once. Remove a school to drop that membership."},
 				},
 			},
 		},

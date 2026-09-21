@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 411 features. */
+/** 23 roles, 412 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -104,6 +104,7 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.support.support', slug: 'support', name: 'Support', scope: 'platform', tier: 'core', summary: 'Tickets raised by schools, with the tenant, severity, owner and time open.' },
           { key: 'seller_admin.support.audit', slug: 'audit', name: 'Audit', scope: 'platform', tier: 'core', summary: 'Act as a school\'s administrator to reproduce a fault, with every such session recorded and visible to that school.' },
           { key: 'seller_admin.support.support_team', slug: 'support_team', name: 'Support Team', scope: 'platform', tier: 'core', summary: 'Create and list the vendor\'s own support-desk logins — read-only platform accounts that reach across schools to reproduce faults but see no child\'s records. Add one with a name and an email or phone, and hand over the one-time password shown once.' },
+          { key: 'seller_admin.support.board_members', slug: 'board_members', name: 'Board Members', scope: 'platform', tier: 'core', summary: 'People who oversee several schools at once — a trust\'s committee, a group director. Assign one to any set of schools with a name and an email or phone; they get an ordinary account holding board_member in each and switch between them from the header. A new account\'s one-time password is shown once. Remove a school to drop that membership.' },
         ],
       },
     ],

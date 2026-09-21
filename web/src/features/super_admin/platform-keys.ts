@@ -56,6 +56,9 @@ export const platformKeys = {
   // The vendor's own support-desk logins — read-only platform (support_admin)
   // accounts, created and listed here rather than only from the CLI.
   'seller_admin.support.support_team': screen(() => import('../seller/SupportTeam')),
+  // Cross-institution board members — assign a trust director to several schools;
+  // they switch between them from the header. See internal/api/board_members.go.
+  'seller_admin.support.board_members': screen(() => import('../seller/BoardMembers')),
   'seller_admin.usage_health.adoption_metrics': screen(() => import('../seller/Adoption')),
   // What each school uses against what the installation costs to run.
   'seller_admin.usage_health.usage_cost': screen(() => import('../seller/UsageCost')),

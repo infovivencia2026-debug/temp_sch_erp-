@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { YearSwitch } from '@/components/YearSwitch'
+import { InstitutionSwitch } from '@/components/InstitutionSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
@@ -1072,6 +1073,11 @@ export function Shell({
             <span className="font-medium">{session.institution?.name ?? 'EDU CLOUD'}</span>
             {scopeLine && <span className="text-muted-foreground"> · {scopeLine}</span>}
           </p>
+          {/* The school being worked in, only for someone who oversees more
+              than one. A board member switches here; everyone else sees
+              nothing. Beside the year because both answer the same question --
+              what is every number on this page about. */}
+          <InstitutionSwitch />
           {/* The year being worked in, only when there is more than one to
               choose. Beside the institution because it answers the same
               question -- what is every number on this page about. */}
