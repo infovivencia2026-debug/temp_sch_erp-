@@ -1121,6 +1121,71 @@ func (s *Server) getUserPermissions(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
+/* Per-user FEATURE grants — the exception door for menu tiles.
+
+   Role-based access is the rule: a role carries a workspace and every tile in
+   it. But now and then one account needs a single screen its roles do not carry
+   — a receptionist who must Take attendance, an office clerk who needs Student
+   360 — and inventing a role or widening a shared one is the wrong size for a
+   one-off. So an admin may grant an individual catalog FEATURE (a menu tile,
+   keyed role.section.feature) to one account. The catalog then shows that tile
+   for that person (see getCatalog), and the auto-capability map below hands them
+   the capability keys the screen behind it actually gates on, so the tile is not
+   a door onto a 403. */
+
+// allCatalogFeatureKeys is the set of every feature key the catalog defines
+// (role.section.feature). setUserPermissions accepts a grant if it is one of
+// these, in addition to the rbac capability vocabulary.
+func allCatalogFeatureKeys() map[string]bool {
+	out := map[string]bool{}
+	for _, role := range catalog.Roles {
+		for _, sec := range role.Sections {
+			for _, f := range sec.Features {
+				out[f.Key] = true
+			}
+		}
+	}
+	return out
+}
+
+/* featureUnlocks maps a feature SLUG (the part after the last dot in its key) to
+   the capability keys the screen behind that tile gates on. When an admin
+   ENABLES one of these features for an account, those capabilities are unioned
+   into the persisted grant so the person can actually use the screen rather than
+   land on a permission error.
+
+   Deliberately small and explicit: only the tiles a school hands out as a
+   one-off exception, keyed by slug so the same screen (Class 360 appears under
+   several workspaces) is covered wherever it is catalogued. */
+var featureUnlocks = map[string][]string{
+	// Take attendance: mark the register, for any section (the grantee is not a
+	// timetabled teacher of it).
+	"take_attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny},
+	// Class 360: the section overview reads the class, its students and their
+	// attendance.
+	"class_360": {rbac.Class360Read, rbac.StudentsRead, rbac.AttendanceRead},
+	// Student 360: one child's whole record.
+	"student_360": {rbac.StudentsRead},
+	// Staff overview / Staff 360: read employee records.
+	"staff_360":      {rbac.EmployeesRead},
+	"staff_overview": {rbac.EmployeesRead},
+	// Marks entry: enter and amend marks.
+	"marks_entry": {rbac.MarksWrite},
+	"enter_marks": {rbac.MarksWrite},
+	// Homework: set homework and review submissions.
+	"homework":             {rbac.HomeworkWrite},
+	"homework_assignments": {rbac.HomeworkWrite},
+}
+
+// featureSlug returns the part of a feature key after the last dot, which is the
+// key featureUnlocks is indexed by.
+func featureSlug(key string) string {
+	if i := strings.LastIndex(key, "."); i >= 0 {
+		return key[i+1:]
+	}
+	return key
+}
+
 type setUserPermissionsRequest struct {
 	PermissionKeys []string `json:"permission_keys"`
 }
@@ -1146,12 +1211,22 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 	for _, p := range rbac.All {
 		known[p.Key] = true
 	}
+	// Catalog feature keys are also grantable here — the exception door for menu
+	// tiles. Anything that is neither a capability nor a feature is still
+	// rejected.
+	features := allCatalogFeatureKeys()
 	// De-duplicate and validate before opening a transaction, so a typo cannot
 	// half-apply.
 	seen := map[string]bool{}
 	desired := make([]string, 0, len(req.PermissionKeys))
+	add := func(k string) {
+		if !seen[k] {
+			seen[k] = true
+			desired = append(desired, k)
+		}
+	}
 	for _, k := range req.PermissionKeys {
-		if !known[k] {
+		if !known[k] && !features[k] {
 			httpx.BadRequest(w, r, "unknown permission "+k)
 			return
 		}
@@ -1159,9 +1234,15 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 			httpx.Denied(w, r, "platform permissions can only be granted by the vendor")
 			return
 		}
-		if !seen[k] {
-			seen[k] = true
-			desired = append(desired, k)
+		add(k)
+		// Granting a feature tile also unlocks the capabilities the screen behind
+		// it gates on, so the person can act and not just see the tile.
+		// Conservative: unlocks are only unioned in for features being ENABLED in
+		// this save; capabilities the admin set directly are left exactly as sent.
+		if features[k] {
+			for _, cap := range featureUnlocks[featureSlug(k)] {
+				add(cap)
+			}
 		}
 	}
 
@@ -1202,4 +1283,69 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 		"user_id": target.String(), "direct_keys": desired,
 		"note": "The account gains these the next time it signs in.",
 	})
+}
+
+// featureCatalogFeature is one grantable menu tile, with the capabilities that
+// granting it also unlocks named the way a person reads them.
+type featureCatalogFeature struct {
+	Key     string   `json:"key"`
+	Name    string   `json:"name"`
+	Summary string   `json:"summary"`
+	// Unlocks are the human-readable capability descriptions that granting this
+	// feature also confers, so the UI can warn what enabling it widens.
+	Unlocks []string `json:"unlocks"`
+}
+
+type featureCatalogGroup struct {
+	Workspace   string                  `json:"workspace"`
+	SectionSlug string                  `json:"section_slug"`
+	SectionName string                  `json:"section_name"`
+	Features    []featureCatalogFeature `json:"features"`
+}
+
+// listFeatureCatalog serves every catalog feature grouped by workspace+section,
+// for the "Individual features (exception)" editor on Logins & access. It is the
+// tile vocabulary the per-account grant screen offers, the counterpart to
+// listPermissionCatalog's capability vocabulary.
+func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
+	// Capability descriptions, so unlocks read as sentences rather than keys.
+	desc := make(map[string]string, len(rbac.All))
+	for _, p := range rbac.All {
+		desc[p.Key] = p.Description
+	}
+
+	groups := []featureCatalogGroup{}
+	// Index by workspace+section so a section that appears under several roles
+	// (Class 360 lives in more than one workspace) is one group.
+	idx := map[string]int{}
+	for _, role := range catalog.Roles {
+		for _, sec := range role.Sections {
+			gk := sec.Workspace + "\x00" + sec.Slug
+			gi, ok := idx[gk]
+			if !ok {
+				gi = len(groups)
+				idx[gk] = gi
+				groups = append(groups, featureCatalogGroup{
+					Workspace:   sec.Workspace,
+					SectionSlug: sec.Slug,
+					SectionName: sec.Name,
+					Features:    []featureCatalogFeature{},
+				})
+			}
+			for _, f := range sec.Features {
+				unlocks := []string{}
+				for _, cap := range featureUnlocks[featureSlug(f.Key)] {
+					if d := desc[cap]; d != "" {
+						unlocks = append(unlocks, d)
+					} else {
+						unlocks = append(unlocks, cap)
+					}
+				}
+				groups[gi].Features = append(groups[gi].Features, featureCatalogFeature{
+					Key: f.Key, Name: f.Name, Summary: f.Summary, Unlocks: unlocks,
+				})
+			}
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": groups})
 }

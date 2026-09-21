@@ -1457,6 +1457,11 @@ func (s *Server) Routes() http.Handler {
 			// The whole capability vocabulary, grouped by module, for the per-account
 			// override editor on Logins & access.
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/permissions", s.listPermissionCatalog)
+			// Every catalog menu tile grouped by workspace+section, for the
+			// "Individual features (exception)" editor: an admin may grant one tile
+			// to one account on top of its roles. Read under the same access.users.read
+			// that governs the account.
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/features", s.listFeatureCatalog)
 			// The grid is the same data as /permissions, grouped the way a
 			// school reads it. Both stay: one configures, one audits.
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/grid", s.getRoleGrid)

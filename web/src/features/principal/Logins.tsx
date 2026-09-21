@@ -761,6 +761,21 @@ interface UserPerms {
   direct_keys: string[]
 }
 
+// One grantable menu tile in the "Individual features" exception editor, and its
+// workspace/section grouping, as served by GET /api/v1/admin/features.
+interface FeatureItem {
+  key: string
+  name: string
+  summary: string
+  unlocks: string[]
+}
+interface FeatureGroup {
+  workspace: string
+  section_slug: string
+  section_name: string
+  features: FeatureItem[]
+}
+
 const MODULE_LABEL: Record<string, string> = {
   students: 'Students',
   academics: 'Academics',
@@ -796,6 +811,12 @@ function PermissionOverrides({
     queryKey: ['user-permissions', user.id],
     queryFn: () => api.get<UserPerms>(`/api/v1/admin/users/${user.id}/permissions`),
   })
+  const features = useQuery({
+    queryKey: ['feature-catalog'],
+    queryFn: () => api.get<List<FeatureGroup>>('/api/v1/admin/features'),
+  })
+  // The feature-tile search. Local to this editor; the tile list is long.
+  const [featureSearch, setFeatureSearch] = useState('')
 
   // The direct set the editor is building. Seeded once the account's current
   // grants arrive; a plain Set kept in a piece of state keyed off the load.
@@ -864,6 +885,27 @@ function PermissionOverrides({
 
   const extraCount = (direct ?? []).filter((k) => !roleKeys.has(k)).length
 
+  /* The individual-feature exception editor. A grant here is a catalog feature
+     key held directly, seeded from the same direct set (so it saves in the one
+     PUT alongside the capability picks above and never overwrites them). The
+     list is searchable by tile, workspace or section — it is long. */
+  const featureGroups = features.data?.items ?? []
+  const q = featureSearch.trim().toLowerCase()
+  const shownFeatureGroups = q
+    ? featureGroups
+        .map((g) => ({
+          ...g,
+          features: g.features.filter(
+            (f) =>
+              f.name.toLowerCase().includes(q) ||
+              f.summary.toLowerCase().includes(q) ||
+              g.workspace.toLowerCase().includes(q) ||
+              g.section_name.toLowerCase().includes(q),
+          ),
+        }))
+        .filter((g) => g.features.length > 0)
+    : featureGroups
+
   return (
     <div className="border-t pt-5">
       <div className="mb-2 flex items-baseline justify-between">
@@ -926,6 +968,84 @@ function PermissionOverrides({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 border-t pt-5">
+        <p className="eyebrow mb-1">Individual features (exception — prefer roles)</p>
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          Normal access should come from a role, which carries a whole workspace. Use this only for a
+          one-off: switch on a single menu tile — Take attendance, Class 360, Student 360 — for this
+          one account. Enabling a tile also grants the capabilities the screen needs, noted under
+          each.
+        </p>
+
+        {features.isLoading ? (
+          <p className="text-[13px] text-muted-foreground">Loading the feature list…</p>
+        ) : features.error ? (
+          <FormNotice error={features.error} />
+        ) : (
+          <>
+            <div className="mb-3">
+              <Input
+                value={featureSearch}
+                onChange={setFeatureSearch}
+                placeholder="Search features, workspace or section"
+              />
+            </div>
+            <div className="space-y-4">
+              {shownFeatureGroups.map((g) => (
+                <div key={g.workspace + '/' + g.section_slug}>
+                  <p className="mb-1.5 text-[13px] font-medium">
+                    {g.workspace} · {g.section_name}
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {g.features.map((f) => {
+                      const on = picked.has(f.key)
+                      return (
+                        <button
+                          key={f.key}
+                          type="button"
+                          onClick={() => toggle(f.key)}
+                          className={cn(
+                            'flex items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                            on ? 'border-primary/40 bg-accent' : 'hover:bg-accent/60',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border',
+                              on
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border',
+                            )}
+                          >
+                            {on && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[14px]">{f.name}</span>
+                            {f.summary && (
+                              <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                                {f.summary}
+                              </span>
+                            )}
+                            {f.unlocks.length > 0 && (
+                              <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                                Also grants: {f.unlocks.join(', ')}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+              {shownFeatureGroups.length === 0 && (
+                <p className="text-[13px] text-muted-foreground">No features match that search.</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mt-4 flex items-center gap-2">

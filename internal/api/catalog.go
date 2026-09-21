@@ -282,6 +282,38 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, bool, error)
 	return known, false, nil
 }
 
+// directFeatureGrants returns the catalog FEATURE keys this account holds
+// directly in user_permissions — the per-user "individual feature" exception. A
+// row is a feature grant when its key is one the catalog defines; capability
+// rows in the same table are ignored here.
+func (s *Server) directFeatureGrants(r *http.Request) (map[string]bool, error) {
+	id := httpx.IdentityFrom(r.Context())
+	out := map[string]bool{}
+	if id.PlatformAdmin {
+		return out, nil
+	}
+	features := allCatalogFeatureKeys()
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(),
+			`SELECT permission_key FROM user_permissions WHERE user_id = $1`, id.UserID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var k string
+			if err := rows.Scan(&k); err != nil {
+				return err
+			}
+			if features[k] {
+				out[k] = true
+			}
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
 // getCatalog returns the signed-in user's workspace: the roles they hold, the
 // sections and features within each, and whether each is reachable.
 //
@@ -366,6 +398,34 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+
+	/* Individual feature grants — the exception door.
+
+	   An admin may enable one catalog tile for one account on Logins & access,
+	   without granting the whole workspace it lives in. Such a grant is a feature
+	   key in user_permissions, so id.Can(f.Key) already answers true for it and
+	   the inner filter will show that one tile. What the workspace loop below
+	   would otherwise do is skip the entire workspace before reaching the tile,
+	   because the person does not HOLD the role. So a workspace is kept when the
+	   account holds at least one of its feature keys directly. */
+	directFeatures, err := s.directFeatureGrants(r)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	hasDirectFeatureInWorkspace := func(role catalog.Role) bool {
+		if len(directFeatures) == 0 {
+			return false
+		}
+		for _, sec := range role.Sections {
+			for _, f := range sec.Features {
+				if directFeatures[f.Key] {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	ordered := make([]catalog.Role, 0, len(catalog.Roles))
 	for _, role := range catalog.Roles {
 		if mine[role.Key] {
@@ -379,7 +439,7 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, role := range ordered {
-		if len(held) > 0 && !held[role.Key] {
+		if len(held) > 0 && !held[role.Key] && !hasDirectFeatureInWorkspace(role) {
 			continue
 		}
 		out := catalogRole{Key: role.Key, Name: role.Name, Sections: []catalogSection{}}
