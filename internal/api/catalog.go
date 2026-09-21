@@ -559,7 +559,15 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 						Summary: f.Summary,
 						Scope:   string(f.Scope),
 						Tier:    string(f.Tier),
-						InScope: sc.HasScope(f.Scope) || viewingAll,
+						/* Explicitly granted, so always in scope for VISIBILITY: the
+						   sidebar and All-features hide out-of-scope tiles, and a
+						   feature like Take attendance carries scope
+						   'assigned_classes' — which a granted non-teacher does not
+						   have, so it was hidden and only findable by search. The
+						   screen behind it still enforces the real scope (with the
+						   mark-any-section capability the grant unlocks, the section
+						   list fills), so showing the tile is correct, not a lie. */
+						InScope: true,
 						Live:    implementedFeatures[f.Key],
 					})
 					emitted[f.Key] = true

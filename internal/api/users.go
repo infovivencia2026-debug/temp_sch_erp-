@@ -1162,19 +1162,26 @@ featureUnlocks maps a feature SLUG (the part after the last dot in its key) to
 	one-off exception, keyed by slug so the same screen (Class 360 appears under
 	several workspaces) is covered wherever it is catalogued.
 */
+// A per-person grant is an EXCEPTION handed to someone who does not hold the
+// role — so they have no assigned classes/sections to scope to. The screens
+// scope to "own" data by default and would show "nothing in your scope", so the
+// unlocks include the WHOLE-SCHOOL wideners (read.all / write.any): granting the
+// tile means "let this person do this across the school", which is the only way
+// an office account without a class can use it. The Individual-features editor
+// shows each of these under "Also grants:" so the reach is never a surprise.
 var featureUnlocks = map[string][]string{
-	// Take attendance: mark the register, for any section (the grantee is not a
-	// timetabled teacher of it).
+	// Take attendance: mark the register for ANY section.
 	"take_attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny},
-	// Absentee follow-up / Present & absent monitor: read the register.
-	"absentee_followup": {rbac.AttendanceRead},
-	"student_absentees": {rbac.AttendanceRead},
-	// Class 360: the section overview reads the class, its students and their
-	// attendance.
-	"class_360": {rbac.Class360Read, rbac.StudentsRead, rbac.AttendanceRead},
-	// Student 360: one child's whole record.
-	"student_360": {rbac.StudentsRead},
-	// Staff overview / Staff 360: read employee records.
+	// Absentee follow-up / Present & absent: read the register for the whole
+	// school (read alone is only the grantee's own sections — none, for an
+	// office account — which reads as "nothing in your scope").
+	"absentee_followup": {rbac.AttendanceRead, rbac.AttendanceReadAll},
+	"student_absentees": {rbac.AttendanceRead, rbac.AttendanceReadAll},
+	// Class 360: read every class, its students and their attendance.
+	"class_360": {rbac.Class360Read, rbac.StudentsRead, rbac.StudentsReadAll, rbac.AttendanceRead, rbac.AttendanceReadAll},
+	// Student 360: any child's whole record.
+	"student_360": {rbac.StudentsRead, rbac.StudentsReadAll},
+	// Staff overview / Staff 360: read employee records (institution-wide).
 	"staff_360":      {rbac.EmployeesRead},
 	"staff_overview": {rbac.EmployeesRead},
 	// Marks entry: enter and amend marks.
