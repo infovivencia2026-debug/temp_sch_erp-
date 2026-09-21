@@ -403,28 +403,18 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 
 	   An admin may enable one catalog tile for one account on Logins & access,
 	   without granting the whole workspace it lives in. Such a grant is a feature
-	   key in user_permissions, so id.Can(f.Key) already answers true for it and
-	   the inner filter will show that one tile. What the workspace loop below
-	   would otherwise do is skip the entire workspace before reaching the tile,
-	   because the person does not HOLD the role. So a workspace is kept when the
-	   account holds at least one of its feature keys directly. */
+	   key in user_permissions, so id.Can(f.Key) already answers true for it.
+
+	   The tile lives natively under some workspace the person does NOT hold, and
+	   the workspace loop below skips that whole workspace — as it should, since we
+	   do not drop a person into a foreign workspace for one granted tile. Instead,
+	   after the loop we collect every directly-granted tile that was skipped and
+	   re-home it into the person's OWN primary workspace under a "Granted to you"
+	   section, so it is reachable with no workspace switch. */
 	directFeatures, err := s.directFeatureGrants(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
-	}
-	hasDirectFeatureInWorkspace := func(role catalog.Role) bool {
-		if len(directFeatures) == 0 {
-			return false
-		}
-		for _, sec := range role.Sections {
-			for _, f := range sec.Features {
-				if directFeatures[f.Key] {
-					return true
-				}
-			}
-		}
-		return false
 	}
 	ordered := make([]catalog.Role, 0, len(catalog.Roles))
 	for _, role := range catalog.Roles {
@@ -439,7 +429,7 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, role := range ordered {
-		if len(held) > 0 && !held[role.Key] && !hasDirectFeatureInWorkspace(role) {
+		if len(held) > 0 && !held[role.Key] {
 			continue
 		}
 		out := catalogRole{Key: role.Key, Name: role.Name, Sections: []catalogSection{}}
@@ -516,6 +506,100 @@ func (s *Server) getCatalog(w http.ResponseWriter, r *http.Request) {
 
 		if len(out.Sections) > 0 {
 			resp.Roles = append(resp.Roles, out)
+		}
+	}
+
+	/* Re-home individually-granted tiles into the person's own workspace.
+
+	   A tile granted to one account lives natively under a workspace the person
+	   does not hold, so the loop above skipped it. Rather than surface the whole
+	   foreign workspace (a switch away, and full of tiles they were never given),
+	   we gather each such tile — applying the SAME gates the emit loop applies —
+	   and drop it into the caller's PRIMARY workspace under one "Granted to you"
+	   section. The frontend routes by Key exactly as it does for any other tile. */
+	if len(directFeatures) > 0 {
+		// Already-emitted feature keys, so a tile whose native workspace the
+		// person DOES hold is not duplicated here.
+		emitted := map[string]bool{}
+		for _, role := range resp.Roles {
+			for _, sec := range role.Sections {
+				for _, f := range sec.Features {
+					emitted[f.Key] = true
+				}
+			}
+		}
+
+		granted := []catalogFeature{}
+		for _, role := range catalog.Roles {
+			for _, sec := range role.Sections {
+				for _, f := range sec.Features {
+					if !directFeatures[f.Key] || emitted[f.Key] {
+						continue
+					}
+					// The same gates the emit loop applies, in the same order.
+					if !ent.Allows(sec.Slug) {
+						continue
+					}
+					if locked && !setupSections[sec.Slug] {
+						continue
+					}
+					if !viewingAll && !id.Can(f.Key) {
+						continue
+					}
+					if evidenceKeys[f.Key] && !s.evidenceFor(r, sc, f.Key) {
+						continue
+					}
+					if stageKeys[f.Key] && !s.stageAllowed(r, f.Key) {
+						continue
+					}
+					granted = append(granted, catalogFeature{
+						Key:     f.Key,
+						Slug:    f.Slug,
+						Name:    f.Name,
+						Summary: f.Summary,
+						Scope:   string(f.Scope),
+						Tier:    string(f.Tier),
+						InScope: sc.HasScope(f.Scope) || viewingAll,
+						Live:    implementedFeatures[f.Key],
+					})
+					emitted[f.Key] = true
+				}
+			}
+		}
+
+		if len(granted) > 0 {
+			// The primary workspace is the first emitted role the person holds.
+			primary := -1
+			for i := range resp.Roles {
+				if mine[resp.Roles[i].Key] {
+					primary = i
+					break
+				}
+			}
+			if primary >= 0 {
+				pr := &resp.Roles[primary]
+				sec := catalogSection{
+					Slug: "granted", Name: "Granted to you", Workspace: pr.Name,
+					Features: granted,
+				}
+				pr.Sections = append(pr.Sections, sec)
+			} else {
+				// The person holds no workspace of their own (all fell out, or
+				// mine is empty). Give the granted tiles a standalone home so
+				// they stay reachable.
+				key := "granted"
+				if len(resp.Roles) > 0 {
+					key = resp.Roles[0].Key
+				}
+				resp.Roles = append(resp.Roles, catalogRole{
+					Key:  key,
+					Name: "Granted to you",
+					Sections: []catalogSection{{
+						Slug: "granted", Name: "Granted to you", Workspace: "Granted to you",
+						Features: granted,
+					}},
+				})
+			}
 		}
 	}
 
