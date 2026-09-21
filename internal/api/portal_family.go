@@ -102,14 +102,17 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 
 	var (
 		name     string
+		admNo    string
 		invoices = []familyInvoice{}
 		receipts = []familyReceipt{}
 		due      int64
 	)
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		// The admission number goes into the note on a UPI payment, so the
+		// office can tell whose money arrived from the bank narration alone.
 		if err := tx.QueryRow(r.Context(), `
-			SELECT concat_ws(' ', first_name, middle_name, last_name)
-			  FROM students WHERE id = $1`, student).Scan(&name); err != nil {
+			SELECT concat_ws(' ', first_name, middle_name, last_name), admission_no
+			  FROM students WHERE id = $1`, student).Scan(&name, &admNo); err != nil {
 			return err
 		}
 
@@ -231,7 +234,7 @@ func (s *Server) getFamilyFees(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.JSON(w, http.StatusOK, map[string]any{
-		"student_id": student.String(), "student_name": name,
+		"student_id": student.String(), "student_name": name, "admission_no": admNo,
 		"outstanding_paise": due, "invoices": invoices, "receipts": receipts,
 	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
 )
 
@@ -39,6 +40,10 @@ type institutionProfile struct {
 	ChildInfoCode  *string `json:"child_info_code,omitempty"`
 	MidDayMeal     bool    `json:"mid_day_meal"`
 	Timezone       string  `json:"timezone"`
+	// Where a fee paid by UPI goes. NULL means no QR is offered anywhere;
+	// see migrations/00320_upi_collection.sql.
+	UPIVPA       *string `json:"upi_vpa,omitempty"`
+	UPIPayeeName *string `json:"upi_payee_name,omitempty"`
 }
 
 /* Setup is a school's screen, and a platform operator is not in one.
@@ -75,11 +80,13 @@ func (s *Server) getInstitution(w http.ResponseWriter, r *http.Request) {
 		return tx.QueryRow(r.Context(), `
 			SELECT name, short_name, udise_code, affiliation_board, affiliation_no,
 			       state, district, mandal, village_or_ward, school_category,
-			       management_type, child_info_code, mid_day_meal, timezone
+			       management_type, child_info_code, mid_day_meal, timezone,
+			       upi_vpa, upi_payee_name
 			  FROM institutions WHERE id = $1`, id.InstitutionID).
 			Scan(&p.Name, &p.ShortName, &p.UDISECode, &p.Board, &p.AffiliationNo,
 				&p.State, &p.District, &p.Mandal, &p.VillageOrWard, &p.SchoolCategory,
-				&p.ManagementType, &p.ChildInfoCode, &p.MidDayMeal, &p.Timezone)
+				&p.ManagementType, &p.ChildInfoCode, &p.MidDayMeal, &p.Timezone,
+				&p.UPIVPA, &p.UPIPayeeName)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -102,9 +109,17 @@ type institutionUpdate struct {
 	ManagementType string `json:"management_type,omitempty"`
 	ChildInfoCode  string `json:"child_info_code,omitempty"`
 	MidDayMeal     bool   `json:"mid_day_meal"`
+	UPIVPA         string `json:"upi_vpa,omitempty"`
+	UPIPayeeName   string `json:"upi_payee_name,omitempty"`
 }
 
 var errBadUDISE = errors.New("udise code must be 11 digits")
+
+// A UPI address that is not shaped like one is refused rather than saved: it
+// would be drawn on every family's fee screen, and a parent who pays to a
+// mistyped handle has paid a stranger. The CHECK constraint on the column
+// would refuse it too, as an opaque 500.
+var errBadVPA = errors.New("the UPI ID should look like name@bank, for example vivencia@sbi")
 
 /* The enumerations the institutions table enforces with check constraints.
 
@@ -291,6 +306,17 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 	if short == "" {
 		short = deriveShortName(req.Name)
 	}
+	req.UPIVPA = strings.TrimSpace(req.UPIVPA)
+	if req.UPIVPA != "" && !fees.ValidVPA(req.UPIVPA) {
+		httpx.BadRequest(w, r, errBadVPA.Error())
+		return
+	}
+	// A payee name without an address is a label on nothing; drop it so the
+	// profile never reads as half-configured.
+	req.UPIPayeeName = strings.TrimSpace(req.UPIPayeeName)
+	if req.UPIVPA == "" {
+		req.UPIPayeeName = ""
+	}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
@@ -299,14 +325,15 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 			       affiliation_board = $5, affiliation_no = $6,
 			       state = $7, district = $8, mandal = $9, village_or_ward = $10,
 			       school_category = $11, management_type = $12,
-			       child_info_code = $13, mid_day_meal = $14, updated_at = now()
+			       child_info_code = $13, mid_day_meal = $14,
+			       upi_vpa = $15, upi_payee_name = $16, updated_at = now()
 			 WHERE id = $1`,
 			id.InstitutionID, req.Name, short, nullString(req.UDISECode),
 			nullString(req.Board), nullString(req.AffiliationNo),
 			nullString(req.State), nullString(req.District), nullString(req.Mandal),
 			nullString(req.VillageOrWard), nullString(req.SchoolCategory),
 			nullString(req.ManagementType), nullString(req.ChildInfoCode),
-			req.MidDayMeal)
+			req.MidDayMeal, nullString(req.UPIVPA), nullString(req.UPIPayeeName))
 		return err
 	})
 	if err != nil {

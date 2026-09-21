@@ -305,6 +305,9 @@ interface Profile {
   management_type?: string
   child_info_code?: string
   mid_day_meal: boolean
+  /** The school's UPI address for fees. Blank means no QR is offered. */
+  upi_vpa?: string
+  upi_payee_name?: string
 }
 
 function ProfilePanel({ onDone }: PanelProps) {
@@ -444,6 +447,24 @@ function ProfilePanel({ onDone }: PanelProps) {
               { value: 'yes', label: 'Served — keep the MDM register' },
             ]}
           />
+        </Field>
+        {/* WHERE A FEE PAID BY PHONE GOES.
+
+            Not a gateway. A gateway pulls money and tells the system; this is
+            the school's own UPI address, the one on the laminated card at the
+            counter. With it set, a family's fee screen draws a QR with the
+            amount and admission number inside, and the counter shows one for
+            a UPI payment. The office still records the transfer, exactly as
+            it does for the laminated card. Blank offers neither. */}
+        <Field
+          label="UPI ID for fees"
+          wide
+          hint="The school's own UPI address, as on the card at the counter. Families get a scannable code for it on their fee screen; leave blank to offer none."
+        >
+          <Input value={v.upi_vpa ?? ''} onChange={(x) => set('upi_vpa', x)} placeholder="vivencia@sbi" />
+        </Field>
+        <Field label="Payee name shown in the UPI app" hint="Blank uses the school's name.">
+          <Input value={v.upi_payee_name ?? ''} onChange={(x) => set('upi_payee_name', x)} placeholder={v.name ?? ''} />
         </Field>
       </FormGrid>
       <SaveRow pending={save.isPending} error={save.error} />

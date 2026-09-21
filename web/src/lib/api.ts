@@ -210,6 +210,10 @@ export interface SessionResponse {
     // that has set no branding.
     display_name?: string; tagline?: string
     logo_key?: string; favicon_key?: string; accent_color?: string
+    // The school's UPI address for fees, absent when none is set -- and then
+    // no screen offers a UPI code. The payee name is already defaulted to the
+    // school's name by the server.
+    upi_vpa?: string; upi_payee_name?: string
   }
   permissions: string[]
   modules?: { module: string; enabled: boolean }[]

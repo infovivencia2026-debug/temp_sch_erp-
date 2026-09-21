@@ -10,6 +10,9 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useSession } from '@/lib/session'
+import { upiNote } from '@/lib/upi'
+import UpiQr from '@/components/UpiQr'
 
 /* The family's own bill.
 
@@ -47,6 +50,9 @@ interface ReceiptRow {
 interface FeeView {
   student_id: string
   student_name: string
+  /** Goes into the note on a UPI payment, so the office can tell whose money
+      arrived from the bank narration alone. */
+  admission_no?: string
   outstanding_paise: number
   invoices: Invoice[]
   receipts: ReceiptRow[]
@@ -103,6 +109,24 @@ export default function PortalFees() {
   })
   const { data, isLoading, error } = fees
 
+  /* PAYING FOR REAL, WITH NO GATEWAY.
+
+     Where the school has set its UPI address (Setup → School profile), the
+     screen draws the same QR the counter has taped to it -- amount and
+     admission number inside -- and the simulated button below goes away: a
+     "Pay" button that writes a test receipt beside a code that moves real
+     money is how a parent comes to believe they have paid twice. The receipt
+     for a UPI payment appears once the office records the transfer, and the
+     card says so.
+
+     One code at a time. The whole balance by default; an instalment's own
+     button points the code at that instalment instead, so a family paying
+     one term of three scans a code for one term. */
+  const inst = useSession().institution
+  const upiVpa = inst?.upi_vpa ?? ''
+  const upiPayee = inst?.upi_payee_name || inst?.name || ''
+  const [upiInvoice, setUpiInvoice] = useState<string | null>(null)
+
   /* The children request is a state of this screen too.
 
      `isLoading || !child` sent a parent whose list failed — or whose account is
@@ -144,6 +168,15 @@ export default function PortalFees() {
     .filter((r) => r.status !== 'bounced')
     .reduce((n, r) => n + r.amount_paise, 0)
 
+  // The instalment the code is pointed at, if it is still owed; otherwise
+  // (and by default) the whole balance.
+  const upiTarget = d.invoices.find((i) => i.invoice_no === upiInvoice && i.due_paise > 0)
+  const upiAmount = upiTarget ? upiTarget.due_paise : d.outstanding_paise
+  const pointUpiAt = (invoiceNo: string) => {
+    setUpiInvoice(invoiceNo)
+    document.getElementById('portal-upi')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
     <>
       <PageHead
@@ -151,7 +184,7 @@ export default function PortalFees() {
         title={d.outstanding_paise > 0 ? t('portal.fees.title_due', { amount: formatPaise(d.outstanding_paise) }) : t('portal.fees.title_nothing_due')}
         description={
           d.outstanding_paise > 0
-            ? t('portal.fees.description_due', { name: d.student_name })
+            ? t(upiVpa ? 'portal.fees.description_due_upi' : 'portal.fees.description_due', { name: d.student_name })
             : t('portal.fees.description_paid', { name: d.student_name })
         }
         actions={
@@ -182,7 +215,40 @@ export default function PortalFees() {
             notification — and stamps every row SIMULATED, so the whole family
             side of the fee flow can be exercised before a gateway is wired in,
             which is the worst day to find a fault in it. */}
-        {d.outstanding_paise > 0 && (
+        {d.outstanding_paise > 0 && upiVpa && (
+          <div id="portal-upi">
+            <Card>
+              <CardHeader title={t('portal.fees.upi_title')} description={t('portal.fees.upi_description')} />
+              <div className="p-5">
+                <UpiQr
+                  vpa={upiVpa}
+                  payeeName={upiPayee}
+                  amountPaise={upiAmount}
+                  note={upiNote('Fee', d.admission_no, upiTarget?.invoice_no)}
+                  caption={t('portal.fees.upi_caption')}
+                />
+                {upiTarget && (
+                  <p className="mt-3 text-center text-[12.5px] text-muted-foreground">
+                    {t('portal.fees.upi_for_invoice', {
+                      invoice: upiTarget.instalment_no
+                        ? t('portal.fees.instalment_no', { number: upiTarget.instalment_no })
+                        : upiTarget.invoice_no,
+                    })}{' '}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() => setUpiInvoice(null)}
+                    >
+                      {t('portal.fees.upi_whole')}
+                    </button>
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {d.outstanding_paise > 0 && !upiVpa && (
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
@@ -305,7 +371,16 @@ export default function PortalFees() {
                         {formatPaise(i.paid_paise)}
                       </strong>
                     </span>
-                    {i.due_paise > 0 && (
+                    {i.due_paise > 0 && upiVpa && (
+                      <Button
+                        size="sm"
+                        variant={upiTarget?.invoice_no === i.invoice_no ? 'ink' : 'primary'}
+                        onClick={() => pointUpiAt(i.invoice_no)}
+                      >
+                        {t('portal.fees.action_pay_upi', { amount: formatPaise(i.due_paise) })}
+                      </Button>
+                    )}
+                    {i.due_paise > 0 && !upiVpa && (
                       <Button
                         size="sm"
                         disabled={pay.isPending}
