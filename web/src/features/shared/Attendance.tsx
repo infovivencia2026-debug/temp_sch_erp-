@@ -311,7 +311,9 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                   <Td className="font-medium">{s.full_name}</Td>
                   <Td>{saved ? <Badge tone={TONE[saved]}>{saved}</Badge> : <span className="text-xs text-muted-foreground">Not marked</span>}</Td>
                   <Td>
-                    <div className="flex items-center gap-1">
+                    {/* Six 44px touch targets can't sit in one row on a phone;
+                        let them wrap instead of pushing the card off-screen. */}
+                    <div className="flex flex-wrap items-center gap-1">
                       {QUICK.map((q) => {
                         const on = value === q.value
                         return (
