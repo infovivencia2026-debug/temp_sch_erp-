@@ -486,6 +486,27 @@ function PersistGate({ children }: { children: ReactNode }) {
                match, the persisted cache is discarded rather than trusted. */
             buster: namespace,
             maxAge: PERSIST_MAX_AGE,
+            /* Never persist the authority queries — identity, the menu, and the
+               permission/role editors. Persisting them means a feature or
+               permission just granted stays invisible until a stale copy ages
+               out; keeping them out of the offline cache (they still cache in
+               memory for the session) means a plain reload always reflects the
+               current grants. Everything else is still persisted for offline. */
+            dehydrateOptions: {
+              shouldDehydrateQuery: (query: { queryKey: readonly unknown[] }) => {
+                const k = String(query.queryKey[0] ?? '')
+                return ![
+                  'session',
+                  'catalog',
+                  'user-permissions',
+                  'permission-catalog',
+                  'role-features',
+                  'feature-catalog',
+                  'role-grid',
+                  'admin-roles',
+                ].includes(k)
+              },
+            },
           }
         : null,
     [userId, institutionId, namespace],

@@ -93,7 +93,12 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     queryKey: ['catalog', allRolesOn()],
     queryFn: () => api.get<CatalogResponse>(
       '/api/v1/catalog' + (allRolesOn() ? '?all_roles=1' : '')),
-    staleTime: 5 * 60_000,
+    /* The menu is authority, not convenience: a feature just granted to this
+       person must appear on the next load, not up to five minutes later. So the
+       catalogue always revalidates on mount (and is excluded from the offline
+       cache in App.tsx), while a cached copy still paints instantly first. */
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   if (isLoading) {

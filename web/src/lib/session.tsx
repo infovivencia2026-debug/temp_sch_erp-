@@ -21,7 +21,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // The server answers 200 with {authenticated:false} rather than 401, so a
     // signed-out visitor is a normal result, not a retryable failure.
     retry: false,
-    staleTime: 60_000,
+    /* Identity carries the permission set the whole app gates on, so it must
+       reflect a just-changed grant on the next load rather than up to a minute
+       later. Always revalidate on mount; excluded from the offline cache in
+       App.tsx so a stale copy never decides what this person may do. */
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   /* THE FIRST PAINT IS THE SHAPE OF THE APP, NOT THE WORD "LOADING".
