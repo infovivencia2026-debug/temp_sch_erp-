@@ -1,7 +1,11 @@
 import { ApiError } from '@/lib/api'
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useMemo, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
+import {
+  indexedDbAvailable, perUserPersister, persistNamespace, PERSIST_MAX_AGE,
+} from '@/lib/query-persist-idb'
 import { SessionProvider, useSession } from '@/lib/session'
 import ApplyForm from '@/features/public/ApplyForm'
 import AccountPage from '@/features/shared/Profile'
@@ -448,6 +452,60 @@ function Live() {
   return null
 }
 
+/* PERSISTENCE, NAMESPACED BY WHO IS SIGNED IN.
+ *
+ * Mounted inside SessionProvider, so by the time it renders the identity is
+ * known: /session has answered, the account is authenticated, and useSession
+ * carries the user and their institution. That is exactly what the cache is
+ * keyed on.
+ *
+ * The store the app reads and writes is `rq-cache:v1:<userId>:<institutionId>`
+ * (see lib/query-persist-idb.ts). A different account on the same shared
+ * device derives a different key and reads a separate store -- no
+ * cross-account or cross-tenant leakage. Switching accounts changes the
+ * `key` below, which REMOUNTS PersistQueryClientProvider against the new
+ * namespace, so nothing of the previous user survives the switch in memory
+ * either.
+ *
+ * Two ways out to the plain, in-memory provider (no persistence, app still
+ * works): no user id yet, or IndexedDB unavailable/throwing on this browser
+ * (private mode, disabled storage, an old WebView). The security invariant
+ * holds in both -- with no persistence there is no store to leak. */
+function PersistGate({ children }: { children: ReactNode }) {
+  const session = useSession()
+  const userId = session.user?.id
+  const institutionId = session.institution?.id
+
+  const namespace = userId ? persistNamespace(userId, institutionId) : ''
+  const persistOptions = useMemo(
+    () =>
+      userId
+        ? {
+            persister: perUserPersister(userId, institutionId),
+            /* Same value as the key; if the stored namespace ever fails to
+               match, the persisted cache is discarded rather than trusted. */
+            buster: namespace,
+            maxAge: PERSIST_MAX_AGE,
+          }
+        : null,
+    [userId, institutionId, namespace],
+  )
+
+  if (!userId || !persistOptions || !indexedDbAvailable()) {
+    return <>{children}</>
+  }
+
+  return (
+    <PersistQueryClientProvider
+      key={namespace}
+      client={queryClient}
+      persistOptions={persistOptions}
+    >
+      {children}
+    </PersistQueryClientProvider>
+  )
+}
+
 export default function App() {
   if (typeof window !== 'undefined' && isPublicPath(window.location.pathname)) {
     return (
@@ -466,6 +524,10 @@ export default function App() {
       <ToastHost>
       <BrowserRouter>
         <SessionProvider>
+          {/* Per-user+institution IndexedDB persistence, once identity is
+              known. Falls back to no persistence when IndexedDB is
+              unavailable. See PersistGate. */}
+          <PersistGate>
           <CatalogProvider>
             <I18nProvider>
             {/* Inside the session, because it asks a signed-in question. */}
@@ -475,6 +537,7 @@ export default function App() {
             </Shell>
             </I18nProvider>
           </CatalogProvider>
+          </PersistGate>
         </SessionProvider>
       </BrowserRouter>
     </ToastHost>
