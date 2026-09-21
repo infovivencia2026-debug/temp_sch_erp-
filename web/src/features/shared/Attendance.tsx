@@ -133,6 +133,25 @@ export default function Attendance() {
   const markAll = (status: Status) =>
     setDraft(Object.fromEntries(students.map((s) => [s.id, status])))
 
+  /* The running tally, over the WHOLE section rather than the filtered view: a
+     search that hides half the class must not make the count of who is in look
+     like the class shrank. Effective mark = the unsaved draft if there is one,
+     otherwise what is already recorded. Everything without either is "not
+     marked", which is the number that catches a register saved half-done. */
+  const tally = students.reduce(
+    (acc, s) => {
+      const v = draft[s.id] ?? existing.get(s.id)
+      if (v === 'present') acc.present++
+      else if (v === 'absent') acc.absent++
+      else if (v === 'late') acc.late++
+      else if (v === 'leave') acc.leave++
+      else if (v === 'half_day') acc.half++
+      else acc.unmarked++
+      return acc
+    },
+    { present: 0, absent: 0, late: 0, leave: 0, half: 0, unmarked: 0 },
+  )
+
   return (
     <Card>
       <CardHeader
@@ -234,6 +253,38 @@ export default function Attendance() {
                 { header: 'Mark', value: (s) => existing.get(s.id) ?? draft[s.id] ?? 'not marked' },
               ]}
             />
+          </div>
+          {/* The running count, so a teacher sees the class add up as they mark
+              and catches a half-done register before saving it. Present and
+              Absent lead; the rest and the not-marked count follow. */}
+          <div className="flex flex-wrap items-center gap-2 border-b bg-muted/20 px-5 py-2.5 text-[13px]">
+            <span className="rounded-md border border-success/40 bg-success/10 px-2 py-1 font-semibold text-success">
+              Present {tally.present}
+            </span>
+            <span className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 font-semibold text-destructive">
+              Absent {tally.absent}
+            </span>
+            {tally.late > 0 && (
+              <span className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-warning">
+                Late {tally.late}
+              </span>
+            )}
+            {tally.leave > 0 && (
+              <span className="rounded-md border border-border-strong bg-surface-hover px-2 py-1 text-secondary-foreground">
+                Leave {tally.leave}
+              </span>
+            )}
+            {tally.half > 0 && (
+              <span className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-warning">
+                Half-day {tally.half}
+              </span>
+            )}
+            <span className="ml-auto text-muted-foreground">
+              {tally.unmarked > 0
+                ? `${tally.unmarked} not marked`
+                : 'All marked'}{' '}
+              · {students.length} total
+            </span>
           </div>
           <Table head={['Admission no.', 'Student', 'Recorded', 'Mark']} empty={!shown.length}>
             {shown.map((s) => {
