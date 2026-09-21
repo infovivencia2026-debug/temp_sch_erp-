@@ -109,7 +109,11 @@ const asyncStorage = {
  *  store. `institutionId` is optional because platform staff hold no
  *  institution of their own -- they still get a stable, isolated bucket. */
 export function persistNamespace(userId: string, institutionId: string | undefined): string {
-  return `rq-cache:v1:${userId}:${institutionId ?? 'none'}`
+  // Bump the version to discard every previously-persisted offline cache: after
+  // the authority queries (identity, menu, sections) were excluded, an old blob
+  // could still restore a stale copy once. v2 flushes them so everyone loads
+  // fresh, then persists only the allowed queries going forward.
+  return `rq-cache:v2:${userId}:${institutionId ?? 'none'}`
 }
 
 /** An async-storage persister bound to this user+institution's namespace. */
