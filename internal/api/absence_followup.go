@@ -62,6 +62,18 @@ type absenteeStudent struct {
 	CalledAt *time.Time `json:"called_at"`
 }
 
+// presentStudent is one active child marked present for the day, for the
+// read-only Present tab of the monitoring screen. It carries no follow-up
+// fields — there is nothing to chase for a child who came in.
+type presentStudent struct {
+	StudentID   string `json:"student_id"`
+	Name        string `json:"name"`
+	AdmissionNo string `json:"admission_no"`
+	SectionID   string `json:"section_id"`
+	SectionName string `json:"section_name"`
+	ClassName   string `json:"class_name"`
+}
+
 type absenteeSection struct {
 	SectionID   string            `json:"section_id"`
 	SectionName string            `json:"section_name"`
@@ -186,9 +198,46 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		sections[i].Students = append(sections[i].Students, st)
 	}
 
+	// The Present tab of the same screen: every ACTIVE child marked present for
+	// the day, flat across the sections the caller may see. Same on_date /
+	// section filter and the same scope predicate as the absentee query, so the
+	// two tabs can never disagree about who a teacher may see. Strictly
+	// status='present' — 'late' and 'half_day' are deliberately left out for now.
+	pArgs := []any{on, nullString(q.Get("section_id"))}
+	pPred, pScopeArgs := res.AttendancePredicate("sa", len(pArgs)+1)
+	pArgs = append(pArgs, pScopeArgs...)
+	present, err := collect(s, r, `
+		SELECT sa.student_id::text,
+		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
+		       st.admission_no,
+		       sa.section_id::text, sec.name, c.name
+		  FROM student_attendance sa
+		  JOIN students st  ON st.id = sa.student_id
+		  JOIN sections sec ON sec.id = sa.section_id
+		  JOIN classes  c   ON c.id = sec.class_id
+		 WHERE sa.on_date = $1::date
+		   AND ($2::uuid IS NULL OR sa.section_id = $2)
+		   AND sa.status = 'present'
+		   AND st.status = 'active'
+		   AND `+pPred+`
+		 ORDER BY sec.name, st.admission_no`, pArgs,
+		func(rows pgx.Rows) (presentStudent, error) {
+			var v presentStudent
+			return v, rows.Scan(&v.StudentID, &v.Name, &v.AdmissionNo,
+				&v.SectionID, &v.SectionName, &v.ClassName)
+		})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if present == nil {
+		present = []presentStudent{}
+	}
+
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"date":     on,
 		"sections": sections,
+		"present":  present,
 	})
 }
 

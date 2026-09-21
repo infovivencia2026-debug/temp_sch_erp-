@@ -141,6 +141,18 @@ AMBIGUOUS = {"Specific student"}
 BY_ROLE_SCOPE = {"student": "self", "parent": "children"}
 
 
+# A feature's slug (and therefore its permission key role.section.<slug>) is
+# normally derived from its display name. When a feature is RENAMED after grants
+# already reference its key, the slug must stay put or every seeded grant and
+# saved link would move. Map the new display name to the original slug here.
+#
+#   "Student absentees" -> "Present & absent": the screen grew a Present tab and
+#   was renamed, but grants (migration 00317) still key on student_absentees.
+FEATURE_SLUG_OVERRIDE = {
+    "Present & absent": "student_absentees",
+}
+
+
 def slug(s: str) -> str:
     s = s.lower()
     s = re.sub(r"[’'`]", "", s)
@@ -188,7 +200,7 @@ def main() -> int:
         section = r["Section"].strip()
         feature = r["Feature"].strip()
         sec_slug = slug(section)
-        feat_slug = slug(feature)
+        feat_slug = FEATURE_SLUG_OVERRIDE.get(feature, slug(feature))
 
         # role.section.feature is unique by construction and makes a grant
         # trivially role-scoped, which is what the catalog describes.

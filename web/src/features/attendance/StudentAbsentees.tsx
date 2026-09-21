@@ -49,17 +49,30 @@ interface AbsenteeSection {
   students: Absentee[]
 }
 
+/** One child marked present that day — the Present tab's row. */
+interface Present {
+  student_id: string
+  name: string
+  admission_no: string
+  section_id: string
+  section_name: string
+  class_name: string
+}
+
 interface AbsenteesResponse {
   date: string
   sections: AbsenteeSection[]
+  present: Present[]
 }
 
-/** One student, flattened out of its section for the single table. */
+/** One absentee, flattened out of its section for the single table. */
 interface Row extends Absentee {
   section_id: string
   section_name: string
   class_name: string
 }
+
+type Tab = 'present' | 'absent'
 
 /** Today, as YYYY-MM-DD in the browser's own timezone. */
 function today(): string {
@@ -79,8 +92,10 @@ function isCalled(status: Absentee['call_status']): boolean {
 export default function StudentAbsentees() {
   const [onDate, setOnDate] = useState(today)
   const [sectionId, setSectionId] = useState('')
-  // Find one child across the day's absentees by name or admission number.
+  // Find one child across the day's list by name or admission number.
   const [nameQ, setNameQ] = useState('')
+  // Default to Absent — that is the actionable side of the day.
+  const [tab, setTab] = useState<Tab>('absent')
 
   const params = new URLSearchParams({ on_date: onDate })
   if (sectionId) params.set('section_id', sectionId)
@@ -100,12 +115,16 @@ export default function StudentAbsentees() {
      exactly as the action screen does. */
   const [allSections, setAllSections] = useState<{ value: string; label: string }[]>([])
   useEffect(() => {
-    if (!sectionId && data?.sections) {
+    if (!sectionId && data) {
+      // Draw the section list from BOTH tabs' rows, so a section that had
+      // everyone present (no absentees) is still selectable.
+      const seen = new Map<string, string>()
+      for (const s of data.sections ?? []) seen.set(s.section_id, `${s.class_name} ${s.section_name}`)
+      for (const p of data.present ?? []) seen.set(p.section_id, `${p.class_name} ${p.section_name}`)
       setAllSections(
-        data.sections.map((s) => ({
-          value: s.section_id,
-          label: `${s.class_name} ${s.section_name}`,
-        })),
+        [...seen.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((a, b) => a.label.localeCompare(b.label)),
       )
     }
   }, [data, sectionId])
@@ -120,25 +139,28 @@ export default function StudentAbsentees() {
     })),
   )
 
+  const allPresent = data?.present ?? []
+
   const nq = nameQ.trim().toLowerCase()
-  const rows = nq
-    ? allRows.filter(
-        (r) =>
-          r.name.toLowerCase().includes(nq) ||
-          r.admission_no.toLowerCase().includes(nq),
-      )
-    : allRows
+  const matchName = (name: string, adm: string) =>
+    !nq || name.toLowerCase().includes(nq) || adm.toLowerCase().includes(nq)
+
+  const rows = allRows.filter((r) => matchName(r.name, r.admission_no))
+  const presentRows = allPresent.filter((p) => matchName(p.name, p.admission_no))
 
   const total = allRows.length
   const pending = allRows.filter((r) => !isCalled(r.call_status)).length
   const called = total - pending
+  const presentTotal = allPresent.length
+
+  const empty = tab === 'present' ? presentTotal === 0 : total === 0
 
   return (
     <>
       <PageHead
         eyebrow="Attendance"
-        title="Student absentees"
-        description="Who is away today and where the call home stands — updates live as the office records each call."
+        title="Present & absent"
+        description="Who came in and who is away today, and where the call home stands — updates live as the office records each call."
         actions={
           <>
             <Field label="Date">
@@ -159,15 +181,66 @@ export default function StudentAbsentees() {
         }
       />
       <PageBody>
+        {/* Two views of the same day, sharing the date / section / search above.
+            Plain buttons styled as a segmented control — no new dependency, and
+            it renders on the oldest browser we support. */}
+        <div
+          role="tablist"
+          aria-label="Present or absent"
+          className="mb-3 inline-flex gap-1 rounded-md border bg-muted p-1"
+        >
+          {(['absent', 'present'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={
+                tab === t
+                  ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm'
+                  : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground'
+              }
+            >
+              {t === 'absent' ? `Absent (${total})` : `Present (${presentTotal})`}
+            </button>
+          ))}
+        </div>
+
         {isLoading ? (
-          <SkeletonTable columns={7} />
+          <SkeletonTable columns={tab === 'present' ? 4 : 7} />
         ) : error ? (
           <ErrorState error={error} />
-        ) : total === 0 ? (
-          <EmptyState
-            title="Nobody is marked absent for this day."
-            body="Once attendance is taken and a child is marked away, they appear here so the follow-up can be watched."
-          />
+        ) : empty ? (
+          tab === 'present' ? (
+            <EmptyState
+              title="Nobody marked present for this day."
+              body="Once the register is taken, every child marked present appears here."
+            />
+          ) : (
+            <EmptyState
+              title="Nobody is marked absent for this day."
+              body="Once attendance is taken and a child is marked away, they appear here so the follow-up can be watched."
+            />
+          )
+        ) : tab === 'present' ? (
+          <Card>
+            <CardHeader title="Present" description={`${presentTotal} present`} />
+            <Table
+              head={['Student', 'Admission No', 'Class', 'Section']}
+              empty={presentRows.length === 0}
+              emptyLabel={nq ? `No present child matches “${nameQ}” on this day.` : 'Nobody marked present for this day.'}
+            >
+              {presentRows.map((p) => (
+                <tr key={p.student_id}>
+                  <Td className="font-medium">{p.name}</Td>
+                  <Td className="font-mono text-[12px] text-muted-foreground">{p.admission_no}</Td>
+                  <Td>{p.class_name}</Td>
+                  <Td>{p.section_name}</Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
         ) : (
           <Card>
             <CardHeader
