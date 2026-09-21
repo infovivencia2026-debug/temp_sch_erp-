@@ -527,6 +527,11 @@ func (s *Server) listSupportPlans(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN sections sec ON sec.id = en.section_id
 		  LEFT JOIN classes cl ON cl.id = sec.class_id
 		 WHERE `+where+`
+		   -- A child who has left keeps no active enrolment, but a support plan
+		   -- lives on their student row, so without this a withdrawn/TC'd child
+		   -- still surfaces on the review-due list. Left students belong in
+		   -- Student 360 and the leavers view, not an operational list.
+		   AND st.status = 'active'
 		 ORDER BY (sp.review_on IS NOT NULL AND sp.review_on < current_date) DESC,
 		          sp.status, st.first_name
 		 LIMIT 300`, args,
