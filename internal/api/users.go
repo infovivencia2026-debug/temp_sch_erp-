@@ -1163,12 +1163,8 @@ featureUnlocks maps a feature SLUG (the part after the last dot in its key) to
 	several workspaces) is covered wherever it is catalogued.
 */
 var featureUnlocks = map[string][]string{
-	// The consolidated Attendance hub (Take / Present & Absent / Follow-up):
-	// the Take tab marks any section, the other two read the register — so the
-	// grant carries write, write.any and read together.
-	"attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny, rbac.AttendanceRead},
 	// Take attendance: mark the register, for any section (the grantee is not a
-	// timetabled teacher of it). Kept for the old slug, still routable.
+	// timetabled teacher of it).
 	"take_attendance": {rbac.AttendanceWrite, rbac.AttendanceWriteAny},
 	// Absentee follow-up / Present & absent monitor: read the register.
 	"absentee_followup": {rbac.AttendanceRead},

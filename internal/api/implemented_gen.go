@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 421 of the catalog's features are implemented.
+// 418 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -60,7 +60,6 @@ var implementedFeatures = map[string]bool{
 	"faculty.assessment_schemes.cce_formative_assessment_entry":                      true,
 	"faculty.assessment_schemes.cce_summative_assessment_entry":                      true,
 	"faculty.attendance.absentee_followup":                                           true,
-	"faculty.attendance.attendance":                                                  true,
 	"faculty.attendance.attendance_correction":                                       true,
 	"faculty.attendance.offline_attendance_diary_capture":                            true,
 	"faculty.attendance.student_absentees":                                           true,
@@ -119,7 +118,6 @@ var implementedFeatures = map[string]bool{
 	"front_office.my_profile.my_pay":                                                 true,
 	"hod.academics.faculty_allocation":                                               true,
 	"hod.academics.language_subject_allocation":                                      true,
-	"hod.attendance.attendance":                                                      true,
 	"hod.attendance.take_attendance":                                                 true,
 	"hod.communication.communication":                                                true,
 	"hod.communication.messages":                                                     true,
@@ -170,7 +168,6 @@ var implementedFeatures = map[string]bool{
 	"hr.reports.staff_analytics_reports":                                             true,
 	"hr.welfare.staff_welfare":                                                       true,
 	"institution_admin.academics.activities_electives":                               true,
-	"institution_admin.academics.attendance":                                         true,
 	"institution_admin.academics.attendance_audit":                                   true,
 	"institution_admin.academics.class_setup":                                        true,
 	"institution_admin.academics.curriculum_roadmap":                                 true,

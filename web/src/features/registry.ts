@@ -202,14 +202,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'institution_admin.examinations.exams_papers': screen(() => import('./exams/Exams')),
   'institution_admin.examinations.hall_ticket_issue': screen(() => import('./exams/HallTicket')),
   'faculty.my_classes.my_classes': screen(() => import('./faculty/TodaysClasses')),
-  /* Attendance — one tile, three tabs. The consolidated hub (Take / Present &
-     absent / Follow-up) is the single menu entry now; the three keys below it
-     (take_attendance, absentee_followup, student_absentees) stay mapped, no
-     longer as catalog tiles but so deep links still resolve — Class 360's
-     "Mark attendance" button navigates('/go/take_attendance'). */
-  'faculty.attendance.attendance': screen(() => import('./attendance/AttendanceHub')),
-  'hod.attendance.attendance': screen(() => import('./attendance/AttendanceHub')),
-  'institution_admin.academics.attendance': screen(() => import('./attendance/AttendanceHub')),
+  /* Attendance — three separate menu tiles, one screen each: Take attendance,
+     Present & absent and Absentee follow-up. Each is scoped server-side, so a
+     class teacher gets their sections and a read.all holder gets the school.
+     Class 360's "Mark attendance" button navigates('/go/take_attendance'). */
   'faculty.attendance.take_attendance': screen(() => import('./shared/Attendance')),
   // The register says who is away; this is the call home that follows. Scoped
   // server-side, so a class teacher gets their sections and a read.all holder
