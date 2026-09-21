@@ -1239,8 +1239,14 @@ func (s *Server) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, k := range req.PermissionKeys {
 		if !known[k] && !features[k] {
-			httpx.BadRequest(w, r, "unknown permission "+k)
-			return
+			/* A key that is neither a capability nor a current catalog feature is
+			   dropped, not rejected. It is almost always a feature that was
+			   renamed or retired (e.g. take_attendance folded into the Attendance
+			   hub): the account still carries the old key, the editor seeds it
+			   back, and a hard 400 then makes the whole panel unsavable. Silently
+			   dropping it cleans the orphan up on the next save. The input is
+			   checkboxes, not free text, so a typo cannot reach here. */
+			continue
 		}
 		if !id.PlatformAdmin && (k == rbac.PlatformTenantsRW || k == rbac.PlatformPlansRW) {
 			httpx.Denied(w, r, "platform permissions can only be granted by the vendor")
@@ -1326,6 +1332,16 @@ func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 		desc[p.Key] = p.Description
 	}
 
+	/* Tiles that come with a role automatically and are never a meaningful
+	   one-off exception — every workspace's Dashboard, and the home landing
+	   screens. Hiding them keeps this picker to the screens a school actually
+	   hands out per person (Attendance, Class 360, Student 360, marks, …)
+	   instead of burying them under a dozen Dashboards. */
+	skipSlug := map[string]bool{
+		"dashboard": true, "home": true, "my_day": true, "todays_classes": true,
+		"my_work": true, "my_calendar": true, "my_run": true,
+	}
+
 	groups := []featureCatalogGroup{}
 	// Index by workspace+section so a section that appears under several roles
 	// (Class 360 lives in more than one workspace) is one group.
@@ -1345,6 +1361,9 @@ func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 			for _, f := range sec.Features {
+				if skipSlug[featureSlug(f.Key)] {
+					continue
+				}
 				unlocks := []string{}
 				for _, cap := range featureUnlocks[featureSlug(f.Key)] {
 					if d := desc[cap]; d != "" {
@@ -1359,5 +1378,12 @@ func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"items": groups})
+	// A section that held only a Dashboard is now empty; do not show its header.
+	nonEmpty := groups[:0]
+	for _, g := range groups {
+		if len(g.Features) > 0 {
+			nonEmpty = append(nonEmpty, g)
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": nonEmpty})
 }
