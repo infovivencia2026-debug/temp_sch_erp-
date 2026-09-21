@@ -196,8 +196,8 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
               onClick={() => setTab(t)}
               className={
                 tab === t
-                  ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm'
-                  : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground'
+                  ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
+                  : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
               }
             >
               {t === 'absent' ? `Absent (${total})` : `Present (${presentTotal})`}
@@ -281,7 +281,10 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
           controls, shown as a row above the body instead. */}
       {embedded ? (
         <>
-          <div className="mb-3 flex flex-wrap items-end gap-3">{controls}</div>
+          {/* Full-width stacked on a phone so Date / Section / Search each get a
+              whole line and a comfortable field; the desktop row (sm+) is the
+              flex-wrap it always was. */}
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
           {content}
         </>
       ) : (

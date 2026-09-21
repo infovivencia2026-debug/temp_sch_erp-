@@ -584,6 +584,9 @@ function GroupRow({
                 aria-pressed={state.level === l}
                 onClick={() => onChange({ level: l })}
                 className={cn(
+                  // Dense on a desk; grown to a comfortable tap target on a
+                  // coarse pointer (min-, so the 12px desk row is untouched).
+                  '[@media(pointer:coarse)]:min-h-[40px] [@media(pointer:coarse)]:px-3.5',
                   'px-2.5 py-1 text-[12px] transition-colors',
                   state.level === l
                     ? 'bg-primary text-primary-foreground'
@@ -601,7 +604,7 @@ function GroupRow({
               value={state.scope}
               disabled={!editable || off}
               onChange={(e) => onChange({ scope: e.target.value })}
-              className="field h-[26px] cursor-pointer py-0 pr-7 text-[12px]"
+              className="field h-[26px] cursor-pointer py-0 pr-7 text-[12px] [@media(pointer:coarse)]:min-h-[40px]"
               aria-label={`${group.name} scope`}
             >
               {scopeChoices.map((s) => (
@@ -671,6 +674,7 @@ function Toggle({
       aria-pressed={on}
       className={cn(
         'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[12px] transition-colors',
+        '[@media(pointer:coarse)]:min-h-[40px] [@media(pointer:coarse)]:px-3',
         on ? 'border-primary bg-accent' : 'text-muted-foreground hover:bg-accent',
         disabled && 'cursor-not-allowed opacity-50',
       )}

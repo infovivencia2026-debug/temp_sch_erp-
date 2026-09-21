@@ -183,7 +183,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
               type="date"
               value={onDate}
               onChange={(e) => { setOnDate(e.target.value); setDraft({}) }}
-              className="rounded-md border bg-background px-2.5 py-1.5 text-sm"
+              /* A finger is not a mouse pointer: the visible box is unchanged on a
+                 desk, and only a coarse pointer grows it to the 44px tap floor the
+                 Button component already keeps. */
+              className="rounded-md border bg-background px-2.5 py-1.5 text-sm [@media(pointer:coarse)]:min-h-[44px]"
             />
             {can('academics.attendance.write') && (
               <ImportButton
@@ -332,6 +335,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                             }
                             className={cn(
                               'h-8 w-8 rounded-[7px] border text-[12px] font-semibold',
+                              // The register is the most-tapped screen in the
+                              // product; on a touch device each mark grows to the
+                              // 44px floor (min- so the 32px desk size is kept).
+                              '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px]',
                               'transition-colors duration-100',
                               'disabled:pointer-events-none disabled:opacity-40',
                               on
@@ -360,6 +367,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                         }
                         className={cn(
                           'h-8 rounded-[7px] border px-2 text-[12px]',
+                          '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px]',
                           'transition-colors duration-100',
                           'disabled:pointer-events-none disabled:opacity-40',
                           value === 'half_day'

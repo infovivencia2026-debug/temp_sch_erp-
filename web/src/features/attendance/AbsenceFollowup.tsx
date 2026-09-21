@@ -222,7 +222,8 @@ export default function AbsenceFollowup({ embedded = false }: { embedded?: boole
           controls, shown as a row above the body instead. */}
       {embedded ? (
         <>
-          <div className="mb-3 flex flex-wrap items-end gap-3">{controls}</div>
+          {/* Full-width stacked on a phone; the desktop row (sm+) is unchanged. */}
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">{controls}</div>
           {content}
         </>
       ) : (
