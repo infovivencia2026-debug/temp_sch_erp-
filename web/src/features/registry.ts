@@ -207,6 +207,12 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // server-side, so a class teacher gets their sections and a read.all holder
   // gets the school, from the one screen.
   'faculty.attendance.absentee_followup': screen(() => import('./attendance/AbsenceFollowup')),
+  /* The read-only companion to Absentee follow-up: the same scoped endpoint,
+     laid out as one flat table that shows who called and what the parent said,
+     refreshing live as colleagues record calls. Two catalog keys, one screen —
+     the office watches the whole school, a teacher watches their sections. */
+  'faculty.attendance.student_absentees': screen(() => import('./attendance/StudentAbsentees')),
+  'institution_admin.academics.student_absentees': screen(() => import('./attendance/StudentAbsentees')),
   'faculty.timetable.my_timetable': screen(() => import('./shared/Timetable')),
   // Where is my admission. The only parent screen that is not about a pupil:
   // at enquiry there is no student yet, so it scopes to the caller's own

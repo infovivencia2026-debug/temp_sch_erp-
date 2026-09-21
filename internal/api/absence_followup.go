@@ -54,6 +54,12 @@ type absenteeStudent struct {
 	Contacts       []absenteeContact `json:"contacts"`
 	CallStatus     string            `json:"call_status"`
 	ParentResponse string            `json:"parent_response"`
+	// CalledBy is the staff member who last recorded this child's follow-up
+	// (student_absence_followup.updated_by), '' when nobody has acted yet.
+	// CalledAt is when they recorded it, null until then. These feed the
+	// read-only monitoring screen; the action screen ignores them.
+	CalledBy string     `json:"called_by"`
+	CalledAt *time.Time `json:"called_at"`
 }
 
 type absenteeSection struct {
@@ -117,13 +123,16 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		            AND g.phone IS NOT NULL AND btrim(g.phone) <> ''
 		       ), '[]'),
 		       COALESCE(f.call_status, 'not_called'),
-		       COALESCE(f.parent_response, '')
+		       COALESCE(f.parent_response, ''),
+		       COALESCE(fu.full_name, ''),
+		       f.updated_at
 		  FROM student_attendance sa
 		  JOIN students st  ON st.id = sa.student_id
 		  JOIN sections sec ON sec.id = sa.section_id
 		  JOIN classes  c   ON c.id = sec.class_id
 		  LEFT JOIN student_absence_followup f
 		         ON f.student_id = sa.student_id AND f.on_date = sa.on_date
+		  LEFT JOIN users fu ON fu.id = f.updated_by
 		  LEFT JOIN absence_followup_section_done d
 		         ON d.section_id = sa.section_id AND d.on_date = sa.on_date
 		  LEFT JOIN users du ON du.id = d.done_by
@@ -140,7 +149,8 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 				&v.doneBy, &v.doneAt,
 				&v.student.StudentID, &v.student.Name, &v.student.AdmissionNo,
 				&v.contactsJSON,
-				&v.student.CallStatus, &v.student.ParentResponse)
+				&v.student.CallStatus, &v.student.ParentResponse,
+				&v.student.CalledBy, &v.student.CalledAt)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

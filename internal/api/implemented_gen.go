@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 415 of the catalog's features are implemented.
+// 418 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -62,6 +62,7 @@ var implementedFeatures = map[string]bool{
 	"faculty.attendance.absentee_followup":                                           true,
 	"faculty.attendance.attendance_correction":                                       true,
 	"faculty.attendance.offline_attendance_diary_capture":                            true,
+	"faculty.attendance.student_absentees":                                           true,
 	"faculty.attendance.take_attendance":                                             true,
 	"faculty.communication.anecdotal_records":                                        true,
 	"faculty.communication.class_teacher_remarks":                                    true,
@@ -173,6 +174,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.academics.lesson_plans":                                       true,
 	"institution_admin.academics.master_timetable":                                   true,
 	"institution_admin.academics.school_calendar":                                    true,
+	"institution_admin.academics.student_absentees":                                  true,
 	"institution_admin.academics.substitutions":                                      true,
 	"institution_admin.academics.syllabus_progress":                                  true,
 	"institution_admin.academics.teacher_assignment":                                 true,
@@ -325,6 +327,7 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.subscriptions_billing.subscription_ledger":                         true,
 	"seller_admin.support.audit":                                                     true,
 	"seller_admin.support.support":                                                   true,
+	"seller_admin.support.support_team":                                              true,
 	"seller_admin.usage_health.adoption_metrics":                                     true,
 	"seller_admin.usage_health.instance_health":                                      true,
 	"seller_admin.usage_health.usage_cost":                                           true,
