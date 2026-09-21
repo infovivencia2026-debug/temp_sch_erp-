@@ -33,7 +33,13 @@ const TONE: Record<string, 'success' | 'danger' | 'primary' | 'neutral'> = {
   half_day: 'primary', leave: 'neutral', holiday: 'neutral',
 }
 
-export default function Attendance() {
+/* `embedded` is passed by the Attendance hub, which wraps this screen as a tab
+   beside the monitor and follow-up. This screen has no PageHead of its own — it
+   is a single Card — so there is nothing to suppress; the prop is accepted for a
+   uniform signature across the three tab bodies and defaults to false so the
+   standalone route (Class 360's Mark-attendance button) is unaffected. */
+export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
+  void embedded
   const can = useCan()
   const qc = useQueryClient()
   const [sectionId, setSectionId] = useState('')

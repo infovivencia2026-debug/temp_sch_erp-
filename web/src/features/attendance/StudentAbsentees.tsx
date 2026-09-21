@@ -89,7 +89,7 @@ function isCalled(status: Absentee['call_status']): boolean {
   return status !== 'not_called'
 }
 
-export default function StudentAbsentees() {
+export default function StudentAbsentees({ embedded = false }: { embedded?: boolean } = {}) {
   const [onDate, setOnDate] = useState(today)
   const [sectionId, setSectionId] = useState('')
   // Find one child across the day's list by name or admission number.
@@ -155,32 +155,30 @@ export default function StudentAbsentees() {
 
   const empty = tab === 'present' ? presentTotal === 0 : total === 0
 
-  return (
+  /* The date / section / search controls, kept together so the hub can show
+     them at the top of the tab body while the standalone screen keeps them in
+     the PageHead. Either way they are the same controls. */
+  const controls = (
     <>
-      <PageHead
-        eyebrow="Attendance"
-        title="Present & absent"
-        description="Who came in and who is away today, and where the call home stands — updates live as the office records each call."
-        actions={
-          <>
-            <Field label="Date">
-              <Input type="date" value={onDate} onChange={setOnDate} />
-            </Field>
-            <Field label="Section">
-              <Select
-                value={sectionId}
-                onChange={setSectionId}
-                placeholder="All sections"
-                options={allSections}
-              />
-            </Field>
-            <Field label="Search">
-              <Input value={nameQ} onChange={setNameQ} placeholder="Name or admission no." />
-            </Field>
-          </>
-        }
-      />
-      <PageBody>
+      <Field label="Date">
+        <Input type="date" value={onDate} onChange={setOnDate} />
+      </Field>
+      <Field label="Section">
+        <Select
+          value={sectionId}
+          onChange={setSectionId}
+          placeholder="All sections"
+          options={allSections}
+        />
+      </Field>
+      <Field label="Search">
+        <Input value={nameQ} onChange={setNameQ} placeholder="Name or admission no." />
+      </Field>
+    </>
+  )
+
+  const content = (
+    <>
         {/* Two views of the same day, sharing the date / section / search above.
             Plain buttons styled as a segmented control — no new dependency, and
             it renders on the oldest browser we support. */}
@@ -273,7 +271,30 @@ export default function StudentAbsentees() {
             </Table>
           </Card>
         )}
-      </PageBody>
+    </>
+  )
+
+  return (
+    <>
+      {/* Embedded in the Attendance hub, this screen drops its own PageHead —
+          the hub carries the one title (and its own PageBody) — but keeps its
+          controls, shown as a row above the body instead. */}
+      {embedded ? (
+        <>
+          <div className="mb-3 flex flex-wrap items-end gap-3">{controls}</div>
+          {content}
+        </>
+      ) : (
+        <>
+          <PageHead
+            eyebrow="Attendance"
+            title="Present & absent"
+            description="Who came in and who is away today, and where the call home stands — updates live as the office records each call."
+            actions={controls}
+          />
+          <PageBody>{content}</PageBody>
+        </>
+      )}
     </>
   )
 }

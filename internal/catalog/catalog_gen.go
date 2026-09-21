@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 411 features.
+// Roles is the catalog: 23 roles, 409 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -340,7 +340,7 @@ var Roles = []Role{
 					{Key: "institution_admin.academics.lesson_plans", Slug: "lesson_plans", Name: "Lesson Plans", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed."},
 					{Key: "institution_admin.academics.syllabus_progress", Slug: "syllabus_progress", Name: "Syllabus Progress", Scope: Scope("institution"), Tier: Tier("core"), Summary: "How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam."},
 					{Key: "institution_admin.academics.attendance_audit", Slug: "attendance_audit", Name: "Attendance Audit", Scope: Scope("institution"), Tier: Tier("core"), Summary: "School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact."},
-					{Key: "institution_admin.academics.student_absentees", Slug: "student_absentees", Name: "Present & absent", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent's response. Refreshes on its own as the office records calls, so the whole school's follow-up can be watched live without editing anything — the calling itself stays on Absentee followup."},
+					{Key: "institution_admin.academics.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One tile with three tabs: Take marks a section's register; Present & absent is a live day-wise monitor of who came in and who is away across the school, with the state of each call home; Follow-up rings the families of the children marked away and records what the parent said. Each tab appears only if you may do that work."},
 					{Key: "institution_admin.academics.class_setup", Slug: "class_setup", Name: "Class Setup", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it."},
 					{Key: "institution_admin.academics.year_rollover", Slug: "year_rollover", Name: "Year Rollover", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Carry this year's sections, fee structure, bus allocations and timetable grid into the year that has not started yet, once. Shows what will be copied before it runs, and what was already carried. Children move separately, under Class Promotion."},
 					{Key: "institution_admin.academics.teacher_assignment", Slug: "teacher_assignment", Name: "Teacher Assignment", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated — and push the result into the published timetable so the two agree."},
@@ -551,7 +551,7 @@ var Roles = []Role{
 				Name: "Attendance",
 				Workspace: "Department Workspace",
 				Features: []Feature{
-					{Key: "hod.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark the register for the classes they teach."},
+					{Key: "hod.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One tile with three tabs: Take marks the register for the classes you teach; Present & absent is a live day-wise monitor of who came in and who is away; Follow-up rings the families of the children marked away and records what the parent said. Each tab appears only if you may do that work."},
 				},
 			},
 			{
@@ -658,10 +658,8 @@ var Roles = []Role{
 				Name: "Attendance",
 				Workspace: "My Classes",
 				Features: []Feature{
-					{Key: "faculty.attendance.take_attendance", Slug: "take_attendance", Name: "Take attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Fast daily or period/subject-wise attendance for assigned students."},
+					{Key: "faculty.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "One tile with three tabs: Take marks the day's register for your sections; Present & absent is a live day-wise monitor of who came in and who is away, with the state of each call home; Follow-up rings the families of the children marked away and records what the parent said. Each tab appears only if you may do that work."},
 					{Key: "faculty.attendance.attendance_correction", Slug: "attendance_correction", Name: "Attendance correction", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Request or process correction within permitted window/workflow."},
-					{Key: "faculty.attendance.absentee_followup", Slug: "absentee_followup", Name: "Absentee followup", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Every child marked away today, section by section, with admission number and the father's and mother's numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished — the same screen reviews any past day, section by section."},
-					{Key: "faculty.attendance.student_absentees", Slug: "student_absentees", Name: "Present & absent", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent's response. Refreshes on its own as calls are recorded, so a colleague's follow-up appears live without editing anything — the calling itself stays on Absentee followup."},
 					{Key: "faculty.attendance.offline_attendance_diary_capture", Slug: "offline_attendance_diary_capture", Name: "Offline Attendance & Diary Capture", Scope: Scope("assigned_classes"), Tier: Tier("core"), Summary: "Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns."},
 				},
 			},
