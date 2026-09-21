@@ -56,6 +56,12 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const sections = useQuery({
     queryKey: ['sections', 'class_teacher'],
     queryFn: () => api.get<List<Section>>('/api/v1/academics/sections?mine=class_teacher'),
+    /* Which sections this person may mark is authority, not convenience: after a
+       just-granted whole-school reach, opening this screen must fetch the live
+       list, never a cached empty one that reads as "nothing in your scope". So
+       always revalidate on mount. It is a small list, so this is cheap. */
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   // The register needs every student in the section, not only those already
