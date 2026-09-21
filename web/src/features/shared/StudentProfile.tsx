@@ -229,7 +229,13 @@ export default function StudentProfile() {
        client from everyone rather than by four round trips that would each
        need their own paging. */
     if (roll === 'active' || roll === 'new') f.status = 'active'
-    if (roll === 'suspended') f.status = 'suspended'
+    else if (roll === 'suspended') f.status = 'suspended'
+    /* "Left" and "All" need everybody from the API. The list now defaults to
+       the active roll, so these must ask for the archive explicitly with
+       status=all; "left" is then narrowed to non-active/non-suspended on the
+       client (below). Without this they came back empty against a "Left: 105"
+       tile. */
+    else if (roll === 'left' || roll === 'all') f.status = 'all'
     // Served by the API, not filtered here, so the tile and the list cannot
     // disagree about what "new this year" means.
     if (roll === 'new') f.new_this_year = '1'
