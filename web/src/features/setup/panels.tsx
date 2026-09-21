@@ -11,6 +11,7 @@ import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/com
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
+import { profileBody } from './profile-body'
 
 /* The forms behind each wizard step.
 
@@ -330,7 +331,10 @@ function ProfilePanel({ onDone }: PanelProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        save.mutate({ ...(cur ?? {}), ...(f ?? {}) })
+        /* Only the editable keys. The GET carries read-only ones (timezone)
+           and the server refuses unknown fields, so spreading the whole
+           answer back was "malformed JSON body" on every save. */
+        save.mutate(profileBody(cur, f) as Partial<Profile>)
       }}
     >
       <FormGrid>
@@ -3315,7 +3319,7 @@ function UDISEPanel({ onDone }: PanelProps) {
     queryFn: () => api.get<Profile>('/api/v1/setup/institution'),
   })
   const [code, setCode] = useState('')
-  const save = useSave(() => api.put('/api/v1/setup/institution', { ...(cur ?? {}), udise_code: code }), onDone)
+  const save = useSave(() => api.put('/api/v1/setup/institution', profileBody(cur, { udise_code: code })), onDone)
 
   return (
     <form

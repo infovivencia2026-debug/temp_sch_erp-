@@ -111,6 +111,12 @@ type institutionUpdate struct {
 	MidDayMeal     bool   `json:"mid_day_meal"`
 	UPIVPA         string `json:"upi_vpa,omitempty"`
 	UPIPayeeName   string `json:"upi_payee_name,omitempty"`
+	/* Read-only, accepted so the round trip is legal. The GET answers with
+	   the timezone; a client that echoes the profile back (an older SPA
+	   build did) must not be refused with "malformed JSON body" over a field
+	   it never changed. Deliberately never written: the timezone is not this
+	   form's to set. */
+	Timezone string `json:"timezone,omitempty"`
 }
 
 var errBadUDISE = errors.New("udise code must be 11 digits")
