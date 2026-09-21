@@ -1105,6 +1105,81 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
     },
   },
 
+  /* OBSIDIAN: Pearl's night half, from the owner's dark "Health UI" system --
+     a near-black sheet (#040405 ground, #09090c card), hairline rules at 9%
+     white, and a few coloured glows: magenta, indigo, red-orange, a lime
+     point on a slider.
+
+     Kept quiet on purpose. Every hue is desaturated to 55% of the source
+     before it is walked lighter, and it is walked only as far as 4.62:1 on
+     the card requires, so an ink is a tinted grey rather than a neon. A
+     domain's soft is its hue at 10% lightness and a third of its chroma: one
+     step above the card, so a tinted cell reads as the same black sheet with
+     a breath of colour in it, which is how the source draws its cards. The
+     anchor is the magenta card's gradient, deepened until white ink clears
+     14:1 on it. Worst pairing 5.62:1. */
+  {
+    name: 'Obsidian',
+    mode: 'dark',
+    tokens: {
+      '--bento-bg': '#040405',
+      '--bento-card': '#09090c',
+      '--bento-card-2': '#101014',
+      '--bento-ink': '#f6f6f8',
+      '--bento-muted': '#8a8a90',
+      '--bento-line': '#19191d',
+      '--bento-dock-bg': '#0b0b0e',
+      '--bento-dock-ink': '#f6f6f8',
+      '--bento-mint': '#bbc372',
+      '--bento-mint-tint': '#1f2013',
+      '--bento-purple': '#a571d6',
+      '--bento-purple-tint': '#1a1122',
+      '--bento-pink': '#d37fb6',
+      '--bento-pink-tint': '#21121c',
+      '--bento-orange': '#d06f5d',
+      '--bento-orange-tint': '#221311',
+      '--bento-anchor-from': '#3a1a33',
+      '--bento-anchor-to': '#14161f',
+      '--bento-anchor-ink': '#f6f6f8',
+      '--dom-students': '#8289db',
+      '--dom-students-soft': '#111222',
+      '--dom-students-text': '#f6f6f8',
+      '--dom-academics': '#a571d6',
+      '--dom-academics-soft': '#1a1122',
+      '--dom-academics-text': '#f6f6f8',
+      '--dom-finance': '#bbc372',
+      '--dom-finance-soft': '#1f2013',
+      '--dom-finance-text': '#f6f6f8',
+      '--dom-operations': '#a4a6ab',
+      '--dom-operations-soft': '#19191a',
+      '--dom-operations-text': '#f6f6f8',
+      '--dom-reports': '#9993e0',
+      '--dom-reports-soft': '#121122',
+      '--dom-reports-text': '#f6f6f8',
+      '--dom-staff': '#d37fb6',
+      '--dom-staff-soft': '#21121c',
+      '--dom-staff-text': '#f6f6f8',
+      '--dom-admissions': '#a5abe5',
+      '--dom-admissions-soft': '#0f1424',
+      '--dom-admissions-text': '#f6f6f8',
+      '--dom-attendance': '#82bddb',
+      '--dom-attendance-soft': '#111c22',
+      '--dom-attendance-text': '#f6f6f8',
+      '--dom-communication': '#c7a5e5',
+      '--dom-communication-soft': '#191223',
+      '--dom-communication-text': '#f6f6f8',
+      '--dom-critical': '#d06f5d',
+      '--dom-critical-soft': '#221311',
+      '--dom-critical-text': '#f6f6f8',
+      '--dom-success': '#abc372',
+      '--dom-success-soft': '#1c2013',
+      '--dom-success-text': '#f6f6f8',
+      '--dom-warning': '#d7a677',
+      '--dom-warning-soft': '#221911',
+      '--dom-warning-text': '#f6f6f8',
+    },
+  },
+
 ] as const
 
 export function savePalette(name: string) {
