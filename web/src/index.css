@@ -1003,6 +1003,21 @@
     .btn[data-variant='primary']:not(:disabled):hover,
     .btn[data-variant='secondary']:not(:disabled):hover { box-shadow: var(--edge-lip), var(--elev-2); }
   }
+  /* ON A PHONE, A BUTTON IS NOT A RAISED KEY.
+     The elevation ladder above reads as a physical key on a mouse-driven
+     desktop, where a hover can lift it. On a touch screen there is no hover,
+     nothing lifts, and a grid of little drop-shadowed keys just looks dated
+     and heavy. Flat fills with a crisp hairline are the modern phone idiom
+     (iOS / Material both), and the press still registers through the :active
+     sink defined elsewhere. Scoped to coarse pointers, so desktop keeps its
+     key look untouched. */
+  @media (pointer: coarse) {
+    .btn[data-variant='primary'] { box-shadow: none; }
+    .btn[data-variant='secondary'] {
+      box-shadow: none;
+      border-color: var(--hairline);
+    }
+  }
   .field::placeholder { color: hsl(var(--muted-foreground)); }
 
   /* Status as a dot and a word, not a filled pill. A row of saturated

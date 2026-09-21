@@ -1190,8 +1190,8 @@ export function Button({
            does wrap grows the box instead of spilling out of it, and `min-w`
            so a single-icon button is not a 44px-tall sliver. */
         size === 'sm'
-          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]'
-          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
+          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
+          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'
