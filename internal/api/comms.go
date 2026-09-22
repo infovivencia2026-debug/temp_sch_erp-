@@ -2521,11 +2521,17 @@ func (s *Server) postCounselorMessage(w http.ResponseWriter, r *http.Request) {
 			others = append(others, u)
 		}
 		rows.Close()
+		// The message id, as the notification's source so a retry cannot
+		// notify twice (notify() is idempotent on kind + source).
+		var src *uuid.UUID
+		if mid, perr := uuid.Parse(out); perr == nil {
+			src = &mid
+		}
 		for _, u := range others {
 			if err := notify(r, tx, id.InstitutionID, u, nil, "counselor_message",
 				"New message in a counselling conversation", req.Body,
 				"/go/counselling/family_conversations?thread="+thread.String(),
-				"counselor_message", &out); err != nil {
+				"counselor_message", src); err != nil {
 				return err
 			}
 		}
