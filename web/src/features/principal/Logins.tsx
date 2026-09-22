@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check, KeyRound, Laptop, Pencil, ShieldAlert, ShieldCheck, UserCheck, UserPlus, UserX, X,
@@ -10,7 +10,7 @@ import {
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 
 /* Who can sign in to this school.
@@ -377,20 +377,27 @@ export default function Logins() {
   )
 }
 
-/* The devices one account is signed in on.
+/* The devices one account is signed in on, and what each one did.
 
    Deactivating an account ends every session, which is the blunt answer and
    usually the right one. This is the other one: a teacher who left a browser
    signed in at an internet cafe should lose that session without losing their
    job. The list is asked for per user rather than filtered in the browser,
    because the whole-school session list is capped at 200 rows and a school
-   large enough to hit that cap is exactly the school that needs this. */
+   large enough to hit that cap is exactly the school that needs this.
+
+   Ended sessions are listed too, behind a toggle, because the question that
+   brings a principal here is usually about last night, not right now: the
+   fee counter was signed in from a phone at 9pm -- what did it open, what did
+   it change? Each row answers that on request; see SessionActivity. */
 function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   const qc = useQueryClient()
+  const [showEnded, setShowEnded] = useState(false)
+  const [open, setOpen] = useState<string | null>(null)
   const { data, isLoading, error } = useQuery({
-    queryKey: ['school-logins-sessions', user.id],
+    queryKey: ['school-logins-sessions', user.id, showEnded],
     queryFn: () =>
-      api.get<List<SessionRow>>(`/api/v1/admin/sessions?active=true&user=${user.id}`),
+      api.get<List<SessionRow>>(`/api/v1/admin/sessions?active=${showEnded ? 'false' : 'true'}&user=${user.id}`),
   })
 
   const revoke = useMutation({
@@ -406,42 +413,64 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   return (
     <Card>
       <CardHeader
-        title={`${user.full_name} is signed in here`}
-        description="Signing a device out takes effect immediately. The person keeps their account and can sign in again."
+        title={`${user.full_name}: sign-ins`}
+        description="Signing a device out takes effect immediately. The person keeps their account and can sign in again. Open a row to see which screens that sign-in used and what it changed."
         action={
-          <Button size="sm" variant="ghost" onClick={onClose} title="Close">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setShowEnded((v) => !v)}>
+              {showEnded ? 'Live only' : 'Include ended'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onClose} title="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         }
       />
       {isLoading ? (
-        <SkeletonTable columns={5} />
+        <SkeletonTable columns={6} />
       ) : error ? (
         <ErrorState error={error} />
       ) : (
         <Table
-          head={['Device', 'Address', 'Signed in', 'Last seen', '']}
+          head={['Device', 'Address', 'Signed in', 'Last seen', 'Status', '']}
           empty={!rows.length}
-          emptyLabel="Not signed in on any device right now."
+          emptyLabel={showEnded ? 'No sign-ins on record.' : 'Not signed in on any device right now.'}
         >
           {rows.map((s) => (
-            <tr key={s.id}>
-              <Td className="font-medium">{agent(s.user_agent)}</Td>
-              <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
-              <Td className="text-muted-foreground">{formatDate(s.created_at)}</Td>
-              <Td className="text-muted-foreground">{formatDate(s.last_seen_at)}</Td>
-              <Td>
-                <ConfirmButton
-                  tone="danger"
-                  disabled={revoke.isPending}
-                  question={`Sign ${user.full_name} out of this device now?`}
-                  confirmLabel="Sign out"
-                  onConfirm={() => revoke.mutate(s.id)}
-                >
-                  Sign out
-                </ConfirmButton>
-              </Td>
-            </tr>
+            <Fragment key={s.id}>
+              <tr>
+                <Td className="font-medium">{agent(s.user_agent)}</Td>
+                <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
+                <Td className="text-muted-foreground">{formatDateTime(s.created_at)}</Td>
+                <Td className="text-muted-foreground">{formatDateTime(s.last_seen_at)}</Td>
+                <Td>{s.revoked ? <Badge tone="neutral">Ended</Badge> : <Badge tone="success">Live</Badge>}</Td>
+                <Td>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setOpen(open === s.id ? null : s.id)}>
+                      {open === s.id ? 'Hide activity' : 'Activity'}
+                    </Button>
+                    {!s.revoked && (
+                      <ConfirmButton
+                        tone="danger"
+                        disabled={revoke.isPending}
+                        question={`Sign ${user.full_name} out of this device now?`}
+                        confirmLabel="Sign out"
+                        onConfirm={() => revoke.mutate(s.id)}
+                      >
+                        Sign out
+                      </ConfirmButton>
+                    )}
+                  </div>
+                </Td>
+              </tr>
+              {open === s.id && (
+                <tr>
+                  <td colSpan={6} className="bg-muted/30 px-4 py-3">
+                    <SessionActivity id={s.id} />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </Table>
       )}
@@ -452,6 +481,88 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
       )}
     </Card>
   )
+}
+
+interface SessionScreen {
+  screen: string
+  first_at: string
+  last_at: string
+  hits: number
+}
+
+interface SessionChange {
+  id: number
+  at: string
+  action: string
+  entity_type: string
+}
+
+/* One sign-in, as a timeline.
+
+   Two lists from one call: the screens the session opened (from the beacon
+   the app sends on each navigation) and the changes it made (the audit rows
+   stamped with this session). A session that opened Payroll and changed
+   nothing reads differently from one that opened Payroll and posted a
+   salary, and the second is what a principal needs to be able to see. */
+function SessionActivity({ id }: { id: string }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['session-activity', id],
+    queryFn: () =>
+      api.get<{ screens: SessionScreen[]; changes: SessionChange[] }>(`/api/v1/admin/sessions/${id}/activity`),
+  })
+  if (isLoading) return <p className="text-[13px] text-muted-foreground">Loading activity…</p>
+  if (error) return <ErrorState error={error} />
+  const screens = data?.screens ?? []
+  const changes = data?.changes ?? []
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div>
+        <p className="eyebrow mb-1.5">Screens opened ({screens.length})</p>
+        {screens.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">None recorded. Older app versions do not report screens.</p>
+        ) : (
+          <ul className="space-y-1 text-[13px]">
+            {screens.map((sc) => (
+              <li key={sc.screen} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="font-medium">{screenLabel(sc.screen)}</span>
+                <span className="text-muted-foreground">
+                  {formatDateTime(sc.first_at)}
+                  {sc.hits > 1 && ` · ${sc.hits}×, last ${formatDateTime(sc.last_at)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div>
+        <p className="eyebrow mb-1.5">Changes made ({changes.length})</p>
+        {changes.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">Nothing was changed in this sign-in.</p>
+        ) : (
+          <ul className="space-y-1 text-[13px]">
+            {changes.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span>
+                  <span className="font-medium">{c.entity_type}</span>{' '}
+                  <span className="font-mono text-[12px] text-muted-foreground">{c.action}</span>
+                </span>
+                <span className="text-muted-foreground">{formatDateTime(c.at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** finance.fee_counter becomes "Finance › Fee counter". The catalogue would
+    name it better, but it only carries the viewer's own roles' screens, and a
+    teacher's screens are not in a principal's catalogue. */
+function screenLabel(key: string): string {
+  const words = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+  const [section, ...rest] = key.split('.')
+  return rest.length ? `${words(section)} › ${words(rest.join('.'))}` : words(section)
 }
 
 /* Issuing a login and re-roling one are the same decision at two moments.

@@ -46,6 +46,11 @@ func auditable(method, path string) bool {
 	if strings.HasSuffix(path, "/ack") {
 		return false
 	}
+	// The screen beacon is the activity record itself; auditing it would
+	// write a row per navigation for every login.
+	if strings.HasSuffix(path, "/session/activity") {
+		return false
+	}
 	return true
 }
 
@@ -247,10 +252,10 @@ func AuditMiddleware(db *database.DB) func(http.Handler) http.Handler {
 			// time the response has been written, which would drop the record.
 			if err := db.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 				_, err := tx.Exec(r.Context(), `
-					INSERT INTO audit_log (institution_id, actor_user_id, action,
+					INSERT INTO audit_log (institution_id, actor_user_id, session_id, action,
 					                       entity_type, before, after, ip)
-					VALUES ($1,$2,$3,$4,$5,$6,$7::inet)`,
-					nullUUIDArg(id.InstitutionID), id.UserID,
+					VALUES ($1,$2,$3,$4,$5,$6,$7,$8::inet)`,
+					nullUUIDArg(id.InstitutionID), id.UserID, nullUUIDArg(id.SessionID),
 					r.Method+" "+r.URL.Path, entityFor(r.URL.Path),
 					before, after, ip)
 				return err

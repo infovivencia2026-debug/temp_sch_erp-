@@ -148,6 +148,10 @@ func (s *Server) Routes() http.Handler {
 		r.With(s.assistantRateLimit).Post("/assistant/import/preview", s.assistantImportPreview)
 		r.With(s.assistantRateLimit).Post("/assistant/import/commit", s.assistantImportCommit)
 
+		// Where this login went. One beacon per navigation from the SPA; see
+		// session_activity.go. Not audited: it is the record, not a change.
+		r.Post("/session/activity", s.recordScreen)
+
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)
@@ -1502,6 +1506,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Put("/modules", s.setModule)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions", s.listSessions)
 			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions/{id}", s.revokeSession)
+			// What one session did: the screens it opened and the changes it made.
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions/{id}/activity", s.getSessionActivity)
 		})
 
 		/* Remarks about staff, as distinct from remarks about children.
