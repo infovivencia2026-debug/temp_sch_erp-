@@ -45,6 +45,8 @@ interface Receipt {
 
 const MODES = [
   { value: 'cash', label: 'Cash' },
+  // Settled from the child's prepaid wallet; the server refuses if it is short.
+  { value: 'wallet', label: "Child's wallet" },
   { value: 'upi', label: 'UPI' },
   { value: 'card', label: 'Card' },
   { value: 'neft', label: 'NEFT / IMPS' },

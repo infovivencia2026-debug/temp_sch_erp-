@@ -416,6 +416,9 @@ type tillSessionView struct {
 	CashSalesPaise   int64 `json:"cash_sales_paise"`
 	CashReturnsPaise int64 `json:"cash_returns_paise"`
 	AccountPaise     int64 `json:"account_sales_paise"`
+	// Drawn from children's wallets: not in the drawer, so not in the cash-up,
+	// but part of what the counter sold.
+	WalletPaise      int64 `json:"wallet_sales_paise"`
 	SaleCount        int   `json:"sale_count"`
 	ReturnCount      int   `json:"return_count"`
 	// The tolerance in force, so the screen flags without a second round trip.
@@ -441,7 +444,7 @@ const tillSessionSQL = `
 	       ts.counted_cash_paise, ts.expected_cash_paise, ts.paid_out_paise,
 	       ts.variance_paise, ts.variance_reason,
 	       COALESCE(a.cash_sales, 0), COALESCE(a.cash_returns, 0),
-	       COALESCE(a.account_sales, 0),
+	       COALESCE(a.account_sales, 0), COALESCE(a.wallet_sales, 0),
 	       COALESCE(a.sale_count, 0)::int, COALESCE(a.return_count, 0)::int
 	  FROM pos_till_sessions ts
 	  JOIN pos_terminals t ON t.id = ts.terminal_id
@@ -455,6 +458,8 @@ const tillSessionSQL = `
 	                 THEN sl.total_paise ELSE 0 END) AS cash_returns,
 	        sum(CASE WHEN sl.kind = 'sale'   AND sl.payment_mode = 'account'
 	                 THEN sl.total_paise ELSE 0 END) AS account_sales,
+	        sum(CASE WHEN sl.kind = 'sale'   AND sl.payment_mode = 'wallet'
+	                 THEN sl.total_paise ELSE 0 END) AS wallet_sales,
 	        count(*) FILTER (WHERE sl.kind = 'sale')   AS sale_count,
 	        count(*) FILTER (WHERE sl.kind = 'return') AS return_count
 	        FROM pos_sales sl WHERE sl.session_id = ts.id
@@ -466,7 +471,7 @@ func scanTillSession(rows pgx.Rows) (tillSessionView, error) {
 		&v.OpenedBy, &v.OpenedAt, &v.FloatPaise, &v.Status,
 		&v.ClosedBy, &v.ClosedAt, &v.CountedPaise, &v.ExpectedPais,
 		&v.PaidOutPaise, &v.VariancePais, &v.Reason,
-		&v.CashSalesPaise, &v.CashReturnsPaise, &v.AccountPaise,
+		&v.CashSalesPaise, &v.CashReturnsPaise, &v.AccountPaise, &v.WalletPaise,
 		&v.SaleCount, &v.ReturnCount)
 }
 
@@ -1757,9 +1762,9 @@ func (s *Server) recordPosSale(w http.ResponseWriter, r *http.Request) {
 		if mode == "" {
 			mode = "cash"
 		}
-		if mode != "cash" && mode != "account" {
+		if mode != "cash" && mode != "account" && mode != "wallet" {
 			// Named explicitly because somebody will ask.
-			return refusal("this counter takes cash or charges the child's fee account. There is no wallet and no card: the campus wallet feature is blocked for want of a payment gateway")
+			return refusal("this counter takes cash, charges the child's fee account, or draws from the child's wallet. There is no card: no payment gateway is wired to this counter")
 		}
 
 		var status, channel string
@@ -1786,6 +1791,9 @@ func (s *Server) recordPosSale(w http.ResponseWriter, r *http.Request) {
 		}
 		if mode == "account" && student == nil {
 			return refusal("a charge needs an account to charge -- pick the child")
+		}
+		if mode == "wallet" && student == nil {
+			return refusal("a wallet sale needs a wallet to draw from -- pick the child")
 		}
 
 		lines, err := colResolveLines(r.Context(), tx, channel, req.Lines)
@@ -1846,9 +1854,28 @@ func (s *Server) recordPosSale(w http.ResponseWriter, r *http.Request) {
 		if err := colWriteLines(r.Context(), tx, id.InstitutionID, saleID, lines); err != nil {
 			return err
 		}
+		/* Drawn from the wallet AFTER the sale row exists, so the ledger row can
+		   point at it. Same transaction: a debit the till cannot complete rolls
+		   back with the sale, and the balance check's refusal reaches the clerk
+		   as a sentence rather than a constraint error. */
+		var walletLeft int64
+		if mode == "wallet" {
+			left, err := walletDebit(r.Context(), tx, id.InstitutionID, campus, *student,
+				total, number.Text,
+				fmt.Sprintf("%s counter, receipt %s", colTitle(channel), number.Text),
+				id.UserID, nil, &saleID)
+			var wse walletSpendError
+			if errors.As(err, &wse) {
+				return refusal(wse.msg)
+			}
+			if err != nil {
+				return err
+			}
+			walletLeft = left
+		}
 		if channel == "canteen" && student != nil {
 			if err := colMirrorToCafeteria(r.Context(), tx, id, saleID, *student,
-				campus, total, number.Text, lines); err != nil {
+				campus, total, number.Text, mode, lines); err != nil {
 				return err
 			}
 		}
@@ -1859,6 +1886,9 @@ func (s *Server) recordPosSale(w http.ResponseWriter, r *http.Request) {
 		out["payment_mode"] = mode
 		if invoiceNo != "" {
 			out["invoice_no"] = invoiceNo
+		}
+		if mode == "wallet" {
+			out["wallet_balance_paise"] = walletLeft
 		}
 		return nil
 	}, out)
@@ -1900,17 +1930,23 @@ colMirrorToCafeteria copies a canteen sale onto the parent-facing record.
 	and a positive total by construction, which is the same statement.
 */
 func colMirrorToCafeteria(ctx context.Context, tx pgx.Tx, id *httpx.Identity,
-	sale, student uuid.UUID, campus *uuid.UUID, total int64, receipt string,
+	sale, student uuid.UUID, campus *uuid.UUID, total int64, receipt, mode string,
 	lines []colPricedLine) error {
 
+	// The family's timeline knows 'wallet' but not 'account'; an account
+	// charge reads as cash there, as it always did.
+	cafMode := "cash"
+	if mode == "wallet" {
+		cafMode = "wallet"
+	}
 	var purchase uuid.UUID
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO cafeteria_purchases
 		    (institution_id, campus_id, student_id, counter, total_paise, mode,
 		     reference_no, recorded_by)
-		VALUES ($1,$2,$3,'Canteen counter',$4,'cash',$5,$6)
+		VALUES ($1,$2,$3,'Canteen counter',$4,$7,$5,$6)
 		RETURNING id`,
-		id.InstitutionID, campus, student, total, receipt, id.UserID).
+		id.InstitutionID, campus, student, total, receipt, id.UserID, cafMode).
 		Scan(&purchase); err != nil {
 		return err
 	}
@@ -2128,6 +2164,21 @@ func (s *Server) returnPosSale(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := colWriteLines(r.Context(), tx, id.InstitutionID, retID, lines); err != nil {
 			return err
+		}
+		// Bought from the wallet, so it goes back to the wallet — a 'refund'
+		// row pointing at this return. A frozen or closed wallet is refunded
+		// in cash instead, and the helper says so.
+		if mode == "wallet" && student != nil {
+			left, err := walletCredit(r.Context(), tx, id.InstitutionID, campus, *student,
+				total, number.Text, "Refund: "+reason, id.UserID, &retID)
+			var wse walletSpendError
+			if errors.As(err, &wse) {
+				return refusal(wse.msg)
+			}
+			if err != nil {
+				return err
+			}
+			out["wallet_balance_paise"] = left
 		}
 		out["id"] = retID.String()
 		out["receipt_no"] = number.Text

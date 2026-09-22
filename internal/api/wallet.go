@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -348,6 +350,95 @@ func openWallet(r *http.Request, tx pgx.Tx, instID uuid.UUID, campusID *uuid.UUI
 type walletInputError struct{ msg string }
 
 func (e walletInputError) Error() string { return e.msg }
+
+/* SPENDING THE WALLET — shared by the counter and the fee desk.
+
+   A spend is written inside the caller's transaction, beside the sale or the
+   payment it pays for, and the ledger row points back at it (pos_sale_id or
+   payment_id). One event, two rows, linked: neither the till nor the ledger
+   counts it twice, and a sale that fails after the debit rolls the debit back.
+
+   The account row is locked FOR UPDATE first, so two tills cannot both spend
+   the same balance; the check here gives the clerk a sentence with the numbers
+   in it, and the trigger's refusal to go negative is the backstop if anything
+   slips past. walletSpendError is the family of refusals a spend can meet —
+   no wallet, a frozen one, not enough in it — for callers to map onto their
+   own 400 type (refusal at the counter, feeInputError at the fee desk). */
+type walletSpendError struct{ msg string }
+
+func (e walletSpendError) Error() string { return e.msg }
+
+func walletDebit(ctx context.Context, tx pgx.Tx, instID uuid.UUID, campusID *uuid.UUID,
+	studentID uuid.UUID, amount int64, reference, note string, by uuid.UUID,
+	paymentID, posSaleID *uuid.UUID) (int64, error) {
+	var (
+		walletID uuid.UUID
+		status   string
+		balance  int64
+	)
+	err := tx.QueryRow(ctx, `
+		SELECT id, status, balance_paise FROM wallet_accounts
+		 WHERE student_id = $1 FOR UPDATE`, studentID).Scan(&walletID, &status, &balance)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, walletSpendError{"this child has no wallet yet -- top it up at the fee office first, or take another mode"}
+	}
+	if err != nil {
+		return 0, err
+	}
+	if status != "active" {
+		return 0, walletSpendError{"this wallet is " + status + " and cannot be spent from"}
+	}
+	if balance < amount {
+		return 0, walletSpendError{fmt.Sprintf("not enough in the wallet: %s left, %s needed",
+			indianRupees(balance), indianRupees(amount))}
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO wallet_transactions
+		       (institution_id, campus_id, wallet_id, student_id, kind, delta_paise,
+		        source_mode, reference_no, payment_id, pos_sale_id, note, created_by)
+		VALUES ($1, $2, $3, $4, 'spend', $5, 'wallet', NULLIF($6, ''), $7, $8, NULLIF($9, ''), $10)`,
+		instID, campusID, walletID, studentID, -amount, reference, paymentID, posSaleID, note, by); err != nil {
+		if strings.Contains(err.Error(), "cannot go negative") {
+			return 0, walletSpendError{"not enough in the wallet"}
+		}
+		return 0, err
+	}
+	return balance - amount, nil
+}
+
+// walletCredit puts money back — the refund of a wallet-paid sale. Only into
+// an active wallet: a frozen or closed one is refunded in cash at the counter,
+// which is what actually happens, and the caller says so.
+func walletCredit(ctx context.Context, tx pgx.Tx, instID uuid.UUID, campusID *uuid.UUID,
+	studentID uuid.UUID, amount int64, reference, note string, by uuid.UUID,
+	posSaleID *uuid.UUID) (int64, error) {
+	var (
+		walletID uuid.UUID
+		status   string
+		balance  int64
+	)
+	err := tx.QueryRow(ctx, `
+		SELECT id, status, balance_paise FROM wallet_accounts
+		 WHERE student_id = $1 FOR UPDATE`, studentID).Scan(&walletID, &status, &balance)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, walletSpendError{"this child's wallet no longer exists -- refund in cash"}
+	}
+	if err != nil {
+		return 0, err
+	}
+	if status != "active" {
+		return 0, walletSpendError{"this wallet is " + status + " -- refund in cash rather than crediting it"}
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO wallet_transactions
+		       (institution_id, campus_id, wallet_id, student_id, kind, delta_paise,
+		        source_mode, reference_no, pos_sale_id, note, created_by)
+		VALUES ($1, $2, $3, $4, 'refund', $5, 'wallet', NULLIF($6, ''), $7, NULLIF($8, ''), $9)`,
+		instID, campusID, walletID, studentID, amount, reference, posSaleID, note, by); err != nil {
+		return 0, err
+	}
+	return balance + amount, nil
+}
 
 // walletFailed maps the ways a wallet write can go wrong onto responses, and
 // reports whether it wrote one. The trigger's refusal to overdraw arrives as a

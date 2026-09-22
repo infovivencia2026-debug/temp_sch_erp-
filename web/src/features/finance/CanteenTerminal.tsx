@@ -242,7 +242,7 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
   const [price, setPrice] = useState('')
   const [qty, setQty] = useState('1')
   const [category, setCategory] = useState('snack')
-  const [mode, setMode] = useState<'cash' | 'account'>('cash')
+  const [mode, setMode] = useState<'cash' | 'account' | 'wallet'>('cash')
   const [search, setSearch] = useState('')
   const [student, setStudent] = useState<Student | null>(null)
   const [buyer, setBuyer] = useState('')
@@ -256,7 +256,18 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
     enabled: needle.length >= 2,
   })
 
+  // What the child has to spend, shown before the sale is rung rather than
+  // discovered as a refusal after it. Read only when it matters.
+  const wallet = useQuery({
+    queryKey: ['wallet', student?.id],
+    queryFn: () => api.get<{ balance_paise: number; status: string }>(
+      `/api/v1/fees/students/${student?.id}/wallet`),
+    enabled: !!student && mode === 'wallet',
+  })
+
   const totals = useMemo(() => draftTotals(lines), [lines])
+  const walletShort = mode === 'wallet' && !!wallet.data
+    && (wallet.data.status !== 'active' || wallet.data.balance_paise < totals.total)
 
   const ring = useMutation({
     mutationFn: () =>
@@ -306,7 +317,8 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
     setQty('1')
   }
 
-  const ready = lines.length > 0 && (student !== null || buyer.trim() !== '')
+  const ready = lines.length > 0
+    && (student !== null || (mode === 'cash' && buyer.trim() !== ''))
 
   return (
     <Card>
@@ -372,18 +384,21 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
       <div className="p-5">
         <FormGrid>
           <Field label="How is it being paid?" required
-            hint="Cash, or charged to the child's fee account. There is no wallet or card: the campus wallet feature has no payment gateway behind it.">
+            hint="Cash, the child's fee account, or the child's prepaid wallet. There is no card reader behind this counter.">
             <Select
               value={mode}
-              onChange={(v) => setMode(v as 'cash' | 'account')}
+              onChange={(v) => setMode(v as 'cash' | 'account' | 'wallet')}
               options={[
                 { value: 'cash', label: 'Cash into the drawer' },
+                { value: 'wallet', label: "Draw from the child's wallet" },
                 { value: 'account', label: "Charge the child's fee account" },
               ]}
             />
           </Field>
-          <Field label="Who is buying?" required={mode === 'account'}
-            hint={mode === 'account' ? 'A charge needs a child to charge.' : 'Or type a name for a staff purchase.'}>
+          <Field label="Who is buying?" required={mode !== 'cash'}
+            hint={mode === 'account' ? 'A charge needs a child to charge.'
+              : mode === 'wallet' ? 'A wallet sale needs a child to draw from.'
+              : 'Or type a name for a staff purchase.'}>
             <Input
               value={student ? `${student.full_name} · ${student.admission_no}` : search}
               onChange={(v) => { setStudent(null); setSearch(v) }}
@@ -415,10 +430,23 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
           </div>
         )}
 
+        {mode === 'wallet' && student && wallet.data && (
+          <p className={`mt-4 text-[13px] ${walletShort ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {wallet.data.status === 'none'
+              ? 'This child has no wallet yet — top it up at the fee office, or take cash.'
+              : wallet.data.status !== 'active'
+                ? `This wallet is ${wallet.data.status} and cannot be spent from.`
+                : `Wallet balance ${inr(wallet.data.balance_paise)}` +
+                  (walletShort ? ` — ${inr(totals.total - wallet.data.balance_paise)} short.` : '')}
+          </p>
+        )}
         <div className="mt-5 flex flex-wrap items-center gap-4">
           <span className="text-lg font-semibold tabular-nums">{inr(totals.total)}</span>
-          <Button disabled={disabled || !ready || ring.isPending} onClick={() => ring.mutate()}>
-            {ring.isPending ? 'Taking…' : mode === 'cash' ? 'Take the cash' : 'Charge the account'}
+          <Button disabled={disabled || !ready || ring.isPending || walletShort} onClick={() => ring.mutate()}>
+            {ring.isPending ? 'Taking…'
+              : mode === 'cash' ? 'Take the cash'
+              : mode === 'wallet' ? 'Draw from the wallet'
+              : 'Charge the account'}
           </Button>
         </div>
         <FormNotice error={ring.error} />

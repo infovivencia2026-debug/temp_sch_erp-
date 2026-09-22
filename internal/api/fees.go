@@ -237,6 +237,9 @@ type collectRequest struct {
 var validModes = map[string]bool{
 	"cash": true, "cheque": true, "dd": true, "neft": true,
 	"upi": true, "card": true, "netbanking": true, "adjustment": true,
+	// Settled from the child's prepaid wallet (see wallet.go): an ordinary
+	// payment, allocated like any other, with a matching ledger debit.
+	"wallet": true,
 }
 
 // collectFee is the counter transaction: take money, allocate it, issue a
@@ -370,6 +373,22 @@ func (s *Server) applyFeePayment(r *http.Request, id *httpx.Identity, req collec
 		})
 		if err != nil {
 			return err
+		}
+
+		/* Paid from the wallet: draw the same amount from the child's balance,
+		   pointing the ledger row at this payment. Same transaction, so a
+		   payment the wallet cannot cover never exists -- the receipt number is
+		   drawn back with it -- and the two rows can never disagree. */
+		if req.Mode == "wallet" {
+			if _, werr := walletDebit(r.Context(), tx, instID, &campusID, studentID,
+				req.AmountPaise, receipt.ReceiptNo,
+				"Fee receipt "+receipt.ReceiptNo, id.UserID, &receipt.PaymentID, nil); werr != nil {
+				var wse walletSpendError
+				if errors.As(werr, &wse) {
+					return feeInputError{wse.msg}
+				}
+				return werr
+			}
 		}
 
 		/* And tell the family it arrived.
