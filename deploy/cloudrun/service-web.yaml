@@ -110,7 +110,10 @@ spec:
       # gives up on it after its own --attempt-deadline (60 s, deploy.sh),
       # which is the number that actually bounds a tick. Nothing here waits
       # for the jobs a tick enqueued; they run after the response.
-      timeoutSeconds: 300
+      # 3600, not 300: the live stream (GET /api/v1/live/stream, Server-Sent
+      # Events) is one request held open for as long as the tab is; at 300 it
+      # was cut and every open tab reconnected on a five-minute cycle.
+      timeoutSeconds: 3600
       serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
       containers:
         - image: asia-south1-docker.pkg.dev/PROJECT_ID/temperp/app:COMMIT

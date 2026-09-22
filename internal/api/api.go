@@ -11,6 +11,7 @@ import (
 	"github.com/school-erp/erp/internal/auth"
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
 	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/ratelimit"
 	"github.com/school-erp/erp/internal/rbac"
@@ -38,6 +39,10 @@ type Server struct {
 	// private in-memory store, which is what every test that writes
 	// &Server{} gets; main sets it from RATE_LIMIT_STORE. See ratelimits.go.
 	RateLimits ratelimit.Store
+	// Live is the bus that fans message/typing/notification hints to open
+	// tabs (internal/live). Nil means no live stream; every write still
+	// lands and the 30s revision poll still picks it up.
+	Live *live.Broker
 	// Clock is what the limiters read the time from. Nil means time.Now; a
 	// test sets it to walk a limiter through its window.
 	Clock      ratelimit.Clock
@@ -104,6 +109,8 @@ func (s *Server) Routes() http.Handler {
 		r.Use(s.Idempotent)
 
 		r.Get("/ref-data", s.getRefData)
+		// The live stream and the typing signal, for every signed-in person.
+		s.mountLive(r)
 		/* The year this person is working in. Beside ref-data rather than
 		   under /academics because every role's shell asks, and a clerk
 		   running next year's admissions has no academics permission to

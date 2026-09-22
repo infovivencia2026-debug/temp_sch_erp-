@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
 )
 
 /* A principal talking to their own staff.
@@ -288,7 +289,7 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 			role = "institution_admin"
 		}
 
-		return notify(r, tx, id.InstitutionID, other, nil, "staff_message",
+		if err := notify(r, tx, id.InstitutionID, other, nil, "staff_message",
 			"Message from "+from, body,
 			/* With the sender on the end of it.
 
@@ -297,7 +298,17 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 			   search the notification had just done for them. It carries who
 			   wrote, and the screen opens that conversation. */
 			"/go/communication/messages?with="+id.UserID.String(),
-			"staff_message", &newID)
+			"staff_message", &newID); err != nil {
+			return err
+		}
+		// And now, not in thirty seconds: the colleague's open screen refetches
+		// this thread and their bell, and the sender's own list reorders.
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{other, id.UserID},
+			Type: "message", Scope: "staff", From: id.UserID,
+			Keys: map[string]string{"peer": id.UserID.String(), "to": other.String()},
+		})
+		return nil
 	})
 	switch {
 	case errors.Is(err, errNotColleague):

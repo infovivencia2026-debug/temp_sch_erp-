@@ -15,6 +15,7 @@ import (
 
 	"github.com/school-erp/erp/internal/fees"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
 	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/scope"
@@ -1215,6 +1216,16 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 			link, "parent_teacher_message", &msgID); err != nil {
 			return err
 		}
+		// Live, to both ends of the conversation: the reader's open thread and
+		// bell refetch now, and the sender's own screen shows the message
+		// landed rather than waiting for the next poll.
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{to, id.UserID},
+			Type: "message", Scope: "parent", From: id.UserID,
+			Keys: map[string]string{
+				"student": sid.String(), "parent": parentID.String(), "teacher": teacherID.String(),
+			},
+		})
 
 		// Out of the building as well, so a family that does not open the app
 		// still hears about their own child.

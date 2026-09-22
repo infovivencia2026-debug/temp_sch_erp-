@@ -47,6 +47,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
 	"github.com/school-erp/erp/internal/rbac"
 )
 
@@ -2494,10 +2495,46 @@ func (s *Server) postCounselorMessage(w http.ResponseWriter, r *http.Request) {
 			id.InstitutionID, thread, id.UserID, req.Body, attachmentsJSON(files)).Scan(&out); err != nil {
 			return err
 		}
-		_, err = tx.Exec(r.Context(), `
+		if _, err = tx.Exec(r.Context(), `
 			UPDATE counselor_threads SET last_message_at = now(), updated_at = now()
-			 WHERE id = $1`, thread)
-		return err
+			 WHERE id = $1`, thread); err != nil {
+			return err
+		}
+		/* Tell the other people in the room, now. Every current participant
+		   but the sender gets a live hint (the screen refetches the thread)
+		   and a notification — this thread wrote none before, so a parent
+		   had no way to know a counsellor had replied until they came back
+		   to look. */
+		rows, err := tx.Query(r.Context(), `
+			SELECT user_id FROM counselor_thread_participants
+			 WHERE thread_id = $1 AND removed_at IS NULL AND user_id <> $2`, thread, id.UserID)
+		if err != nil {
+			return err
+		}
+		var others []uuid.UUID
+		for rows.Next() {
+			var u uuid.UUID
+			if err := rows.Scan(&u); err != nil {
+				rows.Close()
+				return err
+			}
+			others = append(others, u)
+		}
+		rows.Close()
+		for _, u := range others {
+			if err := notify(r, tx, id.InstitutionID, u, nil, "counselor_message",
+				"New message in a counselling conversation", req.Body,
+				"/go/counselling/family_conversations?thread="+thread.String(),
+				"counselor_message", &out); err != nil {
+				return err
+			}
+		}
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: others, Type: "message",
+			Scope: "counselor", From: id.UserID,
+			Keys: map[string]string{"thread": thread.String()},
+		})
+		return nil
 	})
 	s.answerCounselor(w, r, err, func() {
 		httpx.JSON(w, http.StatusCreated, map[string]any{"id": out})
