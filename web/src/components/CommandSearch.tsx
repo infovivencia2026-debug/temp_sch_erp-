@@ -78,6 +78,10 @@ export function CommandSearch() {
                screen is called Circulars. */
             haystack: `${f.name} ${section.name} ${role.name} ${f.summary} ${aliasText(f.slug)}`
               .toLowerCase(),
+            /* The same words with the spaces taken out, so "staff360" finds
+               "Staff 360" and "feecounter" finds the fee counter. People type
+               a screen's name the way they say it, run together. */
+            compact: `${f.name} ${section.name} ${aliasText(f.slug)}`.toLowerCase().replace(/[\s_\-·]+/g, ''),
             aliases: aliasText(f.slug).toLowerCase(),
           })),
         ),
@@ -161,7 +165,10 @@ export function CommandSearch() {
       .map((i) => {
         const n = i.name.toLowerCase()
         // Every word must land, or this is not a hit at all.
-        if (!words.every((w) => i.haystack.includes(w))) return { i, score: -1 }
+        const compactNeedle = needle.replace(/[\s_\-·]+/g, '')
+        if (!words.every((w) => i.haystack.includes(w)) && !i.compact.includes(compactNeedle)) {
+          return { i, score: -1 }
+        }
         /* Ranked by where the match landed, best first. A name match beats a
            description match and a prefix beats a mid-string hit -- otherwise
            "fee" surfaces a dozen summaries that merely mention fees before
