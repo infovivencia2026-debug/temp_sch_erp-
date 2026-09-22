@@ -337,6 +337,7 @@ export default function CounselorChannel() {
                 <ErrorState error={messages.error} />
               ) : (
                 <ChatThread
+                  live={{ scope: 'counselor', thread: current.id }}
                   messages={(messages.data?.items ?? []).map((m) => ({
                     id: m.id,
                     body: m.body,

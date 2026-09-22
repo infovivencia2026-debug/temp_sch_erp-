@@ -322,6 +322,13 @@ export default function StaffMessages() {
                   refuses it; the composer is hidden. openParent.teacher_user_id
                   is missing only on the caller's own threads. */}
               <ChatThread
+                /* Live: "typing…" from the parent, and ours to them. The
+                   teacher on a thread of my own is me; on a colleague's thread
+                   it is theirs (and the composer is hidden anyway). */
+                live={openParent && me ? {
+                  scope: 'parent', student: openChild, parent: openWith,
+                  teacher: openParent.teacher_user_id ?? me,
+                } : undefined}
                 messages={(parentMessages.data?.items ?? []).map((m) => ({
                   id: m.id,
                   body: m.body,
@@ -402,6 +409,7 @@ export default function StaffMessages() {
             onBack={() => setOpenWith('')}
           >
             <ChatThread
+              live={openWith ? { scope: 'staff', peer: openWith } : undefined}
               messages={(messages.data?.items ?? []).map((m) => ({
                 id: m.id,
                 body: m.body,

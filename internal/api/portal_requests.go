@@ -1206,7 +1206,11 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		   It was "/go/communication", which for a parent is Circulars — the
 		   school's notices. So a reply to their own message put them in front
 		   of a list of PTM announcements, with the reply nowhere on the page. */
-		link := "/go/direct_teacher_messaging"
+		/* With the conversation named, so the tap on the bell opens THIS
+		   thread and not the screen's default teacher: the child and the
+		   teacher who wrote. */
+		link := "/go/direct_teacher_messaging?student_id=" + sid.String() +
+			"&teacher_user_id=" + teacherID.String()
 		if to == teacherID {
 			link = "/go/messages?box=parents&child=" + sid.String() +
 				"&with=" + parentID.String()

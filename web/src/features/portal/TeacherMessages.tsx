@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { useSession } from '@/lib/session'
 import { PageHead, PageBody, Card, CardHeader, Field, Select, EmptyState } from '@/components/ui'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ChatScreen } from '@/components/ChatScreen'
@@ -43,6 +45,24 @@ export default function TeacherMessages() {
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen, query } = useChildren()
   const [teacher, setTeacher] = useState('')
+  const me = useSession().user?.id
+
+  /* A tap on the bell lands HERE, in the conversation it was about.
+
+     The notification's link names the child and the teacher who wrote
+     (?student_id=…&teacher_user_id=…); without reading them this screen
+     opened on its default teacher and the parent had to find the sender
+     themselves — which is the search the notification existed to save.
+     Applied once, on arrival; the pickers take over from there. */
+  const [params] = useSearchParams()
+  useEffect(() => {
+    const s = params.get('student_id')
+    const t = params.get('teacher_user_id')
+    if (s) setChosen(s)
+    if (t) setTeacher(t)
+    // Only on first render for this URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.get('student_id'), params.get('teacher_user_id')])
 
   const teachers = useQuery({
     queryKey: ['portal-teachers', studentId],
@@ -179,6 +199,9 @@ export default function TeacherMessages() {
           onBack={() => setTeacher('')}
         >
           <ChatThread
+            live={studentId && teacher && me
+              ? { scope: 'parent', student: studentId, parent: me, teacher }
+              : undefined}
             messages={messages.map((m) => ({
               id: m.id,
               body: m.body,
