@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
@@ -9,7 +9,7 @@ import SetYourPassword from '@/features/shared/SetYourPassword'
 import { Landing } from '@/features/landing/Landing'
 import { claimTabs } from './tabs'
 import { applyBrand } from './brand'
-import { SkeletonShell } from '@/components/Skeleton'
+import { WorkspaceLoading } from '@/components/WorkspaceLoading'
 
 const SessionContext = createContext<SessionResponse | null>(null)
 
@@ -38,11 +38,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * screen. On a cold connection that middle state is most of what anyone
    * sees of us.
    *
-   * `SkeletonShell` draws the rail, the header bar, the dock and a page block
-   * at the sizes the real ones use, so the same wait now reads as the app
-   * arriving rather than as nothing happening. It carries the sentence too, in
-   * a live region, for a screen reader. */
-  if (isLoading) return <SkeletonShell />
+   * `SkeletonShell` drew the rail, the header bar, the dock and a page block
+   * at the sizes the real ones use, so the wait read as the app arriving. It
+   * is now the OPENING (components/WorkspaceLoading.tsx): the wordmark with a
+   * light through it over three drifting aurora blobs, on the theme's own
+   * ground, with the sentence in a live region for a screen reader. Shown for
+   * this one request and nowhere else -- a screen change inside the app is a
+   * screen change, not an opening -- and it stays 400ms past the answer,
+   * marked `leaving`, so the app fades in under it rather than snapping.
+   * Both hooks sit above the early returns, as every hook here must
+   * (lib/hooks-order.test.ts). */
+  const [opening, setOpening] = useState(true)
+  useEffect(() => {
+    if (isLoading) return
+    const t = window.setTimeout(() => setOpening(false), 400)
+    return () => window.clearTimeout(t)
+  }, [isLoading])
+
+  if (isLoading) return <WorkspaceLoading />
   if (isError || !data) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">
@@ -137,7 +150,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      rest: it must be on the root before the first child paints. */
   applyBrand(data.institution?.primary_color, data.institution?.accent_color)
 
-  return <SessionContext.Provider value={data}>{children}</SessionContext.Provider>
+  return (
+    <SessionContext.Provider value={data}>
+      {children}
+      {opening && <WorkspaceLoading leaving />}
+    </SessionContext.Provider>
+  )
 }
 
 /**

@@ -4508,7 +4508,7 @@ body:has(.bento-frost) [data-assistant-orb] {
 
    SUBTLE ON PURPOSE. The pack's inner glow is 50px of 30% white; here it is
    40px at 35% over a white card, the same softness without the cards
-   turning to milk. The border is the pack's hairline of white. Every token
+   turning to milk. The border is a 1px black rule, as asked. Every token
    the Shadow, Corners and Borders preferences drive still applies: the mesh
    is a paint, not a shape.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -4612,7 +4612,11 @@ html[data-palette='aurora'] {
 html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
   background-image: var(--aurora-sheen), var(--aurora, none);
   background-color: var(--aurora-base, var(--bento-card));
-  border-color: rgba(255, 255, 255, .8);
+  /* A black rule round every card, at the owner's request: the cells
+     otherwise carry no border at all (the board is one ruled sheet), so the
+     width is set here too, not only the colour. */
+  border-width: 1px;
+  border-color: #000;
   box-shadow:
     inset 0 0 40px rgba(255, 255, 255, .35),
     var(--bento-edge, none),
@@ -4661,4 +4665,80 @@ html[data-palette='aurora'] .bento-cell[data-tone='anchor'] { --aurora: var(--au
     background-image: none !important;
     box-shadow: none !important;
   }
+}
+
+
+/* ---- AURORA SPACING ----------------------------------------------------
+   The board's defaults are a ruled sheet: 1px gutters, a corner that rounds
+   to nothing, 12-16px of padding. Right for hairline cells, wrong for a mesh
+   card with a black rule round it, which then reads as tiles jammed together
+   with their corners clipped. The pack draws its cards with room between
+   them and a big radius; this gives the aurora board the same proportions,
+   still scaled by the Corners and Density preferences so they keep meaning
+   something. Every selector form the skin and corner blocks use is listed,
+   because they set these tokens at (0,2,1) and (0,3,1) and this must win at
+   equal specificity by coming later in the file. */
+html[data-palette='aurora'][data-layout='bento'],
+html[data-palette='aurora'] [data-layout='bento'],
+html[data-palette='aurora'][data-skin='focus'][data-layout='bento'],
+html[data-palette='aurora'][data-skin='focus'] [data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'] [data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-skin='focus'][data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-skin='focus'] [data-layout='bento'] {
+  --bento-gap: calc(14px * var(--bento-density, 1));
+  --bento-radius: max(10px, calc(22px * var(--radius-scale, 1)));
+  --bento-radius-sm: max(6px, calc(12px * var(--radius-scale, 1)));
+}
+
+/* Room inside the card: 18px on a desk, 16px on a phone, and the same on
+   every side so the label, the figure and the note share one left edge
+   with the rule. The dark tone keeps the sheet's padding; it is not a mesh
+   card. */
+html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
+  padding: 18px 18px 16px;
+}
+@media (max-width: 639px) {
+  html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
+    padding: 16px;
+  }
+}
+
+/* The corner cue follows the card's corner, so the arrow sits inside the
+   curve rather than poking out of it -- the same fix the cue rule above
+   made for the classic radius, for this radius. */
+html[data-palette='aurora'] .bento-cue {
+  border-radius: 0 var(--bento-radius) 0 8px;
+}
+
+/* And the note never runs under the cue. A one-line sentence on a 1x1 card
+   reached the bottom-right corner exactly where the 32px cue sits, and the
+   last word disappeared behind it. Applies to every palette: the collision
+   is the sheet's too, it was only easier to see with a rule round the card. */
+[data-layout='bento'] .bento-cell:has(.bento-cue) .bento-note {
+  padding-right: 36px;
+}
+
+
+/* ---- AURORA SKELETONS ---------------------------------------------------
+   While a board's figures are on the wire, its bars shimmer. Under Aurora the
+   shimmer is the palette's own light: a band that runs from the electric
+   blue through the mint to the pink, instead of the grey-on-grey sweep the
+   sheet uses. Small on purpose -- same 1.6s cadence, same single band, only
+   the colour changed -- and off under prefers-reduced-motion with the rest
+   of the skeleton rules in index.css. */
+html[data-palette='aurora'] .skeleton-ink {
+  background-color: color-mix(in srgb, currentColor 9%, transparent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(49, 108, 255, .35) 42%,
+    rgba(32, 214, 181, .35) 50%,
+    rgba(255, 60, 158, .30) 58%,
+    transparent 72%
+  );
+  background-size: 220% 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-palette='aurora'] .skeleton-ink { background-image: none; }
 }

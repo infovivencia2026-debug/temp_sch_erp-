@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 401 features. */
+/** 23 roles, 414 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -327,6 +327,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
+          { key: 'institution_admin.communication.all_messages', slug: 'all_messages', name: 'All messages', scope: 'institution', tier: 'core', summary: 'Every conversation in the school on one desk — parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement — with a count of what is still waiting for the school\'s reply. A parent thread can be answered from here; counselling is counted, never read.' },
           { key: 'institution_admin.communication.grievances', slug: 'grievances', name: 'Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
           { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
@@ -572,6 +573,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'exam_controller.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -732,6 +741,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'librarian.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -773,6 +790,14 @@ export const ROLES: Role[] = [
           { key: 'transport_manager.transport.route_attendance', slug: 'route_attendance', name: 'Route attendance', scope: 'campus', tier: 'core', summary: 'Boarding and alighting scans for each route, morning and afternoon.' },
           { key: 'transport_manager.transport.delays_exceptions', slug: 'delays_exceptions', name: 'Delays & exceptions', scope: 'campus', tier: 'core', summary: 'Routes running late, breakdowns and any child not scanned.' },
           { key: 'transport_manager.transport.live_vehicle_tracking', slug: 'live_vehicle_tracking', name: 'Live vehicle tracking', scope: 'campus', tier: 'core', summary: 'Where every bus is now, against the route it should be running.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'transport_manager.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -828,6 +853,14 @@ export const ROLES: Role[] = [
         workspace: 'Hostel',
         features: [
           { key: 'operations.hostel.hostel_rooms', slug: 'hostel_rooms', name: 'Hostel & rooms', scope: 'campus', tier: 'core', summary: 'Rooms, beds and who is in them; put a boarder in a free bed.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'operations.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -895,6 +928,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'nurse.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -927,6 +968,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'counsellor.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -955,6 +1004,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'discipline_officer.discipline.conduct_notes', slug: 'conduct_notes', name: 'Conduct notes', scope: 'institution', tier: 'core', summary: 'Badges and demerits: record praise or a concern against a child, and read what others have written.' },
           { key: 'discipline_officer.discipline.incident_log', slug: 'incident_log', name: 'Incident log', scope: 'institution', tier: 'core', summary: 'Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'discipline_officer.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -992,6 +1049,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'hostel_warden.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -1021,6 +1086,14 @@ export const ROLES: Role[] = [
           { key: 'activity_coord.activities.clubs_activities', slug: 'clubs_activities', name: 'Clubs & activities', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it.' },
           { key: 'activity_coord.activities.achievements_showcase', slug: 'achievements_showcase', name: 'Achievements showcase', scope: 'institution', tier: 'core', summary: 'Awards and sports results, and the family\'s consent before a child\'s name goes in front of the school.' },
           { key: 'activity_coord.activities.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A notice to the classes concerned — fixtures, practice times, a trip — with who has read it.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'activity_coord.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1084,6 +1157,14 @@ export const ROLES: Role[] = [
         features: [
           { key: 'finance.banking_reports.match_bank_records', slug: 'match_bank_records', name: 'Match bank records', scope: 'institution', tier: 'core', summary: 'The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside.' },
           { key: 'finance.banking_reports.accounting_tax_reports', slug: 'accounting_tax_reports', name: 'Accounting & tax reports', scope: 'institution', tier: 'core', summary: 'The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements — with a one-click export for the school\'s accountant.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'finance.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1262,6 +1343,14 @@ export const ROLES: Role[] = [
         ],
       },
       {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'hr.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+        ],
+      },
+      {
         slug: 'my_profile',
         name: 'My Profile',
         workspace: 'My Profile',
@@ -1336,6 +1425,14 @@ export const ROLES: Role[] = [
           { key: 'it_admin.systems.audit_log', slug: 'audit_log', name: 'Audit log', scope: 'institution', tier: 'core', summary: 'Who changed what, when, from where.' },
           { key: 'it_admin.systems.background_jobs', slug: 'background_jobs', name: 'Background jobs', scope: 'institution', tier: 'core', summary: 'Queue depth, retries and failures, and starting a job by hand.' },
           { key: 'it_admin.systems.integrations', slug: 'integrations', name: 'Integrations', scope: 'institution', tier: 'core', summary: 'Every connector the school has switched on, whether it is working, and what an unset one needs.' },
+        ],
+      },
+      {
+        slug: 'communication',
+        name: 'Communication',
+        workspace: 'Communication',
+        features: [
+          { key: 'it_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {

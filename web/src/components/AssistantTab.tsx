@@ -778,21 +778,27 @@ export function AssistantTab() {
         <div
           role="dialog"
           aria-label="Assistant"
-          /* FULL SCREEN ON A PHONE, a corner panel on a desktop.
+          /* FULL SCREEN ON A PHONE, a DOCKED PANEL on a desktop.
              On a phone it fills the screen and sits ABOVE the dock and the page
              dots (z over their z-50/z-45), so the pencil and dots no longer show
              through the chat; the safe-area padding keeps the header off the
-             notch and the input off the home indicator. Above the drill-in
-             breakpoint it becomes the ~half-screen card again -- bounded to the
-             viewport minus its bottom offset so its header is never clipped. */
+             notch and the input off the home indicator.
+
+             On a desk it used to be a floating card hovering above the bottom
+             right corner: rounded, shadowed, 9rem short of the viewport, with
+             the page showing round three of its sides. The owner asked for it
+             not to float. It is now a panel docked to the right edge, full
+             height, one hairline on its left -- a side pane of the app, the
+             way a chat rail sits in a mail client -- so it has a fixed place
+             rather than a position, and the page it sits beside stays
+             readable up to its edge. */
           style={{
             paddingTop: 'env(safe-area-inset-top, 0px)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
-          className="fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden border bg-card
-                     md:inset-auto md:bottom-28 md:right-6 md:z-40
-                     md:h-[min(900px,calc(100vh-9rem))] md:w-[min(46vw,720px)]
-                     md:rounded-[16px] md:shadow-2xl"
+          className="fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card
+                     md:inset-y-0 md:left-auto md:right-0 md:w-[min(40vw,520px)]
+                     md:border-l md:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]"
         >
           <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
             <AssistantOrb state={state} size={36} />
@@ -817,33 +823,20 @@ export function AssistantTab() {
 
           <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
             {turns.length === 0 && (
-              <div className="px-1 pt-1">
-                <div className="mb-3 flex items-center gap-2.5">
-                  <AssistantOrb state="idle" size={30} />
-                  <p className="text-[13.5px] font-medium leading-tight">
-                    How can I help?
-                    <span className="block text-[12px] font-normal text-muted-foreground">Ask, or try one of these.</span>
-                  </p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    'How do I collect a fee?',
-                    'Where do I change the language to Telugu?',
-                    'How many students are on the roll?',
-                    'Mark a student absent today',
-                  ].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => { void ask(s) }}
-                      className="group flex items-center gap-2 rounded-[10px] border bg-card/50 px-3 py-2 text-left text-[12.5px]
-                                 transition-colors hover:border-[hsl(var(--brand-accent,var(--primary)))] hover:bg-accent"
-                    >
-                      <span className="flex-1">{s}</span>
-                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
-                    </button>
-                  ))}
-                </div>
+              /* An empty panel says one quiet thing and waits. The four canned
+                 starter questions that used to sit here were removed at the
+                 owner's request: they were generic, they were the same for
+                 every role, and a clerk who has opened this panel two hundred
+                 times does not need to be offered "How do I collect a fee?" a
+                 two-hundred-and-first. The box below is the whole invitation. */
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 pb-10 text-center">
+                <AssistantOrb state="idle" size={40} />
+                <p className="text-[13.5px] font-medium leading-tight">
+                  Ask about the school, or tell me what to do.
+                </p>
+                <p className="max-w-[30ch] text-[12px] leading-snug text-muted-foreground">
+                  A student, a fee, today's attendance, where a setting lives — or attach a spreadsheet to import.
+                </p>
               </div>
             )}
             {turns.map((turn, i) => (
@@ -1158,7 +1151,7 @@ export function AssistantTab() {
               maxLength={4000}
               placeholder={dictation.supported ? 'Ask, or press the microphone…' : 'Ask a question…'}
               aria-label="Your question"
-              className="min-w-0 flex-1 rounded-full border bg-background px-3 py-1.5 text-[13px]
+              className="min-w-0 flex-1 rounded-[12px] border bg-background px-3.5 py-2 text-[13.5px]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {/* Drawn only where it works. Firefox has no speech recognition at
