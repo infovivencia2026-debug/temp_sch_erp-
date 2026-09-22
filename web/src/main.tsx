@@ -10,6 +10,14 @@ import { reportScrollToShell } from './lib/shell-scroll'
 import { startHaptics } from './lib/haptics'
 import { clearPersistedQueriesOnSignOut } from './lib/query-persist'
 
+/* iOS Safari pinch-zoom. touch-action on the root covers Android and newer
+   iOS; older iOS only listens to its own gesture events. Passive false so
+   preventDefault is honoured. */
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(ev, (e) => e.preventDefault(), { passive: false })
+}
+
+
 /* Started before the app renders, not inside it.
 
    What is in the queue was put there by a previous visit: somebody who typed
