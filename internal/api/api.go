@@ -508,6 +508,11 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Post("/options", s.addOption)
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Delete("/options/{id}", s.retireOption)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Put("/institution", s.updateInstitution)
+			// Payment collection settings: where a fee paid by UPI goes. Its own
+			// section rather than two fields on the profile, because it is the
+			// accounts office's question and the profile is the principal's.
+			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/payments", s.getPaymentSettings)
+			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Put("/payments", s.updatePaymentSettings)
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/campuses", s.listCampuses)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Post("/campuses", s.createCampus)
 			r.With(httpx.RequirePermission(rbac.InstitutionWrite)).Put("/campuses/{id}", s.updateCampus)
@@ -1492,6 +1497,8 @@ func (s *Server) Routes() http.Handler {
 			// school reads it. Both stay: one configures, one audits.
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/grid", s.getRoleGrid)
 			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/roles/{id}/grid", s.setRoleGrid)
+			// Back to the preset: a built-in the school edited returns to code.
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Post("/roles/{id}/reset", s.resetRole)
 			// Menu tiles (catalog features) for a role, kept separate from the
 			// grid: this touches only the role's own catalog feature keys.
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles/{id}/features", s.getRoleFeatures)

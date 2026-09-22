@@ -56,12 +56,15 @@ type roleGrid struct {
 	IsSystem bool   `json:"is_system"`
 	// A built-in, offered as a starting point rather than a fixture. Same
 	// condition as IsSystem, named for what a school should do with it.
-	IsPreset  bool        `json:"is_preset"`
-	IsDefault bool        `json:"is_default"`
-	Editable  bool        `json:"editable"`
-	LockNote  string      `json:"lock_note,omitempty"`
-	Users     int         `json:"users"`
-	Groups    []gridGroup `json:"groups"`
+	IsPreset  bool `json:"is_preset"`
+	IsDefault bool `json:"is_default"`
+	Editable  bool `json:"editable"`
+	// Customised is set once this school has edited a built-in role; the
+	// seeder then leaves the role alone. See roles.customised_at.
+	Customised bool        `json:"customised"`
+	LockNote   string      `json:"lock_note,omitempty"`
+	Users      int         `json:"users"`
+	Groups     []gridGroup `json:"groups"`
 
 	// FeatureGrants counts the catalog navigation keys this role carries. They
 	// are not editable here and are reported so the total on screen reconciles
@@ -138,9 +141,10 @@ func (s *Server) getRoleGrid(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
 			SELECT ro.id::text, ro.key, ro.name, ro.is_system, ro.is_default,
+			       ro.customised_at IS NOT NULL,
 			       (SELECT count(*) FROM user_roles ur WHERE ur.role_id = ro.id)::int
 			  FROM roles ro WHERE ro.id = $1`, roleID).
-			Scan(&out.ID, &out.Key, &out.Name, &out.IsSystem, &out.IsDefault, &out.Users); err != nil {
+			Scan(&out.ID, &out.Key, &out.Name, &out.IsSystem, &out.IsDefault, &out.Customised, &out.Users); err != nil {
 			return err
 		}
 		caps, out.FeatureGrants, err = loadRoleKeys(r, tx, roleID)
@@ -155,26 +159,22 @@ func (s *Server) getRoleGrid(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out.Editable = !out.IsSystem
+	/* Every role is editable, built-ins included.
+
+	   The grid used to refuse a built-in because the seeder restored it on
+	   every upgrade. roles.customised_at now records a school's edit and the
+	   seeder leaves an edited role alone, so the Principal role can hold one
+	   more screen, or Accounts one fewer, and it sticks. The note says what
+	   changed and how to go back. */
+	out.Editable = true
 	out.IsPreset = out.IsSystem
-	if out.IsSystem {
-		/* A built-in is a preset, not a fixture.
-
-		   It cannot be edited in place, and the reason is real rather than
-		   arbitrary: the seeder re-runs on every upgrade and restores this
-		   role's grants from code, so an edit here would appear to work and
-		   silently revert three weeks later. Saying so is the difference
-		   between a rule and a mystery.
-
-		   But "locked" was the wrong word for what a school should do next.
-		   Every built-in is a starting position — HR, Accounts, Librarian are
-		   sensible bundles, not the only shapes a school may have — and a copy
-		   of one is an ordinary role that can be dialled anywhere on this
-		   grid. So the note names the move rather than the restriction. */
-		out.LockNote = "Accounts, HR and the rest are presets — sensible starting points, " +
-			"not the only shapes a school can have. This one cannot be changed in place " +
-			"because every upgrade restores it from code. Start from it instead: the copy " +
-			"is yours, and every control on this grid works on it."
+	if out.IsSystem && out.Customised {
+		out.LockNote = "This is a built-in role that this school has changed. Your version " +
+			"is kept across upgrades. Reset to preset puts the original back."
+	} else if out.IsSystem {
+		out.LockNote = "This is a built-in preset. You can change it here and your version " +
+			"is kept across upgrades; Reset to preset puts the original back. Or start " +
+			"a copy from it if you want the original kept alongside."
 	}
 	out.Groups = describeGroups(rbac.Read(caps))
 	httpx.JSON(w, http.StatusOK, out)
@@ -280,14 +280,20 @@ func (s *Server) setRoleGrid(w http.ResponseWriter, r *http.Request) {
 
 	var applied int
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var isSystem bool
-		var name string
-		if err := tx.QueryRow(r.Context(),
-			`SELECT is_system, name FROM roles WHERE id = $1`, roleID).Scan(&isSystem, &name); err != nil {
+		/* A built-in edited here becomes this school's own version. The mark
+		   is what stops the next upgrade restoring it; see rbac.upsertRole. */
+		tag, err := tx.Exec(r.Context(), `
+			UPDATE roles SET customised_at = COALESCE(customised_at, now())
+			 WHERE id = $1 AND is_system`, roleID)
+		if err != nil {
 			return err
 		}
-		if isSystem {
-			return errSystemRole
+		if tag.RowsAffected() == 0 {
+			var exists bool
+			if err := tx.QueryRow(r.Context(),
+				`SELECT true FROM roles WHERE id = $1`, roleID).Scan(&exists); err != nil {
+				return err
+			}
 		}
 
 		known := make([]string, 0, len(rbac.All))
@@ -528,3 +534,42 @@ func (s *Server) installRole(w http.ResponseWriter, r *http.Request) {
 		"id": roleID.String(), "key": req.Key, "installed": created,
 	})
 }
+
+// resetRole puts a built-in role back to its preset and clears the
+// customised mark, so the next upgrade restores it again. Custom roles have
+// no preset and are refused.
+func (s *Server) resetRole(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	roleID, err := uuid.Parse(chiURLParam(r, "id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "invalid role id")
+		return
+	}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		var key string
+		var isSystem bool
+		if err := tx.QueryRow(r.Context(),
+			`SELECT key, is_system FROM roles WHERE id = $1`, roleID).Scan(&key, &isSystem); err != nil {
+			return err
+		}
+		if !isSystem {
+			return errNotPreset
+		}
+		return rbac.RestoreRole(r.Context(), tx, roleID, key)
+	})
+	switch {
+	case errors.Is(err, errNotPreset):
+		httpx.BadRequest(w, r, "only a built-in role has a preset to go back to")
+		return
+	case errors.Is(err, pgx.ErrNoRows):
+		httpx.NotFound(w, r)
+		return
+	case err != nil:
+		httpx.Internal(w, r, err)
+		return
+	}
+	s.Sessions.ForgetAll()
+	httpx.JSON(w, http.StatusOK, map[string]any{"id": roleID.String(), "reset": true})
+}
+
+var errNotPreset = errors.New("not a preset")

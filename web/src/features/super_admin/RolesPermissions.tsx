@@ -4,7 +4,7 @@ import { Lock, Plus, Check, Download, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button, Input,
-  Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice,
+  Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice, ConfirmButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { PickerMenu } from '@/components/PickerMenu'
@@ -23,6 +23,7 @@ interface AdminRole {
   name: string
   is_system: boolean
   is_default: boolean
+  customised?: boolean
   institution?: string
   permissions: number
   capabilities: number
@@ -58,6 +59,7 @@ interface RoleGrid {
   is_system: boolean
   is_default: boolean
   editable: boolean
+  customised?: boolean
   lock_note?: string
   users: number
   feature_grants: number
@@ -160,6 +162,15 @@ export default function RolesPermissions() {
     },
   })
 
+  const reset = useMutation({
+    mutationFn: () => api.post(`/api/v1/admin/roles/${selectedID}/reset`, {}),
+    onSuccess: () => {
+      setSaved('Back to the preset. People holding this role pick it up on their next sign-in.')
+      qc.invalidateQueries({ queryKey: ['role-grid', selectedID] })
+      qc.invalidateQueries({ queryKey: ['admin-roles'] })
+    },
+  })
+
   const create = useMutation({
     mutationFn: (body: { name: string; copy_from?: string }) =>
       api.post<{ id: string }>('/api/v1/admin/roles', body),
@@ -206,8 +217,8 @@ export default function RolesPermissions() {
       <PageBody>
         <CellGrid cols={4}>
           <Stat label="Roles" value={items.length} />
-          <Stat label="Built in" value={items.filter((r) => r.is_system).length} hint="Restored on every upgrade" />
-          <Stat label="Custom" value={items.filter((r) => !r.is_system).length} hint="Yours to edit" />
+          <Stat label="Built in" value={items.filter((r) => r.is_system).length} hint={`${items.filter((r) => r.is_system && r.customised).length} changed by this school`} />
+          <Stat label="Custom" value={items.filter((r) => !r.is_system).length} hint="Made here" />
           <Stat label="Assigned users" value={items.reduce((a, r) => a + r.users, 0)} />
         </CellGrid>
 
@@ -352,8 +363,20 @@ export default function RolesPermissions() {
                         className="ml-1 h-auto px-1 py-0 align-baseline"
                         onClick={() => setCreating(true)}
                       >
-                        Start from this preset
+                        Start a copy
                       </Button>
+                      {grid.data.customised && (
+                        <ConfirmButton
+                          size="sm"
+                          variant="ghost"
+                          question="Put this role back to its original preset? Every change this school made to it is undone."
+                          confirmLabel="Reset to preset"
+                          disabled={reset.isPending}
+                          onConfirm={() => reset.mutate()}
+                        >
+                          Reset to preset
+                        </ConfirmButton>
+                      )}
                     </div>
                   </div>
                 )}

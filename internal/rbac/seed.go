@@ -164,18 +164,53 @@ func upsertRole(ctx context.Context, tx pgx.Tx, inst uuid.UUID, role Role) (uuid
 		RETURNING id`, owner, role.Key, role.Name, IsDefault(role.Key)).Scan(&roleID); err != nil {
 		return uuid.Nil, fmt.Errorf("seed role %s: %w", role.Key, err)
 	}
+	/* A role the school has edited keeps its grants.
+
+	   The seeder used to replace every built-in role's grants on every run,
+	   which is why the grid refused to edit one. Now the edit is the record:
+	   customised_at set means "this school's version wins", and only Reset
+	   to preset (RestoreRole) puts the code's version back. */
+	var customised bool
+	if err := tx.QueryRow(ctx,
+		`SELECT customised_at IS NOT NULL FROM roles WHERE id = $1`, roleID).Scan(&customised); err != nil {
+		return uuid.Nil, err
+	}
+	if customised {
+		return roleID, nil
+	}
+	return roleID, restoreGrants(ctx, tx, roleID, role)
+}
+
+// restoreGrants replaces a role's grants with the code's set.
+func restoreGrants(ctx context.Context, tx pgx.Tx, roleID uuid.UUID, role Role) error {
 	if _, err := tx.Exec(ctx,
 		`DELETE FROM role_permissions WHERE role_id = $1`, roleID); err != nil {
-		return uuid.Nil, err
+		return err
 	}
 	for _, key := range role.Permissions {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO role_permissions (role_id, permission_key)
 			VALUES ($1,$2) ON CONFLICT DO NOTHING`, roleID, key); err != nil {
-			return uuid.Nil, fmt.Errorf("grant %s to %s: %w", key, role.Key, err)
+			return fmt.Errorf("grant %s to %s: %w", key, role.Key, err)
 		}
 	}
-	return roleID, nil
+	return nil
+}
+
+// RestoreRole puts a built-in role back to the code's grants and clears its
+// customised mark: the Reset to preset action. A custom role is refused,
+// since there is no preset to return to.
+func RestoreRole(ctx context.Context, tx pgx.Tx, roleID uuid.UUID, key string) error {
+	for _, r := range SystemRoles {
+		if r.Key != key {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `UPDATE roles SET customised_at = NULL WHERE id = $1`, roleID); err != nil {
+			return err
+		}
+		return restoreGrants(ctx, tx, roleID, r)
+	}
+	return fmt.Errorf("%s is not a built-in role", key)
 }
 
 // nullableInst maps the platform's all-zero institution onto SQL NULL, so one

@@ -414,14 +414,18 @@ var mergedPersonas = map[string]struct {
 func seedMergedPersonas(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error {
 	for roleKey, m := range mergedPersonas {
 		var roleID uuid.UUID
+		var customised bool
 		err := tx.QueryRow(ctx,
-			`SELECT id FROM roles WHERE institution_id = $1 AND key = $2`,
-			inst, roleKey).Scan(&roleID)
+			`SELECT id, customised_at IS NOT NULL FROM roles WHERE institution_id = $1 AND key = $2`,
+			inst, roleKey).Scan(&roleID, &customised)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue // this school never installed the role
 		}
 		if err != nil {
 			return fmt.Errorf("merged persona %s: %w", roleKey, err)
+		}
+		if customised {
+			continue // the school edited this role; its version wins (see rbac.upsertRole)
 		}
 
 		src, ok := catalog.RoleByKey(m.From)

@@ -109,8 +109,12 @@ type institutionUpdate struct {
 	ManagementType string `json:"management_type,omitempty"`
 	ChildInfoCode  string `json:"child_info_code,omitempty"`
 	MidDayMeal     bool   `json:"mid_day_meal"`
-	UPIVPA         string `json:"upi_vpa,omitempty"`
-	UPIPayeeName   string `json:"upi_payee_name,omitempty"`
+	// Read-only facts the form echoes back from GET. Accepted so the strict
+	// decoder does not refuse the whole save as "malformed JSON body", which
+	// is what it did, and ignored on write.
+	Timezone     string `json:"timezone"`
+	UPIVPA       string `json:"upi_vpa,omitempty"`
+	UPIPayeeName string `json:"upi_payee_name,omitempty"`
 }
 
 var errBadUDISE = errors.New("udise code must be 11 digits")
@@ -306,17 +310,9 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 	if short == "" {
 		short = deriveShortName(req.Name)
 	}
-	req.UPIVPA = strings.TrimSpace(req.UPIVPA)
-	if req.UPIVPA != "" && !fees.ValidVPA(req.UPIVPA) {
-		httpx.BadRequest(w, r, errBadVPA.Error())
-		return
-	}
-	// A payee name without an address is a label on nothing; drop it so the
-	// profile never reads as half-configured.
-	req.UPIPayeeName = strings.TrimSpace(req.UPIPayeeName)
-	if req.UPIVPA == "" {
-		req.UPIPayeeName = ""
-	}
+	// UPI moved to its own section (updatePaymentSettings); the values the
+	// profile form still echoes are ignored here so a profile save can never
+	// blank the school's payment address.
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
@@ -325,15 +321,14 @@ func (s *Server) updateInstitution(w http.ResponseWriter, r *http.Request) {
 			       affiliation_board = $5, affiliation_no = $6,
 			       state = $7, district = $8, mandal = $9, village_or_ward = $10,
 			       school_category = $11, management_type = $12,
-			       child_info_code = $13, mid_day_meal = $14,
-			       upi_vpa = $15, upi_payee_name = $16, updated_at = now()
+			       child_info_code = $13, mid_day_meal = $14, updated_at = now()
 			 WHERE id = $1`,
 			id.InstitutionID, req.Name, short, nullString(req.UDISECode),
 			nullString(req.Board), nullString(req.AffiliationNo),
 			nullString(req.State), nullString(req.District), nullString(req.Mandal),
 			nullString(req.VillageOrWard), nullString(req.SchoolCategory),
 			nullString(req.ManagementType), nullString(req.ChildInfoCode),
-			req.MidDayMeal, nullString(req.UPIVPA), nullString(req.UPIPayeeName))
+			req.MidDayMeal)
 		return err
 	})
 	if err != nil {
@@ -773,4 +768,71 @@ func (s *Server) listClassSubjects(w http.ResponseWriter, r *http.Request) {
 				&v.SubjectName, &v.MaxMarks, &v.Teachers, &v.Unassigned, &v.AnyTeacher)
 		})
 	respond(w, r, items, err)
+}
+
+/* Payment collection settings.
+
+   The UPI address used to live on the profile form, where a save that did
+   not carry it blanked it and where the accounts office never looked. Its
+   own pair of endpoints now; the profile PUT no longer touches these
+   columns at all. */
+
+type paymentSettings struct {
+	UPIVPA       string `json:"upi_vpa"`
+	UPIPayeeName string `json:"upi_payee_name"`
+	// SchoolName is what the payee name falls back to; shown as the
+	// placeholder so the form says what "blank" means.
+	SchoolName string `json:"school_name,omitempty"`
+}
+
+func (s *Server) getPaymentSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	var out paymentSettings
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT COALESCE(upi_vpa,''), COALESCE(upi_payee_name,''), name
+			  FROM institutions WHERE id = $1`, id.InstitutionID).
+			Scan(&out.UPIVPA, &out.UPIPayeeName, &out.SchoolName)
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+func (s *Server) updatePaymentSettings(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	var req paymentSettings
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	req.UPIVPA = strings.TrimSpace(req.UPIVPA)
+	if req.UPIVPA != "" && !fees.ValidVPA(req.UPIVPA) {
+		httpx.BadRequest(w, r, errBadVPA.Error())
+		return
+	}
+	// A payee name without an address is a label on nothing; drop it so the
+	// settings never read as half-configured.
+	req.UPIPayeeName = strings.TrimSpace(req.UPIPayeeName)
+	if req.UPIVPA == "" {
+		req.UPIPayeeName = ""
+	}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(), `
+			UPDATE institutions SET upi_vpa = $2, upi_payee_name = $3, updated_at = now()
+			 WHERE id = $1`, id.InstitutionID, nullString(req.UPIVPA), nullString(req.UPIPayeeName))
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"upi_vpa": req.UPIVPA, "upi_payee_name": req.UPIPayeeName})
 }

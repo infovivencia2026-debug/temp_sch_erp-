@@ -1540,7 +1540,7 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 		ClassSubjects, Teachers, Students, FeeHeads           int
 		FeeStructures, GradingScales, Exams                   int
 		History                                               int
-		ProfileDone, HasUDISE                                 bool
+		ProfileDone, HasUDISE, HasUPI                         bool
 	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
@@ -1576,12 +1576,14 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			                        AND affiliation_board IS NOT NULL
 			                   FROM institutions WHERE id = $1), false),
 			       COALESCE((SELECT udise_code IS NOT NULL
+			                   FROM institutions WHERE id = $1), false),
+			       COALESCE((SELECT upi_vpa IS NOT NULL
 			                   FROM institutions WHERE id = $1), false)`,
 			id.InstitutionID).
 			Scan(&c.Campuses, &c.Years, &c.Classes, &c.Sections, &c.Subjects, &c.Periods,
 				&c.ClassSubjects, &c.Teachers, &c.Students, &c.FeeHeads,
 				&c.FeeStructures, &c.GradingScales, &c.Exams, &c.History,
-				&c.ProfileDone, &c.HasUDISE)
+				&c.ProfileDone, &c.HasUDISE, &c.HasUPI)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -1631,6 +1633,10 @@ func (s *Server) getSetupStatus(w http.ResponseWriter, r *http.Request) {
 			"Tuition, transport, lab.", false},
 		{"fee_structures", "Build fee structures", c.FeeStructures > 0, c.FeeStructures,
 			"What each class pays, and when.", false},
+		{"payments", "Set up payment collection", c.HasUPI, 0,
+			"The school's UPI ID, so families get a scannable code on their fee " +
+				"screen and the counter shows one. Optional; the office can always " +
+				"record a payment by hand.", false},
 		{"exams", "Schedule an exam", c.Exams > 0, c.Exams,
 			"Papers can be generated for every class at once.", false},
 		/* THE STEP FOR A SCHOOL THAT IS NOT NEW.

@@ -407,6 +407,10 @@ ForgetUser drops every cached identity belonging to one user.
 	or removed, must_change_password cleared. Anything that would make the
 	next request's identity different from the last one's belongs here.
 */
+// ForgetAll drops every cached identity: after a role's grants change for
+// everyone holding it, or after every session at a school is ended.
+func (s *Store) ForgetAll() { s.cache.Clear() }
+
 func (s *Store) ForgetUser(userID uuid.UUID) {
 	s.cache.DeleteFunc(func(_ string, cs *cachedSession) bool {
 		return cs.id.UserID == userID

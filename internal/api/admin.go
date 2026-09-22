@@ -200,7 +200,9 @@ type adminRole struct {
 	IsSystem bool   `json:"is_system"`
 	// IsDefault distinguishes the roles a new school opens with from the
 	// optional ones it installs when it needs them.
-	IsDefault   bool    `json:"is_default"`
+	IsDefault bool `json:"is_default"`
+	// Customised: a built-in this school has edited. Kept across upgrades.
+	Customised  bool    `json:"customised"`
 	Institution *string `json:"institution,omitempty"`
 	Permissions int     `json:"permissions"`
 	// Capabilities counts only the keys the configuration grid governs.
@@ -217,7 +219,8 @@ func (s *Server) listRoles(w http.ResponseWriter, r *http.Request) {
 		capKeys = append(capKeys, p.Key)
 	}
 	items, err := collect(s, r, `
-		SELECT ro.id::text, ro.key, ro.name, ro.is_system, ro.is_default, i.name,
+		SELECT ro.id::text, ro.key, ro.name, ro.is_system, ro.is_default,
+		       ro.customised_at IS NOT NULL, i.name,
 		       (SELECT count(*) FROM role_permissions rp WHERE rp.role_id = ro.id),
 		       (SELECT count(*) FROM role_permissions rp
 		         WHERE rp.role_id = ro.id AND rp.permission_key = ANY($1)),
@@ -228,7 +231,7 @@ func (s *Server) listRoles(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (adminRole, error) {
 			var v adminRole
 			return v, rows.Scan(&v.ID, &v.Key, &v.Name, &v.IsSystem, &v.IsDefault,
-				&v.Institution, &v.Permissions, &v.Capabilities, &v.Users)
+				&v.Customised, &v.Institution, &v.Permissions, &v.Capabilities, &v.Users)
 		})
 	respond(w, r, items, err)
 }

@@ -204,6 +204,15 @@ func (s *Server) setRoleFeatures(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// A built-in whose tiles are changed is this school's version from
+		// now on; the seeder leaves it alone. See rbac.upsertRole.
+		if len(req.Enable)+len(req.Disable) > 0 {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE roles SET customised_at = COALESCE(customised_at, now())
+				 WHERE id = $1 AND is_system`, roleID); err != nil {
+				return err
+			}
+		}
 		for _, k := range req.Enable {
 			if _, err := tx.Exec(r.Context(), `
 				INSERT INTO role_permissions (role_id, permission_key)

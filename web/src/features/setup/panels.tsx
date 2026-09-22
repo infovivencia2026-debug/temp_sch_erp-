@@ -307,7 +307,8 @@ interface Profile {
   management_type?: string
   child_info_code?: string
   mid_day_meal: boolean
-  /** The school's UPI address for fees. Blank means no QR is offered. */
+  timezone?: string
+  /** Echoed by GET; edited under Setup → Payments, not here. */
   upi_vpa?: string
   upi_payee_name?: string
 }
@@ -450,25 +451,64 @@ function ProfilePanel({ onDone }: PanelProps) {
             ]}
           />
         </Field>
-        {/* WHERE A FEE PAID BY PHONE GOES.
+      </FormGrid>
+      <SaveRow pending={save.isPending} error={save.error} />
+    </form>
+  )
+}
 
-            Not a gateway. A gateway pulls money and tells the system; this is
-            the school's own UPI address, the one on the laminated card at the
-            counter. With it set, a family's fee screen draws a QR with the
-            amount and admission number inside, and the counter shows one for
-            a UPI payment. The office still records the transfer, exactly as
-            it does for the laminated card. Blank offers neither. */}
+/* WHERE A FEE PAID BY PHONE GOES.
+
+   Its own section. It sat on the school profile as two fields under the
+   mid-day meal, which is where nobody from accounts looked and where a
+   profile save could quietly blank it. Not a gateway: a gateway pulls money
+   and tells the system; this is the school's own UPI address, the one on
+   the laminated card at the counter. With it set, a family's fee screen
+   shows a code with the amount and admission number inside, and the counter
+   shows one for a UPI payment. The office still records the transfer,
+   exactly as it does for the laminated card. Blank offers neither. */
+interface PaymentSettings {
+  upi_vpa?: string
+  upi_payee_name?: string
+  school_name?: string
+}
+
+function PaymentsPanel({ onDone }: PanelProps) {
+  const { data: cur } = useQuery({
+    queryKey: ['payment-settings'],
+    queryFn: () => api.get<PaymentSettings>('/api/v1/setup/payments'),
+  })
+  const [f, setF] = useState<Partial<PaymentSettings> | null>(null)
+  const v = f ?? cur ?? {}
+  const set = (k: keyof PaymentSettings, val: string) => setF({ ...(f ?? cur ?? {}), [k]: val })
+  const save = useSave(
+    (body: Partial<PaymentSettings>) =>
+      api.put('/api/v1/setup/payments', { upi_vpa: body.upi_vpa ?? '', upi_payee_name: body.upi_payee_name ?? '' }),
+    onDone,
+  )
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        save.mutate({ ...(cur ?? {}), ...(f ?? {}) })
+      }}
+    >
+      <FormGrid>
         <Field
           label="UPI ID for fees"
           wide
-          hint="The school's own UPI address, as on the card at the counter. Families get a scannable code for it on their fee screen; leave blank to offer none."
+          hint="The school's own UPI address, as on the card at the counter. Families get a scannable code for it on their fee screen and the counter shows one; leave blank to offer none."
         >
           <Input value={v.upi_vpa ?? ''} onChange={(x) => set('upi_vpa', x)} placeholder="vivencia@sbi" />
         </Field>
         <Field label="Payee name shown in the UPI app" hint="Blank uses the school's name.">
-          <Input value={v.upi_payee_name ?? ''} onChange={(x) => set('upi_payee_name', x)} placeholder={v.name ?? ''} />
+          <Input value={v.upi_payee_name ?? ''} onChange={(x) => set('upi_payee_name', x)} placeholder={cur?.school_name ?? ''} />
         </Field>
       </FormGrid>
+      <p className="mt-3 text-[12.5px] text-muted-foreground">
+        No money moves through this system. The parent pays the school directly from their UPI app; the
+        office records the payment on the fee counter and the receipt is issued then.
+      </p>
       <SaveRow pending={save.isPending} error={save.error} />
     </form>
   )
@@ -3458,6 +3498,7 @@ export const PANELS: Record<string, ComponentType<PanelProps>> = {
   grading: GradingPanel,
   fee_heads: FeeHeadsPanel,
   fee_structures: FeeStructuresPanel,
+  payments: PaymentsPanel,
   exams: ExamsPanel,
   history: HistoryPanel,
   udise: UDISEPanel,
