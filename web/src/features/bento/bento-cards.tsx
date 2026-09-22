@@ -455,7 +455,7 @@ export function CardShell({
                    the only thing on the card wearing one. The 0.92 shrink was a
                    compensation for the width uppercase tracking adds, so it goes
                    with them. */
-                'mt-1 truncate opacity-60 font-normal leading-tight text-[length:var(--card-sub,10px)]',
+                'mt-1 truncate opacity-75 font-normal leading-tight text-[length:var(--card-sub,10px)]',
               )}
             >
               {sub}
@@ -532,7 +532,7 @@ export function CardShell({
             </span>
             {deltaNote && (
               <span className="mt-0.5 block whitespace-nowrap font-normal
-                               leading-tight opacity-60
+                               leading-tight opacity-75
                                text-[length:calc(var(--card-sub,10px)*var(--card-sub-mult,0.9))]">
                 {deltaNote}
               </span>
@@ -593,7 +593,7 @@ export function CardShell({
           aria-hidden="true"
           className="card-nothing flex min-h-0 min-w-0 items-center justify-center self-stretch overflow-hidden rounded-[10px] border border-dashed border-current/25"
         >
-          <span className="px-2 text-center text-[10px] font-medium uppercase tracking-[0.08em] opacity-45">
+          <span className="px-2 text-center text-[10px] font-medium uppercase tracking-[0.08em] opacity-75">
             {t('bento.common.nothing_yet')}
           </span>
         </div>
@@ -1181,7 +1181,7 @@ export function Gauge({ value, total, srLabel }: { value: number; total: number;
         </svg>
         <span className="relative text-[15px] tabular-nums tracking-[-0.03em] [font-weight:650]">
           {pct}
-          <span className="ml-[1px] align-baseline text-[0.55em] opacity-60
+          <span className="ml-[1px] align-baseline text-[0.55em] opacity-75
                            [font-family:var(--bento-mono)]">%</span>
         </span>
       </div>
@@ -1337,7 +1337,7 @@ export function Facts({ items, srLabel }: {
         <div key={f.label}
              className="flex flex-1 items-center justify-between gap-2 border-t pt-1"
              style={{ borderColor: TRACK }}>
-          <dt className="truncate text-[8.5px] font-medium uppercase tracking-[0.07em] opacity-65">
+          <dt className="truncate text-[8.5px] font-medium uppercase tracking-[0.07em] opacity-75">
             {f.label}
           </dt>
           <dd className="shrink-0 text-[11px] font-bold tabular-nums">{f.value}</dd>
@@ -1551,7 +1551,7 @@ export function Ladder({
               background: ink(88 - i * 14),
             }}
           />
-          <span className="truncate font-light text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-60">
+          <span className="truncate font-light text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-75">
             {s.label}
           </span>
         </div>
@@ -1664,7 +1664,7 @@ export function Ranked({
             {String(i + 1).padStart(2, '0')}
           </b>
           <span className="mt-0.5 block truncate font-light text-[length:min(8px,var(--card-note,8px))]
-                           uppercase leading-none tracking-[0.07em] opacity-60">
+                           uppercase leading-none tracking-[0.07em] opacity-75">
             {it.label}
           </span>
           <span className="mt-1.5 block h-[4px]" style={{ background: TRACK }}>
@@ -1718,7 +1718,7 @@ export function Rings({
         </svg>
         <span className="relative text-[13px] tabular-nums tracking-[-0.03em] [font-weight:650]">
           {Math.round((num(usable[0].value) / num(usable[0].total)) * 100)}
-          <span className="ml-px align-baseline text-[0.55em] opacity-60
+          <span className="ml-px align-baseline text-[0.55em] opacity-75
                            [font-family:var(--bento-mono)]">%</span>
         </span>
       </div>
@@ -1894,7 +1894,7 @@ export function Matrix({
       {rows.flatMap((row) => [
         <span key={`${row.label}-l`}
               className="self-center truncate pr-1 text-[length:min(8px,var(--card-note,8px))]
-                         leading-none opacity-55">
+                         leading-none opacity-75">
           {row.label}
         </span>,
         ...Array.from({ length: cols }, (_, c) => {

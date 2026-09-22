@@ -404,7 +404,7 @@ export function SegmentBar({
       <ul
         className={cn(
           'm-0 list-none p-0 text-[length:var(--viz-label,11px)] leading-tight tabular-nums',
-          inline ? 'flex flex-nowrap gap-x-3.5' : twoCol ? 'grid grid-cols-2 gap-x-3 gap-y-1' : 'flex flex-col gap-1',
+          inline ? 'flex flex-nowrap gap-x-3.5' : twoCol ? 'grid min-w-0 grid-cols-2 gap-x-3 gap-y-1' : 'flex flex-col gap-1',
         )}
         aria-hidden="true"
       >
@@ -413,7 +413,7 @@ export function SegmentBar({
           return (
             <li key={`${s.label}-${i}`} className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: category(i) }} />
-              <span style={{ color: VIZ_QUIET }}>{s.label}</span>
+              <span className="truncate" style={{ color: VIZ_QUIET }}>{s.label}</span>
               <span className="ml-auto pl-1 font-semibold">{fmt(s.value)}</span>
             </li>
           )

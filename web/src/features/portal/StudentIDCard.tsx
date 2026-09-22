@@ -145,7 +145,7 @@ export default function StudentIDCard() {
                 {klass || t('portal.student_id_card.not_enrolled')}
                 {card.roll_no != null && t('portal.student_id_card.roll', { roll: card.roll_no })}
               </p>
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
+              <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[13px]">
                 <div>
                   <dt className="text-muted-foreground">{t('portal.student_id_card.admission_no')}</dt>
                   <dd className="font-medium">{card.admission_no}</dd>

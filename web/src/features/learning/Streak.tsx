@@ -118,9 +118,9 @@ export default function Streak() {
               ) : (
                 <ul className="divide-y">
                   {s.badges.map((b) => (
-                    <li key={b.key} className={'flex items-center gap-3 px-5 py-3 ' + (b.earned ? '' : 'opacity-50')}>
+                    <li key={b.key} className="flex items-center gap-3 px-5 py-3">
                       <span className="text-[14px] font-medium">{b.title}</span>
-                      <span className="ml-auto text-[12.5px] text-muted-foreground">
+                      <span className={'ml-auto text-[12.5px] text-muted-foreground' + (b.earned ? '' : ' opacity-50')}>
                         {b.earned ? 'Earned' : 'Not yet'}
                       </span>
                     </li>

@@ -653,7 +653,7 @@ export default function Applications() {
                     'rounded-[6px] px-2 py-1 text-[12px]',
                     i < stage && 'text-muted-foreground',
                     i === stage && 'bg-nav-active font-medium text-foreground',
-                    i > stage && 'text-muted-foreground/50',
+                    i > stage && 'text-muted-foreground/80',
                   )}
                 >
                   {s.replace(/_/g, ' ')}

@@ -703,7 +703,8 @@ export function BentoDock() {
           className={
             phone
               ? cn(item, tab)
-              : `flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px]
+              : `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px]
+                 bg-[color-mix(in_srgb,var(--ink-here)_8%,transparent)]
                  transition-colors hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)]
                  focus-visible:outline-none focus-visible:ring-2
                  focus-visible:ring-[var(--ink-here)]`
@@ -721,7 +722,11 @@ export function BentoDock() {
              A tooltip is for a glyph that cannot say what it is. */
           aria-label={t('bento.launcher.title')}
         >
-          <LayoutGrid className="size-[15px] shrink-0" aria-hidden="true" />
+          {/* 17px like its neighbours, with a heavier stroke, not 15px: at
+              15px on a low-DPI phone the four squares smeared into a blurry
+              "88" and read as a broken glyph. A grid has to resolve as four
+              squares or it is nothing. */}
+          <LayoutGrid className="size-[17px] shrink-0" strokeWidth={2.25} aria-hidden="true" />
           {phone ? tabLabel(t('bento.dock.browse')) : t('bento.launcher.title')}
         </button>
 

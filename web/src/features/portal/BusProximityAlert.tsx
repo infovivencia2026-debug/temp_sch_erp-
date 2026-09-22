@@ -135,7 +135,7 @@ export default function BusProximityAlert() {
                 <p className="text-[13px] text-destructive">{problem}</p>
               )}
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 gap-y-2">
                 <Button disabled={!!problem || save.isPending} onClick={() => save.mutate()}>
                   {save.isPending ? 'Saving…' : 'Save'}
                 </Button>

@@ -340,7 +340,7 @@ export function Facts({ items, srLabel }: { items: Fact[]; srLabel: string }) {
           className="flex min-w-0 items-baseline justify-between gap-2 border-t pt-[3px]"
           style={{ borderColor: ink(12) }}
         >
-          <dt className="truncate text-[length:var(--card-note,8px)] font-medium uppercase tracking-[0.06em] opacity-65">
+          <dt className="truncate text-[length:var(--card-note,8px)] font-medium uppercase tracking-[0.06em] opacity-75">
             {f.label}
           </dt>
           <dd className="shrink-0 text-[length:var(--card-note,10px)] font-bold tabular-nums">{f.value}</dd>
@@ -380,7 +380,7 @@ export function Part({ grow = 1, children }: { grow?: number; children: ReactNod
 export function Titled({ head, children }: { head: string; children: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <p className="mb-1 truncate text-[length:var(--card-sub,8px)] font-normal uppercase leading-none tracking-[0.04em] opacity-55">
+      <p className="mb-1 truncate text-[length:var(--card-sub,8px)] font-normal uppercase leading-none tracking-[0.04em] opacity-75">
         {head}
       </p>
       <div className="min-h-0 flex-1">{children}</div>

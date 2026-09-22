@@ -599,7 +599,8 @@ export function BentoLauncher({
   /* The two header controls. Both are mixed from `--ink-here`, which is by
      construction the colour this ground contrasts with. */
   const quiet =
-    `flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors ` +
+    `flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-3 py-1.5 text-[12.5px] transition-colors ` +
+    `bg-[color-mix(in_srgb,var(--ink-here)_8%,transparent)] ` +
     `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
 
@@ -664,11 +665,11 @@ export function BentoLauncher({
             nothing, at the top of a sheet that is otherwise all tiles, was the
             page's one piece of chrome with no weight behind it. */}
         <div
-          className="mb-5 flex items-baseline justify-between gap-4 border-b
+          className="mb-5 flex flex-wrap items-baseline justify-between gap-4 border-b
                      border-[color-mix(in_srgb,var(--ink-here)_10%,transparent)] pb-4"
         >
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.08em] opacity-65">{role.name}</p>
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.08em] opacity-80">{role.name}</p>
             <h2 className="text-[23px] font-semibold tracking-[-0.01em]">
               {t('bento.launcher.title')}
             </h2>
@@ -676,7 +677,7 @@ export function BentoLauncher({
           <div className="flex items-center gap-1.5">
             {homeRow && (
               <button type="button" onClick={() => go(homeRow)} className={quiet}>
-                <House className="size-3.5" aria-hidden="true" />
+                <House className="size-4" strokeWidth={2.25} aria-hidden="true" />
                 {t('bento.dock.home')}
               </button>
             )}
@@ -698,8 +699,7 @@ export function BentoLauncher({
             className="absolute left-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center
                        justify-center rounded-[8px] text-[var(--bento-ink)] transition-colors
                        hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]
-                       [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]"
           >
             {q ? <X className="size-4" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
           </button>

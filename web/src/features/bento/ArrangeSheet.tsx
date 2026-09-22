@@ -186,7 +186,7 @@ export function ArrangeSheet({
           {hidden.map((w) => (
             <li key={w.id} className="bento-sheet__row is-hidden">
               <span className="bento-sheet__handle opacity-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate text-[14px] opacity-60">{w.label}</span>
+              <span className="min-w-0 flex-1 truncate text-[14px] opacity-75">{w.label}</span>
               <button
                 type="button"
                 role="switch"

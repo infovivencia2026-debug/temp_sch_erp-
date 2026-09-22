@@ -344,7 +344,7 @@ function NewThread({
         </FormGrid>
         <p className="mt-4 text-[13px] text-muted-foreground">{t('portal.forum.named_notice')}</p>
         <p className="mt-1.5 text-[13px] text-muted-foreground">{t('portal.forum.grievance_notice')}</p>
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3 gap-y-2">
           <Button
             onClick={() => post.mutate()}
             disabled={post.isPending || !title.trim() || !body.trim()}

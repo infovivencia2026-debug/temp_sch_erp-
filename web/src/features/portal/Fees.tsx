@@ -317,7 +317,7 @@ export default function PortalFees() {
                           && ` · ${t('portal.fees.days_late', { days: i.days_overdue })}`}
                       </p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-end gap-4">
                       <div className="text-right">
                         <span className="block text-[11px] text-muted-foreground">
                           {t('portal.fees.col_still_due')}

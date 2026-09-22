@@ -629,7 +629,7 @@ export function ColourPanel({
               raised shade and the card. On the default palette those are the
               same paper, so the whole segmented control disappeared and there
               was no way to see which channel you were editing. */}
-          <div className="mb-4 grid grid-cols-3 gap-1 rounded-[10px] p-1
+          <div className="mb-4 grid min-w-0 grid-cols-3 gap-1 rounded-[10px] p-1
                           bg-[color-mix(in_srgb,var(--bento-ink)_8%,transparent)]">
             {CHANNELS.map((c) => (
               <button
@@ -637,7 +637,7 @@ export function ColourPanel({
                 type="button"
                 onClick={() => setChannel(c)}
                 className={cn(
-                  'rounded-[8px] border !border-transparent px-3 py-1.5 text-[13px] transition-colors',
+                  'min-w-0 truncate rounded-[8px] border !border-transparent px-3 py-1.5 text-[13px] transition-colors',
                   RING,
                   channel === c ? `${CHOSEN} font-medium` : INK,
                 )}

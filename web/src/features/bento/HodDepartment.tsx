@@ -151,7 +151,7 @@ function GaugeBox({ value, total, srLabel }: { value: number; total: number; srL
     second while meaning the first. */
 function Said({ children }: { children: ReactNode }) {
   return (
-    <p className="flex h-full min-h-0 items-center text-[length:var(--card-sub,10px)] leading-snug opacity-60">
+    <p className="flex h-full min-h-0 items-center text-[length:var(--card-sub,10px)] leading-snug opacity-75">
       {children}
     </p>
   )

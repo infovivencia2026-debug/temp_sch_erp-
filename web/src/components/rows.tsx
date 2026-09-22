@@ -140,7 +140,8 @@ export function SearchBox({
         type="button"
         onClick={act}
         aria-label={has ? 'Clear search' : placeholder}
-        className="absolute left-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+        /* 44px touch floor comes from the global coarse-pointer rule in index.css */
+        className="absolute left-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {has ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
       </button>
