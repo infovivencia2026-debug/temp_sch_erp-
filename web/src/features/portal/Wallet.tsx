@@ -136,8 +136,10 @@ export default function PortalWallet() {
                       t.delta_paise < 0 ? 'text-destructive' : 'text-success')}>
                       {t.delta_paise < 0 ? '−' : '+'}{formatPaise(Math.abs(t.delta_paise))}
                     </Td>
-                    <Td className="max-w-[32ch] truncate text-muted-foreground" title={t.note ?? undefined}>
-                      {t.note || (t.reference_no ? `Ref ${t.reference_no}` : '—')}
+                    <Td className="max-w-[32ch] text-muted-foreground">
+                      <span className="block truncate" title={t.note ?? undefined}>
+                        {t.note || (t.reference_no ? `Ref ${t.reference_no}` : '—')}
+                      </span>
                     </Td>
                   </tr>
                 ))}

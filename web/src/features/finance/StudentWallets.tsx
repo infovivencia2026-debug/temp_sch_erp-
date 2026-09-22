@@ -276,7 +276,9 @@ export default function StudentWallets() {
                     <Td className="text-muted-foreground">
                       {[t.source_mode, t.reference_no].filter(Boolean).join(' · ') || '—'}
                     </Td>
-                    <Td className="max-w-[28ch] truncate" title={t.note ?? undefined}>{t.note || '—'}</Td>
+                    <Td className="max-w-[28ch]">
+                      <span className="block truncate" title={t.note ?? undefined}>{t.note || '—'}</span>
+                    </Td>
                     <Td className="text-muted-foreground">{t.recorded_by || '—'}</Td>
                   </tr>
                 ))}
