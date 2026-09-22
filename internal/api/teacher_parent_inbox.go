@@ -201,24 +201,38 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 	   stricter question, asked by teacherMayWrite when they reply. A teacher
 	   who has since stopped taking the class must still be able to read what
 	   was said to them, or a handover loses the conversation. */
+	/* A window, newest first, then turned back into reading order. Loading a
+	   year of conversation on every open is a second of waiting that grows
+	   every term; `before` walks back through the rest a page at a time. */
 	items, err := collect(s, r, `
-		SELECT m.id::text, m.body,
+		SELECT m.id::text,
+		       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
 		       CASE WHEN m.sender_user_id = m.parent_user_id THEN 'parent'
 		            ELSE 'teacher' END,
-		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'), m.attachments
+		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'),
+		       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
+		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI:SS.US'),
+		       m.reply_to_id::text,
+		       (SELECT left(q.body, 120) FROM parent_teacher_messages q WHERE q.id = m.reply_to_id),
+		       (SELECT qu.full_name FROM parent_teacher_messages q
+		          JOIN users qu ON qu.id = q.sender_user_id WHERE q.id = m.reply_to_id),
+		       m.edited_at IS NOT NULL, m.deleted_at IS NOT NULL
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
 		 WHERE m.student_id = $1 AND m.parent_user_id = $2
 		   AND m.teacher_user_id = $3
-		 ORDER BY m.sent_at
-		 LIMIT 500`, []any{sid, parentID, teacher, id.UserID},
+		   AND ($5 = '' OR m.sent_at < $5::timestamptz)
+		 ORDER BY m.sent_at DESC
+		 LIMIT 41`, []any{sid, parentID, teacher, id.UserID,
+		strings.TrimSpace(r.URL.Query().Get("before"))},
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
 			var raw []byte
 			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine,
-				&v.SenderSide, &v.ReadAt, &raw)
+				&v.SenderSide, &v.ReadAt, &raw, &v.Cursor,
+				&v.ReplyToID, &v.ReplyBody, &v.ReplySender, &v.Edited, &v.Deleted)
 			v.Attachments = scanAttachments(raw)
 			return v, err
 		})
@@ -227,16 +241,21 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, uerr := tx.Exec(r.Context(), `
-			UPDATE parent_teacher_messages
-			   SET read_at = now()
-			 WHERE student_id = $1 AND parent_user_id = $2 AND teacher_user_id = $3
-			   AND sender_user_id <> $3 AND read_at IS NULL`, sid, parentID, id.UserID)
-		return uerr
-	}); err != nil {
-		httpx.Internal(w, r, err)
-		return
+	/* Marking read moved to its own call (chat_ops.go): a tick set the moment
+	   the thread was fetched said "seen" while the recipient was still walking
+	   to the staff room. The screen now says so when the bubble is on screen. */
+	more := len(items) > 40
+	if more {
+		items = items[:40]
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})
+	for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
+		items[i], items[j] = items[j], items[i]
+	}
+	var cursor string
+	if len(items) > 0 {
+		cursor = items[0].Cursor
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"items": items, "has_more": more, "cursor": cursor,
+	})
 }

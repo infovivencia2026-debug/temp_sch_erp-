@@ -1576,6 +1576,17 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reply", s.adminInboxReplyParent)
 		})
 
+		/* Correcting what was said, on either conversation. The author, for
+		   fifteen minutes, and nothing vanishes -- see chat_ops.go. */
+		r.Route("/chat", func(r chi.Router) {
+			r.Put("/messages/{id}", s.editChatMessage)
+			r.Delete("/messages/{id}", s.unsendChatMessage)
+			// The tick, set when a message has been on screen rather than
+			// when the thread was merely opened.
+			r.Post("/parent-thread/read", s.markParentThreadRead)
+			r.Post("/staff-thread/read", s.markStaffThreadRead)
+		})
+
 		r.Route("/staff-messages", func(r chi.Router) {
 			r.Get("/", s.listStaffMessages)
 			r.Get("/threads", s.listStaffThreads)

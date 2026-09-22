@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowDown, Check, CheckCheck, Download, FileText, Image as ImageIcon,
-  Paperclip, Search, Send, X,
+  ArrowDown, Check, CheckCheck, Clock, Download, FileText, Image as ImageIcon,
+  Mic, MoreVertical, Paperclip, Pencil, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Loading } from '@/components/ui'
@@ -39,9 +39,22 @@ export interface ChatMessage {
   mine: boolean
   /** Who wrote it; shown on the other side's bubbles in a group. */
   sender?: string
-  /** Set once the other side opened it; drawn as two blue ticks. */
+  /** Set once the other side has actually seen it; drawn as two blue ticks. */
   read_at?: string
   attachments?: Attachment[]
+  /** What this message answers, quoted as it read when it was quoted. */
+  reply_to_id?: string
+  reply_body?: string
+  reply_sender?: string
+  edited?: boolean
+  /** Withdrawn by its author: the row stays, the words are gone. */
+  deleted?: boolean
+  /* Set only on a message this screen is still sending, or failed to send.
+     A bubble is on the paper the moment Send is pressed -- on a corridor
+     connection the old wait for the server looked like nothing had happened,
+     and people pressed Send twice. */
+  pending?: boolean
+  failed?: boolean
 }
 
 export function ChatThread({
@@ -66,7 +79,22 @@ export function ChatThread({
      rather than scrolling the page. */
   height = 'min-h-[14rem] max-h-[70vh]',
   live,
+  onLoadOlder,
+  hasMore = false,
+  loadingOlder = false,
+  onSeen,
+  onEdit,
+  onUnsend,
 }: {
+  /** Fetch the page above the oldest message on screen. */
+  onLoadOlder?: () => void
+  hasMore?: boolean
+  loadingOlder?: boolean
+  /** Called when the other side's newest message has actually been on screen. */
+  onSeen?: () => void
+  /** Change or withdraw one of the caller's own messages, within the window. */
+  onEdit?: (id: string, body: string) => Promise<unknown> | void
+  onUnsend?: (id: string) => Promise<unknown> | void
   /** Which conversation this is, on the live bus: shows "typing…" from the
       other party and signals our own typing to them. Omit for no live. */
   live?: TypingTarget
@@ -105,6 +133,7 @@ export function ChatThread({
   const [atBottom, setAtBottom] = useState(true)
   const [behind, setBehind] = useState(0)
   const seen = useRef(messages.length)
+  const olderAnchor = useRef<{ h: number; top: number } | null>(null)
 
   const toBottom = useCallback((smooth = true) => {
     const el = scroller.current
@@ -126,22 +155,57 @@ export function ChatThread({
     const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
     setAtBottom(bottom)
     if (bottom) setBehind(0)
+    /* Older messages, when the reader reaches the top of what is loaded.
+       The anchor is taken first so the page that arrives above does not shove
+       the line they were reading off the screen. */
+    if (el.scrollTop < 80 && hasMore && !loadingOlder && onLoadOlder) {
+      olderAnchor.current = { h: el.scrollHeight, top: el.scrollTop }
+      onLoadOlder()
+    }
   }
+
+  // Put the reader back where they were, now that the page has been prepended.
+  useEffect(() => {
+    const el = scroller.current
+    const a = olderAnchor.current
+    if (!el || !a || loadingOlder) return
+    olderAnchor.current = null
+    el.scrollTop = el.scrollHeight - a.h + a.top
+  }, [messages.length, loadingOlder])
+
+  /* THE TICK MEANS SEEN.
+     read_at used to be set when the thread was fetched, so a message was
+     marked read while its recipient was still walking to the staff room. It is
+     now reported when the newest incoming message has actually been drawn and
+     the window has focus. */
+  const lastIncoming = useMemo(
+    () => [...messages].reverse().find((m) => !m.mine)?.id,
+    [messages],
+  )
+  const told = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!onSeen || !lastIncoming || told.current === lastIncoming) return
+    if (typeof document !== 'undefined' && document.hidden) return
+    if (!atBottom) return
+    told.current = lastIncoming
+    onSeen()
+  }, [lastIncoming, atBottom, onSeen])
 
   /* Find something in a long thread. A conversation about one child runs for a
      year; "what did we agree about the bus" is a search, not a scroll. */
   const [finding, setFinding] = useState(false)
   const [needle, setNeedle] = useState('')
+  const all = useMemo(() => [...messages, ...outgoing], [messages, outgoing])
   const shown = useMemo(() => {
     const q = needle.trim().toLowerCase()
-    if (!q) return messages
-    return messages.filter(
+    if (!q) return all
+    return all.filter(
       (m) =>
         (m.body ?? '').toLowerCase().includes(q) ||
         (m.sender ?? '').toLowerCase().includes(q) ||
         (m.attachments ?? []).some((a) => a.name.toLowerCase().includes(q)),
     )
-  }, [messages, needle])
+  }, [all, needle])
 
   // The box grows with what is typed, up to about five lines.
   useEffect(() => {
@@ -151,8 +215,14 @@ export function ChatThread({
     el.style.height = Math.min(el.scrollHeight, 140) + 'px'
   }, [draft])
 
-  const upload = async (list: FileList | null) => {
-    if (!list || !list.length) return
+  const upload = async (list: FileList | File | null) => {
+    if (!list) return
+    if (list instanceof File) {
+      const dt = new DataTransfer()
+      dt.items.add(list)
+      list = dt.files
+    }
+    if (!list.length) return
     setUploadError(null)
     const picked = Array.from(list).slice(0, 10 - files.length)
     setUploading((n) => n + picked.length)
@@ -182,14 +252,74 @@ export function ChatThread({
     if (fileInput.current) fileInput.current.value = ''
   }
 
+  /* SENT IS WHAT THE SCREEN SAYS, NOT WHAT THE SERVER HAS SAID YET.
+   *
+   * The bubble used to appear when the reply came back. On a 3G phone in a
+   * school corridor that is a second of nothing, and people press Send twice.
+   * The message is drawn immediately with a clock, becomes an ordinary bubble
+   * when the server confirms it, and turns into a red line with Retry if it
+   * does not — which is the honest thing to show, rather than a message that
+   * looks sent and never arrived. */
+  const [outgoing, setOutgoing] = useState<ChatMessage[]>([])
+
+  const deliver = useCallback(
+    async (draftMsg: ChatMessage, payload: { body: string; attachments: Attachment[]; reply_to_id?: string }) => {
+      try {
+        await onSend(payload)
+        // The refetch carries the real message; drop our stand-in.
+        setOutgoing((cur) => cur.filter((m) => m.id !== draftMsg.id))
+      } catch {
+        setOutgoing((cur) =>
+          cur.map((m) => (m.id === draftMsg.id ? { ...m, pending: false, failed: true } : m)),
+        )
+      }
+    },
+    [onSend],
+  )
+
   const submit = () => {
     const body = draft.trim()
-    if ((!body && files.length === 0) || sending || uploading > 0) return
-    const out = { body, attachments: files }
+    // Editing writes over the message instead of adding one.
+    if (editing) {
+      if (!body || !onEdit) return
+      const target = editing
+      setEditing(null)
+      setDraft('')
+      void onEdit(target.id, body)
+      return
+    }
+    if ((!body && files.length === 0) || uploading > 0) return
+    const payload = { body, attachments: files, reply_to_id: replyTo?.id }
+    const stand: ChatMessage = {
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      body,
+      at: new Date().toISOString().slice(0, 16),
+      mine: true,
+      attachments: files,
+      reply_to_id: replyTo?.id,
+      reply_body: replyTo?.body,
+      reply_sender: replyTo?.sender,
+      pending: true,
+    }
+    setOutgoing((cur) => [...cur, stand])
     setDraft('')
     setFiles([])
-    void onSend(out)
+    setReplyTo(null)
+    void deliver(stand, payload)
   }
+
+  const retry = (m: ChatMessage) => {
+    setOutgoing((cur) => cur.map((x) => (x.id === m.id ? { ...x, failed: false, pending: true } : x)))
+    void deliver(m, { body: m.body, attachments: m.attachments ?? [], reply_to_id: m.reply_to_id })
+  }
+
+  const discard = (m: ChatMessage) => setOutgoing((cur) => cur.filter((x) => x.id !== m.id))
+
+  /* What is being answered, and what is being changed. Only one of each can be
+     open at a time: both occupy the composer, and a screen that is doing two
+     things at once with the same box is a screen nobody can predict. */
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
+  const [editing, setEditing] = useState<ChatMessage | null>(null)
 
   // The other party is typing — a live hint that expires by itself.
   const otherTyping = useTyping(live)
@@ -240,6 +370,18 @@ export function ChatThread({
         onScroll={onScroll}
         className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5', height)}
       >
+        {hasMore && !loading && !needle && (
+          <div className="mb-2 flex justify-center">
+            <button
+              type="button"
+              onClick={onLoadOlder}
+              disabled={loadingOlder}
+              className="rounded-full bg-black/5 px-3 py-1 text-[12px] font-medium text-muted-foreground"
+            >
+              {loadingOlder ? 'Loading…' : 'Older messages'}
+            </button>
+          </div>
+        )}
         {loading ? (
           <Loading />
         ) : messages.length === 0 ? (
@@ -264,30 +406,69 @@ export function ChatThread({
                     </span>
                   </div>
                 )}
-                <div className={cn('mb-1.5 flex', m.mine ? 'justify-end' : 'justify-start')}>
+                <div className={cn('group mb-1.5 flex items-end gap-1', m.mine ? 'justify-end' : 'justify-start')}>
+                  {/* Answer this one. Left of your own bubble, right of theirs,
+                      so the control never sits where the text begins. */}
+                  {!m.deleted && !m.pending && !m.failed && canSend && m.mine && (
+                    <BubbleActions
+                      m={m}
+                      onReply={() => setReplyTo(m)}
+                      onEdit={onEdit ? () => { setEditing(m); setDraft(m.body) } : undefined}
+                      onUnsend={onUnsend ? () => void onUnsend(m.id) : undefined}
+                    />
+                  )}
                   <div
                     className={cn(
                       'chat-bubble relative max-w-[85%] rounded-lg px-2.5 py-1.5 text-[14px] shadow-sm sm:max-w-[70%]',
                       m.mine ? 'chat-mine rounded-tr-sm' : 'chat-theirs rounded-tl-sm',
+                      m.failed && 'ring-1 ring-destructive',
+                      m.pending && 'opacity-80',
                     )}
                   >
                     {showSender && !m.mine && m.sender && (
                       <p className="mb-0.5 text-[12px] font-semibold text-primary">{m.sender}</p>
                     )}
-                    {(m.attachments ?? []).map((a) => (
-                      <AttachmentView key={a.file_id} a={a} />
-                    ))}
-                    {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                    {/* What it answers, quoted. */}
+                    {m.reply_to_id && (m.reply_body || m.reply_sender) && (
+                      <div className="mb-1 border-l-2 border-primary/60 bg-black/5 px-2 py-1 text-[12.5px]">
+                        {m.reply_sender && <div className="font-semibold text-primary">{m.reply_sender}</div>}
+                        <div className="line-clamp-2 text-muted-foreground">{m.reply_body || 'Attachment'}</div>
+                      </div>
+                    )}
+                    {m.deleted ? (
+                      <p className="italic text-muted-foreground">This message was withdrawn.</p>
+                    ) : (
+                      <>
+                        {(m.attachments ?? []).map((a) => (
+                          <AttachmentView key={a.file_id} a={a} />
+                        ))}
+                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                      </>
+                    )}
                     <p className="mt-0.5 flex items-center justify-end gap-1 text-[10.5px] leading-none text-muted-foreground">
+                      {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine &&
-                        (m.read_at ? (
-                          <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" aria-label={`Read ${formatDateTime(m.read_at)}`} />
+                        (m.failed ? (
+                          <span className="font-semibold text-destructive">not sent</span>
+                        ) : m.pending ? (
+                          <Clock className="h-3.5 w-3.5" aria-label="Sending" />
+                        ) : m.read_at ? (
+                          <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" aria-label={`Seen ${formatDateTime(m.read_at)}`} />
                         ) : (
                           <Check className="h-3.5 w-3.5" aria-label="Sent" />
                         ))}
                     </p>
+                    {m.failed && (
+                      <p className="mt-1 flex gap-3 text-[12px] font-semibold">
+                        <button type="button" className="text-primary" onClick={() => retry(m)}>Retry</button>
+                        <button type="button" className="text-muted-foreground" onClick={() => discard(m)}>Discard</button>
+                      </p>
+                    )}
                   </div>
+                  {!m.deleted && !m.pending && !m.failed && canSend && !m.mine && (
+                    <BubbleActions m={m} onReply={() => setReplyTo(m)} />
+                  )}
                 </div>
               </div>
             )
@@ -333,6 +514,30 @@ export function ChatThread({
           className="border-t bg-muted/40 px-2 pt-2 sm:px-3"
           style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
         >
+          {(replyTo || editing) && (
+            <div className="mb-2 flex items-start gap-2 rounded-md border-l-4 border-primary bg-background px-2.5 py-1.5 text-[12.5px]">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-primary">
+                  {editing ? 'Editing your message' : `Replying to ${replyTo?.sender ?? 'this message'}`}
+                </div>
+                <div className="truncate text-muted-foreground">
+                  {(editing ?? replyTo)?.body || 'Attachment'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-muted"
+                onClick={() => {
+                  if (editing) setDraft('')
+                  setEditing(null)
+                  setReplyTo(null)
+                }}
+                aria-label="Cancel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {(files.length > 0 || uploading > 0) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {files.map((f) => (
@@ -389,6 +594,14 @@ export function ChatThread({
             >
               <Search className="h-5 w-5" />
             </button>
+            {/* A voice note is an attachment, so it lives behind the same
+                permission as one. */}
+            {allowAttachments && (
+              <VoiceButton
+                disabled={files.length >= 10}
+                onRecorded={(file) => void upload(file)}
+              />
+            )}
             {allowAttachments && (
               <button
                 type="button"
@@ -439,7 +652,29 @@ export function ChatThread({
   )
 }
 
+function isAudio(a: Attachment) {
+  return (a.content_type ?? '').startsWith('audio/')
+}
+
 function AttachmentView({ a }: { a: Attachment }) {
+  /* A voice note plays where it was sent. The browser's own player: it knows
+     the codecs, it has the scrub bar and the speed control, and it is the one
+     control on the page a person has already used somewhere else. */
+  if (isAudio(a)) {
+    return (
+      <div className="mb-1 flex items-center gap-2">
+        <audio controls preload="none" src={a.url} className="h-9 max-w-[230px]" />
+        <a
+          href={a.url}
+          download={a.name}
+          title={`Download ${a.name}`}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
+        >
+          <Download className="h-4 w-4" />
+        </a>
+      </div>
+    )
+  }
   /* A tap saves the file.
    *
    * The link opened a new tab, which the server answered with
@@ -532,3 +767,192 @@ const chatCSS = `
 .chat-composer::placeholder { color: #8696a0; }
 .chat-daypill { background-color: rgba(255,255,255,0.92); color: #667781; }
 `
+
+/* What you can do to one message: answer it, and -- if it is yours and recent
+   -- change or withdraw it. A menu rather than three buttons on every bubble,
+   because a thread of two hundred messages with six hundred controls in it is
+   not a conversation. */
+function BubbleActions({
+  m,
+  onReply,
+  onEdit,
+  onUnsend,
+}: {
+  m: ChatMessage
+  onReply: () => void
+  onEdit?: () => void
+  onUnsend?: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const mine = m.mine && (onEdit || onUnsend)
+  if (!mine) {
+    return (
+      <button
+        type="button"
+        onClick={onReply}
+        title="Reply"
+        aria-label="Reply to this message"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-black/5 focus:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-60"
+      >
+        <Reply className="h-4 w-4" />
+      </button>
+    )
+  }
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="More"
+        className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-black/5 focus:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-60"
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {open && (
+        <>
+          {/* A click anywhere else closes it; no library, no portal. */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute bottom-8 right-0 z-30 w-40 overflow-hidden rounded-lg border bg-card py-1 text-[13px] shadow-lg">
+            <MenuItem icon={<Reply className="h-4 w-4" />} label="Reply" onClick={() => { setOpen(false); onReply() }} />
+            {onEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => { setOpen(false); onEdit() }} />}
+            {onUnsend && (
+              <MenuItem
+                icon={<Trash2 className="h-4 w-4" />}
+                label="Unsend"
+                danger
+                onClick={() => { setOpen(false); onUnsend() }}
+              />
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: ReactNode
+  label: string
+  onClick: () => void
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent',
+        danger && 'text-destructive',
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+/* A VOICE NOTE.
+ *
+ * Most parents at this school read Telugu more comfortably than they type
+ * English, and a teacher between periods has thirty seconds and no hands. The
+ * recorder is the browser's own -- no library, no upload format of our
+ * invention: it produces an ordinary audio file that goes through the same
+ * attachment path as a photo, plays in the bubble with the browser's controls,
+ * and downloads like anything else.
+ *
+ * If the browser will not record, or the person refuses the microphone, the
+ * button simply does not appear: an attachment and a typed message still work,
+ * and a dead control that asks for a permission every time is worse. */
+function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; disabled?: boolean }) {
+  const [recording, setRecording] = useState(false)
+  const [seconds, setSeconds] = useState(0)
+  const rec = useRef<MediaRecorder | null>(null)
+  const chunks = useRef<BlobPart[]>([])
+
+  const supported =
+    typeof window !== 'undefined' &&
+    typeof MediaRecorder !== 'undefined' &&
+    !!navigator.mediaDevices?.getUserMedia
+
+  useEffect(() => {
+    if (!recording) return
+    const t = setInterval(() => setSeconds((n) => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [recording])
+
+  // Two minutes is a long voice note and a very long upload on a school line.
+  useEffect(() => {
+    if (recording && seconds >= 120) stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seconds, recording])
+
+  if (!supported) return null
+
+  async function start() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      chunks.current = []
+      mr.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunks.current, { type: mr.mimeType || 'audio/webm' })
+        if (blob.size > 0) {
+          const ext = (mr.mimeType || 'audio/webm').includes('mp4') ? 'm4a' : 'webm'
+          onRecorded(new File([blob], `voice-note-${Date.now()}.${ext}`, { type: blob.type }))
+        }
+      }
+      mr.start()
+      rec.current = mr
+      setSeconds(0)
+      setRecording(true)
+    } catch {
+      // Refused, or no microphone. Nothing to say; the other ways still work.
+      setRecording(false)
+    }
+  }
+
+  function stop() {
+    rec.current?.stop()
+    rec.current = null
+    setRecording(false)
+  }
+
+  if (recording) {
+    return (
+      <button
+        type="button"
+        onClick={stop}
+        title="Stop and attach"
+        aria-label="Stop recording and attach"
+        className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-destructive px-3 text-[12.5px] font-semibold text-white"
+      >
+        <Square className="h-3.5 w-3.5" />
+        {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => void start()}
+      disabled={disabled}
+      title="Record a voice note"
+      aria-label="Record a voice note"
+      className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
+    >
+      <Mic className="h-5 w-5" />
+    </button>
+  )
+}

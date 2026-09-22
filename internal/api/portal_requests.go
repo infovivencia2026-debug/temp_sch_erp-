@@ -911,6 +911,14 @@ type portalMessageRow struct {
 	   a principal reading somebody else's thread, where nothing is theirs. */
 	SenderSide string  `json:"sender_side,omitempty"`
 	ReadAt     *string `json:"read_at,omitempty"`
+	// Cursor is the send time at full precision: pass it as `before` to fetch
+	// the page above this message.
+	Cursor      string  `json:"cursor,omitempty"`
+	ReplyToID   *string `json:"reply_to_id,omitempty"`
+	ReplyBody   *string `json:"reply_body,omitempty"`
+	ReplySender *string `json:"reply_sender,omitempty"`
+	Edited      bool    `json:"edited"`
+	Deleted     bool    `json:"deleted"`
 }
 
 /*
@@ -1051,6 +1059,8 @@ type sendMessageRequest struct {
 	ParentID    string       `json:"parent_user_id,omitempty"`
 	Body        string       `json:"body"`
 	Attachments []attachment `json:"attachments,omitempty"`
+	// ReplyTo quotes the message this one answers; see chat_ops.go.
+	ReplyTo string `json:"reply_to_id,omitempty"`
 }
 
 // sendPortalMessage posts into a thread, from either end.
@@ -1149,11 +1159,12 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO parent_teacher_messages
 			    (institution_id, student_id, parent_user_id, teacher_user_id,
-			     sender_user_id, body, attachments)
-			VALUES ($1,$2,$3,$4,$5,$6,$7)
+			     sender_user_id, body, attachments, reply_to_id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,'')::uuid)
 			RETURNING id::text`,
 			id.InstitutionID, sid, parentID, teacherID, id.UserID,
-			strings.TrimSpace(req.Body), attachmentsJSON(files)).Scan(&newID); err != nil {
+			strings.TrimSpace(req.Body), attachmentsJSON(files),
+			strings.TrimSpace(req.ReplyTo)).Scan(&newID); err != nil {
 			return err
 		}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
@@ -47,6 +47,13 @@ interface Message {
   read_at?: string
   sender_name: string
   attachments?: Attachment[]
+  /** Full-precision send time; pass as `before` to fetch the page above. */
+  cursor?: string
+  reply_to_id?: string
+  reply_body?: string
+  reply_sender?: string
+  edited?: boolean
+  deleted?: boolean
   /* 'parent' or 'teacher'. Who wrote it, in a thread that has exactly two
      sides — which "mine" cannot answer for a principal reading somebody
      else's conversation, where nothing is theirs. */
@@ -147,18 +154,26 @@ export default function StaffMessages() {
   const replyToParent = useMutation({
     // The same endpoint the parent writes with: it already had a branch for a
     // teacher answering, checked against whether they teach that child.
-    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
+    mutationFn: (m: { body: string; attachments: Attachment[]; reply_to_id?: string }) =>
       api.post('/api/v1/portal/messages', {
         student_id: openChild,
         parent_user_id: openWith,
         body: m.body,
         attachments: m.attachments,
+        reply_to_id: m.reply_to_id,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['parent-messages', openChild, openWith] })
       qc.invalidateQueries({ queryKey: ['parent-threads'] })
     },
   })
+
+  /* How far back each open thread has been read. A conversation loads its
+     newest page; pressing "Older messages" walks the cursor backwards, and the
+     pages are kept so the thread reads continuously. */
+  const [olderStaff, setOlderStaff] = useState<Message[]>([])
+  const [olderParent, setOlderParent] = useState<Message[]>([])
+  const [loadingOlder, setLoadingOlder] = useState(false)
 
   const threads = useQuery({
     queryKey: ['staff-threads'],
@@ -170,9 +185,64 @@ export default function StaffMessages() {
     enabled: !!openWith,
   })
 
+  useEffect(() => {
+    setOlderStaff([])
+  }, [openWith])
+  useEffect(() => {
+    setOlderParent([])
+  }, [openChild, openWith])
+
+  /* Tell the other side their message was seen -- once it has actually been on
+     screen, which is what the tick is supposed to mean. */
+  const seenStaff = () => {
+    if (openWith) void api.post(`/api/v1/chat/staff-thread/read?with=${openWith}`, {})
+      .then(() => qc.invalidateQueries({ queryKey: ['staff-threads'] }))
+      .catch(() => {})
+  }
+  const seenParent = () => {
+    const teacher = openParent?.teacher_user_id
+    if (!openChild || !openWith) return
+    void api.post(
+      `/api/v1/chat/parent-thread/read?student_id=${openChild}&parent_user_id=${openWith}` +
+      (teacher ? `&teacher_user_id=${teacher}` : ''),
+      {},
+    ).then(() => qc.invalidateQueries({ queryKey: ['parent-threads'] })).catch(() => {})
+  }
+
+  const editMessage = (channel: 'staff' | 'parent') => async (id: string, body: string) => {
+    await api.put(`/api/v1/chat/messages/${id}?channel=${channel}`, { body })
+    qc.invalidateQueries({ queryKey: [channel === 'staff' ? 'staff-messages' : 'parent-messages'] })
+  }
+  const unsendMessage = (channel: 'staff' | 'parent') => async (id: string) => {
+    await api.del(`/api/v1/chat/messages/${id}?channel=${channel}`)
+    qc.invalidateQueries({ queryKey: [channel === 'staff' ? 'staff-messages' : 'parent-messages'] })
+  }
+
+  const loadOlder = async (kind: 'staff' | 'parent') => {
+    const cur = kind === 'staff' ? [...olderStaff, ...(messages.data?.items ?? [])]
+                                 : [...olderParent, ...(parentMessages.data?.items ?? [])]
+    const before = cur[0]?.cursor
+    if (!before || loadingOlder) return
+    setLoadingOlder(true)
+    try {
+      const url = kind === 'staff'
+        ? `/api/v1/staff-messages?with=${openWith}&before=${encodeURIComponent(before)}`
+        : `/api/v1/teaching/parent-messages/thread?student_id=${openChild}&parent_user_id=${openWith}` +
+          (openParent?.teacher_user_id ? `&teacher_user_id=${openParent.teacher_user_id}` : '') +
+          `&before=${encodeURIComponent(before)}`
+      const page = await api.get<List<Message> & { has_more?: boolean }>(url)
+      if (kind === 'staff') setOlderStaff((p) => [...(page.items ?? []), ...p])
+      else setOlderParent((p) => [...(page.items ?? []), ...p])
+    } finally {
+      setLoadingOlder(false)
+    }
+  }
+
   const send = useMutation({
-    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
-      api.post('/api/v1/staff-messages', { to: openWith, body: m.body, attachments: m.attachments }),
+    mutationFn: (m: { body: string; attachments: Attachment[]; reply_to_id?: string }) =>
+      api.post('/api/v1/staff-messages', {
+        to: openWith, body: m.body, attachments: m.attachments, reply_to_id: m.reply_to_id,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['staff-messages', openWith] })
       qc.invalidateQueries({ queryKey: ['staff-threads'] })
@@ -329,7 +399,7 @@ export default function StaffMessages() {
                   scope: 'parent', student: openChild, parent: openWith,
                   teacher: openParent.teacher_user_id ?? me,
                 } : undefined}
-                messages={(parentMessages.data?.items ?? []).map((m) => ({
+                messages={[...olderParent, ...(parentMessages.data?.items ?? [])].map((m) => ({
                   id: m.id,
                   body: m.body,
                   at: m.sent_at,
@@ -337,7 +407,18 @@ export default function StaffMessages() {
                   read_at: m.read_at,
                   sender: `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`,
                   attachments: m.attachments,
+                  reply_to_id: m.reply_to_id,
+                  reply_body: m.reply_body,
+                  reply_sender: m.reply_sender,
+                  edited: m.edited,
+                  deleted: m.deleted,
                 }))}
+                hasMore={!!(parentMessages.data as { has_more?: boolean } | undefined)?.has_more || olderParent.length > 0}
+                loadingOlder={loadingOlder}
+                onLoadOlder={() => void loadOlder('parent')}
+                onSeen={seenParent}
+                onEdit={editMessage('parent')}
+                onUnsend={unsendMessage('parent')}
                 showSender
                 loading={parentMessages.isLoading}
                 empty="Nothing yet in this conversation."
@@ -410,7 +491,7 @@ export default function StaffMessages() {
           >
             <ChatThread
               live={openWith ? { scope: 'staff', peer: openWith } : undefined}
-              messages={(messages.data?.items ?? []).map((m) => ({
+              messages={[...olderStaff, ...(messages.data?.items ?? [])].map((m) => ({
                 id: m.id,
                 body: m.body,
                 at: m.sent_at,
@@ -418,7 +499,18 @@ export default function StaffMessages() {
                 read_at: m.read_at,
                 sender: m.sender_name,
                 attachments: m.attachments,
+                reply_to_id: m.reply_to_id,
+                reply_body: m.reply_body,
+                reply_sender: m.reply_sender,
+                edited: m.edited,
+                deleted: m.deleted,
               }))}
+              hasMore={!!(messages.data as { has_more?: boolean } | undefined)?.has_more || olderStaff.length > 0}
+              loadingOlder={loadingOlder}
+              onLoadOlder={() => void loadOlder('staff')}
+              onSeen={seenStaff}
+              onEdit={editMessage('staff')}
+              onUnsend={unsendMessage('staff')}
               loading={messages.isLoading}
               empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
               onSend={(m) => send.mutate(m)}
