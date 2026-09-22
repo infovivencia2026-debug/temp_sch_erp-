@@ -2,7 +2,12 @@
 
 Multi-tenant school ERP: a Go API and worker behind nginx, with a React SPA.
 
-Live: **https://temperp.187-127-178-100.sslip.io**
+Live: **https://school-erp-cqj.pages.dev** (Cloudflare Pages in front of Cloud
+Run + Neon since 2026-09-08 — see [docs/hosting-cloud-run.md](docs/hosting-cloud-run.md);
+the old `temperp.187-127-178-100.sslip.io` hostname is now a proxy front door
+on the VPS for the fingerprint reader and the installed phone apps). The page
+deploys itself from every push to `main`; the API deploys from the same push
+via `.github/workflows/deploy-cloudrun.yml`.
 
 ```
 nginx :443 ── TLS, static bundle, reverse proxy

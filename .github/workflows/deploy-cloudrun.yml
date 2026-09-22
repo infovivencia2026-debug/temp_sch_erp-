@@ -1,0 +1,135 @@
+# Deploy main to Cloud Run: the serverless half of what Cloudflare Pages
+# already does for the front end on every push.
+#
+# WHY THIS EXISTS. Since the 2026-09-08 cut-over the page has deployed itself
+# -- Pages builds web/ from every commit on main -- while the API behind it
+# waited for a person with `gcloud auth login` and deploy/cloudrun/deploy.sh.
+# That is how a merge on 2026-09-21 put "Pay by UPI" on every parent's fee
+# screen while the session it reads `upi_vpa` from was still the old binary:
+# the two halves of one commit went live a deploy apart. This workflow closes
+# that gap by running the same deploy.sh, from the same commit, as soon as
+# main moves.
+#
+# NO KEY. The organisation forbids service-account JSON keys, so the job
+# authenticates with Workload Identity Federation: GitHub's OIDC token for
+# this run is exchanged for a short-lived token of temperp-deployer, which
+# deploy/cloudrun/wif-setup.sh creates and binds ONLY to this repository.
+# Nothing here can be copied out of a log and reused.
+#
+# ---- REPOSITORY SECRETS THIS NEEDS -----------------------------------------
+# Printed by wif-setup.sh at the end of its run:
+#
+#   GCP_PROJECT_ID      project-2a0e3e6a-308a-4484-9cb
+#   GCP_WIF_PROVIDER    projects/<number>/locations/global/workloadIdentityPools/github/providers/temperp
+#   GCP_DEPLOYER_SA     temperp-deployer@<project>.iam.gserviceaccount.com
+#
+# Everything else the deploy needs -- database URLs, the pepper, R2 keys,
+# CRON_KEY -- is read back out of Secret Manager by env-from-cloud.sh, exactly
+# as a laptop deploy does. No application secret lives in GitHub.
+#
+# ---- WHAT A RUN DOES, IN ORDER ----------------------------------------------
+# deploy.sh, unchanged: build the image from this commit with Cloud Build, run
+# the migrate job (`up`, then `seed-permissions`) and only then replace the
+# web service, grant public invocation, curl /api/v1/session on the run.app
+# URL, and upsert the two Cloud Scheduler ticks. A failed step leaves the
+# previous revision serving. The commit hash is the image tag and the
+# revision label, so "what is live" has the same one-word answer it always
+# had.
+#
+# ---- WHAT IT DOES NOT WAIT FOR ----------------------------------------------
+# It is not gated on ci.yml. The Docker build runs `go build`, `tsc` and
+# `vite build`, so a commit that does not compile never becomes an image; the
+# test suites are ci.yml's job and their result is visible on the same
+# commit. Gate it on ci.yml (`workflow_run`) the day ci.yml is green on main
+# again -- today it is not, for reasons unrelated to any deploy.
+#
+# One deploy at a time: a second push while one is building waits for it,
+# then deploys itself (cancel-in-progress is deliberately off; a half-run
+# deploy that had already replaced the migrate job is not a state to abandon).
+name: deploy-cloudrun
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit to deploy (short or full hash). Blank = the ref this was run from."
+        required: false
+        default: ""
+      with_worker:
+        description: "Also deploy the PAID always-on worker (push notifications)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-cloudrun
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # deploy.sh builds the named commit; a dispatch may name one that is
+          # not HEAD, so the whole history is needed to check it out.
+          fetch-depth: 0
+
+      - name: Check out the requested commit
+        if: ${{ github.event.inputs.commit != '' }}
+        run: git checkout --quiet "${{ github.event.inputs.commit }}"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # The env file is rebuilt from the cloud, never copied: every value is
+      # in Secret Manager or on the running service, and the deployer holds
+      # secretAccessor for exactly this. Written to a temp name and moved so
+      # a half-fetched file is never the one deploy.sh sources.
+      - name: Rebuild deploy/cloudrun/.env.cloudrun from Secret Manager
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          bash deploy/cloudrun/env-from-cloud.sh > deploy/cloudrun/.env.cloudrun.part
+          mv deploy/cloudrun/.env.cloudrun.part deploy/cloudrun/.env.cloudrun
+          chmod 600 deploy/cloudrun/.env.cloudrun
+          # Sanity, without printing a value: every required key is present.
+          for k in PROJECT_ID DATABASE_URL MIGRATE_DATABASE_URL SESSION_SECRET PASSWORD_PEPPER CREDENTIAL_KEY CRON_KEY; do
+            grep -qE "^${k}=." deploy/cloudrun/.env.cloudrun || { echo "::error::$k missing from the rebuilt env file"; exit 1; }
+          done
+
+      - name: Deploy
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          args=(--scheduler)
+          if [ "${{ github.event.inputs.with_worker }}" = "true" ]; then args+=(--with-worker); fi
+          bash deploy/cloudrun/deploy.sh "${args[@]}"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Cloud Run deploy"
+            echo
+            echo "- commit: \`$(git rev-parse --short HEAD)\` — $(git log -1 --format=%s)"
+            echo "- service: https://temperp-web-480232416236.asia-south1.run.app"
+            echo "- front end: https://school-erp-cqj.pages.dev (built by Pages from the same commit)"
+          } >> "$GITHUB_STEP_SUMMARY"

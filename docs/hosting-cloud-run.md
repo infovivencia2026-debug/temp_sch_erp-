@@ -795,6 +795,36 @@ until step 9.
     2026-09-09 GitHub Actions runs the same dump independently of the box —
     see (h) — so nothing has to happen to the backups first.
 
+## Deploying from GitHub Actions (since 2026-09-21)
+
+The routine below still works from any laptop. It is no longer the only
+route: [.github/workflows/deploy-cloudrun.yml](../.github/workflows/deploy-cloudrun.yml)
+runs the same `deploy.sh` on every push to `main` and on demand (Actions →
+deploy-cloudrun → Run workflow, optionally naming a commit). This is what
+makes the deployment actually serverless end to end -- Pages already built
+the page from every commit; now the API follows from the same commit,
+minutes later, with nobody's laptop involved.
+
+It authenticates with **Workload Identity Federation**, which is the keyless
+mechanism the org policy leaves open: GitHub's OIDC token for the run is
+exchanged for a short-lived token of `temperp-deployer`, a service account
+bound to this repository and no other. One-time setup, as a project owner:
+
+```
+gcloud auth login && gcloud config set project project-2a0e3e6a-308a-4484-9cb
+bash deploy/cloudrun/wif-setup.sh
+```
+
+[wif-setup.sh](../deploy/cloudrun/wif-setup.sh) creates the account, the
+pool, the provider (with the repository attribute condition that is the
+whole of its security), the bindings, and prints the three values to store
+as repository secrets (`GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`,
+`GCP_DEPLOYER_SA`). No application secret goes to GitHub: the workflow
+rebuilds `.env.cloudrun` from Secret Manager with `env-from-cloud.sh`
+exactly as a laptop does. The workflow is deliberately not gated on
+`ci.yml` while that is red on `main`; the Docker build still refuses a
+commit that does not compile, and migrations still run before the swap.
+
 ## Deploying, from a machine that has never deployed
 
 The cut-over section above is the one-off. This is the routine, and the
