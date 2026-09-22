@@ -5,6 +5,7 @@ import { Protocol } from 'pmtiles'
 import { layers, namedFlavor } from '@protomaps/basemaps'
 import { Maximize2, Minimize2, Crosshair, ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/lib/theme'
 
 /* The street map the fleet screens never had.
 
@@ -59,7 +60,15 @@ const TILES_ORIGIN = /^https?:\/\//i.test(TILES_BASE) ? '' : window.location.ori
 const TILES_ARCHIVE = `${TILES_BASE}/south-india.pmtiles`
 
 let pmtilesRegistered = false
-export function selfHostedStyle(): maplibregl.StyleSpecification {
+/* The Protomaps flavours this product draws. 'light' is the office's full
+   colour street map. The two guidance flavours are the same tiles with the
+   colour taken out -- grey roads on a pale ground, or on a near-black one --
+   so that the one thing drawn in colour, the route, is the thing the eye
+   goes to. That is the whole idea of the navigation treatment: restrained
+   map detail and a single accent. */
+export type MapFlavor = 'light' | 'grayscale' | 'black'
+
+export function selfHostedStyle(flavor: MapFlavor = 'light'): maplibregl.StyleSpecification {
   if (!pmtilesRegistered) {
     // One protocol handler per page; MapLibre keeps it globally.
     maplibregl.addProtocol('pmtiles', new Protocol().tile)
@@ -68,7 +77,10 @@ export function selfHostedStyle(): maplibregl.StyleSpecification {
   return {
     version: 8,
     glyphs: `${TILES_ORIGIN}${TILES_BASE}/assets/fonts/{fontstack}/{range}.pbf`,
-    sprite: `${TILES_ORIGIN}${TILES_BASE}/assets/sprites/v4/light`,
+    // The basemaps-assets bundle ships both sprite sets and
+    // scripts/refresh-tiles.sh unpacks both; a dark ground needs the dark
+    // icons or every landmark glyph is a black dot on black.
+    sprite: `${TILES_ORIGIN}${TILES_BASE}/assets/sprites/v4/${flavor === 'black' ? 'dark' : 'light'}`,
     sources: {
       protomaps: {
         type: 'vector',
@@ -77,13 +89,23 @@ export function selfHostedStyle(): maplibregl.StyleSpecification {
           '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
       },
     },
-    layers: layers('protomaps', namedFlavor('light'), { lang: 'en' }),
+    layers: layers('protomaps', namedFlavor(flavor), { lang: 'en' }),
   }
 }
 
-function mapStyle(): maplibregl.StyleSpecification {
-  return selfHostedStyle()
-}
+/* THE NAVIGATION TREATMENT.
+
+   `tone="guidance"` is the owner's navigation design brought to the map: a
+   quiet grey basemap in the viewer's theme, the run drawn through its stops
+   as one teal line with a soft glow, stops as small rings, the parent's own
+   stop filled in the accent. Everything else on the map is a shade of grey.
+   The default tone is the office's full-colour map, unchanged. */
+export type MapTone = 'default' | 'guidance'
+
+const GUIDANCE = {
+  light: { accent: '#18bca6', ring: '#14171b', panel: '#f8f9fb', ink: '#14171b', halo: '#f8f9fb' },
+  dark: { accent: '#16d1bb', ring: '#f5f7fa', panel: '#121315', ink: '#f5f7fa', halo: '#121315' },
+} as const
 
 export interface MapVehicle {
   id: string
@@ -121,6 +143,12 @@ interface Props {
      distance on it. The parent screen is answering one question — how far —
      and the number has to sit on the thing it measures, not in a legend. */
   link?: MapLink | null
+  /* Each run, as a line through its stops in order ([lng, lat] pairs). Not the
+     road — the road is not known — but the shape of the journey, drawn in the
+     accent so the eye follows it. One line for a parent's bus, one per route
+     for the office. Only drawn in the guidance tone. */
+  routes?: [number, number][][]
+  tone?: MapTone
   /** Lifts one marker above the rest; wired to a hovered table row. */
   focusId?: string | null
   onFocus?: (id: string | null) => void
@@ -185,6 +213,16 @@ const STATE_INK: Record<MapVehicle['state'], string> = {
   stale: 'text-destructive',
   idle: 'text-muted-foreground',
 }
+/* In the guidance tone a moving bus is the theme's own ink -- a dark arrow on
+   the pale map, a light one on the dark map, the way the design draws its
+   heading marker -- because the accent is spent on the route and a green
+   arrow on a teal line is two colours saying one thing. Stale keeps its red:
+   that is a warning, and warnings do not defer to a colour scheme. */
+const GUIDANCE_INK: Record<MapVehicle['state'], string> = {
+  running: 'text-foreground',
+  stale: 'text-destructive',
+  idle: 'text-muted-foreground',
+}
 
 /* The label is a server-stored vehicle registration and goes into innerHTML, so
    it is escaped first: a registration typed as `<img src=x onerror=…>` would
@@ -200,11 +238,11 @@ function escapeHtml(s: string): string {
  *  than replacing the node under maplibre and making every marker blink. The
  *  DOM is deliberate: it inherits the theme's own semantic tokens, rather than
  *  hex picked against a white page. */
-function paintMarker(el: HTMLElement, v: MapVehicle, focused: boolean): HTMLElement {
+function paintMarker(el: HTMLElement, v: MapVehicle, focused: boolean, tone: MapTone = 'default'): HTMLElement {
   const stale = v.state === 'stale'
   el.className = cn(
     'flex flex-col items-center leading-none pointer-events-auto',
-    STATE_INK[v.state],
+    (tone === 'guidance' ? GUIDANCE_INK : STATE_INK)[v.state],
   )
   el.style.opacity = focused ? '1' : '0.9'
   el.style.zIndex = focused ? '3' : stale ? '2' : '1'
@@ -229,6 +267,8 @@ export function FleetMap({
   vehicles,
   stops = [],
   link,
+  routes,
+  tone = 'default',
   focusId,
   onFocus,
   glideMs = 1200,
@@ -237,6 +277,12 @@ export function FleetMap({
 }: Props) {
   const host = useRef<HTMLDivElement | null>(null)
   const map = useRef<MLMap | null>(null)
+  /* The guidance map follows the theme; the office map is always the light
+     street map, because a full-colour basemap has no honest dark half. */
+  const { resolved } = useTheme()
+  const dark = tone === 'guidance' && resolved === 'dark'
+  const flavor: MapFlavor = tone === 'guidance' ? (dark ? 'black' : 'grayscale') : 'light'
+  const g = GUIDANCE[dark ? 'dark' : 'light']
   const markers = useRef<Map<string, maplibregl.Marker>>(new Map())
   // In-flight glides by vehicle, so a new fix cancels the animation to the old one.
   const glides = useRef<Map<string, number>>(new Map())
@@ -267,15 +313,16 @@ export function FleetMap({
             [link.to.longitude, link.to.latitude],
           ] as [number, number][])
         : []),
+      ...(routes ?? []).flat(),
     ],
-    [vehicles, stops, link],
+    [vehicles, stops, link, routes],
   )
 
   useEffect(() => {
     if (!host.current || map.current) return
     const m = new maplibregl.Map({
       container: host.current,
-      style: mapStyle(),
+      style: selfHostedStyle(flavor),
       center: [78.9629, 20.5937],
       zoom: 3,
       // The office reads this map; it does not present it. Rotation only
@@ -305,7 +352,32 @@ export function FleetMap({
       map.current = null
       setReady(false)
     }
+    // The flavour at creation only; a later theme change is handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /* THE MAP CHANGES WITH THE THEME, AND KEEPS WHAT IS ON IT.
+
+     setStyle throws away every source and layer this component added, so a
+     theme flip would leave a bare basemap with the markers floating on it.
+     Rather than teach each effect to re-add its own layers, `ready` is
+     dropped and raised again once the new style has loaded, which runs every
+     effect below exactly as it ran on first load; each one already adds its
+     source when the source is missing. The DOM markers survive setStyle on
+     their own. Only the guidance tone does this -- the office map never
+     changes flavour. */
+  const firstFlavor = useRef(flavor)
+  useEffect(() => {
+    const m = map.current
+    if (!m || tone !== 'guidance' || firstFlavor.current === flavor) return
+    firstFlavor.current = flavor
+    setReady(false)
+    m.once('style.load', () => {
+      collapseAttribution(m)
+      setReady(true)
+    })
+    m.setStyle(selfHostedStyle(flavor))
+  }, [flavor, tone])
 
   // Stops: one source, redrawn when the set changes. Geofences underneath the
   // stop dots so a dot is never hidden by its own catchment.
@@ -342,25 +414,42 @@ export function FleetMap({
       else m.addSource(id, { type: 'geojson', data })
     }
     if (!m.getLayer('fleet-fences-fill')) {
+      const guidance = tone === 'guidance'
       m.addLayer({
         id: 'fleet-fences-fill',
         type: 'fill',
         source: 'fleet-fences',
-        paint: { 'fill-color': '#64748b', 'fill-opacity': 0.12 },
+        paint: guidance
+          // The catchment as a soft accent wash, the way the design rings its
+          // destination: it is the one place on the map the parent is
+          // waiting for the bus to enter.
+          ? { 'fill-color': g.accent, 'fill-opacity': 0.10 }
+          : { 'fill-color': '#64748b', 'fill-opacity': 0.12 },
       })
       m.addLayer({
         id: 'fleet-stops-dot',
         type: 'circle',
         source: 'fleet-stops',
-        paint: {
-          // The parent's own stop among the route's others: bigger, green,
-          // solid. The rest stay the small grey landmarks they always were.
-          'circle-radius': ['case', ['get', 'mine'], 7, 4],
-          'circle-color': ['case', ['get', 'mine'], '#15803d', '#0f172a'],
-          'circle-opacity': ['case', ['get', 'mine'], 1, 0.65],
-          'circle-stroke-width': ['case', ['get', 'mine'], 2.5, 1.5],
-          'circle-stroke-color': '#ffffff',
-        },
+        paint: guidance
+          /* Rings, as on the timeline beside the map: a hollow stop is one the
+             bus has yet to make, and the parent's own is filled with the
+             accent so the two drawings agree about which stop matters. */
+          ? {
+              'circle-radius': ['case', ['get', 'mine'], 7, 4.5],
+              'circle-color': ['case', ['get', 'mine'], g.accent, g.panel],
+              'circle-stroke-width': ['case', ['get', 'mine'], 2, 1.25],
+              'circle-stroke-color': ['case', ['get', 'mine'], g.panel, g.ring],
+              'circle-stroke-opacity': ['case', ['get', 'mine'], 1, 0.55],
+            }
+          : {
+              // The parent's own stop among the route's others: bigger, green,
+              // solid. The rest stay the small grey landmarks they always were.
+              'circle-radius': ['case', ['get', 'mine'], 7, 4],
+              'circle-color': ['case', ['get', 'mine'], '#15803d', '#0f172a'],
+              'circle-opacity': ['case', ['get', 'mine'], 1, 0.65],
+              'circle-stroke-width': ['case', ['get', 'mine'], 2.5, 1.5],
+              'circle-stroke-color': '#ffffff',
+            },
       })
       m.addLayer({
         id: 'fleet-stops-label',
@@ -376,13 +465,64 @@ export function FleetMap({
           'text-optional': true,
         },
         paint: {
-          'text-color': '#0f172a',
-          'text-halo-color': '#ffffff',
+          'text-color': guidance ? g.ink : '#0f172a',
+          'text-halo-color': guidance ? g.halo : '#ffffff',
           'text-halo-width': 1.4,
+          // Quieter on the guidance map: the names are there when looked for
+          // and do not compete with the route.
+          'text-opacity': guidance ? 0.72 : 1,
         },
       })
     }
-  }, [stops, ready])
+  }, [stops, ready, tone, g])
+
+  /* The run itself, in the accent, under the stops and over the streets.
+
+     Two layers: a wide translucent one for the glow the design gives its
+     route, and the line on top. Sources are added once and updated after,
+     like everything else here; the layers are inserted beneath the stop dots
+     so a ring is never hidden by the line passing through it. */
+  useEffect(() => {
+    const m = map.current
+    if (!m || !ready || tone !== 'guidance') return
+    const data = {
+      type: 'FeatureCollection' as const,
+      features: (routes ?? [])
+        .filter((r) => r.length >= 2)
+        .map((r) => ({
+          type: 'Feature' as const,
+          properties: {},
+          geometry: { type: 'LineString' as const, coordinates: r },
+        })),
+    }
+    const src = m.getSource('fleet-route') as maplibregl.GeoJSONSource | undefined
+    if (src) {
+      src.setData(data)
+      return
+    }
+    m.addSource('fleet-route', { type: 'geojson', data })
+    const before = m.getLayer('fleet-stops-dot') ? 'fleet-stops-dot' : undefined
+    m.addLayer(
+      {
+        id: 'fleet-route-glow',
+        type: 'line',
+        source: 'fleet-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': g.accent, 'line-width': 14, 'line-opacity': 0.14, 'line-blur': 6 },
+      },
+      before,
+    )
+    m.addLayer(
+      {
+        id: 'fleet-route-line',
+        type: 'line',
+        source: 'fleet-route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': g.accent, 'line-width': 4 },
+      },
+      before,
+    )
+  }, [routes, ready, tone, g])
 
   // The bus-to-stop line, redrawn as the bus moves.
   useEffect(() => {
@@ -412,13 +552,15 @@ export function FleetMap({
       return
     }
     m.addSource('fleet-link', { type: 'geojson', data })
+    const guidance = tone === 'guidance'
     m.addLayer({
       id: 'fleet-link-line',
       type: 'line',
       source: 'fleet-link',
       paint: {
-        'line-color': '#475569',
-        'line-width': 2,
+        'line-color': guidance ? g.ink : '#475569',
+        'line-width': guidance ? 1.25 : 2,
+        'line-opacity': guidance ? 0.5 : 1,
         // Dashed, because it is a straight line across the map and not a
         // route: the bus has turns and traffic between here and there.
         'line-dasharray': [2, 2],
@@ -435,12 +577,12 @@ export function FleetMap({
         'text-offset': [0, -0.9],
       },
       paint: {
-        'text-color': '#1e293b',
-        'text-halo-color': '#ffffff',
+        'text-color': guidance ? g.ink : '#1e293b',
+        'text-halo-color': guidance ? g.halo : '#ffffff',
         'text-halo-width': 1.6,
       },
     })
-  }, [link, ready])
+  }, [link, ready, tone, g])
 
   // Vehicles: markers are created and moved rather than torn down each poll,
   // so a bus does not blink out of existence every fifteen seconds.
@@ -470,7 +612,7 @@ export function FleetMap({
         const heading =
           v.heading_deg ?? (moved >= 4 ? bearing(from.lat, from.lng, v.latitude, v.longitude) : lastHeading.current.get(v.id))
         if (heading != null) lastHeading.current.set(v.id, heading)
-        paintMarker(existing.getElement(), { ...v, heading_deg: heading }, focused)
+        paintMarker(existing.getElement(), { ...v, heading_deg: heading }, focused, tone)
         const prior = glides.current.get(v.id)
         if (prior) cancelAnimationFrame(prior)
         if (moved < 4 || glideMs <= 0) {
@@ -490,7 +632,7 @@ export function FleetMap({
           glides.current.set(v.id, requestAnimationFrame(step))
         }
       } else {
-        const el = paintMarker(document.createElement('div'), v, focused)
+        const el = paintMarker(document.createElement('div'), v, focused, tone)
         el.addEventListener('mouseenter', () => onFocus?.(v.id))
         el.addEventListener('mouseleave', () => onFocus?.(null))
         markers.current.set(
@@ -510,7 +652,7 @@ export function FleetMap({
         markers.current.delete(id)
       }
     }
-  }, [vehicles, focusId, onFocus, ready, glideMs])
+  }, [vehicles, focusId, onFocus, ready, glideMs, tone])
 
   /* Frame everything drawn. Called once on load, and again whenever somebody
      asks for it.
@@ -584,10 +726,13 @@ export function FleetMap({
   return (
     <div
       className={cn(
-        'relative overflow-hidden border',
+        'relative overflow-hidden',
+        // The guidance map sits inside a panel that draws its own edge; a
+        // second border a pixel inside the first reads as a seam.
+        tone === 'guidance' ? 'border-0' : 'border',
         expanded
           ? 'fixed inset-0 z-[80] h-[100dvh] w-screen rounded-none'
-          : cn('rounded-[8px]', className),
+          : cn(tone === 'guidance' ? 'rounded-none' : 'rounded-[8px]', className),
       )}
     >
       <div ref={host} className="h-full w-full" />

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { FleetMap } from '@/components/FleetMap'
+import { RouteGuidance } from '@/components/RouteGuidance'
 import { PageHead, PageBody, Card, CardHeader, Badge, EmptyState } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -98,90 +98,68 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
              being quiet. The stop is known before any bus moves, so the map
              is drawn around the stop and the bus joins it when it reports.
              The sentence above already says why there is no bus on it. */
-          /* The streets, because that is the question.
+          /* THE JOURNEY, NOT A PLOT.
 
-             A parent knows their own road and not a pair of decimal degrees,
-             so "has it turned into our road yet" is a question only streets
-             can answer. The straight line to the stop and its distance are
-             drawn on the map itself rather than in a second plot underneath:
-             one picture, with the number sitting on the thing it measures. */
-          /* 460px WAS MORE THAN HALF A PHONE.
+             The map used to be a street map with a dot, a dashed line and a
+             number, and the facts sat in a grid above it. It is now the
+             navigation panel (components/RouteGuidance.tsx): a quiet map with
+             the run drawn through its stops in one colour, a timeline down
+             the left -- your stop, the next stop and how far, the speed, what
+             is still to come -- and the minutes in the corner. The grid of
+             facts above stays, because it is what a screen reader reads and
+             what prints; the panel is the same facts drawn. */
+          /* THE WHOLE ROUTE, WITH OURS SINGLED OUT.
 
-             On an 844px handset a fixed 460px map is 54% of the screen, and
-             everything the parent came to read -- whether the bus is running,
-             how far away it is, how many minutes -- sat below the fold under
-             it. The map is the centrepiece on a desktop, where 460px is a
-             third of the window; on a phone it has to leave room for the
-             sentence that explains it.
-
-             Expressed against the viewport rather than as a smaller fixed
-             number so it stays a proportion of whatever screen it is on:
-             roughly a third of a phone, and back to 460px the moment there is
-             a window big enough to deserve it. */
-          <FleetMap
-            className="h-[min(38vh,460px)] sm:h-[460px]"
-            vehicles={
-              hasPlot(row)
-                ? [
-                    {
-                      id: 'bus',
-                      label: row.registration_no || 'Bus',
-                      latitude: row.latitude!,
-                      longitude: row.longitude!,
-                      heading_deg: row.heading_deg,
-                      state: row.state === 'stale' ? 'stale' : 'running',
-                      note: `no fix · ${ageText(row.age_seconds)}`,
-                    },
-                  ]
-                : []
-            }
-            /* The marker glides from the last fix to this one over most of
-               the poll interval, so a bus that reports every ten seconds is
-               seen moving rather than appearing ten seconds further on. */
-            glideMs={Math.min(row.refresh_seconds || 15, 15) * 900}
-            stops={
-              /* THE WHOLE ROUTE, WITH OURS SINGLED OUT.
-
-                 One stop and a bus on a blank field said how far and nothing
-                 about where the bus was on its way. Every stop on the route
-                 is drawn, numbered in running order, and the child's own is
-                 the big green one with its alert circle. A route whose stops
-                 carry no positions falls back to the one stop it did before. */
-              (row.stops ?? []).length > 0
-                ? row.stops.map((s) => {
-                    const mine = s.id === row.stop_id
-                    return {
-                      id: s.id,
-                      name: mine ? `${s.sequence}. ${s.name} · your stop` : `${s.sequence}. ${s.name}`,
-                      latitude: s.latitude,
-                      longitude: s.longitude,
-                      geofence_m: mine ? row.proximity_m : undefined,
-                      mine,
-                    }
-                  })
-                : row.stop_latitude != null && row.stop_longitude != null
-                  ? [
-                      {
-                        id: 'stop',
-                        name: row.stop ?? 'Your stop',
-                        latitude: row.stop_latitude,
-                        longitude: row.stop_longitude,
-                        geofence_m: row.proximity_m,
-                        mine: true,
-                      },
-                    ]
-                  : []
-            }
-            link={
-              hasPlot(row) && row.stop_latitude != null && row.stop_longitude != null
+             One stop and a bus on a blank field said how far and nothing
+             about where the bus was on its way. Every stop on the route is
+             drawn and the child's own is filled in the accent with its alert
+             circle. A route whose stops carry no positions falls back to the
+             one stop it did before. */
+          <RouteGuidance
+            row={{
+              vehicle: hasPlot(row)
                 ? {
-                    from: { latitude: row.latitude!, longitude: row.longitude! },
-                    to: { latitude: row.stop_latitude, longitude: row.stop_longitude },
-                    label:
-                      row.metres_away != null ? `${row.metres_away} m straight line` : undefined,
+                    id: 'bus',
+                    label: row.registration_no || 'Bus',
+                    latitude: row.latitude!,
+                    longitude: row.longitude!,
+                    heading_deg: row.heading_deg,
+                    state: row.state === 'stale' ? 'stale' : 'running',
+                    note: `no fix · ${ageText(row.age_seconds)}`,
                   }
-                : null
-            }
+                : undefined,
+              stops:
+                (row.stops ?? []).length > 0
+                  ? row.stops
+                  : row.stop_latitude != null && row.stop_longitude != null
+                    ? [
+                        {
+                          id: 'stop',
+                          name: row.stop ?? 'Your stop',
+                          sequence: 1,
+                          latitude: row.stop_latitude,
+                          longitude: row.stop_longitude,
+                        },
+                      ]
+                    : [],
+              myStopId: (row.stops ?? []).length > 0 ? row.stop_id : 'stop',
+              myStopName: row.stop,
+              latitude: hasPlot(row) ? row.latitude : undefined,
+              longitude: hasPlot(row) ? row.longitude : undefined,
+              metresAway: row.metres_away,
+              etaMinutes: row.state === 'running' ? row.eta_minutes : undefined,
+              speedKmph: row.state === 'running' ? row.speed_kmph : undefined,
+              proximityM: row.proximity_m,
+              scheduledAt: row.scheduled_at,
+              status:
+                row.state === 'running' || row.state === 'arrived'
+                  ? undefined
+                  : STATE_LABEL[row.state],
+              /* The marker glides from the last fix to this one over most of
+                 the poll interval, so a bus that reports every ten seconds is
+                 seen moving rather than appearing ten seconds further on. */
+              glideMs: Math.min(row.refresh_seconds || 15, 15) * 900,
+            }}
           />
         ) : (
           /* No map rather than an empty one. A blank box under a sentence that

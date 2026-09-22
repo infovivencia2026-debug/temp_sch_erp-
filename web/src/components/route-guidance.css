@@ -1,0 +1,181 @@
+/* THE NAVIGATION PANEL.
+
+   The owner's route-guidance design: one rounded device panel, a quiet grey
+   map, the run as a single accent line, and down the left a timeline of ring
+   stops joined by a dotted rule with the words beside them. A big ETA and
+   nothing else in colour.
+
+   Every colour but the accent comes from the theme's own tokens, so the panel
+   is the same object in light and dark and follows the school's contrast
+   preferences. The accent is the design's own teal in each polarity, and it
+   is the only literal here. */
+
+.guide {
+  --g-panel: hsl(var(--card));
+  --g-text: hsl(var(--foreground));
+  --g-muted: hsl(var(--muted-foreground));
+  --g-line: hsl(var(--border));
+  --g-ring: rgba(17, 23, 32, 0.16);
+  --g-accent: #18bca6;
+  --g-radius: 28px;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--g-radius);
+  border: 1px solid var(--g-line);
+  background: var(--g-panel);
+  box-shadow: var(--edge-lip, none), var(--elev-2, none);
+}
+html.dark .guide {
+  --g-ring: rgba(255, 255, 255, 0.18);
+  --g-accent: #16d1bb;
+}
+
+/* The words sit on the map, so the map fades to the panel under them: the
+   design's own left-to-right wash, which keeps a street name from running
+   through "Turn left in 300 m" without hiding the map it is about. */
+.guide__fade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--g-panel) 92%, transparent) 0%,
+    color-mix(in srgb, var(--g-panel) 72%, transparent) 34%,
+    transparent 58%
+  );
+}
+
+/* ---- the timeline ----------------------------------------------------- */
+
+.guide__timeline {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 22px;
+  align-items: start;
+  /* A third of the panel and no more: the map is the rest. */
+  width: min(58%, 300px);
+  pointer-events: none;
+}
+/* The dotted rule, drawn once behind every ring. */
+.guide__timeline::before {
+  content: '';
+  position: absolute;
+  left: 11.5px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--g-muted) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.7;
+}
+
+.guide__ring {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--g-ring);
+  background: var(--g-panel);
+  display: grid;
+  place-items: center;
+}
+.guide__ring::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--g-text);
+}
+.guide__ring--accent::after { background: var(--g-accent); }
+.guide__ring--muted::after { background: var(--g-muted); opacity: 0.6; }
+/* The speed reading is a point on the rule rather than a stop on the route. */
+.guide__ring--point {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  margin: 5px;
+}
+.guide__ring--point::after { width: 7px; height: 7px; }
+
+.guide__title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+  color: var(--g-text);
+  /* One line on the rule, with the ring's centre. */
+  padding-top: 2px;
+}
+.guide__title--lead { font-size: 18px; }
+.guide__title--plain { font-weight: 400; }
+.guide__sub {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--g-muted);
+}
+.guide__row--muted .guide__title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--g-muted);
+}
+
+/* The turn glyph the design draws: a bent line, not an icon font. */
+.guide__turn {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  margin-right: 8px;
+  border-left: 1.5px solid var(--g-text);
+  border-top: 1.5px solid var(--g-text);
+  border-radius: 6px 0 0 0;
+  transform: rotate(-45deg) translateY(2px);
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
+/* ---- the arrival --------------------------------------------------------- */
+
+.guide__eta {
+  position: absolute;
+  left: 22px;
+  bottom: 34px;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--g-text);
+}
+.guide__eta strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: -2px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.guide__eta span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--g-muted);
+}
+
+/* The map fills the panel; its own corner controls stay where they are. */
+.guide__map { position: relative; z-index: 1; }
+
+@media (max-width: 600px) {
+  .guide { --g-radius: 22px; }
+  .guide__timeline { left: 14px; top: 14px; width: 62%; row-gap: 16px; }
+  .guide__title--lead { font-size: 16px; }
+  .guide__eta { left: 16px; bottom: 30px; }
+  .guide__eta strong { font-size: 26px; }
+}
