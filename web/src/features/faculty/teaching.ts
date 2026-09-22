@@ -73,7 +73,34 @@ export interface Material {
   is_published: boolean
   uploaded_by?: string
   created_at: string
+  /* The digital library's half: who it was addressed to, how many children
+     were named, how many readers have opened it, what the file is, and when
+     it stops showing. */
+  audience?: 'class' | 'school' | 'students'
+  targets?: number
+  views?: number
+  content_type?: string
+  expires_at?: string
 }
+
+export interface MaterialView {
+  name: string
+  student?: string
+  viewed_at: string
+}
+
+export const AUDIENCES = [
+  { value: 'class', label: 'A class or subject' },
+  { value: 'students', label: 'Chosen students' },
+  { value: 'school', label: 'Whole school' },
+] as const
+
+export const SHOW_FOR = [
+  { value: '', label: 'Until withdrawn' },
+  { value: '1', label: '1 day' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+]
 
 export interface VirtualClass {
   id: string

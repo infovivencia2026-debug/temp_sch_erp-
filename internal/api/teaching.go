@@ -48,6 +48,7 @@ func (s *Server) mountTeaching(r chi.Router) {
 	r.Get("/assignments", s.listTeachingAssignments)
 	r.Get("/assignments/{id}/submissions", s.listAssignmentSubmissions)
 	r.Get("/materials", s.listTeachingMaterials)
+	r.Get("/materials/{id}/views", s.listMaterialViews)
 	r.Get("/virtual-classes", s.listVirtualClasses)
 	r.Get("/virtual-classes/providers", s.listVirtualClassProviders)
 	r.Get("/question-bank", s.listBankQuestions)
@@ -145,6 +146,9 @@ func taughtSubjectsPredicate(res *scope.Resolved, alias string, argN int) (strin
 }
 
 var errNotTaught = errors.New("not a class the caller teaches")
+
+// errNotMyStudents: a named child outside the caller's reach.
+var errNotMyStudents = errors.New("a named student is not in the caller's reach")
 
 // requireTaughtSection rejects a write aimed at somebody else's section.
 //
@@ -557,6 +561,14 @@ type materialRow struct {
 	IsPublished    bool    `json:"is_published"`
 	UploadedBy     *string `json:"uploaded_by,omitempty"`
 	CreatedAt      string  `json:"created_at"`
+	// The digital library's half (media_library.go): who this is for, how
+	// many children were named, how many readers have opened it, and when
+	// it stops showing.
+	Audience    string  `json:"audience"`
+	Targets     int     `json:"targets"`
+	Views       int     `json:"views"`
+	ContentType *string `json:"content_type,omitempty"`
+	ExpiresAt   *string `json:"expires_at,omitempty"`
 }
 
 func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
@@ -576,6 +588,10 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 		args = append(args, res.SectionIDs)
 		sectionArm = "sm.section_id = ANY($" + itoa(len(args)) + ")"
 	}
+	// And a post addressed to named children has neither; it is the
+	// poster's, and appears in the library of whoever posted it.
+	args = append(args, res.UserID)
+	mineArm := "sm.uploaded_by = $" + itoa(len(args))
 
 	items, err := collect(s, r, `
 		SELECT sm.id::text, sm.class_subject_id::text, sm.section_id::text,
@@ -583,7 +599,13 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 		       sm.title, sm.description, sm.kind,
 		       sm.file_id::text, f.original_name, f.size_bytes,
 		       sm.external_url, sm.is_published, u.full_name,
-		       to_char(sm.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
+		       to_char(sm.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       sm.audience,
+		       (SELECT count(*) FROM study_material_targets t WHERE t.material_id = sm.id)::int,
+		       (SELECT count(*) FROM study_material_views v WHERE v.material_id = sm.id)::int,
+		       f.content_type,
+		       CASE WHEN sm.expires_at IS NULL THEN NULL
+		            ELSE to_char(sm.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z' END
 		  FROM study_materials sm
 		  LEFT JOIN class_subjects cs ON cs.id = sm.class_subject_id
 		  LEFT JOIN classes         c ON c.id = cs.class_id
@@ -592,7 +614,9 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 		  LEFT JOIN files           f ON f.id = sm.file_id
 		  LEFT JOIN users           u ON u.id = sm.uploaded_by
 		 WHERE (sm.class_subject_id IS NOT NULL AND `+where+`)
-		    OR (sm.class_subject_id IS NULL AND `+sectionArm+`)
+		    OR (sm.class_subject_id IS NULL AND sm.section_id IS NOT NULL AND `+sectionArm+`)
+		    OR (sm.class_subject_id IS NULL AND sm.section_id IS NULL AND (`+sectionArm+` OR `+mineArm+`))
+		    OR `+mineArm+`
 		 ORDER BY sm.created_at DESC
 		 LIMIT 300`, args,
 		func(rows pgx.Rows) (materialRow, error) {
@@ -600,20 +624,28 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 			return v, rows.Scan(&v.ID, &v.ClassSubjectID, &v.SectionID, &v.ClassName,
 				&v.Subject, &v.SectionName, &v.Title, &v.Description, &v.Kind,
 				&v.FileID, &v.FileName, &v.SizeBytes, &v.ExternalURL,
-				&v.IsPublished, &v.UploadedBy, &v.CreatedAt)
+				&v.IsPublished, &v.UploadedBy, &v.CreatedAt,
+				&v.Audience, &v.Targets, &v.Views, &v.ContentType, &v.ExpiresAt)
 		})
 	respond(w, r, items, err)
 }
 
 type materialRequest struct {
-	ClassSubjectID string `json:"class_subject_id,omitempty"`
-	SectionID      string `json:"section_id,omitempty"`
-	Title          string `json:"title"`
-	Description    string `json:"description,omitempty"`
-	Kind           string `json:"kind,omitempty"`
-	FileID         string `json:"file_id,omitempty"`
-	ExternalURL    string `json:"external_url,omitempty"`
-	IsPublished    *bool  `json:"is_published,omitempty"`
+	ClassSubjectID string   `json:"class_subject_id,omitempty"`
+	SectionID      string   `json:"section_id,omitempty"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	Kind           string   `json:"kind,omitempty"`
+	FileID         string   `json:"file_id,omitempty"`
+	ExternalURL    string   `json:"external_url,omitempty"`
+	IsPublished    *bool    `json:"is_published,omitempty"`
+	// The digital library's audience: class (the section or subject above),
+	// school, or students (the ids listed). Omitted, it is worked out from
+	// what else was given. expires_in_days is "show for a week"; omitted or
+	// zero is until withdrawn.
+	Audience      string   `json:"audience,omitempty"`
+	StudentIDs    []string `json:"student_ids,omitempty"`
+	ExpiresInDays *int     `json:"expires_in_days,omitempty"`
 }
 
 var materialKinds = map[string]bool{
@@ -646,14 +678,50 @@ func (s *Server) createTeachingMaterial(w http.ResponseWriter, r *http.Request) 
 				"unconfigured on this deployment, so a link is the working option")
 		return
 	}
-	if req.ClassSubjectID == "" && req.SectionID == "" {
+	// Who it is for. Worked out from the shape of the request when the
+	// client did not say, so the older form (a subject or a section, nothing
+	// else) keeps meaning what it meant.
+	if req.Audience == "" {
+		switch {
+		case len(req.StudentIDs) > 0:
+			req.Audience = "students"
+		case req.ClassSubjectID == "" && req.SectionID == "":
+			req.Audience = "school"
+		default:
+			req.Audience = "class"
+		}
+	}
+	if !materialAudiences[req.Audience] {
+		httpx.BadRequest(w, r, "audience must be class, school or students")
+		return
+	}
+	if req.Audience == "class" && req.ClassSubjectID == "" && req.SectionID == "" {
 		httpx.BadRequest(w, r, "name the class_subject_id or the section_id this is for")
 		return
+	}
+	var targets []uuid.UUID
+	if req.Audience == "students" {
+		ids, perr := parseStudentIDs(req.StudentIDs)
+		if perr != nil {
+			httpx.BadRequest(w, r, perr.Error())
+			return
+		}
+		targets = ids
+		// Named children are the whole address; a section or subject given
+		// alongside would widen it to the class behind their backs.
+		req.ClassSubjectID, req.SectionID = "", ""
 	}
 
 	res, err := s.resolveScope(r)
 	if err != nil {
 		httpx.Internal(w, r, err)
+		return
+	}
+	// The whole school is only somebody's to address when it is already
+	// their scope. A class teacher posting "to everyone" would be posting
+	// to children no teacher of theirs has seen.
+	if req.Audience == "school" && !res.AllStudents {
+		httpx.Forbidden(w, r, "sharing with the whole school")
 		return
 	}
 	var csID, secID *uuid.UUID
@@ -690,21 +758,46 @@ func (s *Server) createTeachingMaterial(w http.ResponseWriter, r *http.Request) 
 				return errNotTaught
 			}
 		}
+		if len(targets) > 0 {
+			ok, terr := studentsInReach(r.Context(), tx, res, targets)
+			if terr != nil {
+				return terr
+			}
+			if !ok {
+				return errNotMyStudents
+			}
+		}
 		published := true
 		if req.IsPublished != nil {
 			published = *req.IsPublished
 		}
-		return tx.QueryRow(r.Context(), `
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO study_materials (institution_id, class_subject_id, section_id,
 			                             title, description, kind, file_id,
-			                             external_url, is_published, uploaded_by)
-			VALUES ($1,$2,$3,$4,NULLIF($5,''),$6,$7,NULLIF($8,''),$9,$10)
+			                             external_url, is_published, uploaded_by,
+			                             audience, expires_at)
+			VALUES ($1,$2,$3,$4,NULLIF($5,''),$6,$7,NULLIF($8,''),$9,$10,$11,$12)
 			RETURNING id::text`,
 			id.InstitutionID, csID, secID, req.Title, req.Description, req.Kind,
-			nullUUID(req.FileID), req.ExternalURL, published, id.UserID).Scan(&newID)
+			nullUUID(req.FileID), req.ExternalURL, published, id.UserID,
+			req.Audience, materialExpiry(req.ExpiresInDays)).Scan(&newID); err != nil {
+			return err
+		}
+		if len(targets) == 0 {
+			return nil
+		}
+		mID, perr := uuid.Parse(newID)
+		if perr != nil {
+			return perr
+		}
+		return insertMaterialTargets(r.Context(), tx, id.InstitutionID, mID, targets)
 	})
 	if errors.Is(err, errNotTaught) {
 		httpx.Forbidden(w, r, "sharing material for this subject")
+		return
+	}
+	if errors.Is(err, errNotMyStudents) {
+		httpx.Forbidden(w, r, "one or more of these students is not in a class you teach")
 		return
 	}
 	if err != nil {
@@ -742,13 +835,7 @@ func (s *Server) updateTeachingMaterial(w http.ResponseWriter, r *http.Request) 
 	id := httpx.IdentityFrom(r.Context())
 	var found bool
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		var csID, secID *uuid.UUID
-		if err := tx.QueryRow(r.Context(),
-			`SELECT class_subject_id, section_id FROM study_materials WHERE id = $1`,
-			mID).Scan(&csID, &secID); err != nil {
-			return err
-		}
-		if err := materialInReach(r.Context(), tx, res, csID, secID); err != nil {
+		if err := materialOwnedOrInReach(r.Context(), tx, res, mID); err != nil {
 			return err
 		}
 		tag, err := tx.Exec(r.Context(), `

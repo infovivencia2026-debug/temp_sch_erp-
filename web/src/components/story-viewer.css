@@ -1,0 +1,208 @@
+/* THE STORY VIEWER (StoryViewer.tsx says why).
+
+   Full screen, black, the way every phone shows a status: a row of thin
+   bars at the top that fill as each item plays, the poster's name under
+   them, the picture or video in the middle, the caption over a gradient at
+   the bottom. On a desk the stage is a phone-shaped column in the middle
+   of the dark; on a phone it is the whole screen. Motion is one width
+   transition on the bar and a short fade between items, both off under
+   prefers-reduced-motion. */
+
+.story {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.story__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+@media (min-width: 768px) {
+  .story__stage {
+    width: min(100vw, calc(100vh * 9 / 16));
+    height: 100vh;
+    border-radius: 0;
+  }
+}
+
+.story__top {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 3;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 12px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent);
+}
+.story__bars { display: flex; gap: 3px; }
+.story__bar {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .35);
+  overflow: hidden;
+}
+.story__bar > i {
+  position: absolute;
+  inset: 0;
+  width: var(--p, 0%);
+  background: #fff;
+  border-radius: 3px;
+}
+.story__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.story__avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3d6cff, #18bca6);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex: none;
+}
+.story__who { min-width: 0; flex: 1; line-height: 1.2; }
+.story__name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.story__when { font-size: 12px; color: rgba(255, 255, 255, .7); }
+.story__close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+.story__close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.story__media {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+.story__media > img,
+.story__media > video {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  animation: story-in 220ms ease;
+}
+@keyframes story-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* A document or a link is a card: the icon, the name, one button. */
+.story__card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(84%, 360px);
+  padding: 28px 22px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .18);
+  text-align: center;
+  animation: story-in 220ms ease;
+}
+.story__card-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .14);
+}
+.story__card-title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.story__card-sub { font-size: 12.5px; color: rgba(255, 255, 255, .7); }
+.story__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  pointer-events: auto;
+}
+
+.story__caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 3;
+  padding: 40px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(0deg, rgba(0, 0, 0, .7), transparent);
+  pointer-events: none;
+}
+.story__title { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.story__desc { margin-top: 4px; font-size: 13px; line-height: 1.4; color: rgba(255, 255, 255, .85); }
+.story__tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .16);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* The tap zones: the left third goes back, the rest goes on. Invisible,
+   above the media, under the header and caption so their buttons still
+   work. */
+.story__zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.story__zone--prev { left: 0; width: 33%; }
+.story__zone--next { right: 0; width: 67%; }
+
+.story__paused .story__bar > i { transition: none; }
+.story__hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story__media > img, .story__media > video, .story__card { animation: none; }
+}
