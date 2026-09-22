@@ -777,11 +777,11 @@ export function Shell({
               <img
                 src={`/api/v1/files/${session.institution.logo_key}?inline=1`}
                 alt=""
-                className="aspect-square h-10 w-10 shrink-0 rounded-[8px] bg-white object-cover"
+                className="aspect-square h-12 w-12 shrink-0 rounded-[10px] bg-white object-cover"
               />
             ) : (
               <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] bg-primary text-[calc(13px*var(--font-scale,1))] font-semibold text-primary-foreground"
                 style={
                   session.institution?.primary_color
                     ? { backgroundColor: session.institution.primary_color }
