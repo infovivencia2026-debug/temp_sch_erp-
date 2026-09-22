@@ -7,6 +7,7 @@ import { useDictation, speak, speakServer, stopSpeaking, speechOutputSupported, 
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
+import { PickerMenu } from '@/components/PickerMenu'
 
 /* A tiny, safe Markdown render for the bot's answers.
 
@@ -1091,18 +1092,15 @@ export function AssistantTab() {
             <div className="flex flex-wrap items-center gap-2 border-t bg-accent/40 px-3 py-2 text-[12px]">
               <FileSpreadsheet className="size-4 shrink-0 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
               <span className="min-w-0 max-w-[45%] truncate font-medium">{attachFile.name}</span>
-              <select
+              <PickerMenu
                 value={attachEntity}
-                onChange={(e) => setAttachEntity(e.target.value)}
-                aria-label="What kind of records this file holds"
-                className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-[12px]
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">Import as…</option>
-                {IMPORT_KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>{k.label}</option>
-                ))}
-              </select>
+                onChange={setAttachEntity}
+                ariaLabel="What kind of records this file holds"
+                align="start"
+                placeholder="Import as…"
+                className="min-w-0 flex-1"
+                options={IMPORT_KINDS.map((k) => ({ value: k.value, label: k.label }))}
+              />
               <button
                 type="button"
                 onClick={() => void previewImport()}

@@ -1,5 +1,6 @@
 import { CalendarRange } from 'lucide-react'
 import { useWorkingYear } from '@/lib/working-year'
+import { PickerMenu } from './PickerMenu'
 
 /* The working-year switcher, in the shell header.
 
@@ -13,32 +14,32 @@ import { useWorkingYear } from '@/lib/working-year'
    current year's id, so that when the flag moves in April the person moves
    with it instead of being pinned to what has become last year. */
 export function YearSwitch() {
-  const { year, openYears, switchable, setYear, saving } = useWorkingYear()
+  const { year, openYears, switchable, setYear } = useWorkingYear()
   if (!switchable || !year) return null
   const options = openYears.some((y) => y.id === year.id) ? openYears : [year, ...openYears]
   return (
-    <label
-      className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
-      title="The academic year you are working in. Admissions, sections, fee structures and timetable drafts go into this year."
+    <PickerMenu
+      value={year.id}
+      ariaLabel="Working year"
+      onChange={(id) => {
+        const picked = options.find((y) => y.id === id)
+        setYear(picked?.is_current ? null : id)
+      }}
+      options={options.map((y) => ({
+        value: y.id,
+        label: `${y.name}${y.is_current ? ' (current)' : ''}`,
+      }))}
     >
-      <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="sr-only">Working year</span>
-      <select
-        value={year.id}
-        disabled={saving}
-        onChange={(e) => {
-          const picked = options.find((y) => y.id === e.target.value)
-          setYear(picked?.is_current ? null : e.target.value)
-        }}
-        className="min-w-0 max-w-[6.5rem] cursor-pointer truncate bg-transparent font-[550] text-foreground outline-none sm:max-w-[9rem]"
+      <span
+        className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
+        title="The academic year you are working in. Admissions, sections, fee structures and timetable drafts go into this year."
       >
-        {options.map((y) => (
-          <option key={y.id} value={y.id}>
-            {y.name}{y.is_current ? ' (current)' : ''}
-          </option>
-        ))}
-      </select>
-    </label>
+        <CalendarRange className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="min-w-0 max-w-[6.5rem] truncate font-[550] text-foreground sm:max-w-[9rem]">
+          {year.name}{year.is_current ? ' (current)' : ''}
+        </span>
+      </span>
+    </PickerMenu>
   )
 }
 

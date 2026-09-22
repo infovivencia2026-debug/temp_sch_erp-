@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
 import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
@@ -654,11 +655,12 @@ export default function BulkImport({
                       </p>
                     )}
                   </div>
-                  <select
-                    className="h-8 flex-1 rounded-md border bg-surface px-2 text-[13px]"
+                  <PickerMenu
+                    className="h-8 flex-1"
+                    align="start"
+                    ariaLabel={`Column for ${f.name.replace(/_/g, ' ')}`}
                     value={colMap[f.name] ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
+                    onChange={(v) => {
                       setColMap((m) => {
                         const next = { ...m }
                         if (v) next[f.name] = v
@@ -666,12 +668,11 @@ export default function BulkImport({
                         return next
                       })
                     }}
-                  >
-                    <option value="">Not in my file</option>
-                    {headerChoices.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: 'Not in my file' },
+                      ...headerChoices.map((c) => ({ value: c.value, label: c.label })),
+                    ]}
+                  />
                   {/* The first row's value under the chosen column, because a
                       column of ADM0019s identifies itself faster than any
                       header does. */}
@@ -1649,13 +1650,14 @@ export function SheetViewer({
             </span>
             <label className="flex items-center gap-1.5 text-muted-foreground">
               Rows
-              <select
-                className="h-7 rounded-md border bg-surface px-1.5"
-                value={perPage}
-                onChange={(e) => { setPerPage(Number(e.target.value)); setPage(0) }}
-              >
-                {[25, 50, 100, 250].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <PickerMenu
+                className="h-7"
+                align="start"
+                ariaLabel="Rows per page"
+                value={String(perPage)}
+                onChange={(v) => { setPerPage(Number(v)); setPage(0) }}
+                options={[25, 50, 100, 250].map((n) => ({ value: String(n), label: String(n) }))}
+              />
             </label>
             <span className="ml-auto flex items-center gap-2">
               <Button size="sm" variant="ghost" disabled={current === 0}

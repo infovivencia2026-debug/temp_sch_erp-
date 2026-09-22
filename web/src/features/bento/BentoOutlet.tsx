@@ -164,7 +164,9 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
     )
   })()
 
-  if (layout !== 'bento') return inner
+  // A classic screen fades in on navigation too — keyed on the route so the
+  // animation plays once per screen, not on every in-place re-render.
+  if (layout !== 'bento') return <div key={key} className="screen-fade">{inner}</div>
 
   /* The dock's clearance belongs here, not on the dashboards.
 
@@ -229,7 +231,9 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          So the ceiling is applied at the same breakpoint that earns it, and
          below it the ground grows and the work area scrolls, which is what it
          already does for a classic screen falling through this same branch. */
+      key={key}
       className={cn(
+        'screen-fade',
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
         Screen ? 'min-h-full lg:h-full lg:overflow-hidden' : 'min-h-full',
       )}

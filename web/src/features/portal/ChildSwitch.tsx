@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PickerMenu } from '@/components/PickerMenu'
 import type { PortalChild } from './use-children'
 
 /* WHICH CHILD, IN ONE CONTROL ON EVERY PARENT SCREEN.
@@ -57,26 +58,24 @@ export function ChildSwitch({
           </button>
         ))}
       </div>
-      {/* The phone shape: one small button, and the select laid over it so
-          the tap opens the platform picker. The visible text is the button's;
-          the select is transparent and full-size on top of it. */}
-      <label className="parent-switch-small sm:hidden">
-        <span className="parent-switch-small__label">{switchLabel}</span>
-        <span className="parent-switch-small__name">{first(current.full_name)}</span>
-        <ChevronDown className="parent-switch-small__chev" aria-hidden="true" />
-        <select
-          aria-label={label}
+      {/* The phone shape: one small button carrying the same label look, now
+          opening the app's own picker instead of the platform sheet. The label
+          markup becomes the custom trigger so it looks exactly as it did. */}
+      <span className="contents sm:hidden">
+        <PickerMenu
+          ariaLabel={label}
+          align="start"
           value={current.student_id}
-          onChange={(e) => onChoose(e.target.value)}
-          className="parent-switch-small__select"
+          onChange={onChoose}
+          options={kids.map((c) => ({ value: c.student_id, label: c.full_name }))}
         >
-          {kids.map((c) => (
-            <option key={c.student_id} value={c.student_id}>
-              {c.full_name}
-            </option>
-          ))}
-        </select>
-      </label>
+          <span className="parent-switch-small">
+            <span className="parent-switch-small__label">{switchLabel}</span>
+            <span className="parent-switch-small__name">{first(current.full_name)}</span>
+            <ChevronDown className="parent-switch-small__chev" aria-hidden="true" />
+          </span>
+        </PickerMenu>
+      </span>
     </>
   )
 }

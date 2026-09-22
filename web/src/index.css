@@ -2318,6 +2318,25 @@ dialog,
   [data-pane] { animation: none !important; }
 }
 
+/* SWITCHING TABS SHOULD DISSOLVE, NOT CUT.
+
+   Moving between screens replaced one full page with another in a single
+   frame, which reads as a flicker rather than a move -- the eye cannot tell a
+   navigation from a reload. A short fade in, keyed on the route so it plays
+   once per screen and never on an in-place re-render, gives the change a
+   direction without slowing anybody down. Opacity and a few pixels of rise,
+   nothing that reflows. Honoured off for reduced motion. */
+@keyframes screen-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.screen-fade {
+  animation: screen-fade var(--motion-enter, 180ms) var(--motion-ease, ease) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-fade { animation: none !important; }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    THREE SURFACES THE MOTION PASS ABOVE STILL LEFT ARRIVING WITHOUT A WORD.
 

@@ -1,6 +1,7 @@
 import { Building2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, actingInstitution, setActingInstitution, type List } from '@/lib/api'
+import { PickerMenu } from './PickerMenu'
 
 /* The cross-school switcher, in the shell header, beside the working year.
 
@@ -47,31 +48,33 @@ export function InstitutionSwitch() {
   // otherwise home (the resting state, no header sent).
   const current = (acting && items.some((i) => i.id === acting) ? acting : home.id)
 
+  const currentItem = items.find((i) => i.id === current) ?? home
   return (
-    <label
-      className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
-      title="The school you are working inside. Every number on the page is about this school."
+    <PickerMenu
+      value={current}
+      ariaLabel="Working school"
+      onChange={(id) => {
+        const picked = items.find((i) => i.id === id)
+        // Home clears the header; any other school sets it. Then forget every
+        // cached answer so the app reloads under the chosen school.
+        setActingInstitution(picked?.is_home ? null : id)
+        qc.invalidateQueries()
+      }}
+      options={items.map((i) => ({
+        value: i.id,
+        label: `${i.name}${i.is_home ? ' (home)' : ''}`,
+      }))}
     >
-      <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="sr-only">Working school</span>
-      <select
-        value={current}
-        onChange={(e) => {
-          const picked = items.find((i) => i.id === e.target.value)
-          // Home clears the header; any other school sets it. Then forget every
-          // cached answer so the app reloads under the chosen school.
-          setActingInstitution(picked?.is_home ? null : e.target.value)
-          qc.invalidateQueries()
-        }}
-        className="min-w-0 max-w-[6.5rem] cursor-pointer truncate bg-transparent font-[550] text-foreground outline-none sm:max-w-[11rem]"
+      <span
+        className="flex h-8 min-w-0 shrink items-center gap-1.5 rounded-[7px] bg-surface-hover/60 px-2 text-[12.5px] text-muted-foreground"
+        title="The school you are working inside. Every number on the page is about this school."
       >
-        {items.map((i) => (
-          <option key={i.id} value={i.id}>
-            {i.name}{i.is_home ? ' (home)' : ''}
-          </option>
-        ))}
-      </select>
-    </label>
+        <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="min-w-0 max-w-[6.5rem] truncate font-[550] text-foreground sm:max-w-[11rem]">
+          {currentItem.name}{currentItem.is_home ? ' (home)' : ''}
+        </span>
+      </span>
+    </PickerMenu>
   )
 }
 

@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Loading, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { PickerMenu } from '@/components/PickerMenu'
 
 /* Roles as a school reads them.
 
@@ -600,19 +601,14 @@ function GroupRow({
           </div>
 
           {scopeChoices.length > 1 ? (
-            <select
+            <PickerMenu
               value={state.scope}
-              disabled={!editable || off}
-              onChange={(e) => onChange({ scope: e.target.value })}
-              className="field h-[26px] cursor-pointer py-0 pr-7 text-[12px] [@media(pointer:coarse)]:min-h-[40px]"
-              aria-label={`${group.name} scope`}
-            >
-              {scopeChoices.map((s) => (
-                <option key={s.scope} value={s.scope}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => onChange({ scope: v })}
+              ariaLabel={`${group.name} scope`}
+              align="start"
+              options={scopeChoices.map((s) => ({ value: s.scope, label: s.label }))}
+              className={cn((!editable || off) && 'pointer-events-none opacity-50')}
+            />
           ) : (
             <Badge>{scopeLabel}</Badge>
           )}
