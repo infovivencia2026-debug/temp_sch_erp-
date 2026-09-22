@@ -131,7 +131,7 @@ func (s *Server) listInteractions(w http.ResponseWriter, r *http.Request) {
 		    LEFT JOIN users cu ON cu.id = p.collected_by
 		    LEFT JOIN students st ON st.id = p.student_id
 		    LEFT JOIN fam ON fam.student_id = p.student_id
-		   WHERE p.status <> 'void'
+		   WHERE p.status IN ('success', 'refunded')
 		)
 		SELECT to_char(src.at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', src.kind,
 		       src.from_id::text, src.from_name, src.to_id::text, src.to_name,
