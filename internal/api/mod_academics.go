@@ -622,7 +622,7 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 	   approval workflow is one checkbox away from being skipped. */
 	if req.Publish && !id.Can(rbac.ReportCardsPublish) {
 		httpx.Forbidden(w, r,
-			"you can build these cards but not release them — generate, then send "+
+			"you can build these cards but not release them, generate, then send "+
 				"them for approval")
 		return
 	}
@@ -689,7 +689,7 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			    -- correlating the paper to the enrolment: every enrolled child
 			    -- was crossed with every paper in the exam, school-wide. So
 			    -- max_total was the sum of every class's maxima and total was
-			    -- whatever of them this child happened to have marks for —
+			    -- whatever of them this child happened to have marks for, 
 			    -- which for a section whose class is not in the exam is
 			    -- nothing. That is the 0/400, 0%, D2-for-everyone report card:
 			    -- the denominator came from other classes' papers and the
@@ -745,7 +745,7 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 			       /* Regenerating refreshes the marks; it does not withdraw a card
 			          a family has already read. Plain assignment sent a published
 			          card back to draft the moment a subject teacher fixed one mark
-			          and the class teacher pressed Generate — the parent's copy
+			          and the class teacher pressed Generate, the parent's copy
 			          vanished with nobody told. */
 			       is_published = report_cards.is_published OR EXCLUDED.is_published,
 			       status = CASE WHEN EXCLUDED.is_published THEN 'published'

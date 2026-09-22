@@ -91,7 +91,7 @@ export default function CashOutlook() {
               {rows.map((r) => (
                 <tr key={r.institution_id}>
                   <Td className="font-medium">{r.school}</Td>
-                  <Td className="text-right tabular-nums">{r.rate_pct != null ? `${r.rate_pct}%` : '—'}</Td>
+                  <Td className="text-right tabular-nums">{r.rate_pct != null ? `${r.rate_pct}%` : '-'}</Td>
                   {r.months.map((m) => (
                     <Td key={m.month} className="text-right tabular-nums">
                       {formatPaise(m.expected_paise)}

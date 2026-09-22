@@ -467,7 +467,7 @@ function AttentionCell({
       span={span}
       title={t('bento.parent_week.attention_label')}
       who={who}
-      value={loading ? '…' : failed ? '—' : items.length}
+      value={loading ? '…' : failed ? '-' : items.length}
       change={sentence}
       to={top?.href ?? to}
       cueLabel={top?.action ?? t('bento.parent_week.attention_cue')}
@@ -665,7 +665,7 @@ export function WeekCell({
       span={span}
       title={t('bento.parent_week.week_label')}
       who={who}
-      value={s.total_days > 0 ? `${s.attendance_pct}%` : '—'}
+      value={s.total_days > 0 ? `${s.attendance_pct}%` : '-'}
       change={
         s.total_days > 0
           ? t('bento.parent_week.week_note_short', {
@@ -736,7 +736,7 @@ function TodayCell({
           ? t('bento.parent_week.today_free')
           : over
             ? t('bento.parent_week.today_over')
-            : lead?.subject ?? '—'
+            : lead?.subject ?? '-'
       }
       change={
         periods.length === 0
@@ -754,7 +754,7 @@ function TodayCell({
         <ul className="parent-list" aria-label={t('bento.parent_week.today_sr', { name: s.full_name })}>
           {later.slice(0, lines).map((p, i) => (
             <li key={`${p.period}-${i}`} className="parent-list__row">
-              <span className="parent-list__time">{p.starts_at ?? '—'}</span>
+              <span className="parent-list__time">{p.starts_at ?? '-'}</span>
               <span className="parent-list__text">{p.subject}</span>
               {p.room && <span className="parent-list__meta">{p.room}</span>}
             </li>
@@ -842,7 +842,7 @@ function BusCell({
       ? t('bento.parent_week.bus_min', { min: row.eta_minutes })
       : km
         ? `${km} km`
-        : row.scheduled_at ?? '—'
+        : row.scheduled_at ?? '-'
   const change =
     row.state === 'running'
       ? t('bento.parent_week.bus_moving', { stop: row.stop ?? row.route })
@@ -850,7 +850,7 @@ function BusCell({
         ? t('bento.parent_week.bus_arrived', { at: row.arrived_at ?? row.scheduled_at ?? '' })
         : row.state === 'stale' || row.state === 'no_signal'
           ? t('bento.parent_week.bus_quiet')
-          : t('bento.parent_week.bus_scheduled', { at: row.scheduled_at ?? '—', stop: row.stop ?? row.route })
+          : t('bento.parent_week.bus_scheduled', { at: row.scheduled_at ?? '-', stop: row.stop ?? row.route })
 
   const facts = [
     { label: t('bento.parent_week.fact_route'), value: row.route },
@@ -902,7 +902,7 @@ function MessagesCell({
       span={span}
       title={t('bento.parent_week.messages_label')}
       who={who}
-      value={failed ? '—' : teachers === null ? '…' : unread}
+      value={failed ? '-' : teachers === null ? '…' : unread}
       change={
         failed
           ? t('bento.parent_week.messages_unread_failed')
@@ -945,7 +945,7 @@ function ResultsCell({
       span={span}
       title={has ? t('bento.parent_week.results_label') : t('bento.parent_week.next_exam_label')}
       who={who}
-      value={has ? `${s.latest_result_pct!.toFixed(1)}%` : s.next_exam ?? '—'}
+      value={has ? `${s.latest_result_pct!.toFixed(1)}%` : s.next_exam ?? '-'}
       change={
         s.next_exam
           ? t('bento.parent_week.next_exam_note', { exam: s.next_exam })

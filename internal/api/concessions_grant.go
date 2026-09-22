@@ -136,7 +136,7 @@ func (s *Server) grantConcession(w http.ResponseWriter, r *http.Request) {
 			/* A school with no current year cannot be billed at all, so this
 			   is worth saying rather than failing on a uuid parse. */
 			httpx.BadRequest(w, r,
-				"no academic year is marked current — set one under Academics "+
+				"no academic year is marked current, set one under Academics "+
 					"before granting a concession")
 			return
 		}

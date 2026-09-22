@@ -93,7 +93,7 @@ export default function Enquiries() {
        * server now returns the reason; this shows it. */
       const missed = res?.link_not_sent ?? []
       setNote(missed.length
-        ? `Enquiry logged. The application link could not be sent — ${missed.join('; ')}.`
+        ? `Enquiry logged. The application link could not be sent · ${missed.join('; ')}.`
         : 'Enquiry logged.')
       // Only where an account was actually issued. A family that already had
       // one gets a note and no password, and showing an empty box would read
@@ -189,7 +189,7 @@ export default function Enquiries() {
               description={
                 issued.existing
                   ? 'This family already had an account, so nothing was changed.'
-                  : 'Shown once. Give it to the parent now — it cannot be read back.'
+                  : 'Shown once. Give it to the parent now, it cannot be read back.'
               }
               action={<Button variant="ghost" onClick={() => setIssued(null)}>Done</Button>}
             />
@@ -213,7 +213,7 @@ export default function Enquiries() {
                   up with neither. */}
               {issued.sent_to?.length
                 ? `Sent by ${issued.sent_to.join(', ')}. They can sign in and follow the admission from there.`
-                : 'Not sent to the parent — no messaging channel is set up. Give these to them now.'}
+                : 'Not sent to the parent, no messaging channel is set up. Give these to them now.'}
               {issued.note ? <div className="mt-1">{issued.note}</div> : null}
             </div>
           </Card>
@@ -332,15 +332,15 @@ export default function Enquiries() {
                   return (
                     <tr key={e.id}>
                       <Td className="font-medium">{e.student_name}</Td>
-                      <Td className="text-muted-foreground">{e.parent_name ?? '—'}</Td>
+                      <Td className="text-muted-foreground">{e.parent_name ?? '-'}</Td>
                       <Td>
                         <a href={`tel:${e.phone}`} className="inline-flex items-center gap-1 text-primary">
                           <Phone className="h-3 w-3" />{e.phone}
                         </a>
                       </Td>
-                      <Td className="text-muted-foreground">{e.source?.replace('_', ' ') ?? '—'}</Td>
+                      <Td className="text-muted-foreground">{e.source?.replace('_', ' ') ?? '-'}</Td>
                       <Td className={late ? 'font-medium text-destructive' : 'text-muted-foreground'}>
-                        {e.next_follow_up ? formatDate(e.next_follow_up) : '—'}
+                        {e.next_follow_up ? formatDate(e.next_follow_up) : '-'}
                         {late && ' · overdue'}
                       </Td>
                       <Td><StatusPill status={e.status} /></Td>

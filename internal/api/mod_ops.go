@@ -678,7 +678,7 @@ func (s *Server) createSubstitution(w http.ResponseWriter, r *http.Request) {
 			VALUES ($1,$2,$3::date,$4,$5,$6)
 			-- Changing one's mind about a proxy is ordinary. The first choice
 			-- goes absent too, or is needed for an invigilation, and the
-			-- office picks somebody else — which failed outright on the unique
+			-- office picks somebody else, which failed outright on the unique
 			-- index and surfaced as "something went wrong" on the one screen
 			-- that is worked at eight in the morning.
 			ON CONFLICT (timetable_entry_id, on_date) DO UPDATE

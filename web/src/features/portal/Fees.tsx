@@ -94,7 +94,7 @@ export default function PortalFees() {
       api.post<{ receipt_no: string }>(
         `/api/v1/portal/fees/pay?student_id=${child}`, v),
     onSuccess: (r) => {
-      setPaid(`Paid. Receipt ${r.receipt_no}. This was a test payment — no money was taken.`)
+      setPaid(`Paid. Receipt ${r.receipt_no}. This was a test payment, no money was taken.`)
       qc.invalidateQueries({ queryKey: ['portal-fees', child] })
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['attention'] })
@@ -256,7 +256,7 @@ export default function PortalFees() {
                   {formatPaise(d.outstanding_paise)} outstanding
                 </p>
                 <p className="text-[12.5px] text-muted-foreground">
-                  Test payment only — no money is taken and no card is asked for.
+                  Test payment only, no money is taken and no card is asked for.
                   The receipt is issued exactly as it would be at the office.
                 </p>
               </div>
@@ -323,7 +323,7 @@ export default function PortalFees() {
                           {t('portal.fees.col_still_due')}
                         </span>
                         <span className="text-[15px] font-semibold tabular-nums">
-                          {i.due_paise > 0 ? formatPaise(i.due_paise) : '—'}
+                          {i.due_paise > 0 ? formatPaise(i.due_paise) : '-'}
                         </span>
                       </div>
                       <Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>
@@ -408,7 +408,7 @@ export default function PortalFees() {
                   <Td>{formatDate(r.paid_on)}</Td>
                   <Td className="tabular-nums">{formatPaise(r.amount_paise)}</Td>
                   <Td className="capitalize">{r.mode}</Td>
-                  <Td className="text-muted-foreground">{r.reference_no ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{r.reference_no ?? '-'}</Td>
                   <Td>
                     <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>{r.status}</Badge>
                   </Td>

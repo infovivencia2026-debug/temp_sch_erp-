@@ -160,7 +160,7 @@ function ChannelEditor({
         <span className="text-[13px] font-medium">{CHANNEL_LABEL[t.channel] ?? t.channel}</span>
         {/* Said plainly, because 'built-in' is the state people misread as
             'locked'. It is a default, and editing it makes one of your own. */}
-        {t.built_in && <Badge tone="neutral">Default wording — editing makes it yours</Badge>}
+        {t.built_in && <Badge tone="neutral">Default wording, editing makes it yours</Badge>}
         {!t.built_in && <Badge tone="success">This school&rsquo;s own</Badge>}
       </div>
 
@@ -211,5 +211,5 @@ function titleFor(code: string): string {
   const [group, ...rest] = code.split('.')
   const name = rest.join('.').replace(/_/g, ' ')
   const area = group.replace(/_/g, ' ')
-  return `${name.charAt(0).toUpperCase()}${name.slice(1)} — ${area}`
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} · ${area}`
 }

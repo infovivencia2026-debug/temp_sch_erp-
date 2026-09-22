@@ -224,9 +224,9 @@ export default function Pipeline() {
                       {m.name}
                       {m.is_rte && <Badge tone="primary">RTE</Badge>}
                     </Td>
-                    <Td>{m.class_sought ?? '—'}</Td>
-                    <Td>{m.test_percent != null ? `${m.test_percent}%` : '—'}</Td>
-                    <Td>{m.interview_percent != null ? `${m.interview_percent}%` : '—'}</Td>
+                    <Td>{m.class_sought ?? '-'}</Td>
+                    <Td>{m.test_percent != null ? `${m.test_percent}%` : '-'}</Td>
+                    <Td>{m.interview_percent != null ? `${m.interview_percent}%` : '-'}</Td>
                     <Td className="font-medium">{m.merit_score}</Td>
                     <Td><StatusPill status={m.status} /></Td>
                     <Td>
@@ -275,7 +275,7 @@ export default function Pipeline() {
       <PageHead
         eyebrow="Admissions Workspace"
         title={view?.title ?? 'Seat allotment'}
-        description={view?.description ?? "Merit ranking, seat availability against RTE quota, and the offer-to-enrolment handoff. The stages below are cumulative totals — every application ever raised, not the ones still waiting on somebody, which is the dashboard's smaller 'open applications'."}
+        description={view?.description ?? "Merit ranking, seat availability against RTE quota, and the offer-to-enrolment handoff. The stages below are cumulative totals, every application ever raised, not the ones still waiting on somebody, which is the dashboard's smaller 'open applications'."}
         actions={
           <>
           {/* The applicant list, for the trustee who wants it in Excel. */}

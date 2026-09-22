@@ -41,7 +41,7 @@ interface Resp {
   method: string
 }
 
-const pct = (n: number, of: number) => (of > 0 ? `${Math.round((100 * n) / of)}%` : '—')
+const pct = (n: number, of: number) => (of > 0 ? `${Math.round((100 * n) / of)}%` : '-')
 
 export default function DropoutRisk() {
   const q = useQuery({

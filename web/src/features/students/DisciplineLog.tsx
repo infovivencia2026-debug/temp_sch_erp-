@@ -187,10 +187,10 @@ export default function DisciplineLog() {
                   <Td className="whitespace-nowrap">
                     {r.suspension_days > 0
                       ? `${r.suspension_days}d from ${formatDate(r.suspension_from)}`
-                      : '—'}
+                      : '-'}
                   </Td>
                   <Td className="tabular-nums">
-                    {r.status === 'closed' ? '—' : `${r.age_days}d`}
+                    {r.status === 'closed' ? '-' : `${r.age_days}d`}
                   </Td>
                   <Td>
                     {mayHandle && (
@@ -261,7 +261,7 @@ function Handle({ incident, onDone }: { incident: Incident; onDone: () => void }
   return (
     <Card>
       <CardHeader
-        title={`${incident.student_name} — ${formatDate(incident.occurred_on)}`}
+        title={`${incident.student_name} · ${formatDate(incident.occurred_on)}`}
         description="Closing an incident needs an action recorded: a closed row with nothing written against it answers nothing later."
       />
       <div className="px-5 pb-5">

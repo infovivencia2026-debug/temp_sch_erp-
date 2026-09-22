@@ -651,7 +651,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 
 				      Every approver saw every request, so a HOD of six people
 				      read the whole school's leave to find the two rows that
-				      were theirs — and the principal and the HOD were looking
+				      were theirs, and the principal and the HOD were looking
 				      at the same undifferentiated list.
 
 				      Either may approve, and the first to do so decides it.
@@ -662,7 +662,7 @@ func (s *Server) getApprovals(w http.ResponseWriter, r *http.Request) {
 				      than held for them.
 
 				      A staff member with no department, and every student
-				      request, stays visible to whoever can approve at all —
+				      request, stays visible to whoever can approve at all, 
 				      the narrowing must not make a request invisible to
 				      everybody. */
 				   AND ($1::bool
@@ -925,7 +925,7 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 	note := strings.TrimSpace(req.Note)
 	if req.Decision == "rejected" && note == "" {
 		httpx.BadRequest(w, r,
-			"say why it was refused — it goes on the record and the family is told")
+			"say why it was refused, it goes on the record and the family is told")
 		return
 	}
 
@@ -995,7 +995,7 @@ func (s *Server) decideConcession(w http.ResponseWriter, r *http.Request) {
 		if status == "rejected" {
 			word = "not approved"
 		}
-		body := studentName + " — " + kindName + " concession " + word + "."
+		body := studentName + " · " + kindName + " concession " + word + "."
 		if note != "" {
 			body += " " + note
 		}
@@ -1406,7 +1406,7 @@ func (s *Server) listHomework(w http.ResponseWriter, r *http.Request) {
 
 		          A guardian's scope holds every one of their children, so
 		          joining the submissions on student_id = ANY(...) multiplied
-		          each task by the number of children who had turned it in — a
+		          each task by the number of children who had turned it in, a
 		          parent of two would have seen Tuesday's maths twice. LIMIT 1
 		          picks one child's answer, which is the right answer for the
 		          student reading their own list and harmless for a parent, who

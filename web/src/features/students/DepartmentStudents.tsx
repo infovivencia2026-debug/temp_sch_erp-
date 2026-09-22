@@ -124,7 +124,7 @@ export default function DepartmentStudents() {
         <Card>
           <CardHeader
             title="The roll"
-            description="Absences are excluded from the marks figure rather than scored nought — a child who was ill has not failed."
+            description="Absences are excluded from the marks figure rather than scored nought, a child who was ill has not failed."
             action={
               <div className="flex flex-wrap items-center gap-2">
                 <Input
@@ -181,10 +181,10 @@ export default function DepartmentStudents() {
                     )}
                   </Td>
                   <Td>{r.department}</Td>
-                  <Td className="text-muted-foreground">{r.advisor ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{r.advisor ?? '-'}</Td>
                   <Td>
                     {r.attendance_percent == null ? (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     ) : (
                       <span
                         className={cn(
@@ -197,13 +197,13 @@ export default function DepartmentStudents() {
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    {r.marks_percent == null ? '—' : `${r.marks_percent}%`}
+                    {r.marks_percent == null ? '-' : `${r.marks_percent}%`}
                   </Td>
                   <Td>
                     {r.backlogs > 0 ? (
                       <Badge tone="danger">{r.backlogs}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                 </tr>

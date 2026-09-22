@@ -75,7 +75,7 @@ export default function ImportStudents() {
         <Card>
           <CardHeader
             title="Choose a file"
-            description="Dates may be dd/mm/yyyy — the format Excel exports in India."
+            description="Dates may be dd/mm/yyyy, the format Excel exports in India."
           />
           <div className="p-5">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed py-10 text-center transition-colors hover:bg-accent/40">
@@ -138,7 +138,7 @@ export default function ImportStudents() {
                         {p.problem}
                       </Td>
                       <Td className="text-muted-foreground">
-                        {p.data?.first_name || p.data?.admission_no || '—'}
+                        {p.data?.first_name || p.data?.admission_no || '-'}
                       </Td>
                     </tr>
                   ))}

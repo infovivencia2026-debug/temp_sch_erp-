@@ -72,7 +72,7 @@ export default function BusProximityAlert() {
       <PageHead
         eyebrow="Alerts & preferences"
         title="Tell me when the bus is close"
-        description="Choose how near the bus should be before you hear about it. The distance is measured in a straight line from your child's stop, not along the road — the bus will usually take a little longer to arrive than the number suggests."
+        description="Choose how near the bus should be before you hear about it. The distance is measured in a straight line from your child's stop, not along the road, the bus will usually take a little longer to arrive than the number suggests."
       />
       <Freshness query={feed} />
       <PageBody width="form">
@@ -94,7 +94,7 @@ export default function BusProximityAlert() {
                 checked={notify}
                 onChange={setNotify}
                 label="Tell me when the bus is approaching the stop"
-                hint="Switch this off and the distance below stops being used — the bus still appears on the live map, you simply are not told about it."
+                hint="Switch this off and the distance below stops being used, the bus still appears on the live map, you simply are not told about it."
               />
 
               <div className="grid gap-2 sm:grid-cols-2">

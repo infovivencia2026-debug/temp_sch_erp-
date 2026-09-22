@@ -174,7 +174,7 @@ export default function DepartmentTimetable() {
                     {r.class_name}-{r.section_name}
                   </Td>
                   <Td className="font-medium">{r.subject_name}</Td>
-                  <Td className="text-[13px] text-muted-foreground">{r.teacher_name ?? '—'}</Td>
+                  <Td className="text-[13px] text-muted-foreground">{r.teacher_name ?? '-'}</Td>
                   <Td className="tabular-nums">{r.periods_required}</Td>
                   <Td className="tabular-nums">{r.periods_scheduled}</Td>
                   <Td>
@@ -193,7 +193,7 @@ export default function DepartmentTimetable() {
         <Card>
           <CardHeader
             title="Load"
-            description="Against each teacher's own cap. Under-loaded is not an accusation — it is who has room when cover is needed."
+            description="Against each teacher's own cap. Under-loaded is not an accusation, it is who has room when cover is needed."
           />
           <Table head={['Teacher', 'Department', 'Periods', 'Cap', 'Free slots', 'Load']}>
             {d.teachers.map((t) => (

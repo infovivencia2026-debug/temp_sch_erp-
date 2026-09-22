@@ -155,7 +155,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
                 onChange={setBack}
                 purpose="id_card_back"
                 label="Back artwork"
-                hint="The reverse — rules, contact, signature."
+                hint="The reverse, rules, contact, signature."
               />
               {backArt && !back && (
                 <img

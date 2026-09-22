@@ -110,8 +110,8 @@ export default class ChunkBoundary extends Component<Props, State> {
         </p>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           {this.state.stale
-            ? 'The site was updated while this tab was open, so part of it is no longer on the server. Reloading picks up the new version — nothing you have saved is affected.'
-            : 'Something on this screen did not load properly. Reloading usually clears it — nothing you have saved is affected.'}
+            ? 'The site was updated while this tab was open, so part of it is no longer on the server. Reloading picks up the new version, nothing you have saved is affected.'
+            : 'Something on this screen did not load properly. Reloading usually clears it, nothing you have saved is affected.'}
         </p>
         {/* No stack trace on screen.
          *

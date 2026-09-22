@@ -115,7 +115,7 @@ private struct ChildCard: View {
     private var resultValue: String {
         if let grade = child.latestResultGrade, !grade.isEmpty { return grade }
         if let pct = child.latestResultPct { return "\(Int(pct.rounded()))%" }
-        return "—"
+        return "-"
     }
 
     /* "09:15" from "09:15:00" or an ISO time; the period name when no time. */

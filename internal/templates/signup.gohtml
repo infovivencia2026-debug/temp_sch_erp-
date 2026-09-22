@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Subscribe — {{.Plan.Name}} — School ERP</title>
+<title>Subscribe · {{.Plan.Name}} · School ERP</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
 {{template "themeboot"}}
@@ -35,7 +35,7 @@
 
   <section class="summary" aria-label="What you are buying">
     <div class="summary-row">
-      <span>{{.Plan.Name}} — {{.Plan.MaxStudents}}</span>
+      <span>{{.Plan.Name}} · {{.Plan.MaxStudents}}</span>
       <strong>
         <span class="rupee">₹</span>{{if eq .Billing "monthly"}}{{.Plan.Monthly}}{{else}}{{.Plan.Rupees}}{{end}}
       </strong>

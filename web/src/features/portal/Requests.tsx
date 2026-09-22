@@ -202,7 +202,7 @@ export default function Requests() {
                 <Td className="font-medium tabular-nums">{r.serial_no}</Td>
                 <Td>{r.type}</Td>
                 <Td>{r.student_name}</Td>
-                <Td className="max-w-[16rem]">{r.reason ?? '—'}</Td>
+                <Td className="max-w-[16rem]">{r.reason ?? '-'}</Td>
                 <Td>{formatDate(r.issued_on)}</Td>
                 <Td>
                   <Badge tone={TONE[r.status]}>{r.status}</Badge>

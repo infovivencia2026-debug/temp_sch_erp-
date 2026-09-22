@@ -98,7 +98,7 @@ export default function SupportTeam() {
         <Card>
           <CardHeader
             title="Support accounts"
-            description={`${rows.length} on the support team — name, sign-in, when created and last used.`}
+            description={`${rows.length} on the support team, name, sign-in, when created and last used.`}
           />
           {rows.length === 0 ? (
             <EmptyState
@@ -111,7 +111,7 @@ export default function SupportTeam() {
                 <tr key={a.id}>
                   <Td className="whitespace-nowrap font-medium">{a.full_name}</Td>
                   <Td className="whitespace-nowrap font-mono text-[13px]">
-                    {a.email ?? a.phone ?? '—'}
+                    {a.email ?? a.phone ?? '-'}
                   </Td>
                   <Td>
                     <Badge tone={STATUS_TONE[a.status] ?? 'neutral'}>{a.status}</Badge>

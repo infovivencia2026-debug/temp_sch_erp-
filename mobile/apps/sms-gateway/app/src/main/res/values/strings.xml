@@ -5,5 +5,5 @@
     <string name="notification_channel_gateway">Gateway status</string>
     <string name="notification_channel_gateway_desc">The permanent notice that shows the gateway is running. Dismissing it stops messages going out.</string>
     <string name="notification_channel_problem">Gateway problems</string>
-    <string name="notification_channel_problem_desc">Raised when the gateway cannot send — no SIM, no permission, or no network.</string>
+    <string name="notification_channel_problem_desc">Raised when the gateway cannot send, no SIM, no permission, or no network.</string>
 </resources>

@@ -214,7 +214,7 @@ export default function CounselorChannel() {
                   placeholder={contacts.isLoading ? 'Loading…' : 'Choose a counsellor'}
                   options={(contacts.data?.items ?? []).map((c) => ({
                     value: c.user_id,
-                    label: c.role ? `${c.full_name} — ${c.role}` : c.full_name,
+                    label: c.role ? `${c.full_name} · ${c.role}` : c.full_name,
                   }))}
                 />
               </Field>
@@ -303,8 +303,8 @@ export default function CounselorChannel() {
                       {t.participants}
                     </span>
                   </Td>
-                  <Td>{t.last_message_at ? formatDate(t.last_message_at) : '—'}</Td>
-                  <Td>{t.unread > 0 ? <Badge tone="info">{t.unread}</Badge> : '—'}</Td>
+                  <Td>{t.last_message_at ? formatDate(t.last_message_at) : '-'}</Td>
+                  <Td>{t.unread > 0 ? <Badge tone="info">{t.unread}</Badge> : '-'}</Td>
                   <Td>
                     <Button size="sm" variant="ghost" onClick={() => openThread(t.id)}>
                       Open
@@ -378,7 +378,7 @@ export default function CounselorChannel() {
                       </Badge>
                       {p.added_reason && (
                         <span className="block text-[13px] text-muted-foreground">
-                          Added by {p.added_by ?? 'unknown'} on {formatDate(p.added_at)} —{' '}
+                          Added by {p.added_by ?? 'unknown'} on {formatDate(p.added_at)} · {' '}
                           {p.added_reason}
                         </span>
                       )}

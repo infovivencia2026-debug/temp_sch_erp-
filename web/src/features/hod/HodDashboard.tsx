@@ -144,7 +144,7 @@ export default function HodDashboard() {
         <Card>
           <CardHeader
             title="Out today"
-            description="From both registers a school keeps absence in — this morning's mark, and leave approved weeks ago that nobody has marked."
+            description="From both registers a school keeps absence in, this morning's mark, and leave approved weeks ago that nobody has marked."
           />
           {data.absent.length === 0 ? (
             <EmptyState

@@ -447,7 +447,7 @@ function ProfilePanel({ onDone }: PanelProps) {
             onChange={(x) => set('mid_day_meal', x === 'yes')}
             options={[
               { value: 'no', label: 'Not served' },
-              { value: 'yes', label: 'Served — keep the MDM register' },
+              { value: 'yes', label: 'Served, keep the MDM register' },
             ]}
           />
         </Field>
@@ -564,7 +564,7 @@ function CampusPanel({ onDone }: PanelProps) {
     >
       <p className="mb-4 text-[14px] text-muted-foreground">
         {target
-          ? 'A campus was created for you so the first academic year had somewhere to sit. Give it the real name and address — a transfer certificate prints it.'
+          ? 'A campus was created for you so the first academic year had somewhere to sit. Give it the real name and address, a transfer certificate prints it.'
           : 'Most schools have one. Add a second only if it has its own building and its own students.'}
       </p>
       <FormGrid>
@@ -661,8 +661,8 @@ function YearPanel({ onDone }: PanelProps) {
             value={f.is_current ? 'yes' : 'no'}
             onChange={(x) => setF({ ...f, is_current: x === 'yes' })}
             options={[
-              { value: 'yes', label: 'Yes — this is the running year' },
-              { value: 'no', label: 'No — a past or future year' },
+              { value: 'yes', label: 'Yes, this is the running year' },
+              { value: 'no', label: 'No, a past or future year' },
             ]}
           />
         </Field>
@@ -913,7 +913,7 @@ function ClassesPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="classes"
           title="Classes and sections from a sheet"
-          hint="Three columns: the class, its sections, and how many seats each holds. Only the class name is required — a school that has not decided its sections yet can add them later."
+          hint="Three columns: the class, its sections, and how many seats each holds. Only the class name is required, a school that has not decided its sections yet can add them later."
           onDone={onDone}
         />
       </div>
@@ -1028,7 +1028,7 @@ function SubjectsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="subjects"
           title="Or add every subject from a sheet"
-          hint="Name and code. The code is what a report card prints, and it is what a second upload matches on — so a corrected sheet edits rather than doubles."
+          hint="Name and code. The code is what a report card prints, and it is what a second upload matches on, so a corrected sheet edits rather than doubles."
           onDone={onDone}
         />
       </div>
@@ -1222,7 +1222,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
       </div>
       <p className="mt-2 text-[13px] text-muted-foreground">
         {classID
-          ? 'This is what the class studies now. Saving writes back exactly what is selected — untick one and it is removed.'
+          ? 'This is what the class studies now. Saving writes back exactly what is selected, untick one and it is removed.'
           : 'Choose a class above and its current subjects appear ticked.'}
       </p>
       <div className="mt-4 flex flex-wrap items-end gap-2 border-t pt-4">
@@ -1259,7 +1259,7 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
         <BulkImport
           entity="class_subjects"
           title="Classes, subjects and teachers from a sheet"
-          hint="Class, subject, and the teacher who takes it. A subject the school has not added yet is created from this sheet, and naming a teacher assigns them to every section of that class — so one file does the whole job."
+          hint="Class, subject, and the teacher who takes it. A subject the school has not added yet is created from this sheet, and naming a teacher assigns them to every section of that class, so one file does the whole job."
           onDone={onDone}
         />
       </div>
@@ -1278,8 +1278,8 @@ function ClassSubjectsPanel({ onDone }: PanelProps) {
       <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="allocations"
-          title="Allocation sheet — who teaches what, where"
-          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so register the staff first — otherwise those rows are skipped and named. Every column but the class and section is optional."
+          title="Allocation sheet, who teaches what, where"
+          hint="The head of department or the principal. Class, section, room, class teacher, subject and subject teacher. It finds teachers by email, so register the staff first, otherwise those rows are skipped and named. Every column but the class and section is optional."
           onDone={onDone}
         />
       </div>
@@ -1639,7 +1639,7 @@ function StaffPanel({ onDone }: PanelProps) {
     setOutcome(
       d.created
         ? `Added ${d.employee_code}.`
-        : `${d.employee_code} already existed — that record was updated, not added.`,
+        : `${d.employee_code} already existed, that record was updated, not added.`,
     )
   }, [save.data])
 
@@ -1652,7 +1652,7 @@ function StaffPanel({ onDone }: PanelProps) {
     >
       <p className="mb-4 text-[14px] text-muted-foreground">
         A login created here can see nothing until the person is made class teacher of a section or
-        given a subject in one. That is deliberate — a teacher's reach comes from their assignments,
+        given a subject in one. That is deliberate, a teacher's reach comes from their assignments,
         not from their role.
       </p>
       <FormGrid>
@@ -1691,7 +1691,7 @@ function StaffPanel({ onDone }: PanelProps) {
           <div className="mt-4 border-t pt-4">
         <BulkImport
           entity="staff"
-          title="Staff sheet — who works here"
+          title="Staff sheet, who works here"
           hint="HR or the principal. Employee code and first name are required; give an email and a role and they get a login too. This sheet creates the people. Putting them in front of a class is the allocation sheet, under Class subjects."
           onDone={onDone}
         />
@@ -1865,7 +1865,7 @@ function Assignments({ onDone }: PanelProps) {
         {assignedSections === 0 && onRoll.length > 0 && (
           <>
             {' '}You have <b>{onRoll.length}</b> staff on the roll and none of them
-            assigned yet — adding staff does not finish this step, assigning them does.
+            assigned yet, adding staff does not finish this step, assigning them does.
           </>
         )}
         {/* WHY THE NUMBER IS SMALLER THAN THE ONE JUST IMPORTED.
@@ -1914,7 +1914,7 @@ function Assignments({ onDone }: PanelProps) {
           <div className="mt-4">
             <Field
               label="Class teacher"
-              hint="Marks the daily register and sees the whole section. Anyone already holding another section is marked so — choosing them moves them here."
+              hint="Marks the daily register and sees the whole section. Anyone already holding another section is marked so, choosing them moves them here."
             >
               <Select
                 value={classTeacher}
@@ -1927,7 +1927,7 @@ function Assignments({ onDone }: PanelProps) {
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {withoutLogin.length} on the roll {withoutLogin.length === 1 ? 'has' : 'have'} no
                 login yet and {withoutLogin.length === 1 ? 'is' : 'are'} marked so in the list.
-                Choosing one creates an account for them so the post is held — a class teacher
+                Choosing one creates an account for them so the post is held, a class teacher
                 marks the register, so give them a password under Staff &rarr; Logins &amp; access
                 before term. {withoutLogin.slice(0, 3).map((t) => t.full_name).join(', ')}
                 {withoutLogin.length > 3 ? ` and ${withoutLogin.length - 3} others` : ''}.
@@ -1954,7 +1954,7 @@ function Assignments({ onDone }: PanelProps) {
             ))}
             {subjects?.items.length === 0 && (
               <p className="text-[14px] text-muted-foreground">
-                This class has no subjects mapped yet — go back to that step first.
+                This class has no subjects mapped yet, go back to that step first.
               </p>
             )}
           </div>
@@ -2025,7 +2025,7 @@ function HistoryPanel({ onDone }: PanelProps) {
     <div className="space-y-4 text-[14px]">
       <p className="text-muted-foreground">
         Only for a school that was running before it came here. A new school
-        should skip this entirely — nothing below is required, and the step
+        should skip this entirely, nothing below is required, and the step
         never blocks you.
       </p>
 
@@ -2036,7 +2036,7 @@ function HistoryPanel({ onDone }: PanelProps) {
             is rejected row by row, and reads as the file being wrong when it
             is only early. */}
         <p className="mt-1 text-muted-foreground">
-          Students and staff first — the steps above this one — then their
+          Students and staff first, the steps above this one, then their
           history, then results. Each file is checked and shown to you before
           anything is written, and any upload can be taken back out afterwards.
         </p>
@@ -2090,7 +2090,7 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="student_exits"
         title="Children who have left"
-        hint="The term's transfer certificates as one sheet: admission number, the date they left, and how (transferred, graduated, withdrawn or alumni). Put your own TC number in tc_no and it is kept and searchable; leave it blank on a transfer and one is issued from your certificate series. Each row closes the enrolment too, so the register stops expecting them and the fee run stops billing them — and the family's login ends unless another of their children is still here."
+        hint="The term's transfer certificates as one sheet: admission number, the date they left, and how (transferred, graduated, withdrawn or alumni). Put your own TC number in tc_no and it is kept and searchable; leave it blank on a transfer and one is issued from your certificate series. Each row closes the enrolment too, so the register stops expecting them and the fee run stops billing them, and the family's login ends unless another of their children is still here."
         onDone={onDone}
       />
 
@@ -2111,14 +2111,14 @@ function HistoryPanel({ onDone }: PanelProps) {
       <BulkImport
         entity="payslips"
         title="Salary already paid this year"
-        hint="One row per person per month, one month per file: what was actually paid. Loaded as given and never recalculated — the payslips your staff are holding are the fact, and recomputing them from structures this system did not have would only produce a difference to explain. A month you have already run here is refused rather than overwritten."
+        hint="One row per person per month, one month per file: what was actually paid. Loaded as given and never recalculated, the payslips your staff are holding are the fact, and recomputing them from structures this system did not have would only produce a difference to explain. A month you have already run here is refused rather than overwritten."
         onDone={onDone}
       />
 
       <BulkImport
         entity="attendance"
         title="The student register before you started here"
-        hint="One row per child per day: present, absent, late, half_day, leave or holiday. Nobody is messaged about any of it — an absence from September is not news in December. Re-uploading a corrected file rewrites those days rather than refusing them."
+        hint="One row per child per day: present, absent, late, half_day, leave or holiday. Nobody is messaged about any of it, an absence from September is not news in December. Re-uploading a corrected file rewrites those days rather than refusing them."
         onDone={onDone}
       />
     </div>
@@ -2171,7 +2171,7 @@ function MarksGridUpload({ onDone }: { onDone?: () => void }) {
       <div className="border-b px-4 py-3">
         <p className="text-[14px] font-medium">Past exam results, as a mark sheet</p>
         <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-          Children down the side, subjects across the top — the sheet the staff
+          Children down the side, subjects across the top, the sheet the staff
           room already keeps. These four describe the whole sheet, so they are
           asked once here rather than repeated on every row.
         </p>
@@ -2205,7 +2205,7 @@ function MarksGridUpload({ onDone }: { onDone?: () => void }) {
           <BulkImport
             entity="marks_grid"
             title="Upload the mark sheet"
-            hint="Children down, subjects across — the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
+            hint="Children down, subjects across, the sheet you already have. Name the subject each marks column holds; leave Total, Rank and Remarks empty, since those are worked out from the marks."
             params={{ year, exam, class: cls, max_marks: max }}
             subjectMapping
             onDone={onDone}
@@ -2517,7 +2517,7 @@ function FeeHeadsPanel({ onDone }: PanelProps) {
       }}
     >
       <p className="mb-4 text-[14px] text-muted-foreground">
-        A head is a line on a receipt. Keep them few — every extra head is another column in every
+        A head is a line on a receipt. Keep them few, every extra head is another column in every
         collection report for the rest of the year.
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -2878,7 +2878,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
     for (const cid of targets) {
       const label =
         cid && classes?.items
-          ? `${classes.items.find((c) => c.id === cid)?.name ?? ''} — ${name}`.trim()
+          ? `${classes.items.find((c) => c.id === cid)?.name ?? ''} · ${name}`.trim()
           : name
       await api.post('/api/v1/setup/fee-structures', { name: label, class_id: cid, items })
     }
@@ -2909,7 +2909,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           label="Applies to"
           hint={
             pickedClasses.size
-              ? `${pickedClasses.size} ${pickedClasses.size === 1 ? 'class' : 'classes'} — one structure is created for each.`
+              ? `${pickedClasses.size} ${pickedClasses.size === 1 ? 'class' : 'classes'}, one structure is created for each.`
               : 'Nothing ticked means every class.'
           }
         >
@@ -2971,7 +2971,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
                   below it. */}
               {open ? (
                 <span className="px-1 text-[14px] tabular-nums text-muted-foreground">
-                  {termTotal ? `₹${termTotal.toLocaleString('en-IN')} a year` : '—'}
+                  {termTotal ? `₹${termTotal.toLocaleString('en-IN')} a year` : '-'}
                 </span>
               ) : (
                 <Input
@@ -3094,7 +3094,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
         })}
         {shown.length === 0 && (
           <p className="text-[13px] text-muted-foreground">
-            No heads on this structure yet — add one below.
+            No heads on this structure yet, add one below.
           </p>
         )}
       </div>
@@ -3193,7 +3193,7 @@ function FeeStructureList() {
   if (rows.length === 0) return null
 
   const remove = async (id: string, label: string) => {
-    if (!confirm(`Remove ${label}? Invoices already raised are unaffected — this is the price list, not the bills.`)) return
+    if (!confirm(`Remove ${label}? Invoices already raised are unaffected, this is the price list, not the bills.`)) return
     setBusy(id)
     setFailed('')
     try {
@@ -3305,13 +3305,13 @@ function ExamsPanel({ onDone }: PanelProps) {
               })
             }
             options={[
-              { value: 'FA1', label: 'FA1 — formative, 20 marks' },
-              { value: 'FA2', label: 'FA2 — formative, 20 marks' },
-              { value: 'FA3', label: 'FA3 — formative, 20 marks' },
-              { value: 'FA4', label: 'FA4 — formative, 20 marks' },
-              { value: 'SA1', label: 'SA1 — summative, 80 marks' },
-              { value: 'SA2', label: 'SA2 — summative, 80 marks' },
-              { value: 'SA3', label: 'SA3 — summative, 80 marks' },
+              { value: 'FA1', label: 'FA1, formative, 20 marks' },
+              { value: 'FA2', label: 'FA2, formative, 20 marks' },
+              { value: 'FA3', label: 'FA3, formative, 20 marks' },
+              { value: 'FA4', label: 'FA4, formative, 20 marks' },
+              { value: 'SA1', label: 'SA1, summative, 80 marks' },
+              { value: 'SA2', label: 'SA2, summative, 80 marks' },
+              { value: 'SA3', label: 'SA3, summative, 80 marks' },
             ]}
           />
         </Field>
@@ -3678,7 +3678,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
     if (!confirm(
       'Give every member of staff a new password?\n\n' +
       'The passwords they are using now will stop working, and the new ones ' +
-      'download as a file. This is the only way to get a complete list — the ' +
+      'download as a file. This is the only way to get a complete list, the ' +
       'ones already set cannot be looked up.'
     )) return
     setBusy('all')
@@ -3859,7 +3859,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                     )}
                   </td>
                   <td className="px-3 py-1.5 font-mono">
-                    {fresh?.user ?? t.sign_in_as ?? '—'}
+                    {fresh?.user ?? t.sign_in_as ?? '-'}
                   </td>
                   <td className="px-3 py-1.5">
                     {fresh ? (
@@ -3867,7 +3867,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
                     ) : t.can_sign_in ? (
                       <span
                         className="text-muted-foreground"
-                        title="Not stored anywhere — only a hash of it is, so nobody can look it up, including us. Reset this one, or use Reset all &amp; export for the whole list."
+                        title="Not stored anywhere, only a hash of it is, so nobody can look it up, including us. Reset this one, or use Reset all &amp; export for the whole list."
                       >
                         already set
                       </span>
@@ -3919,7 +3919,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
       {Object.keys(issued).length > 0 && (
         <p className="mt-2 text-[12.5px] text-destructive">
           Copy these before you leave the page. A password is shown once and cannot be
-          looked up again — only replaced.
+          looked up again, only replaced.
         </p>
       )}
       {failed && <p className="mt-2 text-[13px] text-destructive">{failed}</p>}
@@ -3992,7 +3992,7 @@ export function BoardImplications({ board }: { board: string }) {
       <p className="font-medium text-foreground">Choosing {preset.label} sets up:</p>
       <ul className="mt-1.5 space-y-1 text-muted-foreground">
         <li>
-          <span className="text-foreground">Grading:</span> {preset.scale_name} —{' '}
+          <span className="text-foreground">Grading:</span> {preset.scale_name} · {' '}
           {preset.bands.map((b) => b.grade).join(', ')}
         </li>
         <li><span className="text-foreground">Pass mark:</span> {preset.pass_mark}%</li>
@@ -4017,7 +4017,7 @@ export function BoardImplications({ board }: { board: string }) {
                 <td className="py-1 font-medium">{b.grade}</td>
                 <td className="tabular-nums">{b.min_percent}%</td>
                 <td className="tabular-nums">{b.max_percent}%</td>
-                <td className="tabular-nums">{b.grade_point || '—'}</td>
+                <td className="tabular-nums">{b.grade_point || '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -4044,7 +4044,7 @@ export function BoardImplications({ board }: { board: string }) {
         {apply.isSuccess && (
           <span className="text-success">
             {apply.data.already_existed
-              ? `You already have ${apply.data.scale_name} — nothing was changed.`
+              ? `You already have ${apply.data.scale_name}, nothing was changed.`
               : `${apply.data.scale_name} created with ${apply.data.bands} bands. Edit it under Academics → Grading.`}
           </span>
         )}
@@ -4055,7 +4055,7 @@ export function BoardImplications({ board }: { board: string }) {
         )}
       </div>
       <p className="mt-2 text-muted-foreground">
-        A starting point, not a rule — every band stays editable, and nothing
+        A starting point, not a rule, every band stays editable, and nothing
         you have already set up is overwritten.
       </p>
     </div>

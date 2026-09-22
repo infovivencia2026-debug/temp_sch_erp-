@@ -162,7 +162,7 @@ export default function SubstitutionBoard() {
           <Card>
             <CardHeader
               title="Away today, with nothing timetabled"
-              description="Nothing to cover for these — they have no periods on the timetable. Worth knowing: it usually means their subjects were never allocated, not that they teach nothing."
+              description="Nothing to cover for these, they have no periods on the timetable. Worth knowing: it usually means their subjects were never allocated, not that they teach nothing."
             />
             <ul className="divide-y">
               {awayWithoutPeriods.map((a) => (
@@ -195,7 +195,7 @@ export default function SubstitutionBoard() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <p className="text-[14px] font-medium">
-                        {r.period} · {r.starts_at} — {r.class_name}-{r.section} · {r.subject}
+                        {r.period} · {r.starts_at} · {r.class_name}-{r.section} · {r.subject}
                       </p>
                       <p className="mt-0.5 text-[14px] text-muted-foreground">
                         {r.absent_teacher} is{' '}
@@ -206,7 +206,7 @@ export default function SubstitutionBoard() {
                           board losing the morning's work. */}
                       {r.cover_absent && r.covered_by && (
                         <p className="mt-0.5 text-[13.5px] text-destructive">
-                          {r.covered_by} was covering this and is now absent too — it needs
+                          {r.covered_by} was covering this and is now absent too, it needs
                           somebody else.
                         </p>
                       )}
@@ -295,20 +295,20 @@ function AssignSelect({
         onChange={(v) => v && onAssign(v)}
         placeholder={
           slot.candidates.length
-            ? `${slot.candidates.length} free — choose one`
-            : 'Nobody free — choose anyway'
+            ? `${slot.candidates.length} free, choose one`
+            : 'Nobody free, choose anyway'
         }
         options={[
           ...slot.candidates.map((c) => ({
             value: c.user_id,
             label:
-              `${c.full_name} — free` +
+              `${c.full_name}, free` +
               (c.teaches_subject ? `, takes ${slot.subject}` : '') +
               `, ${c.periods_today} today`,
           })),
           ...others.map((t) => ({
             value: t.user_id,
-            label: `${t.full_name} — busy this period`,
+            label: `${t.full_name}, busy this period`,
           })),
         ]}
       />

@@ -80,7 +80,7 @@ export default function BoardMembers() {
         eyebrow="Support"
         title="Board members"
         description={
-          'People who oversee several schools at once — a trust’s committee, a group '
+          'People who oversee several schools at once, a trust’s committee, a group '
           + 'director. Each holds an ordinary account in every school they oversee and switches '
           + 'between them from the header. Assign the schools here.'
         }
@@ -113,7 +113,7 @@ export default function BoardMembers() {
         <Card>
           <CardHeader
             title="Board members"
-            description={`${rows.length} overseeing schools across the platform — remove a school to drop that membership.`}
+            description={`${rows.length} overseeing schools across the platform, remove a school to drop that membership.`}
           />
           {rows.length === 0 ? (
             <EmptyState
@@ -126,7 +126,7 @@ export default function BoardMembers() {
                 <tr key={m.id}>
                   <Td className="whitespace-nowrap font-medium">{m.full_name}</Td>
                   <Td className="whitespace-nowrap font-mono text-[13px]">
-                    {m.email ?? m.phone ?? '—'}
+                    {m.email ?? m.phone ?? '-'}
                   </Td>
                   <Td>
                     <Badge tone={STATUS_TONE[m.status] ?? 'neutral'}>{m.status}</Badge>

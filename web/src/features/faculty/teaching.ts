@@ -337,5 +337,5 @@ export function numOrNull(v: string): number | null {
 }
 
 export function label(list: readonly { value: string; label: string }[], v?: string) {
-  return list.find((o) => o.value === v)?.label ?? v ?? '—'
+  return list.find((o) => o.value === v)?.label ?? v ?? '-'
 }

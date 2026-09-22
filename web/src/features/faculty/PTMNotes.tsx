@@ -240,7 +240,7 @@ function Compose({ onClose }: { onClose: () => void }) {
               placeholder={sectionID ? 'Choose a child' : 'Choose a class first'}
               options={(roster.data?.items ?? []).map((s) => ({
                 value: s.id,
-                label: `${s.full_name} — ${s.admission_no}`,
+                label: `${s.full_name} · ${s.admission_no}`,
               }))}
             />
           </Field>

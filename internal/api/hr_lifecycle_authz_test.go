@@ -92,7 +92,7 @@ func TestHRLifecycleWritesNeedEmployeesWrite(t *testing.T) {
 		}
 		walked++
 		if got := statusOf(t, reader, method, path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a write reachable with only hr.employees.read",
+			t.Errorf("%s %s: got %d, want 403, a write reachable with only hr.employees.read",
 				method, path, got)
 		}
 	})
@@ -331,7 +331,7 @@ func TestBackgroundChecksNarrowToTheCallersDepartment(t *testing.T) {
 	_, all := callJSON(t, mountedHRLifecycle(s, sc.backOffice()),
 		"GET", "/hr/background-checks", "")
 	if got := len(itemsOf(all)); got != 3 {
-		t.Errorf("the back office sees %d verifications, want 3 — the narrowing has caught HR too", got)
+		t.Errorf("the back office sees %d verifications, want 3, the narrowing has caught HR too", got)
 	}
 }
 

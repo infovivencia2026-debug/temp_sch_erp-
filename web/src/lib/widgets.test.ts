@@ -104,7 +104,7 @@ export function assert(cond: boolean, what: string): void {
 export function assertEqual<T>(actual: T, expected: T, what: string): void {
   assert(
     JSON.stringify(actual) === JSON.stringify(expected),
-    `${what} — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    `${what}, expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
   )
 }
 

@@ -100,14 +100,14 @@ func (s *Server) saveStudentGuardian(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == errGuardianDuplicate {
 		httpx.BadRequest(w, r,
-			"another parent at this school already has that name and number — "+
+			"another parent at this school already has that name and number · "+
 				"add the existing one to this child instead of entering them twice")
 		return
 	}
 	if err == errGuardianPhoneTaken {
 		httpx.BadRequest(w, r,
 			"that phone number or email is already the sign-in of another account "+
-				"at this school — the parent it belongs to has to be corrected first")
+				"at this school, the parent it belongs to has to be corrected first")
 		return
 	}
 	if err != nil {
@@ -148,7 +148,7 @@ func (s *Server) upsertGuardianForStudent(r *http.Request, id *httpx.Identity, t
 	   cannot reach, on the record that exists to say who to reach. */
 	if phone == "" && email == "" {
 		return "", "", guardianInputError{
-			"give a phone number or an email — a parent with neither is one the school cannot contact"}
+			"give a phone number or an email, a parent with neither is one the school cannot contact"}
 	}
 
 	var guardianID string

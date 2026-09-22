@@ -105,7 +105,7 @@ export default function TallyConnector() {
           />
           <Stat
             label="Tally company"
-            value={c?.settings.company_name || '—'}
+            value={c?.settings.company_name || '-'}
             icon={Building2}
             hint="Vouchers import into this company and no other"
           />
@@ -227,7 +227,7 @@ function VoucherTypes({ types, erpTypes }: { types: TallyVoucherType[]; erpTypes
     <Card>
       <CardHeader
         title="Voucher types"
-        description="This ERP's voucher types against Tally's. Depreciation, opening and closing entries are Journals in Tally — it has no separate type for them."
+        description="This ERP's voucher types against Tally's. Depreciation, opening and closing entries are Journals in Tally, it has no separate type for them."
         action={
           <Button
             variant="secondary"
@@ -361,7 +361,7 @@ function LedgerMapping({ fy }: { fy: string }) {
             <tr key={a.id}>
               <Td className="tabular-nums text-muted-foreground">{a.code}</Td>
               <Td className="font-medium">{a.name}</Td>
-              <Td className="text-right tabular-nums">{a.vouchers || '—'}</Td>
+              <Td className="text-right tabular-nums">{a.vouchers || '-'}</Td>
               <Td>
                 <Input
                   value={value(a)}

@@ -138,14 +138,14 @@ export default function StudentCouncil() {
                       </span>
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{p.portfolio ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{p.portfolio ?? '-'}</Td>
                   <Td className="tabular-nums">{p.seats}</Td>
                   <Td className="tabular-nums">{p.filled}</Td>
                   <Td>
                     {p.vacancies > 0 ? (
                       <Badge tone="warning">{p.vacancies}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
@@ -176,7 +176,7 @@ export default function StudentCouncil() {
                     {m.class_name ? `${m.class_name}-${m.section}` : m.admission_no}
                   </Td>
                   <Td>{m.elected_on ? formatDate(m.elected_on) : formatDate(m.term_from)}</Td>
-                  <Td className="tabular-nums">{m.votes ?? '—'}</Td>
+                  <Td className="tabular-nums">{m.votes ?? '-'}</Td>
                   <Td>
                     <Badge tone={STATUS[m.status]}>{m.status}</Badge>
                   </Td>
@@ -370,7 +370,7 @@ function SeatMember({
               onChange={setPositionID}
               options={positions.map((p) => ({
                 value: p.id,
-                label: `${p.title} — ${p.vacancies} of ${p.seats} free`,
+                label: `${p.title} · ${p.vacancies} of ${p.seats} free`,
               }))}
               placeholder="Pick a post"
             />

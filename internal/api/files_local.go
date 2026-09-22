@@ -205,7 +205,7 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 			   installation and not their file, so they stop trying other files. */
 			httpx.Error(w, r, http.StatusServiceUnavailable, "storage_unwritable",
 				"the school's file storage cannot be written to. Nothing is wrong "+
-					"with your file — this needs whoever runs the server.")
+					"with your file, this needs whoever runs the server.")
 			httpx.LogError(r, err)
 			return
 		}

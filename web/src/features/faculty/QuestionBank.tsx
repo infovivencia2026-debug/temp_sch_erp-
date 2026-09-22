@@ -212,7 +212,7 @@ export default function QuestionBank() {
                   </Td>
                   <Td>{q.class_name}</Td>
                   <Td>{q.subject}</Td>
-                  <Td>{q.chapter ?? '—'}</Td>
+                  <Td>{q.chapter ?? '-'}</Td>
                   <Td>
                     {q.objective
                       ? <Badge tone="success">{label(QUESTION_KINDS, q.kind)}</Badge>
@@ -296,7 +296,7 @@ function Compose({ onDone }: { onDone: () => void }) {
     <Card>
       <CardHeader
         title="Add a question"
-        description="Tag it now — a question nobody can find is a question nobody reuses."
+        description="Tag it now, a question nobody can find is a question nobody reuses."
       />
       <div className="px-5 pb-5">
         <FormGrid>
@@ -344,7 +344,7 @@ function Compose({ onDone }: { onDone: () => void }) {
         {objective && (
           <div className="mt-4">
             <p className="mb-2 text-[13px] font-medium text-secondary-foreground">
-              Options — tick every correct one
+              Options, tick every correct one
             </p>
             <div className="grid gap-2">
               {options.map((o, i) => (
@@ -364,7 +364,7 @@ function Compose({ onDone }: { onDone: () => void }) {
             </div>
             {filled.length > 0 && !hasKey && (
               <p className="mt-2 text-[13px] text-destructive">
-                Tick the correct option — a question with no answer key can never be marked.
+                Tick the correct option, a question with no answer key can never be marked.
               </p>
             )}
           </div>
@@ -563,7 +563,7 @@ function GenerateFromLesson({ onDone }: { onDone: () => void }) {
         {rows.length > 0 && (
           <div className="mt-5">
             <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px] text-secondary-foreground">
-              AI-generated — review each question before saving. Extraction can be
+              AI-generated, review each question before saving. Extraction can be
               imperfect: fix the marks, correct the wording, or untick a bad one.
             </div>
             <div className="grid gap-3">

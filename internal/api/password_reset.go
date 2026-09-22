@@ -385,7 +385,7 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   told it had no delivery channel. Being vague about which of three
 		   causes it is beats being confidently wrong about one. The log now
 		   carries the specific reason for whoever can act on it. */
-		view.Notice = "We could not send a reset link — either this school has " +
+		view.Notice = "We could not send a reset link, either this school has " +
 			"no email or WhatsApp set up, or there is no address or mobile on " +
 			"the account. Please ask your school office to reset your password."
 	} else {

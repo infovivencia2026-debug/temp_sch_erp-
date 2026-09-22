@@ -51,7 +51,7 @@ export default function Recharge({ credit, name }: { credit: CreditBalance; name
         <div className="px-5 pb-5">
           <p className="text-[13px] text-muted-foreground">
             {open.messages.toLocaleString('en-IN')} messages requested. You will see the
-            balance change here as soon as it is granted — nothing else is needed from you,
+            balance change here as soon as it is granted, nothing else is needed from you,
             and messages queued in the meantime go out rather than being lost.
           </p>
           <div className="mt-3">
@@ -75,7 +75,7 @@ export default function Recharge({ credit, name }: { credit: CreditBalance; name
         <p className="text-[13px] text-muted-foreground">
           {credit.empty ? (
             <>
-              {name} has stopped. Messages are being held rather than thrown away — ask for
+              {name} has stopped. Messages are being held rather than thrown away, ask for
               more and everything queued goes out.
             </>
           ) : (
@@ -115,7 +115,7 @@ export default function Recharge({ credit, name }: { credit: CreditBalance; name
             {lastSettled.status === 'granted'
               ? `${(lastSettled.granted ?? 0).toLocaleString('en-IN')} granted`
               : lastSettled.status}
-            {lastSettled.response ? ` — ${lastSettled.response}` : ''}
+            {lastSettled.response ? ` · ${lastSettled.response}` : ''}
           </p>
         )}
       </div>

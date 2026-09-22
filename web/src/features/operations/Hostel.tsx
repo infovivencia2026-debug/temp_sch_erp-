@@ -197,7 +197,7 @@ export default function Hostel() {
                   <Td className="tabular-nums">{b.bed_no}</Td>
                   <Td className="font-medium">{b.name}</Td>
                   <Td className="font-mono text-[12px]">{b.admission_no}</Td>
-                  <Td className="text-muted-foreground">{b.class_name || '—'}</Td>
+                  <Td className="text-muted-foreground">{b.class_name || '-'}</Td>
                   <Td className="text-muted-foreground">{formatDate(b.allocated_on)}</Td>
                 </tr>
               ))}

@@ -150,7 +150,7 @@ export default function StaffAttendance() {
                   <tr key={r.user_id}>
                     <Td className="font-mono text-[12px]">{r.employee_code}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
-                    <Td className="tabular-nums text-muted-foreground">{r.check_in ?? '—'}</Td>
+                    <Td className="tabular-nums text-muted-foreground">{r.check_in ?? '-'}</Td>
                     <Td>
                       <div className="flex items-center gap-1">
                         {MARKS.map((m) => {
@@ -160,7 +160,7 @@ export default function StaffAttendance() {
                               key={m.value}
                               type="button"
                               aria-pressed={on}
-                              aria-label={`${m.label} — ${r.full_name}`}
+                              aria-label={`${m.label} · ${r.full_name}`}
                               title={m.label}
                               disabled={!mayMark}
                               onClick={() =>

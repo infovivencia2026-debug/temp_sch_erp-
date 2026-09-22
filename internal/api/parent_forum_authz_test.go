@@ -78,7 +78,7 @@ func TestParentForumNarrowsEveryParentReadToTheirOwnSections(t *testing.T) {
 		"FROM enrollments e\n\t\t\t WHERE e.student_id = ANY($1) AND e.status = 'active'",
 	} {
 		if !strings.Contains(src, want) {
-			t.Errorf("the scope predicate %q is gone from parent_forum.go — "+
+			t.Errorf("the scope predicate %q is gone from parent_forum.go · "+
 				"without it a parent reads every class's board", want)
 		}
 	}
@@ -100,7 +100,7 @@ func TestParentForumIntersectsAClientSuppliedSection(t *testing.T) {
 	src := parentForumSource(t)
 	if !strings.Contains(src, "if err != nil || !inSections(sections, want)") {
 		t.Error("listParentForumThreads no longer intersects ?section_id= against " +
-			"the caller's own boards — a parent can now name another class")
+			"the caller's own boards, a parent can now name another class")
 	}
 	if !strings.Contains(src, "} else if !inSections(sections, section) {") {
 		t.Error("getParentForumThread no longer re-checks the thread's section " +
@@ -132,7 +132,7 @@ func TestParentForumUsesTheRightChildResolver(t *testing.T) {
 	} {
 		body := functionBody(src, write)
 		if !strings.Contains(body, "s.portalChild(r, req.StudentID)") {
-			t.Errorf("%s does not resolve its child through portalChild — a parent of "+
+			t.Errorf("%s does not resolve its child through portalChild, a parent of "+
 				"three naming nobody must be refused, not guessed at", write)
 		}
 	}
@@ -166,7 +166,7 @@ func TestParentForumRefusesModerationToAParent(t *testing.T) {
 
 	for _, tc := range parentForumModerationRoutes {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a parent must not moderate the forum",
+			t.Errorf("%s %s: got %d, want 403, a parent must not moderate the forum",
 				tc.method, tc.path, got)
 		}
 	}
@@ -185,13 +185,13 @@ func TestParentForumConversionNeedsBothRungs(t *testing.T) {
 
 	moderatorOnly := mountedParentForum(identityWith(rbac.SelfProfileRead, rbac.AnnouncementsWrite))
 	if got := statusOf(t, moderatorOnly, http.MethodPost, path); got != http.StatusForbidden {
-		t.Errorf("convert with only comms.announcements.write: got %d, want 403 — "+
+		t.Errorf("convert with only comms.announcements.write: got %d, want 403 · "+
 			"filing into the grievance queue is the front desk's authority", got)
 	}
 
 	deskOnly := mountedParentForum(identityWith(rbac.SelfProfileRead, rbac.FrontDeskWrite))
 	if got := statusOf(t, deskOnly, http.MethodPost, path); got != http.StatusForbidden {
-		t.Errorf("convert with only office.front_desk.write: got %d, want 403 — "+
+		t.Errorf("convert with only office.front_desk.write: got %d, want 403 · "+
 			"taking a thread off a class board is the moderator's authority", got)
 	}
 
@@ -225,11 +225,11 @@ func TestParentForumLetsAParentReachTheScopeCheck(t *testing.T) {
 	} {
 		got := statusOf(t, h, tc.method, tc.path)
 		if got == http.StatusForbidden {
-			t.Errorf("%s %s: 403 — a parent's own screen must reach the scope check, "+
+			t.Errorf("%s %s: 403, a parent's own screen must reach the scope check, "+
 				"not be refused at the door", tc.method, tc.path)
 		}
 		if got == http.StatusNotFound || got == http.StatusMethodNotAllowed {
-			t.Errorf("%s %s: %d — the route is not mounted", tc.method, tc.path, got)
+			t.Errorf("%s %s: %d, the route is not mounted", tc.method, tc.path, got)
 		}
 	}
 }
@@ -263,7 +263,7 @@ func TestParentForumLogsEveryTakedown(t *testing.T) {
 	// The reason is required for the verbs that take words off a board.
 	for _, verb := range []string{`"reject": true`, `"remove": true`, `"lock": true`} {
 		if !strings.Contains(src, verb) {
-			t.Errorf("pfNeedsReason no longer requires a reason for %s — "+
+			t.Errorf("pfNeedsReason no longer requires a reason for %s · "+
 				"a takedown with no reason is one nobody is prepared to defend", verb)
 		}
 	}
@@ -286,7 +286,7 @@ func TestParentForumReportDoesNotHideAnything(t *testing.T) {
 		"UPDATE parent_forum_posts",
 	} {
 		if strings.Contains(body, forbidden) {
-			t.Errorf("reportParentForumContent now runs %q — a report that hides its "+
+			t.Errorf("reportParentForumContent now runs %q, a report that hides its "+
 				"target is a heckler's veto handed to every parent on the board", forbidden)
 		}
 	}
@@ -316,7 +316,7 @@ func TestParentForumConversionFilesInTheParentsName(t *testing.T) {
 	// The last argument of insertFeedbackUpdate here is the author id; the one
 	// before it is visible_to_parent, which must be true.
 	if !strings.Contains(body, `"note", req.Note, nil, true, id.UserID`) {
-		t.Error("the conversion's timeline entry is no longer visible to the parent — " +
+		t.Error("the conversion's timeline entry is no longer visible to the parent · " +
 			"they would be told nothing about where their words went")
 	}
 	if !strings.Contains(body, "subject_employee_id") {

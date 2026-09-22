@@ -182,7 +182,7 @@ export default function BoardLOC() {
       <PageHead
         eyebrow="Boards & accreditation"
         title="Board exam List of Candidates"
-        description="Build the LOC from the board roll, see exactly who would be rejected and why, then file it. A filed list is frozen — what went to the board stays readable however the roll is corrected afterwards."
+        description="Build the LOC from the board roll, see exactly who would be rejected and why, then file it. A filed list is frozen, what went to the board stays readable however the roll is corrected afterwards."
         width="wide"
         actions={
           current && d ? (
@@ -223,19 +223,19 @@ export default function BoardLOC() {
                       <tr key={s.id} className={s.id === current ? 'bg-accent/40' : undefined}>
                         <Td className="font-medium">{s.title}</Td>
                         <Td>{s.board}</Td>
-                        <Td>{s.stage?.replace(/_/g, ' ') ?? '—'}</Td>
+                        <Td>{s.stage?.replace(/_/g, ' ') ?? '-'}</Td>
                         <Td className="tabular-nums">{s.candidate_count}</Td>
                         <Td className="tabular-nums">
                           {s.blocker_count ? (
                             <span className="text-destructive">{s.blocker_count}</span>
                           ) : (
-                            '—'
+                            '-'
                           )}
                         </Td>
                         <Td>
                           <Badge tone={STATUS_TONE[s.status] ?? 'neutral'}>{s.status}</Badge>
                         </Td>
-                        <Td>{s.filed_at ? formatDate(s.filed_at) : '—'}</Td>
+                        <Td>{s.filed_at ? formatDate(s.filed_at) : '-'}</Td>
                         <Td>
                           <Button
                             size="sm"
@@ -300,7 +300,7 @@ export default function BoardLOC() {
                         </div>
                         <div className="text-muted-foreground">
                           This is what the board holds. Correcting a candidate now changes the
-                          roll, not this list — raise an amendment with the board instead.
+                          roll, not this list, raise an amendment with the board instead.
                         </div>
                       </div>
                     </div>
@@ -336,14 +336,14 @@ export default function BoardLOC() {
                     <Table head={['Candidate', 'Admission no.', 'Severity', 'Field', 'What the board will do']}>
                       {d.issues.map((i, n) => (
                         <tr key={`${i.admission_no}-${i.code}-${n}`}>
-                          <Td className="font-medium">{i.candidate_name ?? '—'}</Td>
-                          <Td className="font-mono text-[12px]">{i.admission_no ?? '—'}</Td>
+                          <Td className="font-medium">{i.candidate_name ?? '-'}</Td>
+                          <Td className="font-mono text-[12px]">{i.admission_no ?? '-'}</Td>
                           <Td>
                             <Badge tone={i.severity === 'blocker' ? 'danger' : 'warning'}>
                               {i.severity}
                             </Badge>
                           </Td>
-                          <Td className="font-mono text-[12px]">{i.field ?? '—'}</Td>
+                          <Td className="font-mono text-[12px]">{i.field ?? '-'}</Td>
                           <Td className="max-w-lg text-[13px]">{i.message}</Td>
                         </tr>
                       ))}
@@ -375,14 +375,14 @@ export default function BoardLOC() {
                     {shown.map((c) => (
                       <tr key={c.id}>
                         <Td className="tabular-nums">{c.serial_no}</Td>
-                        <Td className="font-medium">{c.candidate_name ?? '—'}</Td>
-                        <Td className="font-mono text-[12px]">{c.admission_no ?? '—'}</Td>
-                        <Td>{c.class_label ?? '—'}</Td>
-                        <Td>{c.date_of_birth ? formatDate(c.date_of_birth) : '—'}</Td>
-                        <Td>{c.father_name ?? '—'}</Td>
-                        <Td>{c.group_code ?? '—'}</Td>
+                        <Td className="font-medium">{c.candidate_name ?? '-'}</Td>
+                        <Td className="font-mono text-[12px]">{c.admission_no ?? '-'}</Td>
+                        <Td>{c.class_label ?? '-'}</Td>
+                        <Td>{c.date_of_birth ? formatDate(c.date_of_birth) : '-'}</Td>
+                        <Td>{c.father_name ?? '-'}</Td>
+                        <Td>{c.group_code ?? '-'}</Td>
                         <Td className="max-w-xs text-[13px]">
-                          {c.subjects.length ? c.subjects.join(', ') : '—'}
+                          {c.subjects.length ? c.subjects.join(', ') : '-'}
                         </Td>
                         <Td className="tabular-nums">{rupees(c.fee_paid_paise)}</Td>
                         <Td>{c.has_photo ? 'Yes' : <span className="text-destructive">No</span>}</Td>
@@ -411,7 +411,7 @@ export default function BoardLOC() {
                           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                           <span>
                             {blockers.length} blocker(s) outstanding. Filing anyway is refused
-                            unless you override — a rejected LOC comes back without telling you
+                            unless you override, a rejected LOC comes back without telling you
                             which rows failed.
                           </span>
                         </div>

@@ -147,7 +147,7 @@ func (s *Server) runYearRollover(w http.ResponseWriter, r *http.Request, req rol
 	}
 	targetID, err := uuid.Parse(strings.TrimSpace(req.TargetYearID))
 	if err != nil {
-		httpx.BadRequest(w, r, "target_year_id must be a uuid — create the new year first, then roll into it")
+		httpx.BadRequest(w, r, "target_year_id must be a uuid, create the new year first, then roll into it")
 		return
 	}
 	if targetID == sourceID {

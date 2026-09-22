@@ -417,7 +417,7 @@ func sweepSMSGatewayLeases(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error
 	rows, err := tx.Query(ctx, `
 		UPDATE sms_gateway_dispatch
 		   SET state = 'expired', completed_at = now(), updated_at = now(),
-		       error = 'claimed by a phone that never confirmed it, and not re-sent — it may already have gone out'
+		       error = 'claimed by a phone that never confirmed it, and not re-sent, it may already have gone out'
 		 WHERE institution_id = $1
 		   AND state = 'dispatching'
 		   AND lease_expires_at < now()
@@ -443,7 +443,7 @@ func sweepSMSGatewayLeases(ctx context.Context, tx pgx.Tx, inst uuid.UUID) error
 		if _, err := tx.Exec(ctx, `
 			UPDATE message_log
 			   SET status = 'failed',
-			       error  = 'the office phone claimed this message and never confirmed it. It was not sent again, because it may already have gone out — check with the recipient before re-sending.'
+			       error  = 'the office phone claimed this message and never confirmed it. It was not sent again, because it may already have gone out, check with the recipient before re-sending.'
 			 WHERE institution_id = $1 AND id = ANY($2) AND status <> 'failed'`,
 			inst, abandoned); err != nil {
 			return err

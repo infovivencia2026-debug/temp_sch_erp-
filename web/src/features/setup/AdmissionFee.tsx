@@ -136,7 +136,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
     <div className="rounded-lg border bg-muted/20 p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[13px] font-medium">
-          {q.structure} — {formatPaise(q.total_paise)} for the year
+          {q.structure} · {formatPaise(q.total_paise)} for the year
         </p>
         <p className="text-[12px] text-muted-foreground">
           {q.instalments} instalment{q.instalments === 1 ? '' : 's'}
@@ -245,7 +245,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
               <span className="text-[12.5px] text-success">
                 {raise.data.created > 0
                   ? 'Raised. It is on the family’s fees page now.'
-                  : 'Already raised for this instalment — nothing to do.'}
+                  : 'Already raised for this instalment, nothing to do.'}
               </span>
             )}
             {raise.isError && (

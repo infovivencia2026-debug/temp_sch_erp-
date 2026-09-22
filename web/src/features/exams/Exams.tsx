@@ -64,7 +64,7 @@ export default function Exams() {
       }),
     onSuccess: (r) => {
       setDone(
-        `${r.papers_added} papers created — one for every subject each class studies. ` +
+        `${r.papers_added} papers created, one for every subject each class studies. ` +
           'Marks entry, question paper approval and report cards can run now.',
       )
       qc.invalidateQueries({ queryKey: ['exams-list'] })
@@ -82,7 +82,7 @@ export default function Exams() {
       <PageHead
         eyebrow="Examinations"
         title="Exams & papers"
-        description="Every exam the school has scheduled, and how many papers it holds. Nothing downstream — marks, moderation, hall tickets, report cards — can run until an exam has papers."
+        description="Every exam the school has scheduled, and how many papers it holds. Nothing downstream, marks, moderation, hall tickets, report cards, can run until an exam has papers."
       />
       <PageBody>
         {/* Open when there are none, because then it is the only thing to do
@@ -134,7 +134,7 @@ export default function Exams() {
                   <Td className="font-medium">{e.name}</Td>
                   <Td>{e.kind}</Td>
                   <Td className="text-muted-foreground">
-                    {e.starts_on ? formatDate(e.starts_on) : '—'}
+                    {e.starts_on ? formatDate(e.starts_on) : '-'}
                   </Td>
                   <Td>
                     {e.papers > 0 ? (
@@ -142,11 +142,11 @@ export default function Exams() {
                     ) : (
                       /* Said as the consequence, not as a zero. A zero in this
                          column is the reason five other screens are empty. */
-                      <Badge tone="warning">none — nothing can be marked</Badge>
+                      <Badge tone="warning">none, nothing can be marked</Badge>
                     )}
                   </Td>
                   <Td>
-                    {e.is_published ? <Badge tone="success">published</Badge> : '—'}
+                    {e.is_published ? <Badge tone="success">published</Badge> : '-'}
                   </Td>
                   <Td>
                     <Button
@@ -179,13 +179,13 @@ export default function Exams() {
    papers stops all four, and looks like four broken screens rather than one
    unfinished exam. */
 const CCE = [
-  { value: 'FA1', label: 'FA1 — formative, 20 marks' },
-  { value: 'FA2', label: 'FA2 — formative, 20 marks' },
-  { value: 'FA3', label: 'FA3 — formative, 20 marks' },
-  { value: 'FA4', label: 'FA4 — formative, 20 marks' },
-  { value: 'SA1', label: 'SA1 — summative, 80 marks' },
-  { value: 'SA2', label: 'SA2 — summative, 80 marks' },
-  { value: 'SA3', label: 'SA3 — summative, 80 marks' },
+  { value: 'FA1', label: 'FA1, formative, 20 marks' },
+  { value: 'FA2', label: 'FA2, formative, 20 marks' },
+  { value: 'FA3', label: 'FA3, formative, 20 marks' },
+  { value: 'FA4', label: 'FA4, formative, 20 marks' },
+  { value: 'SA1', label: 'SA1, summative, 80 marks' },
+  { value: 'SA2', label: 'SA2, summative, 80 marks' },
+  { value: 'SA3', label: 'SA3, summative, 80 marks' },
 ]
 
 interface Klass { id: string; name: string }
@@ -224,7 +224,7 @@ function ScheduleExam({
     <Card>
       <CardHeader
         title="Schedule an exam"
-        description="Choosing a CCE component sets what it is out of. A paper is created for every subject each selected class studies — without papers, marks entry, moderation, hall tickets and report cards all have nothing to work on."
+        description="Choosing a CCE component sets what it is out of. A paper is created for every subject each selected class studies, without papers, marks entry, moderation, hall tickets and report cards all have nothing to work on."
       />
       <form
         className="px-5 pb-5"

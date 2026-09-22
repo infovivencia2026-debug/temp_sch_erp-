@@ -68,7 +68,7 @@ export default function ReportAbsence() {
       api.post('/api/v1/portal/absence', {
         student_id: studentId,
         on_date: onDate || undefined,
-        reason: reason === 'Other' ? detail : detail ? `${reason} — ${detail}` : reason,
+        reason: reason === 'Other' ? detail : detail ? `${reason} · ${detail}` : reason,
       }),
     onSuccess: () => {
       setDetail('')

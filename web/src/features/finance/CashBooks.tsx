@@ -97,7 +97,7 @@ export default function CashBooks() {
         {(c?.accounts ?? []).map((a) => (
           <Card key={a.account_id}>
             <CardHeader
-              title={`${a.code} — ${a.name}`}
+              title={`${a.code} · ${a.name}`}
               description={`Opening ${rupees(a.opening_paise)}, received ${rupees(a.in_paise)}, paid ${rupees(a.out_paise)}.`}
               action={
                 <Badge tone={a.closing_paise < 0 ? 'danger' : 'success'}>
@@ -164,7 +164,7 @@ export default function CashBooks() {
                   <Td>{v.narration}</Td>
                   <Td className="text-[13px] text-muted-foreground">{v.accounts}</Td>
                   <Td className="text-right tabular-nums">{rupees(v.amount_paise)}</Td>
-                  <Td className="text-muted-foreground">{v.posted_by ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{v.posted_by ?? '-'}</Td>
                 </tr>
               ))}
               <tr className="font-medium">
@@ -185,7 +185,7 @@ export default function CashBooks() {
             The closing balance a school signs at the end of the day belongs to a
             particular drawer. A single merged total cannot be counted against
             anything, so each cash and bank account carries its own opening,
-            movement and closing figure — and the sum of them is shown above
+            movement and closing figure, and the sum of them is shown above
             only as a summary.
           </div>
         </Card>

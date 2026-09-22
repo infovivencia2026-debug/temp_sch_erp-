@@ -152,14 +152,14 @@ export default function PortalResults() {
           <CellGrid cols={4}>
             <Stat
               label={t('portal.results.stat_latest')}
-              value={latest.percentage != null ? `${latest.percentage.toFixed(1)}%` : '—'}
+              value={latest.percentage != null ? `${latest.percentage.toFixed(1)}%` : '-'}
               icon={GraduationCap}
               hint={[latest.exam, latest.term].filter(Boolean).join(' · ')}
             />
-            <Stat label={t('portal.results.stat_grade')} value={latest.grade ?? '—'} icon={Award} />
+            <Stat label={t('portal.results.stat_grade')} value={latest.grade ?? '-'} icon={Award} />
             <Stat
               label={t('portal.results.stat_rank')}
-              value={latest.rank_in_section ?? '—'}
+              value={latest.rank_in_section ?? '-'}
               hint={
                 latest.gpa != null
                   ? t('portal.results.gpa', { value: latest.gpa.toFixed(1) })
@@ -168,7 +168,7 @@ export default function PortalResults() {
             />
             <Stat
               label={t('portal.results.stat_attendance')}
-              value={latest.attendance_percent != null ? `${Math.round(latest.attendance_percent)}%` : '—'}
+              value={latest.attendance_percent != null ? `${Math.round(latest.attendance_percent)}%` : '-'}
               hint={t('portal.results.stat_attendance_hint')}
             />
           </CellGrid>
@@ -208,13 +208,13 @@ export default function PortalResults() {
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    {c.total_marks != null ? `${c.total_marks} / ${c.max_marks ?? '—'}` : '—'}
+                    {c.total_marks != null ? `${c.total_marks} / ${c.max_marks ?? '-'}` : '-'}
                   </Td>
                   <Td className="tabular-nums">
-                    {c.percentage != null ? `${c.percentage.toFixed(1)}%` : '—'}
+                    {c.percentage != null ? `${c.percentage.toFixed(1)}%` : '-'}
                   </Td>
-                  <Td>{c.grade ? <Badge tone="primary">{c.grade}</Badge> : '—'}</Td>
-                  <Td className="tabular-nums">{c.rank_in_section ?? '—'}</Td>
+                  <Td>{c.grade ? <Badge tone="primary">{c.grade}</Badge> : '-'}</Td>
+                  <Td className="tabular-nums">{c.rank_in_section ?? '-'}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.published_at)}</Td>
                   <Td>
                     {/* The document with the crest on it, not this table.
@@ -265,10 +265,10 @@ export default function PortalResults() {
                 <tr key={i}>
                   <Td className="font-medium">{m.subject}</Td>
                   <Td className="tabular-nums">
-                    {m.is_absent ? <Badge tone="danger">{t('portal.results.absent')}</Badge> : (m.marks_obtained ?? '—')}
+                    {m.is_absent ? <Badge tone="danger">{t('portal.results.absent')}</Badge> : (m.marks_obtained ?? '-')}
                   </Td>
-                  <Td className="tabular-nums">{m.max_marks ?? '—'}</Td>
-                  <Td>{m.grade ?? '—'}</Td>
+                  <Td className="tabular-nums">{m.max_marks ?? '-'}</Td>
+                  <Td>{m.grade ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

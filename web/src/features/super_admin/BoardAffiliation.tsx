@@ -123,7 +123,7 @@ export default function BoardAffiliation() {
                 <Input type="date" value={validValue} onChange={setValidTo} />
               </Field>
               <Field label="UDISE code" hint="Set on the school profile; shown here for reference.">
-                <Input value={data.udise_code ?? '—'} onChange={() => {}} />
+                <Input value={data.udise_code ?? '-'} onChange={() => {}} />
               </Field>
             </FormGrid>
             <div className="mt-4">
@@ -143,7 +143,7 @@ export default function BoardAffiliation() {
           <Table
             head={['Document', 'Reference', 'Authority', 'Issued', 'Expires', 'Published at', '']}
             empty={!data.documents.length}
-            emptyLabel="Nothing recorded yet. Add the affiliation certificate first — it is the one an inspector asks for."
+            emptyLabel="Nothing recorded yet. Add the affiliation certificate first, it is the one an inspector asks for."
           >
             {data.documents.map((d) => {
               const days = d.days_to_expiry
@@ -156,9 +156,9 @@ export default function BoardAffiliation() {
                       {d.campus ? ` · ${d.campus}` : ''}
                     </span>
                   </Td>
-                  <Td>{d.reference_no ?? '—'}</Td>
-                  <Td>{d.issuing_authority ?? '—'}</Td>
-                  <Td>{d.issued_on ?? '—'}</Td>
+                  <Td>{d.reference_no ?? '-'}</Td>
+                  <Td>{d.issuing_authority ?? '-'}</Td>
+                  <Td>{d.issued_on ?? '-'}</Td>
                   <Td>
                     {days == null ? (
                       <Badge tone="neutral">Does not expire</Badge>

@@ -77,7 +77,7 @@ export const te: Partial<Messages> = {
   // software, so it stays one: పోర్టల్ is what the school's own circulars
   // call it.
   'portal.documents.card_description':
-    'లేని పత్రాలు ఏవైనా ఉంటే ఆఫీసుకు ఇవ్వాలి — పోర్టల్ ద్వారా ఇంకా అప్‌లోడ్ చేయలేరు.',
+    'లేని పత్రాలు ఏవైనా ఉంటే ఆఫీసుకు ఇవ్వాలి, పోర్టల్ ద్వారా ఇంకా అప్‌లోడ్ చేయలేరు.',
   'portal.documents.col_document': 'పత్రం',
   'portal.documents.col_child': 'పిల్లలు',
   'portal.documents.col_given_on': 'ఇచ్చిన తేదీ',
@@ -95,7 +95,7 @@ export const te: Partial<Messages> = {
   'portal.reminders.eyebrow': 'గుర్తుచేతలు',
   'portal.reminders.title': 'మీరు చేయవలసినవి',
   'portal.reminders.description':
-    'ఇవ్వని ఇంటిపని, కట్టని ఫీజు, చూశామని చెప్పని నోటీసులు — ఇంకా ఏదో ఒకటి చేయవలసిన వాటిని మాత్రమే ఇక్కడ చూపుతాం.',
+    'ఇవ్వని ఇంటిపని, కట్టని ఫీజు, చూశామని చెప్పని నోటీసులు, ఇంకా ఏదో ఒకటి చేయవలసిన వాటిని మాత్రమే ఇక్కడ చూపుతాం.',
   'portal.reminders.empty_title': 'పెండింగ్‌లో ఏమీ లేదు',
   'portal.reminders.empty_body':
     'స్కూల్ మిమ్మల్ని అడిగినవన్నీ పూర్తయ్యాయి. ఏదైనా చేయవలసి వచ్చే వరకు ఈ జాబితా ఖాళీగానే ఉంటుంది.',
@@ -124,7 +124,7 @@ export const te: Partial<Messages> = {
   'portal.parent_id_card.guardian_of_many': '{count} మంది పిల్లల సంరక్షకులు',
   'portal.parent_id_card.pass_number': 'పాస్ నంబర్ {serial}',
   'portal.parent_id_card.gate_note':
-    'గేటు దగ్గర పాస్ నంబర్, కోడ్ చదివి చెప్పండి. స్క్రీన్‌షాట్ ఎక్కువసేపు పనిచేయదు — కోడ్ మారుతూ ఉంటుంది, అందుకే దాన్ని ఇతరులకు పంపడం కుదరదు.',
+    'గేటు దగ్గర పాస్ నంబర్, కోడ్ చదివి చెప్పండి. స్క్రీన్‌షాట్ ఎక్కువసేపు పనిచేయదు, కోడ్ మారుతూ ఉంటుంది, అందుకే దాన్ని ఇతరులకు పంపడం కుదరదు.',
 
   // --- portal / Portal.tsx ----------------------------------------------
   // The screen a parent lands on, so it carries the most weight.
@@ -317,7 +317,7 @@ export const te: Partial<Messages> = {
     'మీ ఖాతా ఇంకా ఏ విద్యార్థికీ జతచేయలేదు. జతచేయమని స్కూల్ ఆఫీసును అడగండి.',
   'portal.results.none_title': 'ఇంకా ఫలితాలు విడుదల కాలేదు',
   'portal.results.none_body':
-    'మీ స్కూల్ ఇంకా ఏ ఫలితాలూ విడుదల చేయలేదు. చేసిన వెంటనే ఇక్కడ కనిపిస్తాయి — తాత్కాలికమైనవి ఏవీ చూపము.',
+    'మీ స్కూల్ ఇంకా ఏ ఫలితాలూ విడుదల చేయలేదు. చేసిన వెంటనే ఇక్కడ కనిపిస్తాయి, తాత్కాలికమైనవి ఏవీ చూపము.',
   'portal.results.published_title': 'విడుదలైన ఫలితాలు',
   'portal.results.published_description': '{name} కోసం స్కూల్ విడుదల చేసిన ప్రోగ్రెస్ కార్డులు.',
   'portal.results.stat_latest': 'చివరిది',
@@ -373,7 +373,7 @@ export const te: Partial<Messages> = {
   'portal.alerts.loading': 'మీ అలర్ట్‌లు చూస్తున్నాం…',
   'portal.alerts.eyebrow': 'హోమ్',
   'portal.alerts.title': 'అలర్ట్‌లు',
-  'portal.alerts.description': 'సర్క్యులర్లు, గైర్హాజరులు, ఫీజు, ఇంటిపని — జరిగిన వరుసలో.',
+  'portal.alerts.description': 'సర్క్యులర్లు, గైర్హాజరులు, ఫీజు, ఇంటిపని, జరిగిన వరుసలో.',
   'portal.alerts.action_mark_all_read': 'అన్నీ చదివినట్టు గుర్తించు',
   'portal.alerts.stat_unread': 'చదవనివి',
   'portal.alerts.stat_fee_alerts': 'ఫీజు అలర్ట్‌లు',
@@ -400,7 +400,7 @@ export const te: Partial<Messages> = {
   'portal.pickup.eyebrow': 'అనుమతి',
   'portal.pickup.title': 'వేరే వారు తీసుకెళ్లడం',
   'portal.pickup.description':
-    'మీ పిల్లలను స్కూల్ ఎవరికి అప్పగించవచ్చో ఆ వ్యక్తి పేరు — ఒకసారికి, ఒక రోజుకు.',
+    'మీ పిల్లలను స్కూల్ ఎవరికి అప్పగించవచ్చో ఆ వ్యక్తి పేరు, ఒకసారికి, ఒక రోజుకు.',
   'portal.pickup.stat_in_force': 'అమల్లో ఉన్న పాస్‌లు',
   'portal.pickup.stat_used': 'వాడినవి',
   'portal.pickup.stat_cancelled': 'రద్దు చేసినవి',
@@ -569,7 +569,7 @@ export const te: Partial<Messages> = {
   'portal.requests.signed_copy': 'సంతకం చేసిన కాపీ ఫైల్‌లో ఉంది',
   'portal.requests.docs_title': 'స్కూల్ దగ్గర ఉన్న పత్రాలు',
   'portal.requests.docs_description':
-    '{count} ఫైల్‌లో ఉన్నాయి, {unchecked} ఇంకా పరిశీలించవలసి ఉంది. లేని పత్రాలు ఏవైనా ఉంటే ఆఫీసుకు ఇవ్వాలి — పోర్టల్ ద్వారా ఇంకా అప్‌లోడ్ చేయలేరు.',
+    '{count} ఫైల్‌లో ఉన్నాయి, {unchecked} ఇంకా పరిశీలించవలసి ఉంది. లేని పత్రాలు ఏవైనా ఉంటే ఆఫీసుకు ఇవ్వాలి, పోర్టల్ ద్వారా ఇంకా అప్‌లోడ్ చేయలేరు.',
   'portal.requests.docs_description_empty':
     'ఇంకా ఫైల్‌లో ఏమీ లేవు. ఆఫీసుకు ఇచ్చిన పత్రాలు ఇక్కడ కనిపిస్తాయి.',
   'portal.requests.docs_col_document': 'పత్రం',
@@ -609,7 +609,7 @@ export const te: Partial<Messages> = {
   'portal.leave_requests.withdraw_question': 'ఈ దరఖాస్తు స్కూల్‌కు ఇక కనిపించదు.',
   'portal.leave_requests.form_title': 'సెలవు కోసం అడగండి',
   'portal.leave_requests.form_description':
-    'క్లాస్ టీచర్ నిర్ణయిస్తారు. కారణం చెప్పండి — కారణం లేని దరఖాస్తు సాధారణంగా తిరిగి వస్తుంది.',
+    'క్లాస్ టీచర్ నిర్ణయిస్తారు. కారణం చెప్పండి, కారణం లేని దరఖాస్తు సాధారణంగా తిరిగి వస్తుంది.',
   'portal.leave_requests.field_child': 'పిల్లలు',
   'portal.leave_requests.choose_child': 'పిల్లలను ఎంచుకోండి',
   'portal.leave_requests.field_first_day': 'సెలవు మొదటి రోజు',
@@ -618,7 +618,7 @@ export const te: Partial<Messages> = {
   'portal.leave_requests.field_half_day': 'అర్ధ రోజు',
   'portal.leave_requests.half_day_label': 'సగం రోజు మాత్రమే',
   'portal.leave_requests.half_day_hint':
-    'అర్ధ రోజు కూడా ఒక రోజే — స్కూల్ దాన్ని 0.5గా లెక్కిస్తుంది.',
+    'అర్ధ రోజు కూడా ఒక రోజే, స్కూల్ దాన్ని 0.5గా లెక్కిస్తుంది.',
   'portal.leave_requests.field_reason': 'కారణం',
   // reason_placeholder names Warangal and is left to fall back to English: a
   // place name is not translated.
@@ -711,7 +711,7 @@ export const te: Partial<Messages> = {
   'portal.iep_goals.plan_external_support': 'స్కూల్ వెలుపల',
   'portal.iep_goals.goals_title': 'లక్ష్యాలు',
   'portal.iep_goals.goals_description':
-    'మీ పిల్లలు ఎక్కడ మొదలుపెట్టారో, ప్రణాళిక ఎక్కడికి చేరాలనుకుంటుందో — వాటి మధ్య చివరిగా కొలిచినది ప్రతి బార్.',
+    'మీ పిల్లలు ఎక్కడ మొదలుపెట్టారో, ప్రణాళిక ఎక్కడికి చేరాలనుకుంటుందో, వాటి మధ్య చివరిగా కొలిచినది ప్రతి బార్.',
   'portal.iep_goals.no_goals_title': 'ఇంకా లక్ష్యాలు లేవు',
   'portal.iep_goals.no_goals_body':
     'ప్రణాళిక ఉంది కానీ దానికి కొలవగల లక్ష్యాలు ఏవీ రాయలేదు.',
@@ -720,12 +720,12 @@ export const te: Partial<Messages> = {
   'portal.iep_goals.now': 'ఇప్పుడు {value}',
   'portal.iep_goals.target': 'లక్ష్యం {value}',
   'portal.iep_goals.progress_of_the_way': '{percent}% పూర్తి',
-  'portal.iep_goals.lower_is_better': ' — ఈ లక్ష్యానికి తక్కువ సంఖ్య మంచిది',
+  'portal.iep_goals.lower_is_better': ', ఈ లక్ష్యానికి తక్కువ సంఖ్య మంచిది',
   'portal.iep_goals.recorded_in_words':
-    'సంఖ్యల్లో కాకుండా మాటల్లో నమోదు చేశారు — కింది గమనికలు చూడండి.',
+    'సంఖ్యల్లో కాకుండా మాటల్లో నమోదు చేశారు, కింది గమనికలు చూడండి.',
   'portal.iep_goals.not_measured': 'ఇంకా కొలవలేదు.',
   'portal.iep_goals.footnote':
-    'కొన్ని లక్ష్యాలు నమోదై ఇక్కడ కనిపించకపోవచ్చు — వైద్య సిఫారసు నుంచి రాసిన లక్ష్యాన్ని స్కూల్ చూపకపోవచ్చు. మీరు ఆశించినది ఏదైనా కనిపించకపోతే క్లాస్ టీచర్‌ను అడగండి.',
+    'కొన్ని లక్ష్యాలు నమోదై ఇక్కడ కనిపించకపోవచ్చు, వైద్య సిఫారసు నుంచి రాసిన లక్ష్యాన్ని స్కూల్ చూపకపోవచ్చు. మీరు ఆశించినది ఏదైనా కనిపించకపోతే క్లాస్ టీచర్‌ను అడగండి.',
 
   // --- portal / EventPasses.tsx -----------------------------------------
   'portal.event_passes.loading': 'మీ పాస్‌లు చూస్తున్నాం…',
@@ -798,7 +798,7 @@ export const te: Partial<Messages> = {
   'portal.concerns.action_send': 'పంపండి',
   'portal.concerns.raise_ok': 'ఫిర్యాదు చేశారు. ఆఫీసు ఇప్పుడు దీన్ని చూడగలదు.',
   'portal.concerns.list_title': 'మీ ఫిర్యాదులు',
-  'portal.concerns.list_description': 'మీవి మాత్రమే — కుటుంబంలో వేరెవరైనా చేసినవి కాదు.',
+  'portal.concerns.list_description': 'మీవి మాత్రమే, కుటుంబంలో వేరెవరైనా చేసినవి కాదు.',
   'portal.concerns.empty_title': 'ఏమీ చేయలేదు',
   'portal.concerns.empty_body':
     'మీరు ఏదైనా ఫిర్యాదు చేస్తే, స్కూల్ సమాధానంతో పాటు ఇక్కడే ఉంటుంది.',
@@ -818,7 +818,7 @@ export const te: Partial<Messages> = {
   'portal.teacher_messages.field_teacher': 'ఉపాధ్యాయులు',
   'portal.teacher_messages.teacher_placeholder': 'ఉపాధ్యాయులను ఎంచుకోండి',
   'portal.teacher_messages.teacher_placeholder_none': 'ఇంకా ఉపాధ్యాయుల జాబితా లేదు',
-  'portal.teacher_messages.option_class_teacher': '{name} — క్లాస్ టీచర్',
+  'portal.teacher_messages.option_class_teacher': '{name}, క్లాస్ టీచర్',
   'portal.teacher_messages.option_unread': ' · {count} చదవనివి',
   'portal.teacher_messages.empty_child_title': 'పిల్లలను ఎంచుకోండి',
   'portal.teacher_messages.empty_child_body': 'వారి ఉపాధ్యాయులు ఇక్కడ కనిపిస్తారు.',
@@ -826,7 +826,7 @@ export const te: Partial<Messages> = {
   'portal.teacher_messages.empty_teachers_body':
     'మీ పిల్లల తరగతికి టైమ్‌టేబుల్ పెట్టాక, వారి ఉపాధ్యాయులు ఇక్కడ కనిపిస్తారు.',
   'portal.teacher_messages.thread_title': 'సంభాషణ',
-  'portal.teacher_messages.thread_class_teacher': 'క్లాస్ టీచర్ — రోజంతా తెలిసిన వ్యక్తి.',
+  'portal.teacher_messages.thread_class_teacher': 'క్లాస్ టీచర్, రోజంతా తెలిసిన వ్యక్తి.',
   'portal.teacher_messages.thread_teaches': '{subject} బోధిస్తారు.',
   'portal.teacher_messages.thread_loading': 'సంభాషణ తెరుస్తున్నాం…',
   'portal.teacher_messages.empty_thread_title': 'ఇంకా ఏమీ చెప్పలేదు',
@@ -848,7 +848,7 @@ export const te: Partial<Messages> = {
   'portal.forum.eyebrow': 'సందేశాలు',
   'portal.forum.title': 'తరగతి తల్లిదండ్రుల ఫోరం',
   'portal.forum.description':
-    'ఒక తరగతి తల్లిదండ్రుల మధ్య సమన్వయం కోసం — విహారయాత్ర, కార్యక్రమం, ఎవరు తీసుకెళ్తారు.',
+    'ఒక తరగతి తల్లిదండ్రుల మధ్య సమన్వయం కోసం, విహారయాత్ర, కార్యక్రమం, ఎవరు తీసుకెళ్తారు.',
   'portal.forum.stat_threads': 'థ్రెడ్‌లు',
   'portal.forum.stat_mine': 'మీరు మొదలుపెట్టినవి',
   'portal.forum.stat_class': 'తరగతి',
@@ -904,7 +904,7 @@ export const te: Partial<Messages> = {
     'స్కూల్ దీన్ని ఫిర్యాదుల జాబితాలోకి మార్చింది, అక్కడ ఇది ట్రాక్ అవుతుంది, సమాధానం వస్తుంది. ఫిర్యాదుల కింద దీన్ని అనుసరించవచ్చు.',
   'portal.forum.taken_down': 'తొలగించారు: {reason}',
   'portal.forum.report_explainer':
-    'సిబ్బంది చదవవలసినది ఏదైనా ఉంటే ఫిర్యాదు చేయండి. ఫిర్యాదు చేస్తే అది దాగదు — ఒక వ్యక్తి నిర్ణయిస్తారు.',
+    'సిబ్బంది చదవవలసినది ఏదైనా ఉంటే ఫిర్యాదు చేయండి. ఫిర్యాదు చేస్తే అది దాగదు, ఒక వ్యక్తి నిర్ణయిస్తారు.',
   'portal.forum.report_label': 'దీనిలో ఏం తప్పు ఉంది',
   'portal.forum.report_placeholder': 'దీనిలో ఏం తప్పు ఉంది',
   'portal.forum.report_confirm': 'ఫిర్యాదు చేయండి',
@@ -958,7 +958,7 @@ export const te: Partial<Messages> = {
   'bento.parent_week.no_link': 'ఈ ఖాతాకు ఇంకా విద్యార్థి రికార్డు జతచేయలేదు.',
   'bento.parent_week.switcher_sr': 'ఈ డాష్‌బోర్డు ఏ పిల్లవాడి గురించి',
   'bento.parent_week.switch_child': 'పిల్లవాడిని మార్చు',
-  'bento.parent_week.one_of_many': '{name} · {form} — మీ {count} మంది పిల్లల్లో ఒకరు',
+  'bento.parent_week.one_of_many': '{name} · {form}, మీ {count} మంది పిల్లల్లో ఒకరు',
   'bento.parent_week.week_label': 'ఈ సంవత్సరం హాజరు',
   'bento.parent_week.week_cue': 'పూర్తి హాజరు రికార్డు',
   'bento.parent_week.week_note': 'గుర్తించిన {total} రోజుల్లో {name} {present} రోజులు హాజరు',
@@ -998,8 +998,8 @@ export const te: Partial<Messages> = {
   'portal.fresh.updating': 'అప్‌డేట్ అవుతోంది…',
   'portal.fresh.just_now': 'ఇప్పుడే అప్‌డేట్ అయింది',
   'portal.fresh.ago': '{ago} అప్‌డేట్ అయింది',
-  'portal.fresh.offline': 'కనెక్షన్ లేదు — {ago} మనం చూసినది చూపుతోంది',
-  'portal.fresh.failed': 'రిఫ్రెష్ చేయలేకపోయాం — {ago} మనం చూసినది చూపుతోంది',
+  'portal.fresh.offline': 'కనెక్షన్ లేదు · {ago} మనం చూసినది చూపుతోంది',
+  'portal.fresh.failed': 'రిఫ్రెష్ చేయలేకపోయాం · {ago} మనం చూసినది చూపుతోంది',
   'portal.fresh.retry': 'మళ్లీ ప్రయత్నించండి',
   'portal.fresh.seconds': '{n} సెకన్ల క్రితం',
   'portal.fresh.minutes': '{n} నిమి. క్రితం',
@@ -1217,7 +1217,7 @@ export const te: Partial<Messages> = {
   'bento.principal.attention_clear_note': 'మీ అనుమతులు కవర్ చేసేది మాత్రమే లెక్కించబడుతుంది, కాబట్టి ఇది “ఏమీ నివేదించలేదు”, ధృవీకరించిన ఆల్-క్లియర్ కాదు.',
   'bento.principal.attention_no_level': 'స్థాయి లేదు',
   'bento.principal.attention_failed': 'bento.principal.attention_loadingతనిఖీ చేస్తోంది…',
-  'bento.principal.attention_pending': '—',
+  'bento.principal.attention_pending': '-',
   'bento.principal.sev_critical': 'క్రిటికల్',
   'bento.principal.sev_warning': 'హెచ్చరిక',
   'bento.principal.sev_info': 'సమాచారం కోసం',
@@ -1262,7 +1262,7 @@ export const te: Partial<Messages> = {
   'bento.principal.attn_cue_marks': 'ఫలితాలు',
   'bento.principal.attn_cue_students': 'విద్యార్థులు',
   'bento.principal.source_failed': 'bento.principal.source_loadingచదువుతోంది…',
-  'bento.principal.source_pending': '—',
+  'bento.principal.source_pending': '-',
   'bento.principal.setup': 'సెటప్ చెక్‌లిస్ట్',
   'bento.principal.cover_all_covered': 'ప్రతి పీరియడ్ కవర్ అయింది.',
   'bento.principal.cover_away': '{count} దూరంగా',

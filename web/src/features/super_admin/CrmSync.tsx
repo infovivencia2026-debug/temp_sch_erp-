@@ -242,7 +242,7 @@ export default function CrmSync() {
         <Card>
           <CardHeader
             title="Which field is which"
-            description="Nothing is guessed. LeadSquared calls a custom field mx_Class_Sought in one account and mx_ClassApplied in the next, and a mapping filled in automatically would write plausible data into the wrong field in a real CRM — which nobody notices until a counsellor rings the wrong number."
+            description="Nothing is guessed. LeadSquared calls a custom field mx_Class_Sought in one account and mx_ClassApplied in the next, and a mapping filled in automatically would write plausible data into the wrong field in a real CRM, which nobody notices until a counsellor rings the wrong number."
             action={<Badge tone={c.mapped_fields ? 'success' : 'warning'}>{systemName}</Badge>}
           />
           {/* A Table goes as a sibling of the padded body, never inside it: a
@@ -318,7 +318,7 @@ export default function CrmSync() {
                   <Td>{q.student_name}</Td>
                   <Td>{q.phone}</Td>
                   <Td>{q.status}</Td>
-                  <Td>{q.external_id || '—'}</Td>
+                  <Td>{q.external_id || '-'}</Td>
                   <Td>
                     <Badge tone={actionTone(q.action)}>{actionLabel(q.action)}</Badge>
                   </Td>
@@ -396,7 +396,7 @@ export default function CrmSync() {
                 <tr key={k.id}>
                   <Td>{k.student_name}</Td>
                   <Td>{k.our_status}</Td>
-                  <Td>{k.their_status ?? '—'}</Td>
+                  <Td>{k.their_status ?? '-'}</Td>
                   <Td>{whenRead(k.conflict_at)}</Td>
                   <Td>
                     <div className="flex gap-2">
@@ -453,7 +453,7 @@ export default function CrmSync() {
                         {run.conflict_count + run.failed_count}
                       </Badge>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
                 </tr>
@@ -465,7 +465,7 @@ export default function CrmSync() {
         <Card>
           <CardHeader
             title="The CRM's API key"
-            description="Recorded for the day an account exists. Stored encrypted, never shown again, and out of reach of the school's own administrator — a key that can read and write every lead in the admissions pipeline is the vendor's to hold."
+            description="Recorded for the day an account exists. Stored encrypted, never shown again, and out of reach of the school's own administrator, a key that can read and write every lead in the admissions pipeline is the vendor's to hold."
             action={<Badge tone="warning">Not used today</Badge>}
           />
           {creds.error ? (
@@ -482,7 +482,7 @@ export default function CrmSync() {
                 {(creds.data?.items ?? []).map((k) => (
                   <tr key={k.provider}>
                     <Td>{k.provider}</Td>
-                    <Td>{k.base_url || '—'}</Td>
+                    <Td>{k.base_url || '-'}</Td>
                     <Td>
                       <Badge tone={k.has_credentials ? 'success' : 'neutral'}>
                         {k.has_credentials ? 'Stored' : 'None'}

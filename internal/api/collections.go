@@ -436,7 +436,7 @@ tillSessionSQL is the one query every session view is built from.
 */
 const tillSessionSQL = `
 	SELECT ts.id::text, ts.terminal_id::text, t.name, t.kind,
-	       COALESCE(uo.full_name, '—'),
+	       COALESCE(uo.full_name, '-'),
 	       to_char(ts.opened_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 	       ts.opening_float_paise, ts.status,
 	       uc.full_name,
@@ -788,7 +788,7 @@ func (s *Server) getTillVariance(w http.ResponseWriter, r *http.Request) {
 		// bare literal on one side is how a $n ends up deduced as integer here
 		// and bigint there, which Postgres reports as 42P08.
 		rows, e := tx.Query(r.Context(), `
-			SELECT ts.id::text, t.name, t.kind, COALESCE(u.full_name, '—'),
+			SELECT ts.id::text, t.name, t.kind, COALESCE(u.full_name, '-'),
 			       to_char(ts.closed_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       ts.expected_cash_paise, ts.counted_cash_paise, ts.variance_paise,
 			       ts.variance_reason

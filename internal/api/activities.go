@@ -113,7 +113,7 @@ func (s *Server) saveActivity(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Fee > 100000 {
 		httpx.BadRequest(w, r,
-			"that is over ₹1,00,000 for one activity — if it is right, raise it "+
+			"that is over ₹1,00,000 for one activity, if it is right, raise it "+
 				"as a fee head so it appears on the bill in its own right")
 		return
 	}
@@ -301,7 +301,7 @@ func (s *Server) enrolInActivity(w http.ResponseWriter, r *http.Request) {
 		// The family is told, because a charge nobody announced is a charge
 		// somebody rings the office about.
 		if charged > 0 {
-			body := name + " — ₹" + strconv.FormatFloat(float64(charged)/100, 'f', 2, 64) +
+			body := name + " · ₹" + strconv.FormatFloat(float64(charged)/100, 'f', 2, 64) +
 				", due in a fortnight. It is on your fees page and can be paid there."
 			people, err := tx.Query(r.Context(), `
 				SELECT g.user_id FROM student_guardians sg
@@ -340,7 +340,7 @@ func (s *Server) enrolInActivity(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, errActivityFull):
 		httpx.Error(w, r, http.StatusConflict, "activity_full",
-			"that activity is full — raise its capacity or put the child on the list")
+			"that activity is full, raise its capacity or put the child on the list")
 		return
 	case isUniqueViolation(err):
 		httpx.BadRequest(w, r, "this child is already enrolled in that activity")

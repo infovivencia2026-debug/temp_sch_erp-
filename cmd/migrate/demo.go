@@ -96,7 +96,7 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 					              /* The name is refreshed too, and it was not.
 					                 An earlier seeder wrote the role KEY into
 					                 full_name, so every demo account was called
-					                 "Demo institution_admin" — and because the
+					                 "Demo institution_admin", and because the
 					                 upsert only touched the password, re-seeding
 					                 could never correct it. The name is shown to
 					                 users on staff records and in the account
@@ -117,7 +117,7 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 					              /* The name is refreshed too, and it was not.
 					                 An earlier seeder wrote the role KEY into
 					                 full_name, so every demo account was called
-					                 "Demo institution_admin" — and because the
+					                 "Demo institution_admin", and because the
 					                 upsert only touched the password, re-seeding
 					                 could never correct it. The name is shown to
 					                 users on staff records and in the account
@@ -147,7 +147,7 @@ func seedDemoUsers(ctx context.Context, db *database.DB, pepper, password, insti
 						"role", role.Key)
 					continue
 				}
-				return fmt.Errorf("role %s missing — run seed first: %w", role.Key, err)
+				return fmt.Errorf("role %s missing, run seed first: %w", role.Key, err)
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO user_roles (institution_id, user_id, role_id)
@@ -219,7 +219,7 @@ func pickInstitution(ctx context.Context, tx pgx.Tx, want string) (uuid.UUID, er
 	default:
 		// Refusing beats picking one: seeding demo data into the wrong school
 		// of two with the same name is not something anybody notices quickly.
-		return id, fmt.Errorf("%d institutions are named %q — pass the uuid instead",
+		return id, fmt.Errorf("%d institutions are named %q, pass the uuid instead",
 			len(found), want)
 	}
 }

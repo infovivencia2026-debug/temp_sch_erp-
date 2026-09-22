@@ -154,7 +154,7 @@ export default function Outcomes() {
             label="Not measured"
             value={s?.not_measured ?? 0}
             icon={HelpCircle}
-            hint="No paper mapped — not the same as nought"
+            hint="No paper mapped, not the same as nought"
           />
           <Stat label="Programme outcomes" value={pos.length} />
         </CellGrid>
@@ -195,10 +195,10 @@ export default function Outcomes() {
                   <Td>
                     {r.class_name} · {r.subject}
                   </Td>
-                  <Td className="tabular-nums">{r.papers || '—'}</Td>
-                  <Td className="tabular-nums">{r.students_assessed || '—'}</Td>
+                  <Td className="tabular-nums">{r.papers || '-'}</Td>
+                  <Td className="tabular-nums">{r.students_assessed || '-'}</Td>
                   <Td className="tabular-nums">
-                    {r.students_assessed ? r.students_cleared : '—'}
+                    {r.students_assessed ? r.students_cleared : '-'}
                   </Td>
                   <Td>
                     {r.students_assessed === 0 ? (
@@ -227,7 +227,7 @@ export default function Outcomes() {
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
-                    {r.mapped_to.length ? r.mapped_to.join(', ') : '—'}
+                    {r.mapped_to.length ? r.mapped_to.join(', ') : '-'}
                   </Td>
                 </tr>
               ))}
@@ -239,7 +239,7 @@ export default function Outcomes() {
           <Card>
             <CardHeader
               title="Programme outcomes"
-              description="The strength-weighted mean of the course outcomes mapped to each — the figure an accreditation form asks for."
+              description="The strength-weighted mean of the course outcomes mapped to each, the figure an accreditation form asks for."
             />
             <Table head={['Code', 'Statement', 'Course outcomes', 'Attainment']}>
               {(attain.data?.programme ?? []).map((p) => (
@@ -352,14 +352,14 @@ function Mapping({
         {coID && (
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {programmeOutcomes.map((p) => (
-              <Field key={p.id} label={`${p.code} — ${p.statement}`}>
+              <Field key={p.id} label={`${p.code} · ${p.statement}`}>
                 <Select
                   value={strengths[p.id] ?? ''}
                   onChange={(v) => setStrengths((s) => ({ ...s, [p.id]: v }))}
                   options={[
-                    { value: '1', label: '1 — slight' },
-                    { value: '2', label: '2 — moderate' },
-                    { value: '3', label: '3 — substantial' },
+                    { value: '1', label: '1, slight' },
+                    { value: '2', label: '2, moderate' },
+                    { value: '3', label: '3, substantial' },
                   ]}
                   placeholder="Not mapped"
                 />

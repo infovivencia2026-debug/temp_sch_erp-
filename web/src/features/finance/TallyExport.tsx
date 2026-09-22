@@ -143,18 +143,18 @@ export default function TallyExport() {
         <CellGrid cols={3}>
           <Stat
             label="Vouchers in this period"
-            value={v ? String(v.voucher_count) : '—'}
+            value={v ? String(v.voucher_count) : '-'}
             icon={Download}
             hint={includeExported ? 'Including ones exported before' : 'New since the last export'}
           />
           <Stat
             label="Value"
-            value={v ? inr(v.total_paise) : '—'}
+            value={v ? inr(v.total_paise) : '-'}
             hint="Debit total, which is what the batch is worth"
           />
           <Stat
             label="Already exported"
-            value={v ? String(v.already_exported) : '—'}
+            value={v ? String(v.already_exported) : '-'}
             icon={History}
             delta={
               v && v.already_exported > 0
@@ -243,7 +243,7 @@ export default function TallyExport() {
             ))}
             {v.overlapping_runs.length > 0 && (
               <p className="text-sm text-muted-foreground">
-                This range overlaps {v.overlapping_runs.length} earlier export(s) — the most recent
+                This range overlaps {v.overlapping_runs.length} earlier export(s), the most recent
                 was {formatDate(v.overlapping_runs[0].exported_at)}, covering{' '}
                 {formatDate(v.overlapping_runs[0].from_date)} to{' '}
                 {formatDate(v.overlapping_runs[0].to_date)}.

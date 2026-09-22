@@ -268,7 +268,7 @@ export default function Behaviour() {
                     {[n.visible_to_student && 'the child', n.parent_notified && 'parents']
                       .filter(Boolean).join(', ') || 'staff only'}
                   </Td>
-                  <Td className="text-muted-foreground">{n.recorded_by ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{n.recorded_by ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

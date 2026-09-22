@@ -76,7 +76,7 @@ export default function SetupProgress() {
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-4 py-3 text-[13px]">
         <span className="font-medium">Your school is running.</span>
         <span className="text-muted-foreground">
-          {optional} optional {optional === 1 ? 'step' : 'steps'} left —{' '}
+          {optional} optional {optional === 1 ? 'step' : 'steps'} left · {' '}
           {outstanding.slice(0, 3).map((s) => s.label.toLowerCase()).join(', ')}
           {optional > 3 ? ' and more' : ''}.
         </span>
@@ -99,7 +99,7 @@ export default function SetupProgress() {
         title="Finish setting up your school"
         description={
           `${data.blocking_remaining} required ${data.blocking_remaining === 1 ? 'step' : 'steps'} left. ` +
-          'The rest of the menu appears once these are done — attendance with nobody ' +
+          'The rest of the menu appears once these are done, attendance with nobody ' +
           'to mark and report cards with no exam would each be correct and, together, ' +
           'would read as a product that does not work.'
         }

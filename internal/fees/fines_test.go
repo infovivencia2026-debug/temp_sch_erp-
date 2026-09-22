@@ -44,7 +44,7 @@ func TestGraceBoundaryIsExclusiveAtExactlyNDays(t *testing.T) {
 		s, asOf := dueBy(tc.overdue, 5000000)
 		got := AssessFine(s, rule, asOf)
 		if got.AmountPaise != tc.want {
-			t.Errorf("%d days overdue (%s): got %d paise, want %d — %s",
+			t.Errorf("%d days overdue (%s): got %d paise, want %d, %s",
 				tc.overdue, tc.why, got.AmountPaise, tc.want, got.Reason)
 		}
 	}
@@ -293,7 +293,7 @@ func TestMostSpecificRuleWinsAndOnlyOneApplies(t *testing.T) {
 	elsewhere := FineRule{ID: uuid.New(), Name: "Other campus", Kind: "fixed", AmountPaise: 900, CampusID: &other}
 	got, _ = BestRuleFor(s, []FineRule{catchAll, elsewhere})
 	if got.Name != "Everything" {
-		t.Errorf("got %q, want the catch-all — the other campus must not match", got.Name)
+		t.Errorf("got %q, want the catch-all, the other campus must not match", got.Name)
 	}
 }
 
@@ -322,7 +322,7 @@ func TestReapplyingChargesOnlyTheIncrement(t *testing.T) {
 		t.Errorf("total owed: got %d, want 40000", second.AmountPaise)
 	}
 	if second.DeltaPaise != 10000 {
-		t.Errorf("increment: got %d, want 10000 — the rest is already charged", second.DeltaPaise)
+		t.Errorf("increment: got %d, want 10000, the rest is already charged", second.DeltaPaise)
 	}
 
 	// Running it twice on the same day must propose nothing further.
@@ -360,7 +360,7 @@ func TestOverdueDaysIgnoreTheTimeOfDay(t *testing.T) {
 	due := time.Date(2026, time.August, 1, 23, 55, 0, 0, time.UTC)
 	asOf := time.Date(2026, time.August, 31, 0, 5, 0, 0, time.UTC)
 	if got := daysBetween(due, asOf); got != 30 {
-		t.Errorf("got %d days, want 30 — the clock time must not count", got)
+		t.Errorf("got %d days, want 30, the clock time must not count", got)
 	}
 }
 

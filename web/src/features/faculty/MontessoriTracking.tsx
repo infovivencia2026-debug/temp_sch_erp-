@@ -101,7 +101,7 @@ export default function MontessoriTracking() {
       <PageHead
         eyebrow="My classes"
         title="Montessori & early years tracking"
-        description="Where each child stands in the sequence — presented, practising, mastered."
+        description="Where each child stands in the sequence, presented, practising, mastered."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -242,7 +242,7 @@ export default function MontessoriTracking() {
                         : labelOf(MONTESSORI_STAGES, p.current_stage)}
                     </Badge>
                   </Td>
-                  <Td>{p.last_seen_on ?? '—'}</Td>
+                  <Td>{p.last_seen_on ?? '-'}</Td>
                   <Td>{p.history.length}</Td>
                 </tr>
               ))}

@@ -757,12 +757,12 @@ export default function StudentProfile() {
                         </span>
                       ) : null}
                     </Td>
-                    <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
+                    <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '-'}</Td>
                     <Td className="font-mono text-[12px]">{s.admission_no}</Td>
                     <Td className="text-muted-foreground">
-                      {s.date_of_birth ? formatDate(s.date_of_birth) : '—'}
+                      {s.date_of_birth ? formatDate(s.date_of_birth) : '-'}
                     </Td>
-                    <Td className="text-muted-foreground">{s.primary_phone ?? '—'}</Td>
+                    <Td className="text-muted-foreground">{s.primary_phone ?? '-'}</Td>
                     <Td><Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge></Td>
                     <Td><Button size="sm" onClick={() => setSelected(s.id)}>Open</Button></Td>
                   </tr>
@@ -898,7 +898,7 @@ export default function StudentProfile() {
         }
         description={
           issued.password
-            ? 'Shown once and not stored anywhere. Copy it now — if it is lost, reset it again rather than looking this one up.'
+            ? 'Shown once and not stored anywhere. Copy it now, if it is lost, reset it again rather than looking this one up.'
             : issued.note
         }
       />
@@ -911,7 +911,7 @@ export default function StudentProfile() {
             k="Sent"
             v={issued.sent_to?.length
               ? `Also sent by ${issued.sent_to.join(', ')}`
-              : 'Not sent — no message channel is set up, so this screen is the only copy'}
+              : 'Not sent, no message channel is set up, so this screen is the only copy'}
           />
         )}
       </dl>
@@ -948,7 +948,7 @@ export default function StudentProfile() {
             <Card className="lg:col-span-2">
               <CardHeader
                 title="Edit details"
-                description="Everything the school holds about this child. Blank is allowed — a field nobody has filled in yet is better than a guess."
+                description="Everything the school holds about this child. Blank is allowed, a field nobody has filled in yet is better than a guess."
               />
               <div className="p-4">
                 {record.isLoading ? <Loading /> : record.error ? (
@@ -1023,7 +1023,7 @@ export default function StudentProfile() {
                 p.status === 'active'
                   ? 'On the roll and being taught.'
                   : p.status === 'suspended'
-                    ? 'Still enrolled and still holding a seat — the fees, the register and the class list are unchanged.'
+                    ? 'Still enrolled and still holding a seat, the fees, the register and the class list are unchanged.'
                     : 'Off the roll. The record is kept in full: marks, attendance, fees and documents are all still here.'
               }
               action={
@@ -1096,7 +1096,7 @@ export default function StudentProfile() {
             <Card className="border-danger lg:col-span-2">
               <CardHeader
                 title="This child is suspended"
-                description="They are still enrolled and still on the roll — the seat, the fees and the register are unchanged. Lift the suspension when they return."
+                description="They are still enrolled and still on the roll, the seat, the fees and the register are unchanged. Lift the suspension when they return."
               />
             </Card>
           )}
@@ -1105,7 +1105,7 @@ export default function StudentProfile() {
               <CardHeader
                 title="This child has left the school"
                 description={
-                  'Their record is kept in full — marks, attendance, fees and documents. '
+                  'Their record is kept in full, marks, attendance, fees and documents. '
                   + 'They are off the roll and out of the class lists.'
                 }
               />
@@ -1134,14 +1134,14 @@ export default function StudentProfile() {
             <Card className="lg:col-span-2 border-destructive">
               <CardHeader
                 title={`Delete ${p.full_name} permanently`}
-                description="The record and everything attached to it — enrolment, guardians, attendance, transport — is erased. This is not the same as a child leaving, and it cannot be undone."
+                description="The record and everything attached to it, enrolment, guardians, attendance, transport, is erased. This is not the same as a child leaving, and it cannot be undone."
               />
               <div className="space-y-3 p-4">
                 <p className="text-[14px] text-muted-foreground">
                   If this child was ever on the roll, use{' '}
                   <strong>Record that they have left</strong> instead: a school has to be able
                   to answer questions about a pupil who has gone. Deleting is for a record that
-                  was never a child — a duplicate, or an entry somebody made while learning the
+                  was never a child, a duplicate, or an entry somebody made while learning the
                   screen.
                 </p>
                 <div>
@@ -1360,7 +1360,7 @@ export default function StudentProfile() {
                     .map(([k, v]) => (
                       <div key={k} className="border-b border-r px-4 py-3">
                         <p className="eyebrow text-muted-foreground">{k.slice(8)}</p>
-                        <p className="mt-0.5 text-[14px]">{v || '—'}</p>
+                        <p className="mt-0.5 text-[14px]">{v || '-'}</p>
                       </div>
                     ))}
                 </div>
@@ -1446,10 +1446,10 @@ export default function StudentProfile() {
             emptyLabel="Nothing published yet.">
             {p.results.map((x, i) => (
               <tr key={i}>
-                <Td className="font-medium">{x.exam || '—'}</Td>
-                <Td>{x.percentage ? `${x.percentage}%` : '—'}</Td>
-                <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '—'}</Td>
-                <Td>{x.rank || '—'}</Td>
+                <Td className="font-medium">{x.exam || '-'}</Td>
+                <Td>{x.percentage ? `${x.percentage}%` : '-'}</Td>
+                <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '-'}</Td>
+                <Td>{x.rank || '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -1501,7 +1501,7 @@ export default function StudentProfile() {
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {p.recent_attendance.map((d) => (
-                    <span key={d.date} title={`${d.date} — ${d.status}`}
+                    <span key={d.date} title={`${d.date} · ${d.status}`}
                       className={cn('h-4 w-4 rounded-sm', DOT[d.status] ?? 'bg-muted')} />
                   ))}
                 </div>
@@ -1625,20 +1625,20 @@ export default function StudentProfile() {
             {p.transport.map((t, i) => (
               <tr key={`${t.route}-${t.from}-${i}`}>
                 <Td>{t.route}</Td>
-                <Td className="font-mono text-[12px]">{t.vehicle || '—'}</Td>
+                <Td className="font-mono text-[12px]">{t.vehicle || '-'}</Td>
                 <Td>
-                  {t.pickup_stop || '—'}
+                  {t.pickup_stop || '-'}
                   {t.pickup_time && (
                     <span className="text-muted-foreground"> · {t.pickup_time}</span>
                   )}
                 </Td>
                 <Td>
-                  {t.drop_stop || '—'}
+                  {t.drop_stop || '-'}
                   {t.drop_time && <span className="text-muted-foreground"> · {t.drop_time}</span>}
                 </Td>
                 <Td className="text-muted-foreground">
                   {formatDate(t.from)}
-                  {t.to ? ` — ${formatDate(t.to)}` : ''}
+                  {t.to ? ` · ${formatDate(t.to)}` : ''}
                 </Td>
               </tr>
             ))}
@@ -1769,20 +1769,20 @@ export default function StudentProfile() {
           >
             {(detail.data?.enrolment_history ?? []).map((e, i) => (
               <tr key={`${e.year}-${e.from}-${i}`}>
-                <Td>{e.year || '—'}</Td>
-                <Td>{[e.class, e.section].filter(Boolean).join('-') || '—'}</Td>
-                <Td className="tabular-nums">{e.roll_no ?? '—'}</Td>
+                <Td>{e.year || '-'}</Td>
+                <Td>{[e.class, e.section].filter(Boolean).join('-') || '-'}</Td>
+                <Td className="tabular-nums">{e.roll_no ?? '-'}</Td>
                 <Td className="text-muted-foreground">{formatDate(e.from)}</Td>
                 {/* A mid-year section change closes a row on a day; the
                     rows a year end closes carry no day, and say so. */}
-                <Td className="text-muted-foreground">{e.to ? formatDate(e.to) : '—'}</Td>
+                <Td className="text-muted-foreground">{e.to ? formatDate(e.to) : '-'}</Td>
                 <Td>
                   <Badge tone={e.status === 'active' ? 'success' : e.status === 'detained' ? 'warning' : undefined}>
                     {e.status}
                   </Badge>
                 </Td>
                 <Td className="text-muted-foreground">
-                  {e.remarks || (e.promoted ? 'Promoted from the year before' : '—')}
+                  {e.remarks || (e.promoted ? 'Promoted from the year before' : '-')}
                 </Td>
               </tr>
             ))}
@@ -2317,7 +2317,7 @@ function StudentForm({
             named after its founders, local rivers, saints, colours or birds —
             there is no default that is not wrong somewhere. A school with no
             house system sees an empty dropdown and ignores it. */}
-        <FormField label="House" hint={houses.length ? undefined : 'No houses set up — Academics → Houses'}>
+        <FormField label="House" hint={houses.length ? undefined : 'No houses set up · Academics → Houses'}>
           <Select value={f.house_id} onChange={set('house_id')} placeholder="Not in a house"
             options={houses.map((h) => ({ value: h.id, label: h.name }))} />
         </FormField>
@@ -2332,7 +2332,7 @@ function StudentForm({
       <FormField label="Address">
         <Textarea value={f.address_line1} onChange={set('address_line1')} rows={2} />
       </FormField>
-      <FormField label="Address (second line)" hint="Landmark, area — optional">
+      <FormField label="Address (second line)" hint="Landmark, area, optional">
         <Input value={f.address_line2} onChange={set('address_line2')} />
       </FormField>
       <FormField label="Permanent address" hint="Only if it differs from the address above">
@@ -2656,7 +2656,7 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
             form does not mark is a field somebody leaves blank and is told
             about after pressing Save. */}
         <FormField label="Phone" required
-          hint="A phone number or an email — every alert the school sends goes to one of them">
+          hint="A phone number or an email, every alert the school sends goes to one of them">
           <Input value={f.phone} onChange={set('phone')} />
         </FormField>
         <FormField label="Email" required hint="Or a phone number above">
@@ -2746,7 +2746,7 @@ function RemarkForm({ saving, error, onSave, onCancel }: {
           </p>
         ) : (
           <Checkbox
-            label="Keep this between staff — do not show the family"
+            label="Keep this between staff, do not show the family"
             checked={priv}
             onChange={setPriv}
           />

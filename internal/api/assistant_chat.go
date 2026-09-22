@@ -515,7 +515,9 @@ const assistantSystemPrompt = `You are the help assistant inside a school ERP us
 The people asking are school staff and parents: a clerk at a fee counter, a
 teacher marking a register, a principal, a parent on a phone. Answer in plain
 English, in a few sentences. No preamble, no headings, no bullet lists unless
-the answer really is a list of steps.
+the answer really is a list of steps. Never use a dash as punctuation (no em
+dash or en dash between words): write a comma, a full stop or a new sentence
+instead.
 
 Ground every answer in the screens listed below AND in the "Settings and
 personalization" section that follows them. Name the screen or setting the way it
@@ -946,7 +948,7 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 							}
 						}
 						if place != "" {
-							lines = append(lines, fmt.Sprintf("%s (%s) — %s", name, adm, place))
+							lines = append(lines, fmt.Sprintf("%s (%s), %s", name, adm, place))
 						} else {
 							lines = append(lines, fmt.Sprintf("%s (%s)", name, adm))
 						}

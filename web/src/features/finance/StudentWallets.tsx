@@ -244,7 +244,7 @@ export default function StudentWallets() {
                   />
                   <div className="flex flex-col gap-3 p-5">
                     <Input value={delta} onChange={setDelta} type="number"
-                      placeholder="Amount in rupees — use a minus sign to reduce"
+                      placeholder="Amount in rupees, use a minus sign to reduce"
                       srLabel="Adjustment amount in rupees, negative to reduce" />
                     <Input value={reason} onChange={setReason}
                       placeholder="Why the balance is being changed (required)" srLabel="Reason" />
@@ -274,12 +274,12 @@ export default function StudentWallets() {
                       {t.delta_paise < 0 ? '−' : '+'}{formatPaise(Math.abs(t.delta_paise))}
                     </Td>
                     <Td className="text-muted-foreground">
-                      {[t.source_mode, t.reference_no].filter(Boolean).join(' · ') || '—'}
+                      {[t.source_mode, t.reference_no].filter(Boolean).join(' · ') || '-'}
                     </Td>
                     <Td className="max-w-[28ch]">
-                      <span className="block truncate" title={t.note ?? undefined}>{t.note || '—'}</span>
+                      <span className="block truncate" title={t.note ?? undefined}>{t.note || '-'}</span>
                     </Td>
-                    <Td className="text-muted-foreground">{t.recorded_by || '—'}</Td>
+                    <Td className="text-muted-foreground">{t.recorded_by || '-'}</Td>
                   </tr>
                 ))}
               </Table>

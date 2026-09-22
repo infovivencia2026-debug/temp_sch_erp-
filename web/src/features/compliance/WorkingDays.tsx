@@ -235,14 +235,14 @@ export default function WorkingDays() {
                 {r.classes.map((c) => (
                   <tr key={c.class_id ?? c.class_label}>
                     <Td className="font-medium">{c.class_label}</Td>
-                    <Td>{c.stage_label ?? '—'}</Td>
+                    <Td>{c.stage_label ?? '-'}</Td>
                     <Td className="tabular-nums">{c.working_days}</Td>
                     <Td className="tabular-nums text-muted-foreground">{c.required_days}</Td>
                     <Td className="tabular-nums">
                       {c.shortfall_days > 0 ? (
                         <Badge tone="danger">{c.shortfall_days} d</Badge>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </Td>
                     <Td className="tabular-nums">
@@ -251,13 +251,13 @@ export default function WorkingDays() {
                       )}
                     </Td>
                     <Td className="tabular-nums text-muted-foreground">
-                      {c.required_minutes ? hours(c.required_minutes) : '—'}
+                      {c.required_minutes ? hours(c.required_minutes) : '-'}
                     </Td>
                     <Td className="tabular-nums">
                       {c.shortfall_minutes > 0 ? (
                         <Badge tone="danger">{hours(c.shortfall_minutes)}</Badge>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </Td>
                   </tr>
@@ -293,7 +293,7 @@ export default function WorkingDays() {
                     <Input
                       value={adj.reason}
                       onChange={(v) => setAdj({ ...adj, reason: v })}
-                      placeholder="Bandh — school closed at noon"
+                      placeholder="Bandh, school closed at noon"
                     />
                   </Field>
                 </FormGrid>
@@ -314,16 +314,16 @@ export default function WorkingDays() {
               <Table
                 head={['Date', 'Class', 'Days', 'Minutes', 'Reason', 'Recorded by', '']}
                 empty={!adjustments.data?.items.length && !adjustments.error}
-                emptyLabel="No adjustments — the figures above are the calendar as planned."
+                emptyLabel="No adjustments, the figures above are the calendar as planned."
               >
                 {(adjustments.data?.items ?? []).map((a) => (
                   <tr key={a.id}>
                     <Td>{formatDate(a.on_date)}</Td>
                     <Td>{a.class_label ?? 'Whole school'}</Td>
-                    <Td className="tabular-nums">{a.days_delta || '—'}</Td>
-                    <Td className="tabular-nums">{a.minutes_delta || '—'}</Td>
+                    <Td className="tabular-nums">{a.days_delta || '-'}</Td>
+                    <Td className="tabular-nums">{a.minutes_delta || '-'}</Td>
                     <Td className="max-w-md text-[13px]">{a.reason}</Td>
-                    <Td>{a.created_by ?? '—'}</Td>
+                    <Td>{a.created_by ?? '-'}</Td>
                     <Td>
                       {mayAdjust && <ConfirmButton
                         size="sm"
@@ -360,7 +360,7 @@ export default function WorkingDays() {
                     </Td>
                     <Td className="tabular-nums">{n.min_days}</Td>
                     <Td className="tabular-nums">{n.min_hours}</Td>
-                    <Td className="text-[13px] text-muted-foreground">{n.authority ?? '—'}</Td>
+                    <Td className="text-[13px] text-muted-foreground">{n.authority ?? '-'}</Td>
                   </tr>
                 ))}
               </Table>
@@ -369,7 +369,7 @@ export default function WorkingDays() {
             <Card>
               <CardHeader
                 title="File the return"
-                description="Freezes today's figures line by line. A filed return is never recomputed — the shortfall as filed is a fact about the filing."
+                description="Freezes today's figures line by line. A filed return is never recomputed, the shortfall as filed is a fact about the filing."
               />
               <div className="space-y-3 px-5 pb-5">
                 <FormGrid>
@@ -398,9 +398,9 @@ export default function WorkingDays() {
                       {formatDate(t.period_from)} – {formatDate(t.period_to)}
                     </Td>
                     <Td className="tabular-nums">{t.working_days}</Td>
-                    <Td className="tabular-nums">{t.classes_short || '—'}</Td>
-                    <Td>{t.filed_at ? formatDate(t.filed_at) : '—'}</Td>
-                    <Td>{t.filed_by ?? '—'}</Td>
+                    <Td className="tabular-nums">{t.classes_short || '-'}</Td>
+                    <Td>{t.filed_at ? formatDate(t.filed_at) : '-'}</Td>
+                    <Td>{t.filed_by ?? '-'}</Td>
                   </tr>
                 ))}
               </Table>

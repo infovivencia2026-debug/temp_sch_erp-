@@ -171,9 +171,9 @@ function OverviewBody({ o }: { o: Overview }) {
           )}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-          <Stat label="Overall average" value={marks.has_marks ? `${marks.overall_avg_pct}%` : '—'} />
-          <Stat label="Pass rate" value={marks.has_marks ? `${marks.pass_rate_pct}%` : '—'} />
-          <Stat label="Distinctions" value={marks.has_marks ? `${marks.distinction_rate_pct}%` : '—'} />
+          <Stat label="Overall average" value={marks.has_marks ? `${marks.overall_avg_pct}%` : '-'} />
+          <Stat label="Pass rate" value={marks.has_marks ? `${marks.pass_rate_pct}%` : '-'} />
+          <Stat label="Distinctions" value={marks.has_marks ? `${marks.distinction_rate_pct}%` : '-'} />
         </div>
       </div>
 
@@ -313,7 +313,7 @@ export default function StaffRecord({ employeeID, onClose }: {
   const exportReport = useMutation({
     mutationFn: () => api.get<{ html: string; css?: string }>(
       `/api/v1/hr/employees/${employeeID}/overview/report`),
-    onSuccess: (v) => setReport({ ...v, name: `${d?.full_name ?? 'Staff'} — overview` }),
+    onSuccess: (v) => setReport({ ...v, name: `${d?.full_name ?? 'Staff'}, overview` }),
   })
 
   const detail = useQuery({
@@ -911,7 +911,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                             <Select
                               value={classSubjectID}
                               onChange={setClassSubjectID}
-                              placeholder={sectionID ? 'Choose a subject' : '—'}
+                              placeholder={sectionID ? 'Choose a subject' : '-'}
                               options={(subjects.data?.items ?? []).map((x) => ({
                                 value: x.id, label: x.subject_name,
                               }))}

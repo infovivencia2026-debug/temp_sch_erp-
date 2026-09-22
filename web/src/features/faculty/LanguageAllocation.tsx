@@ -186,7 +186,7 @@ export default function LanguageAllocation() {
                 <Td>{labelOf(LANGUAGE_SLOTS, o.slot)}</Td>
                 <Td>{o.display_name || o.subject_name}</Td>
                 <Td>{o.elected_count}</Td>
-                <Td>{o.capacity ?? '—'}</Td>
+                <Td>{o.capacity ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -214,12 +214,12 @@ export default function LanguageAllocation() {
                     <Td>{g.subject_name}</Td>
                     <Td>{g.elected}</Td>
                     <Td>{g.proposed}</Td>
-                    <Td>{g.sections.join(', ') || '—'}</Td>
+                    <Td>{g.sections.join(', ') || '-'}</Td>
                     <Td>
                       {g.over_capacity_by > 0 ? (
                         <Badge tone="warning">{g.over_capacity_by} over</Badge>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </Td>
                   </tr>
@@ -293,7 +293,7 @@ export default function LanguageAllocation() {
               <Table
                 head={['Child', 'Day', 'Period', 'Collides']}
                 empty={alloc.clashes.length === 0}
-                emptyLabel="No clashes — every child can attend both."
+                emptyLabel="No clashes, every child can attend both."
               >
                 {alloc.clashes.map((c, i) => (
                   <tr key={`${c.student_id}-${i}`}>

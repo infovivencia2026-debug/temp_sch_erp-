@@ -49,7 +49,7 @@ var exportable = map[string]exportSpec{
 	   query, one clause apart, because two queries would drift. */
 	"students_on_roll": {
 		title:  "Students on the roll",
-		about:  "The children here now — no leavers, no transfers. The file to work from.",
+		about:  "The children here now, no leavers, no transfers. The file to work from.",
 		perm:   "students.read",
 		header: []string{"Admission No", "Name", "Class", "Section", "Roll", "Gender", "Date of Birth", "Medium", "Guardian", "Phone", "Status"},
 		query: `SELECT st.admission_no,
@@ -207,7 +207,7 @@ var exportable = map[string]exportSpec{
 		         WHERE i.status IN ('unpaid','partial','overdue')
 		         GROUP BY st.id, c.name, sec.name, g.full_name, g.phone
 		        HAVING sum(i.net_paise - i.paid_paise) > 0
-		         /* By the money, largest first — the order somebody works the
+		         /* By the money, largest first, the order somebody works the
 		            list in. It was ORDER BY 7, which is Days Overdue, and that
 		            column is TEXT: "5" sorted above "40" because it sorted
 		            alphabetically. Named and numeric, so neither can happen
@@ -273,7 +273,7 @@ var exportable = map[string]exportSpec{
 	   bucket sums back to the totals. This is the file to read a child's fees at a
 	   glance and to reconcile a spreadsheet against, cell for cell. */
 	"fees_by_student": {
-		title:  "Fees by student — everything",
+		title:  "Fees by student, everything",
 		about:  "One row per child with the whole fee picture: total billed, concession, net, paid and due, then Term 1/2/3 billed·paid·due and Books, Uniform and Transport billed·paid.",
 		perm:   "finance.fees.read",
 		header: []string{"Admission No", "Student", "Class", "Section",
@@ -404,9 +404,9 @@ var exportable = map[string]exportSpec{
 		          LEFT JOIN sections sec ON sec.id = sa.section_id
 		          LEFT JOIN classes  c   ON c.id = sec.class_id
 		         WHERE sa.on_date >= CURRENT_DATE - INTERVAL '90 days'
-		         /* Class-wise: the register reads the way a school keeps it —
+		         /* Class-wise: the register reads the way a school keeps it, 
 		            Grade order, then section, then the child, and the days newest
-		            first within each child — rather than one flat run of dates in
+		            first within each child, rather than one flat run of dates in
 		            admission-number order. */
 		         ORDER BY c.level NULLS LAST, sec.name, st.admission_no, sa.on_date DESC`,
 	},

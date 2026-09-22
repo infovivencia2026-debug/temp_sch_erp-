@@ -40,7 +40,7 @@ class MessageBodyLoggingDetector : Detector(), SourceCodeScanner {
             context.getLocation(node),
             "This log call may include an SMS body (`${offending.asSourceString().take(60)}`). " +
                 "Message bodies carry children's names and fee amounts and must never be " +
-                "logged — log the message id and the outcome instead.",
+                "logged, log the message id and the outcome instead.",
         )
     }
 

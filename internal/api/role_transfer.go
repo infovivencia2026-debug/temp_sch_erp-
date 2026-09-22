@@ -221,7 +221,7 @@ func (s *Server) transferRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, errLastAdmin):
 		httpx.BadRequest(w, r,
-			"this is the school's only administrator, and the account receiving the role cannot sign in — "+
+			"this is the school's only administrator, and the account receiving the role cannot sign in · "+
 				"activate it first, or give the role to somebody who can")
 		return
 	case err != nil:

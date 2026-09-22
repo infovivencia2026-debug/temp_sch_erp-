@@ -68,7 +68,7 @@ func (s *Server) listUsers(w http.ResponseWriter, r *http.Request) {
 		       /* Keys as well as names.
 		
 		          The screen shows the name and edits by key, and it was given
-		          only the name — so every role rendered unticked when editing
+		          only the name, so every role rendered unticked when editing
 		          anyone, and saving sent names the server cannot resolve.
 		          With replace semantics that deleted every role the account
 		          had and reported success. */

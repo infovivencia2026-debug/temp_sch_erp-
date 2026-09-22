@@ -117,7 +117,7 @@ export default function FormBuilder() {
   const takeDraft = useMutation({
     mutationFn: () => api.post<{ draft_version_id: string }>(`${A}/forms/${formID}/draft`, {}),
     onSuccess: (r) => {
-      toast.ok('Draft opened — the live form is untouched until you publish')
+      toast.ok('Draft opened, the live form is untouched until you publish')
       setVersionID(r.draft_version_id)
       invalidate()
     },
@@ -258,8 +258,8 @@ export default function FormBuilder() {
               <tr key={f.id} className={f.id === formID ? 'bg-muted/40' : undefined}>
                 <Td>{f.name}</Td>
                 <Td className="font-mono text-[12.5px]">/apply/{f.slug}</Td>
-                <Td>{f.live_version ? `v${f.live_version}` : '—'}</Td>
-                <Td>{f.draft_version ? `v${f.draft_version}` : '—'}</Td>
+                <Td>{f.live_version ? `v${f.live_version}` : '-'}</Td>
+                <Td>{f.draft_version ? `v${f.draft_version}` : '-'}</Td>
                 <Td>{f.submissions}</Td>
                 <Td>
                   {f.is_open ? (
@@ -317,7 +317,7 @@ export default function FormBuilder() {
                   <p className="text-[14px] leading-relaxed text-muted-foreground">
                     Version {d.version} is {d.status} and cannot be edited. Parents who applied
                     under it must keep seeing the form they answered. Take a draft from it to make
-                    changes — that becomes version {d.version + 1} and goes live only when you
+                    changes, that becomes version {d.version + 1} and goes live only when you
                     publish it.
                   </p>
                 </div>
@@ -328,7 +328,7 @@ export default function FormBuilder() {
               <Card>
                 <div className="p-5 text-[14px] leading-relaxed text-muted-foreground">
                   This version cannot be published yet. An application record needs{' '}
-                  <span className="font-medium text-foreground">{missing.join(', ')}</span> — add a
+                  <span className="font-medium text-foreground">{missing.join(', ')}</span>, add a
                   question with each of those codes. Without them the form would collect answers and
                   then fail at the last step, in front of the applicant.
                 </div>
@@ -337,7 +337,7 @@ export default function FormBuilder() {
 
             <Card>
               <CardHeader
-                title={`Version ${d.version} — sections`}
+                title={`Version ${d.version}, sections`}
                 description="A heading and the run of questions under it."
               />
               {!frozen && (
@@ -413,7 +413,7 @@ export default function FormBuilder() {
                         )}
                       </Td>
                       <Td>{labelOf(FIELD_TYPES, f.field_type)}</Td>
-                      <Td>{f.is_required ? <Badge tone="warning">Required</Badge> : '—'}</Td>
+                      <Td>{f.is_required ? <Badge tone="warning">Required</Badge> : '-'}</Td>
                       <Td className="text-[12.5px] text-muted-foreground">{ruleSummary(f)}</Td>
                       <Td className="text-[12.5px] text-muted-foreground">
                         {f.visible_when
@@ -686,7 +686,7 @@ function VersionsCard({
             </Td>
             <Td>{v.fields}</Td>
             <Td>{v.applications}</Td>
-            <Td>{v.published_at ?? '—'}</Td>
+            <Td>{v.published_at ?? '-'}</Td>
             <Td>
               <Button size="sm" variant="outline" onClick={() => onPick(v.id)}>
                 {v.status === 'draft' ? 'Edit' : 'View'}
@@ -710,7 +710,7 @@ function ruleSummary(f: FormField): string {
   if (f.pattern) parts.push(labelOf(PATTERNS, f.pattern))
   if (f.option_kind) parts.push(`list: ${f.option_kind}`)
   else if (f.options.length) parts.push(`${f.options.length} options`)
-  return parts.length ? parts.join(' · ') : '—'
+  return parts.length ? parts.join(' · ') : '-'
 }
 
 /** "value | Label" per line, or just a label whose value is derived by the

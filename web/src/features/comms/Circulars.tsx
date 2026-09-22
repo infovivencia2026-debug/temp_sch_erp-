@@ -267,7 +267,7 @@ export default function Circulars() {
                     { value: 'parents', label: 'Parents only' },
                     { value: 'students', label: 'Students only' },
                     { value: 'staff', label: 'Staff only' },
-                    { value: 'everyone', label: 'Everyone — parents and staff' },
+                    { value: 'everyone', label: 'Everyone, parents and staff' },
                   ]}
                 />
               </div>
@@ -407,7 +407,7 @@ export default function Circulars() {
                 {publish.data.without_login} of them have no login and
                 {publish.data.sms_queued + publish.data.email_queued + publish.data.whatsapp_queued > 0
                   ? ' were reached only by the message you ticked.'
-                  : ' saw nothing — tick SMS, email or WhatsApp to reach them, or issue logins on School setup → Students.'}
+                  : ' saw nothing, tick SMS, email or WhatsApp to reach them, or issue logins on School setup → Students.'}
               </p>
             )}
             {publish.isSuccess && publish.data.unreachable_children > 0 && (
@@ -419,7 +419,7 @@ export default function Circulars() {
                  deliver to. That is worth saying plainly, with where to fix
                  it. */
               <p className="text-[13px] text-warning">
-                {publish.data.unreachable_children} children could not be reached at all — nobody on
+                {publish.data.unreachable_children} children could not be reached at all, nobody on
                 their record has a login, a phone number or an email. Add a contact on the
                 student's profile, then issue logins on School setup → Students.
               </p>
@@ -540,13 +540,13 @@ function Delivery({ id }: { id: string }) {
       <Table
         head={['Name', 'Who they are', 'About', 'Acknowledged']}
         empty={d.people.length === 0}
-        emptyLabel="Nobody could be reached — no parent or staff account matches this audience."
+        emptyLabel="Nobody could be reached, no parent or staff account matches this audience."
       >
         {d.people.map((p, i) => (
           <tr key={`${p.name}-${i}`}>
             <Td className="font-medium">{p.name}</Td>
             <Td>{p.role}</Td>
-            <Td className="text-muted-foreground">{p.student ?? '—'}</Td>
+            <Td className="text-muted-foreground">{p.student ?? '-'}</Td>
             <Td>
               {p.acked_at
                 ? <Badge tone="success">{p.acked_at}</Badge>

@@ -105,7 +105,7 @@ function ProductCard({ product }: { product: CatalogueProduct }) {
             <tbody>
               {variants.map((v, i) => (
                 <tr key={`${v.label}-${i}`} className="align-baseline">
-                  <td className="py-0.5 pr-2">{v.label || '—'}</td>
+                  <td className="py-0.5 pr-2">{v.label || '-'}</td>
                   <td className="py-0.5 pr-2 text-right tabular-nums">{inr(v.price)}</td>
                   <td className="py-0.5 text-right">
                     {v.in_stock ? (

@@ -208,7 +208,7 @@ export default function HomeworkForum() {
                           )}
                         </p>
                         <p className="mt-1 text-[12.5px] text-muted-foreground">
-                          {t.homework_title ?? t.subject ?? '—'} · {t.opened_by_me ? 'you' : t.author_name}
+                          {t.homework_title ?? t.subject ?? '-'} · {t.opened_by_me ? 'you' : t.author_name}
                           {' · '}
                           {t.reply_count} {t.reply_count === 1 ? 'reply' : 'replies'}
                           {t.due_on ? ` · due ${formatDate(t.due_on)}` : ''}
@@ -294,7 +294,7 @@ export default function HomeworkForum() {
                         value={reply}
                         onChange={setReply}
                         rows={3}
-                        placeholder="Check what order you did the brackets in — that is where I went wrong too."
+                        placeholder="Check what order you did the brackets in, that is where I went wrong too."
                       />
                     </Field>
                   </FormGrid>

@@ -126,15 +126,15 @@ export default function FeeFiling() {
                   <Td>
                     {f.committee_name}
                     <span className="block text-[12px] text-muted-foreground">
-                      {f.committee_level}{f.state ? ` — ${f.state}` : ''}
+                      {f.committee_level}{f.state ? ` · ${f.state}` : ''}
                     </span>
                   </Td>
-                  <Td className="text-muted-foreground">{f.academic_year ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{f.submitted_on ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{f.academic_year ?? '-'}</Td>
+                  <Td className="text-muted-foreground">{f.submitted_on ?? '-'}</Td>
                   <Td className="tabular-nums">{inr(f.proposed_total_paise)}</Td>
                   <Td className="tabular-nums">
                     {f.approved_total_paise === undefined || f.approved_total_paise === null
-                      ? '—'
+                      ? '-'
                       : inr(f.approved_total_paise)}
                   </Td>
                   <Td>
@@ -250,7 +250,7 @@ function CompileForm({ onSaved }: { onSaved: (m: string) => void }) {
           <Input value={state} onChange={setState} placeholder="Maharashtra" />
         </label>
         <label className="flex flex-col gap-1.5 text-[13px]">
-          <span className="text-muted-foreground">Academic year — the variance check needs it</span>
+          <span className="text-muted-foreground">Academic year, the variance check needs it</span>
           <Select value={yearID} onChange={setYearID} options={[
             { value: '', label: 'Choose a year…' },
             ...(years.data?.items ?? []).map((y) => ({
@@ -264,7 +264,7 @@ function CompileForm({ onSaved }: { onSaved: (m: string) => void }) {
             options={[
               { value: '', label: 'Choose a structure…' },
               ...(structures.data?.items ?? []).map((s) => ({
-                value: s.id, label: s.class_name ? `${s.name} — ${s.class_name}` : s.name,
+                value: s.id, label: s.class_name ? `${s.name} · ${s.class_name}` : s.name,
               })),
             ]} />
         </label>
@@ -274,7 +274,7 @@ function CompileForm({ onSaved }: { onSaved: (m: string) => void }) {
             { value: '', label: structureID ? 'Choose a version…' : 'Pick a structure first' },
             ...(versions.data?.items ?? []).map((v) => ({
               value: v.id,
-              label: `v${v.version_no} — ${v.status} — from ${v.effective_from}`,
+              label: `v${v.version_no} · ${v.status}, from ${v.effective_from}`,
             })),
           ]} />
         </label>
@@ -286,7 +286,7 @@ function CompileForm({ onSaved }: { onSaved: (m: string) => void }) {
           {save.isPending ? 'Compiling…' : 'Compile'}
         </Button>
         <p className="mt-2 text-[12px] text-muted-foreground">
-          The amounts are copied from the version, not referenced — so a later revision cannot
+          The amounts are copied from the version, not referenced, so a later revision cannot
           quietly change what this filing says was proposed.
         </p>
       </div>
@@ -359,7 +359,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
         <>
           <Card>
             <CardHeader
-              title={`${f.filing_no} — ${f.committee_name}`}
+              title={`${f.filing_no} · ${f.committee_name}`}
               description={f.fee_structure
                 ? `Filed from ${f.fee_structure}, version ${f.version_no}. ${FILING_STATUS[f.status] ?? f.status}.`
                 : FILING_STATUS[f.status] ?? f.status}
@@ -377,14 +377,14 @@ function FilingDetail({ id, mayWrite, onDone }: {
                       <Input value={approvedAmt[l.id] ?? ''} placeholder="as filed"
                         onChange={(v) => setApprovedAmt((a) => ({ ...a, [l.id]: v }))} />
                     ) : l.approved_paise === undefined || l.approved_paise === null ? (
-                      '—'
+                      '-'
                     ) : (
                       <span className={cn(l.approved_paise < l.proposed_paise && 'text-warning')}>
                         {inr(l.approved_paise)}
                       </span>
                     )}
                   </Td>
-                  <Td className="text-muted-foreground text-[12px]">{l.modification_note ?? '—'}</Td>
+                  <Td className="text-muted-foreground text-[12px]">{l.modification_note ?? '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -402,7 +402,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
                   <Td className="font-medium">{d.doc_type.replace(/_/g, ' ')}</Td>
                   <Td className="text-muted-foreground">{d.original_name}</Td>
                   <Td className="text-muted-foreground">{d.attached_on}</Td>
-                  <Td className="text-muted-foreground">{d.attached_by ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{d.attached_by ?? '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -438,7 +438,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
             <Card>
               <CardHeader
                 title="File it"
-                description="Submitting freezes an immutable copy. After this, what was filed cannot be changed — only the committee's reply can be recorded."
+                description="Submitting freezes an immutable copy. After this, what was filed cannot be changed, only the committee's reply can be recorded."
               />
               <div className="space-y-3 p-5">
                 <FormNotice error={submit.error} />
@@ -483,7 +483,7 @@ function FilingDetail({ id, mayWrite, onDone }: {
                 </div>
                 <label className="flex flex-col gap-1.5 text-[13px]">
                   <span className="text-muted-foreground">
-                    What the committee said — required for a modification or a rejection
+                    What the committee said, required for a modification or a rejection
                   </span>
                   <Textarea value={decisionNote} onChange={setDecisionNote} rows={2} />
                 </label>
@@ -573,10 +573,10 @@ function VariancePanel({ id }: { id: string }) {
                   <Td className="tabular-nums">{inr(r.charged_paise)}</Td>
                   <Td className="tabular-nums text-muted-foreground">{r.students}</Td>
                   <Td className={cn('tabular-nums', r.variance_paise > 0 && 'font-medium text-destructive')}>
-                    {r.variance_paise === 0 ? '—' : inr(r.variance_paise)}
+                    {r.variance_paise === 0 ? '-' : inr(r.variance_paise)}
                   </Td>
                   <Td className={cn('tabular-nums', r.exposure_paise > 0 && 'font-medium text-destructive')}>
-                    {r.exposure_paise === 0 ? '—' : inr(r.exposure_paise)}
+                    {r.exposure_paise === 0 ? '-' : inr(r.exposure_paise)}
                   </Td>
                   <Td>
                     <Badge tone={VERDICT_TONE[r.verdict] ?? 'neutral'}>
@@ -607,8 +607,8 @@ function VariancePanel({ id }: { id: string }) {
             {d.never_filed > 0 && (
               <p>
                 <strong>{d.never_filed} head{d.never_filed === 1 ? '' : 's'} being charged were
-                never put to the committee.</strong> This is the easiest exposure to acquire — a
-                head added mid-year by somebody who did not know a filing existed — and the whole
+                never put to the committee.</strong> This is the easiest exposure to acquire, a
+                head added mid-year by somebody who did not know a filing existed, and the whole
                 amount is at risk, not just a difference.
               </p>
             )}

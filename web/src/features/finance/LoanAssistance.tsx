@@ -150,7 +150,7 @@ export default function LoanAssistance() {
                 </Td>
                 <Td className="text-[13px] text-muted-foreground">{a.opened_on}</Td>
                 <Td className="text-right tabular-nums">
-                  {a.amount_sought_paise ? inr(a.amount_sought_paise) : '—'}
+                  {a.amount_sought_paise ? inr(a.amount_sought_paise) : '-'}
                 </Td>
                 <Td>
                   {a.docs_outstanding > 0 ? (
@@ -218,7 +218,7 @@ function ApplicationDetail({
   return (
     <Card>
       <CardHeader
-        title={`${a.student_name} — ${a.lender_name ?? 'no lender chosen'}`}
+        title={`${a.student_name} · ${a.lender_name ?? 'no lender chosen'}`}
         description={`Opened ${a.opened_on} · ${LOAN_STATUS_LABEL[a.status]} for ${a.days_in_status} days${a.assisted_by ? ` · helped by ${a.assisted_by}` : ''}`}
       />
 
@@ -254,7 +254,7 @@ function ApplicationDetail({
 
       <CardHeader
         title="What the lender wants"
-        description="Missing first. The ones marked as issued by the school are already in the office — a parent should not be sent away for those."
+        description="Missing first. The ones marked as issued by the school are already in the office, a parent should not be sent away for those."
       />
       <Table
         head={['Document', 'Status', 'Provided', 'Where it is', '']}
@@ -289,10 +289,10 @@ function ApplicationDetail({
             <Td className="text-muted-foreground">
               {ev.from_status
                 ? (LOAN_STATUS_LABEL[ev.from_status as LoanStatus] ?? ev.from_status)
-                : '—'}
+                : '-'}
             </Td>
-            <Td className="text-[13px]">{ev.note ?? '—'}</Td>
-            <Td className="text-muted-foreground">{ev.actor ?? '—'}</Td>
+            <Td className="text-[13px]">{ev.note ?? '-'}</Td>
+            <Td className="text-muted-foreground">{ev.actor ?? '-'}</Td>
           </tr>
         ))}
       </Table>
@@ -342,7 +342,7 @@ function DocumentRow({
         <Td>
           <Badge tone={tone}>{doc.status}</Badge>
         </Td>
-        <Td className="text-[13px] text-muted-foreground">{doc.provided_on ?? '—'}</Td>
+        <Td className="text-[13px] text-muted-foreground">{doc.provided_on ?? '-'}</Td>
         <Td className="text-[13px] text-muted-foreground">
           {doc.certificate_serial
             ? `certificate ${doc.certificate_serial}`
@@ -350,7 +350,7 @@ function DocumentRow({
               ? 'on the student file'
               : doc.waived_reason
                 ? `waived: ${doc.waived_reason}`
-                : '—'}
+                : '-'}
         </Td>
         <Td>
           {mayWrite && (
@@ -453,7 +453,7 @@ function StatusPanel({
       <div>
         <h4 className="text-[14px] font-semibold">Move it on</h4>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          The ladder only goes forward — a parent told &ldquo;under review&rdquo; after being
+          The ladder only goes forward, a parent told &ldquo;under review&rdquo; after being
           told &ldquo;declined&rdquo; has been told nothing. A declined application can be
           reopened to gather more papers, because parents do try again.
         </p>
@@ -479,7 +479,7 @@ function StatusPanel({
                 onChange={setLenderId}
                 options={(lenders.data?.items ?? []).map((l) => ({
                   value: l.id,
-                  label: l.branch ? `${l.name} — ${l.branch}` : l.name,
+                  label: l.branch ? `${l.name} · ${l.branch}` : l.name,
                 }))}
                 placeholder="Choose the lender"
               />
@@ -583,7 +583,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
               onChange={setStudentId}
               options={(students.data?.items ?? []).map((s) => ({
                 value: s.id,
-                label: `${s.full_name} — ${s.admission_no}`,
+                label: `${s.full_name} · ${s.admission_no}`,
               }))}
               placeholder={studentQuery.length > 1 ? 'Choose the child' : 'Search first'}
             />
@@ -594,7 +594,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
               onChange={setLenderId}
               options={(lenders.data?.items ?? []).map((l) => ({
                 value: l.id,
-                label: l.branch ? `${l.name} — ${l.branch}` : l.name,
+                label: l.branch ? `${l.name} · ${l.branch}` : l.name,
               }))}
               placeholder="Not chosen yet"
             />
@@ -664,7 +664,7 @@ function LendersPanel({ mayWrite }: { mayWrite: boolean }) {
     <Card>
       <CardHeader
         title="Lenders the school has dealt with"
-        description="A contact list, in the order a parent would find useful. No rates and no ranking — the school is not recommending a product."
+        description="A contact list, in the order a parent would find useful. No rates and no ranking, the school is not recommending a product."
         action={
           mayWrite && !open ? (
             <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
@@ -690,7 +690,7 @@ function LendersPanel({ mayWrite }: { mayWrite: boolean }) {
             </Td>
             <Td className="text-muted-foreground">{LENDER_KIND_LABEL[l.lender_kind] ?? l.lender_kind}</Td>
             <Td className="text-[13px] text-muted-foreground">
-              {l.contact_name ?? '—'}
+              {l.contact_name ?? '-'}
               {(l.contact_phone || l.contact_email) && (
                 <span className="block text-[12px]">
                   {[l.contact_phone, l.contact_email].filter(Boolean).join(' · ')}

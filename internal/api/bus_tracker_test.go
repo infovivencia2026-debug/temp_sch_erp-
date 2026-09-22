@@ -63,7 +63,7 @@ func TestMetresBetweenIsHaversineNotEquirectangular(t *testing.T) {
 		t.Errorf("one degree of longitude at 17.5N: got %.0f m, want ~%.0f m", east, want)
 	}
 	if degreeOfLatitude-east < 4000 {
-		t.Errorf("east-west distance %.0f m is not shrunk by the cosine of the latitude — "+
+		t.Errorf("east-west distance %.0f m is not shrunk by the cosine of the latitude · "+
 			"this looks like the equirectangular approximation the comment warns about", east)
 	}
 
@@ -734,7 +734,7 @@ func TestClaimingRetiresTheLiveTrackerOnTheSameVehicle(t *testing.T) {
 	}
 	if n := sc.countRows(t,
 		`SELECT count(*) FROM vehicle_trackers WHERE vehicle_id = $1`, sc.vehicle); n != 2 {
-		t.Errorf("%d trackers in total, want 2 — the retired one is the record of where the bus went", n)
+		t.Errorf("%d trackers in total, want 2, the retired one is the record of where the bus went", n)
 	}
 
 	device := busTrackerDeviceRouter(s)
@@ -776,7 +776,7 @@ func TestBusTrackerPositionsAreIdempotent(t *testing.T) {
 		}
 		accepted, _ := body["accepted"].([]any)
 		if len(accepted) != 3 {
-			t.Errorf("push %d acknowledged %d fixes, want 3 — the phone will resend the rest for ever",
+			t.Errorf("push %d acknowledged %d fixes, want 3, the phone will resend the rest for ever",
 				attempt, len(accepted))
 		}
 		if open, _ := body["trip_open"].(bool); !open {
@@ -991,7 +991,7 @@ func TestSustainedSpeedingLeavesOneEventWithThePeak(t *testing.T) {
 		t.Fatalf("a minute over the limit produced %d events, want exactly 1", n)
 	}
 	if math.Abs(peak-64) > 0.05 {
-		t.Errorf("peak %.1f km/h, want 64.0 — the fastest fix of the episode", peak)
+		t.Errorf("peak %.1f km/h, want 64.0, the fastest fix of the episode", peak)
 	}
 	if limit != 50 {
 		t.Errorf("limit_kmph %d, want the policy's 50", limit)

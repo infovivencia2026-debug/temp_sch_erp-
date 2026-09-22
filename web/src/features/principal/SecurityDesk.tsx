@@ -104,7 +104,7 @@ export function OnlineNow() {
             <tr key={s.id}>
               <Td>
                 <div className="font-medium">{s.full_name}</div>
-                <div className="text-[12px] text-muted-foreground">{s.roles.join(', ') || '—'}</div>
+                <div className="text-[12px] text-muted-foreground">{s.roles.join(', ') || '-'}</div>
                 {s.flags.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1">
                     {s.flags.map((f) => (
@@ -121,7 +121,7 @@ export function OnlineNow() {
                 </span>
                 {s.via !== 'password' && <div className="text-[12px] text-muted-foreground">via {s.via.replace('_', ' ')}</div>}
               </Td>
-              <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
+              <Td className="font-mono text-[12px]">{s.ip ?? '-'}</Td>
               <Td className="text-muted-foreground">{formatDateTime(s.created_at)}</Td>
               <Td className="text-muted-foreground">{formatDateTime(s.last_seen_at)}</Td>
               <Td>
@@ -229,7 +229,7 @@ export function SignInAttempts({ user }: { user?: { id: string; full_name: strin
                 </Badge>
               </Td>
               <Td>{e.device}</Td>
-              <Td className="font-mono text-[12px]">{e.ip ?? '—'}</Td>
+              <Td className="font-mono text-[12px]">{e.ip ?? '-'}</Td>
             </tr>
           ))}
         </Table>

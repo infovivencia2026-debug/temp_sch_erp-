@@ -622,7 +622,7 @@ func main() {
 			}
 			due := time.Now().AddDate(0, 0, 14)
 			invID, err := raise(kid.id, t.no, annu,
-				fmt.Sprintf("Annual Fee — term %d", t.no), t.amount, t.disc, due)
+				fmt.Sprintf("Annual Fee, term %d", t.no), t.amount, t.disc, due)
 			if err != nil {
 				panic(fmt.Errorf("row %d term %d: %w", i+1, t.no, err))
 			}

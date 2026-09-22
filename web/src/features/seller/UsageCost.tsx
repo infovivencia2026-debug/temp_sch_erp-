@@ -57,7 +57,7 @@ interface UsageResponse {
 
 /** Bytes as a person reads them, not as a machine stores them. */
 function bytes(n: number): string {
-  if (n <= 0) return '—'
+  if (n <= 0) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let v = n
   let i = 0
@@ -175,14 +175,14 @@ export default function UsageCost() {
           <Card>
             <CardHeader
               title="What the installation costs you"
-              description="Nothing in the product knows what your server or your storage costs — those arrive as invoices by email. Enter them once and every school's share is worked out from what it actually uses."
+              description="Nothing in the product knows what your server or your storage costs, those arrive as invoices by email. Enter them once and every school's share is worked out from what it actually uses."
             />
             <div className="space-y-4 px-5 pb-5">
               {save.isError && <FormNotice error={save.error} />}
               <FormGrid>
                 <Field
                   label="Servers and everything monthly (₹)"
-                  hint="Hosting, backups, monitoring — anything billed the same whether one school uses it or fifty."
+                  hint="Hosting, backups, monitoring, anything billed the same whether one school uses it or fifty."
                 >
                   <Input value={form.infra} onChange={(v) => setForm({ ...form, infra: v })} placeholder="12000" />
                 </Field>
@@ -257,7 +257,7 @@ export default function UsageCost() {
                     percentage of the roll, not a measurement of the machine. */}
                 <Td className="num text-muted-foreground">{s.share_pct.toFixed(1)}%</Td>
                 <Td className="num font-medium">
-                  {unset ? '—' : formatPaise(s.cost_paise)}
+                  {unset ? '-' : formatPaise(s.cost_paise)}
                   {!unset && s.storage_paise > 0 && (
                     <span className="block text-[12px] font-normal text-muted-foreground">
                       incl. {formatPaise(s.storage_paise)} storage

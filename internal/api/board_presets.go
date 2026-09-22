@@ -236,7 +236,7 @@ var boardPresets = []boardPreset{
 		ScaleName: "Assam grades", PassMark: 30,
 		Assessment: "Terminal examinations with internal marks",
 		LeavingDoc: "Transfer Certificate (TC)", Bands: letterFive},
-	{Value: "Other State Board", Label: "Another board — set the grading yourself",
+	{Value: "Other State Board", Label: "Another board, set the grading yourself",
 		Group:     "Other",
 		ScaleName: "School grading scale", PassMark: 35,
 		Assessment: "As your school sets it",

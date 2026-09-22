@@ -85,7 +85,7 @@ func (s *Server) setChequeBounceFine(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Amount > 100000 {
 		httpx.BadRequest(w, r,
-			"that is over ₹1,00,000 for one bounced cheque — if it is right, "+
+			"that is over ₹1,00,000 for one bounced cheque, if it is right, "+
 				"charge it as a penalty on the bill so the reason is on the record")
 		return
 	}

@@ -171,7 +171,7 @@ export default function Forum() {
                     placeholder={t('portal.forum.picker_all')}
                     options={all.map((b) => ({
                       value: b.section_id,
-                      label: `${b.class} — ${b.student_name}`,
+                      label: `${b.class} · ${b.student_name}`,
                     }))}
                   />
                 </Field>

@@ -263,7 +263,7 @@ export function BoardRoll(props: RollProps) {
         <Card>
           <CardHeader
             title="The roll"
-            description="What the school has entered, and what the board has said about it. A submitted candidate can no longer be edited — corrections after submission are amendments."
+            description="What the school has entered, and what the board has said about it. A submitted candidate can no longer be edited, corrections after submission are amendments."
           />
           {rows.length === 0 ? (
             <EmptyState
@@ -295,12 +295,12 @@ export function BoardRoll(props: RollProps) {
                   </Td>
                   <Td>{c.admission_no}</Td>
                   <Td>{c.class_name}</Td>
-                  <Td>{c.date_of_birth ? formatDate(c.date_of_birth) : '—'}</Td>
-                  <Td>{c.father_name ?? '—'}</Td>
-                  <Td>{c.medium ?? '—'}</Td>
-                  {props.groups && <Td>{c.group_code ?? '—'}</Td>}
-                  <Td className="tabular-nums">{c.registration_no ?? '—'}</Td>
-                  <Td className="tabular-nums">{c.hall_ticket_no ?? '—'}</Td>
+                  <Td>{c.date_of_birth ? formatDate(c.date_of_birth) : '-'}</Td>
+                  <Td>{c.father_name ?? '-'}</Td>
+                  <Td>{c.medium ?? '-'}</Td>
+                  {props.groups && <Td>{c.group_code ?? '-'}</Td>}
+                  <Td className="tabular-nums">{c.registration_no ?? '-'}</Td>
+                  <Td className="tabular-nums">{c.hall_ticket_no ?? '-'}</Td>
                   <Td>
                     <Badge tone={STATUS_TONE[c.status] ?? 'neutral'}>
                       {c.status.replace(/_/g, ' ')}
@@ -355,7 +355,7 @@ export function BoardRoll(props: RollProps) {
           <Card>
             <CardHeader
               title={`Correct ${selected.candidate_name}`}
-              description="Still a draft, so the particulars can be changed in place. Correcting a row clears its check — somebody has to look at the new values."
+              description="Still a draft, so the particulars can be changed in place. Correcting a row clears its check, somebody has to look at the new values."
             />
             <div className="space-y-5 p-5">
               <FormGrid>
@@ -477,8 +477,8 @@ export function BoardRoll(props: RollProps) {
                 <tr key={a.id}>
                   <Td className="font-medium">{a.candidate_name}</Td>
                   <Td>{a.field.replace(/_/g, ' ')}</Td>
-                  <Td className="text-muted-foreground">{a.old_value ?? '—'}</Td>
-                  <Td>{a.new_value ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{a.old_value ?? '-'}</Td>
+                  <Td>{a.new_value ?? '-'}</Td>
                   <Td className="text-muted-foreground">{a.reason}</Td>
                   <Td>{a.requested_at}</Td>
                   <Td><Badge tone={a.status === 'sent' ? 'warning' : 'neutral'}>{a.status}</Badge></Td>
@@ -565,9 +565,9 @@ export function BoardRoll(props: RollProps) {
                   <Td className="font-medium">{e.name}</Td>
                   <Td>{e.admission_no}</Td>
                   <Td>{e.class_name}</Td>
-                  <Td>{e.date_of_birth ? formatDate(e.date_of_birth) : '—'}</Td>
-                  <Td>{e.father_name ?? '—'}</Td>
-                  <Td>{e.medium ?? '—'}</Td>
+                  <Td>{e.date_of_birth ? formatDate(e.date_of_birth) : '-'}</Td>
+                  <Td>{e.father_name ?? '-'}</Td>
+                  <Td>{e.medium ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

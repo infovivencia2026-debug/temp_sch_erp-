@@ -1342,7 +1342,7 @@ func (s *Server) applyFines(w http.ResponseWriter, r *http.Request) {
 				if err := people.Err(); err != nil {
 					return err
 				}
-				body := a.RuleName + " — " + a.Reason +
+				body := a.RuleName + " · " + a.Reason +
 					". It has been added to the bill; the total on your fees page is up to date."
 				for _, u := range to {
 					if err := notify(r, tx, id.InstitutionID, u, nil, "fee_penalty",
@@ -1548,7 +1548,7 @@ func (s *Server) getReceiptSeries(w http.ResponseWriter, r *http.Request) {
 		}
 
 		yrows, err := tx.Query(r.Context(), `
-			SELECT COALESCE(receipt_fy, '—'), count(*)::int,
+			SELECT COALESCE(receipt_fy, '-'), count(*)::int,
 			       min(receipt_seq), max(receipt_seq),
 			       max(receipt_seq) - min(receipt_seq) + 1 - count(*)
 			  FROM payments

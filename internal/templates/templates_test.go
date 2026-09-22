@@ -75,7 +75,7 @@ func TestPurchaseScreensRender(t *testing.T) {
 			continue
 		}
 		if sb.Len() < 500 {
-			t.Errorf("%s rendered %d bytes — suspiciously empty", name, sb.Len())
+			t.Errorf("%s rendered %d bytes, suspiciously empty", name, sb.Len())
 		}
 		if !strings.Contains(sb.String(), "Sunrise Vidya Niketan") {
 			t.Errorf("%s did not render the school name", name)

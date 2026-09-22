@@ -514,7 +514,7 @@ export function CardShell({
                vacant — three short lines and 70% blank. 22 is a supporting
                figure: below the 26-50px headline scale, clearly above the
                sentence, and the card reads as calm rather than as empty. */
-            value === '—' || quiet
+            value === '-' || quiet
               ? 'leading-tight text-[length:min(22px,var(--card-fig,30px))]'
               : 'leading-[0.95] text-[length:var(--card-fig,30px)]',
           )}

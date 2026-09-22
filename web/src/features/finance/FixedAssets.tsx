@@ -67,7 +67,7 @@ export default function FixedAssets() {
 
         <Card>
           <CardHeader title="The register"
-            description="Each asset carries its own method and its own input — a useful life for straight line, a prescribed rate for written-down value. Neither can be inferred from the other, so an asset with neither cannot be depreciated at all and the schema refuses it." />
+            description="Each asset carries its own method and its own input, a useful life for straight line, a prescribed rate for written-down value. Neither can be inferred from the other, so an asset with neither cannot be depreciated at all and the schema refuses it." />
           <Table head={['Tag', 'Asset', 'Account', 'Bought', 'Method',
             { label: 'Cost', align: 'right' }, { label: 'Depreciation', align: 'right' },
             { label: 'Book value', align: 'right' }, 'Years', 'Status']}
@@ -103,7 +103,7 @@ export default function FixedAssets() {
                 <Td className="text-right font-medium tabular-nums">
                   {rupees(a.written_down_value_paise)}
                 </Td>
-                <Td className="tabular-nums text-muted-foreground">{a.years_charged || '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{a.years_charged || '-'}</Td>
                 <Td>
                   <Badge tone={a.status === 'in_use' ? 'success' : 'neutral'}>
                     {a.status.replace('_', ' ')}
@@ -144,7 +144,7 @@ function DepreciationRun({ fy }: { fy: string }) {
     <Card>
       <CardHeader
         title="Charge the year's depreciation"
-        description="Charged annually, not monthly: schools close their books once a year and the statutory rates are annual, so a monthly charge would only invent twelve chances to round differently. The first year is apportioned — pro-rata by days on straight line, half rate under 180 days on written-down value."
+        description="Charged annually, not monthly: schools close their books once a year and the statutory rates are annual, so a monthly charge would only invent twelve chances to round differently. The first year is apportioned, pro-rata by days on straight line, half rate under 180 days on written-down value."
         action={
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => dry.mutate()} disabled={dry.isPending}>
@@ -179,7 +179,7 @@ function DepreciationRun({ fy }: { fy: string }) {
               </Td>
               <Td className="text-right tabular-nums">{rupees(a.opening_wdv_paise)}</Td>
               <Td className="text-right font-medium tabular-nums">
-                {a.charge_paise ? rupees(a.charge_paise) : '—'}
+                {a.charge_paise ? rupees(a.charge_paise) : '-'}
               </Td>
               <Td className="text-right tabular-nums">{rupees(a.closing_wdv_paise)}</Td>
               <Td className="text-[13px] text-muted-foreground">{a.note ?? ''}</Td>
@@ -272,7 +272,7 @@ function NewAsset() {
         </FormGrid>
         <Checkbox checked={capitalise} onChange={setCapitalise}
           label="Also post the purchase to the ledger"
-          hint="Leave off when the purchase was already booked through a vendor bill or is an opening balance — capitalising again would record the same asset twice." />
+          hint="Leave off when the purchase was already booked through a vendor bill or is an opening balance, capitalising again would record the same asset twice." />
         <FormNotice error={save.error}
           ok={save.isSuccess
             ? `Added as ${save.data?.tag_no}${save.data?.voucher_no ? ` and posted as ${save.data.voucher_no}` : ''}.`

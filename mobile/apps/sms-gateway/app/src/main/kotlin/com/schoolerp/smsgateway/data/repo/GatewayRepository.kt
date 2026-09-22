@@ -187,7 +187,7 @@ class GatewayRepository @Inject constructor(
         is ApiFailure.Server -> "The school's server had a problem (${failure.status}). Try again shortly."
         is ApiFailure.Rejected ->
             if (failure.status == 404 || failure.status == 400 || failure.status == 410) {
-                "That pair code is wrong or has expired. Codes last ten minutes — generate a new one."
+                "That pair code is wrong or has expired. Codes last ten minutes, generate a new one."
             } else {
                 "The server refused the pairing (${failure.status})."
             }

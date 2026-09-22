@@ -60,7 +60,7 @@ func (s *Server) updateSection(w http.ResponseWriter, r *http.Request) {
 		*req.Name = strings.TrimSpace(*req.Name)
 		if *req.Name == "" {
 			httpx.BadRequest(w, r,
-				"a section needs a name — a letter, or whatever this school calls it")
+				"a section needs a name, a letter, or whatever this school calls it")
 			return
 		}
 	}
@@ -170,7 +170,7 @@ func (s *Server) deleteSection(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, errSectionTooSmall):
 		httpx.BadRequest(w, r,
-			"this section has enrolments against it, including past years — rename it instead, "+
+			"this section has enrolments against it, including past years, rename it instead, "+
 				"or move the children out first. Deleting it would take their register with it")
 		return
 	case err != nil:

@@ -139,7 +139,7 @@ func TestFeeEngineReadPermissionDoesNotGrantWrites(t *testing.T) {
 		{"PUT", "/fee-engine/gst-heads/" + uuid.NewString()},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — read permission must not grant this",
+			t.Errorf("%s %s: got %d, want 403, read permission must not grant this",
 				tc.method, tc.path, got)
 		}
 	}
@@ -166,7 +166,7 @@ func TestFineRuleAuthorIsNotAutomaticallyAbleToLevy(t *testing.T) {
 		{"POST", "/fee-engine/fines/charges/" + uuid.NewString() + "/waive"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — raising a fine is finance.invoices.write",
+			t.Errorf("%s %s: got %d, want 403, raising a fine is finance.invoices.write",
 				tc.method, tc.path, got)
 		}
 	}
@@ -187,7 +187,7 @@ func TestLevyPermissionDoesNotGrantMasterData(t *testing.T) {
 		{"PUT", "/fee-engine/gst-heads/" + uuid.NewString()},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — that is fee master data",
+			t.Errorf("%s %s: got %d, want 403, that is fee master data",
 				tc.method, tc.path, got)
 		}
 	}
@@ -218,7 +218,7 @@ func TestEveryFeeEngineWriteIsGated(t *testing.T) {
 		t.Fatalf("walk routes: %v", err)
 	}
 	if len(writes) == 0 {
-		t.Fatal("no write routes found — the walk is not seeing mountFeeEngine's routes")
+		t.Fatal("no write routes found, the walk is not seeing mountFeeEngine's routes")
 	}
 
 	for _, w := range writes {
@@ -234,7 +234,7 @@ func TestEveryFeeEngineWriteIsGated(t *testing.T) {
 			path = path[:open] + uuid.NewString() + path[close+1:]
 		}
 		if got := statusOf(t, h, method, path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — this write is not gated on a permission",
+			t.Errorf("%s %s: got %d, want 403, this write is not gated on a permission",
 				method, path, got)
 		}
 	}

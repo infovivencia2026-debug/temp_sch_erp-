@@ -176,7 +176,7 @@ export default function Concessions() {
   function value(c: Concession) {
     if (c.percent && Number(c.percent) > 0) return `${Number(c.percent)}%`
     if (c.amount_paise) return formatPaise(c.amount_paise)
-    return '—'
+    return '-'
   }
 
   return (
@@ -191,9 +191,9 @@ export default function Concessions() {
           <Stat label="Awaiting approval" value={pending.length}
             hint={pending.length ? 'Blocks the next demand' : 'All signed off'} />
           <Stat label="Concessions granted" value={cs.filter((c) => c.status === 'approved').length} />
-          <Stat label="Value conceded" value={granted ? formatPaise(granted) : '—'}
+          <Stat label="Value conceded" value={granted ? formatPaise(granted) : '-'}
             hint="Flat-amount awards only" />
-          <Stat label="Refunded" value={refunded ? formatPaise(refunded) : '—'} />
+          <Stat label="Refunded" value={refunded ? formatPaise(refunded) : '-'} />
         </CellGrid>
 
         <FormNotice error={decide.error ?? requestRefund.error ?? decideRefund.error ?? processRefund.error} ok={note} />
@@ -201,7 +201,7 @@ export default function Concessions() {
         <Card>
           <CardHeader
             title="Concessions"
-            description="Unsigned first — a concession only reduces a bill once it is approved"
+            description="Unsigned first, a concession only reduces a bill once it is approved"
             action={
               <Select
                 value={status}
@@ -238,7 +238,7 @@ export default function Concessions() {
                   <Td className="tabular-nums font-medium">{value(c)}</Td>
                   <Td className="text-muted-foreground">
                     <span className="block max-w-[24ch] truncate" title={c.reason ?? ''}>
-                      {c.reason ?? '—'}
+                      {c.reason ?? '-'}
                     </span>
                   </Td>
                   <Td>
@@ -305,7 +305,7 @@ export default function Concessions() {
         <Card>
           <CardHeader
             title="Refunds"
-            description="Money returned, and what it was against. Raised by the office, signed off, then marked paid — a refund cannot exceed what the family actually paid."
+            description="Money returned, and what it was against. Raised by the office, signed off, then marked paid, a refund cannot exceed what the family actually paid."
           />
           {mayDecide && (
             <div className="flex flex-wrap items-end gap-3 border-b px-4 py-3">
@@ -358,10 +358,10 @@ export default function Concessions() {
                   </Td>
                   <Td className={cn('tabular-nums font-medium')}>{formatPaise(r.amount_paise)}</Td>
                   <Td className="text-muted-foreground">
-                    <span className="block max-w-[24ch] truncate" title={r.reason ?? ''}>{r.reason ?? '—'}</span>
+                    <span className="block max-w-[24ch] truncate" title={r.reason ?? ''}>{r.reason ?? '-'}</span>
                   </Td>
                   <Td className="text-muted-foreground">
-                    {r.mode ?? '—'}
+                    {r.mode ?? '-'}
                     {r.reference_no && (
                       <span className="block font-mono text-[11.5px]">{r.reference_no}</span>
                     )}
@@ -384,7 +384,7 @@ export default function Concessions() {
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
-                    {r.processed_on ? formatDate(r.processed_on) : '—'}
+                    {r.processed_on ? formatDate(r.processed_on) : '-'}
                   </Td>
                   <Td>
                     {r.status === 'pending' && maySign && (

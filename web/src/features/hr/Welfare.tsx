@@ -159,7 +159,7 @@ function DiaryTab({ rows }: { rows: Celebration[] }) {
           {rows.map((c) => (
             <tr key={`${c.employee_id}-${c.kind}-${c.on_date}`}>
               <Td className="font-medium">{c.full_name}
-                <div className="text-[12px] font-normal text-muted-foreground">{c.designation ?? '—'}</div>
+                <div className="text-[12px] font-normal text-muted-foreground">{c.designation ?? '-'}</div>
               </Td>
               <Td>
                 {c.kind === 'birthday' ? 'Birthday' : `${c.years} years at the school`}
@@ -286,7 +286,7 @@ function GrievanceLine({ row }: { row: Grievance }) {
     <tr>
       <Td className="font-medium tabular-nums">{row.reference_no}</Td>
       <Td className="text-muted-foreground">
-        {row.is_anonymous ? <Badge tone="info">anonymous</Badge> : (row.full_name ?? '—')}
+        {row.is_anonymous ? <Badge tone="info">anonymous</Badge> : (row.full_name ?? '-')}
       </Td>
       <Td className="text-muted-foreground">{row.category}</Td>
       <Td>
@@ -349,7 +349,7 @@ function WallTab() {
     <>
       <Card>
         <CardHeader title="Name somebody"
-          description="There is one teacher of the month, and the database says so — naming a second for the same month is refused rather than quietly shown beside the first." />
+          description="There is one teacher of the month, and the database says so, naming a second for the same month is refused rather than quietly shown beside the first." />
         <div className="space-y-5 p-5">
           <FormGrid>
             <Field label="Employee" required>

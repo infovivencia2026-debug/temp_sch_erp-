@@ -114,7 +114,7 @@ export default function SalarySetup() {
   const delComponent = useMutation({
     mutationFn: (componentId: string) => api.del(`/api/v1/payroll/components/${componentId}`),
     onSuccess: () => { setDone('Component removed.'); refresh() },
-    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not remove — a salary may still use it'),
+    onError: (e: unknown) => setDone(e instanceof Error ? e.message : 'Could not remove, a salary may still use it'),
   })
 
   if (comps.isLoading || structures.isLoading) return <SkeletonTable columns={3} />
@@ -155,7 +155,7 @@ export default function SalarySetup() {
           <Card>
             <CardHeader
               title="Start with the usual components"
-              description="Basic, dearness allowance, HRA, conveyance, special allowance, provident fund, professional tax and TDS — the vocabulary an Indian school payslip is written in. Rename or add to them afterwards; nothing is created until you ask."
+              description="Basic, dearness allowance, HRA, conveyance, special allowance, provident fund, professional tax and TDS, the vocabulary an Indian school payslip is written in. Rename or add to them afterwards; nothing is created until you ask."
               action={
                 <Button onClick={() => addStarters.mutate()} disabled={addStarters.isPending}>
                   Set these up for me
@@ -229,10 +229,10 @@ export default function SalarySetup() {
                     /* Said as a consequence, not as a blank. "—" in this column
                        is exactly the state that kept somebody out of payroll
                        without anybody noticing. */
-                    <Badge tone="warning">not set — will not be paid</Badge>
+                    <Badge tone="warning">not set, will not be paid</Badge>
                   )}
                 </Td>
-                <Td className="text-muted-foreground">{r.effective_from ?? '—'}</Td>
+                <Td className="text-muted-foreground">{r.effective_from ?? '-'}</Td>
                 <Td>
                   <Button
                     size="sm"

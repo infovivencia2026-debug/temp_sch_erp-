@@ -86,7 +86,7 @@ func (s *Server) getLiveRevision(w http.ResponseWriter, r *http.Request) {
 			  /* A concession decided.
 			
 			     invoices.updated_at already covers the money changing, but a
-			     decision often lands BEFORE the bill is raised — the principal
+			     decision often lands BEFORE the bill is raised, the principal
 			     approves in the morning and the office raises the demand after
 			     lunch. Without this the clerk sitting on the child's record
 			     watches a stale "pending" until they reload, and the button

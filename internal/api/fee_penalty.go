@@ -57,7 +57,7 @@ func (s *Server) addInvoicePenalty(w http.ResponseWriter, r *http.Request) {
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
 		httpx.BadRequest(w, r,
-			"say what the penalty is for — the family sees this, and a charge "+
+			"say what the penalty is for, the family sees this, and a charge "+
 				"they cannot account for is a charge they ring the school about")
 		return
 	}
@@ -71,7 +71,7 @@ func (s *Server) addInvoicePenalty(w http.ResponseWriter, r *http.Request) {
 	   as a demand, and the school hears about it before finance does. */
 	if req.Amount > 100000 {
 		httpx.BadRequest(w, r,
-			"that is over ₹1,00,000 — if it is right, raise it as its own invoice "+
+			"that is over ₹1,00,000, if it is right, raise it as its own invoice "+
 				"so it is on the record as a charge rather than a late fee")
 		return
 	}
@@ -111,7 +111,7 @@ func (s *Server) addInvoicePenalty(w http.ResponseWriter, r *http.Request) {
 				INSERT INTO invoice_lines
 				    (institution_id, invoice_id, fee_head_id, description, amount_paise)
 				VALUES ($1,$2,$3,$4,0)`,
-				id.InstitutionID, invoiceID, *head, "Penalty — "+reason); err != nil {
+				id.InstitutionID, invoiceID, *head, "Penalty · "+reason); err != nil {
 				return err
 			}
 		}

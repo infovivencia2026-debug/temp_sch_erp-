@@ -402,7 +402,7 @@ func (s *Server) getAttendanceShortage(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-		       COALESCE(c.name,'—'), COALESCE(sec.name,'—'),
+		       COALESCE(c.name,'-'), COALESCE(sec.name,'-'),
 		       count(*) FILTER (WHERE sa.status IN ('present','late')),
 		       count(*),
 		       round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))

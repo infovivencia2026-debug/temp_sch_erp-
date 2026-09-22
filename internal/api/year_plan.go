@@ -89,7 +89,7 @@ func (s *Server) getYearPlan(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	classSubject := strings.TrimSpace(q.Get("class_subject_id"))
 	if classSubject == "" {
-		httpx.BadRequest(w, r, "class_subject_id is required — a year plan is a plan for one subject in one class")
+		httpx.BadRequest(w, r, "class_subject_id is required, a year plan is a plan for one subject in one class")
 		return
 	}
 

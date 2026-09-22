@@ -128,7 +128,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
       if (res?.parents_told) sent.push(`${res.parents_told} told in the app`)
       if (res?.messages_queued) sent.push(`${res.messages_queued} messages sent`)
       toast.ok(
-        `Register saved — ${entries.length} marked${absent ? `, ${absent} absent` : ''}`
+        `Register saved · ${entries.length} marked${absent ? `, ${absent} absent` : ''}`
         + (sent.length ? ` · ${sent.join(', ')}` : ''),
       )
     },
@@ -321,7 +321,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                             key={q.value}
                             type="button"
                             aria-pressed={on}
-                            aria-label={`${q.label} — ${s.full_name}`}
+                            aria-label={`${q.label} · ${s.full_name}`}
                             title={q.label}
                             disabled={!can('academics.attendance.write')}
                             /* Tapping the mark a child already has clears it,
@@ -356,7 +356,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                           of its own on every row. */}
                       <button
                         type="button"
-                        aria-label={`Half day — ${s.full_name}`}
+                        aria-label={`Half day · ${s.full_name}`}
                         title="Half day"
                         disabled={!can('academics.attendance.write')}
                         onClick={() =>

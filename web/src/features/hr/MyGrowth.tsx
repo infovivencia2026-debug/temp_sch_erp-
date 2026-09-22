@@ -118,7 +118,7 @@ const SCORED_BY: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   not_started: 'Yours to fill in',
   self_submitted: 'Self-assessment sent',
-  published: 'Published — please acknowledge',
+  published: 'Published, please acknowledge',
   acknowledged: 'Acknowledged',
 }
 
@@ -244,7 +244,7 @@ function MyAppraisalsPanel({
       <Card>
         <CardHeader
           title="My appraisals"
-          description="Yours alone. The score shown is the final one once published — never a draft somebody is still calibrating."
+          description="Yours alone. The score shown is the final one once published, never a draft somebody is still calibrating."
         />
         {query.isLoading ? (
           <SkeletonTable columns={5} label="Reading your appraisals…" />
@@ -283,7 +283,7 @@ function MyAppraisalsPanel({
                       {a.self_score.toFixed(2)} self-assessed
                     </span>
                   ) : (
-                    '—'
+                    '-'
                   )}
                 </Td>
                 <Td className="text-right">
@@ -386,7 +386,7 @@ function MyAppraisalForm({
     <>
       <Card>
         <CardHeader
-          title={`${appraisal.cycle} — my appraisal`}
+          title={`${appraisal.cycle}, my appraisal`}
           description={
             editable
               ? 'Rate yourself against each KPI and say why. Your reviewer reads this before they rate you, and the weighted total is worked out by the school rather than by this page.'
@@ -410,7 +410,7 @@ function MyAppraisalForm({
                 <span className="font-medium">{r.title}</span>
                 <span className="block text-[12.5px] text-muted-foreground">
                   {r.code}
-                  {r.description ? ` — ${r.description}` : ''}
+                  {r.description ? ` · ${r.description}` : ''}
                 </span>
               </Td>
               <Td className="text-right tabular-nums">{r.weight}</Td>
@@ -453,7 +453,7 @@ function MyAppraisalForm({
                     onChange={(v) => setNotes({ ...notes, [r.kpi_id]: v })}
                   />
                 ) : (
-                  <span className="text-muted-foreground">{r.self_note ?? '—'}</span>
+                  <span className="text-muted-foreground">{r.self_note ?? '-'}</span>
                 )}
               </Td>
             </tr>
@@ -489,11 +489,11 @@ function MyAppraisalForm({
           ) : (
             <FormGrid>
               <Field label="What I said">
-                <p className="text-[14px] text-muted-foreground">{appraisal.self_comments ?? '—'}</p>
+                <p className="text-[14px] text-muted-foreground">{appraisal.self_comments ?? '-'}</p>
               </Field>
               <Field label="What my reviewer said">
                 <p className="text-[14px] text-muted-foreground">
-                  {appraisal.reviewer_comments ?? '—'}
+                  {appraisal.reviewer_comments ?? '-'}
                 </p>
               </Field>
             </FormGrid>
@@ -514,7 +514,7 @@ function MyAppraisalForm({
                 value={
                   appraisal.final_score != null
                     ? `${appraisal.final_score.toFixed(2)} / ${max}`
-                    : '—'
+                    : '-'
                 }
                 hint={appraisal.final_band ?? undefined}
               />
@@ -528,7 +528,7 @@ function MyAppraisalForm({
               />
               <Stat
                 label="Published"
-                value={appraisal.published_at ? formatDate(appraisal.published_at) : '—'}
+                value={appraisal.published_at ? formatDate(appraisal.published_at) : '-'}
                 hint={
                   appraisal.discussion_on
                     ? `Discussed on ${formatDate(appraisal.discussion_on)}`
@@ -558,7 +558,7 @@ function MyAppraisalForm({
               <>
                 <Field
                   label="Your reply, if you have one"
-                  hint="Filed with your acknowledgement and read alongside the score. Write it before you sign — there is no way to add it afterwards."
+                  hint="Filed with your acknowledgement and read alongside the score. Write it before you sign, there is no way to add it afterwards."
                   wide
                 >
                   <Textarea
@@ -656,10 +656,10 @@ function MyTrainingPanel() {
           {rows.map((t) => (
             <tr key={t.id}>
               <Td><span className="font-medium">{t.programme}</span></Td>
-              <Td className="text-muted-foreground">{t.provider ?? '—'}</Td>
+              <Td className="text-muted-foreground">{t.provider ?? '-'}</Td>
               <Td className="text-muted-foreground">{formatDate(t.attended_on ?? t.starts_on)}</Td>
               <Td className="text-right tabular-nums">
-                {t.hours_completed != null ? t.hours_completed.toFixed(1) : '—'}
+                {t.hours_completed != null ? t.hours_completed.toFixed(1) : '-'}
               </Td>
               <Td>
                 {t.counts_towards_requirement
@@ -674,7 +674,7 @@ function MyTrainingPanel() {
               <Td className="text-muted-foreground">
                 {t.certificate_no
                   ? `${t.certificate_no}${t.certificate_issued_on ? ` · ${formatDate(t.certificate_issued_on)}` : ''}`
-                  : '—'}
+                  : '-'}
               </Td>
             </tr>
           ))}
@@ -709,7 +709,7 @@ function MyDutiesPanel() {
     <Card>
       <CardHeader
         title="My duties"
-        description="Non-teaching duty only — the gate, the ground, dispersal, escorts and invigilation. Your lessons are on your timetable."
+        description="Non-teaching duty only, the gate, the ground, dispersal, escorts and invigilation. Your lessons are on your timetable."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Input
@@ -733,7 +733,7 @@ function MyDutiesPanel() {
           <Stat
             label="Of them onerous"
             value={onerous}
-            hint="Early, late or outdoor duty — what a fair roster shares out"
+            hint="Early, late or outdoor duty, what a fair roster shares out"
           />
         </CellGrid>
       </div>
@@ -764,7 +764,7 @@ function MyDutiesPanel() {
                   {d.status.replace(/_/g, ' ')}
                 </Badge>
               </Td>
-              <Td className="text-muted-foreground">{d.notes ?? '—'}</Td>
+              <Td className="text-muted-foreground">{d.notes ?? '-'}</Td>
             </tr>
           ))}
         </Table>

@@ -423,7 +423,7 @@ function AbsenteeRow({
         <Input
           value={edit.parent_response}
           onChange={(v) => onChange({ parent_response: v })}
-          placeholder="Why absent — the parent's reason"
+          placeholder="Why absent, the parent's reason"
           srLabel="Parent's reason for the absence"
         />
       </div>

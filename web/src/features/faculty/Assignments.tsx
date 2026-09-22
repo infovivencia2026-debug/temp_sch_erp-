@@ -107,9 +107,9 @@ export default function Assignments() {
                     <span className="block text-[12px] text-muted-foreground">{a.kind}</span>
                   </Td>
                   <Td>{a.class_name} {a.section}</Td>
-                  <Td>{a.subject ?? '—'}</Td>
+                  <Td>{a.subject ?? '-'}</Td>
                   <Td>
-                    {a.due_on ? formatDate(a.due_on) : '—'}
+                    {a.due_on ? formatDate(a.due_on) : '-'}
                     {a.overdue && <Badge tone="danger">Overdue</Badge>}
                   </Td>
                   <Td>{a.submitted} of {a.roll}</Td>
@@ -191,7 +191,7 @@ function Compose({ onDone }: { onDone: () => void }) {
               }))}
             />
           </Field>
-          <Field label="Subject" hint="Optional — leave blank for general work">
+          <Field label="Subject" hint="Optional, leave blank for general work">
             <Select
               value={classSubjectID}
               onChange={setClassSubjectID}
@@ -287,7 +287,7 @@ function Marking({ assignment }: { assignment: Assignment }) {
   return (
     <Card>
       <CardHeader
-        title={`Marking — ${assignment.title}`}
+        title={`Marking · ${assignment.title}`}
         description={
           assignment.max_marks
             ? `Out of ${assignment.max_marks}. Everyone in the class is listed, submitted or not.`
@@ -297,7 +297,7 @@ function Marking({ assignment }: { assignment: Assignment }) {
       <Table head={['Roll', 'Child', 'Status', 'Handed in', 'Mark', 'Feedback']}>
         {rows.map((s) => (
           <tr key={s.student_id}>
-            <Td>{s.roll_no ?? '—'}</Td>
+            <Td>{s.roll_no ?? '-'}</Td>
             <Td>
               <span className="font-medium">{s.full_name}</span>
               <span className="block text-[12px] text-muted-foreground">{s.admission_no}</span>
@@ -313,7 +313,7 @@ function Marking({ assignment }: { assignment: Assignment }) {
                 {s.status}
               </Badge>
             </Td>
-            <Td>{s.submitted_at ? formatDate(s.submitted_at) : '—'}</Td>
+            <Td>{s.submitted_at ? formatDate(s.submitted_at) : '-'}</Td>
             <Td>
               <Input
                 value={draft[s.student_id]?.marks ?? (s.marks?.toString() ?? '')}

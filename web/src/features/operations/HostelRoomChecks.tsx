@@ -395,7 +395,7 @@ export default function HostelRoomChecks() {
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    {c.charge_paise > 0 ? formatPaise(c.charge_paise) : '—'}
+                    {c.charge_paise > 0 ? formatPaise(c.charge_paise) : '-'}
                   </Td>
                   <Td>
                     <Button
@@ -445,9 +445,9 @@ function Lines({ checkId }: { checkId: string }) {
               <Td>
                 <Badge tone={CONDITION_TONE[l.condition] ?? 'neutral'}>{l.condition}</Badge>
               </Td>
-              <Td className="text-[13px]">{l.damage_note ?? '—'}</Td>
+              <Td className="text-[13px]">{l.damage_note ?? '-'}</Td>
               <Td className="tabular-nums">
-                {l.charge_paise > 0 ? formatPaise(l.charge_paise) : '—'}
+                {l.charge_paise > 0 ? formatPaise(l.charge_paise) : '-'}
               </Td>
             </tr>
           ))}

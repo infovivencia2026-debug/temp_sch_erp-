@@ -116,7 +116,7 @@ func (s *Server) saveFeeReminderSchedule(w http.ResponseWriter, r *http.Request)
 	channels := cleanChannels(req.Channels)
 	if req.Active && len(channels) == 0 {
 		httpx.BadRequest(w, r,
-			"choose at least one of SMS, WhatsApp or email — or switch the "+
+			"choose at least one of SMS, WhatsApp or email, or switch the "+
 				"automatic reminder off")
 		return
 	}
@@ -167,7 +167,7 @@ func (s *Server) saveFeeReminderSchedule(w http.ResponseWriter, r *http.Request)
 					     template_code, plan_kind, repeat_days, max_attempts, is_active)
 					VALUES ($1,$2,'invoice.overdue',$3,'family',$4,
 					        'fees.overdue','fee_reminder',$5,$6,$7)`,
-					id.InstitutionID, feeScheduleName+" — "+ch, cond, ch,
+					id.InstitutionID, feeScheduleName+" · "+ch, cond, ch,
 					req.RepeatDays, req.MaxAttempts, req.Active); err != nil {
 					return err
 				}

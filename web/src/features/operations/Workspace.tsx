@@ -51,7 +51,7 @@ export default function OperationsWorkspace() {
       <PageHead
         eyebrow="Specialist Workspace"
         title="Operations"
-        description="Library, transport, hostel and stores — the dashboard changes with your permissions."
+        description="Library, transport, hostel and stores, the dashboard changes with your permissions."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -86,7 +86,7 @@ export default function OperationsWorkspace() {
                   <Td>{l.borrower}</Td>
                   <Td className="text-muted-foreground">{formatDate(l.issued_on)}</Td>
                   <Td className="text-muted-foreground">{formatDate(l.due_on)}</Td>
-                  <Td>{l.fine_paise ? formatPaise(l.fine_paise) : '—'}</Td>
+                  <Td>{l.fine_paise ? formatPaise(l.fine_paise) : '-'}</Td>
                   <Td>
                     <Badge tone={l.overdue ? 'danger' : 'success'}>
                       {l.overdue ? <><Clock className="mr-1 h-3 w-3" />overdue</> : 'on time'}
@@ -110,10 +110,10 @@ export default function OperationsWorkspace() {
               {(vehicles.data?.items ?? []).map((v) => (
                 <tr key={v.id}>
                   <Td className="font-mono text-[12px]">{v.registration_no}</Td>
-                  <Td>{v.model ?? '—'}</Td>
+                  <Td>{v.model ?? '-'}</Td>
                   <Td>{v.capacity}</Td>
                   <Td className="text-muted-foreground">{v.route ?? 'unassigned'}</Td>
-                  <Td className="text-muted-foreground">{v.driver ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{v.driver ?? '-'}</Td>
                   <Td className="text-muted-foreground">{formatDate(v.next_expiry)}</Td>
                   <Td><Badge tone={v.status === 'active' ? 'success' : 'neutral'}>{v.status}</Badge></Td>
                 </tr>

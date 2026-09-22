@@ -178,7 +178,7 @@ export default function SmsGateway() {
                   </Td>
                   <Td>
                     {d.battery_pct === undefined ? (
-                      '—'
+                      '-'
                     ) : (
                       <span
                         className={
@@ -240,7 +240,7 @@ export default function SmsGateway() {
                   {f.reason}
                   {f.state === 'expired' && (
                     <span className="block text-[12px] text-warning">
-                      Not re-sent — it may already have gone out.
+                      Not re-sent, it may already have gone out.
                     </span>
                   )}
                 </Td>
@@ -350,7 +350,7 @@ function StaleBanner({ devices }: { devices: GatewayDevice[] }) {
           <p className="mt-1.5 text-[14px] leading-relaxed">
             {devices.map((d) => (
               <span key={d.id} className="block">
-                <strong>{d.name}</strong> has not reported in for {d.silent_for ?? 'a while'} — last
+                <strong>{d.name}</strong> has not reported in for {d.silent_for ?? 'a while'}, last
                 heard {when(d.last_seen_at)}.
               </span>
             ))}
@@ -443,7 +443,7 @@ function PairCodePanel({ code }: { code: PairCode }) {
         <p className="font-mono text-[28px] font-semibold tracking-[0.2em]">{code.pair_code}</p>
         <p className="text-[13px] text-muted-foreground">
           Valid for {code.valid_minutes} minutes, until {when(code.expires_at)}. It works once. This
-          is the only time it is shown — if you lose it, generate another.
+          is the only time it is shown, if you lose it, generate another.
         </p>
       </div>
     </Card>
@@ -502,7 +502,7 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
       <div className="space-y-5 p-5">
         <FormNotice error={update.error ?? revoke.error} ok={update.isSuccess ? 'Saved.' : undefined} />
         <FormGrid>
-          <Field label="Name" hint="What the office calls this handset — “front office drawer” beats “Redmi Note 12”.">
+          <Field label="Name" hint="What the office calls this handset, “front office drawer” beats “Redmi Note 12”.">
             <Input value={name} onChange={setName} />
           </Field>
           <Field
@@ -517,7 +517,7 @@ function DevicePanel({ device }: { device: GatewayDevice }) {
           >
             <Input value={cap} onChange={setCap} />
           </Field>
-          <Field label="Paused" hint="Keeps the pairing but hands this phone nothing — for a handset going home for the weekend.">
+          <Field label="Paused" hint="Keeps the pairing but hands this phone nothing, for a handset going home for the weekend.">
             <Checkbox
               checked={paused}
               onChange={setPaused}
@@ -554,7 +554,7 @@ function GetTheAppPanel() {
     <Card>
       <CardHeader
         title="Get the app onto the phone"
-        description="Do this before generating a pairing code — the code expires in ten minutes."
+        description="Do this before generating a pairing code, the code expires in ten minutes."
       />
       <div className="space-y-3 p-5 text-[13px]">
         <p className="text-muted-foreground">

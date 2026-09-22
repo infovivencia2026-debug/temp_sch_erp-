@@ -544,7 +544,7 @@ func TestPhoneGatewayWithNoLivePhoneRefusesToSend(t *testing.T) {
 	}
 	_, err := p.Send(context.Background(), OutboundMessage{To: "+919000000000", Body: "x"})
 	if err == nil {
-		t.Fatal("Send succeeded with no live handset — a message would be marked sent")
+		t.Fatal("Send succeeded with no live handset, a message would be marked sent")
 	}
 	if !strings.Contains(err.Error(), "40 minutes") {
 		t.Errorf("the refusal dropped the reason: %v", err)

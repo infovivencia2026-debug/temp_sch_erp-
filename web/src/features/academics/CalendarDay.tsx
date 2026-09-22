@@ -80,7 +80,7 @@ export default function CalendarDay() {
     <Card>
       <CardHeader
         title="The day"
-        description="Periods, who teaches them and the lesson plan for each — the timetable, the plan and the almanac read together."
+        description="Periods, who teaches them and the lesson plan for each, the timetable, the plan and the almanac read together."
         action={
           <div className="flex items-center gap-2">
             <Input type="date" value={date} onChange={setDate} className="w-auto" />
@@ -98,7 +98,7 @@ export default function CalendarDay() {
             {d.open ? (
               <Badge tone="success">School open</Badge>
             ) : (
-              <Badge tone="danger">Shut{d.reason ? ` — ${d.reason}` : ''}</Badge>
+              <Badge tone="danger">Shut{d.reason ? ` · ${d.reason}` : ''}</Badge>
             )}
             {d.almanac
               .filter((a) => a.source !== 'calendar' || a.kind !== 'working_day')
@@ -152,7 +152,7 @@ export default function CalendarDay() {
                             <span className="font-medium">{p.substitute}</span>
                             <span className="block text-[12px] text-muted-foreground">
                               standing in for {p.teacher ?? 'the scheduled teacher'}
-                              {p.substitute_reason ? ` — ${p.substitute_reason}` : ''}
+                              {p.substitute_reason ? ` · ${p.substitute_reason}` : ''}
                             </span>
                           </>
                         ) : (

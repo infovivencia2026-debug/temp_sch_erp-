@@ -214,7 +214,7 @@ export default function Funnel() {
           <Stat label="Follow-ups overdue" value={overdue.length} />
           <Stat
             label="RTE share"
-            value={reg ? `${reg.rte_percent.toFixed(0)}%` : '—'}
+            value={reg ? `${reg.rte_percent.toFixed(0)}%` : '-'}
             delta={
               reg && reg.rte_short_by > 0
                 ? { value: `${reg.rte_short_by} short of a quarter`, positive: false }
@@ -303,7 +303,7 @@ function Leads({ rows }: { rows: Lead[] }) {
       <Card>
         <CardHeader
           title="Hand leads to a counsellor"
-          description="A batch, because that is how the work arrives — a morning's forty web enquiries split between three people. Doing it one at a time is the reason nobody does it."
+          description="A batch, because that is how the work arrives, a morning's forty web enquiries split between three people. Doing it one at a time is the reason nobody does it."
         />
         <div className="p-4">
           <FormGrid>
@@ -384,9 +384,9 @@ function Leads({ rows }: { rows: Lead[] }) {
                     {l.phone && ` · ${l.phone}`}
                   </div>
                 </Td>
-                <Td className="text-muted-foreground">{l.class_sought ?? '—'}</Td>
+                <Td className="text-muted-foreground">{l.class_sought ?? '-'}</Td>
                 <Td className="text-muted-foreground">
-                  {l.source ?? '—'}
+                  {l.source ?? '-'}
                   {l.utm && <div className="text-[12px]">{l.utm}</div>}
                 </Td>
                 <Td className="text-muted-foreground">
@@ -399,7 +399,7 @@ function Leads({ rows }: { rows: Lead[] }) {
                       {formatDate(l.next_follow_up)}
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </Td>
               </tr>
@@ -422,7 +422,7 @@ function Sources() {
     <Card>
       <CardHeader
         title="Which advertisement worked"
-        description="All four numbers come from the same rows, so they always add up — which a dashboard assembled from separate queries famously does not. A conversion rate is withheld below five enquiries: one lead from a newspaper is not a 0% rate, it is not yet a rate."
+        description="All four numbers come from the same rows, so they always add up, which a dashboard assembled from separate queries famously does not. A conversion rate is withheld below five enquiries: one lead from a newspaper is not a 0% rate, it is not yet a rate."
       />
       {q.isLoading ? (
         <SkeletonTable columns={7} label="Counting…" />
@@ -582,7 +582,7 @@ function Register({
               <Td className="font-medium">
                 {a.full_name}
                 <div className="text-[12px] font-normal text-muted-foreground">
-                  {a.class_sought ?? '—'}
+                  {a.class_sought ?? '-'}
                   {a.sibling && ` · sibling of ${a.sibling}`}
                 </div>
               </Td>
@@ -639,7 +639,7 @@ function Register({
                         has already been enrolled keeps the old spelling on
                         their student record until somebody fixes that too. */}
                     <div className="border-t pt-2 text-[12px] text-muted-foreground">
-                      Correct a detail — leave blank to keep what is on file
+                      Correct a detail, leave blank to keep what is on file
                     </div>
                     <Input
                       value={String(form.first_name ?? '')}
@@ -660,7 +660,7 @@ function Register({
                       value={String(form.gender ?? '')}
                       onChange={(v) => setForm({ ...form, gender: v })}
                       options={[
-                        { value: '', label: 'Gender — unchanged' },
+                        { value: '', label: 'Gender, unchanged' },
                         ...['male', 'female', 'other'].map((g) => ({ value: g, label: g })),
                       ]}
                     />
@@ -668,7 +668,7 @@ function Register({
                       value={String(form.category ?? '')}
                       onChange={(v) => setForm({ ...form, category: v })}
                       options={[
-                        { value: '', label: 'Category — unchanged' },
+                        { value: '', label: 'Category, unchanged' },
                         ...['general', 'obc', 'sc', 'st', 'ews', 'other'].map((c) => ({
                           value: c, label: c,
                         })),
@@ -798,12 +798,12 @@ function Waitlist() {
           >
             {rows.map((a) => (
               <tr key={a.id}>
-                <Td className="tabular-nums font-medium">{a.waitlist_rank ?? '—'}</Td>
+                <Td className="tabular-nums font-medium">{a.waitlist_rank ?? '-'}</Td>
                 <Td>
                   {a.full_name}
                   <div className="text-[12px] text-muted-foreground">{a.application_no}</div>
                 </Td>
-                <Td className="text-muted-foreground">{a.class_sought ?? '—'}</Td>
+                <Td className="text-muted-foreground">{a.class_sought ?? '-'}</Td>
                 <Td>
                   <Badge tone="neutral">{a.quota}</Badge>
                 </Td>
@@ -879,7 +879,7 @@ function OpenDays() {
         <div className="p-4">
           <FormGrid>
             <Field label="Name" required>
-              <Input value={form.name ?? ''} onChange={set('name')} placeholder="Open House — Grade 1 intake" />
+              <Input value={form.name ?? ''} onChange={set('name')} placeholder="Open House · Grade 1 intake" />
             </Field>
             <Field label="Date" required>
               <Input type="date" value={form.on_date ?? ''} onChange={set('on_date')} />
@@ -943,7 +943,7 @@ function OpenDays() {
                       {e.attended} of {e.booked}
                     </Badge>
                   ) : (
-                    '—'
+                    '-'
                   )}
                 </Td>
                 <Td>
@@ -1093,7 +1093,7 @@ function Prospectus() {
       <Card>
         <CardHeader
           title="Sell a prospectus"
-          description="Receipt numbers are gapless within the year and allocated as the sale is recorded — a cash book with a hole in its numbering is a cash book somebody has to explain."
+          description="Receipt numbers are gapless within the year and allocated as the sale is recorded, a cash book with a hole in its numbering is a cash book somebody has to explain."
           action={
             <div className="flex gap-2">
               <Input value={stock} onChange={setStock} type="number" placeholder="Add stock" className="w-28" />

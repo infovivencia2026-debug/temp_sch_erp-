@@ -49,8 +49,8 @@ function stepsFor(t: Tour): Step[] {
       icon: LayoutGrid,
       title: `Welcome to ${t.school_name}`,
       body:
-        'This is your school on the system. Nothing is here yet — no classes, no students, ' +
-        'no fees — because you decide all of it, and the next few screens walk you through ' +
+        'This is your school on the system. Nothing is here yet, no classes, no students, ' +
+        'no fees, because you decide all of it, and the next few screens walk you through ' +
         'it in the order things depend on each other.',
       aside: 'Roughly an afternoon for a school of 500. You can stop and come back.',
     },
@@ -61,15 +61,15 @@ function stepsFor(t: Tour): Step[] {
         'The setup page lists fifteen steps and carries the form for each one, so you never ' +
         'have to go looking. Work down it: your school details, then classes and sections, ' +
         'then subjects, then staff, then students.',
-      aside: 'Presets fill in the usual answers — Classes 1 to 10, the state syllabus, a ' +
-        'seven-period day — and you edit what differs.',
+      aside: 'Presets fill in the usual answers · Classes 1 to 10, the state syllabus, a ' +
+        'seven-period day, and you edit what differs.',
     },
     {
       icon: Users,
       title: 'Then let your staff in',
       body:
         'Create an account per person and give them the roles they actually do. One person ' +
-        'can hold several — in a small school the accountant often runs the library too — ' +
+        'can hold several, in a small school the accountant often runs the library too · ' +
         'and each role keeps its own workspace rather than merging into one screen.',
       aside: 'A teacher sees nothing until they are made class teacher of a section or given ' +
         'a subject in one. That is deliberate.',
@@ -94,7 +94,7 @@ function stepsFor(t: Tour): Step[] {
       title: `Welcome to ${t.school_name}`,
       body:
         'The left rail switches between the roles you hold; the column beside it lists what ' +
-        'you can do in the one you are in. Everything you see is scoped to you — your ' +
+        'you can do in the one you are in. Everything you see is scoped to you, your ' +
         'sections, your children, your department.',
     },
     {

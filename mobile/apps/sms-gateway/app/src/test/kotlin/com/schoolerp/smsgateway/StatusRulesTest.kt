@@ -113,7 +113,7 @@ class StatusRulesTest {
             counts = QueueCounts(sentToday = 41),
             failures = emptyList(),
         )
-        assertEquals("Ready — 41 sent today", status.summary)
+        assertEquals("Ready · 41 sent today", status.summary)
         assertTrue(status.healthy)
     }
 

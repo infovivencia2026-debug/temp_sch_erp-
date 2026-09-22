@@ -95,7 +95,7 @@ export default function TodaysClasses() {
             body={
               weekday >= 6
                 ? 'Today is the weekend. Your full week is on the timetable.'
-                : 'If that is wrong, the timetable for your subjects may not be published yet — the timetable below shows your whole week.'
+                : 'If that is wrong, the timetable for your subjects may not be published yet, the timetable below shows your whole week.'
             }
           />
         </div>

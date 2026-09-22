@@ -104,7 +104,7 @@ export default function BiometricFleet() {
                   </Td>
                   <Td className="whitespace-nowrap">{ago(r.last_seen_at)}</Td>
                   <Td className="tabular-nums">{r.punches_today}</Td>
-                  <Td className="tabular-nums">{r.unresolved > 0 ? <Badge tone="warning">{r.unresolved}</Badge> : '—'}</Td>
+                  <Td className="tabular-nums">{r.unresolved > 0 ? <Badge tone="warning">{r.unresolved}</Badge> : '-'}</Td>
                 </tr>
               ))}
             </Table>

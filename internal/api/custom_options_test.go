@@ -12,7 +12,7 @@ func TestOptionValueIsReadable(t *testing.T) {
 		"ICSE / ISC":                    "icse_isc",
 		"  Spaces  Around  ":            "spaces_around",
 		"Class 10 (SSC)":                "class_10_ssc",
-		"Aided — Government":            "aided_government",
+		"Aided · Government":            "aided_government",
 	} {
 		if got := optionValue(label); got != want {
 			t.Errorf("optionValue(%q) = %q, want %q", label, got, want)
@@ -24,7 +24,7 @@ func TestOptionValueIsReadable(t *testing.T) {
 // explicit refusal rather than silently storing an empty string, which the
 // table's check constraint would reject as a 500 instead of a message.
 func TestOptionValueEmptyWhenNothingUsable(t *testing.T) {
-	for _, label := range []string{"", "   ", "—", "!!!"} {
+	for _, label := range []string{"", "   ", "-", "!!!"} {
 		if got := optionValue(label); got != "" {
 			t.Errorf("optionValue(%q) = %q, want empty", label, got)
 		}

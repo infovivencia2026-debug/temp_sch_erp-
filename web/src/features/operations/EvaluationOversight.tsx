@@ -163,7 +163,7 @@ export default function EvaluationOversight() {
                 <Field
                   label="Anonymity floor"
                   required
-                  hint="Below this many responses a direction shows nothing at all. Two is the lowest the server accepts — with one, the average names the person who gave it."
+                  hint="Below this many responses a direction shows nothing at all. Two is the lowest the server accepts, with one, the average names the person who gave it."
                 >
                   <Select value={form.min_responses}
                     onChange={(v) => setForm({ ...form, min_responses: v })}
@@ -209,7 +209,7 @@ export default function EvaluationOversight() {
                   {create.isPending ? 'Creating…' : 'Create cycle'}
                 </Button>
                 <span className="text-[12px] text-muted-foreground">
-                  Created as a draft — nobody is asked anything until you start it.
+                  Created as a draft, nobody is asked anything until you start it.
                 </span>
               </div>
             </div>
@@ -327,7 +327,7 @@ function CycleDetail({ id, mayRun, onDone }: {
     <>
       <Card>
         <CardHeader
-          title={`${c.name} — who has answered`}
+          title={`${c.name}, who has answered`}
           description={detail.data!.note}
         />
         <Table
@@ -343,7 +343,7 @@ function CycleDetail({ id, mayRun, onDone }: {
                   {v.employee_code}
                 </span>
               </Td>
-              <Td className="text-muted-foreground">{v.department ?? '—'}</Td>
+              <Td className="text-muted-foreground">{v.department ?? '-'}</Td>
               <Td>
                 <div className="flex flex-wrap gap-2">
                   {v.by_relation.length === 0 && (
@@ -357,7 +357,7 @@ function CycleDetail({ id, mayRun, onDone }: {
                         g.meets_floor ? 'bg-success/12 text-success' : 'bg-muted text-secondary-foreground',
                       )}
                       title={g.attributed
-                        ? 'Attributed — one respondent by construction, and shown as such'
+                        ? 'Attributed, one respondent by construction, and shown as such'
                         : `Needs ${c.min_responses} responses before anything is shown`}
                     >
                       {RELATION_LABEL[g.relation] ?? g.relation} {g.responded}/{g.invited}
@@ -393,7 +393,7 @@ function CycleDetail({ id, mayRun, onDone }: {
         </Table>
         <div className="border-t px-5 py-4 text-[12px] text-muted-foreground">
           This table shows who was asked and whether they replied. It cannot show what any one
-          person said — the response rows carry no respondent, so there is no query that would
+          person said, the response rows carry no respondent, so there is no query that would
           return it.
         </div>
       </Card>
@@ -441,7 +441,7 @@ function RevieweeResults({ id, minResponses }: { id: string; minResponses: numbe
   return (
     <Card>
       <CardHeader
-        title={`${d.subject} — results`}
+        title={`${d.subject}, results`}
         description={d.anonymity_note}
       />
       {!d.results.length ? (
@@ -475,16 +475,16 @@ function RevieweeResults({ id, minResponses }: { id: string; minResponses: numbe
                       <Td className="tabular-nums">
                         {q.average !== undefined && q.average !== null
                           ? `${q.average.toFixed(1)} / ${q.max_rating}`
-                          : '—'}
+                          : '-'}
                       </Td>
                       <Td className="tabular-nums text-muted-foreground">
                         {q.low !== undefined && q.low !== null && q.high !== undefined && q.high !== null
                           ? `${q.low}–${q.high}`
-                          : '—'}
+                          : '-'}
                       </Td>
                       <Td>
                         {q.comments.length === 0
-                          ? <span className="text-muted-foreground">—</span>
+                          ? <span className="text-muted-foreground">-</span>
                           : q.comments.map((cm, i) => (
                             <span key={i} className="block text-[13px]">“{cm}”</span>
                           ))}
@@ -500,8 +500,8 @@ function RevieweeResults({ id, minResponses }: { id: string; minResponses: numbe
       {d.suppressed > 0 && (
         <div className="border-t px-5 py-4 text-[12px] text-muted-foreground">
           {d.suppressed} direction{d.suppressed === 1 ? '' : 's'} withheld for having too few
-          responses. This is applied on the server, to everybody — including whoever runs the
-          cycle — because the invitation list on the panel above would otherwise name them.
+          responses. This is applied on the server, to everybody, including whoever runs the
+          cycle, because the invitation list on the panel above would otherwise name them.
         </div>
       )}
     </Card>

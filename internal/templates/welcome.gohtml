@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your school is ready — School ERP</title>
+<title>Your school is ready · School ERP</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
 {{template "themeboot"}}
@@ -34,14 +34,14 @@
   {{if .Password}}
   <!--
     The one moment the password exists in readable form. It is not in the
-    order row, not in the message log and not in this page's URL — only its
+    order row, not in the message log and not in this page's URL, only its
     hash reached the database. A school that loses it resets it; nobody can
     look it up.
   -->
   <section class="handover" aria-labelledby="creds">
     <h2 id="creds">Your sign-in details</h2>
     <p class="handover-warn">
-      Shown once. Write this down before you leave this page — we cannot show
+      Shown once. Write this down before you leave this page, we cannot show
       it again, because we did not keep it.
     </p>
 
@@ -59,7 +59,7 @@
     <p>A copy of your sign-in details has gone to <strong>{{.Email}}</strong>.</p>
     <p class="fineprint">
       This installation has no mail gateway configured, so the message was
-      recorded rather than delivered — your school administrator can see it
+      recorded rather than delivered, your school administrator can see it
       under Communication once signed in. The password is not in that record.
     </p>
   </section>
@@ -82,7 +82,7 @@
     <h2 id="next">What happens next</h2>
     <ol class="steps">
       <li><strong>Sign in</strong> and change your password.</li>
-      <li><strong>Run the setup wizard</strong> — it walks you through your academic year, classes, sections, subjects and the school day, in the order they depend on each other.</li>
+      <li><strong>Run the setup wizard</strong>, it walks you through your academic year, classes, sections, subjects and the school day, in the order they depend on each other.</li>
       <li><strong>Add your teachers and assign them</strong> to sections and subjects. This is what decides which children each teacher can see.</li>
       <li><strong>Enrol your students</strong>, individually or from a spreadsheet.</li>
     </ol>
@@ -97,7 +97,7 @@
       <div><dt>Order</dt><dd class="mono">{{.OrderRef}}</dd></div>
       {{if .PaidRef}}<div><dt>Payment</dt><dd class="mono">{{.PaidRef}}</dd></div>{{end}}
     </dl>
-    <p class="fineprint">Keep this page's order reference — it is what we will ask for if you write to us about the payment.</p>
+    <p class="fineprint">Keep this page's order reference, it is what we will ask for if you write to us about the payment.</p>
   </section>
 
 </main>

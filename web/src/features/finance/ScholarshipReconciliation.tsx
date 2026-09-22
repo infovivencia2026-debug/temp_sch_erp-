@@ -153,7 +153,7 @@ export default function ScholarshipReconciliation() {
                   </Td>
                   <Td className="text-muted-foreground">{a.scheme_name}</Td>
                   <Td className="font-mono text-[12px] text-muted-foreground">
-                    {a.application_ref ?? '—'}
+                    {a.application_ref ?? '-'}
                   </Td>
                   <Td className="text-right font-medium tabular-nums">
                     {inr(a.sanctioned_paise ?? 0)}
@@ -274,7 +274,7 @@ function awardRows({
       </Td>
       {/* Category is here because the eligibility is decided on it. It is
           shown as the portal writes it and nowhere else in this feature. */}
-      <Td className="uppercase text-muted-foreground">{award.category ?? '—'}</Td>
+      <Td className="uppercase text-muted-foreground">{award.category ?? '-'}</Td>
       <Td className="text-muted-foreground">
         {award.scheme_name}
         {award.application_ref && (
@@ -283,10 +283,10 @@ function awardRows({
       </Td>
       <Td className="text-[13px]">{AWARD_STAGE_LABEL[award.stage]}</Td>
       <Td className="text-right tabular-nums">
-        {award.sanctioned_paise == null ? '—' : inr(award.sanctioned_paise)}
+        {award.sanctioned_paise == null ? '-' : inr(award.sanctioned_paise)}
       </Td>
       <Td className="text-right tabular-nums">
-        {award.credited_paise ? inr(award.credited_paise) : '—'}
+        {award.credited_paise ? inr(award.credited_paise) : '-'}
         {award.credited_on && (
           <span className="block text-[12px] font-normal text-muted-foreground">
             {award.credited_on}
@@ -294,14 +294,14 @@ function awardRows({
         )}
       </Td>
       <Td className="font-mono text-[12px] text-muted-foreground">
-        {award.account_masked ?? '—'}
+        {award.account_masked ?? '-'}
         {award.has_account && !award.is_aadhaar_seeded && (
           <span className="block font-sans">
             <Badge tone="warning">not seeded</Badge>
           </span>
         )}
       </Td>
-      <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">—</span>}</Td>
+      <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">-</span>}</Td>
       <Td>
         <span className="flex flex-wrap gap-1.5">
           {mayWrite && (award.stage === 'applied' || award.stage === 'school_rejected') && (
@@ -383,7 +383,7 @@ function ImportPanel({ mayWrite }: { mayWrite: boolean }) {
     <Card>
       <CardHeader
         title="Import the portal's disbursement list"
-        description="A file, because that is what exists. There is no NSP API and nothing here pretends there is — download the list from the portal and upload it."
+        description="A file, because that is what exists. There is no NSP API and nothing here pretends there is, download the list from the portal and upload it."
       />
 
       {mayWrite && (
@@ -458,7 +458,7 @@ function ImportPanel({ mayWrite }: { mayWrite: boolean }) {
                   {Object.entries(r.exceptions).map(([k, n]) => (
                     <li key={k}>
                       <span className="font-medium">{n}</span>{' '}
-                      {AWARD_EXCEPTION[k]?.label ?? k} — {AWARD_EXCEPTION[k]?.why ?? ''}
+                      {AWARD_EXCEPTION[k]?.label ?? k} · {AWARD_EXCEPTION[k]?.why ?? ''}
                     </li>
                   ))}
                 </ul>
@@ -480,7 +480,7 @@ function ImportPanel({ mayWrite }: { mayWrite: boolean }) {
       >
         {(history.data?.items ?? []).map((i) => (
           <tr key={i.id}>
-            <Td className="font-medium">{i.filename ?? '—'}</Td>
+            <Td className="font-medium">{i.filename ?? '-'}</Td>
             <Td className="text-muted-foreground">
               {i.scheme_name}
               <span className="block text-[12px]">{i.academic_year}</span>
@@ -605,7 +605,7 @@ function disbursementRow({
     <tr key={line.id}>
       <Td className="text-muted-foreground">{line.line_no}</Td>
       <Td>
-        {line.student_name_given ?? '—'}
+        {line.student_name_given ?? '-'}
         <span className="block font-mono text-[12px] text-muted-foreground">
           {line.application_ref ?? line.admission_no_given ?? ''}
         </span>
@@ -637,11 +637,11 @@ function disbursementRow({
         )}
       </Td>
       <Td className="text-right tabular-nums">{inr(line.amount_paise)}</Td>
-      <Td className="text-muted-foreground">{line.credited_on ?? '—'}</Td>
+      <Td className="text-muted-foreground">{line.credited_on ?? '-'}</Td>
       <Td className="font-mono text-[12px] text-muted-foreground">
-        {line.account_last4 ? `••••${line.account_last4}` : '—'}
+        {line.account_last4 ? `••••${line.account_last4}` : '-'}
       </Td>
-      <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">—</span>}</Td>
+      <Td>{ex ? <Badge tone={ex.tone}>{ex.label}</Badge> : <span className="text-muted-foreground">-</span>}</Td>
       <Td className="text-[12px] text-muted-foreground">{line.bank_reference ?? ''}</Td>
     </tr>
   )
@@ -709,7 +709,7 @@ function NewAward() {
               onChange={setStudentId}
               options={(students.data?.items ?? []).map((s) => ({
                 value: s.id,
-                label: `${s.full_name} — ${s.admission_no}`,
+                label: `${s.full_name} · ${s.admission_no}`,
               }))}
               placeholder={studentQuery.length > 1 ? 'Choose the child' : 'Search first'}
             />

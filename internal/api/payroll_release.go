@@ -95,7 +95,7 @@ func (s *Server) setPayrollState(w http.ResponseWriter, r *http.Request) {
 			       locked_at = CASE WHEN $4 = 'draft' THEN NULL
 			                        WHEN locked_at IS NULL THEN now()
 			                        ELSE locked_at END,
-			       -- Publishing is an event, not a state — see 00148. Unlocking
+			       -- Publishing is an event, not a state, see 00148. Unlocking
 			       -- back to draft clears it, because a month being re-run is
 			       -- a month whose staff will have to be told again.
 			       published_at = CASE WHEN $5 THEN now()

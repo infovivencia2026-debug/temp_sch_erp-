@@ -285,7 +285,7 @@ function Register({
               <Td className="font-medium">
                 {r.full_name}
                 <div className="text-[12px] font-normal text-muted-foreground">
-                  {r.employee_code || '—'}
+                  {r.employee_code || '-'}
                   {r.missing.length > 0 && (
                     <span className="ml-1 text-destructive">no {r.missing.join(', ')}</span>
                   )}
@@ -297,7 +297,7 @@ function Register({
               <Td className="tabular-nums text-muted-foreground">₹{rupees(r.pf_employer_paise)}</Td>
               <Td className="tabular-nums text-muted-foreground">₹{rupees(r.eps_paise)}</Td>
               <Td className="tabular-nums">
-                {r.esi_employee_paise ? `₹${rupees(r.esi_employee_paise)}` : '—'}
+                {r.esi_employee_paise ? `₹${rupees(r.esi_employee_paise)}` : '-'}
               </Td>
               <Td className="tabular-nums">₹{rupees(r.pt_paise)}</Td>
             </tr>
@@ -394,7 +394,7 @@ function IncomeTax() {
               </Badge>
               {!t.elected && (
                 <span className="text-[13px] text-muted-foreground">
-                  Defaulted — the employee has not chosen
+                  Defaulted, the employee has not chosen
                 </span>
               )}
               {t.projected && (
@@ -455,13 +455,13 @@ function IncomeTax() {
                   value={section}
                   onChange={setSection}
                   options={[
-                    { value: '80C', label: '80C — LIC, PPF, ELSS, tuition fees' },
-                    { value: '80D', label: '80D — medical insurance' },
-                    { value: '80CCD1B', label: '80CCD(1B) — NPS' },
-                    { value: '80E', label: '80E — education loan interest' },
-                    { value: '80G', label: '80G — donations' },
-                    { value: '24B', label: '24(b) — home loan interest' },
-                    { value: 'HRA', label: 'HRA — rent paid' },
+                    { value: '80C', label: '80C · LIC, PPF, ELSS, tuition fees' },
+                    { value: '80D', label: '80D, medical insurance' },
+                    { value: '80CCD1B', label: '80CCD(1B) · NPS' },
+                    { value: '80E', label: '80E, education loan interest' },
+                    { value: '80G', label: '80G, donations' },
+                    { value: '24B', label: '24(b), home loan interest' },
+                    { value: 'HRA', label: 'HRA, rent paid' },
                   ]}
                 />
               </Field>
@@ -512,7 +512,7 @@ function IncomeTax() {
                   <Td>{d.particulars}</Td>
                   <Td className="tabular-nums">₹{rupees(d.declared_paise)}</Td>
                   <Td className="tabular-nums text-muted-foreground">
-                    {d.verified_paise != null ? `₹${rupees(d.verified_paise)}` : '—'}
+                    {d.verified_paise != null ? `₹${rupees(d.verified_paise)}` : '-'}
                   </Td>
                   <Td className="tabular-nums">₹{rupees(d.counted_paise)}</Td>
                   <Td>
@@ -662,7 +662,7 @@ function Advances() {
                 <Td className="tabular-nums text-muted-foreground">₹{rupees(l.recovered_paise)}</Td>
                 <Td className="tabular-nums">₹{rupees(l.outstanding_paise)}</Td>
                 <Td className="tabular-nums text-muted-foreground">
-                  {l.status === 'active' ? `${l.months_left} mo` : '—'}
+                  {l.status === 'active' ? `${l.months_left} mo` : '-'}
                 </Td>
                 <Td>
                   <Badge tone={l.status === 'active' ? 'warning' : 'success'}>{l.status}</Badge>
@@ -709,7 +709,7 @@ function GratuityTab() {
       <Card>
         <CardHeader
           title="Gratuity exposure"
-          description="Fifteen days' wages for each completed year on a twenty-six day month, payable after five. Accrued is what has built up; vested is what would actually have to be paid this afternoon — nothing at all under five years, however long the accrual."
+          description="Fifteen days' wages for each completed year on a twenty-six day month, payable after five. Accrued is what has built up; vested is what would actually have to be paid this afternoon, nothing at all under five years, however long the accrual."
         />
         <Table
           head={[
@@ -727,7 +727,7 @@ function GratuityTab() {
                 {x.full_name}
                 {x.no_salary_structure && (
                   <div className="text-[12px] font-normal text-destructive">
-                    No salary structure — cannot be computed
+                    No salary structure, cannot be computed
                   </div>
                 )}
               </Td>
@@ -780,7 +780,7 @@ function Contractors() {
       <Card>
         <CardHeader
           title="An outsourced staff bill"
-          description="Guards and cleaners are the contractor's people, not the school's — putting them in the staff list would inflate every headcount the school reports. What is checked is the bill: bodies claimed against bodies the gate saw."
+          description="Guards and cleaners are the contractor's people, not the school's, putting them in the staff list would inflate every headcount the school reports. What is checked is the bill: bodies claimed against bodies the gate saw."
         />
         <div className="p-4">
           <FormGrid>
@@ -832,7 +832,7 @@ function Contractors() {
       <Card>
         <CardHeader
           title="Bills"
-          description="The approved amount follows the verified days, so a bill can only be short-paid by disagreeing about attendance — and that disagreement has to be written down."
+          description="The approved amount follows the verified days, so a bill can only be short-paid by disagreeing about attendance, and that disagreement has to be written down."
         />
         {rows.length === 0 ? (
           <EmptyState title="No bills" body="Contractor invoices appear here for verification." />
@@ -865,13 +865,13 @@ function Contractors() {
                 <Td className="tabular-nums">
                   {b.verified_days != null
                     ? `${b.verified_days}d · ₹${rupees(b.approved_paise ?? 0)}`
-                    : '—'}
+                    : '-'}
                 </Td>
                 <Td className="tabular-nums">
                   {b.shortfall_paise > 0 ? (
                     <Badge tone="warning">₹{rupees(b.shortfall_paise)}</Badge>
                   ) : (
-                    '—'
+                    '-'
                   )}
                   {b.remarks && (
                     <div className="text-[12px] text-muted-foreground">{b.remarks}</div>
@@ -995,7 +995,7 @@ function Rates() {
               onChange={(x) => setDraft({ ...v, pt_state: x })}
             />
           </Field>
-          <Field label="Per proxy period (₹)" hint="School policy, not law — which is why it lives here.">
+          <Field label="Per proxy period (₹)" hint="School policy, not law, which is why it lives here.">
             <Input
               value={String(v.substitution_rate_paise / 100)}
               onChange={(x) => setDraft({ ...v, substitution_rate_paise: Math.round(Number(x) * 100) })}
@@ -1039,7 +1039,7 @@ function Rates() {
           />
         </div>
 
-        <h3 className="mt-6 text-[14px] font-medium">Professional tax slabs — {v.pt_state}</h3>
+        <h3 className="mt-6 text-[14px] font-medium">Professional tax slabs · {v.pt_state}</h3>
         <Table head={[{ label: 'Monthly wage from' }, { label: 'To' }, { label: 'Tax' }]}>
           {v.pt_slabs.map((sl, i) => (
             <tr key={sl.id ?? i}>

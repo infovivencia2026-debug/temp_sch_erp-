@@ -68,8 +68,8 @@ export default function SQAAFramework() {
           <span className="block text-[12px] text-muted-foreground">{s.description}</span>
         )}
       </Td>
-      <Td>{depth === 0 ? bp(s.weight_bp) : <span className="text-muted-foreground">—</span>}</Td>
-      <Td>{s.evidence_required ? <Badge tone="info">Evidence required</Badge> : '—'}</Td>
+      <Td>{depth === 0 ? bp(s.weight_bp) : <span className="text-muted-foreground">-</span>}</Td>
+      <Td>{s.evidence_required ? <Badge tone="info">Evidence required</Badge> : '-'}</Td>
       <Td>
         <ConfirmButton
           confirmLabel="Remove"
@@ -96,7 +96,7 @@ export default function SQAAFramework() {
           <Stat label="Standards in this framework" value={framework?.standards ?? 0} />
           <Stat
             label="Domain weights"
-            value={framework ? bp(framework.weight_bp) : '—'}
+            value={framework ? bp(framework.weight_bp) : '-'}
             hint={
               framework && framework.weight_bp !== 10000
                 ? 'Domains must add to 100% before this framework can score anything'
@@ -132,7 +132,7 @@ export default function SQAAFramework() {
                 <Td className="font-medium">{f.name}</Td>
                 <Td>{f.authority}</Td>
                 <Td>{f.version}</Td>
-                <Td>{f.effective_from ?? '—'}</Td>
+                <Td>{f.effective_from ?? '-'}</Td>
                 <Td>{f.standards}</Td>
                 <Td>
                   <Badge
@@ -206,7 +206,7 @@ export default function SQAAFramework() {
                   value={fStatus}
                   onChange={setFStatus}
                   options={[
-                    { value: 'draft', label: 'Draft — not offered to schools' },
+                    { value: 'draft', label: 'Draft, not offered to schools' },
                     { value: 'published', label: 'Published' },
                     { value: 'retired', label: 'Retired' },
                   ]}
@@ -259,7 +259,7 @@ export default function SQAAFramework() {
                   <Select
                     value={sParent}
                     onChange={setSParent}
-                    options={domains.map((d) => ({ value: d.id, label: `${d.code} — ${d.name}` }))}
+                    options={domains.map((d) => ({ value: d.id, label: `${d.code} · ${d.name}` }))}
                     placeholder="A domain of its own"
                   />
                 </Field>

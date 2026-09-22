@@ -101,7 +101,7 @@ export default function OnlineTests() {
                   </Td>
                   <Td>{t.class_name} {t.section}</Td>
                   <Td>{t.subject}</Td>
-                  <Td>{t.opens_at ? formatDate(t.opens_at) : '—'}</Td>
+                  <Td>{t.opens_at ? formatDate(t.opens_at) : '-'}</Td>
                   <Td>{t.questions}</Td>
                   <Td>{t.total_marks ?? 0}</Td>
                   <Td>
@@ -164,7 +164,7 @@ function Compose({ onDone }: { onDone: () => void }) {
         shuffle_questions: shuffle,
       }),
     onSuccess: () => {
-      toast.ok('Draft created — now add questions')
+      toast.ok('Draft created, now add questions')
       qc.invalidateQueries({ queryKey: ['online-tests'] })
       onDone()
     },
@@ -202,7 +202,7 @@ function Compose({ onDone }: { onDone: () => void }) {
             />
           </Field>
           <Field label="Title" required>
-            <Input value={title} onChange={setTitle} placeholder="Mental maths — week 6" />
+            <Input value={title} onChange={setTitle} placeholder="Mental maths, week 6" />
           </Field>
           <Field label="Minutes allowed" hint="Leave blank for an untimed test">
             <Input value={duration} onChange={setDuration} placeholder="20" />
@@ -301,7 +301,7 @@ function Builder({ testID }: { testID: string }) {
     <>
       <Card>
         <CardHeader
-          title={`Paper — ${detail.title}`}
+          title={`Paper · ${detail.title}`}
           description={`${detail.paper.length} questions, ${detail.total_marks ?? 0} marks`}
           action={
             <>
@@ -338,7 +338,7 @@ function Builder({ testID }: { testID: string }) {
                 <Td>{q.sequence}</Td>
                 <Td>{q.stem}</Td>
                 <Td>
-                  {q.answer_key.filter((o) => o.is_correct).map((o) => o.body).join(', ') || '—'}
+                  {q.answer_key.filter((o) => o.is_correct).map((o) => o.body).join(', ') || '-'}
                 </Td>
                 <Td>{q.kind}</Td>
                 <Td>{label(DIFFICULTIES, q.difficulty)}</Td>
@@ -385,7 +385,7 @@ function Builder({ testID }: { testID: string }) {
                   />
                 </Td>
                 <Td>{q.stem}</Td>
-                <Td>{q.chapter ?? '—'}</Td>
+                <Td>{q.chapter ?? '-'}</Td>
                 <Td>{q.kind}</Td>
                 <Td>{label(DIFFICULTIES, q.difficulty)}</Td>
                 <Td>{q.default_marks}</Td>

@@ -305,7 +305,7 @@ No subject may exist without a scope.
 func TestEveryReportSubjectDeclaresAScope(t *testing.T) {
 	for _, s := range reportSubjects {
 		if s.ScopeExpr == "" || s.Scope == nil {
-			t.Errorf("subject %q has no scope — it would return the whole school", s.Key)
+			t.Errorf("subject %q has no scope, it would return the whole school", s.Key)
 		}
 		if len(s.Dimensions) == 0 {
 			t.Errorf("subject %q has no columns", s.Key)

@@ -169,7 +169,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remarks'] })
       qc.invalidateQueries({ queryKey: ['comms-summary'] })
-      toast.ok(f.staffOnly ? 'Note filed — staff only' : 'Remark saved and shared with the parent')
+      toast.ok(f.staffOnly ? 'Note filed, staff only' : 'Remark saved and shared with the parent')
       onClose()
     },
   })
@@ -213,7 +213,7 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
               placeholder={sectionID ? 'Choose a child' : 'Choose a class first'}
               options={(roster.data?.items ?? []).map((s) => ({
                 value: s.id,
-                label: `${s.full_name} — ${s.admission_no}`,
+                label: `${s.full_name} · ${s.admission_no}`,
               }))}
             />
           </Field>

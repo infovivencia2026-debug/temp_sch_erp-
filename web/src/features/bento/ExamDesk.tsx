@@ -81,7 +81,7 @@ function CalendarCell({ span, exams, to }: { span: CellSpan; exams: Exam[]; to?:
   const published = exams.filter((e) => e.is_published).length
   const facts = upcoming.slice(0, tall ? 6 : 3).map((e) => ({
     label: e.name,
-    value: e.starts_on ?? '—',
+    value: e.starts_on ?? '-',
   }))
   return (
     <PersonaCard
@@ -112,7 +112,7 @@ function MarksCell({ span, papers, to }: { span: CellSpan; papers: Paper[]; to?:
       span={span}
       title="Marks in"
       glyph="✓"
-      value={expected === 0 ? '—' : `${Math.round((entered / expected) * 100)}%`}
+      value={expected === 0 ? '-' : `${Math.round((entered / expected) * 100)}%`}
       change={
         papers.length === 0
           ? 'No paper set yet'

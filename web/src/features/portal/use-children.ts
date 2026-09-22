@@ -145,7 +145,7 @@ export function childOptions(children: PortalChild[]) {
       : c.full_name
     return {
       value: c.student_id,
-      label: c.institution_name ? `${where} — ${c.institution_name}` : where,
+      label: c.institution_name ? `${where} · ${c.institution_name}` : where,
     }
   })
 }

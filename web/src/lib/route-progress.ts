@@ -146,7 +146,7 @@ export function routeLine(stops: ProgressStop[]): [number, number][] {
 
 /** A distance for a person: metres under a kilometre, otherwise km to one place. */
 export function distanceText(metres?: number): string {
-  if (metres == null) return '—'
+  if (metres == null) return '-'
   if (metres < 1000) return `${Math.round(metres)} m`
   return `${(metres / 1000).toFixed(1)} km`
 }

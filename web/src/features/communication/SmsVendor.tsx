@@ -94,7 +94,7 @@ export default function SmsVendor() {
             <Input value={sender} onChange={setSender} placeholder="VIGNAN" />
           </Field>
           <Field
-            label={current?.has_secret ? 'API key (stored — type to replace)' : 'API key'}
+            label={current?.has_secret ? 'API key (stored, type to replace)' : 'API key'}
             hint="MSG91 calls this the authkey; Gupshup uses the account password."
           >
             <Input value={key} onChange={setKey} type="password" placeholder="••••••••" />

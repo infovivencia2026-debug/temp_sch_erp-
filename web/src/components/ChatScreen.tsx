@@ -52,7 +52,9 @@ export function ChatScreen({
       className="fixed inset-0 z-[120] flex flex-col bg-background"
       role="dialog"
       aria-modal="true"
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      // The bottom inset belongs to the composer, which is the thing actually
+      // sitting on the edge; applying it here too left a white band under it.
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-background px-1.5 py-1.5 sm:px-3">
         <button

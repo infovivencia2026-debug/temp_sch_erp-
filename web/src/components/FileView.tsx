@@ -203,7 +203,7 @@ export default function FileView({
                 to a third party to save a click. */}
             <p className="mt-1 text-[13px] text-muted-foreground">
               Word, Excel and PowerPoint files open in the app they belong to.
-              Everything else — PDFs, pictures, text and CSV — opens here.
+              Everything else · PDFs, pictures, text and CSV, opens here.
             </p>
             <a
               href={`/api/v1/files/${file.file_id}`}

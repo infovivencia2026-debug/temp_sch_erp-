@@ -197,7 +197,7 @@ export const CHANNEL_LABELS: Record<string, string> = {
  * the plan off last week sends them to the wrong screen.
  */
 export function blockedReason(p: ReminderPlan): string {
-  if (!p.is_active) return 'Paused — switch it on to start chasing again.'
+  if (!p.is_active) return 'Paused, switch it on to start chasing again.'
   if (!p.channel_ready) {
     return p.channel_reason
       ? `${CHANNEL_LABELS[p.channel] ?? p.channel} cannot send: ${p.channel_reason}`

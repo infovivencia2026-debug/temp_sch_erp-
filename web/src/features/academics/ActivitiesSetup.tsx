@@ -126,7 +126,7 @@ export default function ActivitiesSetup() {
                   </Td>
                   <Td className="text-muted-foreground">{a.category}</Td>
                   <Td className="text-muted-foreground">
-                    {a.schedule || '—'}
+                    {a.schedule || '-'}
                     {a.venue && (
                       <span className="block text-[12px]">{a.venue}</span>
                     )}
@@ -198,7 +198,7 @@ function ActivityForm({ activity, saving, error, onSave, onCancel }: {
         <FormField label="Or another category">
           <Input value={f.category} onChange={set('category')} />
         </FormField>
-        <FormField label="When it meets" hint="In words — Wed 3-4 PM, Mon/Thu 4-5 PM">
+        <FormField label="When it meets" hint="In words · Wed 3-4 PM, Mon/Thu 4-5 PM">
           <Input value={f.schedule} onChange={set('schedule')} placeholder="Wed 3-4 PM" />
         </FormField>
         <FormField label="Where">
@@ -220,7 +220,7 @@ function ActivityForm({ activity, saving, error, onSave, onCancel }: {
             onChange={(e) => setActive(e.target.checked)} />
           {/* Wound up rather than deleted: the enrolments and the fees raised
               against it have to keep reading. */}
-          Still running — untick to wind it up without losing its history
+          Still running, untick to wind it up without losing its history
         </label>
       </div>
       <div className="mt-4 flex items-center gap-2">

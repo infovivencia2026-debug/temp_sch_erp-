@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import { Button, Card } from '@/components/ui'
 
 /* The sticker that goes inside the windscreen.
@@ -30,6 +30,7 @@ export default function BusSticker({
   schoolName?: string
 }) {
   const canvas = useRef<HTMLCanvasElement | null>(null)
+  const sticker = useRef<HTMLDivElement | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function BusSticker({
   }, [code])
 
   return (
+    <div ref={sticker}>
     <Card className="print-sticker p-5 text-center">
       <p className="text-[13px] uppercase tracking-wider text-muted-foreground">
         {schoolName ?? 'School bus'}
@@ -70,10 +72,17 @@ export default function BusSticker({
       </p>
 
       <div className="mt-4 no-print">
-        <Button variant="secondary" size="sm" onClick={() => printPage()}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            printDocument({ source: sticker.current, title: 'Bus sticker', subtitle: registration })
+          }
+        >
           Print this sticker
         </Button>
       </div>
     </Card>
+    </div>
   )
 }

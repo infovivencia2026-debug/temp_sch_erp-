@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -276,7 +276,7 @@ export default function ReportCards() {
     onSuccess: (r, publish) => {
       setOutcome(
         `${r.report_cards} report ${r.report_cards === 1 ? 'card' : 'cards'} ` +
-          (publish ? 'generated and published — the parents have been told.' : 'generated. Nobody has been told yet; publish when you are ready.'),
+          (publish ? 'generated and published, the parents have been told.' : 'generated. Nobody has been told yet; publish when you are ready.'),
       )
       qc.invalidateQueries({ queryKey: ['report-cards', sectionId, examId] })
       qc.invalidateQueries({ queryKey: ['report-readiness', sectionId, examId] })
@@ -423,7 +423,7 @@ export default function ReportCards() {
         v.verb === 'submit'
           ? `${noun} sent to the principal for approval.`
           : v.verb === 'publish'
-            ? `${noun} published — ${told} have been told in the app.${sent}` +
+            ? `${noun} published · ${told} have been told in the app.${sent}` +
               (r.delivery_error ? ` The cards are out, but sending failed: ${r.delivery_error}` : '')
             : `${noun} sent back to the class teacher with your note.`,
       )
@@ -506,7 +506,7 @@ export default function ReportCards() {
 
   const avg = all.length
     ? (all.reduce((a, r) => a + (r.percentage ?? 0), 0) / all.length).toFixed(1)
-    : '—'
+    : '-'
 
   const papers = readiness.data?.items ?? []
   const outstanding = papers.filter((p) => p.marks_entered < p.students)
@@ -560,7 +560,7 @@ export default function ReportCards() {
                         }}
                       >
                         <span className="w-6 shrink-0 tabular-nums text-muted-foreground">
-                          {r.roll_no ?? '—'}
+                          {r.roll_no ?? '-'}
                         </span>
                         <span className="flex-1 font-medium">{r.full_name}</span>
                         <span className="font-mono text-[11px] text-muted-foreground">
@@ -601,7 +601,7 @@ export default function ReportCards() {
                 title={
                   ready
                     ? 'Publish to the parents and the students'
-                    : 'Some papers are still unmarked — publishing now prints them as zero'
+                    : 'Some papers are still unmarked, publishing now prints them as zero'
                 }
               >
                 Generate &amp; publish
@@ -635,7 +635,7 @@ export default function ReportCards() {
               </>
             )}
             {rows.length > 0 && (
-              <Button variant="ghost" onClick={() => printPage()}>
+              <Button variant="ghost" onClick={() => printDocument()}>
                 <Printer className="h-3.5 w-3.5" />
                 Print
               </Button>
@@ -687,8 +687,8 @@ export default function ReportCards() {
           <CellGrid cols={4}>
             <Stat label="Report cards" value={all.length} />
             <Stat label="Published" value={published} hint={`${all.length - published} draft`} />
-            <Stat label="Section average" value={avg !== '—' ? `${avg}%` : '—'} />
-            <Stat label="Topper" value={topper ? `${topper.full_name} · ${topper.percentage?.toFixed(1)}%` : '—'} />
+            <Stat label="Section average" value={avg !== '-' ? `${avg}%` : '-'} />
+            <Stat label="Topper" value={topper ? `${topper.full_name} · ${topper.percentage?.toFixed(1)}%` : '-'} />
           </CellGrid>
         )}
 
@@ -775,7 +775,7 @@ export default function ReportCards() {
                   }}
                   purpose="signature"
                   label={signature.data?.file_id ? 'Replace it' : 'Upload a signature'}
-                  hint="Sign on a plain sheet and photograph it. The paper is dropped when it prints — only the pen strokes come through — so a phone photograph is fine and a transparent PNG is not needed."
+                  hint="Sign on a plain sheet and photograph it. The paper is dropped when it prints, only the pen strokes come through, so a phone photograph is fine and a transparent PNG is not needed."
                 />
                 {saveSignature.error && <FormNotice error={saveSignature.error} />}
                 {signature.data?.file_id && (
@@ -931,7 +931,7 @@ export default function ReportCards() {
                 ? 'Signed off by the class teacher and waiting on you. Tick rows below to act on some of them, or leave them unticked to act on all.'
                 : maySubmit && toSubmit.length
                   ? 'The principal approves before a card reaches a family. Tick rows below to send only those, or leave them unticked to send the whole section.'
-                  : 'These are with the families. Correcting one means generating it again and releasing it again — it cannot be taken off somebody who has read it.'}
+                  : 'These are with the families. Correcting one means generating it again and releasing it again, it cannot be taken off somebody who has read it.'}
             </p>
             <div className="flex flex-wrap items-center gap-2 px-5 pb-4 pt-3">
               {maySubmit && toSubmit.length > 0 && (
@@ -1059,7 +1059,7 @@ export default function ReportCards() {
                         />
                       </Td>
                     )}
-                    <Td className="font-medium tabular-nums">{r.roll_no ?? '—'}</Td>
+                    <Td className="font-medium tabular-nums">{r.roll_no ?? '-'}</Td>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">
                       {/* And beside the name for anybody without the selection
@@ -1076,9 +1076,9 @@ export default function ReportCards() {
                         </span>
                       )}
                     </Td>
-                    <Td>{r.total_marks ?? '—'}{r.max_marks ? ` / ${r.max_marks}` : ''}</Td>
-                    <Td>{r.percentage != null ? `${r.percentage}%` : '—'}</Td>
-                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '—'}</Td>
+                    <Td>{r.total_marks ?? '-'}{r.max_marks ? ` / ${r.max_marks}` : ''}</Td>
+                    <Td>{r.percentage != null ? `${r.percentage}%` : '-'}</Td>
+                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '-'}</Td>
                     <Td>
                       {r.attendance_percent != null && (
                         <Badge tone={r.attendance_percent < 75 ? 'danger' : 'success'}>
@@ -1132,7 +1132,7 @@ export default function ReportCards() {
                         onClick={async () => {
                           const v = await api.get<{ html: string; css?: string }>(
                             `/api/v1/exams/report-cards/render?id=${r.id}`)
-                          setPreview({ ...v, name: `${r.full_name} — report card` })
+                          setPreview({ ...v, name: `${r.full_name}, report card` })
                         }}
                       >
                         {/* Before publishing this is the check that the design

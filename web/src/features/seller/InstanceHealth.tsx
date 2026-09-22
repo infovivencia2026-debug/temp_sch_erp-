@@ -40,7 +40,7 @@ function ProvisioningLog() {
         title="Provisioning log"
         description={
           data?.failures
-            ? `${data.failures} failed — a school that could not be created leaves nothing else behind.`
+            ? `${data.failures} failed, a school that could not be created leaves nothing else behind.`
             : 'Every school created here, and every attempt that failed.'
         }
       />
@@ -59,8 +59,8 @@ function ProvisioningLog() {
               </Td>
               <Td className="whitespace-nowrap">{e.kind}</Td>
               <Td className="whitespace-nowrap font-medium">{e.school ?? e.subject}</Td>
-              <Td className="text-muted-foreground">{e.detail ?? '—'}</Td>
-              <Td className="whitespace-nowrap text-muted-foreground">{e.actor ?? '—'}</Td>
+              <Td className="text-muted-foreground">{e.detail ?? '-'}</Td>
+              <Td className="whitespace-nowrap text-muted-foreground">{e.actor ?? '-'}</Td>
               <Td className="num text-muted-foreground">{e.at.replace('T', ' ')}</Td>
             </tr>
           ))}
@@ -165,17 +165,17 @@ export default function InstanceHealth() {
                     {r.messages_failed_24h > 0 ? (
                       <Badge tone="warning">{r.messages_failed_24h}</Badge>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
                   <Td>
                     {r.payments_failed_24h > 0 ? (
                       <Badge tone="danger">{r.payments_failed_24h}</Badge>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
-                  <Td>{r.open_vendor_tickets || '—'}</Td>
+                  <Td>{r.open_vendor_tickets || '-'}</Td>
                   <Td>
                     {r.attendance_marked_today > 0 ? (
                       <Badge tone="success">{r.attendance_marked_today} marked</Badge>
@@ -198,7 +198,7 @@ export default function InstanceHealth() {
             <div className="p-5">
               <p className="text-[14px] text-destructive">Queue is unreachable: {queueError[1] as string}</p>
               <p className="mt-1.5 text-[13px] text-muted-foreground">
-                The table above is still true — it comes from the database, which is answering.
+                The table above is still true, it comes from the database, which is answering.
               </p>
             </div>
           ) : (
@@ -226,10 +226,10 @@ export default function InstanceHealth() {
                   <Td>{queueWaiting(q)}</Td>
                   <Td>{q.pending}</Td>
                   <Td>{q.active}</Td>
-                  <Td>{q.scheduled || '—'}</Td>
-                  <Td>{q.retry || '—'}</Td>
-                  <Td>{q.archived ? <Badge tone="danger">{q.archived}</Badge> : '—'}</Td>
-                  <Td>{q.failed ? <Badge tone="warning">{q.failed}</Badge> : '—'}</Td>
+                  <Td>{q.scheduled || '-'}</Td>
+                  <Td>{q.retry || '-'}</Td>
+                  <Td>{q.archived ? <Badge tone="danger">{q.archived}</Badge> : '-'}</Td>
+                  <Td>{q.failed ? <Badge tone="warning">{q.failed}</Badge> : '-'}</Td>
                   <Td>{q.paused ? <Badge tone="warning">Paused</Badge> : <Badge tone="success">Running</Badge>}</Td>
                 </tr>
               ))}

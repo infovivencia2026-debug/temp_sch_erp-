@@ -103,7 +103,7 @@ function PlanTimeline() {
     <Card>
       <CardHeader
         title="Year plan"
-        description="Chapters poured into the teaching days the calendar leaves. Change a chapter’s periods or its order and the rest of the year re-flows — no month is stored."
+        description="Chapters poured into the teaching days the calendar leaves. Change a chapter’s periods or its order and the rest of the year re-flows, no month is stored."
         action={
           <div className="flex items-center gap-2">
             <Select
@@ -124,7 +124,7 @@ function PlanTimeline() {
       {!subject && (
         <EmptyState
           title="Pick a class and subject"
-          body="A year plan is a plan for one subject in one class — the chapters it teaches and the days it has to teach them in."
+          body="A year plan is a plan for one subject in one class, the chapters it teaches and the days it has to teach them in."
         />
       )}
       {subject && plan.isLoading && <SkeletonTable columns={5} label="Pouring the year…" />}
@@ -152,7 +152,7 @@ function PlanTimeline() {
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>
                 The syllabus is longer than the year. The chapters marked below run past
-                February — shown rather than quietly trimmed, because which chapter gives is
+                February, shown rather than quietly trimmed, because which chapter gives is
                 the school’s decision, not this screen’s.
               </span>
             </p>
@@ -227,7 +227,7 @@ function PlanTimeline() {
 }
 
 function monthLabel(months: Month[], key?: string) {
-  if (!key) return '—'
+  if (!key) return '-'
   return months.find((m) => m.month === key)?.label ?? key
 }
 

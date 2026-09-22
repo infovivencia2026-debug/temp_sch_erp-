@@ -87,7 +87,7 @@ func (s *Server) admissionFeePreview(w http.ResponseWriter, r *http.Request) {
 			    NOTHING.
 			
 			    A class-specific structure whose heads are all zero is a stub
-			    somebody began and abandoned — this school has three — and
+			    somebody began and abandoned, this school has three, and
 			    preferring it on specificity alone quoted a family nought and
 			    raised them a bill for nought, which the record then reported
 			    as "nothing due". A zero total is not a price; it is an

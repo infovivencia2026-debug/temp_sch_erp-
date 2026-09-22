@@ -1148,7 +1148,7 @@ func (s *Server) importStudents(w http.ResponseWriter, r *http.Request) {
 				Row: g.row,
 				Problem: fmt.Sprintf(
 					"roll number %d is already used by row %d in %s. Two children "+
-						"in one section cannot share a roll number — change one of "+
+						"in one section cannot share a roll number, change one of "+
 						"them, or leave the column blank and none will be set.",
 					g.req.RollNo, first, g.req.SectionID),
 			})
@@ -1939,7 +1939,7 @@ func (s *Server) getStudentProfile(w http.ResponseWriter, r *http.Request) {
 
 			   "Give a login" posts to /guardians/{id}/login and the client had
 			   no id to put in it, so every attempt answered "invalid guardian
-			   id" — on the one screen the product tells an office to use for
+			   id", on the one screen the product tells an office to use for
 			   exactly that. */
 			SELECT g.id::text, g.full_name, g.relation, COALESCE(g.phone,''),
 			       COALESCE(g.email::text,''), sg.is_primary,

@@ -255,7 +255,7 @@ export function labelOf(
   list: readonly { value: string; label: string }[],
   v?: string,
 ): string {
-  return list.find((o) => o.value === v)?.label ?? v ?? '—'
+  return list.find((o) => o.value === v)?.label ?? v ?? '-'
 }
 
 export function useClassroomSections() {

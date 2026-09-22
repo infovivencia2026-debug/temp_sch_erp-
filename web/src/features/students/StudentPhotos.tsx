@@ -84,7 +84,7 @@ const SEP = ' · adm '
 
 function labelFor(s: Roll): string {
   const where = whereTheyAre(s)
-  return `${s.full_name}${where ? ` — ${where}` : ''}${SEP}${s.admission_no}`
+  return `${s.full_name}${where ? ` · ${where}` : ''}${SEP}${s.admission_no}`
 }
 
 function admissionOfLabel(v: string): string {
@@ -217,7 +217,7 @@ export default function StudentPhotos() {
       <PageHead
         eyebrow={nav.section?.name ?? 'Students'}
         title={nav.feature?.name ?? 'Student photographs'}
-        description="The photographer's folder, matched to children by admission number. Check the name against the face before you import — photographs print on the ID card and on the report card."
+        description="The photographer's folder, matched to children by admission number. Check the name against the face before you import, photographs print on the ID card and on the report card."
         actions={
           <>
             <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5 text-[13px] font-medium hover:bg-muted">
@@ -269,7 +269,7 @@ export default function StudentPhotos() {
         <Card>
           <CardHeader
             title={ready.length ? `${ready.length} chosen` : 'How this works'}
-            description="Name each file with the child's admission number — 2022/08/145.jpg for admission number 2022/08/145 — and every photograph finds its child on its own. Anything that does not, you can point at a child by typing their name."
+            description="Name each file with the child's admission number · 2022/08/145.jpg for admission number 2022/08/145, and every photograph finds its child on its own. Anything that does not, you can point at a child by typing their name."
           />
           {ready.length === 0 ? (
             <EmptyState
@@ -300,7 +300,7 @@ export default function StudentPhotos() {
                       <Td className="text-[13px]">
                         {r.file.name}
                         <div className="font-mono text-[11px] text-muted-foreground">
-                          {r.admissionNo || '—'}
+                          {r.admissionNo || '-'}
                         </div>
                       </Td>
                       <Td>

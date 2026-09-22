@@ -103,7 +103,7 @@ export default function CollectionSummaries() {
           <Stat label="Cash" value={formatPaise(cash)} hint="To be counted and banked" />
           <Stat
             label="Unapplied advances"
-            value={tie.data ? formatPaise(tie.data.unallocated_paise) : '—'}
+            value={tie.data ? formatPaise(tie.data.unallocated_paise) : '-'}
             hint="Taken but not yet against an invoice"
           />
         </CellGrid>
@@ -198,7 +198,7 @@ export default function CollectionSummaries() {
                     <Td className="text-right">{formatPaise(c.cash_paise)}</Td>
                     <Td className="text-right font-medium">{formatPaise(c.total_paise)}</Td>
                     <Td className="font-mono text-[12px] text-muted-foreground">
-                      {c.first_receipt ? `${c.first_receipt} – ${c.last_receipt}` : '—'}
+                      {c.first_receipt ? `${c.first_receipt} – ${c.last_receipt}` : '-'}
                     </Td>
                   </tr>
                 ))}

@@ -102,7 +102,7 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
       <div className="border-b px-4 py-3">
         <p className="text-[14px] font-medium">Admit one student</p>
         <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-          The walk-in case. Only a first name is required — the rest can be filled in later.
+          The walk-in case. Only a first name is required, the rest can be filled in later.
         </p>
       </div>
 
@@ -207,7 +207,7 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
 
         <p className="mt-5 text-[13px] font-medium">Parent or guardian</p>
         <p className="mb-1 text-[12.5px] text-muted-foreground">
-          A child with no contactable adult is the one record the school cannot use —
+          A child with no contactable adult is the one record the school cannot use, 
           fee reminders, absence alerts and the parent app all key off this.
         </p>
         <FormGrid>

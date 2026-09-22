@@ -1821,7 +1821,7 @@ export function BentoPage({
 
           Kept for assistive technology, because a document with no h1 is a
           document a screen reader cannot outline. */}
-      <h1 className="sr-only">{`${eyebrow} — ${title}`}</h1>
+      <h1 className="sr-only">{`${eyebrow} · ${title}`}</h1>
       {/* auto-rows-fr divides the remaining height evenly, so the row count
           decides the row height rather than the tallest card deciding it and
           pushing the rest off the bottom. min-h-0 is what lets a grid child

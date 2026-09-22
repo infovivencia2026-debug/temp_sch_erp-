@@ -67,7 +67,7 @@ export default function MDMUtilisation() {
       },
     }),
     onSuccess: () => {
-      setNote('Finalised. The figures are frozen — this month will read the same in November as it does today.')
+      setNote('Finalised. The figures are frozen, this month will read the same in November as it does today.')
       qc.invalidateQueries({ queryKey: ['admin-ops', 'mdm'] })
     },
   })
@@ -172,7 +172,7 @@ export default function MDMUtilisation() {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardHeader
-                  title={`Foodgrain — ${d.foodgrain.grain}`}
+                  title={`Foodgrain · ${d.foodgrain.grain}`}
                   description="Weight, in kilograms. Deliberately never mixed with the money columns."
                 />
                 <Table head={['', 'Quantity']}>
@@ -213,7 +213,7 @@ export default function MDMUtilisation() {
               <CardHeader
                 title="Day by day"
                 description={flaggedDays.length
-                  ? `${flaggedDays.length} day(s) need attention — those are shown first.`
+                  ? `${flaggedDays.length} day(s) need attention, those are shown first.`
                   : 'Every recorded day ties out.'}
               />
               <Table
@@ -231,9 +231,9 @@ export default function MDMUtilisation() {
                       <Td className={cn('tabular-nums', x.issues.length && 'font-medium text-destructive')}>
                         {x.meals_served}
                       </Td>
-                      <Td className="tabular-nums">{x.rice_kg ? `${x.rice_kg}` : '—'}</Td>
+                      <Td className="tabular-nums">{x.rice_kg ? `${x.rice_kg}` : '-'}</Td>
                       <Td className="tabular-nums">{inr(x.cost_paise)}</Td>
-                      <Td className="text-muted-foreground">{x.menu ?? '—'}</Td>
+                      <Td className="text-muted-foreground">{x.menu ?? '-'}</Td>
                       <Td>
                         {x.issues.map((i) => (
                           <span key={i} className="block text-[12px] text-destructive">{i}</span>
@@ -402,7 +402,7 @@ function BalancesForm({ month, saved, onSaved }: {
       <div className="px-5 pb-5">
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">
-            Explanation for any gap — days without a meal, consumption off the norm
+            Explanation for any gap, days without a meal, consumption off the norm
           </span>
           <Textarea value={explanation} onChange={setExplanation} rows={2} />
         </label>

@@ -69,14 +69,14 @@ export default function RechargeQueue() {
                   <Td className="font-medium">{r.school}</Td>
                   <Td>{label(r.channel)}</Td>
                   <Td>{r.messages.toLocaleString('en-IN')}</Td>
-                  <Td>{r.granted != null ? r.granted.toLocaleString('en-IN') : '—'}</Td>
+                  <Td>{r.granted != null ? r.granted.toLocaleString('en-IN') : '-'}</Td>
                   <Td>
                     <Badge tone={r.status === 'granted' ? 'success' : r.status === 'declined' ? 'danger' : 'neutral'}>
                       {r.status}
                     </Badge>
                     {r.response ? <span className="ml-2 text-muted-foreground">{r.response}</span> : null}
                   </Td>
-                  <Td className="text-muted-foreground">{r.decided_at ? formatDate(r.decided_at) : '—'}</Td>
+                  <Td className="text-muted-foreground">{r.decided_at ? formatDate(r.decided_at) : '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -106,7 +106,7 @@ function PendingRow({ r }: { r: Recharge }) {
       <Td>{label(r.channel)}</Td>
       <Td>{r.messages.toLocaleString('en-IN')}</Td>
       <Td className="text-muted-foreground">{formatDate(r.requested_at)}</Td>
-      <Td className="text-muted-foreground">{r.requested_by ?? '—'}</Td>
+      <Td className="text-muted-foreground">{r.requested_by ?? '-'}</Td>
       <Td>
         <div className="flex flex-wrap items-center gap-2">
           <Input value={amount} onChange={setAmount} className="w-[110px]" srLabel="Messages to grant" />

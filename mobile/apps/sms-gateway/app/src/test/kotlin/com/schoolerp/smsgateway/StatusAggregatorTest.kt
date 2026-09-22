@@ -123,7 +123,7 @@ class StatusAggregatorTest {
             // assert on the state that settles.
             var latest = awaitItem()
             while (latest.sentToday != 3 || latest.queueDepth != 0) latest = awaitItem()
-            assertEquals("Ready — 3 sent today", latest.summary)
+            assertEquals("Ready · 3 sent today", latest.summary)
             cancelAndIgnoreRemainingEvents()
         }
     }

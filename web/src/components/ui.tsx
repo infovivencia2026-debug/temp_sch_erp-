@@ -1,7 +1,7 @@
 import { LoaderBlock, TriLoader } from '@/components/Loader'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
   type ReactElement, type ReactNode,
@@ -2018,7 +2018,7 @@ export {
  */
 export function PrintButton({ label = 'Print' }: { label?: string }) {
   return (
-    <Button variant="secondary" size="sm" onClick={() => printPage()} className="no-print">
+    <Button variant="secondary" size="sm" onClick={() => printDocument()} className="no-print">
       <Printer className="h-3.5 w-3.5" />
       {label}
     </Button>

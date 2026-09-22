@@ -101,7 +101,7 @@ export default function SupportTickets() {
           >
             {items.map((t) => (
               <tr key={t.id}>
-                <Td className="font-medium">{t.school ?? '—'}</Td>
+                <Td className="font-medium">{t.school ?? '-'}</Td>
                 <Td>
                   {t.subject}
                   {t.body && (
