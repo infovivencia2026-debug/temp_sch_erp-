@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Lock, MessageCircle, Users } from 'lucide-react'
+import { Lock, Users } from 'lucide-react'
+import { ChatThread, type Attachment } from '@/components/Chat'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, ErrorState, EmptyState,
+  SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, childOptions } from '../portal/use-children'
@@ -53,6 +54,7 @@ interface Message {
   mine: boolean
   body: string
   created_at: string
+  attachments?: Attachment[]
 }
 
 interface Participant {
@@ -90,7 +92,6 @@ export default function CounselorChannel() {
      more than one must choose. */
   const { children, studentId, chosen, setChosen } = useChildren()
   const [selected, setSelected] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
   const [opening, setOpening] = useState({
     counselor_id: '', student_id: '', subject: '', urgency: 'normal', message: '',
   })
@@ -128,7 +129,7 @@ export default function CounselorChannel() {
      do, and it needed two clicks. */
   const openThread = (id: string | null) => {
     setSelected(id)
-    setDraft('')
+
     setAddition({ user_id: '', role_in_thread: 'observer', reason: '' })
   }
 
@@ -148,10 +149,9 @@ export default function CounselorChannel() {
     },
   })
   const send = useMutation({
-    mutationFn: () =>
-      api.post(`/api/v1/comms/counselor/threads/${selected}/messages`, { body: draft }),
+    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
+      api.post(`/api/v1/comms/counselor/threads/${selected}/messages`, { body: m.body, attachments: m.attachments }),
     onSuccess: () => {
-      setDraft('')
       refresh()
     },
   })
@@ -334,45 +334,33 @@ export default function CounselorChannel() {
               }
             />
             <div className="space-y-5 p-5">
-              {messages.isLoading ? (
-                <Loading />
-              ) : messages.error ? (
+              {messages.error ? (
                 /* "Nothing said yet" over a failed request would tell a parent
                    the counsellor had never replied. */
                 <ErrorState error={messages.error} />
-              ) : (messages.data?.items.length ?? 0) === 0 ? (
-                <EmptyState title="Nothing said yet." />
               ) : (
-                <ul className="space-y-3">
-                  {messages.data?.items.map((m) => (
-                    <li
-                      key={m.id}
-                      className={m.mine ? 'rounded-md bg-muted px-3 py-2' : 'px-3 py-2'}
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        <span>{m.mine ? 'You' : m.sender}</span>
-                        <span>{formatDate(m.created_at)}</span>
-                      </div>
-                      <p className="whitespace-pre-wrap text-[14px]">{m.body}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {current.status === 'open' && current.my_role !== 'observer' && (
-                <div className="space-y-3 border-t pt-4">
-                  <Field label="Reply">
-                    <Textarea value={draft} onChange={setDraft} rows={3} />
-                  </Field>
-                  <Button
-                    disabled={!draft.trim() || send.isPending}
-                    onClick={() => send.mutate()}
-                  >
-                    Send
-                  </Button>
-                  <FormNotice error={send.error} />
-                </div>
+                <ChatThread
+                  messages={(messages.data?.items ?? []).map((m) => ({
+                    id: m.id,
+                    body: m.body,
+                    at: m.created_at,
+                    mine: m.mine,
+                    sender: m.sender,
+                    attachments: m.attachments,
+                  }))}
+                  showSender
+                  loading={messages.isLoading}
+                  empty="Nothing said yet."
+                  canSend={current.status === 'open' && current.my_role !== 'observer'}
+                  cannotSendNote={
+                    current.status !== 'open'
+                      ? 'This conversation is closed.'
+                      : 'You are reading this conversation as an observer.'
+                  }
+                  onSend={(m) => send.mutate(m)}
+                  sending={send.isPending}
+                  error={send.error}
+                />
               )}
 
               <div className="border-t pt-4">

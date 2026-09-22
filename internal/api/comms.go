@@ -2390,6 +2390,8 @@ type counselorMessageRow struct {
 	Mine      bool   `json:"mine"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"created_at"`
+	// Files sent with it; see attachments.go.
+	Attachments []attachment `json:"attachments"`
 }
 
 // listCounselorMessages reads the conversation, and marks it read.
@@ -2408,7 +2410,7 @@ func (s *Server) listCounselorMessages(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT m.id::text, COALESCE(u.full_name,'Unknown'), m.sender_id::text,
 			       m.sender_id = $2, m.body,
-			       to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
+			       to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', m.attachments
 			  FROM counselor_messages m
 			  LEFT JOIN users u ON u.id = m.sender_id
 			 WHERE m.thread_id = $1
@@ -2418,11 +2420,13 @@ func (s *Server) listCounselorMessages(w http.ResponseWriter, r *http.Request) {
 		}
 		for rows.Next() {
 			var v counselorMessageRow
+			var raw []byte
 			if err := rows.Scan(&v.ID, &v.Sender, &v.SenderID, &v.Mine, &v.Body,
-				&v.CreatedAt); err != nil {
+				&v.CreatedAt, &raw); err != nil {
 				rows.Close()
 				return err
 			}
+			v.Attachments = scanAttachments(raw)
 			out = append(out, v)
 		}
 		rows.Close()
@@ -2450,14 +2454,19 @@ func (s *Server) postCounselorMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Body string `json:"body"`
+		Body        string       `json:"body"`
+		Attachments []attachment `json:"attachments,omitempty"`
 	}
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
+	files, okFiles := s.attachmentsFor(w, r, req.Attachments)
+	if !okFiles {
+		return
+	}
 	req.Body = strings.TrimSpace(req.Body)
-	if req.Body == "" {
-		httpx.BadRequest(w, r, "write something")
+	if req.Body == "" && len(files) == 0 {
+		httpx.BadRequest(w, r, "write something, or attach a file")
 		return
 	}
 	var out string
@@ -2479,10 +2488,10 @@ func (s *Server) postCounselorMessage(w http.ResponseWriter, r *http.Request) {
 			return errors.New("this conversation has been closed")
 		}
 		if err := tx.QueryRow(r.Context(), `
-			INSERT INTO counselor_messages (institution_id, thread_id, sender_id, body)
-			VALUES ($1,$2,$3,$4)
+			INSERT INTO counselor_messages (institution_id, thread_id, sender_id, body, attachments)
+			VALUES ($1,$2,$3,$4,$5)
 			RETURNING id::text`,
-			id.InstitutionID, thread, id.UserID, req.Body).Scan(&out); err != nil {
+			id.InstitutionID, thread, id.UserID, req.Body, attachmentsJSON(files)).Scan(&out); err != nil {
 			return err
 		}
 		_, err = tx.Exec(r.Context(), `

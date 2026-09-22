@@ -898,6 +898,8 @@ type portalMessageRow struct {
 	Body   string `json:"body"`
 	SentAt string `json:"sent_at"`
 	Sender string `json:"sender_name"`
+	// Files sent with it; see attachments.go.
+	Attachments []attachment `json:"attachments"`
 	// Whether the signed-in caller wrote it. The screen aligns on this rather
 	// than comparing ids in the client.
 	Mine bool `json:"mine"`
@@ -1009,7 +1011,7 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		SELECT m.id::text, m.body,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
-		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI')
+		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'), m.attachments
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
 		 WHERE m.student_id = $1 AND m.parent_user_id = $2 AND m.teacher_user_id = $3
@@ -1017,7 +1019,10 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		 LIMIT 500`, []any{sid, parentID, teacherID, id.UserID},
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
-			return v, rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.ReadAt)
+			var raw []byte
+			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.ReadAt, &raw)
+			v.Attachments = scanAttachments(raw)
+			return v, err
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -1040,10 +1045,11 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 type sendMessageRequest struct {
-	StudentID string `json:"student_id"`
-	TeacherID string `json:"teacher_user_id,omitempty"`
-	ParentID  string `json:"parent_user_id,omitempty"`
-	Body      string `json:"body"`
+	StudentID   string       `json:"student_id"`
+	TeacherID   string       `json:"teacher_user_id,omitempty"`
+	ParentID    string       `json:"parent_user_id,omitempty"`
+	Body        string       `json:"body"`
+	Attachments []attachment `json:"attachments,omitempty"`
 }
 
 // sendPortalMessage posts into a thread, from either end.
@@ -1053,7 +1059,11 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 	if !httpx.Decode(w, r, &req) {
 		return
 	}
-	if strings.TrimSpace(req.Body) == "" {
+	files, okFiles := s.attachmentsFor(w, r, req.Attachments)
+	if !okFiles {
+		return
+	}
+	if strings.TrimSpace(req.Body) == "" && len(files) == 0 {
 		httpx.BadRequest(w, r, "there is nothing to send")
 		return
 	}
@@ -1138,11 +1148,11 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO parent_teacher_messages
 			    (institution_id, student_id, parent_user_id, teacher_user_id,
-			     sender_user_id, body)
-			VALUES ($1,$2,$3,$4,$5,$6)
+			     sender_user_id, body, attachments)
+			VALUES ($1,$2,$3,$4,$5,$6,$7)
 			RETURNING id::text`,
 			id.InstitutionID, sid, parentID, teacherID, id.UserID,
-			strings.TrimSpace(req.Body)).Scan(&newID); err != nil {
+			strings.TrimSpace(req.Body), attachmentsJSON(files)).Scan(&newID); err != nil {
 			return err
 		}
 

@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCheck, Send } from 'lucide-react'
+import { ChatThread, type Attachment } from '@/components/Chat'
 import { api, type List } from '@/lib/api'
-import { formatDateTime } from '@/lib/utils'
 import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Input, Textarea,
+  PageHead, PageBody, Card, CardHeader, Badge, Input,
   Loading, ErrorState, EmptyState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -46,6 +45,7 @@ interface Message {
      before ringing a family. */
   read_at?: string
   sender_name: string
+  attachments?: Attachment[]
   /* 'parent' or 'teacher'. Who wrote it, in a thread that has exactly two
      sides — which "mine" cannot answer for a principal reading somebody
      else's conversation, where nothing is theirs. */
@@ -95,7 +95,6 @@ export default function StaffMessages() {
     setParams(next, { replace: !id })
   }
   const [find, setFind] = useState('')
-  const [draft, setDraft] = useState('')
   const me = useSession().user?.id
 
   /* Which register is open. In the URL for the same reason `with` is: a
@@ -147,14 +146,14 @@ export default function StaffMessages() {
   const replyToParent = useMutation({
     // The same endpoint the parent writes with: it already had a branch for a
     // teacher answering, checked against whether they teach that child.
-    mutationFn: () =>
+    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
       api.post('/api/v1/portal/messages', {
         student_id: openChild,
         parent_user_id: openWith,
-        body: draft,
+        body: m.body,
+        attachments: m.attachments,
       }),
     onSuccess: () => {
-      setDraft('')
       qc.invalidateQueries({ queryKey: ['parent-messages', openChild, openWith] })
       qc.invalidateQueries({ queryKey: ['parent-threads'] })
     },
@@ -171,9 +170,9 @@ export default function StaffMessages() {
   })
 
   const send = useMutation({
-    mutationFn: () => api.post('/api/v1/staff-messages', { to: openWith, body: draft }),
+    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
+      api.post('/api/v1/staff-messages', { to: openWith, body: m.body, attachments: m.attachments }),
     onSuccess: () => {
-      setDraft('')
       qc.invalidateQueries({ queryKey: ['staff-messages', openWith] })
       qc.invalidateQueries({ queryKey: ['staff-threads'] })
     },
@@ -327,110 +326,39 @@ export default function StaffMessages() {
                         : undefined
                     }
                   />
-                  <div className="max-h-[24rem] min-h-[12rem] flex-1 space-y-2 overflow-auto px-5 py-4">
-                    {parentMessages.isLoading ? (
-                      <Loading />
-                    ) : (
-                      (parentMessages.data?.items ?? []).map((m) => (
-                        <div
-                          key={m.id}
-                          className={cn(
-                            'max-w-[85%] rounded-lg px-3 py-2 text-[14px]',
-                            m.mine ? 'ml-auto bg-primary text-primary-foreground' : 'bg-muted',
-                          )}
-                        >
-                          {/* Whose message this is, said on the message.
-
-                              A thread read as one column of identical grey
-                              bubbles: a teacher scrolling back could not tell
-                              their own words from the parent's, and a
-                              principal reading the thread could tell neither. */}
-                          <p
-                            className={cn(
-                              'mb-0.5 text-[11.5px] font-semibold',
-                              m.mine ? 'text-primary-foreground/80' : 'text-muted-foreground',
-                            )}
-                          >
-                            {/* "You" already says which side; "You · teacher"
-                                says it twice. The side is for the other
-                                person's messages, where it is the fact being
-                                asked for. */}
-                            {m.mine ? 'You' : `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`}
-                          </p>
-                          <p className="whitespace-pre-wrap">{m.body}</p>
-                          <p
-                            className={cn(
-                              'mt-1 text-[11.5px]',
-                              m.mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
-                            )}
-                          >
-                            {formatDateTime(m.sent_at)}
-                            {m.mine && (
-                              m.read_at ? (
-                                <span className="ml-1.5 inline-flex items-center gap-1">
-                                  <CheckCheck className="h-3.5 w-3.5" />
-                                  Read {formatDateTime(m.read_at)}
-                                </span>
-                              ) : (
-                                <span className="ml-1.5 inline-flex items-center gap-1">
-                                  <Check className="h-3.5 w-3.5" />
-                                  Sent
-                                </span>
-                              )
-                            )}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
                   {/* READING SOMEBODY ELSE'S CONVERSATION IS NOT JOINING IT.
 
-                      A principal opens a parent's thread to see what was said
-                      — that is oversight, and it is the whole reason they can
-                      read it. Replying into it would put the head's words in
-                      the middle of a conversation the parent is having with
-                      their child's teacher, under a name the parent did not
-                      write to. The server refuses it either way; showing the
-                      box promises something that cannot happen.
-
-                      Own threads keep the box: openParent.teacher_user_id is
-                      the teacher this conversation belongs to, and it is
-                      missing only on rows the caller is reading as somebody
-                      else's. */}
-                  {openParent?.teacher_user_id === me || !openParent?.teacher_user_id ? (
-                  <form
-                    className="flex items-end gap-2 border-t px-5 py-3"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      if (draft.trim()) replyToParent.mutate()
-                    }}
-                  >
-                    <Textarea
-                      value={draft}
-                      onChange={setDraft}
-                      rows={2}
-                      onSubmit={() => { if (draft.trim()) replyToParent.mutate() }}
-                      placeholder={`Reply to ${openParent?.parent_name ?? 'them'} — Enter sends`}
-                    />
-                    <Button type="submit" disabled={!draft.trim() || replyToParent.isPending}>
-                      <Send className="h-3.5 w-3.5" />
-                      {replyToParent.isPending ? 'Sending…' : 'Reply'}
-                    </Button>
-                  </form>
-                  ) : (
-                    <p className="border-t px-5 py-3 text-[13px] text-muted-foreground">
-                      Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation
-                      with this family. Replies come from the teacher it was
-                      addressed to.
-                    </p>
-                  )}
-                  {replyToParent.isError && (
-                    <p className="px-5 pb-3 text-[13px] text-destructive">
-                      {replyToParent.error instanceof Error
-                        ? replyToParent.error.message
-                        : 'Could not send that.'}
-                    </p>
-                  )}
+                      A principal opens a parent's thread to see what was said;
+                      replying into it would put the head's words in a
+                      conversation the parent is having with their child's
+                      teacher. The server refuses it; the composer is hidden.
+                      openParent.teacher_user_id is missing only on the
+                      caller's own threads. */}
+                  <ChatThread
+                    messages={(parentMessages.data?.items ?? []).map((m) => ({
+                      id: m.id,
+                      body: m.body,
+                      at: m.sent_at,
+                      mine: m.mine,
+                      read_at: m.read_at,
+                      sender: `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`,
+                      attachments: m.attachments,
+                    }))}
+                    showSender
+                    loading={parentMessages.isLoading}
+                    empty="Nothing yet in this conversation."
+                    canSend={openParent?.teacher_user_id === me || !openParent?.teacher_user_id}
+                    cannotSendNote={
+                      <>
+                        Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation with this
+                        family. Replies come from the teacher it was addressed to.
+                      </>
+                    }
+                    onSend={(m) => replyToParent.mutate(m)}
+                    sending={replyToParent.isPending}
+                    error={replyToParent.error}
+                    placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
+                  />
                 </>
               )}
             </Card>
@@ -495,74 +423,23 @@ export default function StaffMessages() {
                   title={open?.full_name ?? 'Conversation'}
                   description={open?.designation ?? undefined}
                 />
-                <div className="max-h-[24rem] min-h-[12rem] flex-1 space-y-2 overflow-auto px-5 py-4">
-                  {messages.isLoading ? (
-                    <Loading />
-                  ) : (messages.data?.items ?? []).length === 0 ? (
-                    <p className="text-[13px] text-muted-foreground">
-                      Nothing yet. What you write here goes to {open?.full_name} alone.
-                    </p>
-                  ) : (
-                    (messages.data?.items ?? []).map((m) => (
-                      <div
-                        key={m.id}
-                        className={cn(
-                          'max-w-[85%] rounded-lg px-3 py-2 text-[14px]',
-                          m.mine
-                            ? 'ml-auto bg-primary text-primary-foreground'
-                            : 'bg-muted',
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap">{m.body}</p>
-                        <p
-                          className={cn(
-                            'mt-1 text-[11.5px]',
-                            m.mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
-                          )}
-                        >
-                          {formatDateTime(m.sent_at)}
-                          {m.mine && (
-                            m.read_at ? (
-                              <span className="ml-1.5 inline-flex items-center gap-1">
-                                <CheckCheck className="h-3.5 w-3.5" />
-                                Read {formatDateTime(m.read_at)}
-                              </span>
-                            ) : (
-                              <span className="ml-1.5 inline-flex items-center gap-1">
-                                <Check className="h-3.5 w-3.5" />
-                                Sent
-                              </span>
-                            )
-                          )}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <form
-                  className="flex items-end gap-2 border-t px-5 py-3"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (draft.trim()) send.mutate()
-                  }}
-                >
-                  <Textarea
-                    value={draft}
-                    onChange={setDraft}
-                    rows={2}
-                    onSubmit={() => { if (draft.trim()) send.mutate() }}
-                    placeholder={`Write to ${open?.full_name ?? 'them'} — Enter sends`}
-                  />
-                  <Button type="submit" disabled={!draft.trim() || send.isPending}>
-                    <Send className="h-3.5 w-3.5" />
-                    {send.isPending ? 'Sending…' : 'Send'}
-                  </Button>
-                </form>
-                {send.isError && (
-                  <p className="px-5 pb-3 text-[13px] text-destructive">
-                    {send.error instanceof Error ? send.error.message : 'Could not send that.'}
-                  </p>
-                )}
+                <ChatThread
+                  messages={(messages.data?.items ?? []).map((m) => ({
+                    id: m.id,
+                    body: m.body,
+                    at: m.sent_at,
+                    mine: m.mine,
+                    read_at: m.read_at,
+                    sender: m.sender_name,
+                    attachments: m.attachments,
+                  }))}
+                  loading={messages.isLoading}
+                  empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
+                  onSend={(m) => send.mutate(m)}
+                  sending={send.isPending}
+                  error={send.error}
+                  placeholder={`Write to ${open?.full_name ?? 'them'}`}
+                />
               </>
             )}
           </Card>

@@ -46,6 +46,8 @@ type staffMessageRow struct {
 	SentAt string `json:"sent_at"`
 	Mine   bool   `json:"mine"`
 	Sender string `json:"sender_name"`
+	// Files sent with it; see attachments.go.
+	Attachments []attachment `json:"attachments"`
 }
 
 /*
@@ -135,7 +137,7 @@ func (s *Server) listStaffMessages(w http.ResponseWriter, r *http.Request) {
 		rows, qerr := tx.Query(r.Context(), `
 			SELECT m.id::text, m.body,
 			       to_char(m.sent_at, 'YYYY-MM-DD"T"HH24:MI'),
-			       m.sender_user_id = $1, u.full_name
+			       m.sender_user_id = $1, u.full_name, m.attachments
 			  FROM staff_messages m
 			  JOIN users u ON u.id = m.sender_user_id
 			 WHERE m.party_a = least($1, $2::uuid) AND m.party_b = greatest($1, $2::uuid)
@@ -146,10 +148,12 @@ func (s *Server) listStaffMessages(w http.ResponseWriter, r *http.Request) {
 		items = []staffMessageRow{}
 		for rows.Next() {
 			var v staffMessageRow
-			if err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Mine, &v.Sender); err != nil {
+			var raw []byte
+			if err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Mine, &v.Sender, &raw); err != nil {
 				rows.Close()
 				return err
 			}
+			v.Attachments = scanAttachments(raw)
 			items = append(items, v)
 		}
 		rows.Close()
@@ -171,8 +175,9 @@ func (s *Server) listStaffMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 type sendStaffMessageRequest struct {
-	To   string `json:"to"`
-	Body string `json:"body"`
+	To          string       `json:"to"`
+	Body        string       `json:"body"`
+	Attachments []attachment `json:"attachments,omitempty"`
 }
 
 // sendStaffMessage writes one message to one colleague.
@@ -191,7 +196,11 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "to must be the uuid of a colleague")
 		return
 	}
-	if strings.TrimSpace(req.Body) == "" {
+	files, okFiles := s.attachmentsFor(w, r, req.Attachments)
+	if !okFiles {
+		return
+	}
+	if strings.TrimSpace(req.Body) == "" && len(files) == 0 {
 		httpx.BadRequest(w, r, "an empty message says nothing")
 		return
 	}
@@ -235,10 +244,10 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 
 		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO staff_messages (institution_id, party_a, party_b,
-			                            sender_user_id, body)
-			VALUES ($1, least($2, $3::uuid), greatest($2, $3::uuid), $2, $4)
+			                            sender_user_id, body, attachments)
+			VALUES ($1, least($2, $3::uuid), greatest($2, $3::uuid), $2, $4, $5)
 			RETURNING id`,
-			id.InstitutionID, id.UserID, other, strings.TrimSpace(req.Body)).
+			id.InstitutionID, id.UserID, other, strings.TrimSpace(req.Body), attachmentsJSON(files)).
 			Scan(&newID); err != nil {
 			return err
 		}

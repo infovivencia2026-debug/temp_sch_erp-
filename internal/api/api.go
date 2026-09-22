@@ -1529,6 +1529,9 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions/{id}", s.revokeSession)
 			// Every sign-in attempt, kept; and a person's month at a glance.
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/login-events", s.listLoginEvents)
+			// Everything that passed between two people; see interactions.go.
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/interactions", s.listInteractions)
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/interactions/people", s.listInteractionPeople)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}/sign-in-days", s.signInDays)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users/{id}/mfa/disable", s.adminMFADisable)
 			// How long a session lives, per role.

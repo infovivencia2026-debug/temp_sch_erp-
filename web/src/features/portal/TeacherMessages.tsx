@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
-import {
-  PageHead, PageBody, Card, CardHeader, Badge, Button, Field, FormNotice, Select,
-  Textarea, EmptyState, Skeleton,
-} from '@/components/ui'
+import { PageHead, PageBody, Card, CardHeader, Field, Select, EmptyState } from '@/components/ui'
+import { ChatThread, type Attachment } from '@/components/Chat'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
-import { Check, CheckCheck } from 'lucide-react'
-import { formatDateTime } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -38,6 +34,7 @@ interface Message {
   sender_name: string
   mine: boolean
   read_at?: string
+  attachments?: Attachment[]
 }
 
 export default function TeacherMessages() {
@@ -45,7 +42,6 @@ export default function TeacherMessages() {
   const qc = useQueryClient()
   const { children, studentId, chosen, setChosen, query } = useChildren()
   const [teacher, setTeacher] = useState('')
-  const [draft, setDraft] = useState('')
 
   const teachers = useQuery({
     queryKey: ['portal-teachers', studentId],
@@ -71,14 +67,14 @@ export default function TeacherMessages() {
   })
 
   const send = useMutation({
-    mutationFn: () =>
+    mutationFn: (m: { body: string; attachments: Attachment[] }) =>
       api.post('/api/v1/portal/messages', {
         student_id: studentId,
         teacher_user_id: teacher,
-        body: draft,
+        body: m.body,
+        attachments: m.attachments,
       }),
     onSuccess: () => {
-      setDraft('')
       qc.invalidateQueries({ queryKey: ['portal-thread', studentId, teacher] })
       qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
     },
@@ -161,94 +157,24 @@ export default function TeacherMessages() {
                     : undefined
               }
             />
-            {thread.isLoading ? (
-              <Skeleton rows={3} label={t('portal.teacher_messages.thread_loading')} />
-            ) : messages.length === 0 ? (
-              <EmptyState
-                title={t('portal.teacher_messages.empty_thread_title')}
-                body={t('portal.teacher_messages.empty_thread_body')}
-              />
-            ) : (
-              <ul className="space-y-3 p-4">
-                {messages.map((m) => (
-                  <li
-                    key={m.id}
-                    className={m.mine ? 'flex justify-end' : 'flex justify-start'}
-                  >
-                    <div
-                      className={
-                        'max-w-[36rem] rounded-sm px-3 py-2 text-[14px] ' +
-                        (m.mine ? 'bg-primary/10' : 'bg-muted')
-                      }
-                    >
-                      <div className="whitespace-pre-wrap">{m.body}</div>
-                      {/* A RECEIPT, not the absence of one.
-
-                          This said nothing when a message had been read and
-                          "not read yet" when it had not, so the only signal
-                          was negative: a parent watching for the teacher to
-                          see their message had to notice a line disappear.
-                          People do not notice things disappearing.
-
-                          Only on your own messages. Telling somebody when they
-                          themselves read a message is noise, and telling the
-                          sender is the whole point of a receipt. */}
-                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[12px] text-muted-foreground">
-                        <span>
-                          {m.mine ? t('portal.teacher_messages.sender_you') : m.sender_name}
-                        </span>
-                        <span>·</span>
-                        <span>{formatDateTime(m.sent_at)}</span>
-                        {m.mine && (
-                          m.read_at ? (
-                            <span className="inline-flex items-center gap-1 text-primary">
-                              <CheckCheck className="h-3.5 w-3.5" />
-                              {t('portal.teacher_messages.read_at', { at: formatDateTime(m.read_at) })}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              <Check className="h-3.5 w-3.5" />
-                              {t('portal.teacher_messages.sent')}
-                            </span>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="border-t p-4">
-              <Textarea
-                rows={3}
-                value={draft}
-                onChange={setDraft}
-                /* Enter sends here too. A parent typing on a phone expects the
-                   same key every other messaging app uses, and hunting for a
-                   button is how a half-written message gets abandoned. */
-                onSubmit={() => {
-                  if (draft.trim() && teacher !== '' && !send.isPending) send.mutate()
-                }}
-                placeholder={t('portal.teacher_messages.draft_placeholder')}
-              />
-              <div className="mt-3 flex items-center gap-3">
-                <Button
-                  disabled={send.isPending || draft.trim() === '' || teacher === ''}
-                  onClick={() => send.mutate()}
-                >
-                  {send.isPending
-                    ? t('portal.teacher_messages.sending')
-                    : t('portal.teacher_messages.action_send')}
-                </Button>
-                {chosenTeacher && (
-                  <Badge tone="neutral">
-                    {t('portal.teacher_messages.badge_to', { name: chosenTeacher.full_name })}
-                  </Badge>
-                )}
-              </div>
-              <FormNotice error={send.error} />
-            </div>
+            <ChatThread
+              messages={messages.map((m) => ({
+                id: m.id,
+                body: m.body,
+                at: m.sent_at,
+                mine: m.mine,
+                read_at: m.read_at,
+                sender: m.sender_name,
+                attachments: m.attachments,
+              }))}
+              loading={thread.isLoading}
+              empty={t('portal.teacher_messages.empty_thread_body')}
+              canSend={teacher !== ''}
+              onSend={(m) => send.mutate(m)}
+              sending={send.isPending}
+              error={send.error}
+              placeholder={t('portal.teacher_messages.draft_placeholder')}
+            />
           </Card>
         )}
       </PageBody>
