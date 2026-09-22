@@ -274,7 +274,7 @@ const ATTENTION_WIDGETS = [
    grows with its width for free; the clamp here is only the value used when a
    cell is rendered outside a widget. */
 const FIG_CLASS =
-  'font-medium leading-none tracking-[-0.03em] tabular-nums ' +
+  'font-bold leading-none tracking-[-0.03em] tabular-nums ' +
   'text-[length:min(var(--card-fig,clamp(26px,3.6vh,40px)),15cqw)]'
 
 const LABEL_CLASS =
@@ -395,7 +395,7 @@ function figureSize(text: string): string {
   return `min(${fig}, 7.6cqw, 11.6cqh)`
 }
 
-const FIG_BASE = 'font-medium leading-none tracking-[-0.03em] tabular-nums whitespace-nowrap'
+const FIG_BASE = 'font-bold leading-none tracking-[-0.03em] tabular-nums whitespace-nowrap'
 
 /* THE SEVERITY LADDER — three rungs, because the engine has exactly three.
 
