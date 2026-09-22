@@ -1837,7 +1837,7 @@ export const en = {
   'bento.hr.attention_sr': 'Items needing attention',
   'bento.hr.urgent': '{n} already overdue',
   'bento.hr.nothing_waiting': 'Nothing is lapsing and nothing is waiting.',
-  'bento.hr.cue_attention': 'Open staff records',
+  'bento.hr.cue_attention': 'Open Staff 360',
 
   'bento.hr.leave': 'Leave to decide',
   'bento.hr.leave_sub': 'Unanswered',
@@ -1847,7 +1847,7 @@ export const en = {
   'bento.hr.joiners': 'Joined this month',
   'bento.hr.joiners_sub': 'Started in 30 days',
   'bento.hr.joiners_note': 'Across {n} departments. A period count against a level is not a fraction, so it is not drawn as one.',
-  'bento.hr.cue_records': 'Open staff records',
+  'bento.hr.cue_records': 'Open Staff 360',
 
   // --- the admissions desk board ------------------------------------------
   'bento.admissions.eyebrow': 'Home',

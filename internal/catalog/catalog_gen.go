@@ -1321,7 +1321,7 @@ var Roles = []Role{
 				Name: "Records",
 				Workspace: "Employees",
 				Features: []Feature{
-					{Key: "hr.records.staff_records", Slug: "staff_records", Name: "Staff records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here."},
+					{Key: "hr.records.staff_records", Slug: "staff_records", Name: "Staff 360", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here."},
 					{Key: "hr.records.service_book_qualifications", Slug: "service_book_qualifications", Name: "Service book & qualifications", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The service record kept for each teacher over their career — postings, promotions, increments — and their degrees and teaching qualifications, which is what an inspector asks to see."},
 				},
 			},

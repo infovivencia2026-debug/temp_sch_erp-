@@ -1274,7 +1274,7 @@ export const ROLES: Role[] = [
         name: 'Records',
         workspace: 'Employees',
         features: [
-          { key: 'hr.records.staff_records', slug: 'staff_records', name: 'Staff records', scope: 'institution', tier: 'core', summary: 'Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here.' },
+          { key: 'hr.records.staff_records', slug: 'staff_records', name: 'Staff 360', scope: 'institution', tier: 'core', summary: 'Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here.' },
           { key: 'hr.records.service_book_qualifications', slug: 'service_book_qualifications', name: 'Service book & qualifications', scope: 'institution', tier: 'core', summary: 'The service record kept for each teacher over their career — postings, promotions, increments — and their degrees and teaching qualifications, which is what an inspector asks to see.' },
         ],
       },

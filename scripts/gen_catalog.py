@@ -150,6 +150,9 @@ BY_ROLE_SCOPE = {"student": "self", "parent": "children"}
 #   was renamed, but grants (migration 00317) still key on student_absentees.
 FEATURE_SLUG_OVERRIDE = {
     "Present & absent": "student_absentees",
+    # Renamed from "Staff records"; the key hr.records.staff_records is a
+    # seeded grant, a registry entry and a /go/ path, so the slug stays.
+    "Staff 360": "staff_records",
 }
 
 

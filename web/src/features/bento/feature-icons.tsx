@@ -289,7 +289,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   staff_hours_this_month: 'hourglass_bottom', // Staff Hours This Month
   staff_joinings_exits: 'transfer_within_a_station', // Staff joinings & exits
   staff_performance_reviews: 'star_rate', // Staff performance reviews
-  staff_records: 'folder_shared', // Staff records
+  staff_records: 'folder_shared', // Staff 360 (slug kept from "Staff records")
   staff_register: 'how_to_reg', // Staff register
   staff_timetable: 'schedule', // Staff timetable
   staff_training_development: 'model_training', // Staff training & development
