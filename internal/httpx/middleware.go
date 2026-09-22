@@ -34,6 +34,21 @@ type statusRecorder struct {
 }
 
 func (s *statusRecorder) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
+
+/* A STREAM HAS TO BE ABLE TO FLUSH THROUGH THE LOGGER.
+
+   This wrapper hid the writer beneath it, so http.ResponseController.Flush()
+   — which the live stream calls after every event — found nothing that could
+   flush and failed; the handler took that as a dead connection, returned
+   after its first line, and every browser reconnected in a loop without ever
+   receiving a message. Unwrap lets the controller reach the real writer; Flush
+   is the same courtesy for anything still asserting http.Flusher directly. */
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+func (s *statusRecorder) Flush() {
+	if f, ok := s.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
 func (s *statusRecorder) Write(b []byte) (int, error) {
 	n, err := s.ResponseWriter.Write(b)
 	s.bytes += n

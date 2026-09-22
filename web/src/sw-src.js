@@ -228,6 +228,12 @@ self.addEventListener('fetch', (e) => {
      an ordinary /api read, so it is cached like one. */
   if (url.pathname.includes('/template') || url.pathname.includes('/export')) return
 
+  /* THE LIVE STREAM IS NOT A READ. /api/v1/live/stream is a Server-Sent Events
+     response that never ends; racing it against a timeout, cloning it into
+     the cache and reading the clone to the end would hold it forever and
+     never let an event through. Straight to the network, untouched. */
+  if (url.pathname.startsWith('/api/v1/live/')) return
+
   if (url.pathname.startsWith('/api/')) {
     /* The session call is cached like any other read, which is what makes a
        cold start with no signal land on the product rather than on "could not

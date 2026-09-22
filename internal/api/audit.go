@@ -163,6 +163,15 @@ type auditRecorder struct {
 }
 
 func (a *auditRecorder) WriteHeader(c int) { a.status = c; a.ResponseWriter.WriteHeader(c) }
+
+// Let a streaming handler reach the real writer's Flush through this wrapper
+// (see httpx.statusRecorder for the failure this prevents).
+func (a *auditRecorder) Unwrap() http.ResponseWriter { return a.ResponseWriter }
+func (a *auditRecorder) Flush() {
+	if f, ok := a.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
 func (a *auditRecorder) Write(b []byte) (int, error) {
 	// Only the first part of the response is kept; enough to capture an id or
 	// a receipt number without storing a whole export in the audit table.
