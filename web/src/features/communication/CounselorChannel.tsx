@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lock, Users } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
+import { ChatScreen } from '@/components/ChatScreen'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge,
@@ -316,24 +317,20 @@ export default function CounselorChannel() {
         </Card>
 
         {selected && current && (
-          <Card>
-            <CardHeader
-              title={current.subject}
-              description={`About ${current.student} · you are the ${current.my_role}`}
-              action={
-                <div className="flex gap-2">
-                  {current.status === 'open' && current.my_role !== 'observer' && (
-                    <Button size="sm" variant="secondary" onClick={() => close.mutate()}>
-                      Close conversation
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => openThread(null)}>
-                    Close
-                  </Button>
-                </div>
-              }
-            />
-            <div className="space-y-5 p-5">
+          <ChatScreen
+            open
+            title={current.subject}
+            subtitle={`About ${current.student} · you are the ${current.my_role}`}
+            onBack={() => openThread(null)}
+            actions={
+              current.status === 'open' && current.my_role !== 'observer' ? (
+                <Button size="sm" variant="secondary" onClick={() => close.mutate()}>
+                  Close conversation
+                </Button>
+              ) : undefined
+            }
+          >
+            <div className="flex min-h-0 flex-1 flex-col">
               {messages.error ? (
                 /* "Nothing said yet" over a failed request would tell a parent
                    the counsellor had never replied. */
@@ -360,13 +357,17 @@ export default function CounselorChannel() {
                   onSend={(m) => send.mutate(m)}
                   sending={send.isPending}
                   error={send.error}
+                  height="min-h-0"
                 />
               )}
 
-              <div className="border-t pt-4">
-                <h4 className="mb-3 text-[14px] font-semibold">
+              {/* Folded under the chat: who is in it, and (for the counsellor)
+                  adding somebody. Open on demand, so the thread keeps the
+                  screen. */}
+              <details className="max-h-[45vh] shrink-0 overflow-auto border-t px-4 py-2">
+                <summary className="cursor-pointer text-[14px] font-semibold">
                   Who can read this conversation
-                </h4>
+                </summary>
                 <ul className="space-y-2 text-[14px]">
                   {live.map((p) => (
                     <li key={p.user_id}>
@@ -434,9 +435,9 @@ export default function CounselorChannel() {
                     <FormNotice error={addPerson.error} />
                   </div>
                 )}
-              </div>
+              </details>
             </div>
-          </Card>
+          </ChatScreen>
         )}
       </PageBody>
     </>

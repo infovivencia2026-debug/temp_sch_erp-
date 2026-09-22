@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { PageHead, PageBody, Card, CardHeader, Field, Select, EmptyState } from '@/components/ui'
 import { ChatThread, type Attachment } from '@/components/Chat'
+import { ChatScreen } from '@/components/ChatScreen'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
@@ -49,13 +50,6 @@ export default function TeacherMessages() {
       api.get<List<Teacher>>(`/api/v1/portal/messages/teachers?student_id=${studentId}`),
     enabled: studentId !== '',
   })
-
-  // Opening on the class teacher is the right default: they are who a parent
-  // means by "my child's teacher", and picking nobody left the screen blank.
-  useEffect(() => {
-    const list = teachers.data?.items ?? []
-    if (teacher === '' && list.length > 0) setTeacher(list[0].user_id)
-  }, [teachers.data, teacher])
 
   const thread = useQuery({
     queryKey: ['portal-thread', studentId, teacher],
@@ -112,26 +106,6 @@ export default function TeacherMessages() {
                 />
               </Field>
             )}
-            <Field label={t('portal.teacher_messages.field_teacher')}>
-              <Select
-                value={teacher}
-                onChange={setTeacher}
-                placeholder={
-                  list.length
-                    ? t('portal.teacher_messages.teacher_placeholder')
-                    : t('portal.teacher_messages.teacher_placeholder_none')
-                }
-                options={list.map((x) => ({
-                  value: x.user_id,
-                  label:
-                    (x.class_teacher
-                      ? t('portal.teacher_messages.option_class_teacher', { name: x.full_name })
-                      : x.full_name) +
-                    (x.subject ? ` (${x.subject})` : '') +
-                    (x.unread ? t('portal.teacher_messages.option_unread', { count: x.unread }) : ''),
-                }))}
-              />
-            </Field>
           </div>
         </Card>
 
@@ -147,36 +121,83 @@ export default function TeacherMessages() {
           />
         ) : (
           <Card>
-            <CardHeader
-              title={chosenTeacher ? chosenTeacher.full_name : t('portal.teacher_messages.thread_title')}
-              description={
-                chosenTeacher?.class_teacher
-                  ? t('portal.teacher_messages.thread_class_teacher')
-                  : chosenTeacher?.subject
-                    ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
-                    : undefined
-              }
-            />
-            <ChatThread
-              messages={messages.map((m) => ({
-                id: m.id,
-                body: m.body,
-                at: m.sent_at,
-                mine: m.mine,
-                read_at: m.read_at,
-                sender: m.sender_name,
-                attachments: m.attachments,
-              }))}
-              loading={thread.isLoading}
-              empty={t('portal.teacher_messages.empty_thread_body')}
-              canSend={teacher !== ''}
-              onSend={(m) => send.mutate(m)}
-              sending={send.isPending}
-              error={send.error}
-              placeholder={t('portal.teacher_messages.draft_placeholder')}
-            />
+            {/* The teachers as a list to tap, the way a phone lists chats:
+                the class teacher first, then everyone timetabled to the
+                child's section, with an unread count. Tapping one opens the
+                conversation on its own screen; Back returns here. */}
+            <CardHeader title={t('portal.teacher_messages.field_teacher')} />
+            <ul className="divide-y">
+              {list.map((x) => (
+                <li key={x.user_id}>
+                  <button
+                    type="button"
+                    onClick={() => setTeacher(x.user_id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
+                  >
+                    <span
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-[15px] font-semibold text-primary"
+                      aria-hidden="true"
+                    >
+                      {x.full_name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-medium">
+                        {x.class_teacher
+                          ? t('portal.teacher_messages.option_class_teacher', { name: x.full_name })
+                          : x.full_name}
+                      </span>
+                      <span className="block truncate text-[12.5px] text-muted-foreground">
+                        {x.class_teacher
+                          ? t('portal.teacher_messages.thread_class_teacher')
+                          : x.subject
+                            ? t('portal.teacher_messages.thread_teaches', { subject: x.subject })
+                            : ''}
+                      </span>
+                    </span>
+                    {x.unread > 0 && (
+                      <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-primary-foreground">
+                        {x.unread}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
+
+        <ChatScreen
+          open={teacher !== ''}
+          title={chosenTeacher?.full_name ?? t('portal.teacher_messages.thread_title')}
+          subtitle={
+            chosenTeacher?.class_teacher
+              ? t('portal.teacher_messages.thread_class_teacher')
+              : chosenTeacher?.subject
+                ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
+                : undefined
+          }
+          onBack={() => setTeacher('')}
+        >
+          <ChatThread
+            messages={messages.map((m) => ({
+              id: m.id,
+              body: m.body,
+              at: m.sent_at,
+              mine: m.mine,
+              read_at: m.read_at,
+              sender: m.sender_name,
+              attachments: m.attachments,
+            }))}
+            loading={thread.isLoading}
+            empty={t('portal.teacher_messages.empty_thread_body')}
+            canSend={teacher !== ''}
+            onSend={(m) => send.mutate(m)}
+            sending={send.isPending}
+            error={send.error}
+            placeholder={t('portal.teacher_messages.draft_placeholder')}
+            height="min-h-0"
+          />
+        </ChatScreen>
       </PageBody>
     </>
   )

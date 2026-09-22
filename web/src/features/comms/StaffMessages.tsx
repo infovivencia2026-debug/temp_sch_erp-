@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
+import { ChatScreen } from '@/components/ChatScreen'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
-  Loading, ErrorState, EmptyState,
+  Loading, ErrorState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/lib/session'
@@ -234,7 +235,7 @@ export default function StaffMessages() {
         </div>
 
         {box === 'parents' ? (
-          <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+          <div className="grid gap-4">
             <Card className="min-w-0">
               {/* "Parents", matching the tab above it. The two said different
                   words for the same list, which reads as two different lists. */}
@@ -301,70 +302,55 @@ export default function StaffMessages() {
               </ul>
             </Card>
 
-            <Card className="flex min-w-0 flex-col">
-              {!openChild || !openWith ? (
-                <div className="p-8">
-                  <EmptyState
-                    title="Choose a conversation"
-                    body="Parents write to you about one child at a time, so each thread is about one of your students."
-                  />
-                </div>
-              ) : (
-                <>
-                  <CardHeader
-                    /* The whole address, not just a surname. A teacher with
-                       two Guptas open needs the child's name to know which
-                       conversation they are in. */
-                    title={
-                      openParent
-                        ? `${openParent.parent_name}${openParent.student_name ? ` · parent of ${openParent.student_name}` : ''}${openParent.class_name ? `, ${openParent.class_name}` : ''}`
-                        : 'Conversation'
-                    }
-                    description={
-                      openParent
-                        ? `About ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
-                        : undefined
-                    }
-                  />
-                  {/* READING SOMEBODY ELSE'S CONVERSATION IS NOT JOINING IT.
-
-                      A principal opens a parent's thread to see what was said;
-                      replying into it would put the head's words in a
-                      conversation the parent is having with their child's
-                      teacher. The server refuses it; the composer is hidden.
-                      openParent.teacher_user_id is missing only on the
-                      caller's own threads. */}
-                  <ChatThread
-                    messages={(parentMessages.data?.items ?? []).map((m) => ({
-                      id: m.id,
-                      body: m.body,
-                      at: m.sent_at,
-                      mine: m.mine,
-                      read_at: m.read_at,
-                      sender: `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`,
-                      attachments: m.attachments,
-                    }))}
-                    showSender
-                    loading={parentMessages.isLoading}
-                    empty="Nothing yet in this conversation."
-                    canSend={openParent?.teacher_user_id === me || !openParent?.teacher_user_id}
-                    cannotSendNote={
-                      <>
-                        Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation with this
-                        family. Replies come from the teacher it was addressed to.
-                      </>
-                    }
-                    onSend={(m) => replyToParent.mutate(m)}
-                    sending={replyToParent.isPending}
-                    error={replyToParent.error}
-                    placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
-                  />
-                </>
-              )}
-            </Card>
+            {/* The conversation takes the whole screen, the way a phone does
+                it: the list is one screen, the chat is the next, and Back
+                returns to the list exactly as it was. See ChatScreen. */}
+            <ChatScreen
+              open={!!openChild && !!openWith}
+              title={openParent ? openParent.parent_name : 'Conversation'}
+              subtitle={
+                openParent
+                  ? `Parent of ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
+                  : undefined
+              }
+              onBack={() => setBox('parents')}
+            >
+              {/* READING SOMEBODY ELSE'S CONVERSATION IS NOT JOINING IT.
+                  A principal opens a parent's thread to see what was said;
+                  replying into it would put the head's words in a conversation
+                  the parent is having with their child's teacher. The server
+                  refuses it; the composer is hidden. openParent.teacher_user_id
+                  is missing only on the caller's own threads. */}
+              <ChatThread
+                messages={(parentMessages.data?.items ?? []).map((m) => ({
+                  id: m.id,
+                  body: m.body,
+                  at: m.sent_at,
+                  mine: m.mine,
+                  read_at: m.read_at,
+                  sender: `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`,
+                  attachments: m.attachments,
+                }))}
+                showSender
+                loading={parentMessages.isLoading}
+                empty="Nothing yet in this conversation."
+                canSend={openParent?.teacher_user_id === me || !openParent?.teacher_user_id}
+                cannotSendNote={
+                  <>
+                    Reading {openParent?.teacher_name ?? 'a teacher'}&rsquo;s conversation with this
+                    family. Replies come from the teacher it was addressed to.
+                  </>
+                }
+                onSend={(m) => replyToParent.mutate(m)}
+                sending={replyToParent.isPending}
+                error={replyToParent.error}
+                placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
+                height="min-h-0"
+              />
+            </ChatScreen>
           </div>
         ) : (
-        <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <div className="grid gap-4">
           <Card className="min-w-0">
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
             <div className="px-4 pb-3">
@@ -409,40 +395,31 @@ export default function StaffMessages() {
             </ul>
           </Card>
 
-          <Card className="flex min-w-0 flex-col">
-            {!openWith ? (
-              <div className="p-8">
-                <EmptyState
-                  title="Choose somebody to write to"
-                  body="Every member of staff is listed, whether or not you have written to them before."
-                />
-              </div>
-            ) : (
-              <>
-                <CardHeader
-                  title={open?.full_name ?? 'Conversation'}
-                  description={open?.designation ?? undefined}
-                />
-                <ChatThread
-                  messages={(messages.data?.items ?? []).map((m) => ({
-                    id: m.id,
-                    body: m.body,
-                    at: m.sent_at,
-                    mine: m.mine,
-                    read_at: m.read_at,
-                    sender: m.sender_name,
-                    attachments: m.attachments,
-                  }))}
-                  loading={messages.isLoading}
-                  empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
-                  onSend={(m) => send.mutate(m)}
-                  sending={send.isPending}
-                  error={send.error}
-                  placeholder={`Write to ${open?.full_name ?? 'them'}`}
-                />
-              </>
-            )}
-          </Card>
+          <ChatScreen
+            open={!!openWith}
+            title={open?.full_name ?? 'Conversation'}
+            subtitle={open?.designation ?? undefined}
+            onBack={() => setOpenWith('')}
+          >
+            <ChatThread
+              messages={(messages.data?.items ?? []).map((m) => ({
+                id: m.id,
+                body: m.body,
+                at: m.sent_at,
+                mine: m.mine,
+                read_at: m.read_at,
+                sender: m.sender_name,
+                attachments: m.attachments,
+              }))}
+              loading={messages.isLoading}
+              empty={`Nothing yet. What you write here goes to ${open?.full_name ?? 'them'} alone.`}
+              onSend={(m) => send.mutate(m)}
+              sending={send.isPending}
+              error={send.error}
+              placeholder={`Write to ${open?.full_name ?? 'them'}`}
+              height="min-h-0"
+            />
+          </ChatScreen>
         </div>
         )}
       </PageBody>
