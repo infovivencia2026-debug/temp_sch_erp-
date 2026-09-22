@@ -55,6 +55,10 @@ export function ChatThread({
   placeholder = 'Type a message',
   error,
   showSender = false,
+  /** False where the channel cannot carry a file (the desk's reply into a
+      parent thread): the paperclip is not drawn rather than drawn and
+      ignored. */
+  allowAttachments = true,
   /* A floor and a viewport-relative ceiling, not a fixed 28rem cap: capped, the
      paper stopped a third of the way down a tall card and the composer floated
      over empty white. It now fills the card it is given (flex-1 on the root)
@@ -79,6 +83,7 @@ export function ChatThread({
   error?: unknown
   /** Name the author on their bubbles: for a thread with more than two people. */
   showSender?: boolean
+  allowAttachments?: boolean
   height?: string
 }) {
   const [draft, setDraft] = useState('')
@@ -365,14 +370,16 @@ export function ChatThread({
               submit()
             }}
           >
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => void upload(e.target.files)}
-              accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*"
-            />
+            {allowAttachments && (
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => void upload(e.target.files)}
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*,video/*"
+              />
+            )}
             <button
               type="button"
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
@@ -382,16 +389,18 @@ export function ChatThread({
             >
               <Search className="h-5 w-5" />
             </button>
-            <button
-              type="button"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
-              title="Attach a photo or file"
-              aria-label="Attach a photo or file"
-              onClick={() => fileInput.current?.click()}
-              disabled={files.length >= 10}
-            >
-              <Paperclip className="h-5 w-5" />
-            </button>
+            {allowAttachments && (
+              <button
+                type="button"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+                title="Attach a photo or file"
+                aria-label="Attach a photo or file"
+                onClick={() => fileInput.current?.click()}
+                disabled={files.length >= 10}
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+            )}
             <textarea
               ref={box}
               value={draft}

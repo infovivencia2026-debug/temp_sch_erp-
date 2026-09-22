@@ -73,11 +73,15 @@ type inboxItem struct {
 
 type inboxCounts struct {
 	ParentTeacher int `json:"parent_teacher"`
-	Concerns      int `json:"concerns"`
-	Staff         int `json:"staff"`
-	Circulars     int `json:"circulars"`
-	Counsellor    int `json:"counsellor"`
-	Total         int `json:"total"`
+	// StaffParent: threads where the school wrote last and the parent has
+	// not yet read it. A separate tile, because "what did we tell families"
+	// is a different question from "what are families asking us".
+	StaffParent int `json:"staff_parent"`
+	Concerns    int `json:"concerns"`
+	Staff       int `json:"staff"`
+	Circulars   int `json:"circulars"`
+	Counsellor  int `json:"counsellor"`
+	Total       int `json:"total"`
 }
 
 func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +107,10 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 		case "parent_teacher":
 			if it.Pending {
 				counts.ParentTeacher++
+			}
+		case "staff_parent":
+			if it.Pending {
+				counts.StaffParent++
 			}
 		case "concern":
 			if it.Pending {
@@ -130,7 +138,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				WITH last AS (
 				  SELECT DISTINCT ON (m.student_id, m.parent_user_id, m.teacher_user_id)
 				         m.student_id, m.parent_user_id, m.teacher_user_id,
-				         m.sender_user_id, m.body, m.sent_at
+				         m.sender_user_id, m.body, m.sent_at, m.read_at
 				    FROM parent_teacher_messages m
 				   ORDER BY m.student_id, m.parent_user_id, m.teacher_user_id, m.sent_at DESC
 				), reply AS (
@@ -150,7 +158,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				       COALESCE(pu.full_name, ''), COALESCE(g.relation, ''),
 				       COALESCE(tu.full_name, ''), COALESCE(emp.employee_code, ''),
 				       COALESCE(su.full_name, ''), l.body, l.sent_at,
-				       l.sender_user_id = l.parent_user_id,
+				       l.sender_user_id = l.parent_user_id, l.read_at IS NULL,
 				       ru.full_name, rp.body, rp.sent_at
 				  FROM last l
 				  JOIN students st ON st.id = l.student_id
@@ -181,13 +189,21 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				var at time.Time
 				var replyBy, replyBody *string
 				var replyAt *time.Time
+				var parentWrote, unread bool
 				if err := rows.Scan(&sid, &pid, &tid, &child, &adm, &klass, &parent, &rel,
-					&teacher, &code, &sender, &it.LastBody, &at, &it.Pending,
+					&teacher, &code, &sender, &it.LastBody, &at, &parentWrote, &unread,
 					&replyBy, &replyBody, &replyAt); err != nil {
 					rows.Close()
 					return err
 				}
-				it.Channel = "parent_teacher"
+				/* Two channels from one table. The parent wrote last: a question
+				   waiting on the school. The school wrote last: a message to a
+				   family, waiting only until the parent reads it. */
+				if parentWrote {
+					it.Channel, it.Pending = "parent_teacher", true
+				} else {
+					it.Channel, it.Pending = "staff_parent", unread
+				}
 				it.Key = sid + "|" + pid + "|" + tid
 				it.Title = teacher
 				it.From = sender
@@ -396,7 +412,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 	}
 	// Newest first across channels.
 	sortByLastAtDesc(items)
-	counts.Total = counts.ParentTeacher + counts.Concerns + counts.Staff + counts.Circulars
+	counts.Total = counts.ParentTeacher + counts.StaffParent + counts.Concerns + counts.Staff + counts.Circulars
 
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"items":  items,
@@ -455,17 +471,19 @@ func (s *Server) adminInboxThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type msg struct {
-		ID     string `json:"id"`
-		Sender string `json:"sender"`
-		Mine   bool   `json:"from_school"`
-		Body   string `json:"body"`
-		SentAt string `json:"sent_at"`
+		ID          string       `json:"id"`
+		Sender      string       `json:"sender"`
+		Mine        bool         `json:"from_school"`
+		Body        string       `json:"body"`
+		SentAt      string       `json:"sent_at"`
+		ReadAt      *string      `json:"read_at,omitempty"`
+		Attachments []attachment `json:"attachments"`
 	}
 	out := []msg{}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
 			SELECT m.id::text, COALESCE(u.full_name, ''), m.sender_user_id <> m.parent_user_id,
-			       m.body, m.sent_at
+			       m.body, m.sent_at, m.read_at, m.attachments
 			  FROM parent_teacher_messages m
 			  LEFT JOIN users u ON u.id = m.sender_user_id
 			 WHERE m.student_id = $1 AND m.parent_user_id = $2 AND m.teacher_user_id = $3
@@ -477,10 +495,17 @@ func (s *Server) adminInboxThread(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var m msg
 			var at time.Time
-			if err := rows.Scan(&m.ID, &m.Sender, &m.Mine, &m.Body, &at); err != nil {
+			var readAt *time.Time
+			var raw []byte
+			if err := rows.Scan(&m.ID, &m.Sender, &m.Mine, &m.Body, &at, &readAt, &raw); err != nil {
 				return err
 			}
 			m.SentAt = at.Format(time.RFC3339)
+			if readAt != nil {
+				v := readAt.Format(time.RFC3339)
+				m.ReadAt = &v
+			}
+			m.Attachments = scanAttachments(raw)
 			out = append(out, m)
 		}
 		return rows.Err()
@@ -548,4 +573,65 @@ func (s *Server) adminInboxReplyParent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+/* adminInboxStaffThread reads one conversation between two colleagues, for
+   the desk. Read-only: the principal is not a party to it and cannot write
+   into it -- the reply goes through Messages, in their own name, on their
+   own thread with either person. Under the same read-everything permission
+   the inbox itself needs. */
+func (s *Server) adminInboxStaffThread(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	q := r.URL.Query()
+	a, err1 := uuid.Parse(q.Get("a"))
+	b, err2 := uuid.Parse(q.Get("b"))
+	if err1 != nil || err2 != nil {
+		httpx.BadRequest(w, r, "a and b must be user ids")
+		return
+	}
+	type msg struct {
+		ID          string       `json:"id"`
+		Sender      string       `json:"sender"`
+		SenderID    string       `json:"sender_id"`
+		Body        string       `json:"body"`
+		SentAt      string       `json:"sent_at"`
+		ReadAt      *string      `json:"read_at,omitempty"`
+		Attachments []attachment `json:"attachments"`
+	}
+	out := []msg{}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `
+			SELECT m.id::text, COALESCE(u.full_name, ''), m.sender_user_id::text,
+			       m.body, m.sent_at, m.read_at, m.attachments
+			  FROM staff_messages m
+			  LEFT JOIN users u ON u.id = m.sender_user_id
+			 WHERE m.party_a = least($1::uuid, $2::uuid) AND m.party_b = greatest($1::uuid, $2::uuid)
+			 ORDER BY m.sent_at`, a, b)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var m msg
+			var at time.Time
+			var readAt *time.Time
+			var raw []byte
+			if err := rows.Scan(&m.ID, &m.Sender, &m.SenderID, &m.Body, &at, &readAt, &raw); err != nil {
+				return err
+			}
+			m.SentAt = at.Format(time.RFC3339)
+			if readAt != nil {
+				v := readAt.Format(time.RFC3339)
+				m.ReadAt = &v
+			}
+			m.Attachments = scanAttachments(raw)
+			out = append(out, m)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }

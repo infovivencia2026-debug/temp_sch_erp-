@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake } from 'lucide-react'
+import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send } from 'lucide-react'
+import { ChatThread, type Attachment } from '@/components/Chat'
+import { ChatScreen } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Select, Input, Field,
-  Button, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice,
+  PageHead, PageBody, Card, Stat, Select, Input, Field,
+  SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
-import { formatDate } from '@/lib/utils'
 import { useFeatureHref } from '../bento/bento-kit'
 
 /* All messages.
@@ -26,7 +27,7 @@ import { useFeatureHref } from '../bento/bento-kit'
  * in their own inbox. A concern opens the grievance desk on that ticket; a
  * staff thread opens Messages with that person. */
 
-type Channel = 'parent_teacher' | 'concern' | 'staff' | 'circular'
+type Channel = 'parent_teacher' | 'staff_parent' | 'concern' | 'staff' | 'circular'
 
 interface Item {
   channel: Channel
@@ -58,6 +59,7 @@ interface Item {
 
 interface Counts {
   parent_teacher: number
+  staff_parent: number
   concerns: number
   staff: number
   circulars: number
@@ -66,7 +68,8 @@ interface Counts {
 }
 
 const CHANNEL_LABEL: Record<Channel, string> = {
-  parent_teacher: 'Parent ↔ teacher',
+  parent_teacher: 'Parent → teacher',
+  staff_parent: 'Staff → parent',
   concern: 'Concern',
   staff: 'Staff',
   circular: 'Circular',
@@ -77,6 +80,7 @@ export default function AllMessages() {
   const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('pending')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Item | null>(null)
+  const [openStaff, setOpenStaff] = useState<Item | null>(null)
 
   const params = new URLSearchParams({ status })
   if (channel) params.set('channel', channel)
@@ -129,16 +133,18 @@ export default function AllMessages() {
         }
       />
       <PageBody>
-        <CellGrid cols={4}>
-          <Stat label="Parent ↔ teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Stat label="Parent → teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
             active={channel === 'parent_teacher'} onClick={tile('parent_teacher')} />
+          <Stat label="Staff → parent unread" value={counts?.staff_parent ?? '–'} icon={Send}
+            active={channel === 'staff_parent'} onClick={tile('staff_parent')} />
           <Stat label="Concerns waiting" value={counts?.concerns ?? '–'} icon={ShieldAlert}
             active={channel === 'concern'} onClick={tile('concern')} />
           <Stat label="Staff waiting" value={counts?.staff ?? '–'} icon={Users}
             active={channel === 'staff'} onClick={tile('staff')} />
           <Stat label="Circulars awaiting ack" value={counts?.circulars ?? '–'} icon={Megaphone}
             active={channel === 'circular'} onClick={tile('circular')} />
-        </CellGrid>
+        </div>
         <p className="text-[12px] text-muted-foreground">
           Each tile counts what is still waiting for a reply, across the whole school,
           pressing one filters the list below without changing the counts.
@@ -177,8 +183,14 @@ export default function AllMessages() {
                 <MessageCard
                   key={it.channel + it.key}
                   it={it}
-                  onOpen={it.channel === 'parent_teacher' ? () => setOpen(it) : undefined}
-                  href={it.channel === 'parent_teacher' ? undefined : href}
+                  onOpen={
+                    it.channel === 'parent_teacher' || it.channel === 'staff_parent'
+                      ? () => setOpen(it)
+                      : it.channel === 'staff'
+                        ? () => setOpenStaff(it)
+                        : undefined
+                  }
+                  href={it.channel === 'concern' || it.channel === 'circular' ? href : undefined}
                 />
               )
             })}
@@ -186,15 +198,33 @@ export default function AllMessages() {
         )}
 
         {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
+        {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} />}
       </PageBody>
     </>
   )
 }
 
-/* One parent ↔ teacher thread, read in full and answered from the desk. */
+interface ThreadMsg {
+  id: string
+  sender: string
+  sender_id?: string
+  from_school?: boolean
+  body: string
+  sent_at: string
+  read_at?: string
+  attachments?: Attachment[]
+}
+
+/* One parent ↔ teacher thread, read in full and answered from the desk.
+
+   The whole conversation on its own screen, drawn like every other chat
+   in the product, and live: the thread is asked for again every three
+   seconds and the moment the stream hints at a message. A reply goes in
+   the principal's name on the teacher's thread, so the parent sees who
+   wrote and the teacher sees it in their own inbox. No files here: the
+   desk's reply endpoint carries words only. */
 function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   const qc = useQueryClient()
-  const [body, setBody] = useState('')
   const coords = new URLSearchParams({
     student_id: item.student_id ?? '',
     parent_user_id: item.parent_user_id ?? '',
@@ -202,66 +232,90 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   })
   const thread = useQuery({
     queryKey: ['admin-inbox-thread', item.key],
-    queryFn: () =>
-      api.get<{ items: { id: string; sender: string; from_school: boolean; body: string; sent_at: string }[] }>(
-        `/api/v1/admin/inbox/thread?${coords}`,
-      ),
+    queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/thread?${coords}`),
+    refetchInterval: 3_000,
+    refetchOnWindowFocus: true,
   })
   const reply = useMutation({
-    mutationFn: () =>
+    mutationFn: (m: { body: string }) =>
       api.post('/api/v1/admin/inbox/reply', {
         student_id: item.student_id,
         parent_user_id: item.parent_user_id,
         teacher_user_id: item.teacher_user_id,
-        body,
+        body: m.body,
       }),
     onSuccess: () => {
-      setBody('')
       qc.invalidateQueries({ queryKey: ['admin-inbox-thread', item.key] })
       qc.invalidateQueries({ queryKey: ['admin-inbox'] })
     },
   })
 
   return (
-    <Card>
-      <CardHeader
-        title={`${item.parent_name ?? 'Parent'} → ${item.teacher_name ?? 'Teacher'}`}
-        description={[item.child_name, item.child_class, item.admission_no].filter(Boolean).join(' · ')}
-        action={<Button variant="secondary" size="sm" onClick={onClose}>Close</Button>}
+    <ChatScreen
+      open
+      title={`${item.parent_name ?? 'Parent'} ↔ ${item.teacher_name ?? 'Teacher'}`}
+      subtitle={[item.child_name, item.child_class, item.admission_no].filter(Boolean).join(' · ')}
+      onBack={onClose}
+    >
+      <ChatThread
+        messages={(thread.data?.items ?? []).map((m) => ({
+          id: m.id,
+          body: m.body,
+          at: m.sent_at,
+          mine: !!m.from_school,
+          sender: m.sender,
+          read_at: m.read_at,
+          attachments: m.attachments,
+        }))}
+        showSender
+        loading={thread.isLoading}
+        empty="Nothing said yet."
+        onSend={(m) => reply.mutate({ body: m.body })}
+        sending={reply.isPending}
+        error={reply.error}
+        allowAttachments={false}
+        placeholder="Reply to the parent, sent in your name; the teacher sees it too"
+        height="min-h-0"
       />
-      <div className="max-h-[50vh] space-y-3 overflow-y-auto px-5 py-4">
-        {thread.isLoading ? (
-          <SkeletonTable columns={1} />
-        ) : thread.error ? (
-          <ErrorState error={thread.error} />
-        ) : (
-          (thread.data?.items ?? []).map((m) => (
-            <div key={m.id} className={m.from_school ? 'flex justify-end' : 'flex justify-start'}>
-              <div
-                className={
-                  'max-w-[80%] rounded-xl px-3.5 py-2 text-[14px] ' +
-                  (m.from_school ? 'bg-primary/10' : 'bg-muted')
-                }
-              >
-                <div className="text-[11px] font-semibold text-muted-foreground">
-                  {m.sender} · {formatDate(m.sent_at)}
-                </div>
-                <div className="whitespace-pre-wrap">{m.body}</div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      <div className="space-y-2 border-t px-5 py-4">
-        <Textarea value={body} onChange={setBody} placeholder="Reply to the parent, sent in your name, the teacher sees it too" rows={3} />
-        <div className="flex items-center gap-3">
-          <Button onClick={() => reply.mutate()} disabled={!body.trim() || reply.isPending} pending={reply.isPending}>
-            <Inbox className="h-4 w-4" /> Send reply
-          </Button>
-          {reply.isError && <FormNotice error={reply.error} />}
-        </div>
-      </div>
-    </Card>
+    </ChatScreen>
+  )
+}
+
+/* A conversation between two colleagues, read from the desk. Read-only:
+   the principal is not a party to it. To say something, they write to
+   either person from Messages, in their own name. Live the same way. */
+function StaffThread({ item, onClose }: { item: Item; onClose: () => void }) {
+  const [a, b] = item.key.split('|')
+  const thread = useQuery({
+    queryKey: ['admin-inbox-staff-thread', item.key],
+    queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/staff-thread?a=${a}&b=${b}`),
+    refetchInterval: 3_000,
+    refetchOnWindowFocus: true,
+  })
+  const [left] = item.title.split(' ↔ ')
+  return (
+    <ChatScreen open title={item.title} subtitle="Between two colleagues, read from the desk" onBack={onClose}>
+      <ChatThread
+        messages={(thread.data?.items ?? []).map((m) => ({
+          id: m.id,
+          body: m.body,
+          at: m.sent_at,
+          // Drawn from the first-named person's side, so the two voices sit
+          // on opposite sides as they would for either of them.
+          mine: m.sender === left,
+          sender: m.sender,
+          read_at: m.read_at,
+          attachments: m.attachments,
+        }))}
+        showSender
+        loading={thread.isLoading}
+        empty="Nothing said yet."
+        onSend={() => undefined}
+        canSend={false}
+        cannotSendNote="You are reading a conversation between two colleagues. To write to either of them, open Messages."
+        height="min-h-0"
+      />
+    </ChatScreen>
   )
 }
 
@@ -276,14 +330,11 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
    there is one, under it with who replied and when. Staff-to-staff and
    teacher-to-parent threads read the same way, so the desk is one feed. */
 function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href?: string }) {
-  const parentWrote = it.channel === 'parent_teacher' ? it.from === it.parent_name : false
-  const toName =
-    it.channel === 'parent_teacher'
-      ? (parentWrote ? it.teacher_name : it.parent_name) || '-'
-      : it.title || '-'
-  const toCode = it.channel === 'parent_teacher' && parentWrote && it.teacher_code ? `Staff ${it.teacher_code}` : undefined
-  const senderRole =
-    it.channel === 'parent_teacher'
+  const family = it.channel === 'parent_teacher' || it.channel === 'staff_parent'
+  const parentWrote = it.channel === 'parent_teacher'
+  const toName = family ? (parentWrote ? it.teacher_name : it.parent_name) || '-' : it.title || '-'
+  const toCode = family && parentWrote && it.teacher_code ? `Staff ${it.teacher_code}` : undefined
+  const senderRole = family
       ? parentWrote
         ? cap(it.parent_relation) || 'Parent'
         : 'Teacher'
@@ -299,7 +350,7 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
           {toCode && (
             <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">{toCode}</span>
           )}
-          {it.channel !== 'parent_teacher' && (
+          {!parentWrote && (
             <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">
               {CHANNEL_LABEL[it.channel]}
             </span>
@@ -335,7 +386,11 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
               {it.pending ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-px text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                  {it.channel === 'circular' && it.asked != null ? `${it.acked}/${it.asked} acknowledged` : 'Waiting for reply'}
+                  {it.channel === 'circular' && it.asked != null
+                    ? `${it.acked}/${it.asked} acknowledged`
+                    : it.channel === 'staff_parent'
+                      ? 'Not read by the parent yet'
+                      : 'Waiting for reply'}
                 </span>
               ) : (
                 <span className="rounded-full bg-muted px-2 py-px text-[11px] font-semibold text-foreground/70">

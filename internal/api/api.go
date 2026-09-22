@@ -1572,6 +1572,7 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/", s.adminInbox)
 			r.Get("/count", s.adminInboxCount)
 			r.Get("/thread", s.adminInboxThread)
+			r.Get("/staff-thread", s.adminInboxStaffThread)
 			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reply", s.adminInboxReplyParent)
 		})
 
