@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import Outbox from '@/components/Outbox'
+import { useOfflineWarm } from '@/lib/offline-warm'
 import { AssistantTab } from '@/components/AssistantTab'
 import FirstRunTour from './FirstRunTour'
 import { CommandSearch } from './CommandSearch'
@@ -203,6 +204,10 @@ export function Shell({
 }) {
   const catalog = useCatalog()
   const session = useSession()
+  /* Fetch this person's own screens and, for a family, their everyday data
+     while the phone is idle and online — so the next dead spot still paints.
+     See lib/offline-warm.ts. */
+  useOfflineWarm(catalog, session.user?.id)
   const role = useActiveRole()
   /* Whether this person may look into every office in the building. Held by
      the principal, and the reason the workspace menu opens for somebody with a

@@ -22,12 +22,18 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 
 const RETRY_PAUSE_MS = 350
 
+/* The loader behind each lazy screen, kept so the shell can fetch a chunk
+   BEFORE anybody taps the menu entry. A chunk fetched while the phone is
+   idle and online lands in the service worker's cache, and the first offline
+   tap on that screen then paints instead of failing. */
+const loaders = new WeakMap<object, () => Promise<unknown>>()
+
 /** A lazily-loaded screen that survives one failed fetch of its chunk. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function screen<T extends ComponentType<any>>(
   load: () => Promise<{ default: T }>,
 ): LazyExoticComponent<T> {
-  return lazy(() =>
+  const comp = lazy(() =>
     load().catch(
       (first: unknown) =>
         new Promise<{ default: T }>((resolve, reject) => {
@@ -40,4 +46,13 @@ export function screen<T extends ComponentType<any>>(
         }),
     ),
   )
+  loaders.set(comp, load)
+  return comp
+}
+
+/** Fetch a screen's chunk now, without rendering it. Resolves either way. */
+export function preloadScreen(comp: object | undefined): Promise<void> {
+  const load = comp && loaders.get(comp)
+  if (!load) return Promise.resolve()
+  return load().then(() => undefined, () => undefined)
 }

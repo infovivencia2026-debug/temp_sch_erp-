@@ -13,9 +13,11 @@ import { readFileSync } from 'node:fs'
  * silently never take control and the app would appear to have no offline
  * support at all, with nothing on fire to explain why.
  *
- * The cache names carry the build id, so a deploy retires the previous
- * build's caches wholesale in `activate` rather than trying to reconcile
- * them. */
+ * The SHELL cache name carries the build id, so a deploy retires the previous
+ * build's shell wholesale in `activate` rather than trying to reconcile it.
+ * The DATA cache deliberately does not: cached API answers outlive a deploy
+ * (see sw-src.js), so updating the app no longer empties a phone's offline
+ * copy of the school. */
 function serviceWorker(): Plugin {
   const build = Date.now().toString(36)
   return {

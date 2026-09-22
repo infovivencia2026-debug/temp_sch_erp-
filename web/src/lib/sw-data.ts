@@ -23,7 +23,16 @@ export function forgetCachedDataOnUserChange(userID?: string) {
     return
   }
   if (seen === userID) return
+  const previous = seen
   seen = userID
+  /* A session that merely ENDS -- expired, revoked, the tab restored days
+     later -- is not a different person. Purging on that threw away every
+     cached answer the moment a phone's session lapsed offline, which is the
+     one time the cache was needed. The leak this guards against is a
+     DIFFERENT person signing in; sign-out itself is handled by the worker
+     on the /logout navigation. So: purge only when one known person is
+     replaced by another. */
+  if (previous === undefined || userID === undefined) return
   try {
     navigator.serviceWorker?.controller?.postMessage({ type: 'erp-forget-data' })
   } catch {
