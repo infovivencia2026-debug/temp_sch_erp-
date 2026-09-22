@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, DoorOpen, FileSignature, Route, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,

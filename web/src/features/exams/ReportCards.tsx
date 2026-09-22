@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
