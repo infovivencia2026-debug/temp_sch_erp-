@@ -54,15 +54,6 @@ const queryClient = new QueryClient({
          the bus. A day keeps the working set for the persister without
          keeping it forever; the 7-day maxAge on disk is the outer bound. */
       gcTime: 24 * 60 * 60_000,
-      /* A DAY IN MEMORY, SO A DAY ON DISK.
-
-         gcTime was the five-minute default. The offline persister can only
-         write what the in-memory cache still holds, so a screen left five
-         minutes ago was dropped from the blob and gone from the phone by the
-         time the signal was — exactly the screen a parent wanted to read on
-         the bus. A day keeps the working set for the persister without
-         keeping it forever; the 7-day maxAge on disk is the outer bound. */
-      gcTime: 24 * 60 * 60_000,
       /* OFF BY DEFAULT, ON WHERE IT IS EARNED.
        *
        * This was on for every query in the product, paired with the thirty-
