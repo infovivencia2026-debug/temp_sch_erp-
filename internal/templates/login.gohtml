@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in · School ERP</title>
+<title>Sign in · WISEN</title>
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
 {{template "themeboot"}}
 </head>
@@ -35,7 +35,7 @@
     <main class="card">
       {{if .LogoURL}}<img class="brand-logo" src="{{.LogoURL}}" alt="">{{end}}
       <h1>{{if .Headline}}{{.Headline}}{{else}}Sign in{{end}}</h1>
-      <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
+      <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}WISEN{{end}}</p>
       {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
       {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
       {{if .MFAStep}}

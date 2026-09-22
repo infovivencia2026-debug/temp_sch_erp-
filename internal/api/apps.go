@@ -133,7 +133,7 @@ var appCatalogue = []appInfo{
 		// catalogue named two apps, so the third could not be published to
 		// this page or downloaded from it.
 		Slug:    "parent",
-		Name:    "EDU CLOUD for Parents",
+		Name:    "WISEN for Parents",
 		Tagline: "The school's own parent portal as an app: fees, the bus on a map, homework and notices. It is the same site the browser shows, so nothing in it goes out of date.",
 		Who:     "A parent's own phone.",
 		Needs: []string{

@@ -230,7 +230,7 @@ export function Shell({
 
   /* THE SCHOOL'S NAME IN THE BROWSER TAB, AND ITS ICON.
 
-     The tab said "EDU CLOUD" on every screen a parent or a clerk had open,
+     The tab said "WISEN" on every screen a parent or a clerk had open,
      which is the product's name, not the school's -- the one piece of the
      vendor that showed through on every single page. The title follows the
      session now: the school's own name, its display name where it has set
@@ -242,7 +242,7 @@ export function Shell({
   const brandName =
     session.institution?.display_name?.trim() ||
     session.institution?.name ||
-    'EDU CLOUD'
+    'WISEN'
   const faviconKey = session.institution?.favicon_key
   useEffect(() => {
     const prevTitle = document.title
@@ -1078,7 +1078,7 @@ export function Shell({
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
           <p className="min-w-0 truncate text-[calc(13.5px*var(--font-scale,1))]">
-            <span className="font-medium">{session.institution?.name ?? 'EDU CLOUD'}</span>
+            <span className="font-medium">{session.institution?.name ?? 'WISEN'}</span>
             {/* Which desk you are sitting at, said up here as well: the role
                 is what decides what every screen below shows. */}
             {role?.name && <span className="text-muted-foreground"> · {role.name}</span>}

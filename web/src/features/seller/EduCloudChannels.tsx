@@ -10,7 +10,7 @@ const WhatsAppApi = lazy(() => import('../super_admin/WhatsAppApi'))
 
 /* EDUCLOUD'S OWN CHANNELS.
 
-   A school on the lower packs, or one that chose "send through EduCloud" on a
+   A school on the lower packs, or one that chose "send through WISEN" on a
    higher one, sends every SMS and WhatsApp message through the seller's
    account and pays with credits. The dispatcher already swaps in the
    platform's provider set for that route (messaging.go, RouteEduCloud) -- but
@@ -28,13 +28,13 @@ const TABS = [
     id: 'email',
     label: 'Email',
     icon: Mail,
-    blurb: 'The mail server every school’s password-reset links leave through, and email for schools that send through EduCloud.',
+    blurb: 'The mail server every school’s password-reset links leave through, and email for schools that send through WISEN.',
   },
   {
     id: 'sms',
     label: 'SMS',
     icon: MessageSquare,
-    blurb: 'The vendor account behind every SMS a school sends on credits. The DLT header and templates are EduCloud’s, not the school’s.',
+    blurb: 'The vendor account behind every SMS a school sends on credits. The DLT header and templates are WISEN’s, not the school’s.',
   },
   {
     id: 'whatsapp',
@@ -59,8 +59,8 @@ export default function EduCloudChannels() {
     <>
       <PageHead
         eyebrow="Delivery"
-        title="EduCloud channels"
-        description="The seller’s own email, SMS and WhatsApp accounts. Every school that sends through EduCloud, and every password reset, leaves by these. A channel not set up here is a channel those schools cannot send on."
+        title="WISEN channels"
+        description="The seller’s own email, SMS and WhatsApp accounts. Every school that sends through WISEN, and every password reset, leaves by these. A channel not set up here is a channel those schools cannot send on."
       />
       <PageBody>
         <Card>

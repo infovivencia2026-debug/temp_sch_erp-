@@ -153,6 +153,9 @@ FEATURE_SLUG_OVERRIDE = {
     # Renamed from "Staff records"; the key hr.records.staff_records is a
     # seeded grant, a registry entry and a /go/ path, so the slug stays.
     "Staff 360": "staff_records",
+    # Renamed from "EduCloud Channels" when the product became WISEN; the key
+    # seller_admin.delivery.educloud_channels is a registry entry and a grant.
+    "WISEN Channels": "educloud_channels",
 }
 
 

@@ -1,4 +1,4 @@
-# EDU CLOUD — parent app for iPhone
+# WISEN — parent app for iPhone
 
 The iOS sibling of [`mobile/apps/parent`](../parent), the Android parent app.
 Same product, same shape: a shell around the school's own portal, and
@@ -23,7 +23,7 @@ direct counterpart in the Android `MainActivity` with the same wording.
 | Pull to refresh that only fires when the *page* says its scroller is at the top | `Shell/PullToRefresh.swift`, `setAtTop` over the bridge |
 | The `window.ErpShell` bridge the site already speaks: `setAtTop`, `setGestureLock`, `setAppLock`, `appLockEnabled`, `biometricsAvailable`, `haptic`, `print` (the system print sheet, with Save to Files) | `Shell/BridgeScript.swift`, `WebShell.receive` |
 | App lock behind Face ID / Touch ID / passcode after a minute away; no snapshot kept while it is on | `Shell/AppLock.swift`, `Views/LockView.swift` |
-| Attachments download into Files › EDU CLOUD with the session cookie; non-renderable inline documents open in Quick Look | `Shell/Downloads.swift`, `Shell/ContentDisposition.swift` |
+| Attachments download into Files › WISEN with the session cookie; non-renderable inline documents open in Quick Look | `Shell/Downloads.swift`, `Shell/ContentDisposition.swift` |
 | Anything not the school opens in Safari; a link from another app must name the portal host and one of `/`, `/account`, `/go/` | `decidePolicyFor`, `Shell/DeepLink.swift`, `Config/Parent.entitlements` |
 | `alert` / `confirm` / `prompt`, which a bare `WKWebView` silently drops | `Shell/Presenter.swift` |
 | Renderer killed under memory pressure → same URL again | `webViewWebContentProcessDidTerminate` |

@@ -17,7 +17,7 @@ export const EDUCATION: IndustryDef = {
   tagline: 'Admissions, academics, fees and portals',
   blurb: 'Run admissions to alumni for a university or a school — timetables, attendance, examinations, fees, hostels and parent portals.',
   icon: GraduationCap,
-  product: 'Vivencia EduCloud',
+  product: 'WISEN',
   productSub: 'Education ERP Suite',
   user: { name: 'Priya Raghavan', defaultRole: 'institution-admin' },
   modules: MODULES,
