@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
+import { printPage } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
@@ -544,7 +545,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
         description={`Receipt ${receipt.receipt_no}`}
         action={
           <div className="flex gap-2 no-print">
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="secondary" onClick={() => printPage()}>
               <Printer className="h-4 w-4" /> Print
             </Button>
             <Button variant="ghost" onClick={onClose}>Close</Button>
@@ -578,6 +579,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
         </dl>
 
         {receipt.lines.length > 0 && (
+          <div className="scroll-x">
           <table className="mt-5 w-full text-[13px]">
             <thead>
               <tr className="border-b">
@@ -596,6 +598,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         <div className="mt-5 border-t pt-3">

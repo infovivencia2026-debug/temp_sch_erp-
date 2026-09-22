@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, DoorOpen, FileSignature, Route, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
+import { printPage } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
@@ -688,7 +689,7 @@ function LettersTab() {
             <Td><Badge tone="success">{c.status}</Badge></Td>
             <Td>
               <Button size="sm" variant="ghost"
-                onClick={() => { printed.mutate(c.serial_no); window.print() }}>
+                onClick={() => { printed.mutate(c.serial_no); printPage() }}>
                 Print
               </Button>
             </Td>

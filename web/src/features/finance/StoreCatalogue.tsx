@@ -100,6 +100,7 @@ function ProductCard({ product }: { product: CatalogueProduct }) {
         </div>
 
         {variants.length > 0 && (
+          <div className="scroll-x">
           <table className="mt-3 w-full text-[13px]">
             <tbody>
               {variants.map((v, i) => (
@@ -117,6 +118,7 @@ function ProductCard({ product }: { product: CatalogueProduct }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </Card>

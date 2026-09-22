@@ -533,7 +533,7 @@ function Timetable({ rows }: { rows: Overview['timetable'] }) {
   for (const r of rows) cell.set(`${r.weekday} ${r.period}`, r)
 
   return (
-    <div className="overflow-x-auto">
+    <div className="scroll-x">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>

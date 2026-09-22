@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
+import { printPage } from '@/lib/print'
 import { walkRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -634,7 +635,7 @@ export default function ReportCards() {
               </>
             )}
             {rows.length > 0 && (
-              <Button variant="ghost" onClick={() => window.print()}>
+              <Button variant="ghost" onClick={() => printPage()}>
                 <Printer className="h-3.5 w-3.5" />
                 Print
               </Button>

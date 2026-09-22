@@ -4004,6 +4004,7 @@ export function BoardImplications({ board }: { board: string }) {
       )}
 
       {open && (
+        <div className="scroll-x">
         <table className="mt-3 w-full text-[12px]">
           <thead>
             <tr className="text-left text-muted-foreground">
@@ -4021,6 +4022,7 @@ export function BoardImplications({ board }: { board: string }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">

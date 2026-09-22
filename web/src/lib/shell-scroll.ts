@@ -35,6 +35,10 @@ interface ErpShell {
   /* The device's push token, or null until the app has one; lib/push.ts
      hands it to the server after sign-in. */
   pushToken?(): string | null
+  /* The phone's print sheet, with Save as PDF (lib/print.ts). Absent in
+     older builds of the app and in every browser, where window.print is
+     the answer. */
+  print?(): void
 }
 
 declare global {
