@@ -4508,7 +4508,7 @@ body:has(.bento-frost) [data-assistant-orb] {
 
    SUBTLE ON PURPOSE. The pack's inner glow is 50px of 30% white; here it is
    40px at 35% over a white card, the same softness without the cards
-   turning to milk. The border is the pack's hairline of white. Every token
+   turning to milk. The border is a 1px black rule, as asked. Every token
    the Shadow, Corners and Borders preferences drive still applies: the mesh
    is a paint, not a shape.
    ═══════════════════════════════════════════════════════════════════════ */
@@ -4612,7 +4612,11 @@ html[data-palette='aurora'] {
 html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
   background-image: var(--aurora-sheen), var(--aurora, none);
   background-color: var(--aurora-base, var(--bento-card));
-  border-color: rgba(255, 255, 255, .8);
+  /* A black rule round every card, at the owner's request: the cells
+     otherwise carry no border at all (the board is one ruled sheet), so the
+     width is set here too, not only the colour. */
+  border-width: 1px;
+  border-color: #000;
   box-shadow:
     inset 0 0 40px rgba(255, 255, 255, .35),
     var(--bento-edge, none),
