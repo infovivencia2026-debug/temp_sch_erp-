@@ -1,0 +1,124 @@
+/* THE WORKSPACE OPENING.
+
+   Shown once, on the cold load of the app, while the session request is out
+   -- the only moment nothing at all is known about who is signed in or which
+   school this is. It replaces the grey skeleton for that moment with a short
+   opening: the wordmark, a light passing through its letters, and three soft
+   aurora blobs breathing behind it. Not a streaming service's ident -- no
+   zoom, no sting, no red -- but the same idea: the product says its name
+   while the room fills in, and then gets out of the way.
+
+   SMALL, NOT LOUD. The blobs are blurred and at low alpha, the sweep is one
+   band of light 2.4s across, the whole thing fades out over 400ms the moment
+   the session answers. Every animation is off under prefers-reduced-motion,
+   where the wordmark simply sits in its gradient until the app arrives.
+
+   Painted from the theme's own tokens plus the aurora hues, so it reads on
+   both grounds and takes the school's brand colour the moment applyBrand has
+   run on a warm reload. */
+
+.ws-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.ws-opening[data-leaving] {
+  animation: ws-leave 400ms ease forwards;
+  pointer-events: none;
+}
+@keyframes ws-leave { to { opacity: 0; } }
+
+/* Three blobs, one per aurora family, drifting a few pixels each way. They
+   are the "small gradient animations": each is one radial gradient on its
+   own element, blurred, at low alpha, moved by transform only. */
+.ws-opening .ws-blob {
+  position: absolute;
+  width: 46vmin;
+  height: 46vmin;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: .45;
+  pointer-events: none;
+  will-change: transform;
+}
+.ws-opening .ws-blob-1 { left: 22%; top: 28%; background: radial-gradient(circle, rgba(49, 108, 255, .9), transparent 62%); animation: ws-drift-1 6s ease-in-out infinite alternate; }
+.ws-opening .ws-blob-2 { left: 52%; top: 40%; background: radial-gradient(circle, rgba(255, 60, 158, .8), transparent 62%); animation: ws-drift-2 7s ease-in-out infinite alternate; }
+.ws-opening .ws-blob-3 { left: 38%; top: 56%; background: radial-gradient(circle, rgba(32, 214, 181, .8), transparent 62%); animation: ws-drift-3 8s ease-in-out infinite alternate; }
+@keyframes ws-drift-1 { from { transform: translate(-6%, -4%) scale(1); } to { transform: translate(6%, 4%) scale(1.08); } }
+@keyframes ws-drift-2 { from { transform: translate(5%, -5%) scale(1.05); } to { transform: translate(-5%, 5%) scale(.96); } }
+@keyframes ws-drift-3 { from { transform: translate(-4%, 6%) scale(.98); } to { transform: translate(4%, -6%) scale(1.06); } }
+
+.ws-opening .ws-mark {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+/* The wordmark carries a gradient of the brand colour into the aurora blues
+   and a band of white light that travels across it. background-clip on the
+   text is what lets a gradient be the ink; the band is a second, narrow
+   gradient layered over the first and moved with background-position. */
+.ws-opening .ws-word {
+  margin: 0;
+  font-size: clamp(30px, 7vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: transparent;
+  background-image:
+    linear-gradient(100deg, transparent 0%, transparent 40%, rgba(255, 255, 255, .85) 50%, transparent 60%, transparent 100%),
+    linear-gradient(90deg, hsl(var(--brand-accent, var(--primary))), #3d6cff 45%, #7558ff 70%, #18bca6);
+  background-size: 220% 100%, 100% 100%;
+  background-position: 120% 0, 0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ws-sweep 2.4s cubic-bezier(.4, 0, .2, 1) 300ms infinite;
+}
+@keyframes ws-sweep {
+  0% { background-position: 120% 0, 0 0; }
+  60%, 100% { background-position: -120% 0, 0 0; }
+}
+.ws-opening .ws-sub {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* The rule: a thin track with a gradient band running along it, so the
+   screen visibly does something for the half-second a slow network costs. */
+.ws-opening .ws-rule {
+  position: relative;
+  width: min(240px, 60vw);
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: hsl(var(--border));
+}
+.ws-opening .ws-rule::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #3d6cff, #18bca6, transparent);
+  animation: ws-run 1.4s ease-in-out infinite;
+}
+@keyframes ws-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-opening .ws-blob, .ws-opening .ws-word, .ws-opening .ws-rule::after { animation: none !important; }
+  .ws-opening .ws-word { background-position: 200% 0, 0 0; }
+  .ws-opening[data-leaving] { animation: none; opacity: 0; transition: opacity 200ms; }
+}
