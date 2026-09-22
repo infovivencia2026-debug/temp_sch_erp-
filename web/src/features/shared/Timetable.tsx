@@ -4,6 +4,8 @@ import { api, type List, type Section, type Period, type TimetableEntry, type Te
 import { Card, CardHeader, Table, Td, Badge, Select, Loading, SkeletonTable, ErrorState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import WeekGrid from '@/components/WeekGrid'
+import DayTimeline from '@/components/DayTimeline'
+import { useSession } from '@/lib/session'
 
 /* One screen, two audiences.
 
@@ -82,6 +84,7 @@ type View = { mode: 'me' } | { mode: 'section'; sectionId: string }
 
 function Grid({ isStaff }: { isStaff: boolean }) {
   const [view, setView] = useState<View>(isStaff ? { mode: 'me' } : { mode: 'section', sectionId: '' })
+  const session = useSession()
   const sectionId = view.mode === 'section' ? view.sectionId : ''
 
   const sections = useQuery({
@@ -136,29 +139,42 @@ function Grid({ isStaff }: { isStaff: boolean }) {
         </div>
       )}
 
+      {/* A teacher's own week reads as the same day timeline a parent gets
+          for their child — day chips, one card per period, "now" lit — with
+          the class to walk into and the room on each card. A section's week
+          stays a grid: that is a planning view, read across. */}
+      {view.mode === 'me' ? (
+        <div className="p-3 sm:p-4">
+          <DayTimeline
+            who={session.user?.full_name ?? 'My week'}
+            where="Every period you teach, across all your classes"
+            breaks={false}
+            periods={periods.data?.items ?? []}
+            entries={(entries.data?.items ?? []).map((e) => ({
+              weekday: e.weekday,
+              period_id: e.period_id,
+              title: e.subject_name || e.subject_code,
+              detail: [`${e.class_name}-${e.section_name}`, e.room].filter(Boolean).join(' • '),
+            }))}
+          />
+        </div>
+      ) : (
       <div className="p-4">
         <WeekGrid
           entries={(entries.data?.items ?? []).map((e) => ({
             weekday: e.weekday,
             period_id: e.period_id,
             title: e.subject_name || e.subject_code,
-            /* On your own week the teacher is always you, and printing your
-               own name in thirty cells tells you nothing. Which class to walk
-               into does. On a section's week it is the other way round. */
-            detail:
-              view.mode === 'me'
-                ? `${e.class_name}-${e.section_name}${e.room ? ` · ${e.room}` : ''}`
-                : (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
-            unstaffed: view.mode !== 'me' && !e.teacher_name,
+            // A section's week: who teaches it, and where.
+            detail: (e.teacher_name ?? 'no teacher') + (e.room ? ` · ${e.room}` : ''),
+            unstaffed: !e.teacher_name,
           }))}
           periods={periods.data?.items ?? []}
-          empty={
-            view.mode === 'me'
-              ? 'You have no periods on the timetable yet.'
-              : 'Nothing timetabled for this class yet.'
-          }
+          empty="Nothing timetabled for this class yet."
+
         />
       </div>
+      )}
     </>
   )
 }
