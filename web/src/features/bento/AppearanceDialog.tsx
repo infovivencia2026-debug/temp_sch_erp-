@@ -931,7 +931,7 @@ export function SettingsPane({
               sits in the Appearance tab every account can open, and writes the
               same per-device locale. Each language is named in itself. */}
           {Object.keys(LOCALES).length > 1 && (
-            <SelectRow
+            <DropdownRow
               label={t('bento.settings.language')}
               value={locale}
               options={Object.keys(LOCALES)}
