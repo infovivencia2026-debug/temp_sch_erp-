@@ -6,9 +6,8 @@
 /.well-known/assetlinks.json  /well-known/assetlinks.json  200
 /.well-known/apple-app-site-association  /well-known/apple-app-site-association  200
 
-# The public legal pages Google Play requires a URL for. Static files in
-# public/, given clean addresses so the store listing, the app and the policy
-# text can all point at one stable path.
-/privacy         /privacy.html         200
-/terms           /terms.html           200
-/delete-account  /delete-account.html  200
+# The public legal pages (privacy.html, terms.html, delete-account.html) are
+# served at /privacy, /terms and /delete-account by Pages' own extensionless
+# handling -- it serves foo.html at /foo and 308s /foo.html to /foo. A rewrite
+# rule here mapping /privacy back to /privacy.html made a redirect loop, so
+# there is deliberately no rule for them.
