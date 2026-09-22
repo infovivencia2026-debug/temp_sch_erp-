@@ -255,7 +255,7 @@ describe('add puts a card on the board at the end, at the size asked for', () =>
     expect(dimsOf(api(d).layout, 'x', 'large')).toEqual({ w: 1, h: 1 })
   })
 
-  it('a card already placed — and off the board for its size — is resized and moved last, keeping its colour', () => {
+  it('a card already placed, and off the board for its size, is resized and moved last, keeping its colour', () => {
     const RED = { h: 0, s: 80, l: 50 }
     const d = freshDashboard()
     api(d).recolour('x', RED, 2, 2)

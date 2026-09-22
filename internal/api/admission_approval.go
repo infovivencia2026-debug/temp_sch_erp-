@@ -125,7 +125,7 @@ func (s *Server) listPendingAdmissions(w http.ResponseWriter, r *http.Request) {
 		       COALESCE(a.parent_phone, ''),
 		       COALESCE(to_char(a.decided_at,'YYYY-MM-DD'), ''),
 		       /* The class's own structure where it has one, otherwise the
-		          school-wide one — the same precedence the demand raise uses,
+		          school-wide one, the same precedence the demand raise uses,
 		          so the figure the principal approves is the figure billed. */
 		       COALESCE((
 		         SELECT sum(i.amount_paise)::text
@@ -202,7 +202,7 @@ func (s *Server) decideAdmission(w http.ResponseWriter, r *http.Request) {
 		   about, and the person answering the telephone did not make the
 		   decision. */
 		httpx.BadRequest(w, r,
-			"say what has to happen first — the desk has to tell the family something")
+			"say what has to happen first, the desk has to tell the family something")
 		return
 	}
 

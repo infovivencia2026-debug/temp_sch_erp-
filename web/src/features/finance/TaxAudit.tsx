@@ -64,7 +64,7 @@ export default function TaxAudit() {
       <PageBody width="wide">
         <CellGrid cols={4}>
           <Stat label="Audit checks"
-            value={a ? `${a.checks.length - a.failing} of ${a.checks.length}` : '—'}
+            value={a ? `${a.checks.length - a.failing} of ${a.checks.length}` : '-'}
             icon={a?.clean ? ShieldCheck : ShieldAlert}
             delta={a
               ? a.clean
@@ -101,7 +101,7 @@ export default function TaxAudit() {
                   {c.count === 0 ? 'none' : c.count}
                 </Td>
                 <Td className="text-right tabular-nums text-muted-foreground">
-                  {c.paise ? rupees(c.paise) : '—'}
+                  {c.paise ? rupees(c.paise) : '-'}
                 </Td>
                 <Td>
                   <Badge tone={c.passing ? 'success' : 'danger'}>
@@ -138,8 +138,8 @@ export default function TaxAudit() {
 
         <Card>
           <CardHeader
-            title={`Purchases and withholding — ${t?.fy_label ?? fy}`}
-            description="A vendor charging tax without a GSTIN on file, or holding a GSTIN and charging none, is exactly what a reviewer is looking for — so both are listed rather than filtered out."
+            title={`Purchases and withholding · ${t?.fy_label ?? fy}`}
+            description="A vendor charging tax without a GSTIN on file, or holding a GSTIN and charging none, is exactly what a reviewer is looking for, so both are listed rather than filtered out."
           />
           {(t?.vendors ?? []).length === 0 ? (
             <EmptyState title="No approved purchase bills this year"
@@ -153,13 +153,13 @@ export default function TaxAudit() {
                 <tr key={v.vendor_name}>
                   <Td className="font-medium">{v.vendor_name}</Td>
                   <Td className={`text-[13px] tabular-nums ${!v.gstin && v.tax_paise ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {v.gstin ?? (v.tax_paise ? 'tax charged, none on file' : '—')}
+                    {v.gstin ?? (v.tax_paise ? 'tax charged, none on file' : '-')}
                   </Td>
-                  <Td className="text-[13px] tabular-nums text-muted-foreground">{v.pan ?? '—'}</Td>
+                  <Td className="text-[13px] tabular-nums text-muted-foreground">{v.pan ?? '-'}</Td>
                   <Td className="tabular-nums text-muted-foreground">{v.bills}</Td>
                   <Td className="text-right tabular-nums">{rupees(v.taxable_paise)}</Td>
                   <Td className="text-right tabular-nums">{rupees(v.tax_paise)}</Td>
-                  <Td className="text-right tabular-nums">{v.tds_paise ? rupees(v.tds_paise) : '—'}</Td>
+                  <Td className="text-right tabular-nums">{v.tds_paise ? rupees(v.tds_paise) : '-'}</Td>
                 </tr>
               ))}
               <tr className="font-medium">
@@ -188,12 +188,12 @@ export default function TaxAudit() {
               <tr key={y.fy_start_year}>
                 <Td className="font-medium tabular-nums">{y.fy_label}</Td>
                 <Td><Badge tone={y.status === 'closed' ? 'info' : 'success'}>{y.status}</Badge></Td>
-                <Td className="tabular-nums text-muted-foreground">{y.vouchers || '—'}</Td>
-                <Td className="text-muted-foreground">{y.closed_on ?? '—'}</Td>
-                <Td className="text-muted-foreground">{y.closed_by ?? '—'}</Td>
-                <Td className="tabular-nums text-muted-foreground">{y.closing_voucher_no ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{y.vouchers || '-'}</Td>
+                <Td className="text-muted-foreground">{y.closed_on ?? '-'}</Td>
+                <Td className="text-muted-foreground">{y.closed_by ?? '-'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{y.closing_voucher_no ?? '-'}</Td>
                 <Td className="text-right tabular-nums">
-                  {y.surplus_paise != null ? rupees(y.surplus_paise) : '—'}
+                  {y.surplus_paise != null ? rupees(y.surplus_paise) : '-'}
                 </Td>
               </tr>
             ))}

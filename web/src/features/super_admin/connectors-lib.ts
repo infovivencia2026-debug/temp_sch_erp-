@@ -259,7 +259,7 @@ export function actionTone(k: string): 'success' | 'warning' | 'danger' | 'neutr
 
 /** A timestamp as a person reads it, or an em dash. */
 export function whenRead(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-IN', {

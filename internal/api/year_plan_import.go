@@ -168,7 +168,7 @@ func (s *Server) importYearPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.CSV) == "" {
-		httpx.BadRequest(w, r, "csv is required — export the workbook and send its text")
+		httpx.BadRequest(w, r, "csv is required, export the workbook and send its text")
 		return
 	}
 
@@ -196,7 +196,7 @@ func (s *Server) importYearPlan(w http.ResponseWriter, r *http.Request) {
 	iSubject, iSheet := col("Subject"), col("Sheet_Name")
 	if iSubject < 0 || iSheet < 0 {
 		httpx.BadRequest(w, r,
-			"expected a Subject and a Sheet_Name column — this is the flattened export, one row per spreadsheet row")
+			"expected a Subject and a Sheet_Name column, this is the flattened export, one row per spreadsheet row")
 		return
 	}
 

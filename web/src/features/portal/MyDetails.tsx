@@ -153,9 +153,9 @@ export default function MyDetails() {
               />
               <dl className="grid gap-x-6 gap-y-3 px-5 py-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
                 <Ro label="Admission no." value={d.admission_no} mono />
-                <Ro label="Class" value={d.class_name ? `${d.class_name} ${d.section_name ?? ''}`.trim() : '—'} />
-                <Ro label="Date of birth" value={d.date_of_birth ?? '—'} />
-                <Ro label="Gender" value={d.gender ? relationLabel(d.gender) : '—'} />
+                <Ro label="Class" value={d.class_name ? `${d.class_name} ${d.section_name ?? ''}`.trim() : '-'} />
+                <Ro label="Date of birth" value={d.date_of_birth ?? '-'} />
+                <Ro label="Gender" value={d.gender ? relationLabel(d.gender) : '-'} />
               </dl>
             </Card>
 

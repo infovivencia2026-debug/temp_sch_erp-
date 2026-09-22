@@ -53,7 +53,7 @@ var reportCardPlaceholders = []map[string]string{
 	{"token": "{{roll_no}}", "means": "roll number"},
 	{"token": "{{date_of_birth}}", "means": "date of birth"},
 	{"token": "{{admission_date}}", "means": "date of admission"},
-	{"token": "{{subject_rows}}", "means": "one table row per subject — marks, percentage and grade"},
+	{"token": "{{subject_rows}}", "means": "one table row per subject, marks, percentage and grade"},
 	{"token": "{{performance_chart}}", "means": "a bar chart of the marks, one bar per subject"},
 	{"token": "{{total_marks}}", "means": "marks the exam was out of"},
 	{"token": "{{marks_obtained}}", "means": "marks the child scored"},
@@ -167,7 +167,7 @@ const defaultReportCardCSS = `
         border: 2px solid #1e3a5f;
         /* The face is the school's choice, substituted below. A fallback chain
            would have meant the card printed in whichever of the three happened
-           to be on the machine — which is a different document in the office
+           to be on the machine, which is a different document in the office
            and in the staff room. */
         font: 11pt/1.45 __FONT__;
         color: #14213d; background: #fff; }
@@ -224,7 +224,7 @@ const defaultReportCardCSS = `
 /* THE PAPER HAS TO DISAPPEAR, LEAVING THE INK.
 
    Almost nobody uploads a signature on a transparent background. What arrives
-   is a photograph of a signature on a sheet of paper, taken on a phone — and
+   is a photograph of a signature on a sheet of paper, taken on a phone, and
    printed as-is it lands on the report card as a grey square with a signature
    somewhere inside it, which is what a school notices immediately and what
    makes the whole feature look unfinished.
@@ -400,12 +400,12 @@ func (s *Server) saveReportCardTemplate(w http.ResponseWriter, r *http.Request) 
 	}
 	body := strings.TrimSpace(req.HTML)
 	if body == "" {
-		httpx.BadRequest(w, r, "the file is empty — import the report card design itself")
+		httpx.BadRequest(w, r, "the file is empty, import the report card design itself")
 		return
 	}
 	if len(body) > 400_000 {
 		httpx.BadRequest(w, r,
-			"that file is too large for a report card design — 400 KB is the limit, "+
+			"that file is too large for a report card design · 400 KB is the limit, "+
 				"and a card that big is usually an image pasted into a document")
 		return
 	}
@@ -418,7 +418,7 @@ func (s *Server) saveReportCardTemplate(w http.ResponseWriter, r *http.Request) 
 	if !strings.Contains(body, "{{student_name}}") || !strings.Contains(body, "{{subject_rows}}") {
 		httpx.BadRequest(w, r,
 			"this design uses neither {{student_name}} nor {{subject_rows}}, so every "+
-				"child would get the same page — check the placeholder list on this screen "+
+				"child would get the same page, check the placeholder list on this screen "+
 				"and put them in the file")
 		return
 	}
@@ -817,7 +817,7 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 		}
 		row := map[string]string{
 			"subject": name, "max_marks": strconv.FormatFloat(max, 'f', -1, 64),
-			"marks": "—", "percent": "—", "subject_grade": str(g),
+			"marks": "-", "percent": "-", "subject_grade": str(g),
 		}
 		if got != nil {
 			row["marks"] = strconv.FormatFloat(*got, 'f', -1, 64)

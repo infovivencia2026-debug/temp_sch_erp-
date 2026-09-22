@@ -276,7 +276,7 @@ func Resolve(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (State, error) {
 		if trialEnds != nil && trialEnds.Before(time.Now()) {
 			st.Active, st.Code = false, "expired"
 			st.Reason = "Your trial ended on " + trialEnds.Format("2 January 2006") +
-				". Subscribe to carry on where you left off — your data is all still here."
+				". Subscribe to carry on where you left off, your data is all still here."
 			return st, nil
 		}
 		st.Active = true
@@ -289,7 +289,7 @@ func Resolve(ctx context.Context, tx pgx.Tx, inst uuid.UUID) (State, error) {
 		st.Reason = "This school's account is suspended. Please contact us."
 	case "cancelled":
 		st.Active, st.Code = false, "cancelled"
-		st.Reason = "This subscription was cancelled. Your data is retained — " +
+		st.Reason = "This subscription was cancelled. Your data is retained · " +
 			"subscribe again to reopen the school."
 	default:
 		st.Active, st.Code = false, "none"

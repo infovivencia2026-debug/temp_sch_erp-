@@ -25,9 +25,9 @@ import { type PortfolioPiece } from './classroom'
    be the one thing this feature must never do. */
 
 const STATUSES = [
-  { value: 'noted', label: 'Noted — seen and kept' },
-  { value: 'endorsed', label: 'Endorsed — the school stands behind it' },
-  { value: 'returned', label: 'Returned — sent back with a comment' },
+  { value: 'noted', label: 'Noted, seen and kept' },
+  { value: 'endorsed', label: 'Endorsed, the school stands behind it' },
+  { value: 'returned', label: 'Returned, sent back with a comment' },
 ]
 
 interface RosterChild {
@@ -144,7 +144,7 @@ export default function PortfolioBuilder() {
           <Card>
             <CardHeader
               title="The portfolio"
-              description="A school award and a self-declared claim are shown as what they are — never merged."
+              description="A school award and a self-declared claim are shown as what they are, never merged."
             />
             <Table
               head={['Kind', 'Title', 'When', 'Verdict', 'On report', '']}
@@ -166,7 +166,7 @@ export default function PortfolioBuilder() {
                       </span>
                     )}
                   </Td>
-                  <Td>{p.happened_on ?? '—'}</Td>
+                  <Td>{p.happened_on ?? '-'}</Td>
                   <Td>
                     {p.status === 'uncurated' ? (
                       <span className="text-muted-foreground">Not looked at</span>
@@ -184,7 +184,7 @@ export default function PortfolioBuilder() {
                       </Badge>
                     )}
                   </Td>
-                  <Td>{p.include_in_report ? 'Yes' : '—'}</Td>
+                  <Td>{p.include_in_report ? 'Yes' : '-'}</Td>
                   <Td>
                     <Button variant="ghost" onClick={() => open(p)}>
                       Curate

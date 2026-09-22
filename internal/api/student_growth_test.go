@@ -86,7 +86,7 @@ func TestStudentGrowthAdmitsTheFeatureKeys(t *testing.T) {
 		{http.MethodPost, "/campus/hall-of-fame/" + uuid.NewString() + "/retire"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a child cannot write the foyer board", tc.method, tc.path, got)
+			t.Errorf("%s %s: got %d, want 403, a child cannot write the foyer board", tc.method, tc.path, got)
 		}
 	}
 }

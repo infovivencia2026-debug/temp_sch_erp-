@@ -154,7 +154,7 @@ func (s *Server) spendCredit(ctx context.Context, tx pgx.Tx, inst uuid.UUID, cha
 // code. It appears verbatim on the message log beside the message that has not
 // gone, which is the only place anybody looks when something did not arrive.
 var ErrNoCredits = errors.New(
-	"out of message credits for this channel — top up to resume sending")
+	"out of message credits for this channel, top up to resume sending")
 
 /* Add credits, or correct them.
  *

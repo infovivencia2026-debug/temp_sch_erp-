@@ -250,7 +250,7 @@ export default function MyClasses() {
                   </Td>
                   <Td>
                     {r.attendance_percent == null ? (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     ) : (
                       <span
                         className={cn(
@@ -267,7 +267,7 @@ export default function MyClasses() {
                   </Td>
                   <Td>
                     {r.marks_percent == null ? (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     ) : (
                       <span
                         className={cn('tabular-nums', r.marks_percent < 35 && 'text-destructive')}
@@ -280,7 +280,7 @@ export default function MyClasses() {
                     )}
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">
-                    {r.homework_set === 0 ? '—' : `${r.homework_submitted}/${r.homework_set}`}
+                    {r.homework_set === 0 ? '-' : `${r.homework_submitted}/${r.homework_set}`}
                   </Td>
                   <Td className="tabular-nums">
                     {r.commendations > 0 && <span className="text-success">+{r.commendations}</span>}
@@ -289,11 +289,11 @@ export default function MyClasses() {
                       <span className="text-muted-foreground">−{r.notes_of_concern}</span>
                     )}
                     {r.commendations === 0 && r.notes_of_concern === 0 && (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">
-                    {r.fees_due_paise > 0 ? `₹${rupees(r.fees_due_paise)}` : '—'}
+                    {r.fees_due_paise > 0 ? `₹${rupees(r.fees_due_paise)}` : '-'}
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">

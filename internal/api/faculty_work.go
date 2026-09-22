@@ -114,14 +114,14 @@ func (s *Server) getMyWork(w http.ResponseWriter, r *http.Request) {
 
 			    A teacher with both 6-A and 6-B English had them merged into
 			    one "Grade 6 English" row with the two classes' counts added
-			    together — so "0 of 20 entered" named no register she could
+			    together, so "0 of 20 entered" named no register she could
 			    open, and entering one section's marks left the row saying
 			    half. */
 			 GROUP BY ex.name, sub.name, c.name, sec.name, ex.ends_on
 			HAVING count(DISTINCT m.student_id) < count(DISTINCT e.student_id)
 			 ORDER BY ex.ends_on NULLS LAST
 			 /* Was ten, which silently hid the eleventh register from a
-			    teacher with four subjects across two sections — and the count
+			    teacher with four subjects across two sections, and the count
 			    above the list was drawn from the same truncated set, so it
 			    agreed with the omission. The card scrolls now, so the honest
 			    limit is one nobody reaches. */

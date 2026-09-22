@@ -126,7 +126,7 @@ export default function ServiceRecords() {
       <PageHead
         eyebrow="Employees"
         title="Staff service & verification records"
-        description="Career histories, the degrees a board counts, medical fitness certificates and police background verifications — with the two that expire flagged before they lapse."
+        description="Career histories, the degrees a board counts, medical fitness certificates and police background verifications, with the two that expire flagged before they lapse."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -266,8 +266,8 @@ function ServiceBookTab() {
                     {e.source !== 'manual' && ` · raised by ${e.source}`}
                   </div>
                 </Td>
-                <Td className="text-muted-foreground">{e.particulars ?? '—'}</Td>
-                <Td className="text-muted-foreground">{e.order_no ?? '—'}</Td>
+                <Td className="text-muted-foreground">{e.particulars ?? '-'}</Td>
+                <Td className="text-muted-foreground">{e.order_no ?? '-'}</Td>
                 <Td>
                   {e.attested_on
                     ? <Badge tone="success">{e.attested_on}</Badge>
@@ -393,11 +393,11 @@ function QualificationsTab() {
                 {q.qualification}
                 {q.lapsed && <div className="text-[12px] text-destructive">lapsed {q.valid_until}</div>}
               </Td>
-              <Td className="text-muted-foreground">{q.discipline ?? '—'}</Td>
-              <Td className="text-muted-foreground">{q.board_university ?? '—'}</Td>
-              <Td className="tabular-nums text-muted-foreground">{q.year_of_passing ?? '—'}</Td>
-              <Td className="tabular-nums text-muted-foreground">{q.percentage ?? '—'}</Td>
-              <Td>{q.is_teaching_qualification ? <Badge tone="info">yes</Badge> : '—'}</Td>
+              <Td className="text-muted-foreground">{q.discipline ?? '-'}</Td>
+              <Td className="text-muted-foreground">{q.board_university ?? '-'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{q.year_of_passing ?? '-'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{q.percentage ?? '-'}</Td>
+              <Td>{q.is_teaching_qualification ? <Badge tone="info">yes</Badge> : '-'}</Td>
               <Td>{q.verified_on ? <Badge tone="success">{q.verified_on}</Badge> : <Badge tone="warning">not seen</Badge>}</Td>
             </tr>
           ))}
@@ -488,7 +488,7 @@ function MedicalTab({ rows }: { rows: Medical[] }) {
                 {m.expired ? 'expired' : m.days_left}
               </Td>
               <Td>{m.fit ? <Badge tone="success">fit</Badge> : <Badge tone="danger">not fit</Badge>}</Td>
-              <Td className="text-muted-foreground">{m.restrictions ?? '—'}</Td>
+              <Td className="text-muted-foreground">{m.restrictions ?? '-'}</Td>
             </tr>
           ))}
         </Table>
@@ -585,7 +585,7 @@ function BackgroundLine({
         <div className="text-[12px] font-normal text-muted-foreground">{row.employee_code}</div>
       </Td>
       <Td className="text-muted-foreground">{row.kind.replace(/_/g, ' ')}</Td>
-      <Td className="text-muted-foreground">{row.agency ?? '—'}</Td>
+      <Td className="text-muted-foreground">{row.agency ?? '-'}</Td>
       <Td className="text-muted-foreground">{row.requested_on}</Td>
       <Td>
         <Badge tone={row.expired ? 'danger' : row.status === 'clear' ? 'success'
@@ -595,7 +595,7 @@ function BackgroundLine({
       </Td>
       <Td className="w-40">
         {done ? (
-          <span className="text-muted-foreground">{row.valid_until ?? '—'}</span>
+          <span className="text-muted-foreground">{row.valid_until ?? '-'}</span>
         ) : (
           <Input value={validUntil} onChange={setValidUntil} type="date" />
         )}

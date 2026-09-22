@@ -55,7 +55,7 @@ export default function Expenses() {
             hint="Accrued when the bill was approved" />
           <Stat label="Out of the tin" value={inr(fromTin)} icon={Wallet}
             hint="Petty cash slips approved and posted" />
-          <Stat label="Largest head" value={biggest ? biggest.name : '—'}
+          <Stat label="Largest head" value={biggest ? biggest.name : '-'}
             hint={biggest ? inr(biggest.paise) : undefined} />
         </CellGrid>
 
@@ -80,17 +80,17 @@ export default function Expenses() {
                   <Td className="text-muted-foreground">{r.group}</Td>
                   <Td className="tabular-nums text-muted-foreground">{r.vouchers}</Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {r.from_bills_paise ? rupees(r.from_bills_paise) : '—'}
+                    {r.from_bills_paise ? rupees(r.from_bills_paise) : '-'}
                   </Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {r.from_petty_cash_paise ? rupees(r.from_petty_cash_paise) : '—'}
+                    {r.from_petty_cash_paise ? rupees(r.from_petty_cash_paise) : '-'}
                   </Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {r.from_other_paise ? rupees(r.from_other_paise) : '—'}
+                    {r.from_other_paise ? rupees(r.from_other_paise) : '-'}
                   </Td>
                   <Td className="text-right font-medium tabular-nums">{rupees(r.paise)}</Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {total ? `${Math.round((r.paise * 100) / total)}%` : '—'}
+                    {total ? `${Math.round((r.paise * 100) / total)}%` : '-'}
                   </Td>
                 </tr>
               ))}
@@ -134,12 +134,12 @@ function RecordExpense() {
 
   const cashAccounts = (accounts.data?.items ?? [])
     .filter((a) => a.is_cash && !a.is_group)
-    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` }))
+    .map((a) => ({ value: a.id, label: `${a.code} · ${a.name}` }))
 
   return (
     <Card>
       <CardHeader title="Record a direct payment"
-        description="The plumber paid at the gate, the courier charge, the sweets for a prize day — money that never became a bill. It posts a full voucher: the expense head is debited and the cash or bank account credited." />
+        description="The plumber paid at the gate, the courier charge, the sweets for a prize day, money that never became a bill. It posts a full voucher: the expense head is debited and the cash or bank account credited." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Expense head" required>

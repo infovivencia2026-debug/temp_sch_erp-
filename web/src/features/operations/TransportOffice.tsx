@@ -337,7 +337,7 @@ function BusRegister() {
         {aboard.length > 0 && (
           <div className="border-b bg-destructive/5 px-4 py-3">
             <p className="text-[13px] font-medium text-destructive">
-              {aboard.length} still on the bus — boarded and never seen to get off
+              {aboard.length} still on the bus, boarded and never seen to get off
             </p>
             <p className="text-[13px] text-muted-foreground">
               {aboard.map((a) => a.full_name).join(', ')}
@@ -370,9 +370,9 @@ function BusRegister() {
                     {r.admission_no}
                   </div>
                 </Td>
-                <Td className="text-muted-foreground">{r.stop ?? '—'}</Td>
-                <Td className="tabular-nums text-muted-foreground">{r.boarded_at ?? '—'}</Td>
-                <Td className="tabular-nums text-muted-foreground">{r.alighted_at ?? '—'}</Td>
+                <Td className="text-muted-foreground">{r.stop ?? '-'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{r.boarded_at ?? '-'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{r.alighted_at ?? '-'}</Td>
                 <Td>
                   <Badge
                     tone={
@@ -480,7 +480,7 @@ function SafetyChecks() {
       <Card>
         <CardHeader
           title="Before the bus moves"
-          description="Cleared is worked out from the answers, never ticked. A screen that lets someone clear a bus over a failed brake check is not a safety record — and this is the one row here a court would read."
+          description="Cleared is worked out from the answers, never ticked. A screen that lets someone clear a bus over a failed brake check is not a safety record, and this is the one row here a court would read."
         />
         <div className="p-4">
           <FormGrid>
@@ -580,10 +580,10 @@ function SafetyChecks() {
                   <Badge tone={c.cleared ? 'success' : 'danger'}>{c.cleared ? 'Yes' : 'No'}</Badge>
                 </Td>
                 <Td className="text-muted-foreground">
-                  {c.failed_items.length ? c.failed_items.join(', ') : '—'}
+                  {c.failed_items.length ? c.failed_items.join(', ') : '-'}
                   {c.remarks && <div className="text-[12px]">{c.remarks}</div>}
                 </Td>
-                <Td className="text-muted-foreground">{c.checked_by ?? '—'}</Td>
+                <Td className="text-muted-foreground">{c.checked_by ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -838,7 +838,7 @@ function Drivers({ rows }: { rows: Staff[] }) {
               <Field label="Badge number">
                 <Input value={form.badge_no ?? ''} onChange={set('badge_no')} />
               </Field>
-              <Field label="Police verified on" hint="The date, not a tick — a tick proves nothing.">
+              <Field label="Police verified on" hint="The date, not a tick, a tick proves nothing.">
                 <Input type="date" value={form.police_verified_on ?? ''} onChange={set('police_verified_on')} />
               </Field>
               <Field label="Medical expiry">
@@ -879,9 +879,9 @@ function Drivers({ rows }: { rows: Staff[] }) {
                   )}
                 </Td>
                 <Td className="text-muted-foreground">{s.role}</Td>
-                <Td className="text-muted-foreground">{s.vehicle ?? '—'}</Td>
+                <Td className="text-muted-foreground">{s.vehicle ?? '-'}</Td>
                 <Td className="text-muted-foreground">
-                  {s.licence_no ?? '—'}
+                  {s.licence_no ?? '-'}
                   {s.licence_expiry && (
                     <div className="text-[12px]">to {formatDate(s.licence_expiry)}</div>
                   )}
@@ -1025,7 +1025,7 @@ function Allocations() {
       <Card>
         <CardHeader
           title="Put a child on a route"
-          description="The fare follows the stop rather than being typed, because a transport fee that disagrees with the stop it came from is an argument at the counter every August. It goes on every fee demand raised for the child from today. Moving a child closes the old allocation instead of deleting it — the fee already raised has to stay explicable."
+          description="The fare follows the stop rather than being typed, because a transport fee that disagrees with the stop it came from is an argument at the counter every August. It goes on every fee demand raised for the child from today. Moving a child closes the old allocation instead of deleting it, the fee already raised has to stay explicable."
         />
         <div className="p-4">
           <FormGrid>
@@ -1064,7 +1064,7 @@ function Allocations() {
             </Field>
             <Field label="Fare this implies">
               <div className="flex h-9 items-center text-[14px] tabular-nums">
-                {chosen ? `₹${rupees(chosen.fare_paise)}` : '—'}
+                {chosen ? `₹${rupees(chosen.fare_paise)}` : '-'}
               </div>
             </Field>
           </FormGrid>
@@ -1103,12 +1103,12 @@ function Allocations() {
                     {a.admission_no}
                   </div>
                 </Td>
-                <Td className="text-muted-foreground">{a.class_name ?? '—'}</Td>
-                <Td>{a.route ?? '—'}</Td>
-                <Td className="text-muted-foreground">{a.pickup_stop ?? '—'}</Td>
-                <Td className="tabular-nums text-muted-foreground">{a.pickup_time ?? '—'}</Td>
+                <Td className="text-muted-foreground">{a.class_name ?? '-'}</Td>
+                <Td>{a.route ?? '-'}</Td>
+                <Td className="text-muted-foreground">{a.pickup_stop ?? '-'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{a.pickup_time ?? '-'}</Td>
                 <Td className="tabular-nums">
-                  {a.fare_paise ? `₹${rupees(a.fare_paise)}` : '—'}
+                  {a.fare_paise ? `₹${rupees(a.fare_paise)}` : '-'}
                 </Td>
               </tr>
             ))}
@@ -1156,7 +1156,7 @@ function Logs() {
     <>
       <CellGrid cols={3}>
         <Stat label="Spent this year" value={`₹${rupees(spend)}`} icon={Fuel} />
-        <Stat label="Average mileage" value={avg ? `${avg.toFixed(1)} km/l` : '—'} />
+        <Stat label="Average mileage" value={avg ? `${avg.toFixed(1)} km/l` : '-'} />
         <Stat label="Entries" value={rows.length} />
       </CellGrid>
 
@@ -1247,11 +1247,11 @@ function Logs() {
                   {l.vendor && <div className="text-[12px]">{l.vendor}</div>}
                 </Td>
                 <Td className="tabular-nums text-muted-foreground">
-                  {l.odometer_km?.toLocaleString('en-IN') ?? '—'}
+                  {l.odometer_km?.toLocaleString('en-IN') ?? '-'}
                 </Td>
-                <Td className="tabular-nums text-muted-foreground">{l.litres ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{l.litres ?? '-'}</Td>
                 <Td className="tabular-nums">
-                  {l.km_per_litre ? `${l.km_per_litre} km/l` : '—'}
+                  {l.km_per_litre ? `${l.km_per_litre} km/l` : '-'}
                 </Td>
                 <Td className="tabular-nums">₹{rupees(l.amount_paise)}</Td>
               </tr>
@@ -1717,7 +1717,7 @@ function Routes() {
                 </Td>
                 <Td className="tabular-nums text-muted-foreground">{r.riders}</Td>
                 <Td className="tabular-nums text-muted-foreground">
-                  {r.distance_km ? `${r.distance_km} km` : '—'}
+                  {r.distance_km ? `${r.distance_km} km` : '-'}
                 </Td>
                 <Td>
                   <Badge tone={r.is_active ? 'success' : 'neutral'}>
@@ -1993,7 +1993,7 @@ function Buses() {
                           {v.bus_code}
                         </span>
                       ) : (
-                        <span className="text-[13px] text-muted-foreground">—</span>
+                        <span className="text-[13px] text-muted-foreground">-</span>
                       )}
                     </Td>
                     <Td>
@@ -2004,9 +2004,9 @@ function Buses() {
                       )}
                     </Td>
                     <Td className="text-muted-foreground">{v.route ?? 'Unassigned'}</Td>
-                    <Td className="tabular-nums text-muted-foreground">{v.capacity ?? '—'}</Td>
+                    <Td className="tabular-nums text-muted-foreground">{v.capacity ?? '-'}</Td>
                     <Td className="text-muted-foreground">
-                      {v.next_expiry ? formatDate(v.next_expiry) : '—'}
+                      {v.next_expiry ? formatDate(v.next_expiry) : '-'}
                     </Td>
                     <Td>
                       <Badge

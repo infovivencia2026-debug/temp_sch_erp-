@@ -168,7 +168,7 @@ func (s *Server) issueEnquiryLogin(
 		// replacing its password would lock them out of the child they already
 		// have here.
 		if acct.Reissued {
-			out.Note = "This parent had a login that had never been used, so a new password has been issued. Shown once — give it to them now."
+			out.Note = "This parent had a login that had never been used, so a new password has been issued. Shown once, give it to them now."
 		} else {
 			out.Note = "This parent already has a login and it is unchanged."
 		}

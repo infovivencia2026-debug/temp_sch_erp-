@@ -378,7 +378,7 @@ func (s *Server) returnReportCards(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Note) == "" {
 		httpx.BadRequest(w, r,
-			"say what needs changing — a card sent back without a reason is one "+
+			"say what needs changing, a card sent back without a reason is one "+
 				"the class teacher has to come and ask about")
 		return
 	}
@@ -604,7 +604,7 @@ func (s *Server) announceReportCards(r *http.Request, cards []uuid.UUID,
 			   a link that needs a password first is a message that gets opened
 			   the following evening, if at all. The card itself stays in the
 			   app for anyone who wants the subject breakdown. */
-			n.text = n.name + " (" + n.section + "): report card published — " +
+			n.text = n.name + " (" + n.section + "): report card published · " +
 				strconv.FormatFloat(pct, 'f', 1, 64) + "%"
 			if grade != "" {
 				n.text += ", grade " + grade

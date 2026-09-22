@@ -217,7 +217,7 @@ export default function SellerDashboard() {
           <Card>
             <CardHeader
               title="Broadcast to every school"
-              description="This appears to every signed-in user on the installation — principals, teachers, parents. Not a circular: a circular belongs to one school and reaches its own families."
+              description="This appears to every signed-in user on the installation, principals, teachers, parents. Not a circular: a circular belongs to one school and reaches its own families."
             />
             {/* Card draws the border; the screen supplies the padding inside
                 it. Without this the fields ran to the card's own edge and the
@@ -230,9 +230,9 @@ export default function SellerDashboard() {
                   value={form.severity}
                   onChange={(v) => setForm({ ...form, severity: v })}
                   options={[
-                    { value: 'info', label: 'Notice — something to know' },
-                    { value: 'warning', label: 'Warning — something is coming' },
-                    { value: 'critical', label: 'Critical — something is wrong now' },
+                    { value: 'info', label: 'Notice, something to know' },
+                    { value: 'warning', label: 'Warning, something is coming' },
+                    { value: 'critical', label: 'Critical, something is wrong now' },
                   ]}
                 />
               </Field>
@@ -307,7 +307,7 @@ export default function SellerDashboard() {
                 <Td className="num text-muted-foreground">
                   {n.ends_at ? n.ends_at.replace('T', ' ') : 'until taken down'}
                 </Td>
-                <Td className="text-muted-foreground">{n.created_by ?? '—'}</Td>
+                <Td className="text-muted-foreground">{n.created_by ?? '-'}</Td>
                 <Td>
                   {n.live && (
                     <ConfirmButton
@@ -357,7 +357,7 @@ export default function SellerDashboard() {
                     t.setup_percent < 60
                       ? `${t.setup_percent}% set up`
                       : t.over_by > 0
-                        ? `${t.students} students against ${t.licensed_students ?? '—'} licensed — ${t.over_by} over`
+                        ? `${t.students} students against ${t.licensed_students ?? '-'} licensed · ${t.over_by} over`
                         : t.last_sign_in
                           ? `Last sign-in ${formatDate(t.last_sign_in)}`
                           : 'Nobody has ever signed in'

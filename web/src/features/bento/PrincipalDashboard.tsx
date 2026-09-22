@@ -1779,7 +1779,7 @@ function SyllabusCell({
         domain="academics"
         title={label}
         sub={t('bento.principal.syllabus_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.syllabus_empty')}
         href={href}
         cue={cue}
@@ -1920,7 +1920,7 @@ function ModerationCell({
         domain="reports"
         title={label}
         sub={t('bento.principal.moderation_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.moderation_empty')}
         href={href}
         cue={cue}
@@ -2113,7 +2113,7 @@ function PassRateCell({
       domain="success"
       title={label}
       sub={t('bento.principal.pass_rate_sub')}
-      value={rate != null ? `${Math.round(rate)}%` : '—'}
+      value={rate != null ? `${Math.round(rate)}%` : '-'}
       delta={candidates > 0 ? `${passed}/${candidates}` : undefined}
       deltaNote={candidates > 0 ? t('bento.principal.pass_rate_sub') : undefined}
       change={
@@ -2407,7 +2407,7 @@ function SetupCell({
         domain="operations"
         title={label}
         sub={t('bento.principal.setup_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.source_failed')}
         href={href}
         cue={cue}
@@ -2510,7 +2510,7 @@ function SetupCell({
       domain="operations"
       title={label}
       sub={t('bento.principal.setup_sub')}
-      value={total > 0 ? `${done}/${total}` : '—'}
+      value={total > 0 ? `${done}/${total}` : '-'}
       change={statusLine}
       href={href}
       cue={cue}
@@ -2759,7 +2759,7 @@ function MyLeaveCell({
         domain="staff"
         title={label}
         sub={t('bento.principal.my_leave_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.my_leave_none')}
         href={href}
         cue={cue}
@@ -2863,7 +2863,7 @@ function MyPayCell({
         domain="finance"
         title={label}
         sub={t('bento.principal.my_pay_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.my_pay_none')}
         href={href}
         cue={cue}
@@ -3119,7 +3119,7 @@ function CardCell({
      the mark now follows the same rule. */
   const body =
     status === 'error' ? (
-      <CardShell title={title} sub={sub} glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined} value="—" className="h-full">
+      <CardShell title={title} sub={sub} glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined} value="-" className="h-full">
         <CellError message={t('bento.principal.source_failed')} />
       </CardShell>
     ) : status === 'loading' ? (
@@ -3127,7 +3127,7 @@ function CardCell({
         title={title}
         sub={sub}
         glyph={glyph} action={door && cueLabel ? { label: cueLabel } : undefined}
-        value="—"
+        value="-"
         change={t('bento.principal.source_loading')}
         className="h-full"
       />
@@ -3241,7 +3241,7 @@ export function PulseCard({
          nobody marked and a morning everybody was absent are the same number.
          `marked` is the tell — it is what the fallback below already tests —
          so the headline follows it rather than printing a confident 0%. */
-      value={marked > 0 ? `${pct}%` : '—'}
+      value={marked > 0 ? `${pct}%` : '-'}
       change={
         marked > 0
           ? t('bento.principal.attendance_marked', { count: marked })
@@ -5382,7 +5382,7 @@ function GrievancesOpenCell({
         domain="communication"
         title={label}
         sub={t('bento.principal.grievances_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.grievances_none')}
         href={href}
         cue={cue}
@@ -5481,7 +5481,7 @@ function GrievancesOverdueCell({
         domain="communication"
         title={label}
         sub={t('bento.principal.grv_late_sub')}
-        value="—"
+        value="-"
         change={t('bento.principal.grv_none_open')}
         href={href}
         cue={cue}

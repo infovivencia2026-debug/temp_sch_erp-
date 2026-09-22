@@ -263,9 +263,9 @@ export default function MDMRegister() {
                     <Td className={cn('tabular-nums', x.issues.length > 0 && 'font-medium text-destructive')}>
                       {x.meals_served}
                     </Td>
-                    <Td className="tabular-nums">{x.rice_kg != null ? kg(x.rice_kg) : '—'}</Td>
+                    <Td className="tabular-nums">{x.rice_kg != null ? kg(x.rice_kg) : '-'}</Td>
                     <Td className="tabular-nums">{inr(x.cost_paise)}</Td>
-                    <Td className="text-muted-foreground">{x.cook_name ?? '—'}</Td>
+                    <Td className="text-muted-foreground">{x.cook_name ?? '-'}</Td>
                     <Td>
                       <Badge tone={x.status === 'closed' ? 'success' : 'warning'}>
                         {x.status === 'closed' ? 'closed' : 'open'}
@@ -333,7 +333,7 @@ function DayDetail({ day, mayWrite, pending, onReopen }: {
   return (
     <Card>
       <CardHeader
-        title={`${day.on_date}${day.campus_name ? ` — ${day.campus_name}` : ''}`}
+        title={`${day.on_date}${day.campus_name ? ` · ${day.campus_name}` : ''}`}
         description={day.status === 'closed'
           ? `Closed${day.closed_by ? ` by ${day.closed_by}` : ''}. This is what the school has filed for this day.`
           : 'Still open. Nothing is filed until it is closed.'}
@@ -367,7 +367,7 @@ function DayDetail({ day, mayWrite, pending, onReopen }: {
             <tr key={`${a.amended_at}-${i}`}>
               <Td className="tabular-nums">{a.amended_at.slice(0, 16).replace('T', ' ')}</Td>
               <Td>{a.action === 'reopen' ? 'reopened' : 'figures corrected'}</Td>
-              <Td className="text-muted-foreground">{a.amended_by ?? '—'}</Td>
+              <Td className="text-muted-foreground">{a.amended_by ?? '-'}</Td>
               <Td>{a.reason}</Td>
             </tr>
           ))}
@@ -489,7 +489,7 @@ function DayForm({ day, context, defaultCampus, onDone, onCancel }: {
       <CardHeader
         title={day ? `Correcting ${day.on_date}` : 'Record a day'}
         description={amending
-          ? 'This day has already been corrected once. Say why it is being changed again — the reason is kept with both versions.'
+          ? 'This day has already been corrected once. Say why it is being changed again, the reason is kept with both versions.'
           : 'Meals served, children present, what was cooked and who cooked it.'}
       />
       <div className="p-5">

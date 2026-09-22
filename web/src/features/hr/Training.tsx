@@ -109,7 +109,7 @@ export default function Training() {
             period="This academic year" />
           <Stat
             label="Programmes run"
-            value={programmes.error ? '—' : programmes.data?.items.length ?? 0}
+            value={programmes.error ? '-' : programmes.data?.items.length ?? 0}
             hint={programmes.error ? 'The programme list could not be read' : undefined}
           />
           <Stat label="Certificates on file" value={certificates} icon={Award} />
@@ -145,7 +145,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
       <Card>
         <CardHeader
           title="What is expected"
-          description="The training hours your board requires each year — CBSE asks fifty of teaching staff. Set the figure your board uses; a school that holds itself to more can say so."
+          description="The training hours your board requires each year · CBSE asks fifty of teaching staff. Set the figure your board uses; a school that holds itself to more can say so."
         />
         {/* "No requirement set" is a statement about what the school holds
             itself to; a failed request is not entitled to make it. */}
@@ -162,7 +162,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
               </Td>
               <Td>{q.academic_year ?? 'Every year'}</Td>
               <Td className="text-right">{q.required_hours}</Td>
-              <Td>{q.authority ?? '—'}</Td>
+              <Td>{q.authority ?? '-'}</Td>
             </tr>
           ))}
         </Table>
@@ -171,7 +171,7 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
       <Card>
         <CardHeader
           title="Hours completed against requirement"
-          description="Who is falling behind on required hours, furthest short first — a report sorted by name is one nobody acts on. Staff with no requirement set are listed rather than dropped: that is a gap in the policy, not an absent person."
+          description="Who is falling behind on required hours, furthest short first, a report sorted by name is one nobody acts on. Staff with no requirement set are listed rather than dropped: that is a gap in the policy, not an absent person."
         />
         <Table
           head={['Staff', 'Role', { label: 'Done', align: 'right' },
@@ -187,17 +187,17 @@ function ComplianceTab({ rows }: { rows: Compliance[] }) {
                 <span className="block text-[12.5px] text-muted-foreground">{r.employee_code}</span>
               </Td>
               <Td>
-                {r.designation ?? '—'}
+                {r.designation ?? '-'}
                 {r.department && (
                   <span className="block text-[12.5px] text-muted-foreground">{r.department}</span>
                 )}
               </Td>
               <Td className="text-right">{r.hours_completed.toFixed(1)}</Td>
-              <Td className="text-right">{r.hours_required?.toFixed(0) ?? '—'}</Td>
+              <Td className="text-right">{r.hours_required?.toFixed(0) ?? '-'}</Td>
               <Td className="text-right">
                 {r.shortfall != null && r.shortfall > 0
                   ? <span className="font-medium text-destructive">{r.shortfall.toFixed(1)}</span>
-                  : '—'}
+                  : '-'}
               </Td>
               <Td>{r.certificates_on_file}</Td>
               <Td>
@@ -310,7 +310,7 @@ function ProgrammesTab({ programmes }: { programmes: Programme[] }) {
                 )}
               </Td>
               <Td>
-                {p.provider ?? '—'}
+                {p.provider ?? '-'}
                 <span className="block text-[12.5px] text-muted-foreground">
                   {p.provider_kind.replace(/_/g, ' ')} · {p.mode.replace(/_/g, ' ')}
                 </span>
@@ -393,7 +393,7 @@ function AttendanceCard({ programme, onDone }: { programme: Programme; onDone: (
   return (
     <Card>
       <CardHeader
-        title={`Attendance — ${programme.title}`}
+        title={`Attendance · ${programme.title}`}
         description={`${programme.hours} contact hours. Leave hours blank to credit the full programme; enter a figure only if they did not complete it.`}
         action={<Button variant="ghost" size="sm" onClick={onDone}>Close</Button>}
       />
@@ -402,7 +402,7 @@ function AttendanceCard({ programme, onDone }: { programme: Programme; onDone: (
           <Field label="Member of staff" required>
             <Select value={employee} onChange={setEmployee} placeholder="Choose"
               options={(employees.data?.items ?? []).map((e) => ({
-                value: e.id, label: `${nameOf(e)}${e.employee_code ? ` — ${e.employee_code}` : ''}`,
+                value: e.id, label: `${nameOf(e)}${e.employee_code ? ` · ${e.employee_code}` : ''}`,
               }))} />
           </Field>
           <Field label="Outcome">

@@ -41,7 +41,7 @@ func main() {
 	}
 	fmt.Println("Grade 1 sections:")
 	for _, s := range secs { fmt.Printf("  %-8s enrolled=%d\n", s.name, s.enrolled) }
-	if keep == nil { fmt.Println("no section with students — aborting"); os.Exit(1) }
+	if keep == nil { fmt.Println("no section with students, aborting"); os.Exit(1) }
 	fmt.Printf("\nPLAN: rename %q -> \"A\" (keeps %d students), set class teacher KODARI DIVYA",
 		keep.name, keep.enrolled)
 	if drop != nil { fmt.Printf(", delete empty %q", drop.name) }
@@ -49,7 +49,7 @@ func main() {
 
 	var uid string
 	if e := c.QueryRow(ctx, `SELECT COALESCE(user_id::text,'') FROM employees WHERE institution_id=$1 AND employee_code=$2`, inst, divya).Scan(&uid); e != nil || uid == "" {
-		fmt.Println("KODARI DIVYA has no login — cannot set class teacher"); os.Exit(1)
+		fmt.Println("KODARI DIVYA has no login, cannot set class teacher"); os.Exit(1)
 	}
 
 	if !*write { fmt.Println("\nREPORT ONLY. Re-run with -write to apply."); return }

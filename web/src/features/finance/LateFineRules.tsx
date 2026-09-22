@@ -60,14 +60,14 @@ export default function LateFineRules() {
         <CellGrid cols={4}>
           <Stat label="Active rules" value={active.length} hint={active.length ? undefined : 'Nothing is being charged'} />
           <Stat label="Retired rules" value={items.length - active.length} hint="Kept for the audit trail" />
-          <Stat label="Fines raised" value={raised ? inr(raised) : '—'} />
+          <Stat label="Fines raised" value={raised ? inr(raised) : '-'} />
           <Stat label="Waived" value={waived} hint={waived ? 'Each with a reason on file' : undefined} />
         </CellGrid>
 
         <Card>
           <CardHeader
             title="Rules"
-            description="The most specific rule wins — a head beats a structure, which beats a campus"
+            description="The most specific rule wins, a head beats a structure, which beats a campus"
             action={
               mayConfigure && (
                 <Button
@@ -105,7 +105,7 @@ export default function LateFineRules() {
                   <Td className="text-muted-foreground">
                     {r.exempt_concession_kinds.length
                       ? r.exempt_concession_kinds.map((k) => k.replace('_', ' ')).join(', ')
-                      : '—'}
+                      : '-'}
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">{r.priority}</Td>
                   <Td>
@@ -322,7 +322,7 @@ function RuleForm({
     <Card>
       <CardHeader
         title={rule ? `Edit "${rule.name}"` : 'New fine rule'}
-        description="Leave a target blank to mean 'any' — a blank head applies to the whole invoice balance"
+        description="Leave a target blank to mean 'any', a blank head applies to the whole invoice balance"
       />
       <div className="space-y-4 p-5">
         <FormGrid>
@@ -563,7 +563,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
       onNotify(
         res.applied
           ? `${res.applied} fine${res.applied === 1 ? '' : 's'} raised, ${inr(res.total_paise)} in total.`
-          : 'Nothing to raise — those fines were already charged.',
+          : 'Nothing to raise, those fines were already charged.',
       )
     },
   )
@@ -603,7 +603,7 @@ function PreviewPanel({ mayLevy, onNotify }: { mayLevy: boolean; onNotify: (m: s
       {!run ? (
         <EmptyState
           title="Nothing previewed yet"
-          body="Pick a date and a rule, then preview. Fines are never charged on a timer — somebody has to look at this first."
+          body="Pick a date and a rule, then preview. Fines are never charged on a timer, somebody has to look at this first."
         />
       ) : preview.isLoading ? (
         <Skeleton />
@@ -741,10 +741,10 @@ function previewRows({
         {a.rule_name || <span className="italic">no rule</span>}
       </Td>
       <Td className="tabular-nums text-muted-foreground">
-        {a.days_overdue > 0 ? `${a.days_overdue} d` : '—'}
+        {a.days_overdue > 0 ? `${a.days_overdue} d` : '-'}
       </Td>
       <Td className="tabular-nums text-muted-foreground">
-        {a.basis_paise ? inr(a.basis_paise) : '—'}
+        {a.basis_paise ? inr(a.basis_paise) : '-'}
       </Td>
       <Td className="text-right tabular-nums font-medium">
         {chargeable ? (
@@ -759,7 +759,7 @@ function previewRows({
         ) : a.exempt ? (
           <Badge tone="info">exempt</Badge>
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground">-</span>
         )}
       </Td>
       <Td>
@@ -777,10 +777,10 @@ function previewRows({
       <tr key={`${a.invoice_id}:working`}>
         <Td colSpan={8}>
           <div className="rounded-md bg-muted/40 px-3 py-2 text-[11.5px] text-muted-foreground">
-            {a.was_capped && <p className="mb-1">The cap applied — the uncapped figure was higher.</p>}
+            {a.was_capped && <p className="mb-1">The cap applied, the uncapped figure was higher.</p>}
             {a.steps.map((s) => (
               <p key={s.period} className="tabular-nums">
-                Period {s.period}: {inr(s.amount_paise)} on {inr(s.basis_paise)} — {s.note}
+                Period {s.period}: {inr(s.amount_paise)} on {inr(s.basis_paise)} · {s.note}
               </p>
             ))}
           </div>

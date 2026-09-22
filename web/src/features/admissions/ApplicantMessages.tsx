@@ -57,14 +57,14 @@ const NOTES: {
     kind: 'documents',
     label: 'Documents still needed',
     says: 'Lists what the office is still waiting for.',
-    needsDetail: 'Which documents — birth certificate, transfer certificate…',
+    needsDetail: 'Which documents, birth certificate, transfer certificate…',
     suggests: (a) => a.docs_rejected > 0 || a.docs_verified < a.docs_required,
   },
   {
     kind: 'test',
     label: 'Entrance test',
     says: 'Tells the family when and where the child sits the test.',
-    needsDetail: 'When and where — Saturday 14 September, 9am, main hall.',
+    needsDetail: 'When and where · Saturday 14 September, 9am, main hall.',
     suggests: (a) => a.status === 'test_scheduled',
   },
   {
@@ -263,7 +263,7 @@ export default function ApplicantMessages() {
                   </Td>
                   <Td className="font-mono text-[12px]">{a.application_no}</Td>
                   <Td className="font-medium">{a.name}</Td>
-                  <Td className="text-muted-foreground">{a.class_sought ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{a.class_sought ?? '-'}</Td>
                   <Td>
                     {a.parent_name}
                     <div className="text-[12px] text-muted-foreground">

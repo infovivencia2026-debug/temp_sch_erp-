@@ -315,7 +315,7 @@ func (s *Server) createSection(w http.ResponseWriter, r *http.Request) {
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		httpx.BadRequest(w, r,
-			"name is required — a letter, or whatever this school calls it: Rose, Newton, Blue")
+			"name is required, a letter, or whatever this school calls it: Rose, Newton, Blue")
 		return
 	}
 	if req.Capacity <= 0 {

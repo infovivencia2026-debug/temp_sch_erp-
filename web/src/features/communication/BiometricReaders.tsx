@@ -125,7 +125,7 @@ export default function BiometricReaders() {
               </Button>
               <p className="text-[13px] text-muted-foreground">
                 Then on the reader: <strong>Comm → Cloud Server / ADMS</strong>, set the server
-                address to this site and leave the path blank — it appends <code>/iclock</code>{' '}
+                address to this site and leave the path blank, it appends <code>/iclock</code>{' '}
                 itself. There is one such slot, so this replaces whatever it was pointing at.
               </p>
             </div>
@@ -151,7 +151,7 @@ export default function BiometricReaders() {
                     </span>
                     {!d.is_active && (
                       <span className="block text-[12px] text-muted-foreground">
-                        Registered, not yet trusted — punches are refused
+                        Registered, not yet trusted, punches are refused
                       </span>
                     )}
                   </Td>
@@ -162,7 +162,7 @@ export default function BiometricReaders() {
                     {d.unresolved > 0 ? (
                       <Badge tone="warning">{d.unresolved}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                   <Td>
@@ -187,7 +187,7 @@ export default function BiometricReaders() {
           <Card>
             <CardHeader
               title="Fingers nobody claims"
-              description="Punches arriving under an id no staff record carries. Somebody enrolled at the machine without telling the office — or a staff record is missing its reader id."
+              description="Punches arriving under an id no staff record carries. Somebody enrolled at the machine without telling the office, or a staff record is missing its reader id."
             />
             <Table head={['Reader id', 'Punches', 'First seen', 'Last seen']}>
               {orphans.map((o) => (
@@ -200,7 +200,7 @@ export default function BiometricReaders() {
               ))}
             </Table>
             <p className="px-5 pb-4 text-[13px] text-muted-foreground">
-              Set the matching number on the staff record — it is the reader id field — and every
+              Set the matching number on the staff record, it is the reader id field, and every
               punch already collected under it resolves on the next push.
             </p>
           </Card>

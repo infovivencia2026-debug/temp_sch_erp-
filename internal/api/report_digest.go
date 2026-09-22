@@ -513,7 +513,7 @@ func (s *Server) SendReportDigest(ctx context.Context, inst uuid.UUID, period st
 		if period == "weekly" {
 			periodWord = "Weekly"
 		}
-		subject := fmt.Sprintf("%s: %s report digest — %s", school, periodWord, rng.Label)
+		subject := fmt.Sprintf("%s: %s report digest, %s", school, periodWord, rng.Label)
 		occDate := now.Format(time.DateOnly)
 		code := "report_digest." + period
 

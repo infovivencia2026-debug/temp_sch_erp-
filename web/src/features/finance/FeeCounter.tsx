@@ -192,7 +192,7 @@ export default function FeeCounter() {
               <ImportButton
                 entity="fee_payments"
                 title="Import fee payments"
-                hint="Payments already taken elsewhere — a bank statement, a term collected before the school was on the system. The dry run checks each against an outstanding invoice before anything is written."
+                hint="Payments already taken elsewhere, a bank statement, a term collected before the school was on the system. The dry run checks each against an outstanding invoice before anything is written."
               />
             )}
             {/* The day's collection, as the report an accountant reconciles. */}
@@ -218,7 +218,7 @@ export default function FeeCounter() {
                 <tr key={s.id} className={cn(s.id === studentId && 'bg-accent')}>
                   <Td className="font-mono text-[12px]">{s.admission_no}</Td>
                   <Td className="font-medium">{s.full_name}</Td>
-                  <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '—'}</Td>
+                  <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '-'}</Td>
                   <Td>
                     <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
                       onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
@@ -268,7 +268,7 @@ export default function FeeCounter() {
                 <Table
                   head={['', 'Invoice', 'Due', 'Amount', 'Paid', 'Balance', 'Status', '']}
                   empty={!dues.length}
-                  emptyLabel="Nothing outstanding — the account is settled."
+                  emptyLabel="Nothing outstanding, the account is settled."
                 >
                   {dues.map((d) => (
                     <Fragment key={d.invoice_id}>
@@ -347,7 +347,7 @@ export default function FeeCounter() {
                             </label>
                             <label className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[12.5px]">
                               <span className="text-muted-foreground">
-                                Why — the family sees this
+                                Why, the family sees this
                               </span>
                               <Input
                                 value={penaltyReason}
@@ -507,8 +507,8 @@ export default function FeeCounter() {
                     <Td className="text-muted-foreground">{formatDate(e.date)}</Td>
                     <Td>{e.description}</Td>
                     <Td className="font-mono text-[12px]">{e.reference}</Td>
-                    <Td>{e.debit_paise ? formatPaise(e.debit_paise) : '—'}</Td>
-                    <Td>{e.credit_paise ? formatPaise(e.credit_paise) : '—'}</Td>
+                    <Td>{e.debit_paise ? formatPaise(e.debit_paise) : '-'}</Td>
+                    <Td>{e.credit_paise ? formatPaise(e.credit_paise) : '-'}</Td>
                     <Td>
                       <Badge tone={
                         e.status === 'paid' || e.status === 'success' ? 'success'
@@ -585,7 +585,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
           <Row k="Date" v={formatDate(receipt.paid_on)} />
           <Row k="Student" v={receipt.student_name} />
           <Row k="Admission no." v={receipt.admission_no} mono />
-          <Row k="Class" v={receipt.class_name ? `${receipt.class_name}-${receipt.section_name}` : '—'} />
+          <Row k="Class" v={receipt.class_name ? `${receipt.class_name}-${receipt.section_name}` : '-'} />
           <Row k="Mode" v={receipt.mode.toUpperCase()} />
           {receipt.reference_no && <Row k="Instrument" v={receipt.reference_no} mono />}
           {receipt.collected_by && <Row k="Received by" v={receipt.collected_by} />}

@@ -72,7 +72,7 @@ const COPY: Record<PlanKind, Copy> = {
     eyebrow: 'Attendance',
     title: 'Absence alerts to guardians',
     description:
-      'Tell a guardian their child is marked absent today — once, after the register is taken, and not if the parent already explained it.',
+      'Tell a guardian their child is marked absent today, once, after the register is taken, and not if the parent already explained it.',
     emptyTitle: 'No absence alerts set up',
     emptyBody:
       'An alert plan tells guardians about today’s absences. Nothing goes out until you create one, and you can see exactly who it would reach before switching it on.',
@@ -96,7 +96,7 @@ function promises(p: ReminderPlan): string[] {
       p.repeat_days > 0
         ? `Repeats every ${p.repeat_days} day${p.repeat_days === 1 ? '' : 's'}, ${p.max_attempts} time${p.max_attempts === 1 ? '' : 's'} at most`
         : 'Sends once and does not repeat',
-      'Stops the moment the invoice is paid — a queued reminder is withdrawn, not sent',
+      'Stops the moment the invoice is paid, a queued reminder is withdrawn, not sent',
     ]
     if (p.min_amount_paise > 0) {
       out.push(`Ignores balances under ${formatPaise(p.min_amount_paise)}`)
@@ -105,13 +105,13 @@ function promises(p: ReminderPlan): string[] {
   }
   return [
     p.send_at_time
-      ? `Looks at the register from ${p.send_at_time} — not at 8am, when half of it is unmarked`
+      ? `Looks at the register from ${p.send_at_time}, not at 8am, when half of it is unmarked`
       : 'Looks at the register as soon as the sweep runs',
     'One message per child per day, however many periods they miss',
     p.skip_explained
       ? 'Silent when the parent has already explained the absence, and withdraws an alert if they explain it late'
       : 'Sends even when the parent has already explained the absence',
-    'Today’s absences only — a sweep on Monday does not tell forty parents about Friday',
+    'Today’s absences only, a sweep on Monday does not tell forty parents about Friday',
   ]
 }
 
@@ -192,7 +192,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
                 <p className="mt-1 text-muted-foreground">
                   Only numbers and addresses on the school’s messaging allowlist are actually sent
                   to; everything else is recorded as suppressed, with the reason, in the message
-                  log. If the list is empty, nothing reaches anybody. The dry run counts this — so
+                  log. If the list is empty, nothing reaches anybody. The dry run counts this, so
                   a plan that says it would send nothing may be telling you about the allowlist
                   rather than about the plan.
                 </p>
@@ -252,7 +252,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
                         title={
                           p.is_active
                             ? 'Queue what this plan would send right now'
-                            : 'Paused — switch it on first'
+                            : 'Paused, switch it on first'
                         }
                       >
                         <Play className="mr-1.5 inline h-3.5 w-3.5" />
@@ -315,7 +315,7 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
                           •
                         </span>
                         <span>
-                          Nothing sent between {p.quiet_from} and {p.quiet_to} — a message falling
+                          Nothing sent between {p.quiet_from} and {p.quiet_to}, a message falling
                           inside is held until the window ends, never dropped
                         </span>
                       </li>
@@ -326,8 +326,8 @@ export default function ReminderPlans({ kind }: { kind: PlanKind }) {
                     <p className="rounded-md border bg-muted/40 px-3 py-2 text-[13px]">
                       Run now: queued {lastRun.queued}, already sent {lastRun.already_sent},
                       withdrawn {lastRun.withdrawn}
-                      {lastRun.skipped ? ` — skipped (${lastRun.skipped})` : ''}
-                      {lastRun.error ? ` — ${lastRun.error}` : ''}. Queued messages leave with the
+                      {lastRun.skipped ? `, skipped (${lastRun.skipped})` : ''}
+                      {lastRun.error ? ` · ${lastRun.error}` : ''}. Queued messages leave with the
                       next dispatch, within five minutes.
                     </p>
                   )}
@@ -359,7 +359,7 @@ function PreviewPanel({ preview, onClose }: { preview: PlanPreview; onClose: () 
   return (
     <Card className="border-primary/30">
       <CardHeader
-        title={`Dry run — ${preview.name}`}
+        title={`Dry run · ${preview.name}`}
         description="Nothing was sent and nothing was queued. This is what would happen if the plan ran right now."
         action={
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -407,16 +407,16 @@ function PreviewPanel({ preview, onClose }: { preview: PlanPreview; onClose: () 
         empty={preview.sample.length === 0}
         emptyLabel={
           preview.occurrences === 0
-            ? 'Nothing matches this plan right now — there is nothing to chase.'
+            ? 'Nothing matches this plan right now, there is nothing to chase.'
             : 'Every occurrence has already been covered.'
         }
       >
         {preview.sample.map((row, i) => (
           <tr key={`${row.name}-${row.detail ?? ''}-${i}`}>
             <Td>{row.name}</Td>
-            <Td>{row.student || '—'}</Td>
-            <Td className="tabular-nums">{row.address || '—'}</Td>
-            <Td>{row.detail || '—'}</Td>
+            <Td>{row.student || '-'}</Td>
+            <Td className="tabular-nums">{row.address || '-'}</Td>
+            <Td>{row.detail || '-'}</Td>
             <Td>
               <Badge tone={outcomeTone(row.outcome)}>{row.outcome}</Badge>
               {row.reason && (
@@ -596,7 +596,7 @@ function PlanForm({
               <Field
                 label="First reminder, days after the due date"
                 required
-                hint="Do not leave this blank — a blank saved as zero would chase every parent on the due date itself."
+                hint="Do not leave this blank, a blank saved as zero would chase every parent on the due date itself."
               >
                 <Input value={firstAfter} onChange={setFirstAfter} type="number" placeholder="7" />
               </Field>
@@ -660,7 +660,7 @@ function PlanForm({
             <Checkbox
               checked={active}
               onChange={setActive}
-              label="Live — this plan may send"
+              label="Live, this plan may send"
               hint="Leave it off until a dry run shows you who it would reach. Pausing later stops new messages; anything already queued is still withdrawn when the reason for it goes away."
             />
           </Field>

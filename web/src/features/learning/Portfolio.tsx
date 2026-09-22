@@ -144,7 +144,7 @@ export default function Portfolio() {
             <Card>
               <CardHeader
                 title="Add something"
-                description="A project, a certificate, a competition — anything you would want to point at later."
+                description="A project, a certificate, a competition, anything you would want to point at later."
               />
               <div className="space-y-5 p-5">
                 <FormGrid>

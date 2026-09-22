@@ -1356,7 +1356,7 @@ func (s *Server) listPortalReceipts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := collect(s, r, `
-		SELECT p.id::text, COALESCE(p.receipt_no,'—'), p.student_id::text,
+		SELECT p.id::text, COALESCE(p.receipt_no,'-'), p.student_id::text,
 		       concat_ws(' ', st.first_name, st.last_name),
 		       p.amount_paise, p.mode, p.status,
 		       to_char(p.paid_on,'YYYY-MM-DD'), p.reference_no
@@ -1414,7 +1414,7 @@ func (s *Server) getPortalReceipt(w http.ResponseWriter, r *http.Request) {
 			className, sectionName, reference                           *string
 		)
 		if err := tx.QueryRow(r.Context(), `
-			SELECT COALESCE(p.receipt_no,'—'), p.amount_paise, p.mode, p.status, p.paid_on,
+			SELECT COALESCE(p.receipt_no,'-'), p.amount_paise, p.mode, p.status, p.paid_on,
 			       p.reference_no,
 			       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 			       st.admission_no, i.name, c.name, sec.name
@@ -1678,7 +1678,7 @@ func (s *Server) raisePortalRequest(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if err := notify(r, tx, id.InstitutionID, u, &sid, "certificate_requested",
-				kind+" asked for", child+" — serial "+serial+". Issue it from Certificates.",
+				kind+" asked for", child+", serial "+serial+". Issue it from Certificates.",
 				"/go/certificates_transfers", "certificate", nil); err != nil {
 				return err
 			}

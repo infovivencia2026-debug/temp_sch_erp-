@@ -373,7 +373,7 @@ function AddAccount() {
             <Field
               label="Whose account is it?"
               required
-              hint="A minor's scholarship is very often credited to a parent's account. Say so here — the name on the transfer has to match."
+              hint="A minor's scholarship is very often credited to a parent's account. Say so here, the name on the transfer has to match."
             >
               <Select
                 value={relationship}

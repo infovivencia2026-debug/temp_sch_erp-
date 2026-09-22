@@ -112,7 +112,7 @@ func TestNoTwoGrantableRolesAreTheSameWorkspace(t *testing.T) {
 			}
 			t.Errorf(
 				"%s and %s share %d of the smaller role's %d entries (%d%%) and can still be "+
-					"granted together — one of them is the other listed twice. Add the pair to "+
+					"granted together, one of them is the other listed twice. Add the pair to "+
 					"overlappingRoles with a remedy, or move the shared entries out of one of them.",
 				a, b, shared, smaller, pct)
 		}
@@ -125,7 +125,7 @@ func TestEveryOverlapHasARemedy(t *testing.T) {
 	for _, p := range overlappingRoles {
 		remedy, ok := overlapRemedy[p]
 		if !ok || len(remedy) < 40 {
-			t.Errorf("%v is refused with no remedy — say where the person gets the "+
+			t.Errorf("%v is refused with no remedy, say where the person gets the "+
 				"capability instead", p)
 		}
 	}

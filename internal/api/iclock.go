@@ -474,7 +474,7 @@ func (s *Server) saveBiometricDevice(w http.ResponseWriter, r *http.Request) {
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Serial == "" || req.Name == "" {
 		httpx.BadRequest(w, r,
-			"a serial and a name — the serial is printed on the back of the reader and is what identifies it to us")
+			"a serial and a name, the serial is printed on the back of the reader and is what identifies it to us")
 		return
 	}
 
@@ -507,7 +507,7 @@ func (s *Server) saveBiometricDevice(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"id": newID,
 		"note": "Set the reader's server address to this host, port 80 or 443, and leave the " +
-			"path blank — it appends /iclock itself. Activate the device here once it appears as seen.",
+			"path blank, it appends /iclock itself. Activate the device here once it appears as seen.",
 	})
 }
 

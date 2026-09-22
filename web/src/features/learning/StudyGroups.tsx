@@ -150,7 +150,7 @@ export default function StudyGroups() {
                   <Field label="Name" required hint="What your class will recognise it by.">
                     <Input value={name} onChange={setName} placeholder="Algebra revision" />
                   </Field>
-                  <Field label="When it meets" hint="In your own words — Tuesdays, second lunch.">
+                  <Field label="When it meets" hint="In your own words · Tuesdays, second lunch.">
                     <Input value={meets} onChange={setMeets} placeholder="Tuesdays, second lunch" />
                   </Field>
                   <Field label="Where">

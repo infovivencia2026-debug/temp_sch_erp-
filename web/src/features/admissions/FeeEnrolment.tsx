@@ -113,9 +113,9 @@ export default function FeeEnrolment() {
                       {a.application_no}
                     </span>
                   </Td>
-                  <Td>{a.class_sought || '—'}</Td>
+                  <Td>{a.class_sought || '-'}</Td>
                   <Td className="text-muted-foreground">
-                    {a.parent_name || '—'}
+                    {a.parent_name || '-'}
                     {a.phone && <span className="block text-[12px]">{a.phone}</span>}
                   </Td>
                   <Td className="tabular-nums">
@@ -419,7 +419,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
         {row.concession_status === 'pending' ? (
           <p className="text-[13px] text-warning">
             Waiting on the principal. This child cannot be enrolled until it is
-            decided — enrolling now would bill the family in full and the
+            decided, enrolling now would bill the family in full and the
             waiver could not be applied afterwards.
           </p>
         ) : (
@@ -492,7 +492,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
                 <label className="flex items-center gap-2 text-[13px]">
                   <input type="checkbox" checked={noInvoice}
                     onChange={(e) => setNoInvoice(e.target.checked)} />
-                  Do not raise the bill now — we bill the whole class together
+                  Do not raise the bill now, we bill the whole class together
                 </label>
                 <FormField label="Bus route"
                   hint="Leave this alone for a child who walks or comes by car.">

@@ -1421,7 +1421,7 @@ func (s *Server) getDepartmentTimetable(w http.ResponseWriter, r *http.Request) 
 		args := []any{yearID, deptArg, wanted}
 
 		trows, err := tx.Query(r.Context(), `
-			SELECT u.id::text, u.full_name, e.employee_code, COALESCE(d.name,'—'),
+			SELECT u.id::text, u.full_name, e.employee_code, COALESCE(d.name,'-'),
 			       COALESCE((SELECT count(*)::int FROM timetable_entries te
 			                  WHERE te.teacher_user_id = u.id AND te.academic_year_id = $1), 0),
 			       COALESCE(lr.max_periods_per_week, 35),

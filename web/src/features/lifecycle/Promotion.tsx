@@ -148,7 +148,7 @@ export default function Promotion() {
         ) : (
           <Card>
             <CardHeader
-              title={`Roster — ${students.length} enrolled`}
+              title={`Roster · ${students.length} enrolled`}
               description={
                 held.size
                   ? `${moving} will move up, ${held.size} held back`
@@ -181,7 +181,7 @@ export default function Promotion() {
                       srLabel={`Hold ${s.full_name} back in this class`}
                     />
                   </Td>
-                  <Td className="tabular-nums text-muted-foreground">{s.roll_no ?? '—'}</Td>
+                  <Td className="tabular-nums text-muted-foreground">{s.roll_no ?? '-'}</Td>
                   <Td className="font-mono text-[12px]">{s.admission_no}</Td>
                   <Td className="font-medium">{s.full_name}</Td>
                 </tr>

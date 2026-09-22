@@ -197,7 +197,7 @@ export default function PeriodsNeeded({
               options={sections.map((s) => ({
                 value: s.id,
                 label:
-                  `${s.class_name} — ${s.name}` +
+                  `${s.class_name} · ${s.name}` +
                   (s.requirements.length === 0
                     ? ' · no subjects'
                     : s.requirements.some((r) => r.periods_per_week > 0)
@@ -219,7 +219,7 @@ export default function PeriodsNeeded({
           <>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div className="text-[14px] font-medium">
-                {chosen.class_name} — {chosen.name}
+                {chosen.class_name} · {chosen.name}
               </div>
               {/* The one number that decides whether this can be solved: a
                   section asking for more periods than the week holds cannot be
@@ -229,7 +229,7 @@ export default function PeriodsNeeded({
                 <span className="tabular-nums font-medium">{total}</span>
                 {slots > 0 && (
                   <>
-                    {' '}of {slots} periods a week{over && ' — more than the week holds'}
+                    {' '}of {slots} periods a week{over && ', more than the week holds'}
                   </>
                 )}
               </div>
@@ -241,7 +241,7 @@ export default function PeriodsNeeded({
                 {chosen.class_name} also has {siblings.map((s) => s.name).join(', ')}. These
                 periods belong to the class, so all{' '}
                 {siblings.length + 1} sections ask for the same subjects and the same amounts
-                — each still gets its own timetable, built separately.
+               , each still gets its own timetable, built separately.
               </p>
             )}
 
@@ -259,7 +259,7 @@ export default function PeriodsNeeded({
                 </span>{' '}
                 There is nothing to give periods to until it teaches something. Add its
                 subjects under Academics → Class Setup, or include {chosen.class_name} in the
-                class-subjects sheet — the pre-primary classes are usually missing because a
+                class-subjects sheet, the pre-primary classes are usually missing because a
                 school's own subject list starts at Grade 1.
               </div>
             ) : (
@@ -286,7 +286,7 @@ export default function PeriodsNeeded({
                         onBlur={() => commit(rq)}
                       />
                     ) : (
-                      <span className="tabular-nums text-[13.5px]">{rq.periods_per_week || '—'}</span>
+                      <span className="tabular-nums text-[13.5px]">{rq.periods_per_week || '-'}</span>
                     )}
                   </Td>
                   <Td className="text-[13px] text-muted-foreground">

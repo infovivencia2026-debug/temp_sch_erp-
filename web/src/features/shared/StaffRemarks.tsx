@@ -186,7 +186,7 @@ function Compose({ teachers, onDone }: { teachers: Teacher[]; onDone: () => void
               options={teachers.map((t) => ({
                 value: t.user_id,
                 label: t.subject
-                  ? `${t.full_name} — ${t.subject} (${t.relation})`
+                  ? `${t.full_name} · ${t.subject} (${t.relation})`
                   : `${t.full_name} (${t.relation})`,
               }))}
             />

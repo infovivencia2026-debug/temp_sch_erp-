@@ -220,7 +220,7 @@ func TestCommsCounsellingIsNotOpenedByTheCounsellingPermission(t *testing.T) {
 	for _, tc := range commsCounselorRoutes {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
 			t.Errorf("%s %s with welfare.counseling.read alone: got %d, want 403 "+
-				"— the counselling permission must not be a door into a thread",
+				", the counselling permission must not be a door into a thread",
 				tc.method, tc.path, got)
 		}
 	}

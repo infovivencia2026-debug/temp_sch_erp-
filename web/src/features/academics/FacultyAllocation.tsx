@@ -85,7 +85,7 @@ export default function FacultyAllocation() {
     () =>
       (teachers.data?.items ?? []).map((t) => ({
         value: t.user_id,
-        label: `${t.full_name} — ${t.weekly_periods ?? 0} periods`,
+        label: `${t.full_name} · ${t.weekly_periods ?? 0} periods`,
       })),
     [teachers.data],
   )
@@ -99,7 +99,7 @@ export default function FacultyAllocation() {
       setApplied(
         `${r.periods_reassigned} periods now name the allocated teacher.` +
           (r.allocations_with_no_period
-            ? ` ${r.allocations_with_no_period} allocations have no period to attach to — the timetable was never generated for those subjects.`
+            ? ` ${r.allocations_with_no_period} allocations have no period to attach to, the timetable was never generated for those subjects.`
             : ''),
       )
       qc.invalidateQueries({ queryKey: ['faculty-allocation'] })
@@ -210,7 +210,7 @@ export default function FacultyAllocation() {
                   <Td className="font-medium">{r.class_name}</Td>
                   <Td>{r.section}</Td>
                   <Td>{r.subject}</Td>
-                  <Td className="tabular-nums">{r.weekly_periods || '—'}</Td>
+                  <Td className="tabular-nums">{r.weekly_periods || '-'}</Td>
                   <Td>
                     <Select
                       value={current(r)}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>School ERP — pricing</title>
+<title>School ERP, pricing</title>
 <meta name="description" content="A complete school ERP for Indian K-12 schools: admissions, attendance, fees, examinations, payroll and the UDISE+ return. Monthly or yearly, unlimited users.">
 <link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
 {{template "themeboot"}}
@@ -100,7 +100,7 @@
     </p>
 
     {{if .Sent}}
-      <p class="sent">Thank you — we have your enquiry. Somebody will call you about {{.School}}.</p>
+      <p class="sent">Thank you, we have your enquiry. Somebody will call you about {{.School}}.</p>
     {{else}}
       {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
       <form method="post" action="/buy">

@@ -266,7 +266,7 @@ func (s *Server) listStudents(w http.ResponseWriter, r *http.Request) {
 			   /* Admitted since this academic year began.
 			
 			      Served here rather than filtered on the client so the tile and
-			      the list cannot disagree — which is exactly how the defaulters
+			      the list cannot disagree, which is exactly how the defaulters
 			      export came to show 2 rows against a screen showing 61. The
 			      expression is the same one studentCounts uses. */
 			   AND (NOT $6::bool OR st.admission_date >= COALESCE(

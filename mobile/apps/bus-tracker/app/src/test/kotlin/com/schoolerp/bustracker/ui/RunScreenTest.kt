@@ -52,7 +52,7 @@ class RunScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val route = SavedRoute("route-1", "Morning — Anna Nagar")
+    private val route = SavedRoute("route-1", "Morning · Anna Nagar")
 
     @Before
     fun setUp() {
@@ -144,7 +144,7 @@ class RunScreenTest {
 
         compose.onNodeWithText("Start run").performClick()
 
-        coVerify { repository.startTrip("route-1", "Morning — Anna Nagar", DIRECTION_PICKUP, false, "") }
+        coVerify { repository.startTrip("route-1", "Morning · Anna Nagar", DIRECTION_PICKUP, false, "") }
     }
 
     /* The status word is the whole product in one line: it must never say

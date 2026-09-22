@@ -154,7 +154,7 @@ function Compose({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ['broadcasts'] })
       qc.invalidateQueries({ queryKey: ['comms-summary'] })
       if (r.duplicate) {
-        toast.ok('Already sent — this notice was published once, not twice')
+        toast.ok('Already sent, this notice was published once, not twice')
         onClose()
         return
       }
@@ -227,7 +227,7 @@ function Compose({ onClose }: { onClose: () => void }) {
                 placeholder={sectionID ? 'Choose a child' : 'Choose a class first'}
                 options={(roster.data?.items ?? []).map((s) => ({
                   value: s.id,
-                  label: `${s.full_name} — ${s.admission_no}`,
+                  label: `${s.full_name} · ${s.admission_no}`,
                 }))}
               />
             </Field>
@@ -246,7 +246,7 @@ function Compose({ onClose }: { onClose: () => void }) {
           checked={f.requires_ack}
           onChange={(v) => setF({ ...f, requires_ack: v })}
           label="Ask for an acknowledgement"
-          hint="Use it when you need to know the parent read it — consent, money, a deadline."
+          hint="Use it when you need to know the parent read it, consent, money, a deadline."
         />
 
         {/* The same three the principal's circular offers. A notice that only

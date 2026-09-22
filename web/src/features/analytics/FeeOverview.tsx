@@ -156,7 +156,7 @@ export default function FeeOverview() {
           <Card>
             <CardHeader
               title="Ageing of what is outstanding"
-              description="How long the money has been owed. Every unpaid invoice, including arrears carried in from earlier years — so this total is larger than the year's outstanding above."
+              description="How long the money has been owed. Every unpaid invoice, including arrears carried in from earlier years, so this total is larger than the year's outstanding above."
               action={<CsvButton href={AGEING} />}
             />
             {ageing.isLoading ? (
@@ -185,7 +185,7 @@ export default function FeeOverview() {
           <Card>
             <CardHeader
               title="Concession burden"
-              description="By reason. Percentage awards are counted, not summed — they cannot be added to absolute ones."
+              description="By reason. Percentage awards are counted, not summed, they cannot be added to absolute ones."
               action={<CsvButton href={CONCESSIONS} />}
             />
             {concessions.isLoading ? (
@@ -206,7 +206,7 @@ export default function FeeOverview() {
                       {c.pending_approval > 0 ? (
                         <Badge tone="warning">{c.pending_approval}</Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </Td>
                     <Td className="text-right">{formatPaise(c.granted_amount_paise)}</Td>

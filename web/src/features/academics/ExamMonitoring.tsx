@@ -171,7 +171,7 @@ export default function ExamMonitoring() {
                         e.published
                           ? 'Take this exam off the family portal'
                           : e.signedOff < e.papers
-                            ? `${e.papers - e.signedOff} paper(s) not yet signed off — releasing anyway shows families the marks as they stand`
+                            ? `${e.papers - e.signedOff} paper(s) not yet signed off, releasing anyway shows families the marks as they stand`
                             : 'Show families the marks of this exam'
                       }
                       onClick={() => publish.mutate({ exam_id: e.id, publish: !e.published })}
@@ -267,9 +267,9 @@ export default function ExamMonitoring() {
                     </div>
                   </Td>
                   <Td className="tabular-nums">
-                    {p.entered ? `${p.average_percent}%` : '—'}
+                    {p.entered ? `${p.average_percent}%` : '-'}
                   </Td>
-                  <Td className="tabular-nums">{p.failed || '—'}</Td>
+                  <Td className="tabular-nums">{p.failed || '-'}</Td>
                   <Td>
                     {p.signed_off ? (
                       <Badge tone="success">signed off</Badge>

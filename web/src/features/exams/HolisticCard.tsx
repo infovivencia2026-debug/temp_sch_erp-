@@ -214,17 +214,17 @@ export default function HolisticCard() {
           <Stat label="Observed" value={`${observed}/${total}`} hint="Competencies rated" />
           <Stat
             label="Attendance"
-            value={d.attendance_percent != null ? `${d.attendance_percent}%` : '—'}
+            value={d.attendance_percent != null ? `${d.attendance_percent}%` : '-'}
           />
           {d.reporting.numeric_grades ? (
             <>
               <Stat
                 label="Overall"
-                value={d.percentage != null ? `${d.percentage.toFixed(1)}%` : '—'}
+                value={d.percentage != null ? `${d.percentage.toFixed(1)}%` : '-'}
                 hint={d.reporting.scale}
               />
               <Stat label={d.cgpa != null ? 'CGPA' : 'Grade'}
-                value={d.cgpa != null ? d.cgpa.toFixed(1) : (d.grade ?? '—')} />
+                value={d.cgpa != null ? d.cgpa.toFixed(1) : (d.grade ?? '-')} />
             </>
           ) : (
             <>
@@ -345,7 +345,7 @@ function CompetencyRow({
           {c.self_teacher_gap && (
             <p className="mt-2 flex items-center gap-1.5 text-[13px] text-warning">
               <MessageSquare className="h-3.5 w-3.5" />
-              Their own view differs from the school's — worth discussing.
+              Their own view differs from the school's, worth discussing.
             </p>
           )}
         </div>
@@ -389,7 +389,7 @@ function CompetencyRow({
             onChange={(e) => setNote(e.target.value)}
             placeholder={
               isStaff
-                ? 'An example from this term — a rating with no example is a number pretending to be feedback'
+                ? 'An example from this term, a rating with no example is a number pretending to be feedback'
                 : 'What you have noticed at home'
             }
             className="field flex-1"

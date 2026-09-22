@@ -115,8 +115,8 @@ func (s *Server) getCalendarDay(w http.ResponseWriter, r *http.Request) {
 		       te.id::text, c.name, sec.name, sub.name, tu.full_name, te.room,
 		       su.full_name, sb.reason,
 		       /* COALESCED, because the LATERAL is a LEFT JOIN: every period
-		          with no lesson plan against it — which is most of them, and
-		          all of the breaks — returns NULL here, and Status is a plain
+		          with no lesson plan against it, which is most of them, and
+		          all of the breaks, returns NULL here, and Status is a plain
 		          string. The whole day failed with "cannot scan NULL into
 		          *string" for any teacher whose periods had no plans. */
 		       lp.id::text, COALESCE(lp.status,''),

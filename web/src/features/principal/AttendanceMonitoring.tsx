@@ -70,13 +70,13 @@ export default function AttendanceMonitoring() {
         <CellGrid cols={3}>
           <Stat
             label="Below threshold"
-            value={noRegisterYet ? '—' : rows.length}
+            value={noRegisterYet ? '-' : rows.length}
             hint={noRegisterYet ? 'No register in the last 30 days' : `Under ${threshold}%`}
           />
           <Stat label="Critical" value={critical} hint="Under 60%" />
           <Stat
             label="Lowest"
-            value={rows.length ? `${Math.min(...rows.map((r) => r.pct))}%` : '—'}
+            value={rows.length ? `${Math.min(...rows.map((r) => r.pct))}%` : '-'}
           />
         </CellGrid>
 

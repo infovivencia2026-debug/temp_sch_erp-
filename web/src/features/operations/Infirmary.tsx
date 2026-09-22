@@ -111,18 +111,18 @@ export default function Infirmary() {
                         {r.admission_no}
                       </span>
                     </Td>
-                    <Td className="text-muted-foreground">{r.class_name || '—'}</Td>
+                    <Td className="text-muted-foreground">{r.class_name || '-'}</Td>
                     <Td className={cn('tabular-nums', !r.blood_group && 'text-muted-foreground')}>
                       {r.blood_group ?? 'not recorded'}
                     </Td>
                     <Td className={r.allergies ? 'font-medium text-destructive' : 'text-muted-foreground'}>
-                      {r.allergies ?? '—'}
+                      {r.allergies ?? '-'}
                     </Td>
                     <Td className={r.chronic_conditions ? 'font-medium text-[hsl(var(--warning))]' : 'text-muted-foreground'}>
-                      {r.chronic_conditions ?? '—'}
+                      {r.chronic_conditions ?? '-'}
                     </Td>
                     <Td className="text-[13px]">
-                      {r.doctor_name ?? '—'}
+                      {r.doctor_name ?? '-'}
                       {r.doctor_phone && flag && (
                         <a
                           href={`tel:${r.doctor_phone}`}

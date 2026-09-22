@@ -78,7 +78,7 @@ export default function AcademicRecord() {
       <PageHead
         eyebrow="Exams and results"
         title="Academic record"
-        description="Every year on the roll, in one place — the record a next school asks for."
+        description="Every year on the roll, in one place, the record a next school asks for."
         actions={<PrintButton label="Print record" />}
       />
       <PageBody>
@@ -94,7 +94,7 @@ export default function AcademicRecord() {
                 label="Lifetime attendance"
                 value={r?.lifetime_attendance_percent != null
                   ? `${r.lifetime_attendance_percent}%`
-                  : '—'}
+                  : '-'}
                 icon={CalendarCheck}
                 delta={
                   r?.lifetime_attendance_percent != null
@@ -105,8 +105,8 @@ export default function AcademicRecord() {
                     : undefined
                 }
               />
-              <Stat label="Best year" value={best != null ? `${best}%` : '—'} icon={Percent} />
-              <Stat label="Admission number" value={r?.admission_no ?? '—'}
+              <Stat label="Best year" value={best != null ? `${best}%` : '-'} icon={Percent} />
+              <Stat label="Admission number" value={r?.admission_no ?? '-'}
                 hint={r?.apaar_id ? `APAAR ${r.apaar_id}` : 'No APAAR recorded'} />
             </CellGrid>
 
@@ -137,7 +137,7 @@ export default function AcademicRecord() {
                     <Td>
                       {y.class_name}-{y.section_name}
                     </Td>
-                    <Td className="text-right tabular-nums">{y.roll_no ?? '—'}</Td>
+                    <Td className="text-right tabular-nums">{y.roll_no ?? '-'}</Td>
                     <Td>
                       <Badge tone={STATUS_TONE[y.status] ?? 'neutral'}>{y.status}</Badge>
                     </Td>
@@ -153,12 +153,12 @@ export default function AcademicRecord() {
                         <span className="text-muted-foreground">Not published</span>
                       )}
                     </Td>
-                    <Td className="text-right tabular-nums">{y.rank_in_section ?? '—'}</Td>
+                    <Td className="text-right tabular-nums">{y.rank_in_section ?? '-'}</Td>
                     <Td className="text-right tabular-nums">
-                      {y.attendance_percent != null ? `${y.attendance_percent}%` : '—'}
+                      {y.attendance_percent != null ? `${y.attendance_percent}%` : '-'}
                     </Td>
                     <Td className="text-[13px] text-muted-foreground">
-                      {y.class_teacher_remarks ?? '—'}
+                      {y.class_teacher_remarks ?? '-'}
                     </Td>
                   </tr>
                 ))}

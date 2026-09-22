@@ -184,7 +184,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Halls"
-            description="A grid, not a headcount — an invigilator calls a row and a seat."
+            description="A grid, not a headcount, an invigilator calls a row and a seat."
             action={
               <>
                 <Button variant="secondary" onClick={() => setAdding((v) => !v)}>
@@ -222,7 +222,7 @@ function Seating({ examId, picker }: { examId: string; picker: React.ReactNode }
         <Card>
           <CardHeader
             title="Seating plan"
-            description={`${seats.length} candidates — neighbours are drawn from different sections`}
+            description={`${seats.length} candidates, neighbours are drawn from different sections`}
             action={
               <Select
                 value={hall}
@@ -457,9 +457,9 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
               <tr key={i}>
                 <Td className="font-medium">{p.subject}</Td>
                 <Td>{p.date ? formatDate(p.date) : 'To be announced'}</Td>
-                <Td>{p.starts_at ?? '—'}</Td>
-                <Td>{p.duration_minutes ? `${p.duration_minutes} min` : '—'}</Td>
-                <Td className="tabular-nums">{p.max_marks ?? '—'}</Td>
+                <Td>{p.starts_at ?? '-'}</Td>
+                <Td>{p.duration_minutes ? `${p.duration_minutes} min` : '-'}</Td>
+                <Td className="tabular-nums">{p.max_marks ?? '-'}</Td>
               </tr>
             ))}
           </Table>

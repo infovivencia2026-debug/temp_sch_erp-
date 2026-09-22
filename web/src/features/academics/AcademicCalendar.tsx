@@ -168,7 +168,7 @@ export default function AcademicCalendar() {
                   <Td className="whitespace-nowrap font-medium">
                     {formatDate(r.starts_on)}
                     {r.ends_on !== r.starts_on && (
-                      <span className="text-muted-foreground"> — {formatDate(r.ends_on)}</span>
+                      <span className="text-muted-foreground"> · {formatDate(r.ends_on)}</span>
                     )}
                   </Td>
                   <Td>
@@ -221,17 +221,17 @@ export default function AcademicCalendar() {
             own list in without editing it. */}
         <details className="mt-4 rounded-[10px] border bg-card">
           <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-            Upload the whole year — terms, holidays, exams, events — as one sheet
+            Upload the whole year, terms, holidays, exams, events, as one sheet
           </summary>
           <div className="border-t p-5">
             <BulkImport
               entity="holidays"
               title="The school year, from one sheet"
               hint={
-                'Three columns: date, day, event — the way a school calendar is already ' +
+                'Three columns: date, day, event, the way a school calendar is already ' +
                 'written. Put the kind in the "kind" column: term, holiday, vacation, exam, ' +
                 'event, ptm, or working_day for a Saturday the school opens; blank means ' +
-                'holiday. Anything that runs for days — a term, a vacation, an exam week — ' +
+                'holiday. Anything that runs for days, a term, a vacation, an exam week · ' +
                 'gets its end in "to". Dates can be 2026-08-15 or 15.08.26. The day column ' +
                 'is read by nobody; the date decides it. Uploading a corrected sheet again ' +
                 'updates rather than doubles.'
@@ -283,7 +283,7 @@ function NewEntry() {
     <Card>
       <CardHeader
         title="Add to the calendar"
-        description="A working day pulls a Sunday back into the count — which is what a school does after a bandh."
+        description="A working day pulls a Sunday back into the count, which is what a school does after a bandh."
       />
       <div className="px-5 pb-5">
         <FormGrid>
@@ -419,7 +419,7 @@ function Terms() {
           <Field label="Name" required>
             <Input value={name} onChange={setName} placeholder="Term 1" />
           </Field>
-          <Field label="Which term" hint="1, 2, 3 — the order they run in.">
+          <Field label="Which term" hint="1, 2, 3, the order they run in.">
             <Input value={sequence} onChange={setSequence} />
           </Field>
           <Field label="Starts" required>

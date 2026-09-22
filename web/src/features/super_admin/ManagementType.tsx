@@ -50,7 +50,7 @@ export default function ManagementType() {
       <PageHead
         eyebrow="Statutory & Boards"
         title="School management type"
-        description="Government, aided, private unaided, model school, gurukul or KGBV — recorded per campus, because the state reports per campus."
+        description="Government, aided, private unaided, model school, gurukul or KGBV, recorded per campus, because the state reports per campus."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -89,8 +89,8 @@ export default function ManagementType() {
                     <Badge tone="warning">Not classified</Badge>
                   )}
                 </Td>
-                <Td>{label(data.school_categories, c.school_category) ?? '—'}</Td>
-                <Td className="font-mono text-[12.5px]">{c.udise_code ?? '—'}</Td>
+                <Td>{label(data.school_categories, c.school_category) ?? '-'}</Td>
+                <Td className="font-mono text-[12.5px]">{c.udise_code ?? '-'}</Td>
                 <Td>
                   <Button variant="secondary" size="sm" onClick={() => open(c.id)}>
                     {editing === c.id ? 'Editing' : 'Edit'}
@@ -150,7 +150,7 @@ export default function ManagementType() {
                 <Field
                   label="UDISE code"
                   wide
-                  hint="Eleven digits, issued per school building. Leave blank rather than guessing — a wrong code files this campus's return against somebody else's school."
+                  hint="Eleven digits, issued per school building. Leave blank rather than guessing, a wrong code files this campus's return against somebody else's school."
                 >
                   <Input value={udise} onChange={setUdise} placeholder="36051200145" />
                 </Field>

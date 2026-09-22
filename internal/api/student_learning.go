@@ -1972,7 +1972,7 @@ func (s *Server) getStudentCalendar(w http.ResponseWriter, r *http.Request) {
 
 		    -- The papers this child's own class sits, and only those.
 		    SELECT to_char(es.exam_date,'YYYY-MM-DD'), NULL,
-		           'exam', ex.name || ' — ' || sub.name,
+		           'exam', ex.name || ' · ' || sub.name,
 		           concat_ws(' · ',
 		                     nullif(to_char(es.starts_at,'HH24:MI'), ''),
 		                     CASE WHEN es.duration_minutes IS NOT NULL
@@ -1990,7 +1990,7 @@ func (s *Server) getStudentCalendar(w http.ResponseWriter, r *http.Request) {
 
 		    -- Club nights this year group may attend.
 		    SELECT to_char(ev.starts_at,'YYYY-MM-DD'), NULL,
-		           'club_event', ev.club_name || ' — ' || ev.title,
+		           'club_event', ev.club_name || ' · ' || ev.title,
 		           ev.venue, 'club_events', false,
 		           to_char(ev.starts_at,'HH24:MI')
 		      FROM club_events ev, bounds b

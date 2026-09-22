@@ -66,7 +66,7 @@ export default function AdmissionsDashboard() {
               {(enquiries.data?.items ?? []).map((e) => (
                 <tr key={e.id}>
                   <Td className="font-medium">{e.student_name}</Td>
-                  <Td className="text-muted-foreground">{e.parent_name ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{e.parent_name ?? '-'}</Td>
                   <Td className="font-mono text-[12px]">{e.phone}</Td>
                   <Td><Badge>{e.source}</Badge></Td>
                   <Td className="text-muted-foreground">{e.assigned_to ?? 'unassigned'}</Td>

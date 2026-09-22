@@ -276,7 +276,7 @@ export default function LostFoundClaims() {
                       <Field
                         label="What proves it is yours"
                         required
-                        hint="A person reads this and decides — nothing is checked automatically."
+                        hint="A person reads this and decides, nothing is checked automatically."
                       >
                         <Textarea
                           value={answer}

@@ -163,7 +163,7 @@ func (s *Server) issueAdmissionLogin(
 		}
 		if out.Password != "" {
 			out.Note = "This parent had a login that had never been used, so a new " +
-				"password has been issued. Shown once — give it to them now."
+				"password has been issued. Shown once, give it to them now."
 		} else {
 			out.Note = "This parent already has a login and it is unchanged."
 		}

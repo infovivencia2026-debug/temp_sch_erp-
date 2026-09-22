@@ -117,7 +117,7 @@ function statusTone(status: string) {
 // A band, not a figure. What is actually offered is settled candidate by
 // candidate, so a vacancy showing one number would be read as a promise.
 function band(min?: number, max?: number) {
-  if (!min && !max) return '—'
+  if (!min && !max) return '-'
   if (min && max) return `${formatPaise(min)} – ${formatPaise(max)}`
   return formatPaise((min ?? max) as number)
 }
@@ -432,7 +432,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
           description="A phone number or an email is enough to start. Everything else can be filled in when the file arrives."
           action={
             <Select value={vacancy} onChange={setVacancy} placeholder="All posts"
-              options={openPosts.map((v) => ({ value: v.id, label: `${v.code} — ${v.title}` }))} />
+              options={openPosts.map((v) => ({ value: v.id, label: `${v.code} · ${v.title}` }))} />
           }
         />
         {!vacancy ? (
@@ -479,7 +479,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
               </Td>
               <Td>{c.vacancy_code}</Td>
               <Td>
-                {c.qualification ?? '—'}
+                {c.qualification ?? '-'}
                 {c.experience_years != null && (
                   <span className="block text-[12.5px] text-muted-foreground">
                     {c.experience_years} yrs
@@ -496,7 +496,7 @@ function PipelineTab({ posts, stages }: { posts: Vacancy[]; stages: FunnelStage[
               </Td>
               <Td>
                 {['joined', 'rejected', 'withdrawn'].includes(c.stage)
-                  ? '—'
+                  ? '-'
                   : `${c.days_since_move} days`}
               </Td>
               <Td className="text-right">
@@ -572,7 +572,7 @@ function HireCard({ candidate, onDone }: { candidate: Candidate; onDone: () => v
       />
       <div className="space-y-5 p-5">
         <FormGrid>
-          <Field label="Employee code" required hint="The school's own numbering — payroll already knows it">
+          <Field label="Employee code" required hint="The school's own numbering, payroll already knows it">
             <Input value={employeeCode} onChange={setEmployeeCode} placeholder="E-2026-041" />
           </Field>
           <Field label="Joining date"><Input value={joinedOn} onChange={setJoinedOn} type="date" /></Field>

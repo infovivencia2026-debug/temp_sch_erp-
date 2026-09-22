@@ -148,12 +148,12 @@ export default function AllMessages() {
             active={channel === 'circular'} onClick={tile('circular')} />
         </CellGrid>
         <p className="text-[12px] text-muted-foreground">
-          Each tile counts what is still waiting for a reply, across the whole school —
+          Each tile counts what is still waiting for a reply, across the whole school, 
           pressing one filters the list below without changing the counts.
         </p>
         <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
           <HeartHandshake className="h-4 w-4" />
-          {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open — private; counted here, never read.
+          {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open, private; counted here, never read.
         </p>
 
         {inbox.isLoading ? (
@@ -185,7 +185,7 @@ export default function AllMessages() {
                     <div className="space-y-2 px-5 py-4">
                       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
                         <div className="min-w-0">
-                          <div className="text-[15px] font-semibold">{it.teacher_name || '—'}</div>
+                          <div className="text-[15px] font-semibold">{it.teacher_name || '-'}</div>
                           <div className="text-[12px] text-muted-foreground">
                             {it.teacher_code ? `Staff ${it.teacher_code}` : 'Teacher'}
                           </div>
@@ -241,7 +241,7 @@ export default function AllMessages() {
                         {it.about && <span className="text-muted-foreground"> · {it.about}</span>}
                       </div>
                       <div className="truncate text-[13px] text-muted-foreground">
-                        <span className="font-medium text-foreground/80">{it.from || '—'}:</span> {it.last_body}
+                        <span className="font-medium text-foreground/80">{it.from || '-'}:</span> {it.last_body}
                       </div>
                     </div>
                     <div className="shrink-0 text-right text-[12px] text-muted-foreground">
@@ -352,7 +352,7 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         )}
       </div>
       <div className="space-y-2 border-t px-5 py-4">
-        <Textarea value={body} onChange={setBody} placeholder="Reply to the parent — sent in your name, the teacher sees it too" rows={3} />
+        <Textarea value={body} onChange={setBody} placeholder="Reply to the parent, sent in your name, the teacher sees it too" rows={3} />
         <div className="flex items-center gap-3">
           <Button onClick={() => reply.mutate()} disabled={!body.trim() || reply.isPending} pending={reply.isPending}>
             <Inbox className="h-4 w-4" /> Send reply

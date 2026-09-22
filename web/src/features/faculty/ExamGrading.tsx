@@ -121,7 +121,7 @@ export default function ExamGrading() {
       <PageHead
         eyebrow="Question papers & online tests"
         title="No-OMR exam grading"
-        description="Type answers against the key, or grade what the portal captured — then read the paper, not just the class."
+        description="Type answers against the key, or grade what the portal captured, then read the paper, not just the class."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -188,7 +188,7 @@ export default function ExamGrading() {
                     options={key.data.roster.map((s) => ({
                       value: s.student_id,
                       label: `${s.admission_no} · ${s.student_name}${
-                        s.attempt_id ? ` (entered: ${s.score ?? '—'})` : ''
+                        s.attempt_id ? ` (entered: ${s.score ?? '-'})` : ''
                       }`,
                     }))}
                   />
@@ -218,7 +218,7 @@ export default function ExamGrading() {
                     />
                   </Td>
                   <Td>{q.marks}</Td>
-                  <Td>{q.negative_marks ? `−${q.negative_marks}` : '—'}</Td>
+                  <Td>{q.negative_marks ? `−${q.negative_marks}` : '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -248,7 +248,7 @@ export default function ExamGrading() {
             <Table
               head={['#', 'Question', 'Attempted', 'Correct', 'Facility', 'Discrimination', 'Pulled most', 'Verdict']}
               empty={rows.length === 0}
-              emptyLabel="Nothing graded yet — the analysis needs sat papers."
+              emptyLabel="Nothing graded yet, the analysis needs sat papers."
             >
               {rows.map((r) => (
                 <tr key={r.test_question_id}>
@@ -256,12 +256,12 @@ export default function ExamGrading() {
                   <Td>{r.stem}</Td>
                   <Td>{r.attempted}</Td>
                   <Td>{r.correct}</Td>
-                  <Td>{r.facility ?? '—'}</Td>
-                  <Td>{r.discrimination ?? '—'}</Td>
+                  <Td>{r.facility ?? '-'}</Td>
+                  <Td>{r.discrimination ?? '-'}</Td>
                   <Td>
                     {r.top_distractor
                       ? `${r.top_distractor} (${r.top_distractor_count})`
-                      : '—'}
+                      : '-'}
                   </Td>
                   <Td>
                     <Badge tone={FLAG_TONE[r.flag] ?? 'neutral'}>

@@ -173,7 +173,7 @@ export default function PaymentGateways() {
                     </span>
                   </Td>
                   <Td>{r.mode === 'live' ? <Badge tone="warning">Live</Badge> : <Badge>Test</Badge>}</Td>
-                  <Td className="font-mono text-xs">{r.key_id || '—'}</Td>
+                  <Td className="font-mono text-xs">{r.key_id || '-'}</Td>
                   <Td>
                     {r.has_secret ? 'Key' : <span className="text-muted-foreground">No key</span>}
                     {r.has_webhook_secret ? ' · webhook' : ''}

@@ -101,7 +101,7 @@ export default function MapPointPicker({ value, fallback, onPick, onClose }: Pro
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
         <p className="text-[13px] text-muted-foreground">
           {point
-            ? `${point.lat}, ${point.lng} — drag the pin to correct it.`
+            ? `${point.lat}, ${point.lng}, drag the pin to correct it.`
             : 'Tap the map where the bus stops.'}
         </p>
         <div className="flex items-center gap-2">

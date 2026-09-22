@@ -216,7 +216,7 @@ export default function Logins() {
             </p>
             <p className="mt-1 text-[14px] text-muted-foreground">
               Deleting somebody’s record does not close their login. These accounts can still
-              sign in. Review them and deactivate the ones that should be closed — deactivating
+              sign in. Review them and deactivate the ones that should be closed, deactivating
               also signs out every device they are currently on.
             </p>
             <div className="mt-3">
@@ -301,7 +301,7 @@ export default function Logins() {
                       />
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{u.email ?? u.phone ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{u.email ?? u.phone ?? '-'}</Td>
                   <Td>
                     <Badge tone={u.record === 'none' ? 'danger' : 'neutral'}>
                       {RECORD_LABEL[u.record] ?? u.record}
@@ -328,7 +328,7 @@ export default function Logins() {
                         <Laptop className="h-3.5 w-3.5" /> {u.active_sessions}
                       </Button>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                   <Td className="text-muted-foreground">{formatDate(u.last_login_at)}</Td>
@@ -455,7 +455,7 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
                     <div className="text-[12px] font-normal text-muted-foreground">via {s.via.replace('_', ' ')}</div>
                   )}
                 </Td>
-                <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
+                <Td className="font-mono text-[12px]">{s.ip ?? '-'}</Td>
                 <Td className="text-muted-foreground">{formatDateTime(s.created_at)}</Td>
                 <Td className="text-muted-foreground">{formatDateTime(s.last_seen_at)}</Td>
                 <Td>
@@ -777,7 +777,7 @@ function AccountForm({
         description={
           editing
             ? 'Adding a role grants a whole workspace; removing one takes it away the next time they sign in.'
-            : 'A person, not a job title. Give them everything they do — one login for all of it.'
+            : 'A person, not a job title. Give them everything they do, one login for all of it.'
         }
         action={
           <Button variant="ghost" size="sm" onClick={onClose} title="Close">
@@ -1100,7 +1100,7 @@ function PermissionOverrides({
       </div>
       <p className="mb-3 text-[13px] text-muted-foreground">
         A role grants a whole workspace. This adds one capability to this account only, on top of
-        its roles. Keys a role already grants are ticked and locked — change those by editing the
+        its roles. Keys a role already grants are ticked and locked, change those by editing the
         role.
       </p>
 
@@ -1155,10 +1155,10 @@ function PermissionOverrides({
       </div>
 
       <div className="order-first mb-5 border-b pb-5">
-        <p className="eyebrow mb-1">Individual features (exception — prefer roles)</p>
+        <p className="eyebrow mb-1">Individual features (exception, prefer roles)</p>
         <p className="mb-3 text-[13px] text-muted-foreground">
           Normal access should come from a role, which carries a whole workspace. Use this only for a
-          one-off: switch on a single menu tile — Take attendance, Class 360, Student 360 — for this
+          one-off: switch on a single menu tile · Take attendance, Class 360, Student 360, for this
           one account. Enabling a tile also grants the capabilities the screen needs, noted under
           each.
         </p>

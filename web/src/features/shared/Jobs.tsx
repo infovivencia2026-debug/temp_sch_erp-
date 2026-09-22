@@ -45,7 +45,7 @@ export default function Jobs() {
       <Card>
         <CardHeader
           title="Queues"
-          description="Weighted, not strictly ordered — low-priority work still drains while bulk is busy."
+          description="Weighted, not strictly ordered, low-priority work still drains while bulk is busy."
         />
         <Table head={['Queue', 'Weight', 'Pending', 'Active', 'Scheduled', 'Retry', 'Archived', 'Processed', 'Failed']}
           empty={!entries.length}>
@@ -115,7 +115,7 @@ function Enqueue({ onQueued }: { onQueued: (taskID: string) => void }) {
     <Card>
       <CardHeader
         title="Trigger background work"
-        description="These return 202 immediately — nothing heavy runs inside a request."
+        description="These return 202 immediately, nothing heavy runs inside a request."
       />
       <div className="flex flex-wrap items-center gap-3 p-4">
         <Button onClick={() => fanout.mutate()} disabled={fanout.isPending}>
@@ -173,10 +173,10 @@ function JobRow({ id }: { id: string }) {
     return (
       <tr>
         <Td className="font-mono text-xs">{id.slice(0, 8)}</Td>
-        <Td className="text-xs text-muted-foreground" >—</Td>
-        <Td>—</Td>
+        <Td className="text-xs text-muted-foreground" >-</Td>
+        <Td>-</Td>
         <Td><Badge tone="neutral">expired</Badge></Td>
-        <Td>—</Td>
+        <Td>-</Td>
         <Td className="text-xs text-muted-foreground">Outside the retention window</Td>
       </tr>
     )

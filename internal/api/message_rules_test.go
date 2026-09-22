@@ -156,7 +156,7 @@ func TestChaseNumberIsDerivedFromAgeAlone(t *testing.T) {
 		{0, 0, false, "not yet due for a first chase"},
 		{6, 0, false, "the day before the policy starts"},
 		{7, 0, true, "the first chase, on the day the policy names"},
-		{8, 0, true, "still the first chase — a sweep on day 8 must not send a second"},
+		{8, 0, true, "still the first chase, a sweep on day 8 must not send a second"},
 		{13, 0, true, "last day of the first window"},
 		{14, 1, true, "second chase"},
 		{20, 1, true, "still the second chase"},
@@ -200,7 +200,7 @@ func TestOneChasePerWindowWhateverDayTheSweepRuns(t *testing.T) {
 	}
 	for attempt, days := range seen {
 		if days != repeat {
-			t.Errorf("chase %d is reachable on %d days, want %d — a window that is not "+
+			t.Errorf("chase %d is reachable on %d days, want %d, a window that is not "+
 				"a whole repeat period either skips a family or chases one twice",
 				attempt, days, repeat)
 		}
@@ -222,7 +222,7 @@ func TestNoRepeatMeansOneChaseForever(t *testing.T) {
 		t.Errorf("chase-0 days = %d, want %d", sends, 400-3)
 	}
 	if a, ok := chaseNumber(399, 3, 0, 1); !ok || a != 0 {
-		t.Errorf("day 399 = chase %d, ok %v; want chase 0 — a plan with no repeat "+
+		t.Errorf("day 399 = chase %d, ok %v; want chase 0, a plan with no repeat "+
 			"must never number a second chase", a, ok)
 	}
 }
@@ -239,7 +239,7 @@ func TestGateHoldsUntilTheRegisterIsPlausiblyTaken(t *testing.T) {
 	if open, why := p.gateOpen(at(8, 0)); open {
 		t.Error("gate open at 08:00: half the registers are unmarked, so half the school is not yet absent")
 	} else if why == "" {
-		t.Error("a closed gate must say when it opens — it is the answer to 'why has nothing gone out'")
+		t.Error("a closed gate must say when it opens, it is the answer to 'why has nothing gone out'")
 	}
 	if open, _ := p.gateOpen(at(11, 29)); open {
 		t.Error("gate open a minute early")
@@ -305,7 +305,7 @@ func TestDedupeKeyFoldsAccountlessGuardiansOfOneChild(t *testing.T) {
 	father := recipient{Name: "Ravi", Address: "9100575184"}
 	if dedupeKey(sub, mother) != dedupeKey(sub, father) {
 		t.Error("two guardians with no accounts got different keys, but the index would " +
-			"fold them — the preview would promise a message that is never written")
+			"fold them, the preview would promise a message that is never written")
 	}
 
 	uid := uuid.New()
@@ -340,10 +340,10 @@ func TestEveryPlanKindNamesAnEventAFinderKnows(t *testing.T) {
 		}
 		if _, ok := events[d.Event]; !ok {
 			t.Errorf("plan kind %q names event %q, which no finder in knownEvents() "+
-				"produces — the generic screen would show it as unfirable", d.Kind, d.Event)
+				"produces, the generic screen would show it as unfirable", d.Kind, d.Event)
 		}
 		if _, ok := builtinTemplates[d.TemplateCode]; !ok {
-			t.Errorf("plan kind %q defaults to template %q, which has no built-in — a "+
+			t.Errorf("plan kind %q defaults to template %q, which has no built-in, a "+
 				"school with no templates of its own could not send at all", d.Kind, d.TemplateCode)
 		}
 		if planEventFor(d.Kind) != d.Event {

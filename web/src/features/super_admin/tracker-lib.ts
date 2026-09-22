@@ -213,7 +213,7 @@ export function elapsed(seconds?: number): string {
 
 /** "14:30 on 18 Aug", or nothing. Times from this API are already India-local. */
 export function when(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-IN', {

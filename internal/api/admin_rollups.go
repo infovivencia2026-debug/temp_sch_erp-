@@ -1942,7 +1942,7 @@ func (s *Server) getHRExpiries(w http.ResponseWriter, r *http.Request) {
 		WITH ex AS (
 		    SELECT st.employee_id, st.kind, st.detail, st.expires_on FROM (
 		        SELECT t.employee_id, 'Deputation / transfer' AS kind,
-		               COALESCE(t.order_no,'—') AS detail, t.effective_to AS expires_on
+		               COALESCE(t.order_no,'-') AS detail, t.effective_to AS expires_on
 		          FROM staff_transfers t WHERE t.effective_to IS NOT NULL
 		        UNION ALL
 		        SELECT se.employee_id, 'Notice served',
@@ -1950,15 +1950,15 @@ func (s *Server) getHRExpiries(w http.ResponseWriter, r *http.Request) {
 		          FROM staff_exits se WHERE se.last_working_day IS NOT NULL
 		        UNION ALL
 		        SELECT m.employee_id, 'Medical fitness',
-		               COALESCE(m.purpose,'—'), m.valid_until
+		               COALESCE(m.purpose,'-'), m.valid_until
 		          FROM medical_fitness_certificates m WHERE m.valid_until IS NOT NULL
 		        UNION ALL
 		        SELECT bv.employee_id, 'Background verification',
-		               COALESCE(bv.kind,'—'), bv.valid_until
+		               COALESCE(bv.kind,'-'), bv.valid_until
 		          FROM background_verifications bv WHERE bv.valid_until IS NOT NULL
 		        UNION ALL
 		        SELECT q.employee_id, 'Qualification / registration',
-		               COALESCE(q.qualification,'—'), q.valid_until
+		               COALESCE(q.qualification,'-'), q.valid_until
 		          FROM staff_qualifications q WHERE q.valid_until IS NOT NULL
 		    ) st
 		)

@@ -90,25 +90,25 @@ export default function TrackerPairing() {
         <Card>
           <CardHeader
             title="Register a phone"
-            description="The code registers the phone to a driver. A bus is optional — the driver scans one at the start of each run."
+            description="The code registers the phone to a driver. A bus is optional, the driver scans one at the start of each run."
           />
           <div className="space-y-4 p-5">
             <FormNotice error={pair.error} />
             <FormGrid>
               <Field
                 label="Bus (optional)"
-                hint="Leave this as ‘No specific bus’ for a driver who drives different buses — they scan the bus code at the start of each run. Pick a bus only to tie this phone to one, as a fallback when nothing is scanned."
+                hint="Leave this as ‘No specific bus’ for a driver who drives different buses, they scan the bus code at the start of each run. Pick a bus only to tie this phone to one, as a fallback when nothing is scanned."
               >
                 <Select
                   value={vehicle}
                   onChange={setVehicle}
-                  placeholder="No specific bus — driver scans at each run"
+                  placeholder="No specific bus, driver scans at each run"
                   options={[
-                    { value: '', label: 'No specific bus — driver scans at each run' },
+                    { value: '', label: 'No specific bus, driver scans at each run' },
                     ...rows.map((r) => ({
                       value: r.vehicle_id,
                       label: r.paired
-                        ? `${r.registration_no} — already paired (${r.tracker ?? 'a phone'})`
+                        ? `${r.registration_no}, already paired (${r.tracker ?? 'a phone'})`
                         : r.registration_no,
                     })),
                   ]}
@@ -176,12 +176,12 @@ export default function TrackerPairing() {
                       </span>
                     )}
                   </Td>
-                  <Td className="text-[13px]">{r.route || '—'}</Td>
-                  <Td className="text-[13px]">{r.driver || '—'}</Td>
+                  <Td className="text-[13px]">{r.route || '-'}</Td>
+                  <Td className="text-[13px]">{r.driver || '-'}</Td>
                   <Td className="whitespace-nowrap text-[13px] text-muted-foreground">
                     {r.revoked_at ? when(r.revoked_at) : 'never paired'}
                   </Td>
-                  <Td className="text-[13px] text-muted-foreground">{r.revoked_reason || '—'}</Td>
+                  <Td className="text-[13px] text-muted-foreground">{r.revoked_reason || '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -228,7 +228,7 @@ export default function TrackerPairing() {
                   </Td>
                   <Td>
                     {r.battery_pct === undefined ? (
-                      '—'
+                      '-'
                     ) : (
                       <span
                         className={r.battery_pct < 20 && !r.charging ? 'text-destructive' : undefined}
@@ -243,10 +243,10 @@ export default function TrackerPairing() {
                     ) : r.location_ok ? (
                       'ok'
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
-                  <Td className="text-[13px]">{r.ping_seconds ? `${r.ping_seconds}s` : '—'}</Td>
+                  <Td className="text-[13px]">{r.ping_seconds ? `${r.ping_seconds}s` : '-'}</Td>
                   <Td className="whitespace-nowrap text-[13px] text-muted-foreground">
                     {when(r.last_seen_at)}
                   </Td>
@@ -317,7 +317,7 @@ function DarkBanner({ rows }: { rows: TrackerRow[] }) {
           <p className="mt-1.5 text-[14px] leading-relaxed">
             {rows.map((r) => (
               <span key={r.vehicle_id} className="block">
-                <strong>{r.registration_no}</strong> — {healthLabel(r).toLowerCase()}
+                <strong>{r.registration_no}</strong> · {healthLabel(r).toLowerCase()}
                 {r.tracker ? ` (${r.tracker})` : ''}.
               </span>
             ))}
@@ -376,7 +376,7 @@ function PairCodePanel({ code }: { code: PairCode }) {
         </p>
         {expired ? (
           <p className="text-[14px] text-destructive">
-            This code has expired. Generate another — the phone will refuse this one.
+            This code has expired. Generate another, the phone will refuse this one.
           </p>
         ) : (
           <p className="text-[13px] text-muted-foreground">
@@ -418,7 +418,7 @@ function TrackerPanel({ row }: { row: TrackerRow }) {
   return (
     <Card>
       <CardHeader
-        title={`${row.registration_no} — ${row.tracker ?? 'paired phone'}`}
+        title={`${row.registration_no} · ${row.tracker ?? 'paired phone'}`}
         description={`${row.device_model ?? 'unknown handset'}${row.driver ? ` · driver ${row.driver}` : ''} · last heard ${when(row.last_seen_at)}`}
         action={
           <>
@@ -446,7 +446,7 @@ function TrackerPanel({ row }: { row: TrackerRow }) {
         <FormGrid>
           <Field
             label="Name"
-            hint="What the office calls this handset. “Ravi's phone” is what somebody needs to read when this bus stops reporting — not “SM-A146B”."
+            hint="What the office calls this handset. “Ravi's phone” is what somebody needs to read when this bus stops reporting, not “SM-A146B”."
           >
             <Input value={name} onChange={setName} />
           </Field>
@@ -458,7 +458,7 @@ function TrackerPanel({ row }: { row: TrackerRow }) {
           </Field>
           <Field
             label="Paused"
-            hint="Keeps the pairing but stops the phone reporting — for a bus off the road, or a handset in for repair."
+            hint="Keeps the pairing but stops the phone reporting, for a bus off the road, or a handset in for repair."
           >
             <Checkbox checked={paused} onChange={setPaused} label="Do not track this bus for now" />
           </Field>
@@ -553,7 +553,7 @@ function PolicyForm() {
           </p>
           <p className="mt-2.5 text-[13px] text-muted-foreground">
             This is off until a school turns it on. Turning it on publishes the live position of a
-            school bus to every parent allocated to that route — tell them first.
+            school bus to every parent allocated to that route, tell them first.
           </p>
           <div className="mt-3">
             <Checkbox
@@ -641,7 +641,7 @@ function PolicyForm() {
           </Field>
           <Field
             label="Stop circle"
-            hint="Metres. The circle a stop gets when it has not been given its own — 120m survives the ±30m a phone reports in a built-up street."
+            hint="Metres. The circle a stop gets when it has not been given its own · 120m survives the ±30m a phone reports in a built-up street."
           >
             <Input
               value={String(draft.default_geofence_m)}
@@ -650,7 +650,7 @@ function PolicyForm() {
           </Field>
           <Field
             label="Tell me above"
-            hint="km/h. The speed above which the office wants to be told — not the road's limit, which is the road's."
+            hint="km/h. The speed above which the office wants to be told, not the road's limit, which is the road's."
           >
             <Input
               value={String(draft.speed_limit_kmph)}

@@ -308,7 +308,7 @@ export function useLeads() {
 }
 
 export function labelOf(options: FieldOption[], value: string | undefined): string {
-  if (!value) return '—'
+  if (!value) return '-'
   return options.find((o) => o.value === value)?.label ?? value
 }
 

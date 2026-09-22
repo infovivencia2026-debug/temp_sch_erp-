@@ -88,7 +88,7 @@ export default function BankingPayouts() {
                 <p className="mt-1 text-muted-foreground">
                   {providers.data?.items?.[0]?.why ??
                     'Approved batches are exported as a file for you to upload to your bank’s own portal.'}{' '}
-                  A batch marked <em>exported</em> means the file has been produced — not that
+                  A batch marked <em>exported</em> means the file has been produced, not that
                   anybody has been paid. The reconciliation will tell you when the money actually
                   left, by matching the payout against the bank statement.
                 </p>
@@ -113,7 +113,7 @@ export default function BankingPayouts() {
           <Stat
             label="Waiting on somebody else"
             value={mine.length}
-            hint={mine.length ? 'You assembled these — another person must release them' : undefined}
+            hint={mine.length ? 'You assembled these, another person must release them' : undefined}
           />
         </CellGrid>
 
@@ -238,7 +238,7 @@ function BatchDetail({
     <>
       <Card>
         <CardHeader
-          title={`${b.batch_no} — ${b.item_count} beneficiaries, ${inr(b.total_paise)}`}
+          title={`${b.batch_no} · ${b.item_count} beneficiaries, ${inr(b.total_paise)}`}
           description={`${b.purpose} · value date ${b.value_date} · debiting ${b.account_label}`}
           action={
             <span className="flex flex-wrap gap-2">
@@ -305,7 +305,7 @@ function BatchDetail({
                   {b.approval_blocked ??
                     'This batch is waiting for somebody else to release it.'}{' '}
                   {mayApprove
-                    ? 'That separation is the control — it is enforced on the server, not by this screen.'
+                    ? 'That separation is the control, it is enforced on the server, not by this screen.'
                     : ''}
                 </p>
               )}
@@ -316,7 +316,7 @@ function BatchDetail({
             <p className="text-[13px] text-muted-foreground">
               The file has been produced{b.exported_at ? ` on ${b.exported_at.slice(0, 10)}` : ''}.
               Upload it to your bank’s portal. Nothing here knows whether the bank has paid these
-              beneficiaries — the reconciliation will show it when the statement arrives.
+              beneficiaries, the reconciliation will show it when the statement arrives.
             </p>
           )}
 
@@ -347,7 +347,7 @@ function BatchDetail({
                     {i.beneficiary_kind}
                   </span>
                 </Td>
-                <Td className="font-mono text-[12px]">{i.account_masked || '—'}</Td>
+                <Td className="font-mono text-[12px]">{i.account_masked || '-'}</Td>
                 <Td className="font-mono text-[12px] text-muted-foreground">{i.ifsc}</Td>
                 <Td className="text-right tabular-nums">{inr(i.amount_paise)}</Td>
                 <Td className="uppercase text-muted-foreground">{i.mode}</Td>
@@ -434,7 +434,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
     <Card>
       <CardHeader
         title="Add what this batch pays"
-        description="Only documents already approved by their own workflow appear here. Anything already in a live batch is left out — a bill cannot be paid twice."
+        description="Only documents already approved by their own workflow appear here. Anything already in a live batch is left out, a bill cannot be paid twice."
         action={
           <Select
             value={kind}
@@ -479,7 +479,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
                   )}
                 </Td>
                 <Td className="text-right tabular-nums">{inr(c.amount_paise)}</Td>
-                <Td className="text-muted-foreground">{c.due_on ?? '—'}</Td>
+                <Td className="text-muted-foreground">{c.due_on ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -502,7 +502,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
                 onClick={() => add.mutate(chosen)}
               >
                 Add {chosen.length || ''} {chosen.length === 1 ? 'beneficiary' : 'beneficiaries'}
-                {chosen.length > 0 && ` — ${inr(total)}`}
+                {chosen.length > 0 && ` · ${inr(total)}`}
               </Button>
               {chosen.some((c) => !c.has_bank) && (
                 <span className="text-[13px] text-destructive">
@@ -554,7 +554,7 @@ function NewBatch() {
         <div className="space-y-5 p-5">
           {payable.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              No account is marked for payouts. Mark one on the bank reconciliation screen — it
+              No account is marked for payouts. Mark one on the bank reconciliation screen, it
               stops the collection account being debited by accident.
             </p>
           ) : (

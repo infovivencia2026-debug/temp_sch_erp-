@@ -112,7 +112,7 @@ export default function VirtualClassroom() {
         <Card>
           <CardHeader
             title="Meeting accounts"
-            description="An account marked for every campus is what a school falls back to when it has none of its own. Credentials are stored encrypted and never shown again — a secret that can create meetings in the installation's own Zoom account is the vendor's to hold, not a school's to read."
+            description="An account marked for every campus is what a school falls back to when it has none of its own. Credentials are stored encrypted and never shown again, a secret that can create meetings in the installation's own Zoom account is the vendor's to hold, not a school's to read."
           />
         <Table
             head={['Provider', 'Account', 'Host reference', 'Credential', 'Scope', 'State', '']}
@@ -123,7 +123,7 @@ export default function VirtualClassroom() {
               <tr key={a.id}>
                 <Td>{c.systems.find((s) => s.key === a.provider)?.name ?? a.provider}</Td>
                 <Td>{a.display_name}</Td>
-                <Td>{a.account_ref ?? '—'}</Td>
+                <Td>{a.account_ref ?? '-'}</Td>
                 <Td>
                   <Badge tone={a.has_credentials ? 'success' : 'neutral'}>
                     {a.has_credentials ? 'Stored' : 'None'}
@@ -165,7 +165,7 @@ export default function VirtualClassroom() {
         <Card>
           <CardHeader
             title="What was asked for"
-            description="Every request for a meeting to be created, and what came of it. On this installation each one resolves to 'paste the link' — kept so somebody can see how often the feature was wanted, and so there is a backlog to drain the day a credential arrives."
+            description="Every request for a meeting to be created, and what came of it. On this installation each one resolves to 'paste the link', kept so somebody can see how often the feature was wanted, and so there is a backlog to drain the day a credential arrives."
           />
           {requests.error ? (
             <div className="p-5">
@@ -196,7 +196,7 @@ export default function VirtualClassroom() {
                     </Badge>
                   </Td>
                   <Td>{whenRead(q.requested_at)}</Td>
-                  <Td>{q.detail ?? '—'}</Td>
+                  <Td>{q.detail ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

@@ -136,7 +136,7 @@ func (s *Server) portalSimulatedPay(w http.ResponseWriter, r *http.Request) {
 		st := student
 		if err := notify(r, tx, id.InstitutionID, id.UserID, &st, "fee_receipt",
 			amountText+" paid",
-			"Receipt "+receipt.ReceiptNo+". This was a test payment — no money was taken.",
+			"Receipt "+receipt.ReceiptNo+". This was a test payment, no money was taken.",
 			"/go/fee_receipts", "receipt", &receipt.PaymentID); err != nil {
 			return err
 		}

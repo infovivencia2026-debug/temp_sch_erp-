@@ -169,7 +169,7 @@ export default function Rostering() {
       <PageHead
         eyebrow="Attendance"
         title="Staff duty roster"
-        description="Assign staff to campus duties — gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they are already teaching."
+        description="Assign staff to campus duties, gate, ground, exam supervision, bus escort, library and lab. You are warned if a duty clashes with a lesson they are already teaching."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Input value={range.from} onChange={(v) => setRange({ ...range, from: v })} type="date" />
@@ -348,7 +348,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
               </p>
               <ul className="space-y-0.5 text-[13px] text-muted-foreground">
                 {clashes.map((c, i) => (
-                  <li key={i}>{formatDate(c.on_date)} — {c.user}: {c.detail}</li>
+                  <li key={i}>{formatDate(c.on_date)} · {c.user}: {c.detail}</li>
                 ))}
               </ul>
               <Field label="Why roster them anyway" wide
@@ -397,7 +397,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
                       <Td>
                         {d.override_reason
                           ? <span className="text-[12.5px] text-warning">{d.override_reason}</span>
-                          : '—'}
+                          : '-'}
                       </Td>
                       <Td className="text-right">
                         {mayWrite && (
@@ -450,7 +450,7 @@ function ConflictsTab({ clashes }: { clashes: Clash[] }) {
       {clashes.some((c) => c.kind === 'leave') && (
         <div className="border-t px-5 py-4 text-[13px] text-muted-foreground">
           A duty on a day of approved leave can only arise from leave granted
-          <em> after</em> the roster was written — the database refuses it at the
+          <em> after</em> the roster was written, the database refuses it at the
           point of rostering. Cancel the duty and roster somebody else.
         </div>
       )}
@@ -504,12 +504,12 @@ function FairnessTab({ range }: { range: { from: string; to: string } }) {
                 <span className="block text-[12.5px] text-muted-foreground">{r.employee_code}</span>
               )}
             </Td>
-            <Td>{r.department ?? '—'}</Td>
+            <Td>{r.department ?? '-'}</Td>
             <Td className="text-right">{r.duties}</Td>
             <Td className="text-right">{r.onerous_duties}</Td>
             <Td className="text-right">{r.hours.toFixed(1)}</Td>
             <Td>
-              {r.onerous_index == null ? '—' : (
+              {r.onerous_index == null ? '-' : (
                 <Badge tone={r.onerous_index > 1.5 ? 'danger' : r.onerous_index < 0.5 ? 'info' : 'success'}>
                   {r.onerous_index.toFixed(2)}× average
                 </Badge>

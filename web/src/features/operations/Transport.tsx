@@ -61,7 +61,7 @@ function daysTo(date?: string) {
 
 function Expiry({ label, date }: { label: string; date?: string }) {
   const d = daysTo(date)
-  if (d == null) return <span className="text-muted-foreground">{label} —</span>
+  if (d == null) return <span className="text-muted-foreground">{label}, </span>
   const soon = d <= 45
   return (
     <span className={cn('block text-[12.5px]', soon ? 'font-medium text-destructive' : 'text-muted-foreground')}>
@@ -130,10 +130,10 @@ export default function Transport() {
               {rs.map((r) => (
                 <tr key={r.id}>
                   <Td className="font-medium">{r.name}</Td>
-                  <Td className="font-mono text-[12px] text-muted-foreground">{r.code ?? '—'}</Td>
+                  <Td className="font-mono text-[12px] text-muted-foreground">{r.code ?? '-'}</Td>
                   <Td className="font-mono text-[12px]">{r.vehicle ?? 'unassigned'}</Td>
                   <Td className="tabular-nums text-muted-foreground">
-                    {r.distance_km ? `${r.distance_km} km` : '—'}
+                    {r.distance_km ? `${r.distance_km} km` : '-'}
                   </Td>
                   <Td className="tabular-nums">{r.stops}</Td>
                   <Td className="tabular-nums">{r.riders}</Td>
@@ -155,7 +155,7 @@ export default function Transport() {
         {openRoute && (
           <Card>
             <CardHeader
-              title={`${openRoute.name} — the run`}
+              title={`${openRoute.name}, the run`}
               description="In order, with pickup and drop times"
               action={<Button variant="ghost" onClick={() => setOpenRoute(null)}>Close</Button>}
             />
@@ -171,9 +171,9 @@ export default function Transport() {
                   <tr key={s.id}>
                     <Td className="tabular-nums text-muted-foreground">{s.sequence}</Td>
                     <Td className="font-medium">{s.name}</Td>
-                    <Td className="tabular-nums">{s.pickup_time ?? '—'}</Td>
-                    <Td className="tabular-nums">{s.drop_time ?? '—'}</Td>
-                    <Td className="tabular-nums">{s.fare_paise ? formatPaise(s.fare_paise) : '—'}</Td>
+                    <Td className="tabular-nums">{s.pickup_time ?? '-'}</Td>
+                    <Td className="tabular-nums">{s.drop_time ?? '-'}</Td>
+                    <Td className="tabular-nums">{s.fare_paise ? formatPaise(s.fare_paise) : '-'}</Td>
                     <Td className="tabular-nums">{s.riders}</Td>
                   </tr>
                 ))}
@@ -187,7 +187,7 @@ export default function Transport() {
         <Card>
           <CardHeader
             title="Fleet"
-            description="Insurance, fitness, permit and PUC — anything inside 45 days is flagged"
+            description="Insurance, fitness, permit and PUC, anything inside 45 days is flagged"
           />
           {vehicles.isLoading ? (
             <SkeletonTable columns={5} />
@@ -202,8 +202,8 @@ export default function Transport() {
               {vs.map((v) => (
                 <tr key={v.id}>
                   <Td className="font-mono text-[13px] font-medium">{v.registration_no}</Td>
-                  <Td className="text-muted-foreground">{v.model ?? '—'}</Td>
-                  <Td className="tabular-nums">{v.capacity ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{v.model ?? '-'}</Td>
+                  <Td className="tabular-nums">{v.capacity ?? '-'}</Td>
                   <Td>
                     <Expiry label="Insurance" date={v.insurance_expiry} />
                     <Expiry label="Fitness" date={v.fitness_expiry} />
@@ -351,7 +351,7 @@ function BusTrackers() {
                 {r.route && <span className="ml-2 font-sans text-[12px] text-muted-foreground">{r.route}</span>}
               </Td>
               <Td className="text-muted-foreground">
-                {r.tracker ?? '—'}
+                {r.tracker ?? '-'}
                 {r.enrolled_by && (
                   <span className="block text-[12px]">registered by {r.enrolled_by}</span>
                 )}

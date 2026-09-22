@@ -111,7 +111,7 @@ function RecipientGuard({ policy }: { policy: RecipientPolicy }) {
   return (
     <Card className={guarded ? 'border-warning/50' : 'border-destructive/50'}>
       <CardHeader
-        title={guarded ? 'Testing — outbound messages are restricted' : 'Live — every parent will be messaged'}
+        title={guarded ? 'Testing, outbound messages are restricted' : 'Live, every parent will be messaged'}
         description={policy.explanation}
         action={
           <Badge tone={guarded ? 'warning' : 'danger'}>
@@ -121,7 +121,7 @@ function RecipientGuard({ policy }: { policy: RecipientPolicy }) {
       />
       <div className="space-y-5 p-5">
         <p className="text-[13px] text-muted-foreground">
-          This guard applies to every channel — SMS, WhatsApp, email and the phone gateway — and is
+          This guard applies to every channel · SMS, WhatsApp, email and the phone gateway, and is
           enforced where messages are dispatched, so nothing can queue around it. A message it holds
           back is recorded as <strong>suppressed</strong> with the reason, never dropped, so the
           school can see exactly what would have gone out.
@@ -168,7 +168,7 @@ function RecipientGuard({ policy }: { policy: RecipientPolicy }) {
           <tr key={r.id}>
             <Td>{r.raw}</Td>
             <Td className="font-mono text-[13px] text-muted-foreground">{r.normalised}</Td>
-            <Td>{r.label || '—'}</Td>
+            <Td>{r.label || '-'}</Td>
             <Td className="whitespace-nowrap">{waWhen(r.created_at)}</Td>
             <Td>
               <ConfirmButton
@@ -240,7 +240,7 @@ function RecipientGuard({ policy }: { policy: RecipientPolicy }) {
         {policy.updated_at && (
           <p className="text-[13px] text-muted-foreground">
             Last changed {waWhen(policy.updated_at)}
-            {policy.note ? ` — ${policy.note}` : ''}
+            {policy.note ? ` · ${policy.note}` : ''}
           </p>
         )}
       </div>
@@ -376,7 +376,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
           </Field>
           <Field
             label="Free-form text"
-            hint="Leave off. WhatsApp accepts free text only within 24 hours of the parent’s own reply, and this product has no inbound webhook, so it cannot tell whether that window is open. Switching this on does not open one — it only turns a refusal here into a rejection at Meta, which lowers the number’s quality rating."
+            hint="Leave off. WhatsApp accepts free text only within 24 hours of the parent’s own reply, and this product has no inbound webhook, so it cannot tell whether that window is open. Switching this on does not open one, it only turns a refusal here into a rejection at Meta, which lowers the number’s quality rating."
           >
             <Checkbox
               checked={!!v.allow_free_text}
@@ -389,7 +389,7 @@ function AccountPanel({ settings }: { settings: WhatsAppSettings }) {
         <div className="border-t pt-5">
           <p className="mb-2 text-[13px] font-medium text-secondary-foreground">Prove it works</p>
           <p className="mb-3 text-[13px] text-muted-foreground">
-            Sends a real message through this account, by the same route a fee reminder takes —
+            Sends a real message through this account, by the same route a fee reminder takes, 
             including the allowlist, so a test cannot reach a number a real message could not.
             Choose an approved template: without one, WhatsApp will refuse.
           </p>
@@ -490,10 +490,10 @@ function TemplateMapping() {
                   <span className="ml-2 text-[12px] text-muted-foreground">built-in</span>
                 )}
               </Td>
-              <Td className="font-mono text-[13px]">{t.wa_template_name || '—'}</Td>
-              <Td>{t.wa_language || '—'}</Td>
+              <Td className="font-mono text-[13px]">{t.wa_template_name || '-'}</Td>
+              <Td>{t.wa_language || '-'}</Td>
               <Td className="text-[13px] text-muted-foreground">
-                {t.wa_params.length ? t.wa_params.join(', ') : '—'}
+                {t.wa_params.length ? t.wa_params.join(', ') : '-'}
               </Td>
               <Td>
                 <Badge tone={t.mapped ? 'success' : 'warning'}>
@@ -576,7 +576,7 @@ function MappingForm({ template }: { template: WhatsAppTemplate }) {
           <Field
             label="Parameters, in the approved order"
             wide
-            hint="Comma separated. The first name fills {{1}}, the second {{2}}, and so on — the order Meta approved, which need not be the order they appear above."
+            hint="Comma separated. The first name fills {{1}}, the second {{2}}, and so on, the order Meta approved, which need not be the order they appear above."
           >
             <Input value={params} onChange={setParams} placeholder="student_name, on_date" />
           </Field>
@@ -602,7 +602,7 @@ function DispatchLog() {
     <Card>
       <CardHeader
         title="WhatsApp dispatch log"
-        description="Newest first. Recipients are shown as their last four digits — a parent’s number has no business being readable over somebody’s shoulder."
+        description="Newest first. Recipients are shown as their last four digits, a parent’s number has no business being readable over somebody’s shoulder."
       />
       <Table
         head={['Queued', 'To', 'Template', 'Status', 'Why']}
@@ -613,7 +613,7 @@ function DispatchLog() {
           <tr key={row.id}>
             <Td className="whitespace-nowrap">{waWhen(row.queued_at)}</Td>
             <Td className="font-mono text-[13px]">{waRedact(row.recipient)}</Td>
-            <Td>{row.template_code ?? '—'}</Td>
+            <Td>{row.template_code ?? '-'}</Td>
             <Td>
               <Badge tone={waStatusTone(row.status)}>{row.status}</Badge>
               {row.attempts > 1 && (
@@ -622,7 +622,7 @@ function DispatchLog() {
                 </span>
               )}
             </Td>
-            <Td className="text-[13px] text-muted-foreground">{row.error ?? '—'}</Td>
+            <Td className="text-[13px] text-muted-foreground">{row.error ?? '-'}</Td>
           </tr>
         ))}
       </Table>

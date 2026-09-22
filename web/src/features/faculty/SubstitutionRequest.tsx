@@ -274,7 +274,7 @@ export default function SubstitutionRequest() {
                     ) : p.already_asked ? (
                       <Badge tone="info">already asked</Badge>
                     ) : (
-                      <span className="text-[13px] text-muted-foreground">—</span>
+                      <span className="text-[13px] text-muted-foreground">-</span>
                     )}
                   </Td>
                 </tr>
@@ -330,7 +330,7 @@ export default function SubstitutionRequest() {
                     </Td>
                     <Td className="text-[13px] text-muted-foreground">{r.reason}</Td>
                     <Td className="tabular-nums">{r.periods}</Td>
-                    <Td className="text-[13px]">{r.suggested_teacher ?? '—'}</Td>
+                    <Td className="text-[13px]">{r.suggested_teacher ?? '-'}</Td>
                     <Td>
                       <Button
                         size="sm"
@@ -458,7 +458,7 @@ function RequestDetail({ id, onDone }: { id: string; onDone: () => void }) {
   return (
     <Card>
       <CardHeader
-        title={`${r.teacher_name} — ${r.from_date} to ${r.to_date}`}
+        title={`${r.teacher_name} · ${r.from_date} to ${r.to_date}`}
         description={r.reason}
         action={
           <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>{r.status.replace(/_/g, ' ')}</Badge>
@@ -551,7 +551,7 @@ function RequestDetail({ id, onDone }: { id: string; onDone: () => void }) {
             </Button>
             {assigned < lines.length && assigned > 0 && (
               <span className="text-[13px] text-muted-foreground">
-                The rest stay open — the request will read “partially approved”, which is the
+                The rest stay open, the request will read “partially approved”, which is the
                 truth.
               </span>
             )}

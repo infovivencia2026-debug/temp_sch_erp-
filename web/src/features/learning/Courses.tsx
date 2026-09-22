@@ -128,7 +128,7 @@ export default function Courses() {
                       {c.homework_pending > 0 ? (
                         <Badge tone="warning">{c.homework_pending}</Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </Td>
                     <Td>

@@ -126,7 +126,7 @@ export default function Impersonation() {
                   {g.ended_reason && (
                     <span className="block text-[12px] text-muted-foreground">
                       Ended: {g.ended_reason}
-                      {g.ended_by ? ` — ${g.ended_by}` : ''}
+                      {g.ended_by ? ` · ${g.ended_by}` : ''}
                     </span>
                   )}
                 </Td>
@@ -190,10 +190,10 @@ export default function Impersonation() {
                 {(activity.data?.items ?? []).map((a) => (
                   <tr key={a.id}>
                     <Td>{a.at.replace('T', ' ').slice(0, 19)}</Td>
-                    <Td>{a.actor ?? '—'}</Td>
+                    <Td>{a.actor ?? '-'}</Td>
                     <Td className="font-mono text-[12px]">{a.action}</Td>
                     <Td>{a.entity_type}</Td>
-                    <Td>{a.ip ?? '—'}</Td>
+                    <Td>{a.ip ?? '-'}</Td>
                   </tr>
                 ))}
               </Table>
@@ -255,7 +255,7 @@ export default function Impersonation() {
                   label="Reason"
                   required
                   wide
-                  hint="At least a few words. Name the ticket or the fault — the school's administrator reads this line and nothing else."
+                  hint="At least a few words. Name the ticket or the fault, the school's administrator reads this line and nothing else."
                 >
                   <Input
                     value={reason}

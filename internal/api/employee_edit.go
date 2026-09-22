@@ -275,7 +275,7 @@ func (s *Server) updateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	case err != nil && strings.Contains(err.Error(), "employees_device_user_id"):
 		httpx.BadRequest(w, r,
-			"another member of staff is already enrolled on the reader under that id — "+
+			"another member of staff is already enrolled on the reader under that id · "+
 				"two people cannot be the same finger")
 		return
 	case err != nil:

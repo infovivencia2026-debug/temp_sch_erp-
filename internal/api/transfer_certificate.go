@@ -371,7 +371,7 @@ func plainCertificate(typeName, code string, f map[string]string) string {
 		}
 		n++
 		if v == "" {
-			v = "—"
+			v = "-"
 		}
 		fmt.Fprintf(&b, `<tr><td style="padding:4px 8px 4px 0;width:2em;vertical-align:top">%d.</td>`+
 			`<td style="padding:4px 8px;vertical-align:top">%s</td>`+

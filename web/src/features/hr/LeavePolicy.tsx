@@ -142,7 +142,7 @@ export default function LeavePolicy() {
       <PageHead
         eyebrow="Attendance & Leave"
         title="Staff leave & attendance policy"
-        description="Leave types and how many days each allows, the late-arrival grace period, and how half days and unpaid leave are deducted — set in one place, and every leave request and payslip follows it."
+        description="Leave types and how many days each allows, the late-arrival grace period, and how half days and unpaid leave are deducted, set in one place, and every leave request and payslip follows it."
         actions={<Button onClick={() => save.mutate(draft)} disabled={save.isPending}>Save all changes</Button>}
       />
       <PageBody>
@@ -392,7 +392,7 @@ function LOPRulesTab({
               hint="A half-day rule that produces 2.33 days and a payslip showing 2.5 need one place where the difference is decided">
               <Select value={policy.lop_rounding} onChange={(v) => onChange('lop_rounding', v)}
                 options={[
-                  { value: 'none', label: 'None — charge the exact fraction' },
+                  { value: 'none', label: 'None, charge the exact fraction' },
                   { value: 'half', label: 'To the nearest half day' },
                   { value: 'up', label: 'Up, to the whole day' },
                 ]} />
@@ -490,13 +490,13 @@ function RegisterTab() {
               <Td className="font-medium">{r.full_name}
                 <div className="text-[12px] font-normal text-muted-foreground">{r.employee_code}</div>
               </Td>
-              <Td className="tabular-nums text-muted-foreground">{r.absent_days || '—'}</Td>
-              <Td className="tabular-nums text-muted-foreground">{r.half_days || '—'}</Td>
-              <Td className="tabular-nums text-muted-foreground">{r.unpaid_leave_days || '—'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{r.absent_days || '-'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{r.half_days || '-'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{r.unpaid_leave_days || '-'}</Td>
               {/* Kept apart from unpaid leave: one is leave the school never
                   funded, the other is leave this person had used up. */}
-              <Td className="tabular-nums text-muted-foreground">{r.quota_lop_days || '—'}</Td>
-              <Td className="tabular-nums text-muted-foreground">{r.late_marks || '—'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{r.quota_lop_days || '-'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{r.late_marks || '-'}</Td>
               <Td className="tabular-nums font-medium">{r.lop_days}</Td>
             </tr>
           ))}

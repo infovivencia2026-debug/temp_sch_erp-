@@ -386,12 +386,12 @@ function VisitLog({
                 </Td>
                 <Td>{v.complaint}</Td>
                 <Td className="tabular-nums text-[13px] text-muted-foreground">
-                  {v.temperature_c ? `${v.temperature_c}°C` : '—'}
+                  {v.temperature_c ? `${v.temperature_c}°C` : '-'}
                   {v.pulse_bpm && <div>{v.pulse_bpm} bpm</div>}
                   {v.bp && <div>{v.bp}</div>}
                 </Td>
                 <Td className="text-[13px]">
-                  {v.treatment ?? '—'}
+                  {v.treatment ?? '-'}
                   {v.rested_minutes ? (
                     <div className="text-muted-foreground">Rested {v.rested_minutes} min</div>
                   ) : null}

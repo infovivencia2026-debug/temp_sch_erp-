@@ -317,21 +317,21 @@ func seedTransport(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UUID)
 		km                float64
 		stops             []stop
 	}{
-		{"TS07UB1234", "Tata Starbus 32", "Route 01 — Kompally", 12.5, []stop{
+		{"TS07UB1234", "Tata Starbus 32", "Route 01 · Kompally", 12.5, []stop{
 			{"Kompally X Roads", 17.5350, 78.4880, nil},
 			{"Suchitra Circle", 17.5000, 78.4730, nil},
 			{"Jeedimetla", 17.5090, 78.4550, nil},
 			{"Petbasheerabad", 17.5200, 78.4700, nil},
 			school,
 		}},
-		{"TS07UB5678", "Ashok Leyland 40", "Route 02 — Secunderabad", 18.2, []stop{
+		{"TS07UB5678", "Ashok Leyland 40", "Route 02 · Secunderabad", 18.2, []stop{
 			{"Paradise Circle", 17.4420, 78.4870, nil},
 			{"Tarnaka", 17.4280, 78.5280, nil},
 			{"Alwal", 17.5020, 78.5050, nil},
 			{"Bowenpally", 17.4730, 78.4870, nil},
 			school,
 		}},
-		{"TS07UB9012", "Tata Starbus 32", "Route 03 — Medchal", 22.0, []stop{
+		{"TS07UB9012", "Tata Starbus 32", "Route 03 · Medchal", 22.0, []stop{
 			{"Medchal Bus Stand", 17.6290, 78.4830, nil},
 			{"Shamirpet", 17.6210, 78.5730, nil},
 			{"Gundlapochampally", 17.5760, 78.4920, nil},
@@ -474,7 +474,7 @@ func seedFeeStructure(ctx context.Context, tx pgx.Tx, inst, campus, year uuid.UU
 			-- day_scholar/transport.
 			VALUES ($1,$2,$3,$4,$5,'all',true)
 			RETURNING id`, inst, campus, year, k.id,
-			fmt.Sprintf("%s — Annual fees", k.name)).Scan(&sid); err != nil {
+			fmt.Sprintf("%s · Annual fees", k.name)).Scan(&sid); err != nil {
 			return n, err
 		}
 		// Three instalments across the year, tuition rising a little by class.
@@ -513,7 +513,7 @@ func seedCorrections(ctx context.Context, tx pgx.Tx, inst, _, _ uuid.UUID) (int,
 		       (SELECT e.user_id FROM employees e
 		         WHERE e.institution_id = $1 AND e.user_id IS NOT NULL LIMIT 1),
 		       sa.status, 'present',
-		       'Marked absent in error — child was in the lab period.',
+		       'Marked absent in error, child was in the lab period.',
 		       'pending'
 		  FROM student_attendance sa
 		 WHERE sa.institution_id = $1 AND sa.status = 'absent'

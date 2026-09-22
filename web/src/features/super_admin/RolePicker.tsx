@@ -101,7 +101,7 @@ export function RolePicker({
           {matched
             ? matched.description
             : value.length
-              ? 'A custom combination — no preset matches these roles exactly.'
+              ? 'A custom combination, no preset matches these roles exactly.'
               : 'Or tick the individual roles below.'}
         </p>
       </div>
@@ -154,7 +154,7 @@ export function RolePicker({
         <p className="text-[13px] text-muted-foreground">
           {value.length} role{value.length === 1 ? '' : 's'}
           {totalPermissions > 0 && ` · up to ${totalPermissions} permissions`}. Each role keeps its
-          own workspace — this person switches between them from the left rail rather than seeing
+          own workspace, this person switches between them from the left rail rather than seeing
           one merged screen.
         </p>
       )}

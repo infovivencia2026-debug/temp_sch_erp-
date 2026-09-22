@@ -54,7 +54,7 @@ function today() {
 }
 
 function clock(iso?: string) {
-  return iso ? iso.slice(11) : '—'
+  return iso ? iso.slice(11) : '-'
 }
 
 export default function HostelVisitors() {

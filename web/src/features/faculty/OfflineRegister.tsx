@@ -106,7 +106,7 @@ export default function OfflineRegister() {
     })
     setMarks({})
     setDiaryBody('')
-    toast.ok(queue.online ? 'Queued — syncing now' : 'Held on this device until you are back online')
+    toast.ok(queue.online ? 'Queued, syncing now' : 'Held on this device until you are back online')
     void queue.flush()
     qc.invalidateQueries({ queryKey: ['classroom-capture-conflicts'] })
     qc.invalidateQueries({ queryKey: ['classroom-diary'] })
@@ -144,14 +144,14 @@ export default function OfflineRegister() {
         {queue.storageFailed && (
           <Panel className="border-destructive/40 bg-destructive/5 p-5 text-[13px] text-destructive">
             This device would not save the queue. What you have taken is held in this tab
-            only — do not close it until “Waiting to sync” reaches zero.
+            only, do not close it until “Waiting to sync” reaches zero.
           </Panel>
         )}
 
         <Panel className="p-5 text-[13px] text-muted-foreground">
           What this screen guarantees: a register taken in this tab is never lost to a
           failed request, and a sync never overwrites a mark somebody else entered while
-          you were out of signal — it reports the disagreement instead. What it does not
+          you were out of signal, it reports the disagreement instead. What it does not
           do: load itself with no network. Keep this tab open before you leave.
         </Panel>
 
@@ -173,7 +173,7 @@ export default function OfflineRegister() {
               <Field label="Date">
                 <Input value={onDate} onChange={setOnDate} type="date" />
               </Field>
-              <Field label="Where" hint="Recorded with the batch: 'Field trip — Golconda'." wide>
+              <Field label="Where" hint="Recorded with the batch: 'Field trip · Golconda'." wide>
                 <Input value={deviceNote} onChange={setDeviceNote} />
               </Field>
             </FormGrid>
@@ -196,7 +196,7 @@ export default function OfflineRegister() {
                   <Select
                     value={marks[c.student_id] ?? ''}
                     onChange={(v) => setMarks((m) => ({ ...m, [c.student_id]: v }))}
-                    placeholder="—"
+                    placeholder="-"
                     options={ATTENDANCE_STATUSES.map((s) => ({ ...s }))}
                   />
                 </Td>
@@ -244,7 +244,7 @@ export default function OfflineRegister() {
           >
             {queue.queue.map((b) => (
               <tr key={b.client_batch_ref}>
-                <Td>{b.section_name || '—'}</Td>
+                <Td>{b.section_name || '-'}</Td>
                 <Td>{b.on_date}</Td>
                 <Td>{formatDateTime(b.captured_at)}</Td>
                 <Td>{b.marks.length}</Td>
@@ -293,7 +293,7 @@ export default function OfflineRegister() {
           <Table
             head={['Date', 'Child', 'On the device', 'On the server', 'Entered by', '']}
             empty={openConflicts.length === 0}
-            emptyLabel="Nothing in dispute — every mark you took offline was accepted."
+            emptyLabel="Nothing in dispute, every mark you took offline was accepted."
           >
             {openConflicts.map((c) => (
               <tr key={c.id}>
@@ -306,7 +306,7 @@ export default function OfflineRegister() {
                 </Td>
                 <Td>{labelOf(ATTENDANCE_STATUSES, c.offline_status)}</Td>
                 <Td>{labelOf(ATTENDANCE_STATUSES, c.server_status)}</Td>
-                <Td>{c.server_marked_by ?? '—'}</Td>
+                <Td>{c.server_marked_by ?? '-'}</Td>
                 <Td>
                   <div className="flex gap-2">
                     <Button

@@ -214,7 +214,7 @@ export function waStatusTone(status: string): 'success' | 'danger' | 'warning' |
 
 /** "14:30 on 18 Aug", or nothing. Times are already India-local from the API. */
 export function waWhen(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-IN', {
@@ -234,7 +234,7 @@ export function waWhen(iso?: string): string {
  * The server redacts its own log lines the same way.
  */
 export function waRedact(v: string): string {
-  if (!v) return '—'
+  if (!v) return '-'
   if (v.includes('@')) {
     const [name, domain] = v.split('@')
     return `${name.slice(0, 2)}…@${domain}`

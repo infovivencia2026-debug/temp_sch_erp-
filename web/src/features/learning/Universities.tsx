@@ -184,7 +184,7 @@ export default function Universities() {
                   <Field label="Course">
                     <Input value={course} onChange={setCourse} placeholder="Computer Science" />
                   </Field>
-                  <Field label="Intake" hint="However that country names it — Fall 2029, Michaelmas 2028.">
+                  <Field label="Intake" hint="However that country names it · Fall 2029, Michaelmas 2028.">
                     <Input value={intake} onChange={setIntake} placeholder="Fall 2029" />
                   </Field>
                   <Field label="Application closes">
@@ -237,7 +237,7 @@ export default function Universities() {
                       </Td>
                       <Td>{e.course ?? <span className="text-muted-foreground">Not decided</span>}</Td>
                       <Td>
-                        {e.application_deadline ? formatDate(e.application_deadline) : '—'}
+                        {e.application_deadline ? formatDate(e.application_deadline) : '-'}
                         <span
                           className={
                             d.urgent
@@ -248,9 +248,9 @@ export default function Universities() {
                           {d.text}
                         </span>
                       </Td>
-                      <Td className="text-[13px] text-muted-foreground">{e.entrance_exams ?? '—'}</Td>
+                      <Td className="text-[13px] text-muted-foreground">{e.entrance_exams ?? '-'}</Td>
                       <Td className="text-right tabular-nums">
-                        {e.annual_fee_paise ? formatPaise(e.annual_fee_paise) : '—'}
+                        {e.annual_fee_paise ? formatPaise(e.annual_fee_paise) : '-'}
                       </Td>
                       <Td>
                         <Badge tone={TONE[e.status] ?? 'neutral'}>{e.status}</Badge>

@@ -123,7 +123,7 @@ func (s *Server) deleteClass(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errRefInUse) {
 		httpx.BadRequest(w, r, plural(sections, "section", "sections")+" and "+plural(subjects, "mapped subject", "mapped subjects")+
-			" hang off this class. Remove them first — deleting the class would take their registers and marks with it")
+			" hang off this class. Remove them first, deleting the class would take their registers and marks with it")
 		return
 	}
 	writeRefResult(w, r, err, "class", classID)
@@ -204,7 +204,7 @@ func (s *Server) deleteSubject(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errRefInUse) {
 		httpx.BadRequest(w, r, "this subject is taught in "+plural(taught, "class", "classes")+
-			". Unmap it there first — deleting it would take the marks with it")
+			". Unmap it there first, deleting it would take the marks with it")
 		return
 	}
 	writeRefResult(w, r, err, "subject", subjectID)
@@ -405,7 +405,7 @@ func (s *Server) deleteFeeHead(w http.ResponseWriter, r *http.Request) {
 	})
 	if errors.Is(err, errRefInUse) {
 		httpx.BadRequest(w, r, "this head is in "+plural(used, "fee structure", "fee structures")+
-			" and has been billed against. Rename it instead — deleting it would orphan money already collected")
+			" and has been billed against. Rename it instead, deleting it would orphan money already collected")
 		return
 	}
 	writeRefResult(w, r, err, "fee head", headID)

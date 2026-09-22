@@ -105,7 +105,7 @@ func (s *Server) deleteSimple(spec removable) http.HandlerFunc {
 		if errors.Is(err, errRefInUse) {
 			httpx.BadRequest(w, r,
 				strings.Join(blocking, " and ")+" still belong to this "+spec.noun+
-					". Move them first — deleting it would take them with it")
+					". Move them first, deleting it would take them with it")
 			return
 		}
 		writeRefResult(w, r, err, spec.noun, rowID)

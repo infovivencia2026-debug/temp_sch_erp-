@@ -259,7 +259,7 @@ function paintMarker(el: HTMLElement, v: MapVehicle, focused: boolean, tone: Map
     <span class="rounded bg-background/85 px-1 text-[11px] font-semibold">${escapeHtml(v.label)}</span>
     ${v.note && stale ? `<span class="rounded bg-background/85 px-1 text-[10px]">${escapeHtml(v.note)}</span>` : ''}
   `
-  el.setAttribute('aria-label', `${v.label}${v.note ? ` — ${v.note}` : ''}`)
+  el.setAttribute('aria-label', `${v.label}${v.note ? ` · ${v.note}` : ''}`)
   return el
 }
 

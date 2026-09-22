@@ -147,7 +147,7 @@ const daysBetween = (from: number, to: number) => Math.round((to - from) / DAY_M
     which would be the UTC instant and can print yesterday. */
 function shortDate(iso: string): string {
   const ms = localMidnight(iso)
-  if (ms === null) return '—'
+  if (ms === null) return '-'
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(new Date(ms))
 }
 

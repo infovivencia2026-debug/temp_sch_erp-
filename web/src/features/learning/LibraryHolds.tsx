@@ -172,9 +172,9 @@ export default function LibraryHolds() {
                       )}
                     </Td>
                     <Td className="text-right tabular-nums">
-                      {h.status === 'waiting' ? h.position : '—'}
+                      {h.status === 'waiting' ? h.position : '-'}
                     </Td>
-                    <Td>{h.collect_by ? formatDate(h.collect_by) : '—'}</Td>
+                    <Td>{h.collect_by ? formatDate(h.collect_by) : '-'}</Td>
                     <Td className="text-right">
                       {h.cancellable && (
                         <ConfirmButton
@@ -229,8 +229,8 @@ export default function LibraryHolds() {
                         </span>
                       )}
                     </Td>
-                    <Td>{t.author ?? <span className="text-muted-foreground">—</span>}</Td>
-                    <Td>{t.category ?? <span className="text-muted-foreground">—</span>}</Td>
+                    <Td>{t.author ?? <span className="text-muted-foreground">-</span>}</Td>
+                    <Td>{t.category ?? <span className="text-muted-foreground">-</span>}</Td>
                     <Td className="text-right tabular-nums">
                       {t.copies_on_shelf} / {t.copies}
                     </Td>

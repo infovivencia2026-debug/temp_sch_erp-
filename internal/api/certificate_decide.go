@@ -70,7 +70,7 @@ func (s *Server) decideCertificate(w http.ResponseWriter, r *http.Request) {
 	if status == "cancelled" && note == "" {
 		/* A refusal with no reason is the one a family rings about, and the
 		   person who answers the telephone was not the person who refused. */
-		httpx.BadRequest(w, r, "say why it was declined — the family will be told")
+		httpx.BadRequest(w, r, "say why it was declined, the family will be told")
 		return
 	}
 
@@ -114,7 +114,7 @@ func (s *Server) decideCertificate(w http.ResponseWriter, r *http.Request) {
 		   A document is collected by whoever is free that afternoon, so
 		   telling only the parent who happened to ask means the other one
 		   turns up at the counter for something already handed over. */
-		body := typeName + " for " + child + " — " + certificateDecisions[status] +
+		body := typeName + " for " + child + " · " + certificateDecisions[status] +
 			". Serial " + serial + "."
 		if note != "" {
 			body += " " + note

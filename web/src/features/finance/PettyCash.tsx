@@ -86,7 +86,7 @@ export default function PettyCash() {
               ? { value: `${inr(q.data!.replenish_paise)} below float`, positive: false }
               : undefined} />
           <Stat label="Limit" value={inr(q.data?.limit_paise ?? 0)} icon={ShieldCheck}
-            hint="Above this a slip needs a second signature — from somebody other than who raised it" />
+            hint="Above this a slip needs a second signature, from somebody other than who raised it" />
         </CellGrid>
 
         {noReceipt.length > 0 && (
@@ -332,8 +332,8 @@ function ManageFloat({ data }: { data: PettyResponse }) {
                     {t.journal_voucher_no && <div className="text-[12px] text-muted-foreground">{t.journal_voucher_no}</div>}
                   </Td>
                   <Td className="text-right tabular-nums">{rupees(t.amount_paise)}</Td>
-                  <Td className="text-muted-foreground">{t.reference_no || t.note || '—'}</Td>
-                  <Td className="text-muted-foreground">{t.by || '—'}</Td>
+                  <Td className="text-muted-foreground">{t.reference_no || t.note || '-'}</Td>
+                  <Td className="text-muted-foreground">{t.by || '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -353,7 +353,7 @@ function ManageFloat({ data }: { data: PettyResponse }) {
                     </Badge>
                     {c.variance_reason && <div className="text-[12px] text-muted-foreground">{c.variance_reason}</div>}
                   </Td>
-                  <Td className="text-muted-foreground">{c.by || '—'}</Td>
+                  <Td className="text-muted-foreground">{c.by || '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -395,7 +395,7 @@ function RaiseVoucher({ limit }: { limit: number }) {
         <FormGrid>
           <Field label="Paid to" required><Input value={payee} onChange={setPayee} placeholder="Ramesh (peon)" /></Field>
           <Field label="Amount (₹)" required
-            hint={over ? `Above the ${rupees(limit)} limit — this will need a second signature` : undefined}>
+            hint={over ? `Above the ${rupees(limit)} limit, this will need a second signature` : undefined}>
             <Input type="number" value={amount} onChange={setAmount} />
           </Field>
           <Field label="Expense head" required>

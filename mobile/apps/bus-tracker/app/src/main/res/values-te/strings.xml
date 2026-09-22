@@ -5,7 +5,7 @@
     <string name="notification_channel_run">ట్రిప్ నడుస్తోంది</string>
     <string name="notification_channel_run_desc">ట్రిప్ నడుస్తున్నప్పుడు కనిపించే శాశ్వత నోటీసు. దీన్ని తీసేస్తే బస్సు స్కూల్ మ్యాప్‌లో కనిపించదు.</string>
     <string name="notification_channel_problem">ట్రాకింగ్ సమస్యలు</string>
-    <string name="notification_channel_problem_desc">ఫోన్ లొకేషన్ పంపలేనప్పుడు — లొకేషన్ ఆఫ్, అనుమతి తీసేయడం, లేదా ఆఫీసు ట్రిప్ మూసివేయడం.</string>
+    <string name="notification_channel_problem_desc">ఫోన్ లొకేషన్ పంపలేనప్పుడు, లొకేషన్ ఆఫ్, అనుమతి తీసేయడం, లేదా ఆఫీసు ట్రిప్ మూసివేయడం.</string>
 
     <!-- Shared -->
     <string name="action_ok">సరే</string>

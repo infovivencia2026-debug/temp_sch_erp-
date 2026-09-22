@@ -66,7 +66,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
           {!credit.metered ? (
             <>
               {name} is sending without a limit. Set a balance to cap what this school can
-              spend on its vendor account — until you do, nothing here restricts it.
+              spend on its vendor account, until you do, nothing here restricts it.
             </>
           ) : credit.empty ? (
             <>
@@ -165,7 +165,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
                     {e.reason}
                     {e.note ? <span className="text-muted-foreground"> · {e.note}</span> : null}
                   </Td>
-                  <Td className="text-muted-foreground">{e.actor ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{e.actor ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

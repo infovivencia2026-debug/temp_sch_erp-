@@ -124,7 +124,7 @@ export default function PlatformDashboard() {
         <Card>
           <CardHeader
             title="Campuses"
-            description="Ordered by what is outstanding — the campus needing attention first. Open one for its own totals."
+            description="Ordered by what is outstanding, the campus needing attention first. Open one for its own totals."
           />
           {d.campuses_detail.length === 0 ? (
             <EmptyState title="No campuses yet" />
@@ -207,7 +207,7 @@ export default function PlatformDashboard() {
                           {c.attendance_pct == null
                             ? c.students > 0
                               ? 'Register not taken'
-                              : '—'
+                              : '-'
                             : `${c.attendance_pct}% present today`}
                         </span>
                         <span className="font-medium text-primary">Open →</span>

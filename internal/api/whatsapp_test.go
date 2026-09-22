@@ -642,7 +642,7 @@ func TestTurningTheGuardOffNeedsAnExplicitConfirmation(t *testing.T) {
 
 func TestPlaceholdersAreListedInOrderOnceEach(t *testing.T) {
 	got := templatePlaceholders(
-		"Dear parent, {{student_name}} was absent on {{on_date}}. — {{school_name}} ({{student_name}})")
+		"Dear parent, {{student_name}} was absent on {{on_date}}. · {{school_name}} ({{student_name}})")
 	want := []string{"student_name", "on_date", "school_name"}
 	if len(got) != len(want) {
 		t.Fatalf("placeholders = %v, want %v", got, want)

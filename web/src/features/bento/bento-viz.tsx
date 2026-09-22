@@ -718,7 +718,7 @@ export function Timeline({
         {todayX !== null && (
           <div
             aria-hidden="true"
-            title={`Today — ${dateText(now)}`}
+            title={`Today · ${dateText(now)}`}
             className="absolute bottom-0 w-[2px] -translate-x-1/2 rounded-full"
             style={{ left: `${todayX}%`, height: `${stackHeight + 6}px`, background: VIZ_NOW }}
           />
@@ -728,7 +728,7 @@ export function Timeline({
           return (
             <div
               key={`${m.label}-${i}`}
-              title={`${m.label} — ${dateText(m.t)}`}
+              title={`${m.label} · ${dateText(m.t)}`}
               className="absolute"
               style={{ left: `${m.x}%`, bottom: `${m.lane * laneStep}px`, transform: 'translateX(-50%)' }}
             >
@@ -914,7 +914,7 @@ export function Quadrant({
         {usable.map((p, i) => (
           <span
             key={`${p.label}-${i}`}
-            title={`${p.label} — ${inQuad(p)}`}
+            title={`${p.label} · ${inQuad(p)}`}
             className="absolute h-[8px] w-[8px] rounded-full"
             style={{ left: `${px(p.x)}%`, top: `${py(p.y)}%`, transform: 'translate(-50%, -50%)', background: mark('purple') }}
             aria-hidden="true"

@@ -70,7 +70,7 @@ export default function FeeStructureVersions() {
     setNewErr(null)
     try {
       const firstHead = heads.data?.items?.[0]
-      if (!firstHead) throw new Error('Add a fee head first — a structure needs something to charge.')
+      if (!firstHead) throw new Error('Add a fee head first, a structure needs something to charge.')
       await api.post('/api/v1/setup/fee-structures', {
         name: newName.trim(),
         ...(newClass ? { class_id: newClass } : {}),
@@ -203,7 +203,7 @@ export default function FeeStructureVersions() {
                     )}
                   </Td>
                   <Td className="text-muted-foreground">{s.class_name ?? 'All classes'}</Td>
-                  <Td className="text-muted-foreground">{s.academic_year ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{s.academic_year ?? '-'}</Td>
                   <Td>
                     {s.active_version ? (
                       <Badge tone="success">v{s.active_version}</Badge>
@@ -212,10 +212,10 @@ export default function FeeStructureVersions() {
                     )}
                   </Td>
                   <Td className="text-muted-foreground">
-                    {s.effective_from ? formatDate(s.effective_from) : '—'}
+                    {s.effective_from ? formatDate(s.effective_from) : '-'}
                   </Td>
                   <Td className="tabular-nums font-medium">
-                    {s.active_total_paise ? inr(s.active_total_paise) : '—'}
+                    {s.active_total_paise ? inr(s.active_total_paise) : '-'}
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">{s.invoices_raised}</Td>
                   <Td>
@@ -298,7 +298,7 @@ function VersionHistoryPanel({
     <Card>
       <CardHeader
         title={title}
-        description="Newest first. An activated version is frozen — revise it by opening a new one."
+        description="Newest first. An activated version is frozen, revise it by opening a new one."
       />
       {loading ? (
         <Skeleton />
@@ -437,7 +437,7 @@ function VersionCard({
             <tr key={it.id}>
               <Td className="font-medium">{it.fee_head}</Td>
               <Td className="text-muted-foreground">{it.instalment_no}</Td>
-              <Td className="text-muted-foreground">{it.due_on ? formatDate(it.due_on) : '—'}</Td>
+              <Td className="text-muted-foreground">{it.due_on ? formatDate(it.due_on) : '-'}</Td>
               <Td className="text-right tabular-nums">{inr(it.amount_paise)}</Td>
               <Td>
                 <Delta current={it.amount_paise} previous={it.previous_paise} />
@@ -569,7 +569,7 @@ function DraftLineEditor({
               />
             </Td>
             <Td className="tabular-nums text-muted-foreground">
-              {it.previous_paise !== undefined ? inr(it.previous_paise) : '—'}
+              {it.previous_paise !== undefined ? inr(it.previous_paise) : '-'}
             </Td>
           </tr>
         ))}
@@ -577,7 +577,7 @@ function DraftLineEditor({
       {unpriced.length > 0 && (
         <p className="text-[12.5px] text-destructive">
           {unpriced.length === 1
-            ? `${unpriced[0].fee_head} has no amount. Type one — 0 if the head genuinely costs nothing this year.`
+            ? `${unpriced[0].fee_head} has no amount. Type one · 0 if the head genuinely costs nothing this year.`
             : `${unpriced.length} lines have no amount: ${unpriced.map((i) => i.fee_head).join(', ')}.`}
         </p>
       )}

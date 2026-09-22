@@ -224,8 +224,8 @@ export default function BulkImport({
     return {
       value: `#${i}`,
       label: name
-        ? `${name} — column ${i + 1}${sample ? ` (${sample})` : ''}`
-        : `Column ${i + 1} — no heading${sample ? ` (${sample})` : ''}`,
+        ? `${name}, column ${i + 1}${sample ? ` (${sample})` : ''}`
+        : `Column ${i + 1}, no heading${sample ? ` (${sample})` : ''}`,
     }
   })
   const fieldList = fields.data?.fields ?? []
@@ -384,7 +384,7 @@ export default function BulkImport({
     if (/\.(xlsx|xls|numbers|ods)$/i.test(f.name)) {
       setError(
         'That is a spreadsheet, not a CSV. In Excel or Google Sheets choose ' +
-        'File → Download / Save As → CSV, and drop that — or use ' +
+        'File → Download / Save As → CSV, and drop that, or use ' +
         '"paste the cells instead" above, which takes the sheet as it is.',
       )
       return
@@ -494,7 +494,7 @@ export default function BulkImport({
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               rows={7}
-              placeholder={'Paste the cells straight from your spreadsheet.\nKeep the header row — the column names are how the fields are matched.'}
+              placeholder={'Paste the cells straight from your spreadsheet.\nKeep the header row, the column names are how the fields are matched.'}
               className="field w-full font-mono text-[12.5px]"
             />
             <div className="mt-2 flex gap-2">
@@ -532,7 +532,7 @@ export default function BulkImport({
               </button>
             </p>
             <p className="text-[12.5px] text-muted-foreground">
-              Exported from Excel or Google Sheets — or{' '}
+              Exported from Excel or Google Sheets, or{' '}
               <button
                 type="button"
                 onClick={() => setPasting(true)}
@@ -794,7 +794,7 @@ export default function BulkImport({
             {result.rejected > 0 && (
               <div className="mt-4 scroll-x">
                 <p className="mb-2 text-[12.5px] text-muted-foreground">
-                  Nothing has been added. Fix these rows in your spreadsheet and drop it again —
+                  Nothing has been added. Fix these rows in your spreadsheet and drop it again, 
                   the row numbers match the file.
                 </p>
                 <Table head={['Row', 'Problem', 'What the row said']} empty={false}>
@@ -806,7 +806,7 @@ export default function BulkImport({
                         {Object.entries(p.data ?? {})
                           .filter(([, v]) => v)
                           .map(([k, v]) => `${k}: ${v}`)
-                          .join(' · ') || '—'}
+                          .join(' · ') || '-'}
                       </Td>
                     </tr>
                   ))}
@@ -935,7 +935,7 @@ function History({
       }
       const rows = body.content ? parseCsv(body.content) : []
       if (rows.length < 2) {
-        setFailedRun('No copy of this file was kept — it was uploaded before uploads began being stored.')
+        setFailedRun('No copy of this file was kept, it was uploaded before uploads began being stored.')
         return
       }
       onOpen({ title: run.filename ?? 'This upload', rows })
@@ -975,7 +975,7 @@ function History({
         return
       }
       if (!body.content) {
-        setFailedRun('No copy of this file was kept — it was uploaded before uploads began being stored.')
+        setFailedRun('No copy of this file was kept, it was uploaded before uploads began being stored.')
         return
       }
       /* The byte order mark is deliberate. Excel opens a plain UTF-8 CSV in
@@ -1085,7 +1085,7 @@ function History({
                 <td className="py-1 pr-3 tabular-nums text-muted-foreground">
                   {r.created_at.replace('T', ' ').slice(0, 16)}
                 </td>
-                <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '—'}</td>
+                <td className="py-1 pr-3 text-muted-foreground">{r.imported_by ?? '-'}</td>
                 <td className="py-1 pr-3 tabular-nums">
                   {/* "ADDED" WAS TWO DIFFERENT NUMBERS WEARING ONE WORD.
 
@@ -1309,7 +1309,7 @@ export function IssueLogins({ entity }: { entity: string }) {
     <div className="mt-4 border-t pt-4">
       <p className="mb-1 text-[13px] font-medium">Give them logins</p>
       <p className="mb-4 text-[12.5px] text-muted-foreground">
-        Anybody who already has one keeps it — nothing here changes a password
+        Anybody who already has one keeps it, nothing here changes a password
         somebody is already using.
       </p>
       <div className="flex flex-wrap items-center gap-2">
@@ -1327,7 +1327,7 @@ export function IssueLogins({ entity }: { entity: string }) {
             size="sm"
             variant="ghost"
             disabled={busy}
-            title="Only if the list was lost — this stops the passwords already handed out"
+            title="Only if the list was lost, this stops the passwords already handed out"
             onClick={() => run(k, true)}
           >
             Reset all {k} passwords
@@ -1398,7 +1398,7 @@ export function IssueLogins({ entity }: { entity: string }) {
                   .map((r, i) => (
                   <tr key={i} className="border-t">
                     <td className="px-2 py-1">{r.name}</td>
-                    <td className="px-2 py-1 font-mono">{r.sign_in_as || '—'}</td>
+                    <td className="px-2 py-1 font-mono">{r.sign_in_as || '-'}</td>
                     <td className="px-2 py-1 font-mono">
                       {r.password ? (
                         r.password

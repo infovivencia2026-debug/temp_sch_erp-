@@ -128,7 +128,7 @@ export default function YearRollover() {
           </div>
           {targetYear?.is_current && (
             <p className="px-5 pb-4 text-[13px] text-destructive">
-              That is the current year — the one children are enrolled in today. Roll into the year that has not started.
+              That is the current year, the one children are enrolled in today. Roll into the year that has not started.
             </p>
           )}
           {years.data && yearList.length < 2 && (
@@ -179,7 +179,7 @@ export default function YearRollover() {
                   <tr key={it.key}>
                     <Td className="font-medium">{it.label}</Td>
                     <Td>{row.in_source}</Td>
-                    <Td>{row.shared || !row.requested ? '—' : row.copied}</Td>
+                    <Td>{row.shared || !row.requested ? '-' : row.copied}</Td>
                     <Td>
                       {row.shared ? <Badge tone="neutral">Shared across years</Badge>
                         : row.already_rolled ? <Badge tone="success">Already carried {row.rolled_at}</Badge>

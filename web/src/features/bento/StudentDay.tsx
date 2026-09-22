@@ -277,12 +277,12 @@ export function NowCell({
       ? t('bento.student_day.finished_note', { count: periods.length })
       : [
           current
-            ? t('bento.student_day.until', { period: current.period, ends: current.ends_at ?? '—' })
-            : t('bento.student_day.starts', { period: next!.period, at: next!.starts_at ?? '—' }),
+            ? t('bento.student_day.until', { period: current.period, ends: current.ends_at ?? '-' })
+            : t('bento.student_day.starts', { period: next!.period, at: next!.starts_at ?? '-' }),
           focus!.room ?? '',
           current
             ? next
-              ? t('bento.student_day.then', { subject: next.subject, at: next.starts_at ?? '—' })
+              ? t('bento.student_day.then', { subject: next.subject, at: next.starts_at ?? '-' })
               : t('bento.student_day.last_lesson')
             : t('bento.student_day.not_started'),
         ].filter(Boolean).join(' · ')
@@ -445,7 +445,7 @@ export function AttendanceCell({
       ground="attendance"
       title={t('bento.student_day.attendance')}
       glyph="◎"
-      value={s.total_days > 0 ? `${s.attendance_pct}%` : '—'}
+      value={s.total_days > 0 ? `${s.attendance_pct}%` : '-'}
       change={
         s.total_days > 0
           ? t('bento.student_day.attendance_note', { present: s.present_days, total: s.total_days })

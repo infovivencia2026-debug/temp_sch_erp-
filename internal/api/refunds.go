@@ -184,7 +184,7 @@ func (s *Server) processRefund(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Mode = strings.TrimSpace(strings.ToLower(req.Mode))
 	if req.Mode == "" {
-		httpx.BadRequest(w, r, "say how it was paid — cash, cheque, neft or upi")
+		httpx.BadRequest(w, r, "say how it was paid, cash, cheque, neft or upi")
 		return
 	}
 	on := time.Now()

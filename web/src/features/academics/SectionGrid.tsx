@@ -159,7 +159,7 @@ export default function SectionGrid() {
                                 </div>
                               </>
                             ) : (
-                              <span className="text-[11px] text-muted-foreground">—</span>
+                              <span className="text-[11px] text-muted-foreground">-</span>
                             )}
                           </td>
                         )

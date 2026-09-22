@@ -138,7 +138,7 @@ export default function PortalWallet() {
                     </Td>
                     <Td className="max-w-[32ch] text-muted-foreground">
                       <span className="block truncate" title={t.note ?? undefined}>
-                        {t.note || (t.reference_no ? `Ref ${t.reference_no}` : '—')}
+                        {t.note || (t.reference_no ? `Ref ${t.reference_no}` : '-')}
                       </span>
                     </Td>
                   </tr>

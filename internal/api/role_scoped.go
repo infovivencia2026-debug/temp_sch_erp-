@@ -524,8 +524,8 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 		        SELECT h.name, h.kind FROM hol h
 		         WHERE days.d BETWEEN h.on_date AND COALESCE(h.to_date, h.on_date)
 		         ORDER BY h.on_date LIMIT 1) hol ON TRUE
-		 -- A day that is nothing at all — no register entry, no holiday, no
-		 -- leave — is a day the school was not open to this child, and drawing
+		 -- A day that is nothing at all, no register entry, no holiday, no
+		 -- leave, is a day the school was not open to this child, and drawing
 		 -- 120 blank squares would bury the ones that mean something.
 		 WHERE sa.status IS NOT NULL OR hol.name IS NOT NULL
 		 ORDER BY days.d DESC`, []any{target},

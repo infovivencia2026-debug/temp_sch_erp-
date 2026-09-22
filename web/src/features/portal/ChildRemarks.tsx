@@ -159,7 +159,7 @@ export default function ChildRemarks() {
           {items.length === 0 ? (
             <EmptyState
               title="Nothing written yet"
-              body="When a teacher records something about your child — good or otherwise — it appears here and you are told about it the same day."
+              body="When a teacher records something about your child, good or otherwise, it appears here and you are told about it the same day."
             />
           ) : (
             <ul className="divide-y">

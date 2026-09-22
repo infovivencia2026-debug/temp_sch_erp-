@@ -72,7 +72,7 @@ export default function AuditLog() {
       <PageHead
         eyebrow="Access & Security"
         title="Audit trail"
-        description="Every change made through the system in the last 90 days — who made it, when, and what they sent. Passwords and tokens are never recorded."
+        description="Every change made through the system in the last 90 days, who made it, when, and what they sent. Passwords and tokens are never recorded."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -80,7 +80,7 @@ export default function AuditLog() {
           <Stat label="Areas touched" value={buckets.length} icon={ScrollText} />
           <Stat
             label="Busiest area"
-            value={buckets[0]?.entity_type ?? '—'}
+            value={buckets[0]?.entity_type ?? '-'}
             hint={buckets[0] ? `${buckets[0].count} changes` : undefined}
           />
         </CellGrid>

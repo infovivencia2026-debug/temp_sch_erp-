@@ -110,7 +110,7 @@ func TestTimetableReadDoesNotGrantTimetableWrites(t *testing.T) {
 		{"POST", "/timetable-cover/requests/" + uuid.NewString() + "/decide"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — read permission must not grant this",
+			t.Errorf("%s %s: got %d, want 403, read permission must not grant this",
 				tc.method, tc.path, got)
 		}
 	}
@@ -172,7 +172,7 @@ func TestEveryTimetableOpsWriteIsGated(t *testing.T) {
 		}
 		path := strings.ReplaceAll(route, "{id}", uuid.NewString())
 		if got := statusOf(t, h, method, path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a write reachable with only timetable.read",
+			t.Errorf("%s %s: got %d, want 403, a write reachable with only timetable.read",
 				method, path, got)
 		}
 		return nil

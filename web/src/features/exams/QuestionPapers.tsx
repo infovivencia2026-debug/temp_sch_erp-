@@ -304,7 +304,7 @@ export default function QuestionPapers() {
                             variant="secondary"
                             onClick={() => setViewFile({
                               file_id: p.file_id!,
-                              name: `${p.exam_name} — ${p.subject}`,
+                              name: `${p.exam_name} · ${p.subject}`,
                             })}
                           >
                             Open paper
@@ -365,7 +365,7 @@ export default function QuestionPapers() {
                 onClick={() => setShowAll(true)}
                 className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
               >
-                Show all {d.items.length} — including {d.items.length - 8} older
+                Show all {d.items.length}, including {d.items.length - 8} older
               </button>
             )}
             </>

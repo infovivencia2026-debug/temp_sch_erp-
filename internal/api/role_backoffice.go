@@ -648,7 +648,7 @@ func (s *Server) listLeaveRequests(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT lr.id::text,
 		       COALESCE(concat_ws(' ', e.first_name, e.last_name),
-		                concat_ws(' ', st.first_name, st.last_name), '—'),
+		                concat_ws(' ', st.first_name, st.last_name), '-'),
 		       lr.subject_kind, lt.name,
 		       to_char(lr.from_date,'YYYY-MM-DD'), to_char(lr.to_date,'YYYY-MM-DD'),
 		       lr.days::text, lr.reason, lr.status
@@ -733,7 +733,7 @@ func (s *Server) listLibraryLoans(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT l.id::text, t.title,
 		       COALESCE(concat_ws(' ', st.first_name, st.last_name),
-		                concat_ws(' ', e.first_name,  e.last_name), '—'),
+		                concat_ws(' ', e.first_name,  e.last_name), '-'),
 		       to_char(l.issued_on,'YYYY-MM-DD'), to_char(l.due_on,'YYYY-MM-DD'),
 		       to_char(l.returned_on,'YYYY-MM-DD'), l.fine_paise,
 		       l.returned_on IS NULL AND l.due_on < CURRENT_DATE

@@ -97,7 +97,7 @@ export default function Payments() {
           <Card>
             <CardHeader
               title="By mode"
-              description="Settled money only — a promise is not a collection"
+              description="Settled money only, a promise is not a collection"
             />
             <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
               {byMode.map((m) => (
@@ -141,7 +141,7 @@ export default function Payments() {
             >
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <Td className="font-mono text-[12px]">{p.receipt_no ?? '—'}</Td>
+                  <Td className="font-mono text-[12px]">{p.receipt_no ?? '-'}</Td>
                   <Td className="font-medium">{p.student_name}</Td>
                   <Td className="tabular-nums font-medium">{formatPaise(p.amount_paise)}</Td>
                   <Td className="capitalize text-muted-foreground">

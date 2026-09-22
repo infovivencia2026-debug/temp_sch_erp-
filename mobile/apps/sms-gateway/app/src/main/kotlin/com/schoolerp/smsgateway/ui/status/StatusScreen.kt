@@ -169,10 +169,10 @@ private fun connectionLine(status: GatewayStatus): String {
         "no contact yet"
     }
     return when (status.connection) {
-        ConnectionState.CONNECTED -> "Connected — $last"
-        ConnectionState.RETRYING -> "Retrying (${status.lastServerError ?: "no reason given"}) — $last"
+        ConnectionState.CONNECTED -> "Connected · $last"
+        ConnectionState.RETRYING -> "Retrying (${status.lastServerError ?: "no reason given"}) · $last"
         ConnectionState.UNAUTHORISED -> "The server rejected this phone's token. Pair again."
-        ConnectionState.NEVER_CONNECTED -> "Not connected — $last"
+        ConnectionState.NEVER_CONNECTED -> "Not connected · $last"
     }
 }
 

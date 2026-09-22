@@ -317,7 +317,7 @@ export function CommandSearch() {
                 if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)) }
                 if (e.key === 'Enter' && hits[cursor]) { e.preventDefault(); go(hits[cursor]) }
               }}
-              placeholder="Search screens, children and parents — a name, an admission number or a mobile"
+              placeholder="Search screens, children and parents, a name, an admission number or a mobile"
               className="h-12 w-full bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
             />
           </div>

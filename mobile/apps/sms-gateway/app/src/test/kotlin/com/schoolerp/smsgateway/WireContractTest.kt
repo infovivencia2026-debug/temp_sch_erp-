@@ -165,7 +165,7 @@ class WireContractTest {
 
     @Test
     fun `a body containing a comma and quotes survives the round trip`() {
-        val text = "Aarav's fee, Rs 12,500 — due \"today\""
+        val text = "Aarav's fee, Rs 12,500, due \"today\""
         val encoded = json.encodeToString(MessageBodySerializer, MessageBody(text))
         assertEquals(text, json.decodeFromString(MessageBodySerializer, encoded).expose())
     }

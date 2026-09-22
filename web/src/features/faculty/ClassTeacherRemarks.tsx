@@ -81,7 +81,7 @@ export default function ClassTeacherRemarks() {
                 placeholder={termItems.length ? 'Choose a term' : 'No terms set up yet'}
                 options={termItems.map((t) => ({
                   value: t.id,
-                  label: `${t.name} — ${t.academic_year}`,
+                  label: `${t.name} · ${t.academic_year}`,
                 }))}
               />
             </Field>

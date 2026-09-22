@@ -73,7 +73,7 @@ func TestImportTemplatesDescribeTheImporter(t *testing.T) {
 			continue
 		}
 		if len(spec.Sample) != 0 && len(spec.Sample) != len(spec.Columns) {
-			t.Errorf("%s: the example row has %d cells against %d columns — the template would not line up",
+			t.Errorf("%s: the example row has %d cells against %d columns, the template would not line up",
 				name, len(spec.Sample), len(spec.Columns))
 		}
 		cols := map[string]bool{}

@@ -106,7 +106,7 @@ func TestHRGrowthWritesNeedEmployeesWrite(t *testing.T) {
 		}
 		path := strings.ReplaceAll(route, "{id}", uuid.NewString())
 		if got := statusOf(t, reader, method, path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a write reachable with only hr.employees.read",
+			t.Errorf("%s %s: got %d, want 403, a write reachable with only hr.employees.read",
 				method, path, got)
 		}
 		return nil
@@ -571,7 +571,7 @@ func TestRosteringRefusesDoubleBookingAndLeaveButReportsTeaching(t *testing.T) {
 	// migration ran, the way getLeavePolicy does.
 	code, shifts := callJSON(t, h, "GET", "/hr-growth/roster/shifts", "")
 	if code != http.StatusOK || len(itemsOf(shifts)) == 0 {
-		t.Fatalf("GET shifts: %d, %d rows — the defaults were not seeded",
+		t.Fatalf("GET shifts: %d, %d rows, the defaults were not seeded",
 			code, len(itemsOf(shifts)))
 	}
 	var gate, assembly string

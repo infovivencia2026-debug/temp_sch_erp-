@@ -59,7 +59,7 @@ describe('hook order', () => {
         if (EARLY_RETURN.test(line) && returnedAt === -1) returnedAt = i
         else if (returnedAt !== -1 && HOOK.test(line)) {
           offenders.push(
-            `${file.replace(SRC, '')}:${i + 1} — ${line.trim().slice(0, 60)} ` +
+            `${file.replace(SRC, '')}:${i + 1} · ${line.trim().slice(0, 60)} ` +
               `(after the early return on line ${returnedAt + 1})`,
           )
         }

@@ -67,8 +67,8 @@ export default function Department() {
                 <tr key={f.user_id}>
                   <Td className="font-mono text-[12px]">{f.employee_code}</Td>
                   <Td className="font-medium">{f.full_name}</Td>
-                  <Td className="text-muted-foreground">{f.department ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{f.designation ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{f.department ?? '-'}</Td>
+                  <Td className="text-muted-foreground">{f.designation ?? '-'}</Td>
                   <Td>{f.weekly_periods}</Td>
                   <Td>
                     <Badge tone={f.weekly_periods > 30 ? 'danger' : f.weekly_periods > 24 ? 'warning' : 'success'}>

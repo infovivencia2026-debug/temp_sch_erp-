@@ -51,7 +51,7 @@ func TestASecondImportOfTheSameFileChangesNothing(t *testing.T) {
 			LocalUpdated: ptr(at(2026, time.June, 1))}
 		got, why := DecideImport(row, link, "flag")
 		if got != ActionSkip {
-			t.Fatalf("second import of %s: got %s (%s), want %s — this is a duplicate lead",
+			t.Fatalf("second import of %s: got %s (%s), want %s, this is a duplicate lead",
 				row.ExternalID, got, why, ActionSkip)
 		}
 	}

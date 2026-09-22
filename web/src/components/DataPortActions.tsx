@@ -89,7 +89,7 @@ export function ImportButton({
             hint={
               hint ??
               'Drop a CSV, or paste the cells. Nothing is written until the ' +
-                'check has passed — the first upload is always a dry run.'
+                'check has passed, the first upload is always a dry run.'
             }
             subjectMapping={subjectMapping}
             params={params}

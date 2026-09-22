@@ -394,9 +394,9 @@ export default function Defaulters() {
                   </Td>
                   <Td className="whitespace-nowrap font-mono text-[12px]">{d.admission_no}</Td>
                   <Td className="font-medium">{d.full_name}</Td>
-                  <Td>{d.class_name ? `${d.class_name}-${d.section_name}` : '—'}</Td>
+                  <Td>{d.class_name ? `${d.class_name}-${d.section_name}` : '-'}</Td>
                   <Td>
-                    {d.guardian_name ?? '—'}
+                    {d.guardian_name ?? '-'}
                     {d.phone && (
                       <a href={`tel:${d.phone}`} className="ml-2 inline-flex items-center gap-1 text-[12px] text-primary">
                         <Phone className="h-3 w-3" />{d.phone}

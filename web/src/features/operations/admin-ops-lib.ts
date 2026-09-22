@@ -8,7 +8,7 @@ export const adminOpsBase = '/api/v1/admin-ops'
 
 /** Money in, rupees out, Indian digit grouping. Paise are never dropped. */
 export function inr(paise: number | null | undefined): string {
-  if (paise === null || paise === undefined) return '—'
+  if (paise === null || paise === undefined) return '-'
   return (paise / 100).toLocaleString('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -24,7 +24,7 @@ export function toPaise(v: string): number {
 }
 
 export function kg(v: number | null | undefined): string {
-  if (v === null || v === undefined) return '—'
+  if (v === null || v === undefined) return '-'
   return `${v.toLocaleString('en-IN', { maximumFractionDigits: 3 })} kg`
 }
 

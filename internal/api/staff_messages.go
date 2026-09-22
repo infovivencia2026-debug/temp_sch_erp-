@@ -82,7 +82,7 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		  /* Everybody on the staff, not everybody on the payroll.
 
 		     Built from employees, so a principal with no employees row was
-		     absent from the address book of every teacher in the school — the
+		     absent from the address book of every teacher in the school, the
 		     account that runs a school is created with the school, before
 		     there is a payroll to put anybody on. Searching "ram" returned
 		     "Nobody matches", about the person who runs the place, and any
@@ -105,7 +105,7 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		    Unread, then whoever was spoken to most recently, then everybody
 		    else alphabetically. Sorting the whole list by name put a thread
 		    you had just written in among ten colleagues you had never
-		    written to, distinguishable only by a line of preview text — so
+		    written to, distinguishable only by a line of preview text, so
 		    the screen read as though nothing had been sent. A message you
 		    sent is history, and history belongs at the top. */
 		 ORDER BY 4 DESC, 6 DESC NULLS LAST, u.full_name`,

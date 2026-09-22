@@ -161,7 +161,7 @@ export default function HallOfFame() {
             <Table head={['Year', 'What', 'Who', 'Category', 'Detail', ...(keeper ? [''] : [])]}>
               {items.map((e) => (
                 <tr key={e.id}>
-                  <Td>{e.year ?? '—'}</Td>
+                  <Td>{e.year ?? '-'}</Td>
                   <Td className="font-medium">{e.title}</Td>
                   <Td>{e.holder}</Td>
                   <Td>{label(e.category)}</Td>

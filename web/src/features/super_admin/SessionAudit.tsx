@@ -30,7 +30,7 @@ function when(iso: string) {
 
 /** Collapses a UA string to something a human can scan in a table. */
 function agent(ua?: string) {
-  if (!ua) return '—'
+  if (!ua) return '-'
   const browser = /Firefox\/[\d.]+/.test(ua)
     ? 'Firefox'
     : /Edg\//.test(ua)
@@ -117,7 +117,7 @@ export default function SessionAudit() {
               {rows.map((s) => (
                 <tr key={s.id}>
                   <Td className="font-medium">{s.full_name}</Td>
-                  <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
+                  <Td className="font-mono text-[12px]">{s.ip ?? '-'}</Td>
                   <Td className="text-muted-foreground">{agent(s.user_agent)}</Td>
                   <Td className="text-muted-foreground">{when(s.created_at)}</Td>
                   <Td className="text-muted-foreground">{when(s.last_seen_at)}</Td>

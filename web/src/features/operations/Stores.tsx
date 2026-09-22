@@ -32,10 +32,10 @@ interface StockItem {
 }
 
 const KINDS = [
-  { value: 'receipt', label: 'Receipt — stock came in' },
-  { value: 'issue', label: 'Issue — stock went out' },
-  { value: 'return', label: 'Return — came back' },
-  { value: 'adjustment', label: 'Adjustment — correcting a count' },
+  { value: 'receipt', label: 'Receipt, stock came in' },
+  { value: 'issue', label: 'Issue, stock went out' },
+  { value: 'return', label: 'Return, came back' },
+  { value: 'adjustment', label: 'Adjustment, correcting a count' },
 ]
 
 export default function Stores() {
@@ -98,7 +98,7 @@ export default function Stores() {
         {moving && (
           <Card>
             <CardHeader
-              title={`Record a movement — ${moving.name}`}
+              title={`Record a movement · ${moving.name}`}
               description={`On hand ${moving.on_hand} ${moving.unit}. The balance is recalculated from the movement, not typed.`}
               action={<Button variant="ghost" onClick={() => setMoving(null)}>Cancel</Button>}
             />
@@ -148,7 +148,7 @@ export default function Stores() {
                   <tr key={i.id}>
                     <Td className="font-medium">{i.name}</Td>
                     <Td className="font-mono text-[12px] text-muted-foreground">{i.code}</Td>
-                    <Td className="text-muted-foreground">{i.category ?? '—'}</Td>
+                    <Td className="text-muted-foreground">{i.category ?? '-'}</Td>
                     <Td>
                       <span className={cn('tabular-nums', i.below_reorder && 'font-medium text-destructive')}>
                         {i.on_hand} {i.unit}

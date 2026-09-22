@@ -118,7 +118,7 @@ export default function WeekGrid({
                           )}
                         </>
                       ) : (
-                        <span className="text-muted-foreground/50">—</span>
+                        <span className="text-muted-foreground/50">-</span>
                       )}
                     </td>
                   )

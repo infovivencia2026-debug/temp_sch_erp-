@@ -339,7 +339,7 @@ func main() {
 				                           description, amount_paise, discount_paise)
 				VALUES ($1,$2,$3,$4,$5,0)`,
 				instID, invID, tran,
-				fmt.Sprintf("%s — instalment %d", slab.label, k+1), amt); err != nil {
+				fmt.Sprintf("%s, instalment %d", slab.label, k+1), amt); err != nil {
 				panic(err)
 			}
 			invByTerm[k+1] = invID

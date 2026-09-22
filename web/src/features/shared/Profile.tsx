@@ -177,8 +177,8 @@ export default function ProfileView() {
         ) : (
         <dl className="divide-y text-sm">
           <Row label="Name" value={data?.full_name} />
-          <Row label="Email" value={data?.email ?? '—'} />
-          <Row label="Phone" value={data?.phone ?? '—'} />
+          <Row label="Email" value={data?.email ?? '-'} />
+          <Row label="Phone" value={data?.phone ?? '-'} />
           {data?.enrolment && (
             <>
               <Row label="Admission no." value={data.enrolment.admission_no} />
@@ -197,7 +197,7 @@ export default function ProfileView() {
           )}
           <Row label="Status" value={<Badge tone="success">{data?.status}</Badge>} />
           <Row label="Two-factor" value={data?.mfa_enabled ? 'Enabled' : 'Not set up'} />
-          <Row label="Roles" value={session.user?.roles.join(', ') || '—'} />
+          <Row label="Roles" value={session.user?.roles.join(', ') || '-'} />
           <Row label="Permissions" value={`${session.permissions.length} granted`} />
         </dl>
         )}

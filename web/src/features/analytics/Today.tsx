@@ -67,7 +67,7 @@ export default function Today() {
       <PageHead
         eyebrow="Home"
         title="Today"
-        description={`${data.weekday}, ${data.date} — what needs dealing with before the day ends.`}
+        description={`${data.weekday}, ${data.date}, what needs dealing with before the day ends.`}
         actions={
           <div className="flex gap-2">
             <CsvButton href={URL} label="Export day list" />
@@ -86,7 +86,7 @@ export default function Today() {
           />
           <Stat
             label="Collected today"
-            value={data.money ? formatPaise(data.money.collected_today_paise) : '—'}
+            value={data.money ? formatPaise(data.money.collected_today_paise) : '-'}
             hint={data.money ? `${data.money.receipts_today} receipts` : 'Needs finance access'}
             period="Today"
           />
@@ -132,7 +132,7 @@ export default function Today() {
               {data.staff_absent.map((s) => (
                 <tr key={s.user_id}>
                   <Td className="font-medium">{s.full_name}</Td>
-                  <Td className="text-muted-foreground">{s.department ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{s.department ?? '-'}</Td>
                   <Td>
                     <Badge tone={s.status === 'leave' ? 'info' : 'warning'}>{s.status}</Badge>
                   </Td>
@@ -199,10 +199,10 @@ export default function Today() {
               <Table head={['Time', 'Visitor', 'Seeing', 'Purpose']}>
                 {data.visitors_expected.map((v, i) => (
                   <tr key={`${v.at}-${v.title}-${i}`}>
-                    <Td className="font-mono text-[12px]">{v.at || '—'}</Td>
+                    <Td className="font-mono text-[12px]">{v.at || '-'}</Td>
                     <Td className="font-medium">{v.title}</Td>
-                    <Td className="text-muted-foreground">{v.with || '—'}</Td>
-                    <Td className="text-muted-foreground">{v.kind || '—'}</Td>
+                    <Td className="text-muted-foreground">{v.with || '-'}</Td>
+                    <Td className="text-muted-foreground">{v.kind || '-'}</Td>
                   </tr>
                 ))}
               </Table>
@@ -217,9 +217,9 @@ export default function Today() {
               <Table head={['Time', 'What', 'Where', 'Kind']}>
                 {data.events.map((e, i) => (
                   <tr key={`${e.title}-${i}`}>
-                    <Td className="font-mono text-[12px]">{e.at || '—'}</Td>
+                    <Td className="font-mono text-[12px]">{e.at || '-'}</Td>
                     <Td className="font-medium">{e.title}</Td>
-                    <Td className="text-muted-foreground">{e.with || '—'}</Td>
+                    <Td className="text-muted-foreground">{e.with || '-'}</Td>
                     <Td>
                       <Badge tone="info">{e.kind || 'event'}</Badge>
                     </Td>

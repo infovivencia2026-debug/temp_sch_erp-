@@ -277,7 +277,7 @@ func (s *Server) feeReminderSubjects(ctx context.Context, tx pgx.Tx, inst uuid.U
 		   /* Before the deadline as well as after it.
 
 		      This read due_on < CURRENT_DATE, so a plan could only ever
-		      chase a family who was already late — and the reminder a school
+		      chase a family who was already late, and the reminder a school
 		      actually wants is the one that arrives while the money can still
 		      be paid on time. days_overdue simply goes negative for those, and
 		      a plan whose first chase is -7 means "a week before".

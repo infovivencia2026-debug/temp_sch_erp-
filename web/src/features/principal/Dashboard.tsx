@@ -91,7 +91,7 @@ export default function PrincipalDashboard() {
             * when the range holds no register at all. */}
           <Stat
             label="Attendance today"
-            value={k.attendance_marked_today > 0 ? `${k.attendance_today_pct}%` : '—'}
+            value={k.attendance_marked_today > 0 ? `${k.attendance_today_pct}%` : '-'}
             icon={ClipboardCheck}
             hint={
               k.attendance_marked_today > 0

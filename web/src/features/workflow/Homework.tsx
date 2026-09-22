@@ -335,7 +335,7 @@ export default function Homework() {
                           )}
                         >
                           {h.overdue
-                            ? `Overdue — was due ${formatDate(h.due_on)}`
+                            ? `Overdue, was due ${formatDate(h.due_on)}`
                             : `${dueIn(h.due_on)} (${formatDate(h.due_on)})`}
                         </span>
                       ) : (
@@ -517,7 +517,7 @@ export default function Homework() {
                 onClick={() => setShowAll(true)}
                 className="w-full border-t px-5 py-3 text-left text-[13px] font-medium text-primary hover:bg-muted/40"
               >
-                Show all {items.length} — including {items.length - 6} older
+                Show all {items.length}, including {items.length - 6} older
               </button>
             )}
             </>
@@ -1064,7 +1064,7 @@ function Register({ homeworkId }: { homeworkId: string }) {
       <Table wide head={['Roll', 'Name', 'Status', 'What they turned in', 'When']}>
         {rows.map((x) => (
           <tr key={x.student_id} className="border-t">
-            <Td className="tabular-nums">{x.roll_no ?? '—'}</Td>
+            <Td className="tabular-nums">{x.roll_no ?? '-'}</Td>
             <Td>{x.full_name}</Td>
             <Td>
               {x.status === 'pending' ? (
@@ -1108,7 +1108,7 @@ function Register({ homeworkId }: { homeworkId: string }) {
               )}
             </Td>
             <Td className="text-muted-foreground">
-              {x.submitted_at ? formatDate(x.submitted_at.slice(0, 10)) : '—'}
+              {x.submitted_at ? formatDate(x.submitted_at.slice(0, 10)) : '-'}
             </Td>
           </tr>
         ))}

@@ -131,10 +131,10 @@ export default function MarkModeration() {
                     </Td>
                     <Td>
                       {overMax > 0
-                        ? '—'
+                        ? '-'
                         : r.average_pct
                           ? `${r.average_pct}%`
-                          : '—'}
+                          : '-'}
                     </Td>
                     <Td>
                       {overMax > 0 ? (
@@ -146,7 +146,7 @@ export default function MarkModeration() {
                       ) : r.lowest_pct && r.highest_pct ? (
                         <span className="num">{r.lowest_pct}–{r.highest_pct}%</span>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </Td>
                     <Td>

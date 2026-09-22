@@ -105,7 +105,7 @@ export default function Integrations() {
                   {attention.map((e) => (
                     <li key={e.key} className="text-[13px] text-secondary-foreground">
                       <span className="font-medium text-foreground">{e.label}</span>
-                      {' — '}
+                      {' · '}
                       {e.last_error || e.health_note || HEALTH_LABEL[e.health]}
                     </li>
                   ))}
@@ -162,7 +162,7 @@ export default function Integrations() {
                 This index stores nothing and decides nothing. It asks each connector
                 what it reports about itself and lays the answers side by side. Where a
                 connector keeps no record of success or failure, it says so rather than
-                being counted as healthy — and where one has no live API at all, the
+                being counted as healthy, and where one has no live API at all, the
                 note on its row says which manual route does work.
               </p>
             </Card>
@@ -253,7 +253,7 @@ function ConnectorRow({ entry: e }: { entry: IntegrationEntry }) {
           <span className="block text-[12px] text-secondary-foreground">{e.live_note}</span>
         )}
         {!e.last_error && !e.reason && !e.health_note && !e.live_note && (
-          <span className="text-secondary-foreground">—</span>
+          <span className="text-secondary-foreground">-</span>
         )}
       </Td>
 
@@ -263,7 +263,7 @@ function ConnectorRow({ entry: e }: { entry: IntegrationEntry }) {
             {e.fix_label}
           </Link>
         ) : (
-          <span className="text-secondary-foreground">—</span>
+          <span className="text-secondary-foreground">-</span>
         )}
       </Td>
     </tr>

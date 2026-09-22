@@ -473,7 +473,7 @@ function teacherRow({
         <div className="font-medium">{t.full_name}</div>
         <div className="text-[12px] text-muted-foreground">{t.employee_code}</div>
       </Td>
-      <Td className="text-[13px] text-muted-foreground">{t.department || '—'}</Td>
+      <Td className="text-[13px] text-muted-foreground">{t.department || '-'}</Td>
       <Td className={cn('tabular-nums', over && 'font-medium text-destructive')}>
         {t.demand_periods}
       </Td>
@@ -497,7 +497,7 @@ function teacherRow({
       </Td>
       <Td className="text-[13px] text-muted-foreground">
         {t.unavailable.length === 0
-          ? '—'
+          ? '-'
           : t.unavailable
               .map((u) => (u.period_id ? `${WEEKDAYS[u.weekday - 1]} one period` : WEEKDAYS[u.weekday - 1]))
               .join(', ')}
@@ -586,7 +586,7 @@ function DraftReview({
     <>
       <Card>
         <CardHeader
-          title={`${d.name} — what it could not do`}
+          title={`${d.name}, what it could not do`}
           description={`${d.periods_placed} of ${d.periods_required} periods placed.`}
           action={
             d.status === 'draft' && mayWrite ? (

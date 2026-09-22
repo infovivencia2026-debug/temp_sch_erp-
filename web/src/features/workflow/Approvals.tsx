@@ -68,7 +68,7 @@ export default function Approvals() {
       api.post(url, { decision: approve ? 'approved' : 'rejected', note: reason }),
     onSuccess: (_res, v) => {
       qc.invalidateQueries({ queryKey: ['approvals'] })
-      toast.ok(v.approve ? 'Approved' : 'Rejected — the requester is told')
+      toast.ok(v.approve ? 'Approved' : 'Rejected, the requester is told')
     },
   })
 
@@ -123,7 +123,7 @@ export default function Approvals() {
             description={
               d.total === 0
                 ? 'Every request has been decided.'
-                : 'Oldest first — the one at the top has waited longest.'
+                : 'Oldest first, the one at the top has waited longest.'
             }
             action={
               <div className="flex gap-1.5">

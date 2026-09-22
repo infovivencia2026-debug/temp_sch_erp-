@@ -68,7 +68,7 @@ export default function Payroll() {
               : `Published. ${r.notified} staff notified` +
                 (r.emailed ? `, ${r.emailed} emailed` : '') +
                 (r.email_failed
-                  ? `. ${r.email_failed} could not be emailed — check the mail provider in Settings; they were still notified in the app.`
+                  ? `. ${r.email_failed} could not be emailed, check the mail provider in Settings; they were still notified in the app.`
                   : '.'),
       )
       if (to === 'published') setPublishedNow(`${month}-${year}`)
@@ -164,8 +164,8 @@ export default function Payroll() {
               description={
                 `${unmarked.staff_with_no_marks} staff have no attendance at all, and ` +
                 `${unmarked.unmarked_days} working days are unaccounted for. Their days will be ` +
-                'paid in full, and loss of pay will deduct nothing. That may be exactly right — ' +
-                'a school that keeps its register on paper still pays people on the 30th — but ' +
+                'paid in full, and loss of pay will deduct nothing. That may be exactly right · ' +
+                'a school that keeps its register on paper still pays people on the 30th, but ' +
                 'it should be a decision, not an accident.'
               }
             />
@@ -193,8 +193,8 @@ export default function Payroll() {
                   : status === 'paid'
                     ? 'Paid'
                   : status === 'locked'
-                    ? 'Locked — ready for the bank'
-                    : 'Draft — nobody has approved these figures yet'
+                    ? 'Locked, ready for the bank'
+                    : 'Draft, nobody has approved these figures yet'
               }
               description={
                 published
@@ -256,14 +256,14 @@ export default function Payroll() {
 
         <Card>
           <CardHeader
-            title={`Payslips — ${MONTHS[Number(month) - 1]} ${year}`}
+            title={`Payslips · ${MONTHS[Number(month) - 1]} ${year}`}
             description={
               /* Why this count can differ from the staff headcount.
                  A payslip records money that moved, so it outlives the person
                  leaving. HR said 11 and this said 12, both correct, and
                  nothing on either screen explained the gap. */
               left
-                ? `Breakup is frozen at run time, so an issued payslip keeps its numbers. ${rows.length} paid this month, including ${left} who ${left === 1 ? 'has' : 'have'} since left — the current staff count will be lower.`
+                ? `Breakup is frozen at run time, so an issued payslip keeps its numbers. ${rows.length} paid this month, including ${left} who ${left === 1 ? 'has' : 'have'} since left, the current staff count will be lower.`
                 : 'Breakup is frozen at run time so an issued payslip keeps its numbers'
             }
           />
@@ -291,11 +291,11 @@ export default function Payroll() {
                   <Td className="num">
                     {Number(p.lop_days) > 0
                       ? <Badge tone="warning">{p.lop_days}</Badge>
-                      : '—'}
+                      : '-'}
                   </Td>
                   {components.map((c) => (
                     <Td key={c} className={cn('num', (p.breakup?.[c] ?? 0) < 0 && 'text-destructive')}>
-                      {p.breakup?.[c] != null ? formatPaise(Math.abs(p.breakup[c])) : '—'}
+                      {p.breakup?.[c] != null ? formatPaise(Math.abs(p.breakup[c])) : '-'}
                     </Td>
                   ))}
                   <Td className="num">{formatPaise(p.gross_paise)}</Td>

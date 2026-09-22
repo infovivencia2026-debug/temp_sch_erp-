@@ -66,7 +66,7 @@ func TestOpenWhileLockedIsMinimal(t *testing.T) {
 	}
 	for _, p := range openWhileLocked {
 		if !want[p] {
-			t.Errorf("%q was added to the free list — is it really free?", p)
+			t.Errorf("%q was added to the free list, is it really free?", p)
 		}
 	}
 	// The endpoints that must never be free, because they are the product.
