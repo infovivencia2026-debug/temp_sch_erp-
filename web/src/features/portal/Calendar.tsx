@@ -4,12 +4,12 @@ import { CalendarDays, GraduationCap, PartyPopper, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import { MonthGrid } from '../shared/MonthGrid'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Field,
+  PageHead, PageBody, Card, CellGrid, Stat, Select, Field,
   EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
-import { formatDate } from '@/lib/utils'
+import { formatDate, WEEKDAYS } from '@/lib/utils'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
 
@@ -47,16 +47,6 @@ interface Entry {
   venue?: string
   ref_id?: string
   student_name?: string
-}
-
-const TONE: Record<string, 'danger' | 'warning' | 'success' | 'info' | 'primary' | 'neutral'> = {
-  exam: 'danger',
-  ptm: 'warning',
-  ptm_booking: 'primary',
-  holiday: 'success',
-  vacation: 'success',
-  term: 'neutral',
-  working_day: 'neutral',
 }
 
 const LABEL: Record<string, MessageKey> = {
@@ -228,38 +218,98 @@ export default function Calendar() {
             />
           </Card>
         ) : (
-          months.map((m) => (
-            <Card key={m.name}>
-              <CardHeader
-                title={m.name}
-                description={t('portal.calendar.entry_count', { count: m.rows.length })}
-              />
-              <ul className="divide-y">
-                {m.rows.map((e, i) => (
-                  <li key={`${e.ref_id ?? e.title}-${i}`} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-3">
-                    <span className="w-32 shrink-0 text-[13px] text-muted-foreground">
-                      {formatDate(e.date)}
-                      {e.end_date && e.end_date !== e.date && ` – ${formatDate(e.end_date)}`}
-                    </span>
-                    <span className="min-w-0 flex-1 text-[14px]">
-                      {e.title}
-                      {e.student_name && (
-                        <span className="text-muted-foreground"> · {e.student_name}</span>
-                      )}
-                      {(e.starts_at || e.venue || e.detail) && (
-                        <span className="block text-[13px] text-muted-foreground">
-                          {[e.starts_at, e.venue, e.detail].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
-                    </span>
-                    <Badge tone={TONE[e.kind] ?? 'info'}>{label(e.kind, t)}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))
+          months.map((m) => <MonthSchedule key={m.name} name={m.name} rows={m.rows} t={t} />)
         )}
       </PageBody>
     </>
+  )
+}
+
+/* One month, laid out like a printed schedule.
+
+   Black on white and nothing else: a rule under the month, the date large
+   down the left with its weekday, and each entry as a line with what it is
+   set in small capitals on the right. Colour was carrying the kind before and
+   a parent still read the word, so the word does the work alone — which also
+   means the page is the same in dark mode, on a cheap phone, and printed.
+
+   A span of days — an examination week, a vacation — is one solid strip with
+   its dates, placed where it starts, rather than the same line repeated on
+   every day it covers. */
+function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: ReturnType<typeof useT> }) {
+  const spans = rows.filter((e) => e.end_date && e.end_date !== e.date)
+  const singles = rows.filter((e) => !e.end_date || e.end_date === e.date)
+
+  const days: { date: string; rows: Entry[] }[] = []
+  for (const e of singles) {
+    const last = days[days.length - 1]
+    if (last && last.date === e.date) last.rows.push(e)
+    else days.push({ date: e.date, rows: [e] })
+  }
+
+  // Strips sit before the first day at or after their start date.
+  const blocks: ({ strip: Entry } | { day: { date: string; rows: Entry[] } })[] = []
+  let si = 0
+  for (const d of days) {
+    while (si < spans.length && spans[si].date <= d.date) blocks.push({ strip: spans[si++] })
+    blocks.push({ day: d })
+  }
+  while (si < spans.length) blocks.push({ strip: spans[si++] })
+
+  const weekday = (iso: string) => {
+    const d = new Date(iso + 'T00:00:00')
+    return WEEKDAYS[(d.getDay() + 6) % 7]
+  }
+
+  return (
+    <section className="px-1">
+      <header className="mb-4 flex items-baseline justify-between border-b-2 border-foreground pb-3">
+        <h2 className="text-[22px] font-black tracking-[-0.02em]">{name}</h2>
+        <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
+          {t('portal.calendar.entry_count', { count: rows.length })}
+        </span>
+      </header>
+      {blocks.map((b, i) =>
+        'strip' in b ? (
+          <div
+            key={`s${i}`}
+            className="my-4 flex flex-wrap items-center justify-between gap-2 bg-foreground px-3.5 py-3 text-background"
+          >
+            <span className="text-[13px] font-extrabold uppercase tracking-[0.04em]">
+              {b.strip.title}
+              {b.strip.student_name && <span className="font-medium normal-case tracking-normal"> · {b.strip.student_name}</span>}
+            </span>
+            <span className="text-[12px] font-medium">
+              {formatDate(b.strip.date)} – {formatDate(b.strip.end_date!)}
+            </span>
+          </div>
+        ) : (
+          <div key={b.day.date} className="flex border-b border-border py-4">
+            <div className="w-[64px] shrink-0">
+              <div className="text-[20px] font-black leading-none">{b.day.date.slice(8, 10)}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase">{weekday(b.day.date)}</div>
+            </div>
+            <ul className="flex min-w-0 flex-1 flex-col gap-3">
+              {b.day.rows.map((e, j) => (
+                <li key={`${e.ref_id ?? e.title}-${j}`} className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-[15px] font-semibold tracking-[-0.01em]">
+                    {e.title}
+                    {e.student_name && <span className="font-normal text-muted-foreground"> · {e.student_name}</span>}
+                    {(e.starts_at || e.venue || e.detail) && (
+                      <span className="block text-[12px] font-normal text-muted-foreground">
+                        {[e.starts_at, e.venue, e.detail].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                    {label(e.kind, t)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+      )}
+    </section>
   )
 }
