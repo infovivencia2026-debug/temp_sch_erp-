@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Period, type TimetableEntry } from '@/lib/api'
 import { PageHead, PageBody, Card, Select, ErrorState, EmptyState } from '@/components/ui'
-import WeekGrid from '@/components/WeekGrid'
 import { cn, WEEKDAYS } from '@/lib/utils'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
@@ -16,8 +15,8 @@ import { useChildren, childOptions, readyFor } from './use-children'
  * On a phone — which is where a parent reads this — a six-by-nine grid is a
  * squint. So the phone gets one day at a time: a strip of day chips, and the
  * chosen day as a vertical timeline, period by period, times down the left,
- * the period that is on right now lit up. Today is selected on open. A wide
- * screen keeps the same grid the class teacher reads.
+ * the period that is on right now lit up. Today is selected on open. The
+ * same view on every screen: a parent on a laptop wants the same answer.
  *
  * Asked by section, not by "me": the timetable endpoint's family scope covers
  * every child's section at once, which for a parent of two is two weeks
@@ -86,23 +85,6 @@ export default function ChildTimetable() {
               periods={periods.data?.items ?? []}
               entries={entries.data?.items ?? []}
             />
-            <Card className="hidden lg:block">
-              <div className="border-b px-4 py-2.5 text-[13px] text-muted-foreground">
-                {child?.full_name} · {child?.class_name} {child?.section_name}
-              </div>
-              <div className="p-4">
-                <WeekGrid
-                  entries={(entries.data?.items ?? []).map((e) => ({
-                    weekday: e.weekday,
-                    period_id: e.period_id,
-                    title: e.subject_name || e.subject_code,
-                    detail: (e.teacher_name ?? '') + (e.room ? `${e.teacher_name ? ' · ' : ''}${e.room}` : ''),
-                  }))}
-                  periods={periods.data?.items ?? []}
-                  empty="Nothing timetabled for this class yet."
-                />
-              </div>
-            </Card>
           </>
         )}
       </PageBody>
@@ -173,7 +155,7 @@ function DayTimeline({
   const rows = ordered.filter((p) => p.is_break || byPeriod.has(p.id))
 
   return (
-    <Card className="lg:hidden">
+    <Card className="mx-auto w-full max-w-[640px]">
       {/* Sticky head: who, and the day strip. Stays put while the day scrolls. */}
       <div className="sticky top-0 z-10 border-b bg-card px-4 pb-2.5 pt-3">
         <div className="mb-3 flex items-center justify-between gap-3">
