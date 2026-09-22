@@ -277,7 +277,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		_, err := tx.Exec(r.Context(), `
-			UPDATE sessions SET revoked_at = now()
+			UPDATE sessions SET revoked_at = now(), ended_reason = 'password_changed'
 			 WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL`,
 			id.UserID, id.SessionID)
 		return err

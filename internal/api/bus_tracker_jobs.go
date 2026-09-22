@@ -369,7 +369,11 @@ func (s *Server) RegisterBusTrackerJobs(h *queue.Handlers) error {
 	if err := h.Handle(TypeTransportTripTimeout, 5*time.Minute, s.handleTripTimeoutTask); err != nil {
 		return err
 	}
-	return h.Handle(TypeTransportPositionRetention, 5*time.Minute, s.handlePositionRetentionTask)
+	if err := h.Handle(TypeTransportPositionRetention, 5*time.Minute, s.handlePositionRetentionTask); err != nil {
+		return err
+	}
+	// Login-security housekeeping rides the same registration: one splice.
+	return h.Handle(TypeLoginSecurityRetention, 5*time.Minute, s.handleSecurityRetention)
 }
 
 /*
@@ -382,7 +386,7 @@ and the bus-tracker sweeps together.
 	joins them.
 */
 func (s *Server) CronSchedules() []queue.Schedule {
-	return append(queue.Schedules(), busTrackerCronEntries()...)
+	return append(append(queue.Schedules(), busTrackerCronEntries()...), securityCronEntries()...)
 }
 
 /*

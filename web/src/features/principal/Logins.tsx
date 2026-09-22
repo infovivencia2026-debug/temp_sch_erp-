@@ -10,6 +10,7 @@ import {
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
+import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 
@@ -76,6 +77,9 @@ interface SessionRow {
   last_seen_at: string
   expires_at: string
   revoked: boolean
+  via?: string
+  ended_reason?: string
+  device?: string
 }
 
 const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> = {
@@ -222,6 +226,9 @@ export default function Logins() {
             </div>
           </Card>
         )}
+
+        <OnlineNow />
+        <SignInAttempts />
 
         <DayCodeCard />
 
@@ -372,6 +379,7 @@ export default function Logins() {
             </div>
           )}
         </Card>
+        <SessionRules />
       </PageBody>
     </>
   )
@@ -426,6 +434,8 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
           </div>
         }
       />
+      <SignInStrip userId={user.id} />
+      <AdminMFAOff user={user} />
       {isLoading ? (
         <SkeletonTable columns={6} />
       ) : error ? (
@@ -439,11 +449,22 @@ function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
           {rows.map((s) => (
             <Fragment key={s.id}>
               <tr>
-                <Td className="font-medium">{agent(s.user_agent)}</Td>
+                <Td className="font-medium">
+                  {s.device ?? agent(s.user_agent)}
+                  {s.via && s.via !== 'password' && (
+                    <div className="text-[12px] font-normal text-muted-foreground">via {s.via.replace('_', ' ')}</div>
+                  )}
+                </Td>
                 <Td className="font-mono text-[12px]">{s.ip ?? '—'}</Td>
                 <Td className="text-muted-foreground">{formatDateTime(s.created_at)}</Td>
                 <Td className="text-muted-foreground">{formatDateTime(s.last_seen_at)}</Td>
-                <Td>{s.revoked ? <Badge tone="neutral">Ended</Badge> : <Badge tone="success">Live</Badge>}</Td>
+                <Td>
+                  {s.revoked ? (
+                    <Badge tone="neutral">{ENDED_LABEL[s.ended_reason ?? ''] ?? 'Ended'}</Badge>
+                  ) : (
+                    <Badge tone="success">Live</Badge>
+                  )}
+                </Td>
                 <Td>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setOpen(open === s.id ? null : s.id)}>
@@ -495,6 +516,33 @@ interface SessionChange {
   at: string
   action: string
   entity_type: string
+  request?: unknown
+  response?: unknown
+}
+
+const ENDED_LABEL: Record<string, string> = {
+  signed_out: 'Signed out',
+  idle: 'Timed out (idle)',
+  expired: 'Expired',
+  revoked: 'Signed out by the office',
+  superseded: 'Replaced by a newer device',
+  password_changed: 'Password changed',
+  all_signed_out: 'Everyone signed out',
+  deactivated: 'Account deactivated',
+}
+
+/** The timeline as a spreadsheet: one row per screen open and per change. */
+function exportTimeline(id: string, screens: SessionScreen[], changes: SessionChange[]) {
+  const esc = (v: unknown) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  const lines = ['kind,at,what,detail,count']
+  for (const s of screens) lines.push(['screen', s.first_at, screenLabel(s.screen), s.last_at, s.hits].map(esc).join(','))
+  for (const c of changes) lines.push(['change', c.at, c.entity_type, c.action, 1].map(esc).join(','))
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `session-${id.slice(0, 8)}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 /* One sign-in, as a timeline.
@@ -516,6 +564,11 @@ function SessionActivity({ id }: { id: string }) {
   const changes = data?.changes ?? []
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      <div className="md:col-span-2 flex justify-end">
+        <Button size="sm" variant="ghost" onClick={() => exportTimeline(id, screens, changes)}>
+          Export as CSV
+        </Button>
+      </div>
       <div>
         <p className="eyebrow mb-1.5">Screens opened ({screens.length})</p>
         {screens.length === 0 ? (
@@ -541,12 +594,22 @@ function SessionActivity({ id }: { id: string }) {
         ) : (
           <ul className="space-y-1 text-[13px]">
             {changes.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span>
-                  <span className="font-medium">{c.entity_type}</span>{' '}
-                  <span className="font-mono text-[12px] text-muted-foreground">{c.action}</span>
-                </span>
-                <span className="text-muted-foreground">{formatDateTime(c.at)}</span>
+              <li key={c.id}>
+                <details>
+                  <summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-x-3">
+                    <span>
+                      <span className="font-medium">{c.entity_type}</span>{' '}
+                      <span className="font-mono text-[12px] text-muted-foreground">{c.action}</span>
+                    </span>
+                    <span className="text-muted-foreground">{formatDateTime(c.at)}</span>
+                  </summary>
+                  {/* What was sent and what came back, as recorded. Passwords
+                      and the like are already redacted by the audit writer. */}
+                  <div className="mt-1 grid gap-2 md:grid-cols-2">
+                    <pre className="max-h-48 overflow-auto rounded-md bg-muted/50 p-2 text-[11.5px]">{JSON.stringify(c.request ?? null, null, 1)}</pre>
+                    <pre className="max-h-48 overflow-auto rounded-md bg-muted/50 p-2 text-[11.5px]">{JSON.stringify(c.response ?? null, null, 1)}</pre>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>

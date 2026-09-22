@@ -109,6 +109,9 @@ func run() error {
 		FileStoreDir: cfg.FileStoreDir,
 		BaseURL:      cfg.BaseURL,
 	}
+	// Sign-in attempts are written to login_events and raise the
+	// principal's alerts; the auth package only describes them.
+	authHandler.SetRecorder(apiServer)
 
 	/* The queue: enqueue-only by default, a worker as well when asked.
 
@@ -220,6 +223,8 @@ func run() error {
 
 	r.Get("/login", authHandler.ShowLogin)
 	r.Post("/login", authHandler.Login)
+	// The second step, when the account carries a second factor.
+	r.Post("/login/mfa", authHandler.LoginMFA)
 	r.Post("/logout", authHandler.Logout)
 	r.Get("/logout", authHandler.Logout)
 

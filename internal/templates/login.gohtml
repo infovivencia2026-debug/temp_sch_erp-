@@ -38,6 +38,16 @@
       <p class="lede">{{if .SchoolName}}{{.SchoolName}}{{else}}School ERP{{end}}</p>
       {{if .Message}}<p class="brand-message">{{.Message}}</p>{{end}}
       {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
+      {{if .MFAStep}}
+      <form method="post" action="/login/mfa" autocomplete="off">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <label for="code">Six-digit code from your authenticator app</label>
+        <input id="code" type="text" name="code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" required autocomplete="one-time-code" autofocus>
+        <button type="submit">Continue</button>
+      </form>
+      <p class="fineprint"><a href="/login">Start again</a> &middot; Lost the phone? Ask the school office to switch two-factor off for you.</p>
+      {{else}}
       <form method="post" action="/login" autocomplete="on">
         <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
         <input type="hidden" name="next" value="{{.Next}}">
@@ -48,6 +58,7 @@
         <button type="submit">Sign in</button>
       </form>
       <p class="fineprint"><a href="/forgot">Forgotten your password?</a></p>
+      {{end}}
     </main>
   </div>
 {{template "themejs"}}

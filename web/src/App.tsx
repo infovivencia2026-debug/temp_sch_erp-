@@ -22,6 +22,7 @@ import { SkeletonPage } from '@/components/Skeleton'
 import { componentFor } from '@/features/registry'
 import { useScreenBeacon } from '@/lib/activity'
 import { ToastHost } from './components/Toast'
+import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
 import { I18nProvider } from '@/lib/i18n'
 
@@ -44,6 +45,15 @@ const queryClient = new QueryClient({
          Anything genuinely time-sensitive sets its own, and now has to: see
          the queries listed under refetchOnWindowFocus below. */
       staleTime: 5 * 60_000,
+      /* A DAY IN MEMORY, SO A DAY ON DISK.
+
+         gcTime was the five-minute default. The offline persister can only
+         write what the in-memory cache still holds, so a screen left five
+         minutes ago was dropped from the blob and gone from the phone by the
+         time the signal was — exactly the screen a parent wanted to read on
+         the bus. A day keeps the working set for the persister without
+         keeping it forever; the 7-day maxAge on disk is the outer bound. */
+      gcTime: 24 * 60 * 60_000,
       /* OFF BY DEFAULT, ON WHERE IT IS EARNED.
        *
        * This was on for every query in the product, paired with the thirty-
@@ -550,6 +560,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastHost>
+        <ReauthPrompt />
       <BrowserRouter>
         <SessionProvider>
           {/* Per-user+institution IndexedDB persistence, once identity is

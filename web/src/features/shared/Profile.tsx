@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { useSession } from '@/lib/session'
 import { MyGrowthPanels } from '@/features/hr/MyGrowth'
+import { TwoFactorCard, MyDevicesCard } from './SecurityCards'
 
 interface Profile {
   id: string; full_name: string; email?: string; phone?: string
@@ -246,6 +247,13 @@ export default function ProfileView() {
         </form>
       </Card>
       )}
+    </div>
+
+    {/* The person's own security: a second factor, and every device holding
+        a sign-in for them. See SecurityCards.tsx. */}
+    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <TwoFactorCard enabled={!!data?.mfa_enabled} dayCode={!!session.user?.day_code} />
+      <MyDevicesCard />
     </div>
 
     {/* Leaving. Google Play requires an in-app route to account deletion for

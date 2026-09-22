@@ -151,9 +151,18 @@ func (s *Server) Routes() http.Handler {
 		// Where this login went. One beacon per navigation from the SPA; see
 		// session_activity.go. Not audited: it is the record, not a change.
 		r.Post("/session/activity", s.recordScreen)
+		// The password again, for a money action on an older session; see
+		// RequireFresh in login_security.go.
+		r.Post("/session/reauth", s.reauth)
 
 		r.Route("/profile", func(r chi.Router) {
 			r.With(httpx.RequirePermission(rbac.SelfProfileRead)).Get("/", s.getProfile)
+			// The person's own second factor and devices; see mfa.go.
+			r.Post("/mfa/setup", s.mfaSetup)
+			r.Post("/mfa/enable", s.mfaEnable)
+			r.Post("/mfa/disable", s.mfaDisable)
+			r.Get("/sessions", s.listOwnSessions)
+			r.Post("/sessions/sign-out-others", s.signOutOtherDevices)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/", s.updateProfile)
 			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Post("/password", s.changePassword)
 			// Keeps the school-issued password. Exempted from
@@ -822,9 +831,11 @@ func (s *Server) Routes() http.Handler {
 			   scope decides whether it is the office reaching any child or a
 			   family reaching only their own. Writes need finance.wallet.manage. */
 			r.Get("/students/{id}/wallet", s.getStudentWallet)
-			r.With(httpx.RequirePermission(rbac.WalletManage)).Post("/wallet/topups", s.walletTopUp)
-			r.With(httpx.RequirePermission(rbac.WalletManage)).Post("/wallet/adjustments", s.walletAdjust)
-			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments", s.collectFee)
+			// Money moves here: the password must have been typed in the last
+			// fifteen minutes (RequireFresh), whatever the session's age.
+			r.With(httpx.RequirePermission(rbac.WalletManage), s.RequireFresh).Post("/wallet/topups", s.walletTopUp)
+			r.With(httpx.RequirePermission(rbac.WalletManage), s.RequireFresh).Post("/wallet/adjustments", s.walletAdjust)
+			r.With(httpx.RequirePermission(rbac.PaymentsWrite), s.RequireFresh).Post("/payments", s.collectFee)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/receipts/{id}", s.getReceipt)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/clear", s.clearCheque)
 			/* A penalty somebody decided on, rather than one a rule worked out.
@@ -1220,7 +1231,7 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/payroll", func(r chi.Router) {
 			r.Use(httpx.RequirePermission(rbac.PayrollRead))
 			r.Get("/payslips", s.listPayslips)
-			r.With(httpx.RequirePermission(rbac.PayrollWrite)).Post("/run", s.runPayroll)
+			r.With(httpx.RequirePermission(rbac.PayrollWrite), s.RequireFresh).Post("/run", s.runPayroll)
 
 			/* Statutory payroll: the rates, the returns they generate, and the
 			   three things a payroll office does around the payslip — withhold
@@ -1512,7 +1523,17 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.InstitutionRead)).Get("/modules", s.listModules)
 			r.With(httpx.RequirePermission(rbac.SettingsWrite)).Put("/modules", s.setModule)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions", s.listSessions)
+			// The whole school, live, with flags; and the lever that ends it all.
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions/live", s.listLiveSessions)
+			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions", s.signEveryoneOut)
 			r.With(httpx.RequirePermission(rbac.SessionsRevoke)).Delete("/sessions/{id}", s.revokeSession)
+			// Every sign-in attempt, kept; and a person's month at a glance.
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/login-events", s.listLoginEvents)
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}/sign-in-days", s.signInDays)
+			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users/{id}/mfa/disable", s.adminMFADisable)
+			// How long a session lives, per role.
+			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/session-policies", s.listSessionPolicies)
+			r.With(httpx.RequirePermission(rbac.RolesWrite)).Put("/session-policies/{role}", s.setSessionPolicy)
 			// What one session did: the screens it opened and the changes it made.
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/sessions/{id}/activity", s.getSessionActivity)
 		})

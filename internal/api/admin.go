@@ -314,6 +314,11 @@ type sessionRow struct {
 	LastSeenAt string  `json:"last_seen_at"`
 	ExpiresAt  string  `json:"expires_at"`
 	Revoked    bool    `json:"revoked"`
+	// How it was opened, how it ended (blank while live), and the device in
+	// words. See login_security.go.
+	Via         string `json:"via,omitempty"`
+	EndedReason string `json:"ended_reason,omitempty"`
+	Device      string `json:"device,omitempty"`
 }
 
 // listSessions powers super_admin.platform_setup.login_session_audit_logs and
@@ -345,7 +350,8 @@ func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 		       to_char(se.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       to_char(se.last_seen_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       to_char(se.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
-		       se.revoked_at IS NOT NULL OR se.expires_at <= now()
+		       se.revoked_at IS NOT NULL OR se.expires_at <= now(),
+		       se.via, COALESCE(se.ended_reason, CASE WHEN se.revoked_at IS NULL AND se.expires_at <= now() THEN 'expired' ELSE '' END)
 		  FROM sessions se
 		  JOIN users u ON u.id = se.user_id
 		 WHERE (NOT $1::bool OR (se.revoked_at IS NULL AND se.expires_at > now()))
@@ -354,8 +360,12 @@ func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
 		 LIMIT 200`, []any{onlyActive, user},
 		func(rows pgx.Rows) (sessionRow, error) {
 			var v sessionRow
-			return v, rows.Scan(&v.ID, &v.UserID, &v.FullName, &v.IP, &v.UserAgent,
-				&v.CreatedAt, &v.LastSeenAt, &v.ExpiresAt, &v.Revoked)
+			err := rows.Scan(&v.ID, &v.UserID, &v.FullName, &v.IP, &v.UserAgent,
+				&v.CreatedAt, &v.LastSeenAt, &v.ExpiresAt, &v.Revoked, &v.Via, &v.EndedReason)
+			if v.UserAgent != nil {
+				v.Device = deviceLabel(*v.UserAgent)
+			}
+			return v, err
 		})
 	respond(w, r, items, err)
 }

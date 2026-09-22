@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -48,6 +49,11 @@ type Identity struct {
 	// next person at the board is a child.
 	DayCode     bool
 	Permissions map[string]struct{}
+	// IssuedAt is when the session was opened and ReauthAt the last time the
+	// person retyped their password for a money action; RequireFresh reads
+	// the later of the two. Zero when unknown (an API key).
+	IssuedAt time.Time
+	ReauthAt time.Time
 	/* APIKey marks an identity that came from an Authorization: Bearer key
 	   rather than from the session cookie. Nothing about tenancy or
 	   permissions depends on it -- a key is resolved into exactly the same

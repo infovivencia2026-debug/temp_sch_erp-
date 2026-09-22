@@ -68,7 +68,7 @@ func TestAPausedSchoolIsNamedAsPausedOnlyAfterThePasswordIsRight(t *testing.T) {
 		})
 	})
 
-	h := &Handler{db: db, hasher: hasher, throttle: NewThrottle()}
+	h := &Handler{db: db, hasher: hasher, throttle: NewThrottle(nil)}
 
 	// Right password: the honest sentence.
 	if _, err := h.authenticate(ctx, email, "correct-horse-battery"); !errors.Is(err, errSchoolPaused) {

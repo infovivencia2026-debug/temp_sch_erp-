@@ -88,6 +88,11 @@ type sessionRecord struct {
 	via                string
 	perms              []string
 	roleKeys           []string
+	// idleSeconds is the per-session idle limit the role policy set at
+	// issue; nil means the store's global one.
+	idleSeconds *int
+	reauthAt    *time.Time
+	createdAt   time.Time
 }
 
 // cachedSession is what the cache holds: the identity as resolved, plus the
@@ -100,6 +105,8 @@ type sessionRecord struct {
 type cachedSession struct {
 	id       httpx.Identity
 	lastSeen atomic.Int64
+	// idle is this session's own idle limit, zero for the store's.
+	idle time.Duration
 }
 
 /*
@@ -165,12 +172,18 @@ func (s *Store) Issue(ctx context.Context, w http.ResponseWriter, r *http.Reques
 // that is good until the same moment, and not the usual weeks. A zero
 // expires means the store's usual lifetime, which is also the ceiling.
 func (s *Store) IssueVia(ctx context.Context, w http.ResponseWriter, r *http.Request, userID, instID uuid.UUID, via string, expires time.Time) error {
+	_, err := s.IssueViaID(ctx, w, r, userID, instID, via, expires)
+	return err
+}
+
+// IssueViaID is IssueVia returning the new session's id, for the login
+// event that names it. The role policy (policy.go) decides the lifetime,
+// the idle limit and the device cap; a caller's earlier expiry (a day code)
+// still wins when it is sooner.
+func (s *Store) IssueViaID(ctx context.Context, w http.ResponseWriter, r *http.Request, userID, instID uuid.UUID, via string, expires time.Time) (uuid.UUID, error) {
 	tok, err := newToken()
 	if err != nil {
-		return err
-	}
-	if cap := time.Now().Add(s.ttl); expires.IsZero() || expires.After(cap) {
-		expires = cap
+		return uuid.Nil, err
 	}
 
 	var ip *string
@@ -181,16 +194,29 @@ func (s *Store) IssueVia(ctx context.Context, w http.ResponseWriter, r *http.Req
 		ip = &h
 	}
 
+	var sid uuid.UUID
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, `
-			INSERT INTO sessions (institution_id, user_id, token_hash, ip, user_agent, expires_at, via)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			nullUUID(instID), userID, hashToken(tok), ip, r.UserAgent(), expires, via)
-		return err
+		pol, err := s.policyFor(ctx, tx, userID, instID)
+		if err != nil {
+			return err
+		}
+		if cap := time.Now().Add(pol.Absolute); expires.IsZero() || expires.After(cap) {
+			expires = cap
+		}
+		if _, err := supersede(ctx, tx, userID, pol.MaxDevices); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `
+			INSERT INTO sessions (institution_id, user_id, token_hash, ip, user_agent, expires_at, via, idle_seconds)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+			nullUUID(instID), userID, hashToken(tok), ip, r.UserAgent(), expires, via, int(pol.Idle.Seconds())).Scan(&sid)
 	})
 	if err != nil {
-		return fmt.Errorf("insert session: %w", err)
+		return uuid.Nil, fmt.Errorf("insert session: %w", err)
 	}
+	// The superseded devices may still be cached here; drop them so the
+	// next request from one of them is refused now, not in a minute.
+	s.ForgetUser(userID)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
@@ -201,7 +227,7 @@ func (s *Store) IssueVia(ctx context.Context, w http.ResponseWriter, r *http.Req
 		Secure:   s.secure,
 		SameSite: http.SameSiteLaxMode,
 	})
-	return nil
+	return sid, nil
 }
 
 // Resolve validates the cookie and loads the caller's identity and effective
@@ -227,15 +253,23 @@ func (s *Store) Resolve(ctx context.Context, r *http.Request) (*httpx.Identity, 
 			return nil, fmt.Errorf("resolve session: %w", err)
 		}
 		cs = &cachedSession{id: identityFrom(rec)}
+		if rec.idleSeconds != nil && *rec.idleSeconds > 0 {
+			cs.idle = time.Duration(*rec.idleSeconds) * time.Second
+		}
 		cs.lastSeen.Store(rec.lastSeen.UnixNano())
 		s.cache.Set(key, cs)
 	}
 
 	now := s.now()
 	lastSeen := time.Unix(0, cs.lastSeen.Load())
-	if now.Sub(lastSeen) > s.idleTTL {
+	idle := s.idleTTL
+	if cs.idle > 0 {
+		idle = cs.idle
+	}
+	if now.Sub(lastSeen) > idle {
 		s.cache.Delete(key)
 		_ = s.revoke(ctx, cs.id.SessionID)
+		_ = s.markEnded(ctx, cs.id.SessionID, "idle")
 		return nil, ErrNoSession
 	}
 
@@ -300,7 +334,7 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 		   on real data says which. */
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
-			       u.must_change_password, s.via,
+			       u.must_change_password, s.via, s.idle_seconds, s.reauth_at, s.created_at,
 			       COALESCE((SELECT array_agg(DISTINCT k) FROM (
 			                   SELECT rp.permission_key AS k
 			                     FROM user_roles ur
@@ -326,7 +360,8 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 			   AND u.status = 'active'`,
 			tokenHash)
 		return row.Scan(&rec.sessionID, &rec.userID, &rec.instID, &rec.lastSeen, &rec.fullName,
-			&rec.mustChangePassword, &rec.via, &rec.perms, &rec.roleKeys)
+			&rec.mustChangePassword, &rec.via, &rec.idleSeconds, &rec.reauthAt, &rec.createdAt,
+			&rec.perms, &rec.roleKeys)
 	})
 	if err != nil {
 		return nil, err
@@ -342,6 +377,10 @@ func identityFrom(rec *sessionRecord) httpx.Identity {
 		FullName:           rec.fullName,
 		MustChangePassword: rec.mustChangePassword,
 		DayCode:            rec.via == "day_code",
+		IssuedAt:           rec.createdAt,
+	}
+	if rec.reauthAt != nil {
+		id.ReauthAt = *rec.reauthAt
 	}
 	/* The bulk-issued password is the reason for must_change_password, and a
 	   day-code session never typed it. Forcing the change here would send a
@@ -436,10 +475,41 @@ func (s *Store) ForgetPushTokens(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (s *Store) Revoke(ctx context.Context, sessionID uuid.UUID) error {
+	return s.RevokeReason(ctx, sessionID, "revoked")
+}
+
+// RevokeReason ends a session and says why: signed_out, revoked (by the
+// office), password_changed, all_signed_out, deactivated. The reason is what
+// the Logins screen shows against an ended row.
+func (s *Store) RevokeReason(ctx context.Context, sessionID uuid.UUID, reason string) error {
 	s.Forget(sessionID)
 	return s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			UPDATE sessions SET revoked_at = now(), ended_reason = COALESCE(ended_reason, $2)
+			 WHERE id = $1 AND revoked_at IS NULL`, sessionID, reason)
+		return err
+	})
+}
+
+// markEnded records why an already-revoked session ended (the idle path
+// revokes through the test-replaceable field first).
+func (s *Store) markEnded(ctx context.Context, sessionID uuid.UUID, reason string) error {
+	if s.db == nil {
+		return nil
+	}
+	return s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx,
-			`UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL`, sessionID)
+			`UPDATE sessions SET ended_reason = COALESCE(ended_reason, $2) WHERE id = $1`, sessionID, reason)
+		return err
+	})
+}
+
+// Reauth records that the person just retyped their password on this
+// session, and drops the cached identity so the next request sees it.
+func (s *Store) Reauth(ctx context.Context, sessionID uuid.UUID) error {
+	s.Forget(sessionID)
+	return s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE sessions SET reauth_at = now() WHERE id = $1`, sessionID)
 		return err
 	})
 }

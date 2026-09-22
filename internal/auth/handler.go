@@ -31,11 +31,12 @@ type Handler struct {
 	tpl      *template.Template
 	secure   bool
 	throttle *Throttle
+	recorder Recorder
 }
 
 func NewHandler(db *database.DB, store *Store, hasher *Hasher, tpl *template.Template, secure bool) *Handler {
 	return &Handler{db: db, store: store, hasher: hasher, tpl: tpl,
-		secure: secure, throttle: NewThrottle()}
+		secure: secure, throttle: NewThrottle(db)}
 }
 
 const csrfCookie = "erp_csrf"
@@ -74,6 +75,9 @@ type loginPage struct {
 	CSRFToken string
 	Error     string
 	Next      string
+	// MFAStep renders the six-digit code form instead of the password one:
+	// the password checked out and the account carries a second factor.
+	MFAStep bool
 	// AssetVersion busts the seven-day cache nginx puts on /static. Without it
 	// a returning visitor keeps whichever stylesheet they first fetched.
 	AssetVersion string
@@ -175,8 +179,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// Throttle before touching the database. Without this, the sign-in form is
 	// an unlimited password oracle, and the constant-time dummy hash below only
 	// hides *which* accounts exist — it does nothing to slow guessing.
-	if ok, wait := h.throttle.Allowed(identifier); !ok {
+	if ok, wait := h.throttle.Allowed(r.Context(), identifier); !ok {
 		slog.Warn("login throttled", "identifier", identifier, "retry_in", wait.String())
+		h.record(r.Context(), r, LoginEvent{Outcome: "locked", Identifier: identifier})
 		h.render(w, r, http.StatusTooManyRequests, loginPage{
 			CSRFToken: h.issueCSRF(w),
 			Error: fmt.Sprintf("Too many failed attempts. Try again in %d minute(s).",
@@ -188,7 +193,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	won, err := h.authenticate(r.Context(), identifier, password)
 	if err != nil {
-		h.throttle.Failed(identifier)
+		locked := h.throttle.Failed(r.Context(), identifier)
+		outcome := "wrong_password"
+		switch {
+		case errors.Is(err, errNoAccount):
+			outcome = "no_account"
+		case errors.Is(err, errSchoolPaused):
+			outcome = "school_paused"
+		case errors.Is(err, errAmbiguousIdentifier):
+			outcome = "ambiguous"
+		}
+		h.record(r.Context(), r, LoginEvent{Outcome: outcome, Identifier: identifier, Locked: locked})
 		/* THREE DIFFERENT FACTS, SAID AS THREE.
 
 		   This was one message — "Incorrect username or password" — chosen so
@@ -228,7 +243,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.throttle.Succeeded(identifier)
+	h.throttle.Succeeded(r.Context(), identifier)
 
 	via, until := "password", time.Time{} // zero: the store's usual lifetime
 	if won.dayCode {
@@ -239,10 +254,21 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		_, until = LocalDay(won.timezone, time.Now())
 		slog.Info("day-code sign-in", "user", won.userID, "institution", won.instID)
 	}
-	if err := h.store.IssueVia(r.Context(), w, r, won.userID, won.instID, via, until); err != nil {
+	/* Second factor. The password is right; if the account carries a TOTP
+	   secret the session is not opened yet -- the code step is. A day-code
+	   sign-in skips it: the shared classroom code is not the account's own
+	   credential and the board is not where anyone holds their phone up. */
+	if !won.dayCode && h.mfaSecretFor(r, won.userID) != "" {
+		h.askForCode(w, r, won, via, until, next)
+		return
+	}
+	sid, err := h.store.IssueViaID(r.Context(), w, r, won.userID, won.instID, via, until)
+	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
+	h.record(r.Context(), r, LoginEvent{Outcome: "success", Identifier: identifier,
+		UserID: won.userID, InstID: won.instID, SessionID: sid, Via: via})
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -442,7 +468,7 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if id := httpx.IdentityFrom(r.Context()); id != nil {
-		_ = h.store.Revoke(r.Context(), id.SessionID)
+		_ = h.store.RevokeReason(r.Context(), id.SessionID, "signed_out")
 		_ = h.store.ForgetPushTokens(r.Context(), id.UserID)
 	}
 	h.store.Clear(w)

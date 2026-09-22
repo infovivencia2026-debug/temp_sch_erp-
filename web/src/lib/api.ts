@@ -134,6 +134,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const e = body?.error
+    /* A money action on a sign-in older than fifteen minutes. The prompt
+       that asks for the password again listens for this; see
+       components/ReauthPrompt.tsx. The error still reaches the caller so the
+       screen says why the button did nothing. */
+    if (e?.code === 'reauth_required') {
+      try {
+        window.dispatchEvent(new CustomEvent('erp:reauth'))
+      } catch {
+        /* an old browser without CustomEvent: the message below still shows */
+      }
+    }
     throw new ApiError(res.status, e?.code ?? 'unknown', e?.message ?? res.statusText,
       e?.request_id, body)
   }
