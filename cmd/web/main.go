@@ -195,6 +195,9 @@ func run() error {
 	appsPage := &api.AppsPage{Tpl: tpl, Dir: cfg.APKDir}
 	r.Get("/apps", appsPage.Show)
 	r.Get("/apps/{slug}.apk", appsPage.Download)
+	// Public streaming probe (ticks for 12s): tells, from a terminal, whether
+	// the proxies in front of this service pass bytes through or buffer them.
+	r.Get("/apps/live-probe", apiServer.LiveProbe)
 	// HEAD as well as GET: a download manager asks for the size before it
 	// starts, and chi answers an unregistered method with 405, which some of
 	// them treat as the file being gone rather than as an odd server.

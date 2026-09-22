@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -42,6 +43,64 @@ import (
 func (s *Server) mountLive(r chi.Router) {
 	r.Get("/live/stream", s.liveStream)
 	r.Post("/live/typing", s.liveTyping)
+	r.Post("/live/seen", s.liveSeen)
+}
+
+/* liveSeen is POST /live/seen: "this conversation is on my screen". The bell
+   entries that pointed at it are marked read, so a person who has just read
+   the messages is not also told about them — the rule every phone follows.
+   The conversation is identified the same way the typing signal names it,
+   and matched against the link each notification was written with. */
+func (s *Server) liveSeen(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	var req typingRequest
+	if !httpx.Decode(w, r, &req) {
+		return
+	}
+	var kind, like string
+	switch strings.ToLower(strings.TrimSpace(req.Scope)) {
+	case "staff":
+		if _, err := uuid.Parse(req.Peer); err != nil {
+			httpx.BadRequest(w, r, "peer must be a uuid")
+			return
+		}
+		kind, like = "staff_message", "%with="+req.Peer+"%"
+	case "parent":
+		sid, e1 := uuid.Parse(req.Student)
+		pid, e2 := uuid.Parse(req.Parent)
+		tid, e3 := uuid.Parse(req.Teacher)
+		if e1 != nil || e2 != nil || e3 != nil {
+			httpx.BadRequest(w, r, "student, parent and teacher must be uuids")
+			return
+		}
+		kind = "parent_message"
+		if id.UserID == pid {
+			like = "%student_id=" + sid.String() + "&teacher_user_id=" + tid.String() + "%"
+		} else {
+			like = "%child=" + sid.String() + "&with=" + pid.String() + "%"
+		}
+	case "counselor":
+		if _, err := uuid.Parse(req.Thread); err != nil {
+			httpx.BadRequest(w, r, "thread must be a uuid")
+			return
+		}
+		kind, like = "counselor_message", "%thread="+req.Thread+"%"
+	default:
+		httpx.BadRequest(w, r, "scope must be staff, parent or counselor")
+		return
+	}
+	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(), `
+			UPDATE notifications SET read_at = now()
+			 WHERE user_id = $1 AND read_at IS NULL AND kind = $2 AND link LIKE $3`,
+			id.UserID, kind, like)
+		return err
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) liveStream(w http.ResponseWriter, r *http.Request) {
@@ -68,21 +127,34 @@ func (s *Server) liveStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/* Why and when each stream ends is logged, because the failure mode of a
+	   stream is silence: every browser reconnecting on a fixed cycle looks,
+	   from the page, exactly like nothing ever being sent. */
+	started := time.Now()
+	sent := 0
+	end := func(why string) {
+		slog.Info("live: stream ended", "why", why, "after", time.Since(started).Round(time.Second),
+			"events", sent, "user", id.UserID)
+	}
 	ping := time.NewTicker(20 * time.Second)
 	defer ping.Stop()
 	for {
 		select {
 		case <-r.Context().Done():
+			end("client or proxy closed")
 			return
 		case <-ping.C:
 			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+				end("ping write: " + err.Error())
 				return
 			}
 			if err := rc.Flush(); err != nil {
+				end("ping flush: " + err.Error())
 				return
 			}
 		case ev, ok := <-events:
 			if !ok {
+				end("subscription closed")
 				return
 			}
 			body, err := json.Marshal(map[string]any{
@@ -94,13 +166,48 @@ func (s *Server) liveStream(w http.ResponseWriter, r *http.Request) {
 			}
 			if _, err := fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n",
 				ev.At.UnixMilli(), ev.Type, body); err != nil {
+				end("event write: " + err.Error())
 				return
 			}
 			if err := rc.Flush(); err != nil {
+				end("event flush: " + err.Error())
 				return
 			}
+			sent++
+			slog.Info("live: event sent", "type", ev.Type, "scope", ev.Scope, "to", id.UserID)
 		}
 	}
+}
+
+/* LiveProbe is a public, unauthenticated stream that ticks once a second for
+   twelve seconds and ends. It exists to answer one question from a terminal:
+   do bytes reach a client incrementally through the proxies in front of this
+   service, or are they buffered and delivered at the end? `curl -N` against
+   the Pages origin and against the Cloud Run origin, with timestamps, tells
+   which hop buffers. It carries no data and takes no input. */
+func (s *Server) LiveProbe(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache, no-transform")
+	h.Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	rc := http.NewResponseController(w)
+	for i := 1; i <= 12; i++ {
+		if _, err := fmt.Fprintf(w, "data: tick %d %s\n\n", i, time.Now().UTC().Format("15:04:05.000")); err != nil {
+			return
+		}
+		if err := rc.Flush(); err != nil {
+			fmt.Fprintf(w, "data: flush-error %v\n\n", err)
+			return
+		}
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(time.Second):
+		}
+	}
+	fmt.Fprint(w, "data: done\n\n")
+	_ = rc.Flush()
 }
 
 /* publishLive puts a hint on the bus from inside the writer's transaction.

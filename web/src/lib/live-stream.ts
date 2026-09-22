@@ -69,14 +69,38 @@ function keyFromEvent(ev: LiveEvent): string | null {
   }
 }
 
+/* SEEN. Opening a conversation is reading it: the bell entries that pointed
+   at it are marked read on the server, the corner card for it goes, and the
+   bell count refetches — so a person who has just read the messages is not
+   also told about them. Throttled per conversation; the server call is one
+   UPDATE. */
+const lastSeen = new Map<string, number>()
+let invalidateNotifications: (() => void) | null = null
+function markSeen(target: TypingTarget) {
+  const key = typingKey(target)
+  const idOf = target.scope === 'staff' ? target.peer : target.scope === 'parent' ? target.student : target.thread
+  toasts = toasts.filter((t) => !t.href.includes(idOf))
+  emitToasts()
+  const now = Date.now()
+  if ((lastSeen.get(key) ?? 0) > now - 15000) return
+  lastSeen.set(key, now)
+  void api.post('/api/v1/live/seen', target)
+    .then(() => invalidateNotifications?.())
+    .catch(() => { /* a courtesy; the bell's own read-on-open still applies */ })
+}
+
 /** Whether the other party in this conversation is typing right now. Also
-    marks the conversation as open on this screen for as long as it is used. */
+    marks the conversation as open on this screen for as long as it is used,
+    and as seen. */
 export function useTyping(target: TypingTarget | undefined): boolean {
   const key = target ? typingKey(target) : ''
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb)
-      if (key) openConversations.set(key, (openConversations.get(key) ?? 0) + 1)
+      if (key && target) {
+        openConversations.set(key, (openConversations.get(key) ?? 0) + 1)
+        markSeen(target)
+      }
       // Expiry is time-based, so re-read once a second while anyone listens.
       const t = window.setInterval(cb, 1000)
       return () => {
@@ -179,7 +203,12 @@ function hrefFor(ev: LiveEvent, me: string | undefined): string | null {
 function announce(ev: LiveEvent, me: string | undefined) {
   const key = keyFromEvent(ev)
   // Looking at it already: it appears in place, and that is the notification.
-  if (key && openConversations.has(key) && document.visibilityState === 'visible') return
+  // Mark it seen too, so the bell entry this message just created goes with it.
+  if (key && openConversations.has(key) && document.visibilityState === 'visible') {
+    const t = targetFromEvent(ev)
+    if (t) { lastSeen.delete(key); markSeen(t) }
+    return
+  }
   const href = hrefFor(ev, me)
   if (!href) return
   const who = ev.keys?.from_name || 'Someone'
@@ -197,9 +226,29 @@ function announce(ev: LiveEvent, me: string | undefined) {
   }
 }
 
+/* The conversation an event belongs to, as a target — so a message that
+   lands in an OPEN thread can be marked seen the moment it is drawn. */
+function targetFromEvent(ev: LiveEvent): TypingTarget | null {
+  const k = ev.keys ?? {}
+  switch (ev.scope) {
+    case 'staff': return { scope: 'staff', peer: ev.from }
+    case 'parent': return k.student && k.parent && k.teacher
+      ? { scope: 'parent', student: k.student, parent: k.parent, teacher: k.teacher } : null
+    case 'counselor': return k.thread ? { scope: 'counselor', thread: k.thread } : null
+    default: return null
+  }
+}
+
 export function useLiveStream() {
   const qc = useQueryClient()
   const me = useSession().user?.id
+  useEffect(() => {
+    invalidateNotifications = () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['attention'] })
+    }
+    return () => { invalidateNotifications = null }
+  }, [qc])
   useEffect(() => {
     if (typeof window === 'undefined' || !('EventSource' in window)) return
     let es: EventSource | null = null
