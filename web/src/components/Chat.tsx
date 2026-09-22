@@ -169,7 +169,7 @@ export function ChatThread({
               <div key={m.id}>
                 {sep && (
                   <div className="my-3 flex justify-center">
-                    <span className="rounded-md bg-background/90 px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground shadow-sm">
+                    <span className="chat-daypill rounded-md px-2.5 py-1 text-[11.5px] font-medium shadow-sm">
                       {dayLabel(day)}
                     </span>
                   </div>
@@ -281,7 +281,7 @@ export function ChatThread({
               value={draft}
               rows={1}
               placeholder={placeholder}
-              className="min-h-[40px] flex-1 resize-none rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
+              className="chat-composer min-h-[40px] flex-1 resize-none rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
               onChange={(e) => {
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
@@ -369,18 +369,30 @@ function dayLabel(day: string) {
    a style block here rather than in the global sheet so the component owns
    its look and a screen cannot half-apply it. */
 const chatCSS = `
-.chat-paper { background-color: #efeae2; background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px); background-size: 14px 14px; }
+/* One set of colours, light in every theme.
+
+   The paper followed the app's dark mode and a school office reading a
+   parent's message on a projector or a cheap phone in daylight got white text
+   on near-black, which is what the screenshot showed. A conversation is a
+   document; it reads the same way the printed page does, whatever the rest of
+   the app is set to.
+
+   The dotted paper is fixed, not scrolled: a pattern that slides under the
+   bubbles as the thread scrolls reads as movement in the corner of the eye. */
+.chat-paper {
+  background-color: #efeae2;
+  background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px);
+  background-size: 14px 14px;
+  background-attachment: local;
+  background-repeat: repeat;
+}
 .chat-theirs { background-color: #ffffff; color: #111b21; }
 .chat-mine { background-color: #d9fdd3; color: #111b21; }
 .chat-bubble .text-muted-foreground { color: #667781; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .chat-paper { background-color: #0b141a; background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px); }
-  :root:not([data-theme="light"]) .chat-theirs { background-color: #202c33; color: #e9edef; }
-  :root:not([data-theme="light"]) .chat-mine { background-color: #005c4b; color: #e9edef; }
-  :root:not([data-theme="light"]) .chat-bubble .text-muted-foreground { color: #8696a0; }
-}
-:root[data-theme="dark"] .chat-paper { background-color: #0b141a; background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px); }
-:root[data-theme="dark"] .chat-theirs { background-color: #202c33; color: #e9edef; }
-:root[data-theme="dark"] .chat-mine { background-color: #005c4b; color: #e9edef; }
-:root[data-theme="dark"] .chat-bubble .text-muted-foreground { color: #8696a0; }
+/* The composer is one line that grows with the text and nothing a person can
+   drag: a hand-resized box is a layout nobody asked for and it does not
+   survive the next render. */
+.chat-composer { resize: none; background-color: #ffffff; color: #111b21; }
+.chat-composer::placeholder { color: #8696a0; }
+.chat-daypill { background-color: rgba(255,255,255,0.92); color: #667781; }
 `
