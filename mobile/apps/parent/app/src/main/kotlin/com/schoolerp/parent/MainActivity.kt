@@ -513,6 +513,31 @@ class MainActivity : Activity() {
             }
             view.post { view.performHapticFeedback(constant) }
         }
+
+        /* PRINT, from the page's own button.
+
+           window.print() is a no-op in a WebView: nothing answers it, so every
+           "Print" on the site -- the fee receipt, the report card, the bus
+           sticker -- pressed and did nothing in this app. The site now asks
+           the shell first (web/src/lib/print.ts) and the shell hands the page
+           to the system print dialog, which on every Android since 4.4 offers
+           "Save as PDF": a receipt becomes a file the parent can keep or send.
+           The WebView draws its own pages; the site's print stylesheet applies
+           exactly as it does in Chrome. A bridge call arrives on a WebView
+           thread, and the print service wants the main one, hence the post. */
+        @android.webkit.JavascriptInterface
+        fun print() {
+            val view = target as? WebView ?: return
+            view.post {
+                val name = view.title?.takeIf { it.isNotBlank() } ?: "School ERP"
+                val manager = view.context.getSystemService(Context.PRINT_SERVICE) as? android.print.PrintManager
+                    ?: return@post
+                runCatching {
+                    manager.print(name, view.createPrintDocumentAdapter(name),
+                        android.print.PrintAttributes.Builder().build())
+                }
+            }
+        }
     }
 
     private val shell = Shell

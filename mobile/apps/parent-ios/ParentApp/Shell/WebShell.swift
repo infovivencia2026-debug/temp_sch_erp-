@@ -527,6 +527,8 @@ extension WebShell {
             AppLock.enabled = (body["value"] as? Bool) ?? false
         case "haptic":
             Haptics.play((body["value"] as? String) ?? "tap")
+        case "print":
+            printPage()
         default:
             break
         }
@@ -710,5 +712,30 @@ extension WebShell: WKUIDelegate {
         completionHandler: @escaping (String?) -> Void
     ) {
         Presenter.prompt(prompt, initial: defaultText, done: completionHandler)
+    }
+}
+
+// MARK: - Print
+
+extension WebShell {
+    /* PRINT, from the page's own button.
+
+       window.print() is a no-op in WKWebView: nothing answers it, so every
+       "Print" on the site -- the fee receipt, the report card, the bus sticker
+       -- pressed and did nothing in this app. The site asks the shell first
+       (web/src/lib/print.ts) and the shell puts up the system print sheet,
+       whose share row includes "Save to Files" and every app that takes a PDF:
+       a receipt becomes a file the parent can keep or send. The web view's own
+       print formatter paginates the page, so the site's print stylesheet
+       applies exactly as it does in Safari. The controller presents itself;
+       no hosting view controller is needed. */
+    fileprivate func printPage() {
+        let controller = UIPrintInteractionController.shared
+        let info = UIPrintInfo(dictionary: nil)
+        info.jobName = webView.title?.isEmpty == false ? webView.title! : "School ERP"
+        info.outputType = .general
+        controller.printInfo = info
+        controller.printFormatter = webView.viewPrintFormatter()
+        controller.present(animated: true, completionHandler: nil)
     }
 }

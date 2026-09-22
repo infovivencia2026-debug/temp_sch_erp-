@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify'
 import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { printPage } from '@/lib/print'
 
 /* One child's report card, and nothing else on the screen.
 
@@ -114,7 +115,7 @@ export default function CardViewer({
       <div className="rc-chrome flex items-center justify-between border-b px-4 py-2">
         <span className="text-[14px] font-medium">{card.name ?? 'Report card'}</span>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => window.print()}>
+          <Button variant="secondary" onClick={() => printPage()}>
             <Printer className="h-3.5 w-3.5" aria-hidden />
             Print
           </Button>

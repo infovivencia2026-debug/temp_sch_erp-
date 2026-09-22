@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import { printPage } from '@/lib/print'
 import { Button, Card } from '@/components/ui'
 
 /* The sticker that goes inside the windscreen.
@@ -69,7 +70,7 @@ export default function BusSticker({
       </p>
 
       <div className="mt-4 no-print">
-        <Button variant="secondary" size="sm" onClick={() => window.print()}>
+        <Button variant="secondary" size="sm" onClick={() => printPage()}>
           Print this sticker
         </Button>
       </div>

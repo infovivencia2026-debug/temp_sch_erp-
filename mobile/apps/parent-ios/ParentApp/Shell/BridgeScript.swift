@@ -2,7 +2,7 @@ import Foundation
 
 /* THE ONE HOLE IN THE WALL BETWEEN THE PAGE AND THE PHONE.
 
-   The site talks to the Android shell through window.ErpShell, six methods
+   The site talks to the Android shell through window.ErpShell, seven methods
    and nothing else (web/src/lib/shell-scroll.ts is the contract). Android
    gets that object for free from addJavascriptInterface, and its methods are
    synchronous: appLockEnabled() returns a boolean the page reads on the spot.
@@ -11,11 +11,12 @@ import Foundation
    and asynchronous, so the same object is built here in JavaScript, injected
    before any page script runs, and answers the two questions the page asks
    from state it was handed at injection: whether the lock is on and whether
-   the phone can do it. The four commands post a message and return. The page
+   the phone can do it. The five commands post a message and return. The page
    cannot tell the difference, which is the point: one bundle, two shells.
 
-   Everything the page can do through this is still nothing but booleans and
-   a haptic kind. It cannot read, cannot navigate, cannot open anything.
+   Everything the page can do through this is still nothing but booleans, a
+   haptic kind and "show the print sheet". It cannot read, cannot navigate,
+   cannot open anything.
    Foreign hosts never see it because WebShell sends them to Safari, so the
    only code that can reach the handler is the school's own bundle, and the
    handler checks the origin again anyway.
@@ -42,7 +43,8 @@ enum BridgeScript {
             setAppLock: function (on) { state.appLock = !!on; post('appLock', !!on); },
             appLockEnabled: function () { return state.appLock; },
             biometricsAvailable: function () { return state.canLock; },
-            haptic: function (kind) { post('haptic', String(kind)); }
+            haptic: function (kind) { post('haptic', String(kind)); },
+            print: function () { post('print', true); }
           };
           var style = document.createElement('style');
           /* The second rule is the iOS focus-zoom: WebKit zooms the whole page
