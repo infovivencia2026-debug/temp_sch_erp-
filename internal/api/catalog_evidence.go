@@ -36,7 +36,8 @@ import (
 // about behaves exactly as it did.
 func (s *Server) evidenceFor(r *http.Request, sc *scope.Resolved, key string) bool {
 	switch key {
-	case "parent.my_childs_bus.live_bus_tracking":
+	case "parent.my_childs_bus.live_bus_tracking",
+		"parent.alerts_preferences.parent_bus_proximity_radius_customizer":
 		/* Only a parent whose child actually travels by bus.
 
 		   Most children walk or are dropped off. For them the entry opened on
@@ -87,7 +88,8 @@ evidenceKeys is the list itself, so the catalogue only pays for a probe on
 	the features that need one. Every other entry costs nothing.
 */
 var evidenceKeys = map[string]bool{
-	"parent.my_childs_bus.live_bus_tracking": true,
+	"parent.my_childs_bus.live_bus_tracking":                           true,
+	"parent.alerts_preferences.parent_bus_proximity_radius_customizer": true,
 
 	/* A boarding menu at a day school.
 

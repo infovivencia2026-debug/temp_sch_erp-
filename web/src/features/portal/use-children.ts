@@ -8,6 +8,7 @@ export interface PortalChild {
   admission_no?: string
   class_name?: string
   section_name?: string
+  section_id?: string
   /* Present only on the merged list. A family with children at two schools on
      this installation holds an account at each, and the portal answers "how is
      my child" rather than "how is my child at the school whose session you

@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 399 features. */
+/** 23 roles, 401 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1497,6 +1497,7 @@ export const ROLES: Role[] = [
         workspace: 'My Child',
         features: [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
+          { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period — the subject, the teacher and the room — the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
           { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them — commendations and concerns alike — newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
@@ -1573,6 +1574,7 @@ export const ROLES: Role[] = [
         workspace: 'Profile',
         features: [
           { key: 'parent.profile.digital_student_id_card_view', slug: 'digital_student_id_card_view', name: 'Digital Student ID Card View', scope: 'children', tier: 'optional', summary: 'Access child\'s digital student ID card with QR code directly within the mobile app.' },
+          { key: 'parent.profile.update_my_details', slug: 'update_my_details', name: 'Update my details', scope: 'children', tier: 'core', summary: 'What the school holds about your child and your household, as the office sees it — and the parts you own left open to correct: home address, blood group, and each parent\'s name, mobile, email and occupation. Saved straight onto the school\'s record.' },
           { key: 'parent.profile.language', slug: 'language', name: 'Language', scope: 'children', tier: 'core', summary: 'Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees.' },
         ],
       },

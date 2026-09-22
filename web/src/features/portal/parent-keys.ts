@@ -22,6 +22,10 @@ export const parentKeys = {
    * screen and no way for a parent to reach it at all. So it moved to
    * Documents and now opens the screen it always described. */
   'parent.documents.certificate_requests': screen(() => import('./Requests')),
+  // The child's week, by the section they sit in.
+  'parent.academics.timetable': screen(() => import('./ChildTimetable')),
+  // The family corrects its own record; Student 360 reads the same rows.
+  'parent.profile.update_my_details': screen(() => import('./MyDetails')),
   // Report absence + apply leave, as two tabs of one row (AbsenceHub).
   'parent.leave_absence.apply_student_leave': screen(() => import('./AbsenceHub')),
   'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),

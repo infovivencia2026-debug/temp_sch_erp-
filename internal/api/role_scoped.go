@@ -206,6 +206,9 @@ type portalChild struct {
 	FullName    string  `json:"full_name"`
 	ClassName   *string `json:"class_name,omitempty"`
 	SectionName *string `json:"section_name,omitempty"`
+	// SectionID lets a family screen ask a section-keyed endpoint (the
+	// timetable) about this child without a second lookup.
+	SectionID *string `json:"section_id,omitempty"`
 	// RollNo is what a parent recognises their child by on a class list, and
 	// what the school asks for on the telephone.
 	RollNo   *int    `json:"roll_no,omitempty"`
@@ -219,7 +222,7 @@ func (s *Server) listMyStudents(w http.ResponseWriter, r *http.Request) {
 	items, err := scoped(s, r, catalog.ScopeChildren, "st.id", `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-		       c.name, sec.name, en.roll_no,
+		       c.name, sec.name, en.section_id::text, en.roll_no,
 		       (SELECT g.relation FROM student_guardians sg
 		          JOIN guardians g ON g.id = sg.guardian_id
 		         WHERE sg.student_id = st.id LIMIT 1)
@@ -235,7 +238,7 @@ func (s *Server) listMyStudents(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (portalChild, error) {
 			var v portalChild
 			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName,
-				&v.ClassName, &v.SectionName, &v.RollNo, &v.Relation)
+				&v.ClassName, &v.SectionName, &v.SectionID, &v.RollNo, &v.Relation)
 		})
 	respond(w, r, items, err)
 }

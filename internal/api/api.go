@@ -769,6 +769,10 @@ func (s *Server) Routes() http.Handler {
 			   fans out per school and is worth calling once per portal load
 			   rather than on every screen that needs a child id. */
 			r.Get("/students/everywhere", s.listMyChildrenEverywhere)
+			// The family's own record: what Student 360 holds about the child and
+			// the household, and the fields the family is the authority on.
+			r.Get("/family-details", s.getFamilyDetails)
+			r.With(httpx.RequirePermission(rbac.SelfProfileWrite)).Put("/family-details", s.updateFamilyDetails)
 			r.Get("/summary", s.getPortalSummary)
 			r.Get("/attendance", s.listPortalAttendance)
 			// What the school has written about your child. The staff screen

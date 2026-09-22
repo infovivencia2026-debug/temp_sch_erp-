@@ -534,7 +534,9 @@ var SystemRoles = []Role{
 	{"student", "Student", []string{
 		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
 	{"parent", "Parent / Guardian", []string{
-		SelfProfileRead, SelfProfileWrite, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead, SelfWalletRead}},
+		// TimetableRead: the child's week. The scope predicate narrows it to the
+		// sections their children sit in (Resolved.TimetablePredicate).
+		SelfProfileRead, SelfProfileWrite, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
 }
 
 func keysExcept(excluded ...string) []string {

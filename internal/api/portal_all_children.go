@@ -120,7 +120,7 @@ func (s *Server) listMyChildrenEverywhere(w http.ResponseWriter, r *http.Request
 			rows, err := tx.Query(r.Context(), `
 				SELECT st.id::text, st.admission_no,
 				       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-				       c.name, sec.name, en.roll_no, g.relation
+				       c.name, sec.name, en.section_id::text, en.roll_no, g.relation
 				  FROM students st
 				  JOIN student_guardians sg ON sg.student_id = st.id
 				  JOIN guardians g ON g.id = sg.guardian_id
@@ -139,7 +139,7 @@ func (s *Server) listMyChildrenEverywhere(w http.ResponseWriter, r *http.Request
 			for rows.Next() {
 				var v portalChild
 				if err := rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName,
-					&v.ClassName, &v.SectionName, &v.RollNo, &v.Relation); err != nil {
+					&v.ClassName, &v.SectionName, &v.SectionID, &v.RollNo, &v.Relation); err != nil {
 					return err
 				}
 				got = append(got, v)
