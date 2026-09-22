@@ -134,7 +134,7 @@ if gcloud iam workload-identity-pools providers describe "$PROVIDER" --project "
 else
     run gcloud iam workload-identity-pools providers create-oidc "$PROVIDER" --project "$PROJECT_ID" \
         --location global --workload-identity-pool "$POOL" \
-        --display-name "GitHub: ${REPO_SLUG}" \
+        --display-name "GitHub Actions (this repo)" \
         --issuer-uri "https://token.actions.githubusercontent.com" \
         --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
         --attribute-condition "assertion.repository == '${REPO_SLUG}'"
