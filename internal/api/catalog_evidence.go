@@ -63,16 +63,6 @@ func (s *Server) evidenceFor(r *http.Request, sc *scope.Resolved, key string) bo
 		   hostel, which is a permanent state and not a setup step. */
 		return s.anyRow(r, `SELECT EXISTS (SELECT 1 FROM hostel_rooms)`)
 
-	case "parent.academics.iep_progress_goal_tracker":
-		/* Only a parent whose child actually has a support plan.
-
-		   The plan is written with the parent, so the one who needs this
-		   already knows it exists; the other parent is not going to discover
-		   their child's needs from a menu entry that says there are none. */
-		return s.anyRow(r, `
-			SELECT EXISTS (
-			  SELECT 1 FROM student_support_plans p
-			   WHERE p.student_id = ANY($1))`, sc.StudentIDs)
 	}
 	return true
 }
@@ -97,8 +87,7 @@ evidenceKeys is the list itself, so the catalogue only pays for a probe on
 	the features that need one. Every other entry costs nothing.
 */
 var evidenceKeys = map[string]bool{
-	"parent.academics.iep_progress_goal_tracker": true,
-	"parent.my_childs_bus.live_bus_tracking":     true,
+	"parent.my_childs_bus.live_bus_tracking": true,
 
 	/* A boarding menu at a day school.
 

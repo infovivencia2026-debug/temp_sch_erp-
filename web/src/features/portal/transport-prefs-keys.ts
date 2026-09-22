@@ -17,9 +17,6 @@ import { lazy } from 'react'
    let this agent edit that file; `make catalog` afterwards keeps
    internal/api/implemented_gen.go agreeing with it. */
 export const transportPrefsKeys = {
-  'parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer': lazy(
-    () => import('./BusRefreshRate'),
-  ),
   'parent.alerts_preferences.parent_bus_proximity_radius_customizer': lazy(
     () => import('./BusProximityAlert'),
   ),

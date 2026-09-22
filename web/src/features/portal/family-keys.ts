@@ -19,25 +19,14 @@ import { lazy } from 'react'
    and runs `make catalog` so internal/api/implemented_gen.go agrees with it. */
 export const familyKeys = {
   'parent.school_life.calendar_ptm': screen(() => import('./Calendar')),
-  'parent.school_life.parent_teacher_meeting_booking': screen(() => import('./PTM')),
-  'parent.school_life.school_photo_video_gallery': screen(() => import('./Gallery')),
-  'parent.school_life.live_event_seating_pass': screen(() => import('./EventPasses')),
-  'parent.academics.iep_progress_goal_tracker': screen(() => import('./IEPGoals')),
   'parent.profile.digital_student_id_card_view': screen(() => import('./StudentIDCard')),
-  'parent.profile.digital_parent_id_card_for_campus_entry': screen(() => import('./ParentIDCard')),
 
-  /* The display-preferences screen serves three catalogue rows and one screen.
-     Language, theme and contrast are one panel a person opens once; splitting
-     them into three pages to match three keys would be the catalogue shaping
-     the product rather than describing it. The screen lives under learning/
-     because a student reaches it too -- same preferences, same row. */
+  /* Language, theme and contrast are one panel a person opens once, under the
+     Language row. The screen lives under learning/ because a student reaches
+     it too -- same preferences, same row. */
   'parent.profile.language': lazy(
     () => import('../learning/ThemeSelection'),
   ),
-  'parent.profile.parent_app_dark_mode_high_contrast_accessibility': lazy(
-    () => import('../learning/ThemeSelection'),
-  ),
-  'parent.fees.child_daily_cafeteria_purchase_timeline': screen(() => import('./Cafeteria')),
   // The child's digital money: the school-held prepaid balance and its ledger.
   'parent.fees.wallet': screen(() => import('./Wallet')),
 }

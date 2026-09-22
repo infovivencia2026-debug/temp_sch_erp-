@@ -22,13 +22,10 @@ export const parentKeys = {
    * screen and no way for a parent to reach it at all. So it moved to
    * Documents and now opens the screen it always described. */
   'parent.documents.certificate_requests': screen(() => import('./Requests')),
-  'parent.leave_absence.apply_student_leave': screen(() => import('./LeaveRequests')),
-  'parent.attendance.child_absence_reporting_button': screen(() => import('./ReportAbsence')),
-  'parent.consent_permissions.emergency_pickups': screen(() => import('./Pickup')),
-  'parent.messages.direct_teacher_messaging': screen(() => import('./TeacherMessages')),
+  // Report absence + apply leave, as two tabs of one row (AbsenceHub).
+  'parent.leave_absence.apply_student_leave': screen(() => import('./AbsenceHub')),
   'parent.messages.teacher_remarks': screen(() => import('../shared/StaffRemarks')),
   'parent.academics.child_remarks': screen(() => import('./ChildRemarks')),
-  'parent.fees.fee_receipts': screen(() => import('./Receipts')),
   /* A student applying for their own leave.
    *
    * This existed only on the parent's menu, so a sixteen-year-old had to ask a
@@ -41,8 +38,4 @@ export const parentKeys = {
    * door to open. */
   'student.attendance.apply_for_leave': screen(() => import('./LeaveRequests')),
   'student.requests.requests': screen(() => import('./Requests')),
-  /* A device setting, not a server one: the Android app asks the phone for a
-     fingerprint or face before it shows the portal again. Nothing to store on
-     the server, so there is no route behind this screen — see AppLock.tsx. */
-  'parent.profile.parent_app_biometric_lock_face_id_fingerprint': screen(() => import('./AppLock')),
 }

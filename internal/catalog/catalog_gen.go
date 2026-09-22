@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 415 features.
+// Roles is the catalog: 23 roles, 399 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -399,6 +399,7 @@ var Roles = []Role{
 					{Key: "institution_admin.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
 					{Key: "institution_admin.staff.roles_permissions", Slug: "roles_permissions", Name: "Roles & permissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it."},
 					{Key: "institution_admin.staff.logins_access", Slug: "logins_access", Name: "Logins & access", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person."},
+					{Key: "institution_admin.staff.interaction_log", Slug: "interaction_log", Name: "Interaction log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everything that passed between any two people at the school, in one list: messages between colleagues, a teacher's exchange with a family, the counsellor's thread, a remark written about a child, a fee taken at the counter. Pick one or two people, a kind and a window; search the text; export as CSV. Read-only, with a link to where each item lives."},
 					{Key: "institution_admin.staff.branding", Slug: "branding", Name: "Branding", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own logo, name, colours and support contacts, shown in the app header, the browser tab, receipts and the sign-in page. Set once; a campus can override the school's where it runs its own identity. The vendor confirms a custom web address separately."},
 					{Key: "institution_admin.staff.staff_groups_lists", Slug: "staff_groups_lists", Name: "Staff groups & lists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Named groups of staff — exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns."},
 					{Key: "institution_admin.staff.my_pay", Slug: "my_pay", Name: "My pay", Scope: Scope("self"), Tier: Tier("core"), Summary: "Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own."},
@@ -1535,7 +1536,6 @@ var Roles = []Role{
 				Workspace: "My Child",
 				Features: []Feature{
 					{Key: "parent.attendance.attendance", Slug: "attendance", Name: "Attendance", Scope: Scope("children"), Tier: Tier("core"), Summary: "Daily/monthly attendance and absence history for the selected child."},
-					{Key: "parent.attendance.child_absence_reporting_button", Slug: "child_absence_reporting_button", Name: "Child Absence Reporting Button", Scope: Scope("children"), Tier: Tier("core"), Summary: "Notify class teacher in advance of child's planned absence with 1-click reason selection."},
 				},
 			},
 			{
@@ -1545,8 +1545,6 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "parent.academics.homework_academics", Slug: "homework_academics", Name: "Homework & academics", Scope: Scope("children"), Tier: Tier("core"), Summary: "Homework, classwork, subjects and published academic progress."},
 					{Key: "parent.academics.results_report_cards", Slug: "results_report_cards", Name: "Results & report cards", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exam schedule, marks/grades and downloadable published report cards."},
-					{Key: "parent.academics.ai_child_performance_summary_audio", Slug: "ai_child_performance_summary_audio", Name: "AI Child Performance Summary Audio", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Not built: needs an outside AI and text-to-speech vendor; the same week is readable on the dashboard and in child remarks. Generate a weekly 60-second audio podcast summarizing the child's academic and behavioral week."},
-					{Key: "parent.academics.iep_progress_goal_tracker", Slug: "iep_progress_goal_tracker", Name: "IEP Progress Goal Tracker", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "View real-time progress bars towards child's specific IEP milestones and therapy goals."},
 					{Key: "parent.academics.child_remarks", Slug: "child_remarks", Name: "Child remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Everything your child's teachers have written about them — commendations and concerns alike — newest first, with the teacher's name and the day it happened. You are told the same day rather than at the next parents' evening."},
 				},
 			},
@@ -1555,10 +1553,8 @@ var Roles = []Role{
 				Name: "Fees",
 				Workspace: "Fees",
 				Features: []Feature{
-					{Key: "parent.fees.fees_payments", Slug: "fees_payments", Name: "Fees & payments", Scope: Scope("children"), Tier: Tier("core"), Summary: "Dues, installments, online payment, payment history and receipts."},
+					{Key: "parent.fees.fees_payments", Slug: "fees_payments", Name: "Fees & payments", Scope: Scope("children"), Tier: Tier("core"), Summary: "Dues, installments, online payment and payment history — with a Receipts tab holding every payment the school has banked, to save as a PDF or print on the school's letterhead."},
 					{Key: "parent.fees.wallet", Slug: "wallet", Name: "Wallet", Scope: Scope("children"), Tier: Tier("core"), Summary: "Your child's digital money: the prepaid balance the school holds, every top-up you have paid in and everything it has been spent on, per child."},
-					{Key: "parent.fees.fee_receipts", Slug: "fee_receipts", Name: "Fee receipts", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it — it carries the school's own letterhead."},
-					{Key: "parent.fees.child_daily_cafeteria_purchase_timeline", Slug: "child_daily_cafeteria_purchase_timeline", Name: "Child Daily Cafeteria Purchase Timeline", Scope: Scope("children"), Tier: Tier("optional"), Summary: "View exact timestamped items, prices, and nutritional content bought by child in canteen."},
 				},
 			},
 			{
@@ -1575,8 +1571,6 @@ var Roles = []Role{
 				Workspace: "Transport",
 				Features: []Feature{
 					{Key: "parent.alerts_preferences.parent_bus_proximity_radius_customizer", Slug: "parent_bus_proximity_radius_customizer", Name: "Parent Bus Proximity Radius Customizer", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to set custom distance alerts (e.g., alert me when bus is 1 km or 500m away)."},
-					{Key: "parent.alerts_preferences.real_time_school_bus_live_video_feed_access", Slug: "real_time_school_bus_live_video_feed_access", Name: "Real-time School Bus Live Video Feed Access", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Not built: needs bus-mounted cameras and a streaming vendor; live position is already in Live bus tracking. Permit authorized parents to view 15-second live video camera check-ins of child's bus during transit."},
-					{Key: "parent.alerts_preferences.parent_app_live_bus_tracking_refresh_rate_customizer", Slug: "parent_app_live_bus_tracking_refresh_rate_customizer", Name: "Parent App Live Bus Tracking Refresh Rate Customizer", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Select bus GPS map refresh frequency (e.g., 5 seconds vs 15 seconds) to save mobile battery."},
 				},
 			},
 			{
@@ -1584,9 +1578,7 @@ var Roles = []Role{
 				Name: "Messages",
 				Workspace: "School",
 				Features: []Feature{
-					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Circulars, announcements and permitted teacher/school messages."},
-					{Key: "parent.messages.direct_teacher_messaging", Slug: "direct_teacher_messaging", Name: "Direct Teacher Messaging", Scope: Scope("children"), Tier: Tier("core"), Summary: "Send structured query messages directly to class teacher during designated hours."},
-					{Key: "parent.messages.concerns", Slug: "concerns", Name: "Concerns", Scope: Scope("children"), Tier: Tier("core"), Summary: "Raise a concern with the school and follow it in one place — what you asked, who is handling it and their reply — instead of it living in a chat thread nobody can find later."},
+					{Key: "parent.messages.communication", Slug: "communication", Name: "Communication", Scope: Scope("children"), Tier: Tier("core"), Summary: "Three tabs on one screen: circulars and announcements from the school, a message to your child's class teacher, and any concern you have raised — what you asked, who is handling it and their reply."},
 					{Key: "parent.messages.teacher_remarks", Slug: "teacher_remarks", Name: "Teacher remarks", Scope: Scope("children"), Tier: Tier("core"), Summary: "Write a remark about one of your child's teachers. It reaches the head of department and the teacher."},
 				},
 			},
@@ -1596,9 +1588,6 @@ var Roles = []Role{
 				Workspace: "School",
 				Features: []Feature{
 					{Key: "parent.school_life.calendar_ptm", Slug: "calendar_ptm", Name: "Calendar & PTM", Scope: Scope("children"), Tier: Tier("core"), Summary: "Exams, holidays, events, parent-teacher meetings and booking where enabled."},
-					{Key: "parent.school_life.parent_teacher_meeting_booking", Slug: "parent_teacher_meeting_booking", Name: "Parent-Teacher Meeting Booking", Scope: Scope("children"), Tier: Tier("core"), Summary: "The slots the school has opened for parent-teacher meetings, and the one you have booked — with a reminder before it, so a meeting agreed three weeks ago is not missed on the morning."},
-					{Key: "parent.school_life.school_photo_video_gallery", Slug: "school_photo_video_gallery", Name: "School Photo & Video Gallery", Scope: Scope("children"), Tier: Tier("core"), Summary: "View high-resolution photos and videos from school sports day, annual day, and events."},
-					{Key: "parent.school_life.live_event_seating_pass", Slug: "live_event_seating_pass", Name: "Live Event Seating Pass", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Download barcoded digital entry passes with pre-allocated row/seat numbers for school events."},
 				},
 			},
 			{
@@ -1607,7 +1596,6 @@ var Roles = []Role{
 				Workspace: "Documents",
 				Features: []Feature{
 					{Key: "parent.documents.certificate_requests", Slug: "certificate_requests", Name: "Certificate requests", Scope: Scope("children"), Tier: Tier("core"), Summary: "Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download."},
-					{Key: "parent.documents.digilocker_document_pull", Slug: "digilocker_document_pull", Name: "DigiLocker Document Pull", Scope: Scope("children"), Tier: Tier("advanced"), Summary: "Not built: needs the school registered as a DigiLocker issuer and that vendor integration; certificates are still downloadable from Certificate requests. Fetch the child's school-issued certificates and mark sheets directly into the parent's DigiLocker."},
 				},
 			},
 			{
@@ -1615,7 +1603,7 @@ var Roles = []Role{
 				Name: "Leave & Absence",
 				Workspace: "Requests",
 				Features: []Feature{
-					{Key: "parent.leave_absence.apply_student_leave", Slug: "apply_student_leave", Name: "Apply Student Leave", Scope: Scope("children"), Tier: Tier("core"), Summary: "Submit digital student leave applications with reason and medical certificate attachments."},
+					{Key: "parent.leave_absence.apply_student_leave", Slug: "apply_student_leave", Name: "Apply Student Leave", Scope: Scope("children"), Tier: Tier("core"), Summary: "Report absence or apply for leave on one screen: a one-tap reason for tomorrow, or a longer leave application with a medical certificate — and follow each until it is answered."},
 				},
 			},
 			{
@@ -1624,7 +1612,6 @@ var Roles = []Role{
 				Workspace: "Requests",
 				Features: []Feature{
 					{Key: "parent.consent_permissions.permission_slips", Slug: "permission_slips", Name: "Permission Slips", Scope: Scope("children"), Tier: Tier("core"), Summary: "Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept."},
-					{Key: "parent.consent_permissions.emergency_pickups", Slug: "emergency_pickups", Name: "Emergency Pickups", Scope: Scope("children"), Tier: Tier("core"), Summary: "Generate single-use digital QR authorization passes for friends/relatives picking up child in emergency."},
 				},
 			},
 			{
@@ -1633,10 +1620,7 @@ var Roles = []Role{
 				Workspace: "Profile",
 				Features: []Feature{
 					{Key: "parent.profile.digital_student_id_card_view", Slug: "digital_student_id_card_view", Name: "Digital Student ID Card View", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Access child's digital student ID card with QR code directly within the mobile app."},
-					{Key: "parent.profile.digital_parent_id_card_for_campus_entry", Slug: "digital_parent_id_card_for_campus_entry", Name: "Digital Parent ID Card for Campus Entry", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Display dynamic encrypted QR code parent ID on mobile app screen for entry at school gates."},
-					{Key: "parent.profile.parent_app_biometric_lock_face_id_fingerprint", Slug: "parent_app_biometric_lock_face_id_fingerprint", Name: "Parent App Biometric Lock (Face ID / Fingerprint)", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Allow parents to secure mobile app access using smartphone hardware biometric authentication."},
 					{Key: "parent.profile.language", Slug: "language", Name: "Language", Scope: Scope("children"), Tier: Tier("core"), Summary: "Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees."},
-					{Key: "parent.profile.parent_app_dark_mode_high_contrast_accessibility", Slug: "parent_app_dark_mode_high_contrast_accessibility", Name: "Parent App Dark Mode & High Contrast Accessibility", Scope: Scope("children"), Tier: Tier("optional"), Summary: "Toggle high-contrast text modes and dark UI themes for low-vision parent app users."},
 				},
 			},
 			{

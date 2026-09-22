@@ -94,9 +94,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'super_admin.institution_setup.academic_year_defaults': screen(() => import('./setup/Wizard')),
   'super_admin.platform_configuration.data_operations': screen(() => import('./setup/ImportStudents')),
   'institution_admin.students.certificates_transfers': screen(() => import('./lifecycle/Certificates')),
-  // A parent raises a concern and follows it; the desk builds the application
-  // form the city fills in. Both had a screen and a live endpoint and no door.
-  'parent.messages.concerns': screen(() => import('./portal/Concerns')),
+  // The desk builds the application form the city fills in.
   'admissions.applications.form_builder': screen(() => import('./admissions/FormBuilder')),
   /* The same screen, in the admissions workspace. The desk that admits a
      child is the desk the family returns to when the child leaves, and the
@@ -138,6 +136,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      login whose person has been deleted, which are the two things a school
      actually needs from it. See the file for the longer version. */
   'institution_admin.staff.logins_access': screen(() => import('./principal/Logins')),
+  'institution_admin.staff.interaction_log': screen(() => import('./principal/InteractionLog')),
   /* The same Branding screen the vendor uses, now in the school's own menu.
      The endpoints behind it ask for settings.write and institution.read, which
      an institution admin already holds -- it was only ever the navigation that
@@ -222,7 +221,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // at enquiry there is no student yet, so it scopes to the caller's own
   // login rather than to a selected child.
   'parent.admissions.admission_status': screen(() => import('./portal/AdmissionStatus')),
-  'parent.fees.fees_payments': screen(() => import('./portal/Fees')),
+  // Fees & payments with a Receipts tab (FeesHub).
+  'parent.fees.fees_payments': screen(() => import('./portal/FeesHub')),
   'student.fees.fees': screen(() => import('./portal/Fees')),
   /* Fee & enrolment is the admitted queue and the money that settles
      before a child becomes a student. Seat allotment was the same Pipeline
@@ -285,7 +285,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   'parent.consent_permissions.permission_slips': screen(() => import('./portal/Consent')),
 
-  'parent.messages.communication': screen(() => import('./comms/Circulars')),
+  // Circulars · Message teacher · Concerns, as tabs of one row (MessagesHub).
+  'parent.messages.communication': screen(() => import('./portal/MessagesHub')),
   'institution_admin.statutory_returns.govt_returns': screen(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.udise_data_sync': screen(() => import('./compliance/UDISE')),
   'super_admin.statutory_boards.apaar_id_provisioning': screen(() => import('./compliance/UDISE')),
