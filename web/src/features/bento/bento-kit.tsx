@@ -685,7 +685,7 @@ export function StatCell({
           or "62% of billed" sits on every modern card, out of the figure's
           way. The note stays beneath as the sentence. */}
       <div className="flex items-start justify-between gap-3">
-        <p className="bento-label text-[12.5px] font-normal leading-snug text-[var(--bento-muted)] opacity-90">
+        <p className="bento-label text-[12.5px] font-medium leading-snug text-[var(--bento-ink)]">
           {label}
         </p>
         {badge && (
@@ -705,7 +705,7 @@ export function StatCell({
             the weight would only add ink. tabular-nums so a column of money
             lines up on the decimal. */}
         <p
-          className="bento-figure font-medium leading-none tracking-[-0.03em] tabular-nums
+          className="bento-figure font-bold leading-none tracking-[-0.03em] tabular-nums
                      text-[length:var(--bento-fig,clamp(30px,4vh,44px))]"
         >
           {value}
