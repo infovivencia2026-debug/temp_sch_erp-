@@ -204,9 +204,9 @@ var Groups = []Group{
 	},
 	{
 		Key: "fees", Name: "Fees & payments", Band: BandCore,
-		Blurb:     "Fee structure, invoices, collection, concessions and refunds.",
-		View:      []string{FeesRead, InvoicesRead, PaymentsRead},
-		Manage:    []string{FeesWrite, InvoicesWrite, PaymentsWrite},
+		Blurb:     "Fee structure, invoices, collection, wallets, concessions and refunds.",
+		View:      []string{FeesRead, InvoicesRead, PaymentsRead, WalletRead},
+		Manage:    []string{FeesWrite, InvoicesWrite, PaymentsWrite, WalletManage},
 		Approve:   []string{RefundsWrite},
 		Export:    []string{FinanceExport},
 		Scopes:    fixed("institution"),
@@ -409,8 +409,8 @@ var Groups = []Group{
 	},
 	{
 		Key: "portal", Name: "Own attendance & fees", Band: BandSystem,
-		Blurb:     "The student portal: my attendance, my fees, my receipts.",
-		View:      []string{SelfAttendanceRead, SelfFeesRead},
+		Blurb:     "The student portal: my attendance, my fees, my receipts, my wallet.",
+		View:      []string{SelfAttendanceRead, SelfFeesRead, SelfWalletRead},
 		Scopes:    fixed("own"),
 		ScopeNote: "Arrives with the student record, not from this screen.",
 	},

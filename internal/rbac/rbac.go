@@ -61,6 +61,11 @@ const (
 	PaymentsWrite = "finance.payments.write"
 	RefundsWrite  = "finance.refunds.write"
 	FinanceExport = "finance.export"
+	// Digital money: a school-held prepaid balance per student. Read is the
+	// office/board view of balances and history; Manage records top-ups and
+	// adjustments. Spending it against fees still goes through PaymentsWrite.
+	WalletRead   = "finance.wallet.read"
+	WalletManage = "finance.wallet.manage"
 
 	// admissions
 	AdmissionsRead  = "admissions.read"
@@ -140,6 +145,7 @@ const (
 	SelfChildrenRead   = "self.children.read"
 	SelfAttendanceRead = "self.attendance.read"
 	SelfFeesRead       = "self.fees.read"
+	SelfWalletRead     = "self.wallet.read"
 )
 
 // Permission is a seedable row.
@@ -182,6 +188,8 @@ var All = []Permission{
 	{PaymentsWrite, "finance", "Record payments and allocations"},
 	{RefundsWrite, "finance", "Issue refunds"},
 	{FinanceExport, "finance", "Export financial data"},
+	{WalletRead, "finance", "View student wallet balances and history"},
+	{WalletManage, "finance", "Top up and adjust student wallets"},
 
 	{AdmissionsRead, "admissions", "View enquiries and applications"},
 	{AdmissionsWrite, "admissions", "Manage the admissions pipeline"},
@@ -240,6 +248,7 @@ var All = []Permission{
 	{SelfChildrenRead, "self", "View own children (guardian)"},
 	{SelfAttendanceRead, "self", "View own attendance"},
 	{SelfFeesRead, "self", "View own fees and invoices"},
+	{SelfWalletRead, "self", "View own wallet balance and history"},
 }
 
 // Role is a seeded system role and the keys it grants.
@@ -424,7 +433,7 @@ var SystemRoles = []Role{
 		ReportCardsGenerate, ReportsRead, Class360Read, SelfProfileRead, SelfProfileWrite}},
 	{"finance", "Accounts & Finance", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, FeesRead, FeesWrite, InvoicesRead, InvoicesWrite,
-		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, ReportsRead,
+		PaymentsRead, PaymentsWrite, RefundsWrite, FinanceExport, WalletRead, WalletManage, ReportsRead,
 		SelfProfileRead, SelfProfileWrite}},
 	/* TransportRead, because the desk is where the bus is asked for.
 
@@ -500,7 +509,7 @@ var SystemRoles = []Role{
 	   come off. */
 	{"board_member", "Board / Trustee", []string{
 		InstitutionRead, AcademicsRead,
-		FeesRead, InvoicesRead, PaymentsRead, PayrollRead, InventoryRead,
+		FeesRead, InvoicesRead, PaymentsRead, WalletRead, PayrollRead, InventoryRead,
 		ReportsRead, AuditRead, JobsRead, SelfProfileRead, SelfProfileWrite}},
 	{"hr", "HR & Payroll", []string{
 		AcademicsRead, EmployeesRead, EmployeesWrite, PayrollRead, PayrollWrite,
@@ -523,9 +532,9 @@ var SystemRoles = []Role{
 	{"activity_coord", "Activity / Sports Coordinator", []string{
 		AcademicsRead, StudentsRead, StudentsReadAll, AnnouncementsWrite, SelfProfileRead, SelfProfileWrite}},
 	{"student", "Student", []string{
-		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, TimetableRead}},
+		SelfProfileRead, SelfProfileWrite, SelfAttendanceRead, SelfFeesRead, SelfWalletRead, TimetableRead}},
 	{"parent", "Parent / Guardian", []string{
-		SelfProfileRead, SelfProfileWrite, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead}},
+		SelfProfileRead, SelfProfileWrite, SelfChildrenRead, SelfAttendanceRead, SelfFeesRead, SelfWalletRead}},
 }
 
 func keysExcept(excluded ...string) []string {

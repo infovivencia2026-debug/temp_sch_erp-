@@ -805,6 +805,16 @@ func (s *Server) Routes() http.Handler {
 		// by scope rather than by a separate read-only copy of the query.
 		r.Route("/fees", func(r chi.Router) {
 			r.Get("/students/{id}/ledger", s.getStudentLedger)
+			/* The QR a family scans to pay, drawn by the server so a phone
+			   browser with no canvas still shows one. Same audience as the
+			   ledger: the clerk at the counter and the parent on the portal. */
+			r.Get("/upi-code", s.getUPICode)
+			/* The wallet, read the same way as the ledger: one endpoint, and the
+			   scope decides whether it is the office reaching any child or a
+			   family reaching only their own. Writes need finance.wallet.manage. */
+			r.Get("/students/{id}/wallet", s.getStudentWallet)
+			r.With(httpx.RequirePermission(rbac.WalletManage)).Post("/wallet/topups", s.walletTopUp)
+			r.With(httpx.RequirePermission(rbac.WalletManage)).Post("/wallet/adjustments", s.walletAdjust)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments", s.collectFee)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/receipts/{id}", s.getReceipt)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/clear", s.clearCheque)
