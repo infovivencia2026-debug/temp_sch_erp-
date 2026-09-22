@@ -465,6 +465,11 @@ export function Cell({
   return (
     <div
       onClick={openFromAnywhere}
+      /* Which domain and tone the cell wears, said on the element so a
+         stylesheet can dress it -- the aurora card faces in bento-theme.css
+         pick a gradient per domain and leave the dark tone alone. */
+      data-domain={domain || undefined}
+      data-tone={t}
       className={cn(
         /* `relative isolate` is what makes the art layer possible without
            touching anything else: the cell becomes its own stacking context,
@@ -635,7 +640,7 @@ export function StatCell({
   value,
   note,
   shape,
-  badge: _badge,
+  badge,
   accent,
   domain,
   art,
@@ -664,68 +669,56 @@ export function StatCell({
 }) {
   return (
     <Cell span={span} accent={accent} domain={domain} art={art}>
-      {/* The whisper. Small, wide-tracked, all caps — it gives the figure its
-          subject and then gets out of the way.
+      {/* THE MODERN STAT: a calm label, one big light figure, a quiet pill.
 
-          Semibold rather than bold: at 10px with 0.14em of tracking, extra
-          weight stops reading as emphasis and starts reading as noise, and the
-          label is not what the eye is meant to land on. */}
-      <p
-        /* SENTENCE CASE, no tracking. The eyebrow was 10px uppercase with 0.08em
-           of tracking — the loud, shouty caption the brief names. Uppercase and
-           wide tracking are what make eight small words read as a signal; a
-           label is not a signal, it is the figure's subject. Set as plain small
-           muted text it still sits under the figure and out of the way, and it
-           stops adding a second emphasised line to every card on the board. */
-        className="bento-label text-[10px] font-normal leading-tight
-                   text-[var(--bento-muted)]"
-      >
-        {label}
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-2.5">
-        {/* Sized against the viewport, not fixed.
+          What was here read as a print-era dashboard: a 10px label, a 26-40px
+          EXTRABOLD figure with the leading crushed to 0.95, an 11px note. The
+          heavy weight is what dated it -- on a phone a black 800-weight number
+          is a headline, and a board of twelve headlines is noise. Every
+          reference the owner has pointed at sets the figure large and LIGHT
+          (400-500), tracked tight, with the label at a readable 13px above it
+          and a small pill for the qualifier. That is what this is now.
 
-            32px is right on a desktop monitor and two pixels too many on a
-            13-inch laptop, where four rows of cards are dividing 690px between
-            them and the figure is the tallest thing in each. clamp lets the
-            number be as large as the glass can afford: it settles at 32 on
-            anything tall, shrinks toward 24 on a short window, and never
-            reaches the point where the card has to choose between clipping and
-            a scrollbar. */}
+          The label is the figure's subject, so it is plain and slightly
+          faded, never caps, never tracked. The badge is back, as a pill at the
+          top right on the same line as the label: the place a "vs last term"
+          or "62% of billed" sits on every modern card, out of the figure's
+          way. The note stays beneath as the sentence. */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="bento-label text-[12.5px] font-normal leading-snug text-[var(--bento-muted)] opacity-90">
+          {label}
+        </p>
+        {badge && (
+          <span
+            className="bento-delta inline-flex shrink-0 items-center rounded-full border px-2 py-0.5
+                       text-[11px] font-medium leading-none tabular-nums
+                       border-current/20 bg-current/[0.07] text-[var(--bento-ink)]"
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {/* Sized against the viewport, not fixed: as large as the glass can
+            afford, never so large the card has to choose between clipping and
+            a scrollbar. Weight 500, not 800: the size carries the emphasis,
+            the weight would only add ink. tabular-nums so a column of money
+            lines up on the decimal. */}
         <p
-          /* The shout. Bigger, tighter and the first thing the eye finds.
-
-             The ceiling goes from 32 to 40 because at 32 the figure was
-             competing with the card's own title rather than dominating it; the
-             floor stays at 26 so a short window still fits four rows. Tracking
-             is negative because large figures set at their default spacing
-             read as loose — the counters are already wide at this size.
-
-             tabular-nums so a column of them lines up on the decimal, which is
-             the whole reason a dashboard of money is readable at a glance. */
-          className="font-extrabold leading-[0.95] tracking-[-0.035em] tabular-nums
-                     text-[length:var(--bento-fig,clamp(26px,3.6vh,40px))]"
+          className="bento-figure font-medium leading-none tracking-[-0.03em] tabular-nums
+                     text-[length:var(--bento-fig,clamp(30px,4vh,44px))]"
         >
           {value}
         </p>
-        {/* The badge is no longer drawn.
-
-            It was a tinted pill beside the figure — "62% of billed", "needs
-            attention" — competing with the number it was meant to annotate:
-            two things at the top of the card, both asking to be read first.
-            The same fact is already in the note beneath, as a sentence, where
-            it reads as support rather than as a rival.
-
-            The prop stays in the signature so no dashboard breaks. */}
       </div>
       {shape && <div className="bento-shape mt-3">{shape}</div>}
       {note && (
-        /* The subtext, and deliberately quiet: small, muted, and never
-           competing with the figure it qualifies. */
-        <p className="bento-note mt-1.5 text-[11px] leading-snug text-[var(--bento-muted)]">{note}</p>
+        /* The subtext, quiet: small, muted, a sentence under the figure. */
+        <p className="bento-note mt-2 text-[12px] leading-snug text-[var(--bento-muted)]">{note}</p>
       )}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>
+
   )
 }
 

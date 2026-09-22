@@ -4470,3 +4470,189 @@ body:has(.bento-frost) [data-assistant-orb] {
     background: color-mix(in srgb, var(--bento-bg) 80%, transparent);
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AURORA: the card faces, when the Aurora palette is on.
+
+   The owner's gradient pack is twelve soft meshes: a pastel base with four
+   saturated blobs fading into it, on big rounded cards that glow from
+   inside and carry a faint diagonal sheen. A mesh is not a token, so the
+   palette (web/src/lib/paint.ts, Aurora) carries the bases and the inks
+   measured against them, and this section carries the meshes. paint.ts
+   stamps data-palette="aurora" on the root while that palette is active,
+   which is the whole hook: nothing here applies under any other palette.
+
+   THE BLOBS ARE AT 55%, NOT FULL STRENGTH. The pack draws #316cff and
+   #ff3c9e solid, with white labels and a text shadow; a board draws black
+   figures. 55% is the same ceiling --tint-mix was measured to: the domain
+   inks in the palette were walked until they clear 4.62:1 on the brightest
+   point a 55% blob makes over its base, the brightest place any figure can
+   sit. Full-strength blobs would need white ink, and white ink fails on the
+   pastel base a few pixels away.
+
+   WHICH MESH A CARD WEARS. A domain card wears its domain's mesh, so the
+   same colour means the same thing on every board: students are Electric
+   Blue wherever they appear. A plain card takes its mesh from its position
+   round the board, cycling through all twelve, which is how the pack's own
+   grid reads: no two neighbours alike, no scheme to learn. The dark tone
+   (light text on the ink) is left alone; a light mesh under light text is
+   nothing anyone can read. The anchor's own gradient is replaced, its dark
+   ink stays.
+
+   SUBTLE ON PURPOSE. The pack's inner glow is 50px of 30% white; here it is
+   40px at 35% over a white card, the same softness without the cards
+   turning to milk. The border is the pack's hairline of white. Every token
+   the Shadow, Corners and Borders preferences drive still applies: the mesh
+   is a paint, not a shape.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+html[data-palette='aurora'] [data-layout='bento'] {
+  /* 01 Pink Sky */
+  --aurora-01:
+    radial-gradient(circle at 30% 20%, rgba(255, 60, 158, .55) 0%, transparent 48%),
+    radial-gradient(circle at 75% 30%, rgba(255, 104, 212, .55) 0%, transparent 45%),
+    radial-gradient(circle at 25% 90%, rgba(188, 232, 255, .55) 0%, transparent 52%),
+    radial-gradient(circle at 80% 85%, rgba(213, 200, 255, .55) 0%, transparent 50%);
+  --aurora-01-base: #f5eaff;
+  /* 02 Electric Blue */
+  --aurora-02:
+    radial-gradient(circle at 30% 25%, rgba(49, 108, 255, .55) 0%, transparent 48%),
+    radial-gradient(circle at 75% 25%, rgba(99, 183, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 25% 85%, rgba(209, 231, 255, .55) 0%, transparent 52%),
+    radial-gradient(circle at 85% 80%, rgba(185, 186, 255, .55) 0%, transparent 48%);
+  --aurora-02-base: #dce8ff;
+  /* 03 Purple Dream */
+  --aurora-03:
+    radial-gradient(circle at 25% 15%, rgba(167, 92, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 80% 25%, rgba(241, 133, 255, .55) 0%, transparent 48%),
+    radial-gradient(circle at 20% 85%, rgba(150, 207, 255, .55) 0%, transparent 50%),
+    radial-gradient(circle at 80% 85%, rgba(229, 189, 255, .55) 0%, transparent 50%);
+  --aurora-03-base: #eee5ff;
+  /* 04 Peach Bloom */
+  --aurora-04:
+    radial-gradient(circle at 25% 20%, rgba(255, 128, 108, .55) 0%, transparent 48%),
+    radial-gradient(circle at 75% 25%, rgba(255, 180, 135, .55) 0%, transparent 45%),
+    radial-gradient(circle at 25% 85%, rgba(255, 231, 213, .55) 0%, transparent 52%),
+    radial-gradient(circle at 80% 80%, rgba(255, 208, 224, .55) 0%, transparent 50%);
+  --aurora-04-base: #fff1ea;
+  /* 05 Mint Aurora */
+  --aurora-05:
+    radial-gradient(circle at 25% 20%, rgba(32, 214, 181, .55) 0%, transparent 46%),
+    radial-gradient(circle at 75% 25%, rgba(112, 240, 221, .55) 0%, transparent 48%),
+    radial-gradient(circle at 20% 85%, rgba(184, 234, 255, .55) 0%, transparent 52%),
+    radial-gradient(circle at 80% 85%, rgba(209, 255, 217, .55) 0%, transparent 48%);
+  --aurora-05-base: #e2fff6;
+  /* 06 Blue + Pink */
+  --aurora-06:
+    radial-gradient(circle at 20% 20%, rgba(61, 108, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 78% 20%, rgba(255, 79, 165, .55) 0%, transparent 45%),
+    radial-gradient(circle at 25% 85%, rgba(157, 225, 255, .55) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 194, 229, .55) 0%, transparent 48%);
+  --aurora-06-base: #e9e8ff;
+  /* 07 Cyan Future */
+  --aurora-07:
+    radial-gradient(circle at 25% 15%, rgba(0, 168, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 80% 25%, rgba(66, 245, 233, .55) 0%, transparent 45%),
+    radial-gradient(circle at 20% 85%, rgba(201, 238, 255, .55) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(188, 218, 255, .55) 0%, transparent 48%);
+  --aurora-07-base: #e7f8ff;
+  /* 08 Lavender Glass */
+  --aurora-08:
+    radial-gradient(circle at 25% 20%, rgba(117, 88, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(211, 138, 255, .55) 0%, transparent 47%),
+    radial-gradient(circle at 20% 90%, rgba(183, 217, 255, .55) 0%, transparent 50%),
+    radial-gradient(circle at 80% 85%, rgba(227, 203, 255, .55) 0%, transparent 50%);
+  --aurora-08-base: #eeeaff;
+  /* 09 Sunset Glow */
+  --aurora-09:
+    radial-gradient(circle at 25% 20%, rgba(255, 76, 118, .55) 0%, transparent 45%),
+    radial-gradient(circle at 75% 20%, rgba(255, 139, 102, .55) 0%, transparent 45%),
+    radial-gradient(circle at 25% 85%, rgba(255, 210, 170, .55) 0%, transparent 50%),
+    radial-gradient(circle at 80% 85%, rgba(255, 190, 220, .55) 0%, transparent 48%);
+  --aurora-09-base: #fff0e8;
+  /* 10 Aqua Purple */
+  --aurora-10:
+    radial-gradient(circle at 20% 15%, rgba(4, 217, 217, .55) 0%, transparent 43%),
+    radial-gradient(circle at 80% 25%, rgba(133, 92, 255, .55) 0%, transparent 48%),
+    radial-gradient(circle at 20% 85%, rgba(172, 248, 239, .55) 0%, transparent 50%),
+    radial-gradient(circle at 82% 85%, rgba(208, 192, 255, .55) 0%, transparent 48%);
+  --aurora-10-base: #e6f5ff;
+  /* 11 Dark Aurora, the one dark card in the pack, on a light base here so
+     its blobs read under dark ink: the anchor's face. */
+  --aurora-11:
+    radial-gradient(circle at 20% 20%, rgba(23, 74, 255, .55) 0%, transparent 42%),
+    radial-gradient(circle at 80% 20%, rgba(202, 56, 255, .55) 0%, transparent 42%),
+    radial-gradient(circle at 25% 90%, rgba(0, 200, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 80% 85%, rgba(250, 71, 143, .55) 0%, transparent 43%);
+  --aurora-11-base: #e9e8ff;
+  /* 12 Premium Blue */
+  --aurora-12:
+    radial-gradient(circle at 20% 20%, rgba(20, 87, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 78% 25%, rgba(95, 142, 255, .55) 0%, transparent 45%),
+    radial-gradient(circle at 20% 90%, rgba(157, 229, 255, .55) 0%, transparent 50%),
+    radial-gradient(circle at 80% 85%, rgba(183, 186, 255, .55) 0%, transparent 48%);
+  --aurora-12-base: #e6efff;
+
+  /* The pack's diagonal sheen, painted over every mesh. */
+  --aurora-sheen: linear-gradient(135deg,
+    rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 34%,
+    rgba(255, 255, 255, .14) 72%, rgba(255, 255, 255, 0));
+}
+
+/* The face itself: the mesh under the sheen, the base as the colour, the
+   glow inside the edge. Not the dark tone, whose light text needs its dark
+   ground. */
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell:not([data-tone='dark']) {
+  background-image: var(--aurora-sheen), var(--aurora, none);
+  background-color: var(--aurora-base, var(--bento-card));
+  border-color: rgba(255, 255, 255, .8);
+  box-shadow:
+    inset 0 0 40px rgba(255, 255, 255, .35),
+    var(--bento-edge, none),
+    var(--bento-shadow-sm);
+}
+
+/* A domain card wears its domain's mesh, on every board. The base is the
+   same colour the palette's -soft token carries, so the inline
+   backgroundColor the cell already sets and this rule agree. */
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='communication'] { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='students']      { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='academics']     { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='warning']       { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='finance'],
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='success']       { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='staff']         { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='attendance']    { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='reports']       { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='critical']      { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='admissions']    { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='operations']    { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
+
+/* A plain card takes its mesh from where it sits, round the twelve. The
+   widget wrapper is the board's child, so the count is on the wrapper. */
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+1)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+2)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+3)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+4)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+5)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+6)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+7)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+8)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+9)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+10) .bento-cell:not([data-domain]) { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+11) .bento-cell:not([data-domain]) { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
+html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+12) .bento-cell:not([data-domain]) { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
+
+/* The anchor keeps its dark ink and takes the one mesh with a base its
+   figures still read on; its own two-stop gradient is the thing replaced. */
+html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-tone='anchor'] { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
+
+/* On paper the meshes go: index.css strips backgrounds for print and this
+   must not put them back. */
+@media print {
+  html[data-palette='aurora'] [data-layout='bento'] .bento-cell {
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
