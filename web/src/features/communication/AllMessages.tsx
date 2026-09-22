@@ -77,7 +77,7 @@ const CHANNEL_LABEL: Record<Channel, string> = {
 
 export default function AllMessages() {
   const [channel, setChannel] = useState<'' | Channel>('')
-  const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('pending')
+  const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('all')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Item | null>(null)
   const [openStaff, setOpenStaff] = useState<Item | null>(null)
@@ -122,7 +122,7 @@ export default function AllMessages() {
                 options={[
                   { value: 'pending', label: 'Not responded yet' },
                   { value: 'answered', label: 'Answered' },
-                  { value: 'all', label: 'Everything' },
+                  { value: 'all', label: 'Everything (newest first)' },
                 ]}
               />
             </Field>
