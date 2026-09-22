@@ -4666,3 +4666,55 @@ html[data-palette='aurora'] .bento-cell[data-tone='anchor'] { --aurora: var(--au
     box-shadow: none !important;
   }
 }
+
+
+/* ---- AURORA SPACING ----------------------------------------------------
+   The board's defaults are a ruled sheet: 1px gutters, a corner that rounds
+   to nothing, 12-16px of padding. Right for hairline cells, wrong for a mesh
+   card with a black rule round it, which then reads as tiles jammed together
+   with their corners clipped. The pack draws its cards with room between
+   them and a big radius; this gives the aurora board the same proportions,
+   still scaled by the Corners and Density preferences so they keep meaning
+   something. Every selector form the skin and corner blocks use is listed,
+   because they set these tokens at (0,2,1) and (0,3,1) and this must win at
+   equal specificity by coming later in the file. */
+html[data-palette='aurora'][data-layout='bento'],
+html[data-palette='aurora'] [data-layout='bento'],
+html[data-palette='aurora'][data-skin='focus'][data-layout='bento'],
+html[data-palette='aurora'][data-skin='focus'] [data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'] [data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-skin='focus'][data-layout='bento'],
+html[data-palette='aurora'][data-corners='round'][data-skin='focus'] [data-layout='bento'] {
+  --bento-gap: calc(14px * var(--bento-density, 1));
+  --bento-radius: max(10px, calc(22px * var(--radius-scale, 1)));
+  --bento-radius-sm: max(6px, calc(12px * var(--radius-scale, 1)));
+}
+
+/* Room inside the card: 18px on a desk, 16px on a phone, and the same on
+   every side so the label, the figure and the note share one left edge
+   with the rule. The dark tone keeps the sheet's padding; it is not a mesh
+   card. */
+html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
+  padding: 18px 18px 16px;
+}
+@media (max-width: 639px) {
+  html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
+    padding: 16px;
+  }
+}
+
+/* The corner cue follows the card's corner, so the arrow sits inside the
+   curve rather than poking out of it -- the same fix the cue rule above
+   made for the classic radius, for this radius. */
+html[data-palette='aurora'] .bento-cue {
+  border-radius: 0 var(--bento-radius) 0 8px;
+}
+
+/* And the note never runs under the cue. A one-line sentence on a 1x1 card
+   reached the bottom-right corner exactly where the 32px cue sits, and the
+   last word disappeared behind it. Applies to every palette: the collision
+   is the sheet's too, it was only easier to see with a rule round the card. */
+[data-layout='bento'] .bento-cell:has(.bento-cue) .bento-note {
+  padding-right: 36px;
+}
