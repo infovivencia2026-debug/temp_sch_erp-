@@ -34,3 +34,14 @@ deploy/cloudrun/.env.cloudrun
 /site/node_modules/
 site/tsconfig.tsbuildinfo
 *.exe
+
+# Android release signing and Firebase config for mobile/apps/*: the keystore,
+# its passwords and google-services.json are per-deployment secrets that live
+# on the build box (and in Play Console), never in source. A leaked upload key
+# means resetting it with Google; a leaked app-signing key cannot be reset.
+keystore.properties
+*.jks
+*.keystore
+google-services.json
+# Built store artefacts belong in the Play Console, not in git.
+playstore/out/

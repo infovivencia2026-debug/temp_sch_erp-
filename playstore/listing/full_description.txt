@@ -1,0 +1,25 @@
+EDU CLOUD is the official app for schools that run on the EDU CLOUD platform. If your child's school has given you a login, this app puts everything the school shares with you in one place — and tells you the moment something needs your attention.
+
+WHAT YOU GET AS A PARENT
+• Attendance — see today's mark and the month at a glance, and hear about an absence the same morning.
+• Fees — what is due and by when, every receipt, and a UPI QR code to pay the school directly from your own UPI app. Your child's prepaid wallet balance and its history, if the school uses wallets.
+• Homework and timetable — what is set, what is due, and what is on tomorrow.
+• Results — marks, report cards and remarks as the school publishes them.
+• The bus — where your child's bus is and when it is near your stop.
+• Notices and messages — circulars, the class teacher's messages and the school forum, with a record you can look back at.
+• More than one child? Switch between them from the same screen.
+
+FOR TEACHERS AND STAFF
+The same login opens your staff view: take attendance, post homework, see your timetable and your own records.
+
+WHY THE APP RATHER THAN THE WEBSITE
+• Notifications on your phone — a circular, the bus, a fee due, an absence — even when the app is closed.
+• Works offline — the pages you opened recently are still there without a signal.
+• Locks with your fingerprint or face, so a shared phone does not mean a shared school account.
+• Always current — the app shows the school's live system, so a change the school makes this afternoon is on your phone this afternoon.
+
+PRIVACY
+The app has no ads and no third-party analytics. It does not ask for your location, contacts or messages. Your school controls the records; you see only the children linked to your account. Everything travels encrypted. Read the full policy at https://school-erp-cqj.pages.dev/privacy and how to delete your account at https://school-erp-cqj.pages.dev/delete-account.
+
+WHO CAN USE IT
+You need a login from a school that uses EDU CLOUD — the school creates it for you. If you do not have one, ask your school office. Support: [SUPPORT_EMAIL]

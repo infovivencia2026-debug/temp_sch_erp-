@@ -1,0 +1,6 @@
+First release on Google Play.
+• Attendance, homework, results and the timetable for each child
+• Fees, receipts, UPI payment to the school, and the prepaid wallet
+• Live bus position and stop alerts
+• Notices, messages and the school forum
+• Notifications, offline pages and fingerprint lock

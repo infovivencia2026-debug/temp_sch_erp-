@@ -5,3 +5,10 @@
 # Pages does by default for a single-page app and needs no rule here.
 /.well-known/assetlinks.json  /well-known/assetlinks.json  200
 /.well-known/apple-app-site-association  /well-known/apple-app-site-association  200
+
+# The public legal pages Google Play requires a URL for. Static files in
+# public/, given clean addresses so the store listing, the app and the policy
+# text can all point at one stable path.
+/privacy         /privacy.html         200
+/terms           /terms.html           200
+/delete-account  /delete-account.html  200

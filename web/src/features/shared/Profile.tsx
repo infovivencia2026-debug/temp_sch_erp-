@@ -248,6 +248,31 @@ export default function ProfileView() {
       )}
     </div>
 
+    {/* Leaving. Google Play requires an in-app route to account deletion for
+        any app with sign-in, and a family has a right to ask regardless. The
+        account is the school's to remove, so this opens the public page that
+        explains what is deleted, what the school must keep by law, and how to
+        ask — the same page the store listing links to. */}
+    <div className="mt-4">
+      <Card>
+        <CardHeader
+          title="Delete my account"
+          description="Your account is created by your school. Ask for it and your personal data to be removed."
+        />
+        <div className="flex flex-wrap items-center gap-3 p-5 text-[13px] text-muted-foreground">
+          <span className="max-w-[60ch]">
+            Deletion is completed within 30 days. Records the school must keep by law (fee receipts,
+            attendance, certificates) are retained by the school and unlinked from your login.
+          </span>
+          <a href="/delete-account" target="_blank" rel="noopener"
+            className="btn inline-flex min-h-[36px] items-center rounded-sm border border-destructive/30 px-3.5 text-[13px] font-medium text-destructive hover:bg-destructive/5 [@media(pointer:coarse)]:min-h-[44px]"
+            data-variant="secondary">
+            Request account deletion
+          </a>
+        </div>
+      </Card>
+    </div>
+
     {/* The staff side of "my own record".
 
         A teacher's appraisal, training hours and duty roster are read through
