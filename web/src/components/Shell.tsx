@@ -759,7 +759,10 @@ export function Shell({
                  this button's right edge. Without it the label truncates at the
                  button's far side and the last characters render underneath it,
                  which reads as a rendering fault rather than a truncation. */
-              'flex w-full items-center gap-2.5 rounded-[7px] py-2 pl-2 pr-12 text-left',
+              /* Stacked: the mark on its own row, the role and the school under
+                 it. Side by side, a 48px logo left the names a truncated
+                 stub ("Instit…"). */
+              'flex w-full flex-col items-start gap-2 rounded-[7px] py-2 pl-2 pr-12 text-left',
               'transition-colors duration-100',
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
@@ -791,7 +794,7 @@ export function Shell({
                 {session.institution?.short_name?.[0] ?? 'E'}
               </span>
             )}
-            <span className="min-w-0 flex-1">
+            <span className="block w-full min-w-0">
               <span className="flex items-center gap-1">
                 <span className="truncate text-[calc(14px*var(--font-scale,1))] font-semibold">
                   {role?.name ?? 'Workspace'}
@@ -1076,6 +1079,9 @@ export function Shell({
               would be three more rectangles. */}
           <p className="min-w-0 truncate text-[calc(13.5px*var(--font-scale,1))]">
             <span className="font-medium">{session.institution?.name ?? 'EDU CLOUD'}</span>
+            {/* Which desk you are sitting at, said up here as well: the role
+                is what decides what every screen below shows. */}
+            {role?.name && <span className="text-muted-foreground"> · {role.name}</span>}
             {scopeLine && <span className="text-muted-foreground"> · {scopeLine}</span>}
           </p>
           {/* The school being worked in, only for someone who oversees more
