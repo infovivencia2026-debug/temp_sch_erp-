@@ -111,8 +111,11 @@ const PALETTE_KEY = 'erp.palette'
     index.css, which is a default by omission rather than a decision. This is
     the decision. It applies ONLY when the key is absent: a stored name — any
     stored name, including one of the older palettes — still wins, so nobody
-    who has already chosen loses their choice on the release that adds this. */
-export const DEFAULT_PALETTE = 'Vivid'
+    who has already chosen loses their choice on the release that adds this.
+
+    Pearl since September 2026: the owner's pastel "EXP" system (see the
+    palette's own note below). Vivid stays shipped and one click away. */
+export const DEFAULT_PALETTE = 'Pearl'
 
 let activePalette: string | null =
   typeof window === 'undefined' ? null : (() => {
@@ -1015,6 +1018,165 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--dom-warning': '#946d04',
       '--dom-warning-soft': '#f6f1e5',
       '--dom-warning-text': '#8a6604',
+    },
+  },
+
+  /* PEARL: the owner's "EXP" light system -- pearl surfaces, pastel radial
+     gradients, glass depth -- brought onto the board as a palette.
+
+     The source is a grid of twelve gradient cards (pearl/blue/blush, lavender,
+     peach, mint/lilac, sky/coral, pistachio/lavender, powder blue, peach/rose,
+     mint, soft rose, pistachio, cyan/lilac). A card's PALE stop is the domain's
+     soft fill, so each of the twelve domains wears one of the twelve cards;
+     its SATURATED stop is the domain's hue, walked darker by the same
+     lightness-only method as every palette above until it clears 4.62:1 on
+     both its own soft and the white card. The page ground, ink (#17191f) and
+     muted (#727782 walked to #70757f, the one the eye-picked value missed at
+     4.5:1) are the system's own. The anchor is card 01's gradient, blue to
+     blush, under the dark ink.
+
+     The gradients and the 48px corners themselves are not tokens -- the board
+     paints flat fills -- so the pastel is what carries over; turning the
+     Corners axis to "round" gets most of the rest of the look. Worst pairing
+     4.65:1. Light only: the source design is drawn for a light ground and has
+     no dark half. */
+  {
+    name: 'Pearl',
+    mode: 'light',
+    tokens: {
+      '--bento-bg': '#f7f8fc',
+      '--bento-card': '#ffffff',
+      '--bento-card-2': '#f0f2fa',
+      '--bento-ink': '#17191f',
+      '--bento-muted': '#70757f',
+      '--bento-line': '#e4e7f0',
+      '--bento-dock-bg': '#f7f8fc',
+      '--bento-dock-ink': '#17191f',
+      /* The four accents are the mint, lavender, rose and peach cards,
+         darkened to read as marks on white; the tints are those cards' pale
+         stops, so a badge sits on the same pastel the card is made of. */
+      '--bento-mint': '#37825e',
+      '--bento-mint-tint': '#d9f9e8',
+      '--bento-purple': '#8554e8',
+      '--bento-purple-tint': '#f0e7ff',
+      '--bento-pink': '#da2771',
+      '--bento-pink-tint': '#ffd5e5',
+      '--bento-orange': '#cc4700',
+      '--bento-orange-tint': '#ffd9cb',
+      '--bento-anchor-from': '#e1e8ff',
+      '--bento-anchor-to': '#ffd8e9',
+      '--bento-anchor-ink': '#17191f',
+      '--dom-students': '#0d4fff',
+      '--dom-students-soft': '#dbe6ff',
+      '--dom-students-text': '#0d4fff',
+      '--dom-academics': '#7842e6',
+      '--dom-academics-soft': '#f0e7ff',
+      '--dom-academics-text': '#7842e6',
+      '--dom-finance': '#617318',
+      '--dom-finance-soft': '#eaf7b7',
+      '--dom-finance-text': '#617318',
+      '--dom-operations': '#2965bd',
+      '--dom-operations-soft': '#d2edff',
+      '--dom-operations-text': '#2965bd',
+      '--dom-reports': '#6a2df0',
+      '--dom-reports-soft': '#dfd7ff',
+      '--dom-reports-text': '#6a2df0',
+      '--dom-staff': '#b91f5e',
+      '--dom-staff-soft': '#ffd5e5',
+      '--dom-staff-text': '#b91f5e',
+      '--dom-admissions': '#006fb1',
+      '--dom-admissions-soft': '#d8f5ff',
+      '--dom-admissions-text': '#006fb1',
+      '--dom-attendance': '#337957',
+      '--dom-attendance-soft': '#d9f9e8',
+      '--dom-attendance-text': '#337957',
+      '--dom-communication': '#bc1563',
+      '--dom-communication-soft': '#fbd7e8',
+      '--dom-communication-text': '#bc1563',
+      '--dom-critical': '#c01900',
+      '--dom-critical-soft': '#ffd6cf',
+      '--dom-critical-text': '#c01900',
+      '--dom-success': '#4b7522',
+      '--dom-success-soft': '#def7bf',
+      '--dom-success-text': '#4b7522',
+      '--dom-warning': '#ae3c00',
+      '--dom-warning-soft': '#ffd9cb',
+      '--dom-warning-text': '#ae3c00',
+    },
+  },
+
+  /* OBSIDIAN: Pearl's night half, from the owner's dark "Health UI" system --
+     a near-black sheet (#040405 ground, #09090c card), hairline rules at 9%
+     white, and a few coloured glows: magenta, indigo, red-orange, a lime
+     point on a slider.
+
+     Kept quiet on purpose. Every hue is desaturated to 55% of the source
+     before it is walked lighter, and it is walked only as far as 4.62:1 on
+     the card requires, so an ink is a tinted grey rather than a neon. A
+     domain's soft is its hue at 10% lightness and a third of its chroma: one
+     step above the card, so a tinted cell reads as the same black sheet with
+     a breath of colour in it, which is how the source draws its cards. The
+     anchor is the magenta card's gradient, deepened until white ink clears
+     14:1 on it. Worst pairing 5.62:1. */
+  {
+    name: 'Obsidian',
+    mode: 'dark',
+    tokens: {
+      '--bento-bg': '#040405',
+      '--bento-card': '#09090c',
+      '--bento-card-2': '#101014',
+      '--bento-ink': '#f6f6f8',
+      '--bento-muted': '#8a8a90',
+      '--bento-line': '#19191d',
+      '--bento-dock-bg': '#0b0b0e',
+      '--bento-dock-ink': '#f6f6f8',
+      '--bento-mint': '#bbc372',
+      '--bento-mint-tint': '#1f2013',
+      '--bento-purple': '#a571d6',
+      '--bento-purple-tint': '#1a1122',
+      '--bento-pink': '#d37fb6',
+      '--bento-pink-tint': '#21121c',
+      '--bento-orange': '#d06f5d',
+      '--bento-orange-tint': '#221311',
+      '--bento-anchor-from': '#3a1a33',
+      '--bento-anchor-to': '#14161f',
+      '--bento-anchor-ink': '#f6f6f8',
+      '--dom-students': '#8289db',
+      '--dom-students-soft': '#111222',
+      '--dom-students-text': '#f6f6f8',
+      '--dom-academics': '#a571d6',
+      '--dom-academics-soft': '#1a1122',
+      '--dom-academics-text': '#f6f6f8',
+      '--dom-finance': '#bbc372',
+      '--dom-finance-soft': '#1f2013',
+      '--dom-finance-text': '#f6f6f8',
+      '--dom-operations': '#a4a6ab',
+      '--dom-operations-soft': '#19191a',
+      '--dom-operations-text': '#f6f6f8',
+      '--dom-reports': '#9993e0',
+      '--dom-reports-soft': '#121122',
+      '--dom-reports-text': '#f6f6f8',
+      '--dom-staff': '#d37fb6',
+      '--dom-staff-soft': '#21121c',
+      '--dom-staff-text': '#f6f6f8',
+      '--dom-admissions': '#a5abe5',
+      '--dom-admissions-soft': '#0f1424',
+      '--dom-admissions-text': '#f6f6f8',
+      '--dom-attendance': '#82bddb',
+      '--dom-attendance-soft': '#111c22',
+      '--dom-attendance-text': '#f6f6f8',
+      '--dom-communication': '#c7a5e5',
+      '--dom-communication-soft': '#191223',
+      '--dom-communication-text': '#f6f6f8',
+      '--dom-critical': '#d06f5d',
+      '--dom-critical-soft': '#221311',
+      '--dom-critical-text': '#f6f6f8',
+      '--dom-success': '#abc372',
+      '--dom-success-soft': '#1c2013',
+      '--dom-success-text': '#f6f6f8',
+      '--dom-warning': '#d7a677',
+      '--dom-warning-soft': '#221911',
+      '--dom-warning-text': '#f6f6f8',
     },
   },
 

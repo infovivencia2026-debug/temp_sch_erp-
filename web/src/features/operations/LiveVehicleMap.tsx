@@ -189,6 +189,19 @@ export default function LiveVehicleMap() {
     () => (stops.data?.items ?? []).filter((s) => !routeFilter || s.route_id === routeFilter),
     [stops.data, routeFilter],
   )
+  /* Each route as a line through its own stops in running order, for the map
+     to draw. Grouped here rather than in the map because the map knows
+     nothing about routes -- it is handed lines. */
+  const routeLines = useMemo(() => {
+    const byRoute = new Map<string, StopPoint[]>()
+    for (const s of stopPoints) byRoute.set(s.route_id, [...(byRoute.get(s.route_id) ?? []), s])
+    return [...byRoute.values()].map((list) =>
+      list
+        .slice()
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((s) => [s.longitude, s.latitude] as [number, number]),
+    )
+  }, [stopPoints])
 
   const plottable = vehicles.filter(
     (v) => v.latitude != null && v.longitude != null && v.state !== 'idle',
@@ -257,6 +270,13 @@ export default function LiveVehicleMap() {
                 ) : (
                   <FleetMap
                     className="h-[560px]"
+                    /* The navigation treatment: a quiet grey map in the
+                       office's own theme, every route drawn through its
+                       stops as one accent line, the stops as rings. The
+                       streets are still there for a bus that has strayed;
+                       they are simply not in colour, so the routes are. */
+                    tone="guidance"
+                    routes={routeLines}
                     vehicles={plottable.map((v) => ({
                       id: v.vehicle_id,
                       label: v.registration_no,
@@ -286,9 +306,10 @@ export default function LiveVehicleMap() {
                 )}
                 <p className="mt-3 text-[12.5px] text-muted-foreground">
                   <MapPin className="mr-1 inline h-3.5 w-3.5" />
-                  A bus with no recent fix is drawn hollow and dashed with its age beside it, so a
-                  stale position never reads as a moving bus. Parked vehicles are listed but not
-                  plotted. Street map © OpenStreetMap contributors.
+                  Each route is the coloured line through its stops. A bus with no recent fix is
+                  drawn hollow and dashed with its age beside it, so a stale position never reads
+                  as a moving bus. Parked vehicles are listed but not plotted. Street map ©
+                  OpenStreetMap contributors.
                 </p>
               </div>
             </Card>
