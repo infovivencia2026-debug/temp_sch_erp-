@@ -92,11 +92,17 @@
        small enough to stay quiet. */
     --sidebar: 220 16% 94%;      /* #EEF0F4  recedes */
     --ground: 220 20% 97%;       /* #F7F8FA  page */
-    --background: 220 20% 97%;
+    /* THE PAGE SITS A CLEAR STEP BELOW THE CARDS.
+
+       At 97% the ground and a white card were three points apart, which on a
+       phone in daylight is no difference at all: every card, table and panel
+       dissolved into one pale sheet and nothing read as a separate thing.
+       94% is still a light, quiet ground, but a white card now stands on it. */
+    --background: 220 16% 94%;
     --card: 0 0% 100%;           /* #FFFFFF  comes forward */
     --card-default: 0 0% 100%;
-    --surface-subtle: 220 20% 98.5%;
-    --surface-hover: 220 14% 90%;  /* on the sidebar, so a step darker again */
+    --surface-subtle: 220 18% 97.5%;
+    --surface-hover: 220 14% 88%;  /* on the sidebar, so a step darker again */
     --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
@@ -112,7 +118,7 @@
        The two greys below it are neutral rather than blue-tinted, so the three
        steps sit on one axis instead of drifting in hue as they lighten. */
     --foreground: 0 0% 0%;       /* #000000 */
-    --secondary-foreground: 0 0% 28%;    /* #474747 */
+    --secondary-foreground: 0 0% 22%;    /* #383838 */
     /* 47% is the lightest this can be and still clear 4.5:1 on white, which
        muted text has to: it is used for "soon" navigation items, table
        headers and hints, all of which are read rather than decorative. 55%
@@ -121,11 +127,16 @@
        which is the darkest of the three planes it has to sit on. Checking it
        against white alone was how the previous value passed while the group
        labels in the rail quietly failed. */
-    --muted-foreground: 0 0% 41%;
+    --muted-foreground: 0 0% 35%;
 
-    --border: 220 13% 91%;       /* #E5E7EB */
-    --border-strong: 220 14% 83%; /* #D1D5DB, for the rare line that must read */
-    --input: 220 13% 91%;
+    /* A LINE YOU CAN SEE. #E5E7EB on white is a 1.1:1 hairline — on most
+       phones it simply is not there, and a table with no rules, a card with
+       no edge and an input with no box all look like the same pale sheet.
+       Borders now read without shouting; --border-strong is for the rule that
+       must carry on its own. */
+    --border: 220 12% 82%;       /* #CBD0D8 */
+    --border-strong: 220 12% 68%; /* #A3AAB6, for the rare line that must read */
+    --input: 220 12% 80%;
 
     /* The single accent. Used for primary actions, selection and one series
        in a chart — not for headings, icons or decoration. */
@@ -160,9 +171,11 @@
        4.64:1 at its worst and 5.50:1 on the card. */
     --info: 192 91% 29%;         /* #07728D */
 
-    --secondary: 220 14% 96%;
-    --muted: 220 14% 96%;
-    --accent: 220 14% 96%;
+    /* Fills a step below the card, so a chip, a hover wash or a muted panel
+       is visibly a different thing from the white it sits on. */
+    --secondary: 220 14% 93%;
+    --muted: 220 14% 93%;
+    --accent: 220 14% 92%;
     --accent-foreground: 0 0% 0%;
 
     /* Navigation is a quiet surface, not an inverted slab. Only the active
@@ -200,7 +213,10 @@
        Never heavier than this. The heaviest rung is a 56px ambient at 22%,
        which is what a sheet over a page casts; anything past that stops being
        a shadow and becomes a border made of smoke. */
-    --elev-a: 1;
+    /* 1.35, not 1: at 1 the card shadow was a rumour. Cards, popovers and the
+       lifted button now visibly sit above the ground rather than merging
+       with it; the Shadow preference still scales from here. */
+    --elev-a: 1.35;
     --elev-ink: 220 20% 12%;
     --elev-0: none;
     --elev-1: 0 1px 1px hsl(var(--elev-ink) / calc(0.04 * var(--elev-a))),
@@ -318,12 +334,14 @@
     --elevated: 0 0% 12%;        /* #1F1F1F  raised */
 
     --foreground: 0 0% 98%;      /* #FAFAFA */
-    --secondary-foreground: 240 5% 65%;  /* #A1A1AA */
-    --muted-foreground: 240 4% 55%;
+    --secondary-foreground: 240 5% 72%;  /* #B1B1BA */
+    --muted-foreground: 240 4% 63%;
 
-    --border: 0 0% 15%;          /* #272727 */
-    --border-strong: 0 0% 22%;
-    --input: 0 0% 15%;
+    /* The same fault in the dark: #272727 on a #171717 card is a line nobody
+       sees. Lifted so cards, rules and inputs separate on a dim screen. */
+    --border: 0 0% 24%;          /* #3D3D3D */
+    --border-strong: 0 0% 36%;
+    --input: 0 0% 26%;
 
     --primary: 217 91% 62%;
     --primary-hover: 217 91% 70%;
@@ -1013,9 +1031,12 @@
      key look untouched. */
   @media (pointer: coarse) {
     .btn[data-variant='primary'] { box-shadow: none; }
+    /* Flat, but not invisible: with the lift gone a secondary button on a
+       phone needs its edge to do the separating, so it takes the strong line
+       rather than the hairline. */
     .btn[data-variant='secondary'] {
       box-shadow: none;
-      border-color: var(--hairline);
+      border-color: hsl(var(--border-strong));
     }
   }
   .field::placeholder { color: hsl(var(--muted-foreground)); }

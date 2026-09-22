@@ -26,13 +26,16 @@
      sooner. The colour keeps real presence; the text keeps the floor. */
   --tint-mix: 55%;
 
-  --bento-bg: #f5f6f8;
+  /* The board ground sits a clear step under a white card. #f5f6f8 against
+     #ffffff was two points apart — on a phone the cards vanished into the
+     sheet and nothing on the home screen read as a separate thing. */
+  --bento-bg: #eceef2;
   --bento-card-base: hsl(var(--paint-cards-bg, 0 0% 100%));
   --bento-card: var(--bento-card-base);
-  --bento-card-2: #eef0f4;
+  --bento-card-2: #e1e4ea;
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 0%));
   --bento-muted: var(--bento-ink);
-  --bento-line: #e3e6ea;
+  --bento-line: #c9ced7;
 
   /* House bold accents (light), matching the Vivid palette so a board with no
      palette chosen still shows the lime/cyan/pink identity. */
@@ -110,7 +113,7 @@
      separates cards on a board without drawing a grid over the whole screen.
      Still multiplied by the Borders axis, so anybody who wants the heavier line
      can have it. */
-  --bento-border-w: calc(0.5px * var(--border-scale, 1));
+  --bento-border-w: calc(1px * var(--border-scale, 1)); /* 1px, not 0.5: a half-pixel edge rounds to nothing on most phones */
 
   /* Flat by default, because the board is one ruled sheet and a shadow under
      every cell of a sheet is a contradiction — it says the cells are separate
@@ -361,10 +364,10 @@ html.dark[data-layout='bento'] {
   --bento-bg: #0d0f14;
   --bento-card-base: hsl(var(--paint-cards-bg, 228 15% 13%));
   --bento-card: var(--bento-card-base);
-  --bento-card-2: #2a2c35;
+  --bento-card-2: #343744;
   --bento-ink: hsl(var(--paint-cards-text, 0 0% 100%));
   --bento-muted: var(--bento-ink);          /* 5.03:1 on the card */
-  --bento-line: #2a2c35;
+  --bento-line: #3b3f4c;
 
   /* The house bold accents in dark: the bright lime, cyan and pink read well as
      marks on a dark card, over a deep tint behind text. Mirrors the light Vivid
@@ -794,7 +797,7 @@ html[data-skin='focus'] [data-layout='bento'] {
   --bento-gap: calc(1px * var(--bento-density, 1));
   /* Hairline here too. This block set 1px flat, which also dropped the Borders
      axis on the floor: whatever the slider said, this frame drew one pixel. */
-  --bento-border-w: calc(0.5px * var(--border-scale, 1));
+  --bento-border-w: calc(1px * var(--border-scale, 1)); /* 1px, not 0.5: a half-pixel edge rounds to nothing on most phones */
   --bento-line: #d8dee8;
   --bento-shadow: var(--elev-2);
   --bento-shadow-sm: var(--elev-1);
