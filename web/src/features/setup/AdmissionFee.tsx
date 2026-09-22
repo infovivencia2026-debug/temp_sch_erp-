@@ -143,6 +143,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
         </p>
       </div>
 
+      <div className="scroll-x">
       <table className="mt-2 w-full text-[12.5px]">
         <tbody>
           {[...byInstalment.entries()].sort((a, b) => a[0] - b[0]).map(([n, list]) => (
@@ -159,6 +160,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
           ))}
         </tbody>
       </table>
+      </div>
 
       <p className="mt-2 text-[12px] text-muted-foreground">{q.note}</p>
 
