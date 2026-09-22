@@ -2397,9 +2397,15 @@ dialog,
    remount when the router swaps the keyed feature component, so the entrance
    re-fires on a real navigation and stays put on a same-screen re-render.
    Opacity and a 6px rise: a transform, so nothing reflows. */
+/* A PAGE ARRIVES; IT DOES NOT TRAVEL.
+   The 6px rise read as the screen sliding into place on every navigation, and
+   on a page that lays out in two passes -- a settings form whose sections
+   arrive as their queries answer -- several of them slid at different moments
+   and the whole screen looked adrift. A fade says "this is new" without moving
+   anything the eye is trying to read. */
 @keyframes route-enter {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 [data-page-enter] {
   animation: route-enter var(--motion-route) var(--motion-ease) both;

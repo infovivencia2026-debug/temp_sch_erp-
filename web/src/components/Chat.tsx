@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Check, CheckCheck, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  ArrowDown, Check, CheckCheck, Download, FileText, Image as ImageIcon,
+  Paperclip, Search, Send, X,
+} from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Loading } from '@/components/ui'
 import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
@@ -86,11 +89,54 @@ export function ChatThread({
   const fileInput = useRef<HTMLInputElement | null>(null)
   const box = useRef<HTMLTextAreaElement | null>(null)
 
-  // Stay at the bottom, where the newest message is, whenever one lands.
-  useEffect(() => {
+  /* FOLLOW THE CONVERSATION, DO NOT DRAG THE READER BACK TO IT.
+   *
+   * Every arriving message jumped the paper to the bottom, so reading
+   * something said an hour ago while the other party was still typing threw
+   * the reader out of the place they were reading. The jump now happens only
+   * when they were already at the bottom -- which is nearly always -- and
+   * otherwise a pill appears saying how many have arrived since, which takes
+   * them down when they are ready. */
+  const [atBottom, setAtBottom] = useState(true)
+  const [behind, setBehind] = useState(0)
+  const seen = useRef(messages.length)
+
+  const toBottom = useCallback((smooth = true) => {
     const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [messages.length, loading])
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+    setBehind(0)
+  }, [])
+
+  useEffect(() => {
+    const grew = messages.length - seen.current
+    seen.current = messages.length
+    if (atBottom) toBottom(false)
+    else if (grew > 0) setBehind((n) => n + grew)
+  }, [messages.length, loading, atBottom, toBottom])
+
+  const onScroll = () => {
+    const el = scroller.current
+    if (!el) return
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+    setAtBottom(bottom)
+    if (bottom) setBehind(0)
+  }
+
+  /* Find something in a long thread. A conversation about one child runs for a
+     year; "what did we agree about the bus" is a search, not a scroll. */
+  const [finding, setFinding] = useState(false)
+  const [needle, setNeedle] = useState('')
+  const shown = useMemo(() => {
+    const q = needle.trim().toLowerCase()
+    if (!q) return messages
+    return messages.filter(
+      (m) =>
+        (m.body ?? '').toLowerCase().includes(q) ||
+        (m.sender ?? '').toLowerCase().includes(q) ||
+        (m.attachments ?? []).some((a) => a.name.toLowerCase().includes(q)),
+    )
+  }, [messages, needle])
 
   // The box grows with what is typed, up to about five lines.
   useEffect(() => {
@@ -149,9 +195,44 @@ export function ChatThread({
        screens), the thread fills the card, so the paper grows and the
        composer sits at the bottom edge — not a quarter of the way down with a
        blank band beneath it. In a plain card it is inert. */
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* Find, and how many are showing. The bar only appears when asked for,
+          so an ordinary thread is not fronted by a search box nobody wanted. */}
+      {finding && (
+        <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <input
+            autoFocus
+            value={needle}
+            onChange={(e) => setNeedle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setNeedle('')
+                setFinding(false)
+              }
+            }}
+            placeholder="Find in this conversation"
+            className="min-w-0 flex-1 bg-transparent text-[14px] outline-none"
+          />
+          <span className="shrink-0 text-[12px] text-muted-foreground">
+            {needle.trim() ? `${shown.length} of ${messages.length}` : `${messages.length}`}
+          </span>
+          <button
+            type="button"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full hover:bg-muted"
+            onClick={() => {
+              setNeedle('')
+              setFinding(false)
+            }}
+            aria-label="Close search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div
         ref={scroller}
+        onScroll={onScroll}
         className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5', height)}
       >
         {loading ? (
@@ -160,8 +241,12 @@ export function ChatThread({
           <div className="grid h-full place-items-center py-8 text-center text-[13px] text-muted-foreground">
             {empty ?? 'Nothing yet. Say hello.'}
           </div>
+        ) : shown.length === 0 ? (
+          <div className="grid h-full place-items-center py-8 text-center text-[13px] text-muted-foreground">
+            Nothing in this conversation matches "{needle}".
+          </div>
         ) : (
-          messages.map((m) => {
+          shown.map((m) => {
             const day = m.at.slice(0, 10)
             const sep = day !== lastDay
             lastDay = day
@@ -218,6 +303,20 @@ export function ChatThread({
           </div>
         )}
       </div>
+
+      {/* Back to the newest, and how much has been said meanwhile. Only while
+          the reader is somewhere above the bottom, so it is never in the way
+          of the conversation it points at. */}
+      {!atBottom && !needle && (
+        <button
+          type="button"
+          onClick={() => toBottom()}
+          className="absolute bottom-[4.5rem] right-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground shadow-lg"
+        >
+          <ArrowDown className="h-4 w-4" />
+          {behind > 0 ? `${behind} new` : 'Latest'}
+        </button>
+      )}
 
       {canSend ? (
         <div
@@ -277,6 +376,15 @@ export function ChatThread({
             <button
               type="button"
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+              title="Find in this conversation"
+              aria-label="Find in this conversation"
+              onClick={() => setFinding((v) => !v)}
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
               title="Attach a photo or file"
               aria-label="Attach a photo or file"
               onClick={() => fileInput.current?.click()}
@@ -323,25 +431,36 @@ export function ChatThread({
 }
 
 function AttachmentView({ a }: { a: Attachment }) {
+  /* A tap saves the file.
+   *
+   * The link opened a new tab, which the server answered with
+   * Content-Disposition: attachment, so the file downloaded and left an empty
+   * tab behind. On a phone that read as nothing having happened. `download`
+   * asks for the save directly, under the name the sender gave it rather than
+   * the uuid the store keeps it under, and a mark on the row says so. */
   if (isImage(a)) {
     return (
-      <a href={a.url} target="_blank" rel="noopener" className="mb-1 block">
+      <a href={a.url} download={a.name} className="relative mb-1 block w-fit" title={`Download ${a.name}`}>
         <img src={a.url} alt={a.name} loading="lazy" className="max-h-64 max-w-full rounded-md" style={{ display: 'block' }} />
+        <span className="absolute bottom-1.5 right-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white">
+          <Download className="h-4 w-4" />
+        </span>
       </a>
     )
   }
   return (
     <a
       href={a.url}
-      target="_blank"
-      rel="noopener"
-      className="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-2 py-1.5 text-[13px] hover:bg-black/10 dark:bg-white/10"
+      download={a.name}
+      title={`Download ${a.name}`}
+      className="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-2 py-1.5 text-[13px] hover:bg-black/10"
     >
       <FileText className="h-4 w-4 shrink-0" />
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{a.name}</span>
         <span className="text-[11.5px] text-muted-foreground">{sizeOf(a.size_bytes)}</span>
       </span>
+      <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
     </a>
   )
 }

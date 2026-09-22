@@ -48,12 +48,15 @@
   pointer-events: none;
   will-change: transform;
 }
-.ws-opening .ws-blob-1 { left: 22%; top: 28%; background: radial-gradient(circle, rgba(49, 108, 255, .9), transparent 62%); animation: ws-drift-1 6s ease-in-out infinite alternate; }
-.ws-opening .ws-blob-2 { left: 52%; top: 40%; background: radial-gradient(circle, rgba(255, 60, 158, .8), transparent 62%); animation: ws-drift-2 7s ease-in-out infinite alternate; }
-.ws-opening .ws-blob-3 { left: 38%; top: 56%; background: radial-gradient(circle, rgba(32, 214, 181, .8), transparent 62%); animation: ws-drift-3 8s ease-in-out infinite alternate; }
-@keyframes ws-drift-1 { from { transform: translate(-6%, -4%) scale(1); } to { transform: translate(6%, 4%) scale(1.08); } }
-@keyframes ws-drift-2 { from { transform: translate(5%, -5%) scale(1.05); } to { transform: translate(-5%, 5%) scale(.96); } }
-@keyframes ws-drift-3 { from { transform: translate(-4%, 6%) scale(.98); } to { transform: translate(4%, -6%) scale(1.06); } }
+.ws-opening .ws-blob-1 { left: 22%; top: 28%; background: radial-gradient(circle, rgba(49, 108, 255, .9), transparent 62%); }
+.ws-opening .ws-blob-2 { left: 52%; top: 40%; background: radial-gradient(circle, rgba(255, 60, 158, .8), transparent 62%); }
+.ws-opening .ws-blob-3 { left: 38%; top: 56%; background: radial-gradient(circle, rgba(32, 214, 181, .8), transparent 62%); }
+/* The blobs hold their places. They drifted, each on its own timing and in its
+   own direction, which on a slow line is a minute of background wandering
+   about behind somebody waiting to work. The colour stays; the movement goes. */
+.ws-opening .ws-blob-1 { transform: translate(-2%, -2%); }
+.ws-opening .ws-blob-2 { transform: translate(2%, -2%) scale(1.04); }
+.ws-opening .ws-blob-3 { transform: translate(-1%, 2%); }
 
 .ws-opening .ws-mark {
   position: relative;
