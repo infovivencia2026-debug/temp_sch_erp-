@@ -51,7 +51,12 @@ export function ChatThread({
   placeholder = 'Type a message',
   error,
   showSender = false,
-  height = 'max-h-[28rem] min-h-[14rem]',
+  /* A floor and a viewport-relative ceiling, not a fixed 28rem cap: capped, the
+     paper stopped a third of the way down a tall card and the composer floated
+     over empty white. It now fills the card it is given (flex-1 on the root)
+     and only the viewport bounds it, so the thread scrolls inside itself
+     rather than scrolling the page. */
+  height = 'min-h-[14rem] max-h-[70vh]',
 }: {
   messages: ChatMessage[]
   loading?: boolean
@@ -132,7 +137,11 @@ export function ChatThread({
 
   let lastDay = ''
   return (
-    <div className="flex min-w-0 flex-col">
+    /* flex-1 min-h-0: inside a card laid out as a flex column (the two-pane
+       screens), the thread fills the card, so the paper grows and the
+       composer sits at the bottom edge — not a quarter of the way down with a
+       blank band beneath it. In a plain card it is inert. */
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div
         ref={scroller}
         className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5', height)}
