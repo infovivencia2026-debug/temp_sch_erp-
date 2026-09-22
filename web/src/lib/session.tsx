@@ -9,6 +9,7 @@ import SetYourPassword from '@/features/shared/SetYourPassword'
 import { Landing } from '@/features/landing/Landing'
 import { claimTabs } from './tabs'
 import { applyBrand } from './brand'
+import { setPrintLetterhead } from './print'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
 
 const SessionContext = createContext<SessionResponse | null>(null)
@@ -149,6 +150,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      for a school that has set none. During render for the same reason as the
      rest: it must be on the root before the first child paints. */
   applyBrand(data.institution?.primary_color, data.institution?.accent_color)
+  /* And the letterhead every printed document carries (lib/print.ts): the
+     school's name as it brands itself, its tagline and logo, and who is
+     printing. Set here for the same reason -- one place that knows the
+     school, rather than every Print button asking. */
+  setPrintLetterhead(
+    data.institution
+      ? {
+          name: data.institution.display_name || data.institution.name,
+          tagline: data.institution.tagline,
+          logoKey: data.institution.logo_key,
+          printedBy: data.user?.full_name,
+        }
+      : null,
+  )
 
   return (
     <SessionContext.Provider value={data}>

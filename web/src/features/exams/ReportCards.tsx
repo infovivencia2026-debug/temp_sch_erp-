@@ -635,7 +635,7 @@ export default function ReportCards() {
               </>
             )}
             {rows.length > 0 && (
-              <Button variant="ghost" onClick={() => printPage()}>
+              <Button variant="ghost" onClick={() => printDocument()}>
                 <Printer className="h-3.5 w-3.5" />
                 Print
               </Button>

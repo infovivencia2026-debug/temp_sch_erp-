@@ -1,8 +1,8 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
-import { printPage } from '@/lib/print'
+import { printDocument } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, SkeletonTable, ErrorState, EmptyState, FormNotice,
@@ -538,14 +538,27 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
      of a letterhead, and this is the document a family holds onto. Shown only
      where the school has uploaded one, so a school that has not is unchanged. */
   const logoKey = useSession().institution?.logo_key
+  /* Print puts the receipt alone on a sheet under the school's letterhead
+     (lib/print.ts), so the ref marks where the receipt starts and ends. */
+  const sheet = useRef<HTMLDivElement>(null)
   return (
+    <div ref={sheet}>
     <Card className="border-success/40 print:border-0">
       <CardHeader
         title="Payment received"
         description={`Receipt ${receipt.receipt_no}`}
         action={
           <div className="flex gap-2 no-print">
-            <Button variant="secondary" onClick={() => printPage()}>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                printDocument({
+                  source: sheet.current,
+                  title: 'Fee receipt',
+                  subtitle: `Receipt ${receipt.receipt_no} · ${receipt.financial_year}`,
+                })
+              }
+            >
               <Printer className="h-4 w-4" /> Print
             </Button>
             <Button variant="ghost" onClick={onClose}>Close</Button>
@@ -616,6 +629,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
         </p>
       </div>
     </Card>
+    </div>
   )
 }
 

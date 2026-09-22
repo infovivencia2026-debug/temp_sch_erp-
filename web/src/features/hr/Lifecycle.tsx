@@ -689,7 +689,7 @@ function LettersTab() {
             <Td><Badge tone="success">{c.status}</Badge></Td>
             <Td>
               <Button size="sm" variant="ghost"
-                onClick={() => { printed.mutate(c.serial_no); printPage() }}>
+                onClick={() => { printed.mutate(c.serial_no); printDocument({ title: `${c.type} · ${c.serial_no}` }) }}>
                 Print
               </Button>
             </Td>

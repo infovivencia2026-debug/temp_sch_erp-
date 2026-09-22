@@ -1,0 +1,184 @@
+/* THE PRINT SHEET (lib/print.ts says why).
+
+   One document, three places: on the screen as a preview under a slim bar,
+   on paper, and in a phone's "Save as PDF". The paper is A4-proportioned
+   and white whatever the theme is, the ink is black, the type is a point
+   size rather than a pixel one, and the tokens every component reads are
+   forced here -- on screen as well as in print -- so the preview is the
+   printout and not a guess at it. */
+
+.print-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: auto;
+  background: #5d6270;
+  padding: 0 0 40px;
+  padding-top: env(safe-area-inset-top, 0px);
+  -webkit-overflow-scrolling: touch;
+}
+html[data-printing] { overflow: hidden; }
+
+.print-sheet__bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #23262e;
+  color: #fff;
+  font-size: 13.5px;
+}
+.print-sheet__bar-title { font-weight: 600; letter-spacing: .01em; }
+.print-sheet__bar-actions { display: flex; gap: 8px; }
+.print-sheet__btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, .28);
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.print-sheet__btn:hover { background: rgba(255, 255, 255, .1); }
+.print-sheet__btn--primary { background: #fff; color: #111; border-color: #fff; }
+.print-sheet__btn--primary:hover { background: #e9ecf3; }
+.print-sheet__btn:focus-visible { outline: 2px solid #8fb3ff; outline-offset: 2px; }
+
+/* The paper. A4 is 210mm wide; on a phone it is the width there is. The
+   tokens are forced to black on white here, the same list the global
+   print block forces at @media print, so the preview and the printout
+   read the same on a dark theme and under every palette. */
+.print-sheet__paper {
+  --background: 0 0% 100%;
+  --ground: 0 0% 100%;
+  --card: 0 0% 100%;
+  --card-default: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --card-foreground: 0 0% 0%;
+  --popover-foreground: 0 0% 0%;
+  --secondary-foreground: 0 0% 15%;
+  --muted-foreground: 0 0% 30%;
+  --border: 0 0% 72%;
+  --bento-ink: #000;
+  --bento-muted: #333;
+  --bento-bg: #fff;
+  --bento-card: #fff;
+  --bento-card-base: #fff;
+  --bento-card-accent: #fff;
+  --bento-line: #999;
+  box-sizing: border-box;
+  width: min(210mm, 100%);
+  min-height: 297mm;
+  margin: 24px auto 0;
+  padding: 16mm 15mm 14mm;
+  background: #fff;
+  color: #000;
+  font-size: 11pt;
+  line-height: 1.45;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .35);
+}
+.print-sheet[data-landscape] .print-sheet__paper { width: min(297mm, 100%); min-height: 210mm; }
+@media (max-width: 640px) {
+  .print-sheet__paper { margin-top: 0; padding: 10mm 6mm 8mm; min-height: 0; box-shadow: none; }
+}
+
+/* Letterhead: the logo, the name, one strong rule. */
+.print-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 10pt;
+  margin-bottom: 14pt;
+  border-bottom: 2px solid #000;
+}
+.print-sheet__logo { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
+.print-sheet__school { margin: 0; font-size: 17pt; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
+.print-sheet__tagline { margin: 2px 0 0; font-size: 10pt; color: #444; }
+
+.print-sheet__title { margin: 0 0 12pt; }
+.print-sheet__title h1 { margin: 0; font-size: 15pt; font-weight: 700; line-height: 1.25; }
+.print-sheet__title p { margin: 2pt 0 0; font-size: 10.5pt; color: #444; }
+
+/* The body is the screen's own markup, so most of it already knows how to
+   lay itself out; this only takes the screen out of it. */
+.print-sheet__body { color: #000; }
+.print-sheet__source { max-width: none; overflow: visible; }
+.print-sheet__body [data-page-enter] { display: none; }
+.print-sheet__body .card,
+.print-sheet__body .cell,
+.print-sheet__body .cell-grid,
+.print-sheet__body .bento-cell {
+  background: #fff;
+  color: #000;
+  border-color: #bbb;
+  box-shadow: none;
+  background-image: none;
+}
+.print-sheet__body .card { break-inside: avoid; margin-bottom: 10pt; }
+.print-sheet__body table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.print-sheet__body th,
+.print-sheet__body td { padding: 4pt 6pt; border-bottom: 1px solid #ccc; vertical-align: top; text-align: left; }
+.print-sheet__body thead th { border-bottom: 1.5px solid #000; font-weight: 700; position: static; background: #fff; }
+.print-sheet__body thead { display: table-header-group; }
+.print-sheet__body tr { break-inside: avoid; }
+.print-sheet__body .tabular-nums,
+.print-sheet__body td:has(> .tabular-nums) { white-space: nowrap; }
+.print-sheet__body .scroll-x,
+.print-sheet__body .overflow-x-auto,
+.print-sheet__body .overflow-y-auto { overflow: visible; }
+.print-sheet__body .scroll-x::before,
+.print-sheet__body .scroll-x::after { display: none; }
+.print-sheet__body a { color: inherit; text-decoration: none; }
+.print-sheet__body img { max-width: 100%; }
+.print-sheet__body .skeleton-ink { display: none; }
+.print-sheet__value {
+  display: inline-block;
+  min-width: 2ch;
+  border-bottom: 1px dotted #999;
+  padding: 0 2px;
+}
+.print-sheet__body .print-only { display: block; }
+.print-sheet__body .print-page { break-after: page; }
+
+.print-sheet__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18pt;
+  padding-top: 6pt;
+  border-top: 1px solid #999;
+  font-size: 8.5pt;
+  color: #555;
+}
+
+/* On paper the chrome goes and the paper is the page. The sheet is the
+   only thing left on the body, so the global print block's hiding of
+   everything else costs nothing here. */
+@media print {
+  html[data-printing] body > :not(.print-sheet) { display: none !important; }
+  html[data-printing] { overflow: visible; }
+  .print-sheet {
+    position: static;
+    inset: auto;
+    overflow: visible;
+    background: none;
+    padding: 0;
+  }
+  .print-sheet__bar { display: none !important; }
+  .print-sheet__paper {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .print-sheet__head { break-inside: avoid; }
+}
