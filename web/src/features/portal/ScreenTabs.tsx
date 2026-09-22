@@ -40,7 +40,7 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
 
   return (
     <>
-      <div className="px-2 pt-4 sm:px-7">
+      <div className="flex justify-center px-2 pt-4 sm:px-7">
         <div
           role="tablist"
           aria-label={label}
