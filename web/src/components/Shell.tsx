@@ -762,7 +762,7 @@ export function Shell({
               /* Stacked: the mark on its own row, the role and the school under
                  it. Side by side, a 48px logo left the names a truncated
                  stub ("Instit…"). */
-              'flex w-full flex-col items-start gap-2 rounded-[7px] py-2 pl-2 pr-12 text-left',
+              'flex w-full flex-col items-start gap-2 rounded-[7px] py-2 pl-2 pr-2 text-left',
               'transition-colors duration-100',
               catalog.roles.length > 1 && 'hover:bg-surface-hover',
             )}
@@ -796,7 +796,7 @@ export function Shell({
             )}
             <span className="block w-full min-w-0">
               <span className="flex items-center gap-1">
-                <span className="truncate text-[calc(14px*var(--font-scale,1))] font-semibold">
+                <span className="whitespace-normal break-words text-[calc(14px*var(--font-scale,1))] font-semibold leading-tight">
                   {role?.name ?? 'Workspace'}
                 </span>
                 {catalog.roles.length > 1 && (
