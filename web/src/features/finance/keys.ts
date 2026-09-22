@@ -17,17 +17,20 @@ import { lazy } from 'react'
  * here too. A key the catalogue does not carry renders the placeholder
  * silently: the screen stays built, wired, and never appears.
  *
- * One entry the sheet asked for is deliberately absent. Student smart wallets
- * need a parent to load money from home, which needs a payment gateway this
- * install does not have, and a stored balance a school can neither top up nor
- * refund is worse for a family than no wallet at all. internal/api/collections.go
- * blocks it at the counter for the same reason.
+ * Student wallets used to be deliberately absent: with no gateway, a stored
+ * balance the school could neither top up nor refund was worse than no wallet.
+ * They exist now as a LEDGER the office keeps — a top-up records money the
+ * family has already paid in (cash, UPI, transfer), the balance is derived from
+ * the ledger and can never go below zero, and no money moves in the app. See
+ * internal/api/wallet.go. Spending it at the counter is a later phase;
+ * internal/api/collections.go still blocks the 'account' mode until then.
  */
 export const financeKeys = {
   'finance.home.dashboard': screen(() => import('./Dashboard')),
 
   // Fee collection & setup.
   'finance.fees.take_fee_payment': screen(() => import('./FeeCounter')),
+  'finance.fees.student_wallets': screen(() => import('./StudentWallets')),
   'finance.fees.online_fee_portal': screen(() => import('./Payments')),
   'finance.fees.unpaid_fees_reminders': lazy(() =>
     import('./bundles').then((m) => ({ default: m.UnpaidFees })),

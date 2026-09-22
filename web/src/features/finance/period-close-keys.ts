@@ -11,4 +11,7 @@ import { screen } from '@/lib/screen'
  */
 export const periodCloseKeys = {
   'institution_admin.fees.period_close': screen(() => import('./PeriodClose')),
+  // The same office wallet screen the finance role holds; the principal's
+  // workspace files it under Finance › Fees too.
+  'institution_admin.fees.student_wallets': screen(() => import('./StudentWallets')),
 }

@@ -318,6 +318,8 @@ export const FEATURE_ICONS: Record<string, string> = {
   systems_desk: 'dns', // Systems desk
   take_attendance: 'how_to_reg', // Take attendance
   take_fee_payment: 'point_of_sale', // Take fee payment
+  student_wallets: 'account_balance_wallet', // Student wallets (digital money, office)
+  wallet: 'account_balance_wallet', // Wallet (digital money, parent)
   tally_erp_prime_connector: 'sync_alt', // Tally ERP / Prime Connector
   taxes_statutory: 'account_balance', // Taxes & statutory
   teacher_assignment: 'assignment_ind', // Teacher Assignment

@@ -6,7 +6,7 @@ package api
 //
 // Derived from the SPA's component registry so the server can never claim a
 // feature is live when the client has nothing to render for it.
-// 418 of the catalog's features are implemented.
+// 422 of the catalog's features are implemented.
 var implementedFeatures = map[string]bool{
 	"activity_coord.activities.achievements_showcase":                                true,
 	"activity_coord.activities.circulars":                                            true,
@@ -108,6 +108,7 @@ var implementedFeatures = map[string]bool{
 	"finance.export.tally_prime_xml_export":                                          true,
 	"finance.fees.class_transport_fee_setup":                                         true,
 	"finance.fees.online_fee_portal":                                                 true,
+	"finance.fees.student_wallets":                                                   true,
 	"finance.fees.take_fee_payment":                                                  true,
 	"finance.fees.unpaid_fees_reminders":                                             true,
 	"finance.home.dashboard":                                                         true,
@@ -209,6 +210,7 @@ var implementedFeatures = map[string]bool{
 	"institution_admin.fees.fee_dashboard":                                           true,
 	"institution_admin.fees.fee_default":                                             true,
 	"institution_admin.fees.period_close":                                            true,
+	"institution_admin.fees.student_wallets":                                         true,
 	"institution_admin.getting_started.school_setup":                                 true,
 	"institution_admin.home.dashboard":                                               true,
 	"institution_admin.hostel.boarder_laundry":                                       true,
@@ -296,6 +298,7 @@ var implementedFeatures = map[string]bool{
 	"parent.fees.child_daily_cafeteria_purchase_timeline":                            true,
 	"parent.fees.fee_receipts":                                                       true,
 	"parent.fees.fees_payments":                                                      true,
+	"parent.fees.wallet":                                                             true,
 	"parent.home.dashboard":                                                          true,
 	"parent.leave_absence.apply_student_leave":                                       true,
 	"parent.messages.communication":                                                  true,
@@ -326,6 +329,7 @@ var implementedFeatures = map[string]bool{
 	"seller_admin.subscriptions_billing.plans_pricing":                               true,
 	"seller_admin.subscriptions_billing.subscription_ledger":                         true,
 	"seller_admin.support.audit":                                                     true,
+	"seller_admin.support.board_members":                                             true,
 	"seller_admin.support.support":                                                   true,
 	"seller_admin.support.support_team":                                              true,
 	"seller_admin.usage_health.adoption_metrics":                                     true,

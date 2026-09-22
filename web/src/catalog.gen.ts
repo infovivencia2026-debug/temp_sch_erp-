@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 412 features. */
+/** 23 roles, 415 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -318,6 +318,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'institution_admin.fees.fee_dashboard', slug: 'fee_dashboard', name: 'Fee Dashboard', scope: 'institution', tier: 'core', summary: 'Expected against collected against outstanding, for the school and by class. The one number a principal is asked for in a management meeting.' },
           { key: 'institution_admin.fees.period_close', slug: 'period_close', name: 'Period Close', scope: 'institution', tier: 'core', summary: 'Which months of the year are finished, and the year itself. Close a month and the register, the fee counter, the payslip and cheque bounces dated inside it become read-only; close the year and its marks and fee demands do too. Reopen here when a correction is needed.' },
+          { key: 'institution_admin.fees.student_wallets', slug: 'student_wallets', name: 'Student wallets', scope: 'institution', tier: 'core', summary: 'Digital money. A prepaid balance the school holds for each child: record a top-up the family has paid in (cash, UPI, transfer), correct a balance with a reason, and read the full ledger of what went in and what was spent.' },
           { key: 'institution_admin.fees.fee_default', slug: 'fee_default', name: 'Fee Default', scope: 'institution', tier: 'core', summary: 'Who is behind, by how much and for how long, grouped by class. The accountant works the counter; this is the list a principal takes into a parent meeting.' },
         ],
       },
@@ -1049,6 +1050,7 @@ export const ROLES: Role[] = [
         workspace: 'Fees',
         features: [
           { key: 'finance.fees.take_fee_payment', slug: 'take_fee_payment', name: 'Take fee payment', scope: 'institution', tier: 'core', summary: 'The counter. Find the student, take cash, card or cheque against what they owe, and print the receipt before they leave the window. Part payments and advances are the same screen.' },
+          { key: 'finance.fees.student_wallets', slug: 'student_wallets', name: 'Student wallets', scope: 'institution', tier: 'core', summary: 'Digital money. A prepaid balance the school holds for each child: record a top-up the family has paid in (cash, UPI, transfer), correct a balance with a reason, and read the full ledger of what went in and what was spent.' },
           { key: 'finance.fees.online_fee_portal', slug: 'online_fee_portal', name: 'Online fee portal', scope: 'institution', tier: 'core', summary: 'Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered.' },
           { key: 'finance.fees.unpaid_fees_reminders', slug: 'unpaid_fees_reminders', name: 'Unpaid fees & reminders', scope: 'institution', tier: 'core', summary: 'Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too.' },
           { key: 'finance.fees.class_transport_fee_setup', slug: 'class_transport_fee_setup', name: 'Class & transport fee setup', scope: 'institution', tier: 'core', summary: 'What each class is charged for the year — tuition, lab, transport by distance — with concessions and refunds, the receipt series, and the one action that turns the structure into every parent\'s invoice.' },
@@ -1507,6 +1509,7 @@ export const ROLES: Role[] = [
         workspace: 'Fees',
         features: [
           { key: 'parent.fees.fees_payments', slug: 'fees_payments', name: 'Fees & payments', scope: 'children', tier: 'core', summary: 'Dues, installments, online payment, payment history and receipts.' },
+          { key: 'parent.fees.wallet', slug: 'wallet', name: 'Wallet', scope: 'children', tier: 'core', summary: 'Your child\'s digital money: the prepaid balance the school holds, every top-up you have paid in and everything it has been spent on, per child.' },
           { key: 'parent.fees.fee_receipts', slug: 'fee_receipts', name: 'Fee receipts', scope: 'children', tier: 'core', summary: 'Every payment the school has banked, with the receipt number, what it was for and how it was paid. Open one and save it as a PDF or print it — it carries the school\'s own letterhead.' },
           { key: 'parent.fees.child_daily_cafeteria_purchase_timeline', slug: 'child_daily_cafeteria_purchase_timeline', name: 'Child Daily Cafeteria Purchase Timeline', scope: 'children', tier: 'optional', summary: 'View exact timestamped items, prices, and nutritional content bought by child in canteen.' },
         ],

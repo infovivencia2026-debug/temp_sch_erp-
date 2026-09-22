@@ -38,4 +38,6 @@ export const familyKeys = {
     () => import('../learning/ThemeSelection'),
   ),
   'parent.fees.child_daily_cafeteria_purchase_timeline': screen(() => import('./Cafeteria')),
+  // The child's digital money: the school-held prepaid balance and its ledger.
+  'parent.fees.wallet': screen(() => import('./Wallet')),
 }
