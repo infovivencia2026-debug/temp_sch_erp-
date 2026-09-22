@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { shortcutLabel } from '@/lib/platform'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useNavigate } from 'react-router-dom'
-import { Search, CornerDownLeft, GraduationCap, UserRound } from 'lucide-react'
+import { Search, CornerDownLeft, GraduationCap, UserRound, MessageCircle } from 'lucide-react'
 import { useCatalog, featurePath } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { aliasText } from '@/lib/search-aliases'
@@ -26,7 +26,7 @@ import { hueFor } from '@/features/bento/BentoLauncher'
    because the match has to cover an admission number and a mobile, which no
    client-side index of screen names ever could. */
 interface PersonHit {
-  kind: 'student' | 'guardian'
+  kind: 'student' | 'guardian' | 'staff'
   id: string
   name: string
   detail: string
@@ -247,6 +247,16 @@ export function CommandSearch() {
      asked for, a guardian because a parent's record IS a page of their child's.
      The 360 screen reads ?student= and opens straight on that record. */
   const goPerson = (p: PersonHit) => {
+    if (p.kind === 'staff') {
+      /* A colleague opens as a conversation: Messages, with that person's
+         thread already selected. The Messages screen is found in the
+         caller's own workspace, so the link never points at a workspace they
+         do not hold. */
+      const m = index.find((i) => i.slug === 'messages')
+      navigate(m ? `${featurePath(m.roleKey, m.sectionSlug, m.slug)}?with=${p.id}` : `/go/messages?with=${p.id}`)
+      setOpen(false)
+      return
+    }
     navigate(`/institution_admin/students/student_360?student=${p.student_id}`)
     setOpen(false)
   }
@@ -322,6 +332,8 @@ export function CommandSearch() {
                     >
                       {p.kind === 'student' ? (
                         <GraduationCap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : p.kind === 'staff' ? (
+                        <MessageCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       ) : (
                         <UserRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       )}
@@ -333,6 +345,9 @@ export function CommandSearch() {
                           </span>
                         )}
                       </span>
+                      {p.kind === 'staff' && (
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground">Message</span>
+                      )}
                     </button>
                   </li>
                 ))}

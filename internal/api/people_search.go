@@ -30,8 +30,9 @@ Searching for a person, rather than for a screen.
 	wants to open.
 */
 type personHit struct {
-	// student | guardian. The client renders a different line and opens a
-	// different screen for each.
+	// student | guardian | staff. The client renders a different line and
+	// opens a different screen for each: a child's record, or a colleague's
+	// conversation.
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -129,9 +130,37 @@ func (s *Server) searchPeople(w http.ResponseWriter, r *http.Request) {
 				    OR COALESCE(g.phone,'') ILIKE '%' || (SELECT q FROM needle) || '%'
 				    OR COALESCE(g.email::text,'') ILIKE '%' || (SELECT q FROM needle) || '%'
 				 GROUP BY g.id, g.full_name, g.relation, g.phone
+
+				UNION ALL
+
+				/* COLLEAGUES, so "find Mrs Rao" is answered the way "find Anika"
+				   is, and the answer is a conversation with her. Staff is anyone
+				   with an employee row or a staff role; a parent's or pupil's
+				   login is neither. Never the caller themself. */
+				SELECT 'staff',
+				       u.id::text,
+				       u.full_name,
+				       trim(concat_ws(' · ',
+				            NULLIF(COALESCE(e.employee_code, ''), ''),
+				            COALESCE(NULLIF(e.phone, ''), NULLIF(u.phone, ''), 'Staff'))),
+				       '',
+				       CASE
+				         WHEN lower(u.full_name) LIKE lower((SELECT q FROM needle)) || '%' THEN 1
+				         ELSE 3
+				       END
+				  FROM users u
+				  LEFT JOIN employees e ON e.user_id = u.id
+				 WHERE u.status = 'active' AND u.id <> $2
+				   AND (e.id IS NOT NULL OR EXISTS (
+				         SELECT 1 FROM user_roles ur JOIN roles ro ON ro.id = ur.role_id
+				          WHERE ur.user_id = u.id AND ro.key NOT IN ('student', 'parent')))
+				   AND (u.full_name ILIKE '%' || (SELECT q FROM needle) || '%'
+				        OR COALESCE(u.phone, '') ILIKE '%' || (SELECT q FROM needle) || '%'
+				        OR COALESCE(u.email::text, '') ILIKE '%' || (SELECT q FROM needle) || '%'
+				        OR COALESCE(e.employee_code, '') ILIKE '%' || (SELECT q FROM needle) || '%')
 			) hits
 			 ORDER BY rank, name
-			 LIMIT 15`, q)
+			 LIMIT 15`, q, id.UserID)
 		if qerr != nil {
 			return qerr
 		}
