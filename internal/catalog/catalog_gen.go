@@ -111,7 +111,7 @@ var Roles = []Role{
 				Workspace: "Settings",
 				Features: []Feature{
 					{Key: "seller_admin.delivery.password_reset_delivery", Slug: "password_reset_delivery", Name: "Password Reset Delivery", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own email server and SMS channel, through which every school's password-reset links are sent. A school configures nothing for its staff and parents to get back in."},
-					{Key: "seller_admin.delivery.wisen_channels", Slug: "wisen_channels", Name: "WISEN Channels", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through WISEN sends nothing until these are set up."},
+					{Key: "seller_admin.delivery.educloud_channels", Slug: "educloud_channels", Name: "WISEN Channels", Scope: Scope("platform"), Tier: Tier("core"), Summary: "The seller's own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through WISEN sends nothing until these are set up."},
 				},
 			},
 			{
