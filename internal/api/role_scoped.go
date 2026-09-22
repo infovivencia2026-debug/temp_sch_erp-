@@ -493,7 +493,11 @@ func (s *Server) listPortalAttendance(w http.ResponseWriter, r *http.Request) {
 	   a family reads what was approved. */
 	items, err := collect(s, r, `
 		WITH days AS (
-		  SELECT generate_series(CURRENT_DATE - INTERVAL '120 days',
+		  -- A year, not 120 days: the family's screen offers every month of
+		  -- the session in a picker, and a term that began in June must still
+		  -- be there in March. Marked days only come back (see WHERE), so the
+		  -- payload is the register, not 365 blanks.
+		  SELECT generate_series(CURRENT_DATE - INTERVAL '366 days',
 		                         CURRENT_DATE, INTERVAL '1 day')::date AS d
 		),
 		hol AS (

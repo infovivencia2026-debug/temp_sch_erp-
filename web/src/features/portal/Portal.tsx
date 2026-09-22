@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { PickerMenu } from '@/components/PickerMenu'
 import { CalendarCheck, BookMarked, Wallet, GraduationCap } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
@@ -49,29 +50,6 @@ const DOT: Record<string, string> = {
   holiday: 'bg-border',
 }
 
-/** Days between today and a yyyy-mm-dd, in the reader's own words. */
-/** Attendance grouped into months, newest last, each with its own count.
- *  Absence is a pattern — three Mondays running matters and three days across
- *  a term does not — and a pattern needs the calendar around it. */
-function groupByMonth(days: { date: string; status: string }[]) {
-  const out: { label: string; days: typeof days; present: number; absent: number; marked: number }[] = []
-  for (const d of days) {
-    const label = new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', {
-      month: 'long', year: 'numeric',
-    })
-    let bucket = out.find((b) => b.label === label)
-    if (!bucket) { bucket = { label, days: [], present: 0, absent: 0, marked: 0 }; out.push(bucket) }
-    bucket.days.push(d)
-    // Holidays are not attendance and must not drag the percentage down.
-    if (d.status !== 'holiday') {
-      bucket.marked++
-      if (d.status === 'present' || d.status === 'late') bucket.present++
-      if (d.status === 'absent') bucket.absent++
-    }
-  }
-  return out
-}
-
 /* One month, drawn as the month.
 
    A row of coloured dots says how many days were missed and never which ones.
@@ -86,9 +64,12 @@ function groupByMonth(days: { date: string; status: string }[]) {
 */
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-function MonthGrid({ days }: { days: AttendanceDay[] }) {
+function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
   const byDate = new Map(days.map((d) => [d.date, d]))
-  const first = new Date(days[0].date + 'T00:00:00')
+  /* The month is named by the caller (YYYY-MM), not inferred from the first
+     marked day: the current month at the start of term has no marks yet and
+     must still draw as itself, empty, rather than not at all. */
+  const first = new Date(ym + '-01T00:00:00')
   const year = first.getFullYear()
   const month = first.getMonth()
   const lastDay = new Date(year, month + 1, 0).getDate()
@@ -190,6 +171,90 @@ function MonthGrid({ days }: { days: AttendanceDay[] }) {
         </ul>
       )}
     </div>
+  )
+}
+
+/* THE MONTH A PARENT IS ASKING ABOUT, AND ONLY THAT ONE.
+
+   Every month of the register used to stack on one page, newest first — so on
+   the 3rd of a month the top of the screen was LAST month, full, and this
+   month sat under it as a nearly empty grid. A parent read the wrong month
+   before noticing. Now one month shows at a time, picked from a menu, and the
+   default is the month it actually is: the current one, drawn even when it
+   has no marks yet, because an empty current month is information ("nothing
+   marked yet") and a missing one is a bug.
+
+   The month's events sit with its attendance rather than on another screen:
+   the holidays and the days with a reason are the days a family asks about,
+   and MonthGrid already spells them out under the calendar. */
+function AttendanceHistory({ days, emptyLabel }: { days: AttendanceDay[]; emptyLabel: string }) {
+  const ymOf = (d: { date: string }) => d.date.slice(0, 7)
+  const now = new Date()
+  const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  /* The months on offer: every month with a marked day, plus the current one,
+     newest first. */
+  const months = Array.from(new Set([currentYm, ...days.map(ymOf)])).sort().reverse()
+  const [picked, setPicked] = useState<string>(currentYm)
+  const ym = months.includes(picked) ? picked : currentYm
+  const monthDays = days.filter((d) => ymOf(d) === ym)
+
+  let marked = 0, present = 0, absent = 0, events = 0
+  for (const d of monthDays) {
+    if (d.label) events++
+    if (d.status === 'holiday') continue
+    marked++
+    if (d.status === 'present' || d.status === 'late') present++
+    if (d.status === 'absent') absent++
+  }
+  const nameOf = (m: string) =>
+    new Date(m + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  const isCurrent = ym === currentYm
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <PickerMenu
+          value={ym}
+          ariaLabel="Month"
+          align="start"
+          onChange={setPicked}
+          options={months.map((m) => ({
+            value: m,
+            label: m === currentYm ? `${nameOf(m)} · this month` : nameOf(m),
+          }))}
+        />
+        <p className="text-[13px] text-muted-foreground tabular-nums">
+          {marked === 0
+            ? (isCurrent ? 'Nothing marked yet this month' : 'No school days marked')
+            : <>
+                <span className="font-medium text-foreground">{present}/{marked}</span> present
+                {absent > 0 && <> · <span className="font-medium text-destructive">{absent}</span> absent</>}
+                {` · ${Math.round((present / marked) * 100)}%`}
+                {events > 0 && ` · ${events} event${events === 1 ? '' : 's'}`}
+              </>}
+        </p>
+      </div>
+
+      {!days.length && !isCurrent ? (
+        <p className="py-6 text-center text-[14px] text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <MonthGrid days={monthDays} ym={ym} />
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
+        {/* Leave is not drawn on this calendar — whether a child was in school
+            is the register's answer — so it is not in the key either. */}
+        {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
+          <span key={k} className="inline-flex items-center gap-1.5">
+            <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
+            {k.replace('_', ' ')}
+          </span>
+        ))}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-1 w-1 rounded-full bg-current opacity-70" /> event or reason (listed below the calendar)
+        </span>
+      </div>
+    </>
   )
 }
 
@@ -500,47 +565,12 @@ export default function Portal() {
                 description={t('portal.portal.history_description')}
               />
               <div className="p-5">
-                {!days.length ? (
-                  <p className="py-6 text-center text-[14px] text-muted-foreground">
-                    {t('portal.portal.history_empty')}
-                  </p>
-                ) : (
-                  <>
-                    {/* Grouped by month with a running count, rather than one
-                        undated row of squares. A parent looking at this is
-                        asking "how bad was it, and when" — a flat strip
-                        answers neither without hovering every square. */}
-                    <div className="space-y-4">
-                      {/* Newest month first: a parent opening this in August
-                          is asking about August, and scrolling past March to
-                          reach it is the wrong way round. */}
-                      {groupByMonth(days).slice().reverse().map((m) => (
-                        <div key={m.label}>
-                          <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-[13px] font-medium">{m.label}</p>
-                            <p className="text-[12px] text-muted-foreground tabular-nums">
-                              {m.present}/{m.marked} present
-                              {m.absent > 0 && ` · ${m.absent} absent`}
-                              {m.marked > 0 && ` · ${Math.round((m.present / m.marked) * 100)}%`}
-                            </p>
-                          </div>
-                          <MonthGrid days={m.days} />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
-                      {/* Leave is not drawn on this calendar — whether a child
-                          was in school is the register's answer — so it is not
-                          in the key either. */}
-                      {Object.entries(DOT).filter(([k]) => k !== 'leave').map(([k, cls]) => (
-                        <span key={k} className="inline-flex items-center gap-1.5">
-                          <span className={cn('h-2.5 w-2.5 rounded-sm', cls)} />
-                          {k.replace('_', ' ')}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* One month at a time, chosen from a picker, the current
+                    month by default. Every month of the year stacked on one
+                    page put last month at the top and this month below it,
+                    and a parent opening the app on the 3rd was reading the
+                    wrong month before they noticed. */}
+                <AttendanceHistory days={days} emptyLabel={t('portal.portal.history_empty')} />
               </div>
             </Card>
           </>
