@@ -22,6 +22,19 @@
  */
 
 export const FEATURE_ICONS: Record<string, string> = {
+  // Screens added in Sept 2026 without an icon; the test that every feature has one caught them.
+  support_team: 'support_agent', // Support Team
+  board_members: 'groups', // Board members
+  class_360: 'hub', // Class 360
+  student_absentees: 'person_off', // Student absentees
+  all_messages: 'forum', // All messages
+  scheduled_digests: 'schedule_send', // Scheduled digests
+  interaction_log: 'history', // Interaction log
+  store_catalogue: 'storefront', // Store catalogue
+  absentee_followup: 'phone_callback', // Absentee follow-up
+  form_builder: 'dynamic_form', // Form builder
+  update_my_details: 'manage_accounts', // Update my details
+  product_catalogue: 'shopping_bag', // Product catalogue
   '24_7_admission_chatbot': 'smart_toy', // 24/7 Admission Chatbot
   academic_calendar_model: 'calendar_view_month', // Academic Calendar Model
   academic_performance: 'monitoring', // Academic Performance
@@ -353,6 +366,7 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  store: 'storefront', // Store
   academics: 'school', // Academics
   access: 'key', // Access
   access_security: 'security', // Access & Security
