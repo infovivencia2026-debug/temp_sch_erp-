@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useParams } from 'react-router-dom'
 import { api } from './api'
+import { WorkspaceLoading } from '@/components/WorkspaceLoading'
 import type { Scope, Tier } from '@/catalog.gen'
 
 /* The server decides what this user can see. The generated catalog.gen.ts is
@@ -102,13 +103,11 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     staleTime: 60_000,
   })
 
-  if (isLoading) {
-    return (
-      <div className="grid h-full place-items-center text-[13px] text-muted-foreground">
-        Loading workspace…
-      </div>
-    )
-  }
+  /* The workspace opening (components/WorkspaceLoading.tsx), the same one the
+     cold load shows: this is the state a person sees every time a workspace
+     loads -- after sign-in, on every school switch -- and it used to be the
+     words "Loading workspace…" alone in the middle of a blank page. */
+  if (isLoading) return <WorkspaceLoading label="Loading your workspace" />
   if (isError || !data) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">

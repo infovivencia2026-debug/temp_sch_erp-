@@ -11,14 +11,21 @@ import './workspace-loading.css'
    that answer is what this screen is waiting for -- and a warm reload has
    already had applyBrand paint the school's colour into --brand-accent, so
    the wordmark wears it. */
-export function WorkspaceLoading({ leaving = false }: { leaving?: boolean }) {
+export function WorkspaceLoading({
+  leaving = false,
+  label = 'Opening your workspace',
+}: {
+  leaving?: boolean
+  /** The line under the rule: what is being waited for. */
+  label?: string
+}) {
   return (
     <div
       className="ws-opening"
       data-leaving={leaving ? '' : undefined}
       role="status"
       aria-live="polite"
-      aria-label={leaving ? undefined : 'Opening your workspace'}
+      aria-label={leaving ? undefined : label}
     >
       <span className="ws-blob ws-blob-1" aria-hidden="true" />
       <span className="ws-blob ws-blob-2" aria-hidden="true" />
@@ -26,7 +33,7 @@ export function WorkspaceLoading({ leaving = false }: { leaving?: boolean }) {
       <div className="ws-mark">
         <p className="ws-word">School ERP</p>
         <div className="ws-rule" aria-hidden="true" />
-        <p className="ws-sub">Opening your workspace</p>
+        <p className="ws-sub">{label}</p>
       </div>
     </div>
   )

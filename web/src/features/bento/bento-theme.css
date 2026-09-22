@@ -4718,3 +4718,27 @@ html[data-palette='aurora'] .bento-cue {
 [data-layout='bento'] .bento-cell:has(.bento-cue) .bento-note {
   padding-right: 36px;
 }
+
+
+/* ---- AURORA SKELETONS ---------------------------------------------------
+   While a board's figures are on the wire, its bars shimmer. Under Aurora the
+   shimmer is the palette's own light: a band that runs from the electric
+   blue through the mint to the pink, instead of the grey-on-grey sweep the
+   sheet uses. Small on purpose -- same 1.6s cadence, same single band, only
+   the colour changed -- and off under prefers-reduced-motion with the rest
+   of the skeleton rules in index.css. */
+html[data-palette='aurora'] .skeleton-ink {
+  background-color: color-mix(in srgb, currentColor 9%, transparent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(49, 108, 255, .35) 42%,
+    rgba(32, 214, 181, .35) 50%,
+    rgba(255, 60, 158, .30) 58%,
+    transparent 72%
+  );
+  background-size: 220% 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-palette='aurora'] .skeleton-ink { background-image: none; }
+}
