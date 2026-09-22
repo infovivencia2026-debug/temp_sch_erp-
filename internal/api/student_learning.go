@@ -55,6 +55,7 @@ func (s *Server) mountStudentLearning(r chi.Router) {
 	// Learning.
 	r.Get("/learning/courses", s.listMyCourses)
 	r.Get("/learning/resources", s.listMyResources)
+	r.Post("/learning/resources/{id}/seen", s.markResourceSeen)
 	r.Get("/learning/study-groups", s.listStudyGroups)
 	r.Post("/learning/study-groups", s.createStudyGroup)
 	// The roster is not on the list deliberately: who is in a group is visible
@@ -268,6 +269,15 @@ type myResource struct {
 	FileID      *string `json:"file_id,omitempty"`
 	UploadedBy  *string `json:"uploaded_by,omitempty"`
 	PostedOn    string  `json:"posted_on"`
+	// The digital library's half (media_library.go): what the file is, so
+	// a picture opens as a picture; which width of audience it came by;
+	// whether this reader has opened it; and when it stops showing.
+	PostedAt    string  `json:"posted_at"`
+	FileName    *string `json:"file_name,omitempty"`
+	ContentType *string `json:"content_type,omitempty"`
+	Audience    string  `json:"audience"`
+	Seen        bool    `json:"seen"`
+	ExpiresAt   *string `json:"expires_at,omitempty"`
 }
 
 /*
@@ -280,31 +290,59 @@ listMyResources powers student.learning.e_learning_resource_hub.
 	whose teachers file by subject.
 */
 func (s *Server) listMyResources(w http.ResponseWriter, r *http.Request) {
-	room, ok := s.myClassroom(w, r)
+	student, ok := s.whichChild(w, r)
 	if !ok {
 		return
 	}
+	room, err := s.classroomOf(r, student)
+	if errors.Is(err, errNotEnrolled) {
+		httpx.Error(w, r, http.StatusConflict, "not_enrolled",
+			"this student has no enrolment on record; ask the office to complete the admission")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
 	kind := nullString(strings.TrimSpace(r.URL.Query().Get("kind")))
+	reader := httpx.IdentityFrom(r.Context()).UserID
+	/* A fourth arm since 00334: a post addressed to this child by name. It
+	   has no section and no subject, which the third arm would otherwise
+	   read as "the whole school's", so that arm now asks the audience
+	   column first. Anything past its expiry is gone from here, though the
+	   teacher's library still lists it. */
 	items, err := collect(s, r, `
 		SELECT sm.id::text, sm.title, sm.description, sm.kind, sub.name,
 		       sm.external_url, sm.file_id::text, u.full_name,
-		       to_char(sm.created_at,'YYYY-MM-DD')
+		       to_char(sm.created_at,'YYYY-MM-DD'),
+		       to_char(sm.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       f.original_name, f.content_type, sm.audience,
+		       v.user_id IS NOT NULL,
+		       CASE WHEN sm.expires_at IS NULL THEN NULL
+		            ELSE to_char(sm.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z' END
 		  FROM study_materials sm
 		  LEFT JOIN class_subjects cs ON cs.id = sm.class_subject_id
 		  LEFT JOIN subjects      sub ON sub.id = cs.subject_id
 		  LEFT JOIN users           u ON u.id = sm.uploaded_by
+		  LEFT JOIN files           f ON f.id = sm.file_id
+		  LEFT JOIN study_material_views v ON v.material_id = sm.id AND v.user_id = $5
 		 WHERE sm.is_published
+		   AND (sm.expires_at IS NULL OR sm.expires_at > now())
 		   AND ($3::text IS NULL OR sm.kind = $3)
-		   AND (sm.section_id = $1
-		        OR (sm.section_id IS NULL
-		            AND (cs.class_id = $2 OR sm.class_subject_id IS NULL)))
+		   AND ((sm.audience <> 'students'
+		         AND (sm.section_id = $1
+		              OR (sm.section_id IS NULL
+		                  AND (cs.class_id = $2 OR sm.class_subject_id IS NULL))))
+		        OR EXISTS (SELECT 1 FROM study_material_targets t
+		                    WHERE t.material_id = sm.id AND t.student_id = $4))
 		 ORDER BY sm.created_at DESC
 		 LIMIT 300`,
-		[]any{room.SectionID, room.ClassID, kind},
+		[]any{room.SectionID, room.ClassID, kind, student, reader},
 		func(rows pgx.Rows) (myResource, error) {
 			var v myResource
 			return v, rows.Scan(&v.ID, &v.Title, &v.Description, &v.Kind, &v.Subject,
-				&v.URL, &v.FileID, &v.UploadedBy, &v.PostedOn)
+				&v.URL, &v.FileID, &v.UploadedBy, &v.PostedOn, &v.PostedAt,
+				&v.FileName, &v.ContentType, &v.Audience, &v.Seen, &v.ExpiresAt)
 		})
 	respond(w, r, items, err)
 }
