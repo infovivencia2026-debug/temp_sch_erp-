@@ -97,11 +97,22 @@ export default function DayTimeline({
     () => new Set(ordered.filter((p) => used.has(p.id)).map((p) => p.bell_schedule_id ?? '')),
     [ordered, used],
   )
-  const rows = used.size === 0
-    ? []
-    : ordered.filter(
-        (p) => byPeriod.has(p.id) || (breaks && p.is_break && schedules.has(p.bell_schedule_id ?? '')),
-      )
+  const rows = useMemo(() => {
+    if (used.size === 0) return []
+    /* One of each break. A school that keeps several bell schedules with the
+       same recess at the same time (the live one has six) would otherwise
+       show that recess six times; the same name at the same minutes is the
+       same break, whichever schedule row it came from. */
+    const seenBreak = new Set<string>()
+    return ordered.filter((p) => {
+      if (byPeriod.has(p.id)) return true
+      if (!breaks || !p.is_break || !schedules.has(p.bell_schedule_id ?? '')) return false
+      const k = `${p.name.trim().toLowerCase()}|${p.starts_at}|${p.ends_at}`
+      if (seenBreak.has(k)) return false
+      seenBreak.add(k)
+      return true
+    })
+  }, [ordered, used, byPeriod, breaks, schedules])
 
   return (
     <Card className="mx-auto w-full max-w-[640px]">
