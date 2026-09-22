@@ -108,7 +108,10 @@ export default function GrievanceHub() {
   const [status, setStatus] = useState('')
   const [category, setCategory] = useState('')
   const [overdue, setOverdue] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
+  // ?id= opens one straight away — the All-messages desk links here.
+  const [selected, setSelected] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('id'),
+  )
   const [note, setNote] = useState({ body: '', visible_to_parent: false, new_status: '' })
   const [resolution, setResolution] = useState('')
 

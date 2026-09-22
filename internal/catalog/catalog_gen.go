@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 401 features.
+// Roles is the catalog: 23 roles, 402 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -374,6 +374,7 @@ var Roles = []Role{
 				Name: "Communication",
 				Workspace: "Communication",
 				Features: []Feature{
+					{Key: "institution_admin.communication.all_messages", Slug: "all_messages", Name: "All messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every conversation in the school on one desk — parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement — with a count of what is still waiting for the school's reply. A parent thread can be answered from here; counselling is counted, never read."},
 					{Key: "institution_admin.communication.grievances", Slug: "grievances", Name: "Grievances", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Complaints the class teacher and the coordinator could not settle, which reach the principal's desk because somewhere below it nobody could close them."},
 					{Key: "institution_admin.communication.school_achievements_showcase", Slug: "school_achievements_showcase", Name: "School Achievements Showcase", Scope: Scope("institution"), Tier: Tier("optional"), Summary: "Log awards, sports victories, academic honors, and publish them to parent/student portals."},
 					{Key: "institution_admin.communication.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email."},

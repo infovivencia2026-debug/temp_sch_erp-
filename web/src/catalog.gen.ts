@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 401 features. */
+/** 23 roles, 402 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -327,6 +327,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
+          { key: 'institution_admin.communication.all_messages', slug: 'all_messages', name: 'All messages', scope: 'institution', tier: 'core', summary: 'Every conversation in the school on one desk — parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement — with a count of what is still waiting for the school\'s reply. A parent thread can be answered from here; counselling is counted, never read.' },
           { key: 'institution_admin.communication.grievances', slug: 'grievances', name: 'Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
           { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },

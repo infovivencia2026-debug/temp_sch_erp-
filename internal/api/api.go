@@ -1554,6 +1554,20 @@ func (s *Server) Routes() http.Handler {
 		   Behind a session and nothing more: who may write to whom is a
 		   question about two people at the same school, which the handler
 		   answers, and not a capability anybody is granted. */
+		/* All messages: every conversation across the channels, on the
+		   principal's desk, with what is still waiting for a reply. See
+		   admin_inbox.go. Read-all plus the right to change school settings: a
+		   head of department also reads all, narrowed to their department, and
+		   this desk is not narrowed. */
+		r.Route("/admin/inbox", func(r chi.Router) {
+			r.Use(httpx.RequirePermission(rbac.MessagesReadAll))
+			r.Use(httpx.RequirePermission(rbac.SettingsWrite))
+			r.Get("/", s.adminInbox)
+			r.Get("/count", s.adminInboxCount)
+			r.Get("/thread", s.adminInboxThread)
+			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reply", s.adminInboxReplyParent)
+		})
+
 		r.Route("/staff-messages", func(r chi.Router) {
 			r.Get("/", s.listStaffMessages)
 			r.Get("/threads", s.listStaffThreads)

@@ -21,6 +21,8 @@ import { lazy } from 'react'
  * whichever order the integrator happened to write.
  */
 export const commsKeys = {
+  // The principal's desk over every channel — see AllMessages.tsx.
+  'institution_admin.communication.all_messages': lazy(() => import('./AllMessages')),
   'institution_admin.communication.grievances': lazy(
     () => import('./GrievanceHub'),
   ),
