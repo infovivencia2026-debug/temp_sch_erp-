@@ -29,7 +29,7 @@ import {
   INK, EDGE, WASH, RING, SEAM, SURFACE,
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
-import { Rows, Row, NavRow, SegmentRow, SelectRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
+import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
@@ -968,13 +968,14 @@ export function SettingsPane({
             onPick={setFrame}
             name={(v) => t(`bento.settings.layout.${v}`)}
           />
-          <SelectRow
+          <DropdownRow
             label={t('bento.settings.typeface')}
             value={appearance.typeface}
             options={TYPEFACES.map((f) => f.id)}
             name={(id) => typefaceById(id).name}
             onPick={(id) => set('typeface', id)}
             valueStyle={{ fontFamily: face.stack }}
+            optionStyle={(id) => ({ fontFamily: typefaceById(id).stack })}
           />
           <Scale axis="text" label={t('bento.settings.text')} />
           <Scale axis="density" label={t('bento.settings.density')} />

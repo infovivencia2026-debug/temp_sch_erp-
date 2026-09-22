@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, TRACK, SLIDER } from './ColourDialog'
+import { INK, EDGE, WASH, RING, TRACK, SLIDER, SEAM, SURFACE } from './ColourDialog'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
 
@@ -148,6 +148,108 @@ export function SelectRow<T extends string>({
       >
         {options.map((o) => <option key={o} value={o}>{name(o)}</option>)}
       </select>
+    </Row>
+  )
+}
+
+/* A CUSTOM DROPDOWN, not the OS picker.
+
+   SelectRow leans on a native <select> so the phone's own wheel, the keyboard
+   and the screen reader all come free. That is the right default for most
+   rows. This one trades that OS picker for a floating menu drawn in the app's
+   own ink and card tokens: a button showing the current value with a chevron
+   that turns, and a panel of options with a tick on the chosen one. Used where
+   the choice wants to be *seen* as the product's own control -- the typeface
+   picker, where each option can also render in its own face. Keyboard and
+   screen-reader support are supplied by hand (listbox/option roles, Escape to
+   close, focus ring) rather than inherited, so it stays usable. */
+export function DropdownRow<T extends string>({
+  label, value, options, name, onPick, helper, valueStyle, optionStyle,
+}: {
+  label: string
+  value: T
+  options: readonly T[]
+  name: (v: T) => string
+  onPick: (v: T) => void
+  helper?: ReactNode
+  /** Renders the current value in its own face (the typeface specimen). */
+  valueStyle?: React.CSSProperties
+  /** Renders each option in its own face, so the menu is a set of specimens. */
+  optionStyle?: (v: T) => React.CSSProperties
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on a click anywhere outside, and on Escape -- the two exits every
+  // menu needs, mirrored on what the native picker did for free.
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <Row label={label} helper={helper}>
+      <div ref={ref} className="relative ml-auto shrink-0">
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={label}
+          onClick={() => setOpen((o) => !o)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg border px-3.5 text-[14px] transition-colors',
+            'min-h-[36px] [@media(pointer:coarse)]:min-h-[44px]',
+            SEAM, INK, SURFACE, WASH, RING,
+          )}
+        >
+          <span style={valueStyle}>{name(value)}</span>
+          <ChevronDown
+            className={cn('size-4 opacity-60 transition-transform', open && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </button>
+        {open && (
+          <ul
+            role="listbox"
+            aria-label={label}
+            className={cn(
+              'absolute right-0 top-[calc(100%+6px)] z-50 min-w-[190px] max-w-[min(260px,80vw)]',
+              'rounded-xl border p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]',
+              SEAM, SURFACE,
+            )}
+          >
+            {options.map((o) => {
+              const on = o === value
+              return (
+                <li key={o} role="option" aria-selected={on}>
+                  <button
+                    type="button"
+                    onClick={() => { onPick(o); setOpen(false) }}
+                    className={cn(
+                      'flex w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[14px]',
+                      'min-h-[36px] [@media(pointer:coarse)]:min-h-[44px]',
+                      INK, WASH, RING,
+                      on && cn('font-semibold', 'bg-[color-mix(in_srgb,var(--bento-ink)_8%,transparent)]'),
+                    )}
+                  >
+                    <span className="min-w-0 truncate" style={optionStyle?.(o)}>{name(o)}</span>
+                    {on && <Check className="size-4 shrink-0 opacity-80" aria-hidden="true" />}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </Row>
   )
 }
