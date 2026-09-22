@@ -185,7 +185,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
         <div
           role="tablist"
           aria-label="Present or absent"
-          className="mb-3 inline-flex gap-1 rounded-md border bg-muted p-1"
+          className="mx-auto mb-3 flex w-fit gap-1 rounded-md border bg-muted p-1"
         >
           {(['absent', 'present'] as Tab[]).map((t) => (
             <button

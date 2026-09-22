@@ -211,7 +211,7 @@ export default function StaffMessages() {
             A teacher opening Messages is asking who has written to me, and
             answering that in two separate places is how one of them goes
             unread for a week. */}
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className="flex flex-wrap justify-center gap-1 border-b">
           {([
             ['staff', 'Colleagues', staffUnread],
             ['parents', 'Parents', parentUnread],
