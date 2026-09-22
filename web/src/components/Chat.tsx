@@ -195,6 +195,10 @@ export function ChatThread({
      year; "what did we agree about the bus" is a search, not a scroll. */
   const [finding, setFinding] = useState(false)
   const [needle, setNeedle] = useState('')
+  /* Messages this screen has sent and the server has not yet confirmed. They
+     sit at the end of the thread with a clock on them; see `submit`. Declared
+     here because the list the screen renders is the two together. */
+  const [outgoing, setOutgoing] = useState<ChatMessage[]>([])
   const all = useMemo(() => [...messages, ...outgoing], [messages, outgoing])
   const shown = useMemo(() => {
     const q = needle.trim().toLowerCase()
@@ -260,7 +264,6 @@ export function ChatThread({
    * when the server confirms it, and turns into a red line with Retry if it
    * does not — which is the honest thing to show, rather than a message that
    * looks sent and never arrived. */
-  const [outgoing, setOutgoing] = useState<ChatMessage[]>([])
 
   const deliver = useCallback(
     async (draftMsg: ChatMessage, payload: { body: string; attachments: Attachment[]; reply_to_id?: string }) => {
