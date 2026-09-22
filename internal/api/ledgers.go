@@ -81,6 +81,11 @@ func (s *Server) mountLedgers(r chi.Router) {
 	r.Get("/ledgers/petty-cash", s.listPettyCash)
 	r.With(post).Post("/ledgers/petty-cash", s.raisePettyCash)
 	r.With(post).Post("/ledgers/petty-cash/{id}/decide", s.decidePettyCash)
+	// The float: money into the tin, the drawer counted against the book, and
+	// how much the tin is meant to hold. See petty_cash_float.go.
+	r.With(post).Post("/ledgers/petty-cash/topup", s.topUpPettyCash)
+	r.With(post).Post("/ledgers/petty-cash/count", s.countPettyCash)
+	r.With(post).Put("/ledgers/petty-cash/float", s.setPettyCashFloat)
 
 	// --- assets ------------------------------------------------------------
 	r.Get("/ledgers/assets", s.listFixedAssets)
@@ -2064,16 +2069,67 @@ type pettyCashRow struct {
 func (s *Server) listPettyCash(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	items := []pettyCashRow{}
-	var limit, balance int64
+	var limit, balance, float int64
+	var custodian *string
+	topups := []map[string]any{}
+	counts := []map[string]any{}
 
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `
-			SELECT s.petty_cash_limit_paise,
+			SELECT s.petty_cash_limit_paise, s.petty_cash_float_paise, u.full_name,
 			       COALESCE((SELECT sum(l.debit_paise) - sum(l.credit_paise)
 			                   FROM journal_lines l
 			                  WHERE l.account_id = s.petty_cash_account_id), 0)
-			  FROM ledger_settings s WHERE s.institution_id = $1`,
-			id.InstitutionID).Scan(&limit, &balance); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			  FROM ledger_settings s
+			  LEFT JOIN users u ON u.id = s.petty_cash_custodian_id
+			 WHERE s.institution_id = $1`,
+			id.InstitutionID).Scan(&limit, &float, &custodian, &balance); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		// The float's own history: what went in, and what the drawer held
+		// when it was last counted. Short lists; the voucher book is the long one.
+		if err := scanInto(r.Context(), tx, `
+			SELECT t.id::text, to_char(t.topup_date,'YYYY-MM-DD'), t.amount_paise,
+			       a.code || ' ' || a.name, t.reference_no, t.note, u.full_name, e.voucher_no
+			  FROM petty_cash_topups t
+			  JOIN ledger_accounts a ON a.id = t.from_account_id
+			  LEFT JOIN users u ON u.id = t.created_by
+			  LEFT JOIN journal_entries e ON e.id = t.journal_entry_id
+			 ORDER BY t.topup_date DESC, t.created_at DESC LIMIT 20`,
+			func(rows pgx.Rows) error {
+				var tid, on, from string
+				var amt int64
+				var ref, note, by, jv *string
+				if err := rows.Scan(&tid, &on, &amt, &from, &ref, &note, &by, &jv); err != nil {
+					return err
+				}
+				topups = append(topups, map[string]any{
+					"id": tid, "topup_date": on, "amount_paise": amt, "from": from,
+					"reference_no": ref, "note": note, "by": by, "journal_voucher_no": jv,
+				})
+				return nil
+			}); err != nil {
+			return err
+		}
+		if err := scanInto(r.Context(), tx, `
+			SELECT c.id::text, to_char(c.counted_on,'YYYY-MM-DD'), c.book_paise,
+			       c.counted_paise, c.variance_paise, c.variance_reason, u.full_name
+			  FROM petty_cash_counts c
+			  LEFT JOIN users u ON u.id = c.counted_by
+			 ORDER BY c.counted_on DESC, c.created_at DESC LIMIT 20`,
+			func(rows pgx.Rows) error {
+				var cid, on string
+				var book, counted, variance int64
+				var reason, by *string
+				if err := rows.Scan(&cid, &on, &book, &counted, &variance, &reason, &by); err != nil {
+					return err
+				}
+				counts = append(counts, map[string]any{
+					"id": cid, "counted_on": on, "book_paise": book, "counted_paise": counted,
+					"variance_paise": variance, "variance_reason": reason, "by": by,
+				})
+				return nil
+			}); err != nil {
 			return err
 		}
 		return scanInto(r.Context(), tx, `
@@ -2106,12 +2162,23 @@ func (s *Server) listPettyCash(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	// Replenish-to-float: how much to put in to bring the tin back to full.
+	// Zero when no float is set, or the tin already holds at least the float.
+	replenish := float - balance
+	if float == 0 || replenish < 0 {
+		replenish = 0
+	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
 		"items":       items,
 		"limit_paise": limit,
 		// What the ledger says is in the tin. A float above zero that nobody
 		// can find in the drawer is the point of counting it.
-		"balance_paise": balance,
+		"balance_paise":   balance,
+		"float_paise":     float,
+		"custodian":       custodian,
+		"replenish_paise": replenish,
+		"topups":          topups,
+		"counts":          counts,
 	})
 }
 
@@ -2245,16 +2312,48 @@ func (s *Server) decidePettyCash(w http.ResponseWriter, r *http.Request) {
 		var status, payee, particulars string
 		var amount int64
 		var expenseID, pettyID uuid.UUID
+		var raisedBy *uuid.UUID
 		var date time.Time
 		if err := tx.QueryRow(r.Context(), `
 			SELECT status, payee, particulars, amount_paise, expense_account_id,
-			       paid_from_account_id, voucher_date
+			       paid_from_account_id, voucher_date, created_by
 			  FROM petty_cash_vouchers WHERE id = $1 FOR UPDATE`, voucherID).
-			Scan(&status, &payee, &particulars, &amount, &expenseID, &pettyID, &date); err != nil {
+			Scan(&status, &payee, &particulars, &amount, &expenseID, &pettyID, &date, &raisedBy); err != nil {
 			return err
 		}
 		if status != "pending" {
 			return refusef("the voucher is already %s", status)
+		}
+
+		if req.Approve {
+			/* THE TWO CONTROLS A TIN HAS, ENFORCED RATHER THAN DESCRIBED.
+
+			   The table's own comment promised that anything above the limit
+			   was "signed by a second person", and nothing checked it: the
+			   person who raised the slip could approve it. Above the limit,
+			   the approver must be somebody else.
+
+			   And the tin cannot pay out what it does not hold. The balance
+			   shown on the screen is what the ledger says is in the drawer;
+			   approving past it recorded cash leaving a tin that was already
+			   empty. Top it up first — the screen says by how much. */
+			var limit, balance int64
+			if err := tx.QueryRow(r.Context(), `
+				SELECT s.petty_cash_limit_paise,
+				       COALESCE((SELECT sum(l.debit_paise) - sum(l.credit_paise)
+				                   FROM journal_lines l WHERE l.account_id = $2), 0)
+				  FROM ledger_settings s WHERE s.institution_id = $1`,
+				id.InstitutionID, pettyID).Scan(&limit, &balance); err != nil {
+				return err
+			}
+			if amount > limit && raisedBy != nil && *raisedBy == id.UserID {
+				return refusef("above the %s limit a slip needs a second signature -- somebody other than the person who raised it must approve it",
+					indianRupees(limit))
+			}
+			if balance < amount {
+				return refusef("the tin holds %s and this slip is %s -- top up the float first",
+					indianRupees(balance), indianRupees(amount))
+			}
 		}
 
 		if !req.Approve {

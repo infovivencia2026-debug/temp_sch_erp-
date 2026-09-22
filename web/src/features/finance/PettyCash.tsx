@@ -24,10 +24,26 @@ import {
    of the tin and into an expense head; refusing it requires a reason, because
    a claim refused without one is a claim that comes back next week. */
 
+interface PettyTopUp {
+  id: string; topup_date: string; amount_paise: number; from: string
+  reference_no?: string | null; note?: string | null; by?: string | null
+  journal_voucher_no?: string | null
+}
+interface PettyCount {
+  id: string; counted_on: string; book_paise: number; counted_paise: number
+  variance_paise: number; variance_reason?: string | null; by?: string | null
+}
 interface PettyResponse {
   items: PettyVoucher[]
   limit_paise: number
   balance_paise: number
+  /* The float: how much the tin is meant to hold, who holds it, and how much
+     to put in to bring it back to full. Zero float means "not set". */
+  float_paise: number
+  custodian?: string | null
+  replenish_paise: number
+  topups: PettyTopUp[]
+  counts: PettyCount[]
 }
 
 export default function PettyCash() {
@@ -61,9 +77,16 @@ export default function PettyCash() {
             delta={needSecond.length
               ? { value: `${needSecond.length} above the limit`, positive: false }
               : undefined} />
-          <Stat label="Paid out" value={inr(spent)} period="all vouchers approved" />
+          <Stat label="Float" value={(q.data?.float_paise ?? 0) > 0 ? inr(q.data!.float_paise) : 'Not set'}
+            hint={(q.data?.replenish_paise ?? 0) > 0
+              ? `Top up ${inr(q.data!.replenish_paise)} to bring the tin back to full`
+              : (q.data?.float_paise ?? 0) > 0 ? 'The tin is at or above its float'
+              : `${inr(spent)} paid out across all approved slips`}
+            delta={(q.data?.replenish_paise ?? 0) > 0
+              ? { value: `${inr(q.data!.replenish_paise)} below float`, positive: false }
+              : undefined} />
           <Stat label="Limit" value={inr(q.data?.limit_paise ?? 0)} icon={ShieldCheck}
-            hint="Above this a slip needs a second signature" />
+            hint="Above this a slip needs a second signature — from somebody other than who raised it" />
         </CellGrid>
 
         {noReceipt.length > 0 && (
@@ -83,6 +106,8 @@ export default function PettyCash() {
             </Table>
           </Card>
         )}
+
+        {q.data && <ManageFloat data={q.data} />}
 
         <RaiseVoucher limit={q.data?.limit_paise ?? 0} />
 
@@ -191,6 +216,149 @@ function VoucherRow({ voucher }: { voucher: PettyVoucher }) {
             </div>
           </Td>
         </tr>
+      )}
+    </>
+  )
+}
+
+/* The float: money into the tin, the drawer counted against the book, and how
+   much the tin is meant to hold. The three things an imprest system does that
+   a voucher register alone cannot. Each is one short form, and each writes a
+   row somebody can point at later — a top-up is a posted journal, a count is
+   a dated figure with its variance frozen. */
+function ManageFloat({ data }: { data: PettyResponse }) {
+  const qc = useQueryClient()
+  const done = () => qc.invalidateQueries({ queryKey: ['ledgers'] })
+
+  const [amount, setAmount] = useState('')
+  const [from, setFrom] = useState<'bank' | 'cash'>('bank')
+  const [ref, setRef] = useState('')
+  const [note, setNote] = useState('')
+  const topUp = useMutation({
+    mutationFn: () => api.post<{ balance_paise: number }>(`${ledgerBase}/petty-cash/topup`, {
+      amount_paise: toPaise(amount), from, reference_no: ref || undefined, note: note || undefined,
+    }),
+    onSuccess: () => { setAmount(''); setRef(''); setNote(''); done() },
+  })
+
+  const [counted, setCounted] = useState('')
+  const [why, setWhy] = useState('')
+  const countedPaise = counted === '' ? null : toPaise(counted)
+  const differs = countedPaise !== null && countedPaise !== data.balance_paise
+  const count = useMutation({
+    mutationFn: () => api.post<{ variance_paise: number }>(`${ledgerBase}/petty-cash/count`, {
+      counted_paise: countedPaise, variance_reason: why || undefined,
+    }),
+    onSuccess: () => { setCounted(''); setWhy(''); done() },
+  })
+
+  const [floatAmt, setFloatAmt] = useState(data.float_paise ? rupees(data.float_paise).replace(/[^\d.]/g, '') : '')
+  const setFloat = useMutation({
+    mutationFn: () => api.put(`${ledgerBase}/petty-cash/float`, { float_paise: toPaise(floatAmt) }),
+    onSuccess: done,
+  })
+
+  return (
+    <>
+      <Card>
+        <CardHeader title="The float"
+          description={data.custodian
+            ? `Held by ${data.custodian}. Put money in, count the drawer, or change how much the tin should hold.`
+            : 'Put money in, count the drawer, or set how much the tin should hold.'} />
+        <div className="grid gap-6 p-5 lg:grid-cols-3">
+          <div className="space-y-3">
+            <div className="text-[13px] font-semibold">Top up the tin</div>
+            <Field label="Amount (₹)" required
+              hint={data.replenish_paise > 0 ? `${inr(data.replenish_paise)} brings it back to the float` : undefined}>
+              <Input type="number" value={amount} onChange={setAmount} />
+            </Field>
+            <Field label="Taken from" required>
+              <Select value={from} onChange={(v) => setFrom(v as 'bank' | 'cash')}
+                options={[{ value: 'bank', label: 'Bank account' }, { value: 'cash', label: 'Main cash' }]} />
+            </Field>
+            <Field label={from === 'bank' ? 'Cheque / withdrawal reference' : 'Reference'} required={from === 'bank'}>
+              <Input value={ref} onChange={setRef} />
+            </Field>
+            <Field label="Note"><Input value={note} onChange={setNote} /></Field>
+            <FormNotice error={topUp.error} />
+            <Button onClick={() => topUp.mutate()}
+              disabled={toPaise(amount) <= 0 || (from === 'bank' && !ref) || topUp.isPending}>
+              Put {toPaise(amount) > 0 ? inr(toPaise(amount)) : 'money'} in the tin
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-[13px] font-semibold">Count the drawer</div>
+            <Field label="Cash actually in the drawer (₹)" required
+              hint={`The book says ${inr(data.balance_paise)}`}>
+              <Input type="number" value={counted} onChange={setCounted} />
+            </Field>
+            {differs && (
+              <Field label={`Why is it ${inr(Math.abs(countedPaise! - data.balance_paise))} ${countedPaise! > data.balance_paise ? 'over' : 'short'}?`} required>
+                <Input value={why} onChange={setWhy} placeholder="Slip for the auto fare not raised yet" />
+              </Field>
+            )}
+            <FormNotice error={count.error} />
+            <Button variant="secondary" onClick={() => count.mutate()}
+              disabled={countedPaise === null || (differs && !why) || count.isPending}>
+              Record the count
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-[13px] font-semibold">How much the tin should hold</div>
+            <Field label="Float (₹)" hint="Replenish-to-float is this minus what the book says is in the tin.">
+              <Input type="number" value={floatAmt} onChange={setFloatAmt} />
+            </Field>
+            <FormNotice error={setFloat.error} ok={setFloat.isSuccess ? 'Float saved.' : undefined} />
+            <Button variant="secondary" onClick={() => setFloat.mutate()}
+              disabled={floatAmt === '' || setFloat.isPending}>
+              Save the float
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {(data.topups.length > 0 || data.counts.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader title="Money put in" description="Each one is a posted journal voucher." />
+            <Table head={['Date', 'From', { label: 'Amount', align: 'right' }, 'Reference', 'By']}
+              empty={data.topups.length === 0} emptyLabel="No top-ups yet.">
+              {data.topups.map((t) => (
+                <tr key={t.id}>
+                  <Td className="text-muted-foreground">{t.topup_date}</Td>
+                  <Td className="text-[13px]">{t.from}
+                    {t.journal_voucher_no && <div className="text-[12px] text-muted-foreground">{t.journal_voucher_no}</div>}
+                  </Td>
+                  <Td className="text-right tabular-nums">{rupees(t.amount_paise)}</Td>
+                  <Td className="text-muted-foreground">{t.reference_no || t.note || '—'}</Td>
+                  <Td className="text-muted-foreground">{t.by || '—'}</Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+          <Card>
+            <CardHeader title="Drawer counts" description="What was in the drawer against what the book said, on the day." />
+            <Table head={['Date', { label: 'Book', align: 'right' }, { label: 'Counted', align: 'right' }, 'Variance', 'By']}
+              empty={data.counts.length === 0} emptyLabel="The drawer has not been counted yet.">
+              {data.counts.map((c) => (
+                <tr key={c.id}>
+                  <Td className="text-muted-foreground">{c.counted_on}</Td>
+                  <Td className="text-right tabular-nums">{rupees(c.book_paise)}</Td>
+                  <Td className="text-right tabular-nums">{rupees(c.counted_paise)}</Td>
+                  <Td>
+                    <Badge tone={c.variance_paise === 0 ? 'success' : 'danger'}>
+                      {c.variance_paise === 0 ? 'agrees' : `${c.variance_paise > 0 ? '+' : '−'}${rupees(Math.abs(c.variance_paise))}`}
+                    </Badge>
+                    {c.variance_reason && <div className="text-[12px] text-muted-foreground">{c.variance_reason}</div>}
+                  </Td>
+                  <Td className="text-muted-foreground">{c.by || '—'}</Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        </div>
       )}
     </>
   )
