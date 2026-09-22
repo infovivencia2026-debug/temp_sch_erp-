@@ -3105,7 +3105,7 @@ func (s *Server) testMessagingProvider(w http.ResponseWriter, r *http.Request) {
 		}
 		if id.InstitutionID == uuid.Nil {
 			// The seller testing its own server: no school to name.
-			school = "EDU CLOUD"
+			school = "WISEN"
 			return nil
 		}
 		return tx.QueryRow(r.Context(),

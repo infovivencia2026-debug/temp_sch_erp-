@@ -31,7 +31,7 @@ export function WorkspaceLoading({
       <span className="ws-blob ws-blob-2" aria-hidden="true" />
       <span className="ws-blob ws-blob-3" aria-hidden="true" />
       <div className="ws-mark">
-        <p className="ws-word">School ERP</p>
+        <p className="ws-word">WISEN</p>
         <div className="ws-rule" aria-hidden="true" />
         <p className="ws-sub">{label}</p>
       </div>

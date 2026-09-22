@@ -732,7 +732,7 @@ extension WebShell {
     fileprivate func printPage() {
         let controller = UIPrintInteractionController.shared
         let info = UIPrintInfo(dictionary: nil)
-        info.jobName = webView.title?.isEmpty == false ? webView.title! : "School ERP"
+        info.jobName = webView.title?.isEmpty == false ? webView.title! : "WISEN"
         info.outputType = .general
         controller.printInfo = info
         controller.printFormatter = webView.viewPrintFormatter()

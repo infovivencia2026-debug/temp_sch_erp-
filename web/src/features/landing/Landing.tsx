@@ -86,7 +86,7 @@ export function Landing() {
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <span className="flex items-center gap-2.5">
           <Mark />
-          <span className="text-[15px] font-semibold tracking-tight">EDU CLOUD</span>
+          <span className="text-[15px] font-semibold tracking-tight">WISEN</span>
         </span>
         <nav className="flex items-center gap-1.5 text-[13.5px]">
           <a
@@ -193,7 +193,7 @@ export function Landing() {
 
       <footer className="mx-auto max-w-5xl px-6 py-10 text-[13px] text-[hsl(var(--muted-foreground))]">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-6">
-          <span>EDU CLOUD</span>
+          <span>WISEN</span>
           {/* py-2.5 so each footer link is a finger-sized target; text alone is 16px tall */}
           <a href="/login" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">Sign in</a>
           <a href="/buy" className="py-2.5 transition-colors hover:text-[hsl(var(--foreground))]">Pricing</a>

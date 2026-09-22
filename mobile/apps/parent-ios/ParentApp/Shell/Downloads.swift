@@ -19,7 +19,7 @@ import WebKit
    because the parent asked to read it, not to keep it.
 
    WHERE IT GOES. The app's Documents folder, which Info.plist exposes to the
-   Files app as "On My iPhone › EDU CLOUD". That is the iOS equivalent of the
+   Files app as "On My iPhone › WISEN". That is the iOS equivalent of the
    public Downloads folder: a receipt is kept in order to be produced later —
    forwarded on WhatsApp, shown at the office — and a file no other app can
    see is not kept, it is held until the phone changes its mind. */

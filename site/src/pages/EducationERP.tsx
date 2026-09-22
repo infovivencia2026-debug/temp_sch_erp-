@@ -80,7 +80,7 @@ export function EducationERP() {
                   <ShieldCheck className="h-3.5 w-3.5" /> Standalone Education ERP Instance
                 </span>
                 <h1 className="text-3xl font-bold tracking-tight sm:text-4xl text-white mt-1">
-                  Vivencia EduCloud — Education ERP
+                  WISEN — Education ERP
                 </h1>
               </div>
             </div>

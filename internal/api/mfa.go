@@ -44,7 +44,7 @@ func (s *Server) mfaSetup(w http.ResponseWriter, r *http.Request) {
 	var account, issuer string
 	_ = s.DB.AsPlatform(r.Context(), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
-			SELECT COALESCE(u.email::text, u.phone, u.username, u.full_name), COALESCE(i.short_name, i.name, 'School ERP')
+			SELECT COALESCE(u.email::text, u.phone, u.username, u.full_name), COALESCE(i.short_name, i.name, 'WISEN')
 			  FROM users u LEFT JOIN institutions i ON i.id = u.institution_id WHERE u.id = $1`, id.UserID).
 			Scan(&account, &issuer)
 	})

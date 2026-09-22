@@ -4,7 +4,7 @@ import Foundation
    res/values/strings.xml; the wording here is the same, so a family with one
    phone of each kind is told the same thing by both. */
 enum L10n {
-    static let appName = "EDU CLOUD"
+    static let appName = "WISEN"
 
     static let offlineTitle = "No connection"
     static let offlineBody = "This app shows the school's own site, so it needs the internet. Check your data or wifi and try again."

@@ -18,7 +18,7 @@ import (
    room, and a value read down a telephone is the value most often mistyped.
    So the same row the self-service reset queues is queued here, carrying
    the password itself rather than a link: the template code is the one the
-   dispatcher hands to the seller's providers, which is what EDU CLOUD
+   dispatcher hands to the seller's providers, which is what WISEN
    promises — resets leave by its channels whether or not the school has
    any of its own.
 

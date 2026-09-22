@@ -14,7 +14,7 @@ class SmsGatewayIssueRegistry : IssueRegistry() {
     override val minApi: Int = 14
 
     override val vendor: Vendor = Vendor(
-        vendorName = "School ERP",
+        vendorName = "WISEN",
         feedbackUrl = "https://github.com/school-erp/erp/issues",
         identifier = "sms-gateway-lint",
     )

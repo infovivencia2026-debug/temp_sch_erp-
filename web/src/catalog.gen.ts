@@ -64,7 +64,7 @@ export const ROLES: Role[] = [
         workspace: 'Settings',
         features: [
           { key: 'seller_admin.delivery.password_reset_delivery', slug: 'password_reset_delivery', name: 'Password Reset Delivery', scope: 'platform', tier: 'core', summary: 'The seller\'s own email server and SMS channel, through which every school\'s password-reset links are sent. A school configures nothing for its staff and parents to get back in.' },
-          { key: 'seller_admin.delivery.educloud_channels', slug: 'educloud_channels', name: 'EduCloud Channels', scope: 'platform', tier: 'core', summary: 'The seller\'s own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through EduCloud sends nothing until these are set up.' },
+          { key: 'seller_admin.delivery.wisen_channels', slug: 'wisen_channels', name: 'WISEN Channels', scope: 'platform', tier: 'core', summary: 'The seller\'s own SMS, WhatsApp and email accounts, through which every school on credits sends. A school that chose to send through WISEN sends nothing until these are set up.' },
         ],
       },
       {
