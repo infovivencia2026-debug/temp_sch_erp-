@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"sync/atomic"
@@ -194,12 +195,24 @@ func (s *Store) IssueViaID(ctx context.Context, w http.ResponseWriter, r *http.R
 		ip = &h
 	}
 
+	/* A policy lookup that fails must not refuse the sign-in. It did, once:
+	   a missing grant on session_policies turned every login into a 500.
+	   Its own transaction, because an error inside the insert's transaction
+	   would abort that too; and on failure the store's global limits apply,
+	   which is exactly what every session had before policies existed. */
+	pol := SessionPolicy{Absolute: s.ttl, Idle: s.idleTTL, MaxDevices: 0}
+	if perr := s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
+		p, e := s.policyFor(ctx, tx, userID, instID)
+		if e == nil {
+			pol = p
+		}
+		return e
+	}); perr != nil {
+		slog.Error("session policy lookup failed; using defaults", "error", perr)
+	}
+
 	var sid uuid.UUID
 	err = s.db.AsPlatform(ctx, func(tx pgx.Tx) error {
-		pol, err := s.policyFor(ctx, tx, userID, instID)
-		if err != nil {
-			return err
-		}
 		if cap := time.Now().Add(pol.Absolute); expires.IsZero() || expires.After(cap) {
 			expires = cap
 		}
