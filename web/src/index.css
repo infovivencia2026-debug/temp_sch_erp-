@@ -2439,7 +2439,9 @@ dialog,
    the top-centre a menu hanging under its button uses. Nothing else here —
    the entrance, the duration and the curve are all the shared dialog ones. */
 [role='dialog'][aria-label='Assistant'] {
-  transform-origin: bottom right;
+  /* Docked to the right edge now, so it grows out of that edge rather than
+     out of a corner it no longer hangs from. */
+  transform-origin: right center;
 }
 
 @media (prefers-reduced-motion: reduce) {
