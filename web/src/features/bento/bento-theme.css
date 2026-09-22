@@ -4483,6 +4483,12 @@ body:has(.bento-frost) [data-assistant-orb] {
    stamps data-palette="aurora" on the root while that palette is active,
    which is the whole hook: nothing here applies under any other palette.
 
+   THE HOOK IS ON THE ROOT, AND SO IS THE LAYOUT. data-layout="bento" is set
+   on the html element (lib/layout.tsx), not on a wrapper, so a selector that
+   asked for it as a DESCENDANT of the root matched nothing and the first
+   build of this shipped rules that painted no card. Every rule below hangs
+   off html[data-palette] alone; .bento-cell exists on no other layout.
+
    THE BLOBS ARE AT 55%, NOT FULL STRENGTH. The pack draws #316cff and
    #ff3c9e solid, with white labels and a text shadow; a board draws black
    figures. 55% is the same ceiling --tint-mix was measured to: the domain
@@ -4507,7 +4513,7 @@ body:has(.bento-frost) [data-assistant-orb] {
    is a paint, not a shape.
    ═══════════════════════════════════════════════════════════════════════ */
 
-html[data-palette='aurora'] [data-layout='bento'] {
+html[data-palette='aurora'] {
   /* 01 Pink Sky */
   --aurora-01:
     radial-gradient(circle at 30% 20%, rgba(255, 60, 158, .55) 0%, transparent 48%),
@@ -4603,7 +4609,7 @@ html[data-palette='aurora'] [data-layout='bento'] {
 /* The face itself: the mesh under the sheen, the base as the colour, the
    glow inside the edge. Not the dark tone, whose light text needs its dark
    ground. */
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell:not([data-tone='dark']) {
+html[data-palette='aurora'] .bento-cell:not([data-tone='dark']) {
   background-image: var(--aurora-sheen), var(--aurora, none);
   background-color: var(--aurora-base, var(--bento-card));
   border-color: rgba(255, 255, 255, .8);
@@ -4616,42 +4622,42 @@ html[data-palette='aurora'] [data-layout='bento'] .bento-cell:not([data-tone='da
 /* A domain card wears its domain's mesh, on every board. The base is the
    same colour the palette's -soft token carries, so the inline
    backgroundColor the cell already sets and this rule agree. */
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='communication'] { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='students']      { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='academics']     { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='warning']       { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='finance'],
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='success']       { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='staff']         { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='attendance']    { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='reports']       { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='critical']      { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='admissions']    { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-domain='operations']    { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='communication'] { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='students']      { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='academics']     { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='warning']       { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='finance'],
+html[data-palette='aurora'] .bento-cell[data-domain='success']       { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='staff']         { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='attendance']    { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='reports']       { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='critical']      { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='admissions']    { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
+html[data-palette='aurora'] .bento-cell[data-domain='operations']    { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
 
 /* A plain card takes its mesh from where it sits, round the twelve. The
    widget wrapper is the board's child, so the count is on the wrapper. */
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+1)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+2)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+3)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+4)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+5)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+6)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+7)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+8)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+9)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+10) .bento-cell:not([data-domain]) { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+11) .bento-cell:not([data-domain]) { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
-html[data-palette='aurora'] [data-layout='bento'] .bento-board > :nth-child(12n+12) .bento-cell:not([data-domain]) { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+1)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-02); --aurora-base: var(--aurora-02-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+2)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-01); --aurora-base: var(--aurora-01-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+3)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-05); --aurora-base: var(--aurora-05-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+4)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-03); --aurora-base: var(--aurora-03-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+5)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-04); --aurora-base: var(--aurora-04-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+6)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-07); --aurora-base: var(--aurora-07-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+7)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-06); --aurora-base: var(--aurora-06-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+8)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-12); --aurora-base: var(--aurora-12-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+9)  .bento-cell:not([data-domain]) { --aurora: var(--aurora-08); --aurora-base: var(--aurora-08-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+10) .bento-cell:not([data-domain]) { --aurora: var(--aurora-09); --aurora-base: var(--aurora-09-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+11) .bento-cell:not([data-domain]) { --aurora: var(--aurora-10); --aurora-base: var(--aurora-10-base); }
+html[data-palette='aurora'] .bento-board > :nth-child(12n+12) .bento-cell:not([data-domain]) { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
 
 /* The anchor keeps its dark ink and takes the one mesh with a base its
    figures still read on; its own two-stop gradient is the thing replaced. */
-html[data-palette='aurora'] [data-layout='bento'] .bento-cell[data-tone='anchor'] { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
+html[data-palette='aurora'] .bento-cell[data-tone='anchor'] { --aurora: var(--aurora-11); --aurora-base: var(--aurora-11-base); }
 
 /* On paper the meshes go: index.css strips backgrounds for print and this
    must not put them back. */
 @media print {
-  html[data-palette='aurora'] [data-layout='bento'] .bento-cell {
+  html[data-palette='aurora'] .bento-cell {
     background-image: none !important;
     box-shadow: none !important;
   }
