@@ -265,7 +265,7 @@ export function useLiveStream() {
     const open = () => {
       if (es || document.hidden) return
       es = new EventSource('/api/v1/live/stream')
-      for (const name of ['message', 'notification', 'typing']) es.addEventListener(name, onEvent as EventListener)
+      for (const name of ['message', 'read', 'notification', 'typing']) es.addEventListener(name, onEvent as EventListener)
       // On error the browser retries by itself; nothing to do but stay quiet.
     }
     const close = () => { es?.close(); es = null }
