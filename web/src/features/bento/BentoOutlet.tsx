@@ -7,6 +7,7 @@ import '../portal/parent.css'
 import { bentoComponentFor } from './bento-registry'
 import { recordRecent } from '@/lib/recents'
 import { cn } from '@/lib/utils'
+import { OfflineBanner } from '@/components/OfflineBanner'
 
 /* The routing seam.
    ─────────────────────────────────────────────────────────────────────────
@@ -166,7 +167,14 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
 
   // A classic screen fades in on navigation too — keyed on the route so the
   // animation plays once per screen, not on every in-place re-render.
-  if (layout !== 'bento') return <div key={key} className="screen-fade">{inner}</div>
+  if (layout !== 'bento') {
+    return (
+      <div key={key} className="screen-fade">
+        <OfflineBanner />
+        {inner}
+      </div>
+    )
+  }
 
   /* The dock's clearance belongs here, not on the dashboards.
 
@@ -295,6 +303,7 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           that is margin; on a phone it is the difference between a figure
           fitting on one line and wrapping. */}
       <div className="flex-1 w-full pt-6 pb-6 px-[14px] sm:px-[20px] lg:px-[24px] flex flex-col">
+        <OfflineBanner />
         {inner}
       </div>
     </div>
