@@ -27,8 +27,11 @@ export default function ChildTimetable() {
   const sectionId = child?.section_id ?? ''
 
   const periods = useQuery({
-    queryKey: ['periods'],
-    queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
+    // By section: the school runs one bell schedule per class group, and
+    // without this the endpoint returns every schedule's periods — six
+    // assemblies at nine o'clock.
+    queryKey: ['periods', 'section', sectionId],
+    queryFn: () => api.get<List<Period>>(`/api/v1/timetable/periods?section_id=${sectionId}`),
     enabled: !!sectionId,
   })
   const entries = useQuery({
@@ -197,23 +200,23 @@ function DayTimeline({
           Nothing timetabled for {WEEKDAYS[day - 1]}.
         </p>
       ) : (
-        <ol className="relative flex flex-col gap-3 px-4 pb-6 pt-4">
+        <ol className="relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4">
           {/* the track the dots sit on */}
-          <span aria-hidden className="absolute bottom-6 left-[76px] top-5 w-0.5 bg-border" />
+          <span aria-hidden className="absolute bottom-6 left-[72px] top-5 w-0.5 bg-border" />
           {rows.map((p) => {
             const e = byPeriod.get(p.id)
             const isNow = current(p)
             const isBreak = p.is_break
             return (
               <li key={p.id} className="relative flex items-start">
-                <div className="flex w-[56px] shrink-0 flex-col items-end pr-3 pt-2.5">
+                <div className="flex w-[56px] shrink-0 flex-col items-end pr-2 pt-2.5">
                   <span className="text-[12px] font-bold">{hhmm(p.starts_at)}</span>
                   <span className="text-[11px] font-medium text-muted-foreground">{hhmm(p.ends_at)}</span>
                 </div>
                 <span
                   aria-hidden
                   className={cn(
-                    'absolute left-[60px] top-3.5 z-[1] h-2.5 w-2.5 rounded-full border-2 border-card',
+                    'absolute left-[56px] top-3.5 z-[1] h-2.5 w-2.5 rounded-full border-2 border-card',
                     isNow ? 'bg-primary ring-4 ring-primary/20' : isBreak ? 'bg-warning' : 'bg-border',
                   )}
                 />
