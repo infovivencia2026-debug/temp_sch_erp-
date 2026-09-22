@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, CheckCheck, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Loading } from '@/components/ui'
+import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
 
 /* A conversation, drawn the way every phone in the country draws one.
 
@@ -57,7 +58,11 @@ export function ChatThread({
      and only the viewport bounds it, so the thread scrolls inside itself
      rather than scrolling the page. */
   height = 'min-h-[14rem] max-h-[70vh]',
+  live,
 }: {
+  /** Which conversation this is, on the live bus: shows "typing…" from the
+      other party and signals our own typing to them. Omit for no live. */
+  live?: TypingTarget
   messages: ChatMessage[]
   loading?: boolean
   /** What to say when there is nothing yet. */
@@ -135,6 +140,9 @@ export function ChatThread({
     void onSend(out)
   }
 
+  // The other party is typing — a live hint that expires by itself.
+  const otherTyping = useTyping(live)
+
   let lastDay = ''
   return (
     /* flex-1 min-h-0: inside a card laid out as a flex column (the two-pane
@@ -194,6 +202,20 @@ export function ChatThread({
               </div>
             )
           })
+        )}
+        {/* The other party, mid-sentence. A WhatsApp reader expects this;
+            without it a reply that lands ten seconds after yours reads as
+            the other person ignoring you for ten seconds. Expires on its own
+            (lib/live-stream.ts), so a closed tab never leaves it behind. */}
+        {otherTyping && (
+          <div className="mt-2 flex items-center gap-1.5 text-[12px] text-muted-foreground" aria-live="polite">
+            <span className="inline-flex gap-0.5" aria-hidden="true">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
+            </span>
+            typing…
+          </div>
         )}
       </div>
 
@@ -260,7 +282,12 @@ export function ChatThread({
               rows={1}
               placeholder={placeholder}
               className="min-h-[40px] flex-1 resize-none rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value)
+                // "I am typing to you", throttled in sendTyping; only while
+                // there is something in the box, so a cleared box goes quiet.
+                if (live && e.target.value.trim()) sendTyping(live)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()

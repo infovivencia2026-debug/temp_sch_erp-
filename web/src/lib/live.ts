@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useLiveStream } from '@/lib/live-stream'
 
 /* Keeping every open screen current, without anybody pressing reload.
 
@@ -82,6 +83,10 @@ function checkForNewBuild() {
 
 export function useLiveUpdates() {
   const qc = useQueryClient()
+  /* The push half. The poll below is the fallback that also keeps the
+     session's idle clock moving; the stream is what makes a message arrive
+     in a second rather than half a minute. See lib/live-stream.ts. */
+  useLiveStream()
   /* The last revision seen. A ref rather than state: nothing renders from it,
      and setting state here would re-run the effect and restart the timer on
      every tick. */

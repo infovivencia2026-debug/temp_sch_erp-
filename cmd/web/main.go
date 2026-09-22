@@ -24,6 +24,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/school-erp/erp/internal/api"
+	"github.com/school-erp/erp/internal/live"
 	"github.com/school-erp/erp/internal/auth"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
@@ -58,6 +59,12 @@ func run() error {
 		return err
 	}
 	defer db.Close()
+
+	/* The live bus: one dedicated LISTEN connection per instance, outside the
+	   pool, fanning message/typing/notification hints to the tabs this
+	   instance holds open on /api/v1/live/stream. See internal/live. */
+	liveBroker := live.New(cfg.DatabaseURL)
+	go liveBroker.Run(ctx)
 
 	// REDIS_URL is still read by config for as long as the env files carry
 	// it, and means nothing to this process any more: the queue is in
@@ -104,6 +111,7 @@ func run() error {
 
 	apiServer := &api.Server{
 		DB: db, Sessions: sessions, Hasher: hasher,
+		Live:         liveBroker,
 		RateLimits:   limits,
 		Storage:      store,
 		FileStoreDir: cfg.FileStoreDir,
