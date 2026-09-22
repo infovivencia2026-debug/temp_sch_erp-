@@ -26,11 +26,13 @@ export default function ChildTimetable() {
   const sectionId = child?.section_id ?? ''
 
   const periods = useQuery({
-    // By section: the school runs one bell schedule per class group, and
-    // without this the endpoint returns every schedule's periods — six
-    // assemblies at nine o'clock.
-    queryKey: ['periods', 'section', sectionId],
-    queryFn: () => api.get<List<Period>>(`/api/v1/timetable/periods?section_id=${sectionId}`),
+    /* Every schedule, on purpose. Asking by section gave the schedule the
+       section is filed under — and on the live school the lessons had been
+       laid on a different schedule's periods, so the day showed that
+       schedule's breaks and none of the lessons. The timeline keeps to the
+       periods the lessons actually use, and takes breaks from their schedule. */
+    queryKey: ['periods'],
+    queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
     enabled: !!sectionId,
   })
   const entries = useQuery({

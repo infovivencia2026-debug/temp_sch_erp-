@@ -295,6 +295,7 @@ export interface Subject { id: string; name: string; code: string; is_scholastic
 
 export interface Period {
   id: string; name: string; sequence: number; starts_at: string; ends_at: string; is_break: boolean
+  bell_schedule_id?: string | null
 }
 export interface TimetableEntry {
   id: string; section_id: string; section_name: string; class_name: string

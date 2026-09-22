@@ -19,6 +19,9 @@ type period struct {
 	StartsAt string `json:"starts_at"`
 	EndsAt   string `json:"ends_at"`
 	IsBreak  bool   `json:"is_break"`
+	// BellScheduleID says which schedule the period belongs to, so a screen
+	// reading every schedule can keep to the one its lessons were laid on.
+	BellScheduleID *string `json:"bell_schedule_id"`
 }
 
 type timetableEntry struct {
@@ -144,7 +147,7 @@ func (s *Server) listPeriods(w http.ResponseWriter, r *http.Request) {
 		  ) AS id
 		)
 		SELECT p.id::text, p.name, p.sequence, to_char(p.starts_at,'HH24:MI'),
-		       to_char(p.ends_at,'HH24:MI'), p.is_break
+		       to_char(p.ends_at,'HH24:MI'), p.is_break, p.bell_schedule_id::text
 		  FROM periods p, want
 		 /* A schedule with no periods of its own would otherwise show an empty
 		    day, which reads as a school that has not been set up. Falling back
@@ -158,7 +161,7 @@ func (s *Server) listPeriods(w http.ResponseWriter, r *http.Request) {
 		[]any{nullUUIDText(q.Get("section_id")), nullUUIDText(q.Get("class_id"))},
 		func(rows pgx.Rows) (period, error) {
 			var v period
-			return v, rows.Scan(&v.ID, &v.Name, &v.Sequence, &v.StartsAt, &v.EndsAt, &v.IsBreak)
+			return v, rows.Scan(&v.ID, &v.Name, &v.Sequence, &v.StartsAt, &v.EndsAt, &v.IsBreak, &v.BellScheduleID)
 		})
 	respond(w, r, items, err)
 }

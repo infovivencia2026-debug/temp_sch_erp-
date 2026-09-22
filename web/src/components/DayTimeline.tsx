@@ -87,7 +87,21 @@ export default function DayTimeline({
     day === today && nowMin >= minutes(p.starts_at) && nowMin < minutes(p.ends_at)
   const live = ordered.find(current)
 
-  const rows = ordered.filter((p) => (breaks && p.is_break) || byPeriod.has(p.id))
+  /* The lessons decide which schedule this is. Periods that carry a lesson
+     on any day are in; a break is in only when it belongs to the same
+     schedule as those periods, so a school with several schedules never
+     shows another group's lunch. No lessons at all: no rows, not a day of
+     breaks pretending to be a timetable. */
+  const used = useMemo(() => new Set(entries.map((e) => e.period_id)), [entries])
+  const schedules = useMemo(
+    () => new Set(ordered.filter((p) => used.has(p.id)).map((p) => p.bell_schedule_id ?? '')),
+    [ordered, used],
+  )
+  const rows = used.size === 0
+    ? []
+    : ordered.filter(
+        (p) => byPeriod.has(p.id) || (breaks && p.is_break && schedules.has(p.bell_schedule_id ?? '')),
+      )
 
   return (
     <Card className="mx-auto w-full max-w-[640px]">
@@ -129,7 +143,7 @@ export default function DayTimeline({
 
       {rows.length === 0 ? (
         <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">
-          Nothing timetabled for {WEEKDAYS[day - 1]}.
+          {used.size === 0 ? 'No timetable has been set for this class yet.' : `Nothing timetabled for ${WEEKDAYS[day - 1]}.`}
         </p>
       ) : (
         <ol className="relative flex flex-col gap-3 pb-6 pl-3 pr-4 pt-4">
