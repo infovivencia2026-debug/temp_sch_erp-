@@ -95,6 +95,10 @@ export function useLiveStream() {
       const k = ev.keys ?? {}
       switch (ev.type) {
         case 'message':
+          // The principal's All messages desk lists every channel; any
+          // message anywhere may change what is waiting there.
+          qc.invalidateQueries({ queryKey: ['admin-inbox'] })
+          qc.invalidateQueries({ queryKey: ['admin-inbox-thread'] })
           /* Only what this hint touches. The staff screen keys its thread by
              the OTHER person's id: for the recipient that is `from`, for the
              sender's own echo it is `to`. */

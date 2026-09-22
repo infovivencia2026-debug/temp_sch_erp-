@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Inbox, MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Select, Input, Field,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Select, Input, Field,
   Button, Textarea, SkeletonTable, ErrorState, EmptyState, FormNotice,
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
@@ -66,24 +66,10 @@ interface Counts {
 }
 
 const CHANNEL_LABEL: Record<Channel, string> = {
-  parent_teacher: 'Parent → teacher',
+  parent_teacher: 'Parent ↔ teacher',
   concern: 'Concern',
   staff: 'Staff',
   circular: 'Circular',
-}
-
-/** "14:05" in the reader's own timezone. */
-function time(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-}
-
-function ago(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const h = Math.floor(ms / 3_600_000)
-  if (h < 1) return 'just now'
-  if (h < 24) return `${h} h`
-  const d = Math.floor(h / 24)
-  return d === 1 ? '1 day' : `${d} days`
 }
 
 export default function AllMessages() {
@@ -100,7 +86,13 @@ export default function AllMessages() {
     queryKey: ['admin-inbox', channel, status, q.trim()],
     queryFn: () => api.get<{ items: Item[]; counts: Counts }>(`/api/v1/admin/inbox?${params}`),
     placeholderData: (prev) => prev,
-    refetchInterval: 60_000,
+    /* Live. The stream (lib/live-stream.ts) invalidates this on any message
+       hint it receives, but the principal is not a party to a parent's
+       thread with a teacher, so the hint may never reach this tab. A short
+       poll is the guarantee: a message sent anywhere in the school is on
+       this desk within five seconds. */
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
   })
 
   const toGrievances = useFeatureHref('institution_admin.communication.grievances')
@@ -138,7 +130,7 @@ export default function AllMessages() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Parent → teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
+          <Stat label="Parent ↔ teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
             active={channel === 'parent_teacher'} onClick={tile('parent_teacher')} />
           <Stat label="Concerns waiting" value={counts?.concerns ?? '–'} icon={ShieldAlert}
             active={channel === 'concern'} onClick={tile('concern')} />
@@ -148,7 +140,7 @@ export default function AllMessages() {
             active={channel === 'circular'} onClick={tile('circular')} />
         </CellGrid>
         <p className="text-[12px] text-muted-foreground">
-          Each tile counts what is still waiting for a reply, across the whole school, 
+          Each tile counts what is still waiting for a reply, across the whole school,
           pressing one filters the list below without changing the counts.
         </p>
         <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -168,120 +160,29 @@ export default function AllMessages() {
             />
           </Card>
         ) : (
-          <Card>
-            <CardHeader
-              title={channel ? CHANNEL_LABEL[channel] : 'Every channel'}
-              description={`${items.length} conversation${items.length === 1 ? '' : 's'}, newest first`}
-            />
-            <ul className="divide-y">
-              {items.map((it) => {
-                const inner =
-                  it.channel === 'parent_teacher' ? (
-                    /* Who wrote to whom, spelled out: the teacher with her staff
-                       code, the child with class and admission number, the
-                       guardian with their relation — then the message, then the
-                       school's last answer if there is one. A desk cannot act on
-                       "kalyan → Lakshmi". */
-                    <div className="space-y-2 px-5 py-4">
-                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-                        <div className="min-w-0">
-                          <div className="text-[15px] font-semibold">{it.teacher_name || '-'}</div>
-                          <div className="text-[12px] text-muted-foreground">
-                            {it.teacher_code ? `Staff ${it.teacher_code}` : 'Teacher'}
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right text-[12px] text-muted-foreground">
-                          <Badge tone={it.pending ? 'warning' : 'neutral'}>
-                            {it.pending ? 'waiting for reply' : 'answered'}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="text-[13px]">
-                        <span className="text-muted-foreground">Student </span>
-                        <span className="font-medium">{it.child_name}</span>
-                        {it.child_class && <span className="text-muted-foreground"> · {it.child_class}</span>}
-                        {it.admission_no && (
-                          <span className="font-mono text-[12px] text-muted-foreground"> · {it.admission_no}</span>
-                        )}
-                      </div>
-                      <div className="text-[13px]">
-                        <span className="text-muted-foreground">
-                          {it.parent_relation
-                            ? it.parent_relation.charAt(0).toUpperCase() + it.parent_relation.slice(1)
-                            : 'Parent'}{' '}
-                        </span>
-                        <span className="font-medium">{it.parent_name}</span>
-                      </div>
-
-                      <div className="rounded-lg bg-muted px-3 py-2">
-                        <div className="text-[11px] font-semibold text-muted-foreground">
-                          {it.from} · {formatDate(it.last_at)} {time(it.last_at)} · {ago(it.last_at)} ago
-                        </div>
-                        <div className="text-[14px]">{it.last_body}</div>
-                      </div>
-
-                      {it.reply_body && (
-                        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
-                          <div className="text-[11px] font-semibold text-muted-foreground">
-                            Replied by {it.reply_by} · {formatDate(it.reply_at!)} {time(it.reply_at!)}
-                          </div>
-                          <div className="text-[14px]">{it.reply_body}</div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                  <div className="flex flex-wrap items-start gap-x-4 gap-y-1 px-5 py-3">
-                    <div className="w-[120px] shrink-0">
-                      <Badge tone={it.pending ? 'warning' : 'neutral'}>{CHANNEL_LABEL[it.channel]}</Badge>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-medium">
-                        {it.title}
-                        {it.about && <span className="text-muted-foreground"> · {it.about}</span>}
-                      </div>
-                      <div className="truncate text-[13px] text-muted-foreground">
-                        <span className="font-medium text-foreground/80">{it.from || '-'}:</span> {it.last_body}
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right text-[12px] text-muted-foreground">
-                      <div>{formatDate(it.last_at)} {time(it.last_at)} · {ago(it.last_at)}</div>
-                      {it.pending ? (
-                        <div className="font-semibold text-warning">
-                          {it.channel === 'circular' && it.asked != null
-                            ? `${it.acked}/${it.asked} acknowledged`
-                            : 'waiting for reply'}
-                        </div>
-                      ) : it.handler ? (
-                        <div>with {it.handler}</div>
-                      ) : it.status ? (
-                        <div>{it.status.replace(/_/g, ' ')}</div>
-                      ) : null}
-                    </div>
-                  </div>
-                  )
-                const cls = 'block hover:bg-accent/50'
-                if (it.channel === 'parent_teacher')
-                  return (
-                    <li key={it.channel + it.key}>
-                      <button type="button" className={cls + ' w-full text-left'} onClick={() => setOpen(it)}>
-                        {inner}
-                      </button>
-                    </li>
-                  )
-                const href =
-                  it.channel === 'concern' && toGrievances ? `${toGrievances}?id=${it.key}`
-                  : it.channel === 'staff' && toStaff ? `${toStaff}?with=${it.key.split('|')[0]}`
-                  : it.channel === 'circular' && toCirculars ? toCirculars
-                  : undefined
-                return (
-                  <li key={it.channel + it.key}>
-                    {href ? <Link to={href} className={cls}>{inner}</Link> : inner}
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
+          <section className="space-y-4">
+            <h2 className="flex items-center gap-2 text-[15px] font-bold text-foreground/80">
+              {channel ? CHANNEL_LABEL[channel] : 'Every channel'}
+              <span className="text-[12.5px] font-normal text-muted-foreground">
+                {items.length} conversation{items.length === 1 ? '' : 's'}, newest first
+              </span>
+            </h2>
+            {items.map((it) => {
+              const href =
+                it.channel === 'concern' && toGrievances ? `${toGrievances}?id=${it.key}`
+                : it.channel === 'staff' && toStaff ? `${toStaff}?with=${it.key.split('|')[0]}`
+                : it.channel === 'circular' && toCirculars ? toCirculars
+                : undefined
+              return (
+                <MessageCard
+                  key={it.channel + it.key}
+                  it={it}
+                  onOpen={it.channel === 'parent_teacher' ? () => setOpen(it) : undefined}
+                  href={it.channel === 'parent_teacher' ? undefined : href}
+                />
+              )
+            })}
+          </section>
         )}
 
         {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
@@ -362,4 +263,143 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
       </div>
     </Card>
   )
+}
+
+/* One conversation as a card, the way the desk reads it.
+
+   A dashed meta bar says who it was sent TO (the teacher with her staff code,
+   or the parent when the teacher wrote first) and which child it is about
+   (class and admission number). Below it, the sender: initials, name, a
+   role pill (Father, Mother, Teacher, Staff), the time with how long ago,
+   and an amber "Waiting for reply" chip while the school owes an answer.
+   The message sits in a left-accented bubble; the school's reply, when
+   there is one, under it with who replied and when. Staff-to-staff and
+   teacher-to-parent threads read the same way, so the desk is one feed. */
+function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href?: string }) {
+  const parentWrote = it.channel === 'parent_teacher' ? it.from === it.parent_name : false
+  const toName =
+    it.channel === 'parent_teacher'
+      ? (parentWrote ? it.teacher_name : it.parent_name) || '-'
+      : it.title || '-'
+  const toCode = it.channel === 'parent_teacher' && parentWrote && it.teacher_code ? `Staff ${it.teacher_code}` : undefined
+  const senderRole =
+    it.channel === 'parent_teacher'
+      ? parentWrote
+        ? cap(it.parent_relation) || 'Parent'
+        : 'Teacher'
+      : it.channel === 'staff'
+        ? 'Staff'
+        : CHANNEL_LABEL[it.channel]
+  const body = (
+    <article className="rounded-xl border bg-card shadow-sm transition-colors hover:border-primary/40">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-dashed px-5 py-3 text-[13px] text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2">
+          <span>To:</span>
+          <strong className="truncate text-[14px] text-foreground">{toName}</strong>
+          {toCode && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">{toCode}</span>
+          )}
+          {it.channel !== 'parent_teacher' && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground/70">
+              {CHANNEL_LABEL[it.channel]}
+            </span>
+          )}
+        </div>
+        {it.child_name ? (
+          <div className="rounded-md border bg-muted/40 px-2.5 py-1 text-[12.5px]">
+            Student: <strong className="text-foreground">{it.child_name}</strong>
+            {it.child_class && <> • {it.child_class}</>}
+            {it.admission_no && <span className="text-muted-foreground/80"> ({it.admission_no})</span>}
+          </div>
+        ) : it.about ? (
+          <div className="rounded-md border bg-muted/40 px-2.5 py-1 text-[12.5px]">{it.about}</div>
+        ) : null}
+      </div>
+      <div className="flex gap-3.5 px-5 py-4">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-100 text-[13px] font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200"
+          aria-hidden="true"
+        >
+          {initials(it.from)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="flex min-w-0 items-baseline gap-1.5">
+              <span className="truncate text-[14.5px] font-bold">{it.from || '-'}</span>
+              <span className="rounded-full bg-sky-100 px-2 py-px text-[11px] font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
+                {senderRole}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+              <span>{when(it.last_at)}</span>
+              {it.pending ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-px text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+                  {it.channel === 'circular' && it.asked != null ? `${it.acked}/${it.asked} acknowledged` : 'Waiting for reply'}
+                </span>
+              ) : (
+                <span className="rounded-full bg-muted px-2 py-px text-[11px] font-semibold text-foreground/70">
+                  {it.handler ? `With ${it.handler}` : it.status ? it.status.replace(/_/g, ' ') : 'Answered'}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-indigo-500 bg-muted/40 px-4 py-3 text-[14px] leading-relaxed">
+            <span className="whitespace-pre-wrap">{it.last_body}</span>
+          </div>
+          {it.reply_body && (
+            <div className="mt-3 flex gap-3">
+              <span
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
+                aria-hidden="true"
+              >
+                {initials(it.reply_by ?? '')}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 text-[12px] text-muted-foreground">
+                  Replied by <span className="font-semibold text-foreground">{it.reply_by}</span>
+                  {it.reply_at && <> · {when(it.reply_at)}</>}
+                </div>
+                <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-emerald-500 bg-emerald-50/60 px-4 py-2.5 text-[14px] leading-relaxed dark:bg-emerald-900/10">
+                  <span className="whitespace-pre-wrap">{it.reply_body}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+  if (onOpen) {
+    return (
+      <button type="button" className="block w-full text-left" onClick={onOpen}>
+        {body}
+      </button>
+    )
+  }
+  if (href) return <Link to={href} className="block">{body}</Link>
+  return body
+}
+
+function cap(s?: string | null): string {
+  if (!s) return ''
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
+}
+
+/** "05 Sept 2026, 07:34 AM (17d ago)" */
+function when(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  const date = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const t = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const ms = Date.now() - d.getTime()
+  const m = Math.floor(ms / 60_000)
+  const rel = m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`
+  return `${date}, ${t} (${rel})`
 }
