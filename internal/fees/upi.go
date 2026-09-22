@@ -2,6 +2,8 @@ package fees
 
 import (
 	"regexp"
+
+	qrcode "github.com/skip2/go-qrcode"
 	"strconv"
 	"strings"
 )
@@ -111,4 +113,49 @@ func clipRunes(s string, n int) string {
 		return s
 	}
 	return strings.TrimSpace(string(r[:n]))
+}
+
+/* The code itself, drawn here rather than in the browser.
+
+   The SPA used to draw the QR on a canvas from the intent string. That is one
+   round trip fewer, and it is also one more thing an old phone browser can
+   fail at silently: no canvas, a stalled bundle, a WebView with JS half
+   disabled. A parent then sees an empty white square at the gate. A PNG the
+   server drew displays in anything that shows an <img>, so it is drawn once
+   here and the page only shows it.
+
+   Error correction M: this is a screen or a printout at arm's length, not a
+   windscreen sticker, and H would make a fixed-amount intent with a note
+   dense enough that an older phone camera struggles. */
+
+// UPIQRPNG renders intent as a QR code PNG, size pixels square. Drawn at a
+// fixed pixel size and shown at half that, so it is crisp on a phone screen.
+func UPIQRPNG(intent string, size int) ([]byte, error) {
+	if size < 120 {
+		size = 120
+	}
+	if size > 1024 {
+		size = 1024
+	}
+	q, err := qrcode.New(intent, qrcode.Medium)
+	if err != nil {
+		return nil, err
+	}
+	q.DisableBorder = false
+	return q.PNG(size)
+}
+
+// noteDropRe is the ASCII punctuation a UPI app may choke on in a note. A
+// blacklist rather than a letters-only rule, so a Telugu name survives. The
+// marks an admission or invoice number is written with (dot, slash, hyphen)
+// stay.
+var noteDropRe = regexp.MustCompile(`[!"#$%&'()*+,:;<=>?@\[\\\]^_{|}~` + "`]")
+
+// UPINote cleans a caller-supplied note the way the intent wants it: one
+// space between words, risky punctuation dropped, clipped to the 50 the
+// specification allows.
+func UPINote(s string) string {
+	s = noteDropRe.ReplaceAllString(s, "")
+	s = strings.Join(strings.Fields(s), " ")
+	return clipRunes(s, upiNoteMax)
 }

@@ -74,3 +74,19 @@ func TestRupees(t *testing.T) {
 		}
 	}
 }
+
+func TestUPINote(t *testing.T) {
+	if got := UPINote("  Fee   YPS/24-25  #12 (Term 1) "); got != "Fee YPS/24-25 12 Term 1" {
+		t.Fatalf("UPINote = %q", got)
+	}
+}
+
+func TestUPIQRPNG(t *testing.T) {
+	png, err := UPIQRPNG(UPIIntent("school@sbi", "S", 100, "Fee"), 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(png) < 8 || string(png[1:4]) != "PNG" {
+		t.Fatalf("not a PNG: %d bytes", len(png))
+	}
+}

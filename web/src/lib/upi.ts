@@ -8,8 +8,9 @@
    specification's own examples write name@bank, and at least one app refuses
    %40 in pa.
 
-   internal/fees/upi.go is the same rule in Go, for anything the server draws.
-   The two tests pin one shared example so they cannot drift apart. */
+   The intent and the QR are now built by the server (internal/fees/upi.go,
+   GET /api/v1/fees/upi-code); this file keeps only what the forms need:
+   the address check and the note cleaner. */
 
 /** The NPCI virtual payment address: handle@psp. Same shape as the CHECK
     constraint on institutions.upi_vpa and fees.ValidVPA. */
@@ -22,24 +23,7 @@ export function isValidVpa(s: string): boolean {
 /* Field limits from the NPCI linking specification. An app given more
    truncates silently or refuses the code, and neither is something a parent
    can diagnose at a counter. */
-const PAYEE_NAME_MAX = 99
 const NOTE_MAX = 50
-
-export interface UpiIntent {
-  vpa: string
-  payeeName: string
-  amountPaise: number
-  /** What the payer's app shows and what tends to reach the bank narration.
-      Put the admission number in it. */
-  note?: string
-}
-
-/** Paise as the plain decimal an intent wants: "11833.00", no grouping. */
-export function upiAmount(paise: number): string {
-  const p = Math.round(Math.abs(paise))
-  const s = `${Math.floor(p / 100)}.${String(p % 100).padStart(2, '0')}`
-  return paise < 0 ? `-${s}` : s
-}
 
 /** A note from its parts: joined with single spaces, anything a UPI app might
     choke on dropped, clipped to the 50 the specification allows. Characters
@@ -59,19 +43,3 @@ export function upiNote(...parts: (string | number | null | undefined)[]): strin
   return Array.from(joined).slice(0, NOTE_MAX).join('').trim()
 }
 
-export function buildUpiIntent(i: UpiIntent): string {
-  const parts = [
-    `pa=${i.vpa.trim()}`,
-    `pn=${encodeURIComponent(clip(i.payeeName.trim(), PAYEE_NAME_MAX))}`,
-    `am=${upiAmount(i.amountPaise)}`,
-    'cu=INR',
-  ]
-  const note = clip((i.note ?? '').trim(), NOTE_MAX)
-  if (note) parts.push(`tn=${encodeURIComponent(note)}`)
-  return `upi://pay?${parts.join('&')}`
-}
-
-function clip(s: string, n: number): string {
-  const r = Array.from(s)
-  return r.length <= n ? s : r.slice(0, n).join('').trim()
-}

@@ -1,0 +1,93 @@
+package api
+
+import (
+	"encoding/base64"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/school-erp/erp/internal/fees"
+	"github.com/school-erp/erp/internal/httpx"
+)
+
+/* The UPI code a family scans, made by the server.
+
+   The address and payee name come from the school's profile, never from the
+   caller: a QR whose payee the browser chose is a QR a tampered page could
+   point at a stranger. The caller says only how much and what to write in
+   the note, which is the admission number and invoice the office matches
+   the transfer against.
+
+   The answer carries both forms of the same intent -- the upi://pay link a
+   phone opens directly, and a PNG of it for a desk to show or a phone to
+   scan -- so the page draws nothing itself. See fees.UPIQRPNG for why. */
+
+type upiCode struct {
+	VPA         string `json:"vpa"`
+	PayeeName   string `json:"payee_name"`
+	AmountPaise int64  `json:"amount_paise"`
+	Note        string `json:"note,omitempty"`
+	// The upi://pay URI. On a phone, an <a href> to it opens the UPI app.
+	Intent string `json:"intent"`
+	// A data: URI of the PNG, ready for an <img src>.
+	Image string `json:"image"`
+}
+
+// getUPICode answers GET /fees/upi-code?amount_paise=&note=&size=.
+// 404 when the school has set no UPI address: there is no code to draw, and
+// the screens already say where to set one.
+func (s *Server) getUPICode(w http.ResponseWriter, r *http.Request) {
+	if !requireInstitution(w, r) {
+		return
+	}
+	id := httpx.IdentityFrom(r.Context())
+	q := r.URL.Query()
+
+	amount, err := strconv.ParseInt(strings.TrimSpace(q.Get("amount_paise")), 10, 64)
+	if err != nil || amount <= 0 {
+		httpx.BadRequest(w, r, "amount_paise must be a whole number of paise greater than zero")
+		return
+	}
+	size := 440
+	if v := q.Get("size"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			size = n
+		}
+	}
+
+	var vpa, payee string
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		return tx.QueryRow(r.Context(), `
+			SELECT COALESCE(upi_vpa,''), COALESCE(NULLIF(upi_payee_name,''), name)
+			  FROM institutions WHERE id = $1`, id.InstitutionID).Scan(&vpa, &payee)
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	if vpa == "" {
+		httpx.NotFound(w, r)
+		return
+	}
+
+	note := fees.UPINote(q.Get("note"))
+	intent := fees.UPIIntent(vpa, payee, amount, note)
+	png, err := fees.UPIQRPNG(intent, size)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	// The code for a given amount and note never changes; let the browser
+	// keep it for the day so tapping between invoices does not redraw.
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	httpx.JSON(w, http.StatusOK, upiCode{
+		VPA:         vpa,
+		PayeeName:   payee,
+		AmountPaise: amount,
+		Note:        note,
+		Intent:      intent,
+		Image:       "data:image/png;base64," + base64.StdEncoding.EncodeToString(png),
+	})
+}

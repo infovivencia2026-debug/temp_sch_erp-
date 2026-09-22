@@ -88,7 +88,9 @@ function useSave<T>(fn: (v: T) => Promise<unknown>, onDone: () => void) {
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      void invalidateKeys(qc, SETUP_KEYS)
+      // The session carries the school's UPI address for the fee screens;
+      // without this the counter and portal keep the old one until re-login.
+      void invalidateKeys(qc, [...SETUP_KEYS, ['session']])
       onDone()
     },
   })
