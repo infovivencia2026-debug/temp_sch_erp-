@@ -5,7 +5,6 @@ import { useLayout } from '@/lib/layout'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
-import { useSession } from '@/lib/session'
 import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
 import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
@@ -296,15 +295,9 @@ export function BentoDock() {
 
      `--ink-here` is the dock's ink under the name every surface in this layout
      uses for "the colour that reads on me", and the three are mixed from it. */
-  /* The school's own mark, on the one piece of chrome Focus keeps.
-     Hiding the header and the sidebar took the logo and the school name with
-     them, so Focus showed the school's colours but never its identity. The
-     dock carries it now: the logo if one is set, otherwise a coloured initial
-     tile like the classic sidebar's fallback, and clicking it goes Home. */
-  const inst = useSession().institution
-  const logoKey = inst?.logo_key?.trim()
-  const brandName = inst?.display_name?.trim() || inst?.name || ''
-  const brandInitial = brandName.charAt(0).toUpperCase()
+  /* The dock carried the school's logo for a while; it was taken off again.
+     The mark lives in the header's top-left square, and a second copy on
+     the dock crowded the row of buttons on a phone. */
 
   const item =
     `grid shrink-0 place-items-center rounded-full transition-colors ` +
@@ -474,41 +467,6 @@ export function BentoDock() {
           } as CSSProperties
         }
       >
-        {(logoKey || brandName) && (
-          <>
-            {/* The school MARK, not a button. It used to navigate home, which
-                put a second Home control right beside the Home button and meant
-                a stray tap on the logo threw you to the dashboard. It is the
-                school's identity, shown, and nothing happens when it is pressed;
-                the Home button beside it is the one that navigates. */}
-            <span
-              className={cn(item, 'overflow-hidden !p-0')}
-              style={phone ? undefined : btnStyle}
-              data-tip={phone ? undefined : brandName}
-              aria-label={brandName || undefined}
-              title={brandName}
-              role="img"
-            >
-              {logoKey ? (
-                // On a white chip so a dark or transparent logo stays visible on
-                // the dark dock -- without it, a dark mark vanished in dark mode.
-                <img
-                  src={`/api/v1/files/${logoKey}?inline=1`}
-                  alt=""
-                  className="size-full rounded-[inherit] bg-white object-contain p-0.5"
-                />
-              ) : (
-                <span
-                  className="grid size-full place-items-center rounded-[inherit] text-[14px] font-bold text-white"
-                  style={{ background: inst?.primary_color || 'hsl(var(--primary))' }}
-                >
-                  {brandInitial}
-                </span>
-              )}
-            </span>
-            {!phone && <span className={rule} aria-hidden="true" />}
-          </>
-        )}
 
         {homeHref && (
           <button
