@@ -113,7 +113,7 @@ export default function LMSUpload() {
                 />
               </Field>
               <Field label="Title" required>
-                <Input value={title} onChange={setTitle} placeholder="Chapter 4 — Light" />
+                <Input value={title} onChange={setTitle} placeholder="Chapter 4 · Light" />
               </Field>
               <Field label="Kind">
                 <Select
@@ -185,8 +185,8 @@ export default function LMSUpload() {
               {recent.map((m) => (
                 <tr key={m.id}>
                   <Td>{m.title}</Td>
-                  <Td>{m.class_name ?? m.section ?? '—'}</Td>
-                  <Td>{m.subject ?? '—'}</Td>
+                  <Td>{m.class_name ?? m.section ?? '-'}</Td>
+                  <Td>{m.subject ?? '-'}</Td>
                   <Td>{label(MATERIAL_KINDS, m.kind)}</Td>
                   <Td>{formatDate(m.created_at)}</Td>
                   <Td>

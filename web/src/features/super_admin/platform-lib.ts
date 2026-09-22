@@ -89,7 +89,7 @@ export function bp(v: number): string {
 }
 
 export function bytes(n?: number | null): string {
-  if (n == null) return '—'
+  if (n == null) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let v = n
   let i = 0

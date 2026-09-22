@@ -130,7 +130,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
     onSuccess: () => {
       void invalidateKeys(qc, [...ROSTER_KEYS, ['sections'], ['class-subjects'], ['setup-status'], ['attention']])
       const where = sectionID && section
-        ? ` — ${section.class_name}-${section.name}${classTeacher ? ', as its class teacher' : ''}`
+        ? ` · ${section.class_name}-${section.name}${classTeacher ? ', as its class teacher' : ''}`
         : ''
       setAdded(`${[f.first_name, f.last_name].filter(Boolean).join(' ')} added${where}`)
       setF(blank)
@@ -257,7 +257,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
             </label>
             <p className="mt-2 text-[12.5px] text-muted-foreground">
               Both optional. A teacher appointed in June whose timetable is
-              settled in July is ordinary — leave these and set them on
+              settled in July is ordinary, leave these and set them on
               Teacher Assignment later.
             </p>
           </div>
@@ -277,7 +277,7 @@ export default function AddStaff({ onDone }: { onDone?: () => void }) {
           {!mayAllocate && teaches && (
             <span className="text-[12.5px] text-muted-foreground">
               A teacher added here sees nothing until somebody puts them in front of a class.
-              Ask your principal or the head of department to assign them a section and a subject —
+              Ask your principal or the head of department to assign them a section and a subject, 
               that is what grants access, not the role.
             </span>
           )}

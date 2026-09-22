@@ -126,8 +126,8 @@ function Sections() {
           return (
             <tr key={s.id}>
               <Td className="font-medium">{s.class_name}-{s.name}</Td>
-              <Td>{s.class_teacher ?? '—'}</Td>
-              <Td>{s.room ?? '—'}</Td>
+              <Td>{s.class_teacher ?? '-'}</Td>
+              <Td>{s.room ?? '-'}</Td>
               <Td className="tabular-nums">{s.enrolled}</Td>
               <Td className="tabular-nums">{s.capacity}</Td>
               <Td>
@@ -174,7 +174,7 @@ function Classes() {
             <tr key={c.id}>
               <Td className="font-medium">{c.name}</Td>
               <Td className="tabular-nums">{c.level}</Td>
-              <Td>{c.stream ?? '—'}</Td>
+              <Td>{c.stream ?? '-'}</Td>
               <Td><EditButton onClick={() => setEditing(c.id)} /></Td>
             </tr>
           ),

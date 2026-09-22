@@ -54,7 +54,7 @@ function mdToHtml(src: string): string {
 /* A small tab, and a small panel. Never the whole screen.
 
    An assistant that takes over the window makes somebody leave the thing they
-   were doing to ask a question about it — which is backwards, because the
+   were doing to ask a question about it, which is backwards, because the
    question is nearly always about what is on screen. A 360px panel in the
    corner keeps the register, the invoice or the timetable visible while it is
    being asked about.
@@ -279,7 +279,7 @@ export function AssistantTab() {
    * screens where they are still working something out.
    *
    * Route-based rather than width-based because `/settings` IS the phone
-   * case — above the drill-in breakpoint the same content is a dialog opened
+   * case, above the drill-in breakpoint the same content is a dialog opened
    * from the dock, and the orb over a dialog is already handled by `open`. */
   const onSettings = useLocation().pathname.startsWith('/settings')
   const navigate = useNavigate()
@@ -311,8 +311,8 @@ export function AssistantTab() {
      asking the question it thinks it heard, with no chance to look first,
      produces an answer to something nobody asked. What was heard goes in the
      box the keyboard writes to, where it can be corrected. `heard` is kept
-     apart from what was typed so an interim result — which the recogniser
-     revises word by word — replaces the last interim rather than accumulating
+     apart from what was typed so an interim result, which the recogniser
+     revises word by word, replaces the last interim rather than accumulating
      "how how do how do I". */
   /* Voice output and the hands-free loop. speakOn reads each answer aloud;
      handsFree also re-opens the microphone once the answer has been spoken, so
@@ -712,7 +712,7 @@ export function AssistantTab() {
 
           The panel is lifted clear of the dock rather than sharing its line:
           the dock is centred and ~44px tall, so a panel anchored at bottom-5
-          puts its own text input directly on top of the dock's settings gear —
+          puts its own text input directly on top of the dock's settings gear, 
           two controls in the same pixels, and the one you hit is whichever
           happens to be painted last. */}
       <button data-assistant-orb=""
@@ -728,7 +728,7 @@ export function AssistantTab() {
         className={cn(
           /* THE ORB ALONE. NO WORD BESIDE IT.
 
-             It was a 30px orb in a pill reading "Ask" — the size and shape of a
+             It was a 30px orb in a pill reading "Ask", the size and shape of a
              status chip, which on a dashboard built out of large coloured cards
              read as one more label and got looked straight past. The first
              correction made everything bigger, the word included. The word was
@@ -741,8 +741,8 @@ export function AssistantTab() {
              the orb was doing anyway, in a place where nothing else competes
              for the meaning.
 
-             The label survives for anybody who cannot see it — aria-label and
-             title both say Assistant — so nothing is lost but the ink.
+             The label survives for anybody who cannot see it, aria-label and
+             title both say Assistant, so nothing is lost but the ink.
 
              transition-transform, not transition-colors: the tint alone was the
              entire hover response and was close to invisible at the corner of a
@@ -752,14 +752,14 @@ export function AssistantTab() {
           /* ABOVE THE DOCK, NOT UNDER IT.
 
              At 24px from the bottom this button sat inside the phone bar's own
-             band — the bar is roughly 90px tall once the home-indicator strip
+             band, the bar is roughly 90px tall once the home-indicator strip
              is counted, and it is z-50 to this button's z-40. So on a phone the
              assistant was drawn, half covered, and could not be pressed at all:
              every tap landed on the bar behind it.
 
              `--dock-h` is the bar's measured height including the safe area, so
              this follows it rather than guessing, and falls back to the old
-             24px wherever the bar is not pinned to the edge — which is every
+             24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
           `fixed right-6 z-40 grid size-16 place-items-center rounded-full
            border bg-card shadow-xl
@@ -835,7 +835,7 @@ export function AssistantTab() {
                   Ask about the school, or tell me what to do.
                 </p>
                 <p className="max-w-[30ch] text-[12px] leading-snug text-muted-foreground">
-                  A student, a fee, today's attendance, where a setting lives — or attach a spreadsheet to import.
+                  A student, a fee, today's attendance, where a setting lives, or attach a spreadsheet to import.
                 </p>
               </div>
             )}
@@ -845,7 +845,7 @@ export function AssistantTab() {
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
                      The question was `bg-primary-soft text-primary`, two tokens
-                     that both move when somebody paints an accent colour — and
+                     that both move when somebody paints an accent colour, and
                      they move independently. Paint the accent green in dark
                      mode and --primary-soft resolves to a near-black green
                      while --primary resolves to a mid green on top of it:
@@ -934,9 +934,9 @@ export function AssistantTab() {
                       <p className="mt-1.5 text-[13px] leading-snug">{turn.action.summary}</p>
                       {(turn.action.before || turn.action.after) && (
                         <div className="mt-2 flex items-center gap-2 text-[12px]">
-                          <span className="rounded-md bg-muted px-2 py-0.5 text-muted-foreground line-through">{turn.action.before || '—'}</span>
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-muted-foreground line-through">{turn.action.before || '-'}</span>
                           <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
-                          <span className="rounded-md bg-[hsl(var(--brand-accent,var(--primary)))]/15 px-2 py-0.5 font-medium text-[hsl(var(--brand-accent,var(--primary)))]">{turn.action.after || '—'}</span>
+                          <span className="rounded-md bg-[hsl(var(--brand-accent,var(--primary)))]/15 px-2 py-0.5 font-medium text-[hsl(var(--brand-accent,var(--primary)))]">{turn.action.after || '-'}</span>
                         </div>
                       )}
                       {turn.action.state === 'done' && (
@@ -945,7 +945,7 @@ export function AssistantTab() {
                         </div>
                       )}
                       {turn.action.state === 'cancelled' && (
-                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled — nothing was changed.</div>
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled, nothing was changed.</div>
                       )}
                       {turn.action.state === 'error' && (
                         <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-destructive"><X className="size-4" aria-hidden /> {turn.action.result}</div>
@@ -1010,7 +1010,7 @@ export function AssistantTab() {
                         </div>
                       )}
                       {turn.imprt.state === 'cancelled' && (
-                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled — nothing was imported.</div>
+                        <div className="mt-2.5 text-[12.5px] text-muted-foreground">Cancelled, nothing was imported.</div>
                       )}
                       {turn.imprt.state === 'error' && (
                         <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-destructive"><X className="size-4" aria-hidden /> {turn.imprt.result}</div>
@@ -1074,7 +1074,7 @@ export function AssistantTab() {
               {dictation.listening && (
                 <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-destructive" aria-hidden />
               )}
-              {dictation.error ?? 'Listening — speak your question.'}
+              {dictation.error ?? 'Listening, speak your question.'}
             </p>
           )}
 
@@ -1155,7 +1155,7 @@ export function AssistantTab() {
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {/* Drawn only where it works. Firefox has no speech recognition at
-                all, so on Firefox there is no microphone — a button that does
+                all, so on Firefox there is no microphone, a button that does
                 nothing when pressed is worse than an absent one, because the
                 person presses it, waits, and concludes the assistant is
                 broken. */}

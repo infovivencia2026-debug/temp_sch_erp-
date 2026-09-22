@@ -139,7 +139,7 @@ export default function HRReports() {
                   <Td>{h.probation}</Td>
                   <Td>{h.part_time}</Td>
                   <Td>{h.female}</Td>
-                  <Td>{h.avg_experience_years ?? '—'}</Td>
+                  <Td>{h.avg_experience_years ?? '-'}</Td>
                   <Td>{h.post_graduate_or_above}</Td>
                 </tr>
               ))}
@@ -182,7 +182,7 @@ export default function HRReports() {
           <Card>
             <CardHeader
               title="Teaching load distribution"
-              description="Whether the load is evenly spread — who carries it is on Staff allocation."
+              description="Whether the load is evenly spread, who carries it is on Staff allocation."
               action={<CsvButton href={WORKLOAD} />}
             />
             {workload.isLoading ? (
@@ -228,7 +228,7 @@ export default function HRReports() {
                 <tr key={a.employee_code}>
                   <Td className="font-mono text-[12px]">{a.employee_code}</Td>
                   <Td className="font-medium">{a.full_name}</Td>
-                  <Td className="text-muted-foreground">{a.department ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{a.department ?? '-'}</Td>
                   <Td>{a.days_marked}</Td>
                   <Td>{a.days_absent}</Td>
                   <Td>{a.days_late}</Td>
@@ -239,7 +239,7 @@ export default function HRReports() {
                   <Td>
                     {a.leave_entitled
                       ? `${a.leave_taken ?? 0} / ${a.leave_entitled}`
-                      : (a.leave_taken ?? '—')}
+                      : (a.leave_taken ?? '-')}
                   </Td>
                   <Td>{a.weekly_periods}</Td>
                 </tr>
@@ -268,7 +268,7 @@ export default function HRReports() {
                 <tr key={`${e.employee_code}-${e.kind}-${e.expires_on}-${i}`}>
                   <Td className="font-mono text-[12px]">{e.employee_code}</Td>
                   <Td className="font-medium">{e.full_name}</Td>
-                  <Td className="text-muted-foreground">{e.department ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{e.department ?? '-'}</Td>
                   <Td>{e.kind}</Td>
                   <Td className="text-muted-foreground">{e.detail}</Td>
                   <Td>{e.expires_on}</Td>

@@ -172,8 +172,8 @@ export default function CCEFormative() {
 
         <Card>
           <CardHeader
-            title={`${cycle} — the sheet`}
-            description={`Each component out of ${max}; ${max * 4} in total. Leave a box blank where nothing has been assessed yet — blank is not zero.`}
+            title={`${cycle}, the sheet`}
+            description={`Each component out of ${max}; ${max * 4} in total. Leave a box blank where nothing has been assessed yet, blank is not zero.`}
             action={
               <Button
                 onClick={() => save.mutate()}
@@ -206,7 +206,7 @@ export default function CCEFormative() {
 
                 return (
                   <tr key={r.student_id}>
-                    <Td>{r.roll_no ?? '—'}</Td>
+                    <Td>{r.roll_no ?? '-'}</Td>
                     <Td>
                       <span className="font-medium">{r.full_name}</span>
                       <span className="block text-[12px] text-muted-foreground">
@@ -227,14 +227,14 @@ export default function CCEFormative() {
                     )}
                     <Td>
                       {total === null
-                        ? <span className="text-muted-foreground">—</span>
+                        ? <span className="text-muted-foreground">-</span>
                         : <span className="font-medium">{total} / {max * 4}</span>}
                     </Td>
                     <Td>
                       <Select
                         value={String(d.indicator ?? r.indicator ?? '')}
                         onChange={(v) => set(r.student_id, 'indicator', v)}
-                        placeholder="—"
+                        placeholder="-"
                         options={FA_INDICATORS.map((i) => ({ value: i.value, label: i.label }))}
                       />
                     </Td>
@@ -268,7 +268,7 @@ export default function CCEFormative() {
               {rows.filter((r) => r.entry_id).map((r) => (
                 <tr key={r.student_id}>
                   <Td>{r.full_name}</Td>
-                  <Td>{r.total ?? '—'} / {r.max_total}</Td>
+                  <Td>{r.total ?? '-'} / {r.max_total}</Td>
                   <Td>
                     {r.indicator
                       ? (
@@ -276,10 +276,10 @@ export default function CCEFormative() {
                           {label(FA_INDICATORS, r.indicator)}
                         </Badge>
                       )
-                      : '—'}
+                      : '-'}
                   </Td>
-                  <Td>{r.observation ?? '—'}</Td>
-                  <Td>{r.recorded_by ?? '—'}</Td>
+                  <Td>{r.observation ?? '-'}</Td>
+                  <Td>{r.recorded_by ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

@@ -131,7 +131,7 @@ func (s *Server) updateFeeStructure(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, errRefInUse) {
 		httpx.BadRequest(w, r,
 			"bills have already been raised from this structure, so its amounts "+
-				"cannot be rewritten — the demands already with families would "+
+				"cannot be rewritten, the demands already with families would "+
 				"stop matching it. Rename it and build the corrected one beside it")
 		return
 	}

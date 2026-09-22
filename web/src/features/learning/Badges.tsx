@@ -96,7 +96,7 @@ export default function Badges() {
                     <Td className="font-medium">{b.title}</Td>
                     <Td>{GROUPS.find((g) => g.key === b.group)?.label ?? b.group}</Td>
                     <Td>{b.detail}</Td>
-                    <Td>{b.on ? formatDate(b.on) : '—'}</Td>
+                    <Td>{b.on ? formatDate(b.on) : '-'}</Td>
                   </tr>
                 ))}
               </Table>

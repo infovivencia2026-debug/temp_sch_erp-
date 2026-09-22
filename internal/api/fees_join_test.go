@@ -360,7 +360,7 @@ func TestArrearsFollowTheChildIntoTheNewYear(t *testing.T) {
 	           VALUES ($1,$2,$3,2,1200000)`, w.inst, structure, w.tuition)
 	code, out = w.raise(t, structure, `{"fee_structure_id":"`+structure.String()+`","instalment_no":2}`)
 	if code != http.StatusCreated || out["arrears_paise"] != float64(0) {
-		t.Errorf("second raise: %d %v — arrears carried again", code, out)
+		t.Errorf("second raise: %d %v, arrears carried again", code, out)
 	}
 	if n, _ := w.lines(t, child, "Arrears brought forward"); n != 1 {
 		t.Errorf("%d arrears lines after the second raise, want still one", n)

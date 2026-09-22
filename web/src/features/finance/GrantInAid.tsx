@@ -209,7 +209,7 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
   return (
     <Card>
       <CardHeader
-        title={`${s.head_name} — ${s.sanction_no}`}
+        title={`${s.head_name} · ${s.sanction_no}`}
         description={`${s.authority ?? 'Sanctioning authority not recorded'} · ${s.sanction_date} · ${fyLabel(s.fy_start_year)}`}
         action={<Badge tone={s.status === 'closed' ? 'neutral' : 'success'}>{s.status}</Badge>}
       />
@@ -234,8 +234,8 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
             <Td>{r.received_on}</Td>
             <Td className="text-right tabular-nums">{inr(r.amount_paise)}</Td>
             <Td>{r.mode.replace(/_/g, ' ')}</Td>
-            <Td>{r.reference_no ?? '—'}</Td>
-            <Td>{r.voucher_no ?? '—'}</Td>
+            <Td>{r.reference_no ?? '-'}</Td>
+            <Td>{r.voucher_no ?? '-'}</Td>
           </tr>
         ))}
       </Table>
@@ -285,8 +285,8 @@ function SanctionDetail({ id, disabled }: { id: string; disabled: boolean }) {
             <Td>{e.spent_on}</Td>
             <Td className="text-right tabular-nums">{inr(e.amount_paise)}</Td>
             <Td className="font-medium">{e.particulars}</Td>
-            <Td>{e.voucher_ref ?? '—'}</Td>
-            <Td>{e.voucher_no ?? '—'}</Td>
+            <Td>{e.voucher_ref ?? '-'}</Td>
+            <Td>{e.voucher_no ?? '-'}</Td>
           </tr>
         ))}
       </Table>
@@ -455,8 +455,8 @@ function HeadsPanel({ disabled }: { disabled: boolean }) {
               <Td className="font-medium">{h.code}</Td>
               <Td>{h.name}</Td>
               <Td>{h.category.replace(/_/g, ' ')}</Td>
-              <Td>{h.expense_account_name ?? '—'}</Td>
-              <Td>{h.is_post_based ? <Badge tone="info">Posts</Badge> : '—'}</Td>
+              <Td>{h.expense_account_name ?? '-'}</Td>
+              <Td>{h.is_post_based ? <Badge tone="info">Posts</Badge> : '-'}</Td>
             </tr>
           ))}
         </Table>

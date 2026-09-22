@@ -53,9 +53,9 @@ function BusCell({ span, d, to }: { span: CellSpan; d: MyBus; to?: string }) {
   const facts = [
     { label: 'Route', value: d.route_name ? `${d.route_name}${d.route_code ? ` · ${d.route_code}` : ''}` : 'Not set' },
     { label: 'Riders', value: String(d.riders) },
-    { label: 'Seats', value: d.capacity != null ? String(d.capacity) : '—' },
-    { label: 'Attendant', value: d.attendant || '—' },
-    { label: 'Papers lapse', value: d.next_expiry || '—' },
+    { label: 'Seats', value: d.capacity != null ? String(d.capacity) : '-' },
+    { label: 'Attendant', value: d.attendant || '-' },
+    { label: 'Papers lapse', value: d.next_expiry || '-' },
   ]
   return (
     <PersonaCard
@@ -63,7 +63,7 @@ function BusCell({ span, d, to }: { span: CellSpan; d: MyBus; to?: string }) {
       ground="operations"
       title="My bus"
       glyph="⛟"
-      value={d.registration_no || '—'}
+      value={d.registration_no || '-'}
       change={
         d.note ??
         (d.trip_direction
@@ -84,7 +84,7 @@ function StopsCell({ span, d, to }: { span: CellSpan; d: MyBus; to?: string }) {
   const { tall } = useShape()
   const facts = d.stops.slice(0, tall ? 8 : 4).map((s) => ({
     label: s.name,
-    value: s.pickup_time ?? s.drop_time ?? '—',
+    value: s.pickup_time ?? s.drop_time ?? '-',
   }))
   return (
     <PersonaCard
@@ -92,7 +92,7 @@ function StopsCell({ span, d, to }: { span: CellSpan; d: MyBus; to?: string }) {
       title="Stops"
       glyph="◉"
       value={d.stops.length}
-      change={d.stops.length ? `First pickup ${d.stops[0].pickup_time ?? '—'}` : 'No stop on the route'}
+      change={d.stops.length ? `First pickup ${d.stops[0].pickup_time ?? '-'}` : 'No stop on the route'}
       to={d.note ? undefined : to}
       cueLabel="Open my bus and route"
     >

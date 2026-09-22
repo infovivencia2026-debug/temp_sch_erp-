@@ -245,7 +245,7 @@ export default function Syllabus() {
                   <Td className="text-muted-foreground">
                     {r.last_taught ? formatDate(r.last_taught) : 'never'}
                   </Td>
-                  <Td className="tabular-nums">{r.plans_waiting || '—'}</Td>
+                  <Td className="tabular-nums">{r.plans_waiting || '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -341,7 +341,7 @@ function MyPlans({ plans, canReview }: { plans: Plan[]; canReview: boolean }) {
     <Card>
       <CardHeader
         title={canReview ? 'All lesson plans' : 'My lesson plans'}
-        description="Marking a plan taught is what advances coverage — approval alone does not, because a school can close for rain."
+        description="Marking a plan taught is what advances coverage, approval alone does not, because a school can close for rain."
       />
       {plans.length === 0 ? (
         <EmptyState title="No plans yet" body="Write one for the coming week below." />
@@ -354,7 +354,7 @@ function MyPlans({ plans, canReview }: { plans: Plan[]; canReview: boolean }) {
                 {p.class_name}-{p.section}
               </Td>
               <Td>{p.subject}</Td>
-              <Td className="text-muted-foreground">{p.units.join(', ') || '—'}</Td>
+              <Td className="text-muted-foreground">{p.units.join(', ') || '-'}</Td>
               <Td>
                 <Badge tone={STATUS[p.status]}>{p.status}</Badge>
                 {p.status === 'returned' && p.remarks && (
@@ -368,7 +368,7 @@ function MyPlans({ plans, canReview }: { plans: Plan[]; canReview: boolean }) {
                     {formatDate(p.delivered_on)}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">-</span>
                 )}
               </Td>
               <Td>
@@ -424,7 +424,7 @@ function ChapterPlanner() {
     <Card>
       <CardHeader
         title="Chapters"
-        description="One per line. Chapters already taught are kept — removing one would quietly reduce coverage a class has earned."
+        description="One per line. Chapters already taught are kept, removing one would quietly reduce coverage a class has earned."
         action={
           <Select
             value={csID}
@@ -458,7 +458,7 @@ function ChapterPlanner() {
                   {u.delivered ? (
                     <Badge tone="success">{formatDate(u.delivered_on)}</Badge>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </Td>
               </tr>
@@ -615,7 +615,7 @@ function NewLessonPlan() {
               ]}
             />
           </Field>
-          <Field label="Attach the plan" wide hint="Word, PDF, slides, a scan of the proforma — anything up to 64 MB.">
+          <Field label="Attach the plan" wide hint="Word, PDF, slides, a scan of the proforma, anything up to 64 MB.">
             <FilePicker value={file} onChange={setFile} purpose="lesson_plan" />
           </Field>
           <Field label="Objectives" wide hint="What the class should be able to do afterwards. Shown to your head of department.">

@@ -376,7 +376,7 @@ function Visitors({ rows }: { rows: Visitor[] }) {
       <Card>
         <CardHeader
           title="Today"
-          description="Still inside first, longest first — the order the desk needs at closing time."
+          description="Still inside first, longest first, the order the desk needs at closing time."
           action={
             <span className="flex flex-wrap items-center gap-2">
               <Showing shown={shown.length} total={rows.length} noun="visitors" />
@@ -425,11 +425,11 @@ function Visitors({ rows }: { rows: Visitor[] }) {
                   </div>
                 </Td>
                 <Td className="text-muted-foreground">
-                  {v.host ?? '—'}
+                  {v.host ?? '-'}
                   {v.student && <div className="text-[12px]">re {v.student}</div>}
                 </Td>
                 <Td className="tabular-nums text-muted-foreground">{v.in_at.slice(11)}</Td>
-                <Td className="tabular-nums text-muted-foreground">{v.out_at?.slice(11) ?? '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{v.out_at?.slice(11) ?? '-'}</Td>
                 <Td className="tabular-nums">
                   {v.inside ? (
                     <Badge tone={v.minutes_on_site > 120 ? 'warning' : 'neutral'}>
@@ -606,7 +606,7 @@ function Appointments() {
                   )}
                 </Td>
                 <Td className="text-muted-foreground">
-                  {a.with ?? '—'}
+                  {a.with ?? '-'}
                   {a.student && <div className="text-[12px]">re {a.student}</div>}
                 </Td>
                 <Td>
@@ -772,7 +772,7 @@ function Calls({ rows }: { rows: Call[] }) {
       <Card>
         <CardHeader
           title="This month"
-          description="Messages that have not reached the person they were for come first — that is the desk's own outstanding work."
+          description="Messages that have not reached the person they were for come first, that is the desk's own outstanding work."
           action={
             <span className="flex flex-wrap items-center gap-2">
               <Showing shown={shown.length} total={rows.length} noun="calls" />
@@ -829,7 +829,7 @@ function Calls({ rows }: { rows: Call[] }) {
                     <div className="text-[12px] text-success">{c.action_taken}</div>
                   )}
                 </Td>
-                <Td className="text-muted-foreground">{c.for ?? '—'}</Td>
+                <Td className="text-muted-foreground">{c.for ?? '-'}</Td>
                 <Td>
                   {c.pending ? (
                     <Button
@@ -982,12 +982,12 @@ function PostLog({ rows }: { rows: Post[] }) {
                     {p.courier && ` · ${p.courier}`}
                   </div>
                 </Td>
-                <Td className="text-muted-foreground">{p.from_party ?? p.to_party ?? '—'}</Td>
+                <Td className="text-muted-foreground">{p.from_party ?? p.to_party ?? '-'}</Td>
                 <Td className="font-mono text-[12px] text-muted-foreground">
-                  {p.tracking_no ?? '—'}
+                  {p.tracking_no ?? '-'}
                 </Td>
                 <Td className="text-muted-foreground">
-                  {p.received_by ?? (p.direction === 'in' ? 'Still at the desk' : '—')}
+                  {p.received_by ?? (p.direction === 'in' ? 'Still at the desk' : '-')}
                 </Td>
                 <Td>
                   {p.undelivered && (
@@ -1059,7 +1059,7 @@ function Blocklist() {
       <Card>
         <CardHeader
           title="Refuse entry"
-          description="A reason is required. The case this exists for is usually a custody order, which is exactly when a list nobody can defend becomes a problem — and when the person at the desk is being told a convincing story."
+          description="A reason is required. The case this exists for is usually a custody order, which is exactly when a list nobody can defend becomes a problem, and when the person at the desk is being told a convincing story."
         />
         <div className="p-4">
           <FormGrid>
@@ -1073,7 +1073,7 @@ function Blocklist() {
               <Input
                 value={form.reason ?? ''}
                 onChange={set('reason')}
-                placeholder="Interim custody order dated 12 June 2026 — not to collect the child."
+                placeholder="Interim custody order dated 12 June 2026, not to collect the child."
               />
             </Field>
             <Field label="In force until" hint="Court orders are varied; a block with no end outlives its order.">
@@ -1120,7 +1120,7 @@ function Blocklist() {
                 <Td className="text-muted-foreground">
                   {b.effective_to ? formatDate(b.effective_to) : 'No end date'}
                 </Td>
-                <Td className="text-muted-foreground">{b.added_by ?? '—'}</Td>
+                <Td className="text-muted-foreground">{b.added_by ?? '-'}</Td>
                 <Td>
                   <Badge tone={b.in_force ? 'danger' : 'neutral'}>
                     {b.in_force ? 'In force' : 'Lapsed'}

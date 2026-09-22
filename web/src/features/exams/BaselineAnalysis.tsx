@@ -55,7 +55,7 @@ interface Analysis {
 }
 
 function Delta({ value }: { value?: number }) {
-  if (value === undefined || value === null) return <span className="text-muted-foreground">—</span>
+  if (value === undefined || value === null) return <span className="text-muted-foreground">-</span>
   const tone = value > 0 ? 'success' : value < 0 ? 'danger' : 'neutral'
   return (
     <Badge tone={tone}>
@@ -137,19 +137,19 @@ export default function BaselineAnalysis() {
                 <tr key={c.class_id}>
                   <Td className="font-medium">{c.class_name}</Td>
                   <Td>
-                    {c.baseline?.exam_name ?? '—'}
+                    {c.baseline?.exam_name ?? '-'}
                     {c.baseline?.on && (
                       <span className="block text-[12px] text-muted-foreground">{formatDate(c.baseline.on)}</span>
                     )}
                   </Td>
-                  <Td className="tabular-nums">{c.baseline?.average_percent ?? '—'}%</Td>
+                  <Td className="tabular-nums">{c.baseline?.average_percent ?? '-'}%</Td>
                   <Td>
-                    {c.latest?.exam_name ?? '—'}
+                    {c.latest?.exam_name ?? '-'}
                     {c.latest?.on && (
                       <span className="block text-[12px] text-muted-foreground">{formatDate(c.latest.on)}</span>
                     )}
                   </Td>
-                  <Td className="tabular-nums">{c.latest ? `${c.latest.average_percent}%` : '—'}</Td>
+                  <Td className="tabular-nums">{c.latest ? `${c.latest.average_percent}%` : '-'}</Td>
                   <Td><Delta value={c.delta_points} /></Td>
                   <Td className="text-muted-foreground">
                     {c.trend.length}
@@ -171,8 +171,8 @@ export default function BaselineAnalysis() {
               {(d?.subjects ?? []).map((m) => (
                 <tr key={m.name}>
                   <Td className="font-medium">{m.name}</Td>
-                  <Td className="tabular-nums">{m.baseline_percent ?? '—'}%</Td>
-                  <Td className="tabular-nums">{m.latest_percent ?? '—'}%</Td>
+                  <Td className="tabular-nums">{m.baseline_percent ?? '-'}%</Td>
+                  <Td className="tabular-nums">{m.latest_percent ?? '-'}%</Td>
                   <Td><Delta value={m.delta_points} /></Td>
                 </tr>
               ))}
@@ -191,8 +191,8 @@ export default function BaselineAnalysis() {
                 <tr key={m.student_id}>
                   <Td className="font-medium">{m.name}</Td>
                   <Td>{m.admission_no}</Td>
-                  <Td className="tabular-nums">{m.baseline_percent ?? '—'}%</Td>
-                  <Td className="tabular-nums">{m.latest_percent ?? '—'}%</Td>
+                  <Td className="tabular-nums">{m.baseline_percent ?? '-'}%</Td>
+                  <Td className="tabular-nums">{m.latest_percent ?? '-'}%</Td>
                   <Td><Delta value={m.delta_points} /></Td>
                 </tr>
               ))}

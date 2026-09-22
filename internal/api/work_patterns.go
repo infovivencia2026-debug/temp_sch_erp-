@@ -107,7 +107,7 @@ func (s *Server) saveWorkPattern(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		httpx.BadRequest(w, r, "give these hours a name — Teaching, Office, Transport")
+		httpx.BadRequest(w, r, "give these hours a name · Teaching, Office, Transport")
 		return
 	}
 	if req.StartsAt == "" || req.EndsAt == "" || req.StartsAt >= req.EndsAt {
@@ -258,7 +258,7 @@ func (s *Server) deleteWorkPattern(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r,
 			plural(people, "member of staff", "members of staff")+" and "+
 				plural(depts, "department", "departments")+
-				" keep these hours. Move them to another set first — without one "+
+				" keep these hours. Move them to another set first, without one "+
 				"they fall back to the school's default and are judged by a rule "+
 				"nobody chose for them")
 		return

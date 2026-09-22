@@ -93,10 +93,10 @@ export function SubjectMarks({ rows, loading }: {
                 <tr key={`${x.subject}-${i}`}>
                   <Td className="font-medium">{x.subject}</Td>
                   <Td className="tabular-nums">
-                    {x.absent ? <Badge tone="warning">absent</Badge> : (x.marks ?? '—')}
+                    {x.absent ? <Badge tone="warning">absent</Badge> : (x.marks ?? '-')}
                   </Td>
-                  <Td className="tabular-nums text-muted-foreground">{x.max ?? '—'}</Td>
-                  <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '—'}</Td>
+                  <Td className="tabular-nums text-muted-foreground">{x.max ?? '-'}</Td>
+                  <Td>{x.grade ? <Badge tone="primary">{x.grade}</Badge> : '-'}</Td>
                   {/* SAID, NOT HIDDEN. A mark nobody has signed off can still
                       change, and a teacher reading their own section needs the
                       figure they typed this morning — but anyone quoting it to
@@ -150,7 +150,7 @@ export function FeeLedger({ heads, components = [] }: { heads: Detail['fee_heads
     <Card>
       <CardHeader
         title="What the fees are for"
-        description="Paid is spread across an invoice's heads in proportion — a payment settles a bill, not a particular line of it."
+        description="Paid is spread across an invoice's heads in proportion, a payment settles a bill, not a particular line of it."
       />
       <Table head={['Fee head', 'Charged', 'Paid', 'Balance', 'Status']} empty={false}>
         {heads.map((h) => {
@@ -192,11 +192,11 @@ export function Receipts({ rows }: { rows: Detail['payments'] }) {
       <Table head={['Receipt', 'Date', 'Amount', 'How', 'Reference', '']} empty={false}>
         {rows.map((x, i) => (
           <tr key={`${x.receipt_no}-${i}`}>
-            <Td className="font-mono text-[12px]">{x.receipt_no || '—'}</Td>
+            <Td className="font-mono text-[12px]">{x.receipt_no || '-'}</Td>
             <Td className="text-muted-foreground">{formatDate(x.paid_on)}</Td>
             <Td className="tabular-nums">{formatPaise(Number(x.amount_paise))}</Td>
             <Td>{x.mode}</Td>
-            <Td className="font-mono text-[12px] text-muted-foreground">{x.reference || '—'}</Td>
+            <Td className="font-mono text-[12px] text-muted-foreground">{x.reference || '-'}</Td>
             <Td>{x.status !== 'success' && <Badge tone="danger">{x.status}</Badge>}</Td>
           </tr>
         ))}
@@ -262,7 +262,7 @@ export function StudentDocuments({ studentID, rows, mayEdit, onChanged }: {
     <Card>
       <CardHeader
         title="Documents on file"
-        description="What the family handed in — the scans the office holds for this child."
+        description="What the family handed in, the scans the office holds for this child."
         action={mayEdit ? (
           <Button size="sm" variant={adding ? 'secondary' : 'primary'}
             onClick={() => setAdding(!adding)}>
@@ -292,7 +292,7 @@ export function StudentDocuments({ studentID, rows, mayEdit, onChanged }: {
             label={file ? 'Choose a different file' : 'Choose the scan'}
             hint="A PDF or a photograph of the document."
           />
-          <FormField label="Note" hint="Optional — anything the office should know about this copy">
+          <FormField label="Note" hint="Optional, anything the office should know about this copy">
             <Input value={notes} onChange={setNotes} />
           </FormField>
           <FormNotice error={save.error} />
@@ -328,7 +328,7 @@ export function StudentDocuments({ studentID, rows, mayEdit, onChanged }: {
                 ? <Badge tone="success">{d.verified_by ? `by ${d.verified_by}` : 'checked'}</Badge>
                 : <Badge tone="warning">not checked</Badge>}
             </Td>
-            <Td className="text-muted-foreground">{d.notes || '—'}</Td>
+            <Td className="text-muted-foreground">{d.notes || '-'}</Td>
             <Td>
               <div className="flex flex-wrap items-center gap-2">
                 <a
@@ -378,14 +378,14 @@ export function LeaveHistory({ rows }: { rows: Detail['leave'] }) {
           <tr key={`${l.from}-${i}`}>
             <Td>
               {formatDate(l.from)}
-              {l.to && l.to !== l.from ? ` — ${formatDate(l.to)}` : ''}
+              {l.to && l.to !== l.from ? ` · ${formatDate(l.to)}` : ''}
               <span className="block text-[12px] text-muted-foreground">
                 {l.days} day{l.days === '1' ? '' : 's'}
               </span>
             </Td>
-            <Td>{l.type || '—'}</Td>
-            <Td className="text-muted-foreground">{l.reason || '—'}</Td>
-            <Td className="text-muted-foreground">{l.applied_by || '—'}</Td>
+            <Td>{l.type || '-'}</Td>
+            <Td className="text-muted-foreground">{l.reason || '-'}</Td>
+            <Td className="text-muted-foreground">{l.applied_by || '-'}</Td>
             <Td>
               <Badge tone={l.status === 'approved' ? 'success'
                 : l.status === 'rejected' ? 'danger' : 'warning'}>
@@ -482,7 +482,7 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
         <div className="space-y-3 border-b bg-muted/20 p-4">
           {catalogue.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">
-              No activities have been set up yet — add them under Academics → Activities.
+              No activities have been set up yet, add them under Academics → Activities.
             </p>
           ) : (
             <>
@@ -493,7 +493,7 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
                   placeholder="Choose one"
                   options={joinable.map((a) => ({
                     value: a.id,
-                    label: `${a.name} — ${a.category}`
+                    label: `${a.name} · ${a.category}`
                       + (a.fee_paise ? ` · ${formatPaise(a.fee_paise)}` : ' · free')
                       + (a.capacity ? ` · ${a.enrolled}/${a.capacity}` : ''),
                   }))}
@@ -512,7 +512,7 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
                   <label className="mt-2 flex items-center gap-2">
                     <input type="checkbox" checked={waive}
                       onChange={(e) => setWaive(e.target.checked)} />
-                    Waive the fee for this child — raise no bill
+                    Waive the fee for this child, raise no bill
                   </label>
                 </div>
               )}
@@ -536,7 +536,7 @@ export function Activities({ studentID, rows, catalogue, mayEdit, onChanged }: {
             <tr key={a.id}>
               <Td className="font-medium">{a.name}</Td>
               <Td className="text-muted-foreground">{a.category}</Td>
-              <Td className="text-muted-foreground">{a.schedule || '—'}</Td>
+              <Td className="text-muted-foreground">{a.schedule || '-'}</Td>
               <Td className="tabular-nums">{fee > 0 ? formatPaise(fee) : 'free'}</Td>
               <Td>
                 {/* The fee status is the INVOICE's status, not a flag kept in
@@ -611,7 +611,7 @@ export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
         <div className="p-6">
           <EmptyState
             title="No areas set up"
-            body="Add the areas this school grades under Academics — work education, art, physical education, discipline."
+            body="Add the areas this school grades under Academics, work education, art, physical education, discipline."
           />
         </div>
       </Card>
@@ -640,10 +640,10 @@ export function CoScholastic({ studentID, rows, mayEdit, onChanged }: {
             <Td className="text-muted-foreground">
               {editing === r.area_id ? (
                 <Input value={remark} onChange={setRemark} placeholder="Optional" />
-              ) : (r.remark || '—')}
+              ) : (r.remark || '-')}
             </Td>
             <Td className="text-muted-foreground">
-              {r.graded_by || '—'}
+              {r.graded_by || '-'}
               {r.graded_on && (
                 <span className="block text-[12px]">{formatDate(r.graded_on)}</span>
               )}

@@ -1443,7 +1443,7 @@ var importSpecs = map[string]importSpec{
 			}
 			if strings.TrimSpace(row["bank_account"]) == "" &&
 				strings.TrimSpace(row["ifsc"]) == "" && g == "" {
-				return errors.New("a row must carry a bank account, an IFSC or a salary — this one has none")
+				return errors.New("a row must carry a bank account, an IFSC or a salary, this one has none")
 			}
 			return nil
 		},
@@ -2354,7 +2354,7 @@ var importSpecs = map[string]importSpec{
 				return err
 			}
 			if err == nil && runBy != nil {
-				return fmt.Errorf("payroll for %s was already run in this system. Loading over it would replace what it worked out — delete that run first if you really mean to",
+				return fmt.Errorf("payroll for %s was already run in this system. Loading over it would replace what it worked out, delete that run first if you really mean to",
 					m.Format("January 2006"))
 			}
 			return nil

@@ -44,7 +44,7 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'seller_admin.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used — with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once.' },
+          { key: 'seller_admin.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'The business on one page: active school tenants, who is still onboarding, monthly recurring revenue and whether every school is actually being used, with the provisioning log underneath and one place to broadcast a maintenance notice to all of them at once.' },
         ],
       },
       {
@@ -54,7 +54,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.schools.schools', slug: 'schools', name: 'Schools', scope: 'platform', tier: 'core', summary: 'Every school on this installation with its plan, student headcount, status and the date it joined. Search by name, open one to act inside it for support.' },
           { key: 'seller_admin.schools.add_school', slug: 'add_school', name: 'Add School', scope: 'platform', tier: 'core', summary: 'Create a school, its first campus and its first administrator in one step, and hand over the credentials.' },
-          { key: 'seller_admin.schools.access', slug: 'access', name: 'Access', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract — blocking sign-in while keeping every record — and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
+          { key: 'seller_admin.schools.access', slug: 'access', name: 'Access', scope: 'platform', tier: 'core', summary: 'Who may sign in and who may not: suspend a school for non-payment or at the end of a contract, blocking sign-in while keeping every record, and let them back in on settlement. The suspension takes effect on the next request, not the next restart.' },
           { key: 'seller_admin.schools.setup', slug: 'setup', name: 'Setup', scope: 'platform', tier: 'core', summary: 'How far each new school has got through setup, and which step it is stuck on, so an account manager can intervene before a stalled rollout becomes a cancellation.' },
         ],
       },
@@ -75,7 +75,7 @@ export const ROLES: Role[] = [
           { key: 'seller_admin.subscriptions_billing.plans_pricing', slug: 'plans_pricing', name: 'Plans & Pricing', scope: 'platform', tier: 'core', summary: 'Define plans with a student cap, included modules and an annual or per-student price.' },
           { key: 'seller_admin.subscriptions_billing.subscription_ledger', slug: 'subscription_ledger', name: 'Subscription Ledger', scope: 'platform', tier: 'core', summary: 'Each school\'s plan, term dates, renewal date and invoice history.' },
           { key: 'seller_admin.subscriptions_billing.license_capacity', slug: 'license_capacity', name: 'License & Capacity', scope: 'platform', tier: 'core', summary: 'Schools past the students their plan allows, and those inside the renewal window, with the revenue at risk against each. Counted from the live headcount, so a school that admitted forty children this morning shows forty seats used.' },
-          { key: 'seller_admin.subscriptions_billing.message_credits', slug: 'message_credits', name: 'Message Credits', scope: 'platform', tier: 'core', summary: 'Every school\'s request for more SMS or WhatsApp messages, oldest first, with what was asked and by whom. Grant it in full or in part and the credits land the same moment; decline it with a reason the school reads. Nothing here moves money — the unit is messages, and what a bundle cost lives in whatever you invoice with.' },
+          { key: 'seller_admin.subscriptions_billing.message_credits', slug: 'message_credits', name: 'Message Credits', scope: 'platform', tier: 'core', summary: 'Every school\'s request for more SMS or WhatsApp messages, oldest first, with what was asked and by whom. Grant it in full or in part and the credits land the same moment; decline it with a reason the school reads. Nothing here moves money, the unit is messages, and what a bundle cost lives in whatever you invoice with.' },
         ],
       },
       {
@@ -91,9 +91,9 @@ export const ROLES: Role[] = [
         name: 'Usage & Health',
         workspace: 'Usage & Health',
         features: [
-          { key: 'seller_admin.usage_health.adoption_metrics', slug: 'adoption_metrics', name: 'Adoption Metrics', scope: 'platform', tier: 'core', summary: 'Sign-ins, active users and transactions per school per week — the leading indicator of renewal.' },
+          { key: 'seller_admin.usage_health.adoption_metrics', slug: 'adoption_metrics', name: 'Adoption Metrics', scope: 'platform', tier: 'core', summary: 'Sign-ins, active users and transactions per school per week, the leading indicator of renewal.' },
           { key: 'seller_admin.usage_health.instance_health', slug: 'instance_health', name: 'Instance Health', scope: 'platform', tier: 'core', summary: 'Error rates, queue depth and slow endpoints per tenant, so the vendor sees a problem before the school reports it.' },
-          { key: 'seller_admin.usage_health.usage_cost', slug: 'usage_cost', name: 'Usage & Cost', scope: 'platform', tier: 'core', summary: 'What each school actually uses — files stored, records held, messages sent — against what the installation costs to run. Enter the monthly bill once and every school\'s share is read against what it pays, so a customer\'s price can be seen next to its cost.' },
+          { key: 'seller_admin.usage_health.usage_cost', slug: 'usage_cost', name: 'Usage & Cost', scope: 'platform', tier: 'core', summary: 'What each school actually uses, files stored, records held, messages sent, against what the installation costs to run. Enter the monthly bill once and every school\'s share is read against what it pays, so a customer\'s price can be seen next to its cost.' },
         ],
       },
       {
@@ -103,8 +103,8 @@ export const ROLES: Role[] = [
         features: [
           { key: 'seller_admin.support.support', slug: 'support', name: 'Support', scope: 'platform', tier: 'core', summary: 'Tickets raised by schools, with the tenant, severity, owner and time open.' },
           { key: 'seller_admin.support.audit', slug: 'audit', name: 'Audit', scope: 'platform', tier: 'core', summary: 'Act as a school\'s administrator to reproduce a fault, with every such session recorded and visible to that school.' },
-          { key: 'seller_admin.support.support_team', slug: 'support_team', name: 'Support Team', scope: 'platform', tier: 'core', summary: 'Create and list the vendor\'s own support-desk logins — read-only platform accounts that reach across schools to reproduce faults but see no child\'s records. Add one with a name and an email or phone, and hand over the one-time password shown once.' },
-          { key: 'seller_admin.support.board_members', slug: 'board_members', name: 'Board Members', scope: 'platform', tier: 'core', summary: 'People who oversee several schools at once — a trust\'s committee, a group director. Assign one to any set of schools with a name and an email or phone; they get an ordinary account holding board_member in each and switch between them from the header. A new account\'s one-time password is shown once. Remove a school to drop that membership.' },
+          { key: 'seller_admin.support.support_team', slug: 'support_team', name: 'Support Team', scope: 'platform', tier: 'core', summary: 'Create and list the vendor\'s own support-desk logins, read-only platform accounts that reach across schools to reproduce faults but see no child\'s records. Add one with a name and an email or phone, and hand over the one-time password shown once.' },
+          { key: 'seller_admin.support.board_members', slug: 'board_members', name: 'Board Members', scope: 'platform', tier: 'core', summary: 'People who oversee several schools at once, a trust\'s committee, a group director. Assign one to any set of schools with a name and an email or phone; they get an ordinary account holding board_member in each and switch between them from the header. A new account\'s one-time password is shown once. Remove a school to drop that membership.' },
         ],
       },
     ],
@@ -118,7 +118,7 @@ export const ROLES: Role[] = [
         name: 'Dashboard',
         workspace: 'Dashboard',
         features: [
-          { key: 'super_admin.dashboard.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'Every campus on one page — roll, staff, attendance taken today, fees collected and outstanding — ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it.' },
+          { key: 'super_admin.dashboard.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'platform', tier: 'core', summary: 'Every campus on one page, roll, staff, attendance taken today, fees collected and outstanding, ordered so the campus needing attention comes first. Open a campus card for its own totals, or step into that school to work inside it.' },
           { key: 'super_admin.dashboard.system_health', slug: 'system_health', name: 'System health', scope: 'institution', tier: 'core', summary: 'Background jobs, queue depth, failed integrations and recent errors.' },
         ],
       },
@@ -256,7 +256,7 @@ export const ROLES: Role[] = [
         name: 'Approvals',
         workspace: 'Home',
         features: [
-          { key: 'institution_admin.approvals.approvals', slug: 'approvals', name: 'Approvals', scope: 'institution', tier: 'core', summary: 'Everything waiting on a signature — leave, attendance corrections, fee concessions — in one queue rather than one queue per module.' },
+          { key: 'institution_admin.approvals.approvals', slug: 'approvals', name: 'Approvals', scope: 'institution', tier: 'core', summary: 'Everything waiting on a signature, leave, attendance corrections, fee concessions, in one queue rather than one queue per module.' },
         ],
       },
       {
@@ -269,8 +269,8 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.students.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Transfer, bonafide, conduct and study certificates: issue one, and read the register of every certificate the school has issued with the snapshot it was issued from.' },
           { key: 'institution_admin.students.class_promotion', slug: 'class_promotion', name: 'Class Promotion', scope: 'institution', tier: 'core', summary: 'Moving a year group up at the end of the session, on the results. The old enrolment is closed rather than overwritten, so the child\'s history survives the promotion.' },
           { key: 'institution_admin.students.academic_performance', slug: 'academic_performance', name: 'Academic Performance', scope: 'institution', tier: 'core', summary: 'Term results across the school: which subjects are weak, how a class has moved since last term, and one child\'s full mark history when a parent or the board asks. Filter by class, section or roll number.' },
-          { key: 'institution_admin.students.groups_lists', slug: 'groups_lists', name: 'Groups & lists', scope: 'institution', tier: 'core', summary: 'The school\'s own groupings — the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.' },
-          { key: 'institution_admin.students.class_360', slug: 'class_360', name: 'Class 360', scope: 'institution', tier: 'core', summary: 'One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status — with quick actions to mark attendance, enter marks, edit or move a student.' },
+          { key: 'institution_admin.students.groups_lists', slug: 'groups_lists', name: 'Groups & lists', scope: 'institution', tier: 'core', summary: 'The school\'s own groupings, the swimming squad, the 3.15 bus, the children a trust pays for. Picked by hand, or defined by a rule over any field including the columns your own spreadsheet brought in, so a group stays right when a child joins the class.' },
+          { key: 'institution_admin.students.class_360', slug: 'class_360', name: 'Class 360', scope: 'institution', tier: 'core', summary: 'One class on a page: the roster with guardian contacts, attendance and results, the timetable and who teaches what, and fee status, with quick actions to mark attendance, enter marks, edit or move a student.' },
         ],
       },
       {
@@ -289,15 +289,15 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.academics.master_timetable', slug: 'master_timetable', name: 'Master Timetable', scope: 'institution', tier: 'core', summary: 'The whole school\'s week in one grid: which class is taught what, when, by whom and in which room, and which periods are still empty.' },
           { key: 'institution_admin.academics.substitutions', slug: 'substitutions', name: 'Substitutions', scope: 'institution', tier: 'core', summary: 'Who is away today, which periods that leaves uncovered, and who has been put in front of each of them.' },
           { key: 'institution_admin.academics.school_calendar', slug: 'school_calendar', name: 'School Calendar', scope: 'institution', tier: 'core', summary: 'Terms, holidays, exams, sports day and parent meetings. The year the school works to, which the principal signs off before it starts.' },
-          { key: 'institution_admin.academics.activities_electives', slug: 'activities_electives', name: 'Activities & Electives', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it. Children are enrolled from their own record, and a paid activity raises a bill the family can pay in the app.' },
+          { key: 'institution_admin.academics.activities_electives', slug: 'activities_electives', name: 'Activities & Electives', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs, when each meets, what it costs and who is in it. Children are enrolled from their own record, and a paid activity raises a bill the family can pay in the app.' },
           { key: 'institution_admin.academics.curriculum_roadmap', slug: 'curriculum_roadmap', name: 'Curriculum Roadmap', scope: 'institution', tier: 'core', summary: 'The chapters each subject will cover, in order, with the hours and the term they are meant to land in. Approved once a year and taught from all of it.' },
           { key: 'institution_admin.academics.lesson_plans', slug: 'lesson_plans', name: 'Lesson Plans', scope: 'institution', tier: 'core', summary: 'Plans teachers have submitted and nobody has read yet, so pacing is checked while the term can still be changed.' },
           { key: 'institution_admin.academics.syllabus_progress', slug: 'syllabus_progress', name: 'Syllabus Progress', scope: 'institution', tier: 'core', summary: 'How much of each subject has actually been taught against how much was planned, which is the question asked in the month before an exam.' },
           { key: 'institution_admin.academics.attendance_audit', slug: 'attendance_audit', name: 'Attendance Audit', scope: 'institution', tier: 'core', summary: 'School-wide attendance and the corrections people have asked for: the class that has stopped turning up, and the register somebody wants changed after the fact.' },
-          { key: 'institution_admin.academics.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'institution', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as the office records calls, so the whole school\'s follow-up can be watched live without editing anything — the calling itself stays on Absentee followup.' },
+          { key: 'institution_admin.academics.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'institution', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as the office records calls, so the whole school\'s follow-up can be watched live without editing anything, the calling itself stays on Absentee followup.' },
           { key: 'institution_admin.academics.class_setup', slug: 'class_setup', name: 'Class Setup', scope: 'institution', tier: 'core', summary: 'Every grade, its sections, their rooms and how the roll is spread across them. What the school has room for, before anybody is admitted into it.' },
           { key: 'institution_admin.academics.year_rollover', slug: 'year_rollover', name: 'Year Rollover', scope: 'institution', tier: 'core', summary: 'Carry this year\'s sections, fee structure, bus allocations and timetable grid into the year that has not started yet, once. Shows what will be copied before it runs, and what was already carried. Children move separately, under Class Promotion.' },
-          { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated — and push the result into the published timetable so the two agree.' },
+          { key: 'institution_admin.academics.teacher_assignment', slug: 'teacher_assignment', name: 'Teacher Assignment', scope: 'institution', tier: 'core', summary: 'Who teaches which subject in which section, for the whole school. Allocate a teacher, move one, or leave a subject unallocated, and push the result into the published timetable so the two agree.' },
         ],
       },
       {
@@ -308,7 +308,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.examinations.performance_overview', slug: 'performance_overview', name: 'Performance overview', scope: 'institution', tier: 'core', summary: 'Pass rate, subject performance, at-risk students and backlog summary.' },
           { key: 'institution_admin.examinations.hall_ticket_issue', slug: 'hall_ticket_issue', name: 'Hall Ticket Issue', scope: 'institution', tier: 'core', summary: 'Issue and reprint board hall tickets against the accepted nominal roll.' },
           { key: 'institution_admin.examinations.exams_results', slug: 'exams_results', name: 'Exams & results', scope: 'institution', tier: 'core', summary: 'Exam schedule, marks entry status and result publication readiness.' },
-          { key: 'institution_admin.examinations.exams_papers', slug: 'exams_papers', name: 'Exams & papers', scope: 'institution', tier: 'core', summary: 'Every exam the school has scheduled and how many papers it holds. An exam with no papers cannot be marked, moderated, or turned into a report card, so this is where they are created — one for every subject each class studies.' },
+          { key: 'institution_admin.examinations.exams_papers', slug: 'exams_papers', name: 'Exams & papers', scope: 'institution', tier: 'core', summary: 'Every exam the school has scheduled and how many papers it holds. An exam with no papers cannot be marked, moderated, or turned into a report card, so this is where they are created, one for every subject each class studies.' },
         ],
       },
       {
@@ -327,11 +327,11 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'institution_admin.communication.all_messages', slug: 'all_messages', name: 'All messages', scope: 'institution', tier: 'core', summary: 'Every conversation in the school on one desk — parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement — with a count of what is still waiting for the school\'s reply. A parent thread can be answered from here; counselling is counted, never read.' },
+          { key: 'institution_admin.communication.all_messages', slug: 'all_messages', name: 'All messages', scope: 'institution', tier: 'core', summary: 'Every conversation in the school on one desk, parents writing to teachers, concerns raised, staff messages, circulars awaiting acknowledgement, with a count of what is still waiting for the school\'s reply. A parent thread can be answered from here; counselling is counted, never read.' },
           { key: 'institution_admin.communication.grievances', slug: 'grievances', name: 'Grievances', scope: 'institution', tier: 'core', summary: 'Complaints the class teacher and the coordinator could not settle, which reach the principal\'s desk because somewhere below it nobody could close them.' },
           { key: 'institution_admin.communication.school_achievements_showcase', slug: 'school_achievements_showcase', name: 'School Achievements Showcase', scope: 'institution', tier: 'optional', summary: 'Log awards, sports victories, academic honors, and publish them to parent/student portals.' },
           { key: 'institution_admin.communication.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A holiday, an exam datesheet, an emergency: written once and sent to the parents and staff it concerns, through the portal and through SMS and email.' },
-          { key: 'institution_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'A message to one colleague — a head of department, a class teacher — rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
+          { key: 'institution_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'A message to one colleague, a head of department, a class teacher, rather than a notice to the school. Every member of staff is listed whether or not you have written to them before.' },
         ],
       },
       {
@@ -342,7 +342,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.standard.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Core enrollment, attendance, academic, fee and staff reports.' },
           { key: 'institution_admin.standard.attendance_overview', slug: 'attendance_overview', name: 'Attendance Overview', scope: 'institution', tier: 'core', summary: 'School-wide attendance for children and for staff, by class and by month, so mass absence and the child slipping towards dropping out are both visible before the attendance return is due.' },
           { key: 'institution_admin.standard.fee_collection', slug: 'fee_collection', name: 'Fee Collection', scope: 'institution', tier: 'core', summary: 'Collected against expected, and what is outstanding by class and by term. The accountant works the counter; the principal answers for the cash flow.' },
-          { key: 'institution_admin.standard.scheduled_digests', slug: 'scheduled_digests', name: 'Scheduled digests', scope: 'institution', tier: 'core', summary: 'Turn the daily and weekly report digest on or off, choose which reports it carries — attendance, fees, admissions, staff — and which channels each goes out on. Board members and admins receive it automatically.' },
+          { key: 'institution_admin.standard.scheduled_digests', slug: 'scheduled_digests', name: 'Scheduled digests', scope: 'institution', tier: 'core', summary: 'Turn the daily and weekly report digest on or off, choose which reports it carries, attendance, fees, admissions, staff, and which channels each goes out on. Board members and admins receive it automatically.' },
         ],
       },
       {
@@ -355,7 +355,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.staff.logins_access', slug: 'logins_access', name: 'Logins & access', scope: 'institution', tier: 'core', summary: 'Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person.' },
           { key: 'institution_admin.staff.interaction_log', slug: 'interaction_log', name: 'Interaction log', scope: 'institution', tier: 'core', summary: 'Everything that passed between any two people at the school, in one list: messages between colleagues, a teacher\'s exchange with a family, the counsellor\'s thread, a remark written about a child, a fee taken at the counter. Pick one or two people, a kind and a window; search the text; export as CSV. Read-only, with a link to where each item lives.' },
           { key: 'institution_admin.staff.branding', slug: 'branding', name: 'Branding', scope: 'institution', tier: 'core', summary: 'The school\'s own logo, name, colours and support contacts, shown in the app header, the browser tab, receipts and the sign-in page. Set once; a campus can override the school\'s where it runs its own identity. The vendor confirms a custom web address separately.' },
-          { key: 'institution_admin.staff.staff_groups_lists', slug: 'staff_groups_lists', name: 'Staff groups & lists', scope: 'institution', tier: 'core', summary: 'Named groups of staff — exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns.' },
+          { key: 'institution_admin.staff.staff_groups_lists', slug: 'staff_groups_lists', name: 'Staff groups & lists', scope: 'institution', tier: 'core', summary: 'Named groups of staff, exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns.' },
           { key: 'institution_admin.staff.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
         ],
       },
@@ -376,7 +376,7 @@ export const ROLES: Role[] = [
           { key: 'institution_admin.hostel.hostel_rooms', slug: 'hostel_rooms', name: 'Hostel & rooms', scope: 'institution', tier: 'core', summary: 'Blocks, rooms and who sleeps where, with the roll call taken against it.' },
           { key: 'institution_admin.hostel.outpasses_mess', slug: 'outpasses_mess', name: 'Outpasses & mess', scope: 'institution', tier: 'core', summary: 'Leave out of the hostel, complaints raised from it, and the week’s mess menu.' },
           { key: 'institution_admin.hostel.night_study_attendance', slug: 'night_study_attendance', name: 'Night study attendance', scope: 'institution', tier: 'core', summary: 'Who was in the study hall, taken the way the register is.' },
-          { key: 'institution_admin.hostel.room_inventory_checklists', slug: 'room_inventory_checklists', name: 'Room inventory checklists', scope: 'institution', tier: 'core', summary: 'What each room holds and what condition it is in — checked in, checked out.' },
+          { key: 'institution_admin.hostel.room_inventory_checklists', slug: 'room_inventory_checklists', name: 'Room inventory checklists', scope: 'institution', tier: 'core', summary: 'What each room holds and what condition it is in, checked in, checked out.' },
           { key: 'institution_admin.hostel.hostel_visitor_log', slug: 'hostel_visitor_log', name: 'Hostel visitor log', scope: 'institution', tier: 'core', summary: 'Who came to see a boarder, when they arrived and when they left.' },
           { key: 'institution_admin.hostel.boarder_laundry', slug: 'boarder_laundry', name: 'Boarder laundry', scope: 'institution', tier: 'core', summary: 'Bundles out and back, so a missing shirt has a record rather than an argument.' },
         ],
@@ -386,7 +386,7 @@ export const ROLES: Role[] = [
         name: 'Channel Setup',
         workspace: 'Communication',
         features: [
-          { key: 'institution_admin.channel_setup.message_channels', slug: 'message_channels', name: 'Message Channels', scope: 'institution', tier: 'core', summary: 'The school\'s own email, SMS and WhatsApp senders — the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent\'s empty inbox.' },
+          { key: 'institution_admin.channel_setup.message_channels', slug: 'message_channels', name: 'Message Channels', scope: 'institution', tier: 'core', summary: 'The school\'s own email, SMS and WhatsApp senders, the SMTP host a circular leaves through, the gateway a fee reminder uses, the WhatsApp number a parent replies to. Tested from the screen, so a wrong password is found here and not in a parent\'s empty inbox.' },
         ],
       },
       {
@@ -438,7 +438,7 @@ export const ROLES: Role[] = [
         name: 'Reports',
         workspace: 'Reports',
         features: [
-          { key: 'board_member.reports.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Every export the school produces — fees, attendance, payroll — downloadable as they are, for the board pack.' },
+          { key: 'board_member.reports.reports', slug: 'reports', name: 'Reports', scope: 'institution', tier: 'core', summary: 'Every export the school produces, fees, attendance, payroll, downloadable as they are, for the board pack.' },
         ],
       },
       {
@@ -544,7 +544,7 @@ export const ROLES: Role[] = [
         workspace: 'Department Workspace',
         features: [
           { key: 'hod.exams.question_paper_approval', slug: 'question_paper_approval', name: 'Question paper approval', scope: 'department', tier: 'core', summary: 'Papers your teachers have sent for approval before an exam: open the paper, approve it for printing, or send it back with the reason. The teacher is told either way, and who approved it is kept.' },
-          { key: 'hod.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'department', tier: 'core', summary: 'Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark — so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays.' },
+          { key: 'hod.exams.mark_moderation', slug: 'mark_moderation', name: 'Mark moderation', scope: 'department', tier: 'core', summary: 'Each paper in your department with its average, its highest and lowest, and how many fell below the pass mark, so a paper that came out harsh is visible. Add or take off marks across the whole paper with a reason, kept as grace marks so what the teacher marked stays.' },
         ],
       },
     ],
@@ -577,7 +577,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'exam_controller.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'exam_controller.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -612,10 +612,10 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.my_classes.my_classes', slug: 'my_classes', name: 'My classes', scope: 'assigned_classes', tier: 'core', summary: 'Class roster, subject resources and relevant student academic information.' },
           { key: 'faculty.my_classes.student_progress', slug: 'student_progress', name: 'Student progress', scope: 'assigned_classes', tier: 'core', summary: 'View attendance and academic progress for students taught/mentored by the faculty member.' },
-          { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it — one record per child, read in order, with whether the family was told.' },
+          { key: 'faculty.my_classes.behaviour', slug: 'behaviour', name: 'Behaviour', scope: 'assigned_classes', tier: 'core', summary: 'Award a badge for what a child did well, or record a concern and what was done about it, one record per child, read in order, with whether the family was told.' },
           { key: 'faculty.my_classes.my_students', slug: 'my_students', name: 'My students', scope: 'assigned_classes', tier: 'core', summary: 'Every child in the class with attendance, marks and guardian contact in one place.' },
           { key: 'faculty.my_classes.student_details', slug: 'student_details', name: 'Student details', scope: 'assigned_classes', tier: 'core', summary: 'One child\'s full record: profile, guardians, attendance, marks and remarks.' },
-          { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers — with the actions you are allowed on your own section.' },
+          { key: 'faculty.my_classes.class_360', slug: 'class_360', name: 'Class 360', scope: 'assigned_classes', tier: 'core', summary: 'Your class on a page: the children with contacts, their attendance and results, the timetable and subject teachers, with the actions you are allowed on your own section.' },
         ],
       },
       {
@@ -625,8 +625,8 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.attendance.take_attendance', slug: 'take_attendance', name: 'Take attendance', scope: 'assigned_classes', tier: 'core', summary: 'Fast daily or period/subject-wise attendance for assigned students.' },
           { key: 'faculty.attendance.attendance_correction', slug: 'attendance_correction', name: 'Attendance correction', scope: 'assigned_classes', tier: 'core', summary: 'Request or process correction within permitted window/workflow.' },
-          { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with admission number and the father\'s and mother\'s numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished — the same screen reviews any past day, section by section.' },
-          { key: 'faculty.attendance.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'assigned_classes', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as calls are recorded, so a colleague\'s follow-up appears live without editing anything — the calling itself stays on Absentee followup.' },
+          { key: 'faculty.attendance.absentee_followup', slug: 'absentee_followup', name: 'Absentee followup', scope: 'assigned_classes', tier: 'core', summary: 'Every child marked away today, section by section, with admission number and the father\'s and mother\'s numbers to tap-to-call, a Pending/Called dropdown and the reason the parent gave; Done at the foot of a section saves every response and stamps the section finished, the same screen reviews any past day, section by section.' },
+          { key: 'faculty.attendance.student_absentees', slug: 'student_absentees', name: 'Present & absent', scope: 'assigned_classes', tier: 'core', summary: 'A read-only day-wise monitor with two tabs for the chosen date and section: Present lists every child who came in, and Absent lists every child marked away with their class and section, whether the parent has been called or is still pending, who made the call, and the parent\'s response. Refreshes on its own as calls are recorded, so a colleague\'s follow-up appears live without editing anything, the calling itself stays on Absentee followup.' },
           { key: 'faculty.attendance.offline_attendance_diary_capture', slug: 'offline_attendance_diary_capture', name: 'Offline Attendance & Diary Capture', scope: 'assigned_classes', tier: 'core', summary: 'Mark attendance and write diary notes with no network, held on the device and synchronised automatically once a connection returns.' },
         ],
       },
@@ -686,7 +686,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'faculty.communication.communication', slug: 'communication', name: 'Communication', scope: 'assigned_classes', tier: 'core', summary: 'Announcements/messages to assigned classes, students or parents based on policy.' },
           { key: 'faculty.communication.remarks', slug: 'remarks', name: 'Remarks', scope: 'assigned_classes', tier: 'core', summary: 'Add permitted academic/class remarks and observations.' },
-          { key: 'faculty.communication.anecdotal_records', slug: 'anecdotal_records', name: 'Anecdotal records', scope: 'assigned_classes', tier: 'core', summary: 'Private notes on how a child is growing — never shown to the parent.' },
+          { key: 'faculty.communication.anecdotal_records', slug: 'anecdotal_records', name: 'Anecdotal records', scope: 'assigned_classes', tier: 'core', summary: 'Private notes on how a child is growing, never shown to the parent.' },
           { key: 'faculty.communication.class_teacher_remarks', slug: 'class_teacher_remarks', name: 'Class teacher remarks', scope: 'assigned_classes', tier: 'core', summary: 'The term-end line printed on the report card, and the principal’s summary beside it.' },
           { key: 'faculty.communication.ptm_notes_action_items', slug: 'ptm_notes_action_items', name: 'PTM notes & action items', scope: 'assigned_classes', tier: 'core', summary: 'Who came to the parents’ meeting, what they raised, and what was agreed.' },
           { key: 'faculty.communication.classroom_communication', slug: 'classroom_communication', name: 'Classroom communication', scope: 'assigned_classes', tier: 'core', summary: 'A notice to a whole class, or to one child’s parent.' },
@@ -745,7 +745,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'librarian.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'librarian.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -769,7 +769,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'transport_manager.transport.vehicle_master_registry', slug: 'vehicle_master_registry', name: 'Vehicle Master Registry', scope: 'campus', tier: 'core', summary: 'Maintain bus details, registration numbers, seating capacity, insurance expiry, and fitness certs.' },
           { key: 'transport_manager.transport.driver_attendant_profiles', slug: 'driver_attendant_profiles', name: 'Driver & Attendant Profiles', scope: 'campus', tier: 'core', summary: 'Store driver licenses, police verification docs, phone numbers, and assigned bus routes.' },
-          { key: 'transport_manager.transport.driver_phone_tracker', slug: 'driver_phone_tracker', name: 'Driver Phone Tracker', scope: 'institution', tier: 'core', summary: 'Turn a driver\'\'s own phone into the bus\'\'s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login — there is no hardware to buy.' },
+          { key: 'transport_manager.transport.driver_phone_tracker', slug: 'driver_phone_tracker', name: 'Driver Phone Tracker', scope: 'institution', tier: 'core', summary: 'Turn a driver\'\'s own phone into the bus\'\'s tracker: issue a pair code, see which handsets are paired, and revoke one that has left. The driver signs in with their own number and login, there is no hardware to buy.' },
           { key: 'transport_manager.transport.route_pickup_stop_mapping', slug: 'route_pickup_stop_mapping', name: 'Route & Pickup Stop Mapping', scope: 'campus', tier: 'core', summary: 'Define bus routes, pick-up/drop-off stop locations, timings, and map associated transport fees.' },
           { key: 'transport_manager.transport.student_route_assignment', slug: 'student_route_assignment', name: 'Student Route Assignment', scope: 'campus', tier: 'core', summary: 'Assign students to specific bus routes and pick-up stops with automated fee mapping.' },
           { key: 'transport_manager.transport.route_distance_fee_slabs', slug: 'route_distance_fee_slabs', name: 'Route Distance Fee Slabs', scope: 'campus', tier: 'core', summary: 'Define transport fee slabs by route distance and auto-apply them to the student\'s fee structure.' },
@@ -797,7 +797,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'transport_manager.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'transport_manager.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -860,7 +860,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'operations.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'operations.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -922,7 +922,7 @@ export const ROLES: Role[] = [
         name: 'Clinic',
         workspace: 'Clinic',
         features: [
-          { key: 'nurse.clinic.visits_medication', slug: 'visits_medication', name: 'Visits & medication', scope: 'institution', tier: 'core', summary: 'Today\'s register: each child who came in, what was wrong, what was done — and the medication register beside it, with who allowed each dose.' },
+          { key: 'nurse.clinic.visits_medication', slug: 'visits_medication', name: 'Visits & medication', scope: 'institution', tier: 'core', summary: 'Today\'s register: each child who came in, what was wrong, what was done, and the medication register beside it, with who allowed each dose.' },
           { key: 'nurse.clinic.checkups_camps', slug: 'checkups_camps', name: 'Checkups & camps', scope: 'institution', tier: 'core', summary: 'The yearly health checkup per child, and the camps a visiting doctor runs.' },
           { key: 'nurse.clinic.health_records', slug: 'health_records', name: 'Health records', scope: 'institution', tier: 'core', summary: 'Allergies, chronic conditions, blood group and the family doctor, for the moment somebody needs them quickly.' },
         ],
@@ -932,7 +932,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'nurse.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'nurse.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -972,7 +972,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'counsellor.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'counsellor.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1011,7 +1011,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'discipline_officer.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'discipline_officer.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1053,7 +1053,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'hostel_warden.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'hostel_warden.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1083,9 +1083,9 @@ export const ROLES: Role[] = [
         name: 'Activities',
         workspace: 'Activities',
         features: [
-          { key: 'activity_coord.activities.clubs_activities', slug: 'clubs_activities', name: 'Clubs & activities', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it.' },
+          { key: 'activity_coord.activities.clubs_activities', slug: 'clubs_activities', name: 'Clubs & activities', scope: 'institution', tier: 'core', summary: 'The clubs, coaching and electives the school runs, when each meets, what it costs and who is in it.' },
           { key: 'activity_coord.activities.achievements_showcase', slug: 'achievements_showcase', name: 'Achievements showcase', scope: 'institution', tier: 'core', summary: 'Awards and sports results, and the family\'s consent before a child\'s name goes in front of the school.' },
-          { key: 'activity_coord.activities.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A notice to the classes concerned — fixtures, practice times, a trip — with who has read it.' },
+          { key: 'activity_coord.activities.circulars', slug: 'circulars', name: 'Circulars', scope: 'institution', tier: 'core', summary: 'A notice to the classes concerned, fixtures, practice times, a trip, with who has read it.' },
         ],
       },
       {
@@ -1093,7 +1093,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'activity_coord.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'activity_coord.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1127,7 +1127,7 @@ export const ROLES: Role[] = [
           { key: 'finance.fees.student_wallets', slug: 'student_wallets', name: 'Student wallets', scope: 'institution', tier: 'core', summary: 'Digital money. A prepaid balance the school holds for each child: record a top-up the family has paid in (cash, UPI, transfer), correct a balance with a reason, and read the full ledger of what went in and what was spent.' },
           { key: 'finance.fees.online_fee_portal', slug: 'online_fee_portal', name: 'Online fee portal', scope: 'institution', tier: 'core', summary: 'Fees paid from home through the parent app, as they arrive: what succeeded, what failed and what the gateway is still holding, so a parent who says they paid can be answered.' },
           { key: 'finance.fees.unpaid_fees_reminders', slug: 'unpaid_fees_reminders', name: 'Unpaid fees & reminders', scope: 'institution', tier: 'core', summary: 'Who has not paid and how late they are, with the late fine applied by rule rather than by argument, and a reminder sent by WhatsApp, SMS or email. Post-dated and bounced cheques sit here too.' },
-          { key: 'finance.fees.class_transport_fee_setup', slug: 'class_transport_fee_setup', name: 'Class & transport fee setup', scope: 'institution', tier: 'core', summary: 'What each class is charged for the year — tuition, lab, transport by distance — with concessions and refunds, the receipt series, and the one action that turns the structure into every parent\'s invoice.' },
+          { key: 'finance.fees.class_transport_fee_setup', slug: 'class_transport_fee_setup', name: 'Class & transport fee setup', scope: 'institution', tier: 'core', summary: 'What each class is charged for the year, tuition, lab, transport by distance, with concessions and refunds, the receipt series, and the one action that turns the structure into every parent\'s invoice.' },
         ],
       },
       {
@@ -1136,8 +1136,8 @@ export const ROLES: Role[] = [
         workspace: 'Campus Money',
         features: [
           { key: 'finance.campus_money.cafeteria_store_sales', slug: 'cafeteria_store_sales', name: 'Cafeteria & store sales', scope: 'institution', tier: 'core', summary: 'A till for the canteen and one for the store: record what a student bought for lunch, a book or a uniform, and close the drawer at the end of the day against what it should hold.' },
-          { key: 'finance.campus_money.donations_aid', slug: 'donations_aid', name: 'Donations & aid', scope: 'institution', tier: 'core', summary: 'Money that comes from outside the school — grant-in-aid, government scholarships, alumni giving, education loans — tracked apart from tuition so it can be accounted for to whoever gave it.' },
-          { key: 'finance.campus_money.store_catalogue', slug: 'store_catalogue', name: 'Store catalogue', scope: 'institution', tier: 'core', summary: 'The store\'s price list as families see it — every active product, its price and stock — so the counter and a parent are looking at the same shelf.' },
+          { key: 'finance.campus_money.donations_aid', slug: 'donations_aid', name: 'Donations & aid', scope: 'institution', tier: 'core', summary: 'Money that comes from outside the school, grant-in-aid, government scholarships, alumni giving, education loans, tracked apart from tuition so it can be accounted for to whoever gave it.' },
+          { key: 'finance.campus_money.store_catalogue', slug: 'store_catalogue', name: 'Store catalogue', scope: 'institution', tier: 'core', summary: 'The store\'s price list as families see it, every active product, its price and stock, so the counter and a parent are looking at the same shelf.' },
         ],
       },
       {
@@ -1147,7 +1147,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'finance.accounts.approve_pay_salaries', slug: 'approve_pay_salaries', name: 'Approve & pay salaries', scope: 'institution', tier: 'core', summary: 'What HR calculated for the month, read before the money moves, and then the bank file that releases it. Finance approves and pays; HR decides the numbers.' },
           { key: 'finance.accounts.vendor_bills_petty_cash', slug: 'vendor_bills_petty_cash', name: 'Vendor bills & petty cash', scope: 'institution', tier: 'core', summary: 'Money leaving the school: supplier invoices for electricity and construction at one end, the tea and the minor repair at the other, and every expense in between.' },
-          { key: 'finance.accounts.school_property_budgeting', slug: 'school_property_budgeting', name: 'School property & budgeting', scope: 'institution', tier: 'core', summary: 'Next year\'s spending limits against this year\'s actuals, and the register of what the school owns — buses, computers, desks — with what each is worth after depreciation.' },
+          { key: 'finance.accounts.school_property_budgeting', slug: 'school_property_budgeting', name: 'School property & budgeting', scope: 'institution', tier: 'core', summary: 'Next year\'s spending limits against this year\'s actuals, and the register of what the school owns, buses, computers, desks, with what each is worth after depreciation.' },
         ],
       },
       {
@@ -1156,7 +1156,7 @@ export const ROLES: Role[] = [
         workspace: 'Banking & Reports',
         features: [
           { key: 'finance.banking_reports.match_bank_records', slug: 'match_bank_records', name: 'Match bank records', scope: 'institution', tier: 'core', summary: 'The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside.' },
-          { key: 'finance.banking_reports.accounting_tax_reports', slug: 'accounting_tax_reports', name: 'Accounting & tax reports', scope: 'institution', tier: 'core', summary: 'The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements — with a one-click export for the school\'s accountant.' },
+          { key: 'finance.banking_reports.accounting_tax_reports', slug: 'accounting_tax_reports', name: 'Accounting & tax reports', scope: 'institution', tier: 'core', summary: 'The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements, with a one-click export for the school\'s accountant.' },
         ],
       },
       {
@@ -1164,7 +1164,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'finance.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'finance.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1194,8 +1194,8 @@ export const ROLES: Role[] = [
         name: 'Enquiries',
         workspace: 'Admissions',
         features: [
-          { key: 'admissions.enquiries.enquiries', slug: 'enquiries', name: 'Enquiries', scope: 'institution', tier: 'core', summary: 'Every enquiry the school has taken — walk-in, telephone, website or referral — with the child, the class sought, the parent\'s number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there.' },
-          { key: 'admissions.enquiries.assign_leads', slug: 'assign_leads', name: 'Assign Leads', scope: 'institution', tier: 'core', summary: 'Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once — so a Monday morning\'s forty enquiries are shared out in one action rather than opened one at a time.' },
+          { key: 'admissions.enquiries.enquiries', slug: 'enquiries', name: 'Enquiries', scope: 'institution', tier: 'core', summary: 'Every enquiry the school has taken, walk-in, telephone, website or referral, with the child, the class sought, the parent\'s number, how warm it is and who is chasing it. Add one at the counter while the parent is still standing there.' },
+          { key: 'admissions.enquiries.assign_leads', slug: 'assign_leads', name: 'Assign Leads', scope: 'institution', tier: 'core', summary: 'Enquiries nobody is chasing yet. Tick several, pick the counsellor, and they are told at once, so a Monday morning\'s forty enquiries are shared out in one action rather than opened one at a time.' },
           { key: 'admissions.enquiries.follow_up_calls', slug: 'follow_up_calls', name: 'Follow-up Calls', scope: 'institution', tier: 'core', summary: 'The calls you owe parents today about their enquiry: who to ring, what was said last time, and what you promised. Write the remark and set the next date without leaving the row.' },
           { key: 'admissions.enquiries.24_7_admission_chatbot', slug: '24_7_admission_chatbot', name: '24/7 Admission Chatbot', scope: 'institution', tier: 'optional', summary: 'Not buildable here: answering tuition and syllabus questions needs a language model this deployment does not have; the public enquiry form already captures leads. Web widget chatbot.' },
           { key: 'admissions.enquiries.ai_voice_agent_integration', slug: 'ai_voice_agent_integration', name: 'AI Voice Agent Integration', scope: 'institution', tier: 'optional', summary: 'Not buildable here: outbound voice calls need a telephony vendor and a speech model, neither of which this deployment holds. Confirm entrance exam attendance or follow up by call.' },
@@ -1208,8 +1208,8 @@ export const ROLES: Role[] = [
         workspace: 'Admissions',
         features: [
           { key: 'admissions.applications.application_forms', slug: 'application_forms', name: 'Application Forms', scope: 'institution', tier: 'core', summary: 'Every form submitted, searchable by class and by whether the form fee is paid, with the filled form printable as it was answered.' },
-          { key: 'admissions.applications.document_verification', slug: 'document_verification', name: 'Document Verification', scope: 'institution', tier: 'core', summary: 'Birth certificate, Aadhaar, transfer certificate and the last report card — each one marked verified, rejected or to be resubmitted, with the reason the parent is told.' },
-          { key: 'admissions.applications.form_builder', slug: 'form_builder', name: 'Form Builder', scope: 'institution', tier: 'core', summary: 'Build the online application form the whole city fills in — add and order the fields, save drafts and publish a version — and open or close admissions for the season.' },
+          { key: 'admissions.applications.document_verification', slug: 'document_verification', name: 'Document Verification', scope: 'institution', tier: 'core', summary: 'Birth certificate, Aadhaar, transfer certificate and the last report card, each one marked verified, rejected or to be resubmitted, with the reason the parent is told.' },
+          { key: 'admissions.applications.form_builder', slug: 'form_builder', name: 'Form Builder', scope: 'institution', tier: 'core', summary: 'Build the online application form the whole city fills in, add and order the fields, save drafts and publish a version, and open or close admissions for the season.' },
           { key: 'admissions.applications.student_360', slug: 'student_360', name: 'Student 360', scope: 'institution', tier: 'core', summary: 'One child, whole: who to ring, the guardians on record, attendance, fees and conduct. The screen the admissions desk opens to add a parent to a child and hand the family their login.' },
           { key: 'admissions.applications.certificates_transfers', slug: 'certificates_transfers', name: 'Certificates & transfers', scope: 'institution', tier: 'core', summary: 'Issue a transfer, bonafide, conduct or study certificate, and read the register of every one the school has issued. The desk that admits a child is the desk a family comes back to when the child leaves, so the leaving paperwork is here and not only in the principal\'s workspace.' },
         ],
@@ -1219,7 +1219,7 @@ export const ROLES: Role[] = [
         name: 'Reports',
         workspace: 'Reports',
         features: [
-          { key: 'admissions.reports.admission_reports', slug: 'admission_reports', name: 'Admission reports', scope: 'institution', tier: 'core', summary: 'Enquiries, applications and admissions with the conversion between them — the numbers a management committee asks for. Exports to a spreadsheet.' },
+          { key: 'admissions.reports.admission_reports', slug: 'admission_reports', name: 'Admission reports', scope: 'institution', tier: 'core', summary: 'Enquiries, applications and admissions with the conversion between them, the numbers a management committee asks for. Exports to a spreadsheet.' },
           { key: 'admissions.reports.dropped_leads', slug: 'dropped_leads', name: 'Dropped leads', scope: 'institution', tier: 'core', summary: 'Why parents did not join, counted: fees, distance, chose another school. The reason is asked for when an enquiry is marked lost, so this is built from what was actually recorded.' },
         ],
       },
@@ -1228,8 +1228,8 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school.' },
-          { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Tell a family their offer is out, what paperwork is still missing, or when the entrance test is — by SMS, WhatsApp or email, to the families behind the applications you choose.' },
+          { key: 'admissions.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school.' },
+          { key: 'admissions.communication.applicant_communication', slug: 'applicant_communication', name: 'Applicant communication', scope: 'institution', tier: 'core', summary: 'Tell a family their offer is out, what paperwork is still missing, or when the entrance test is, by SMS, WhatsApp or email, to the families behind the applications you choose.' },
         ],
       },
       {
@@ -1255,7 +1255,7 @@ export const ROLES: Role[] = [
         name: 'Front Desk',
         workspace: 'Front Desk',
         features: [
-          { key: 'admissions.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen.' },
+          { key: 'admissions.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen.' },
         ],
       },
     ],
@@ -1269,7 +1269,7 @@ export const ROLES: Role[] = [
         name: 'Front Desk',
         workspace: 'Front Desk',
         features: [
-          { key: 'front_office.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out — the four registers the front desk keeps, on one screen.' },
+          { key: 'front_office.front_desk.front_desk', slug: 'front_desk', name: 'Front desk', scope: 'institution', tier: 'core', summary: 'Visitors on the premises, appointments booked, calls taken and post in and out, the four registers the front desk keeps, on one screen.' },
         ],
       },
       {
@@ -1277,7 +1277,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'front_office.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them — for asking the office or a class teacher something, rather than sending a notice to the school.' },
+          { key: 'front_office.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, and the thread you have with each of them, for asking the office or a class teacher something, rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1331,7 +1331,7 @@ export const ROLES: Role[] = [
         features: [
           { key: 'hr.hiring_training.staff_hiring', slug: 'staff_hiring', name: 'Staff hiring', scope: 'institution', tier: 'core', summary: 'Create job openings, track the people who apply and the demo lesson that decides, and turn a hire into a staff record without anybody typing the details a second time.' },
           { key: 'hr.hiring_training.staff_performance_reviews', slug: 'staff_performance_reviews', name: 'Staff performance reviews', scope: 'institution', tier: 'core', summary: 'Set up the yearly review cycle for teachers and staff: the scoring scale, when self-assessments are due and when the principal\'s review is due. Scores are kept on the staff member\'s record.' },
-          { key: 'hr.hiring_training.staff_training_development', slug: 'staff_training_development', name: 'Staff training & development', scope: 'institution', tier: 'core', summary: 'The training hours each board requires — CBSE asks fifty a year of teaching staff — and who is short of them, worst first, so the gap is closed before an inspection finds it.' },
+          { key: 'hr.hiring_training.staff_training_development', slug: 'staff_training_development', name: 'Staff training & development', scope: 'institution', tier: 'core', summary: 'The training hours each board requires · CBSE asks fifty a year of teaching staff, and who is short of them, worst first, so the gap is closed before an inspection finds it.' },
         ],
       },
       {
@@ -1347,7 +1347,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'hr.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'hr.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1364,7 +1364,7 @@ export const ROLES: Role[] = [
         workspace: 'Employees',
         features: [
           { key: 'hr.records.staff_records', slug: 'staff_records', name: 'Staff 360', scope: 'institution', tier: 'core', summary: 'Everyone who works here, in three tabs: the staff list with contact details and sign-in, the documents that are lapsing or missing, and ID card printing for one person or the whole school at once. Adding a new member of staff starts here.' },
-          { key: 'hr.records.service_book_qualifications', slug: 'service_book_qualifications', name: 'Service book & qualifications', scope: 'institution', tier: 'core', summary: 'The service record kept for each teacher over their career — postings, promotions, increments — and their degrees and teaching qualifications, which is what an inspector asks to see.' },
+          { key: 'hr.records.service_book_qualifications', slug: 'service_book_qualifications', name: 'Service book & qualifications', scope: 'institution', tier: 'core', summary: 'The service record kept for each teacher over their career, postings, promotions, increments, and their degrees and teaching qualifications, which is what an inspector asks to see.' },
         ],
       },
       {
@@ -1381,7 +1381,7 @@ export const ROLES: Role[] = [
         workspace: 'Payroll',
         features: [
           { key: 'hr.payroll.monthly_payroll', slug: 'monthly_payroll', name: 'Monthly payroll', scope: 'institution', tier: 'core', summary: 'Run the month\'s salaries, with loss of pay taken from the staff register rather than typed in. The register shows every employee\'s days worked, gross, deductions and take-home; from here the payslips are published to staff and the bank file is downloaded to pay them.' },
-          { key: 'hr.payroll.salary_setup', slug: 'salary_setup', name: 'Salary setup', scope: 'institution', tier: 'core', summary: 'What each member of staff is paid, and the components a payslip is built from — basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year\'s payslips still explain themselves.' },
+          { key: 'hr.payroll.salary_setup', slug: 'salary_setup', name: 'Salary setup', scope: 'institution', tier: 'core', summary: 'What each member of staff is paid, and the components a payslip is built from, basic, allowances, provident fund, tax. Payroll can only pay somebody who has a salary set here. A raise is recorded as a revision from a date, so last year\'s payslips still explain themselves.' },
           { key: 'hr.payroll.taxes_statutory', slug: 'taxes_statutory', name: 'Taxes & statutory', scope: 'institution', tier: 'core', summary: 'Provident fund, state insurance and professional tax computed from the payslips actually issued, with the ECR and bank files government filing needs. Income tax and declarations, salary advances, gratuity liability, and the contractor bills for security and housekeeping staff.' },
         ],
       },
@@ -1432,7 +1432,7 @@ export const ROLES: Role[] = [
         name: 'Communication',
         workspace: 'Communication',
         features: [
-          { key: 'it_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
+          { key: 'it_admin.communication.messages', slug: 'messages', name: 'Messages', scope: 'institution', tier: 'core', summary: 'One colleague at a time. The staff address book, every teacher and every member of staff, and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school.' },
         ],
       },
       {
@@ -1555,7 +1555,7 @@ export const ROLES: Role[] = [
         name: 'Requests',
         workspace: 'Requests',
         features: [
-          { key: 'student.requests.requests', slug: 'requests', name: 'Requests', scope: 'self', tier: 'core', summary: 'Ask the office for a document — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given.' },
+          { key: 'student.requests.requests', slug: 'requests', name: 'Requests', scope: 'self', tier: 'core', summary: 'Ask the office for a document, bonafide, transfer certificate, conduct certificate, a duplicate ID card, and follow each request until the signed copy is ready to download. Leave is asked for separately, where the days can be given.' },
         ],
       },
       {
@@ -1577,7 +1577,7 @@ export const ROLES: Role[] = [
         name: 'Home',
         workspace: 'Home',
         features: [
-          { key: 'parent.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'children', tier: 'core', summary: 'Your child\'s day on one page: attendance, fees, homework and what the school has said — with anything waiting on you at the top. Switch children from the same page if you have more than one.' },
+          { key: 'parent.home.dashboard', slug: 'dashboard', name: 'Dashboard', scope: 'children', tier: 'core', summary: 'Your child\'s day on one page: attendance, fees, homework and what the school has said, with anything waiting on you at the top. Switch children from the same page if you have more than one.' },
         ],
       },
       {
@@ -1594,9 +1594,9 @@ export const ROLES: Role[] = [
         workspace: 'My Child',
         features: [
           { key: 'parent.academics.homework_academics', slug: 'homework_academics', name: 'Homework & academics', scope: 'children', tier: 'core', summary: 'Homework, classwork, subjects and published academic progress.' },
-          { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period — the subject, the teacher and the room — the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
+          { key: 'parent.academics.timetable', slug: 'timetable', name: 'Timetable', scope: 'children', tier: 'core', summary: 'Your child\'s week, period by period, the subject, the teacher and the room, the same grid the class teacher reads, so tomorrow\'s PT kit or lab day is never a surprise.' },
           { key: 'parent.academics.results_report_cards', slug: 'results_report_cards', name: 'Results & report cards', scope: 'children', tier: 'core', summary: 'Exam schedule, marks/grades and downloadable published report cards.' },
-          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them — commendations and concerns alike — newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
+          { key: 'parent.academics.child_remarks', slug: 'child_remarks', name: 'Child remarks', scope: 'children', tier: 'core', summary: 'Everything your child\'s teachers have written about them, commendations and concerns alike, newest first, with the teacher\'s name and the day it happened. You are told the same day rather than at the next parents\' evening.' },
         ],
       },
       {
@@ -1604,7 +1604,7 @@ export const ROLES: Role[] = [
         name: 'Fees',
         workspace: 'Fees',
         features: [
-          { key: 'parent.fees.fees_payments', slug: 'fees_payments', name: 'Fees & payments', scope: 'children', tier: 'core', summary: 'Dues, installments, online payment and payment history — with a Receipts tab holding every payment the school has banked, to save as a PDF or print on the school\'s letterhead.' },
+          { key: 'parent.fees.fees_payments', slug: 'fees_payments', name: 'Fees & payments', scope: 'children', tier: 'core', summary: 'Dues, installments, online payment and payment history, with a Receipts tab holding every payment the school has banked, to save as a PDF or print on the school\'s letterhead.' },
           { key: 'parent.fees.wallet', slug: 'wallet', name: 'Wallet', scope: 'children', tier: 'core', summary: 'Your child\'s digital money: the prepaid balance the school holds, every top-up you have paid in and everything it has been spent on, per child.' },
         ],
       },
@@ -1613,7 +1613,7 @@ export const ROLES: Role[] = [
         name: 'My Child\'s Bus',
         workspace: 'Transport',
         features: [
-          { key: 'parent.my_childs_bus.live_bus_tracking', slug: 'live_bus_tracking', name: 'Live bus tracking', scope: 'children', tier: 'core', summary: 'Your child\'s bus: the route, the vehicle, their stop and when it is due — and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus.' },
+          { key: 'parent.my_childs_bus.live_bus_tracking', slug: 'live_bus_tracking', name: 'Live bus tracking', scope: 'children', tier: 'core', summary: 'Your child\'s bus: the route, the vehicle, their stop and when it is due, and where the bus is now, how far from the stop, and which way it is heading. Only appears if your child actually travels by bus.' },
         ],
       },
       {
@@ -1629,7 +1629,7 @@ export const ROLES: Role[] = [
         name: 'Messages',
         workspace: 'School',
         features: [
-          { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Three tabs on one screen: circulars and announcements from the school, a message to your child\'s class teacher, and any concern you have raised — what you asked, who is handling it and their reply.' },
+          { key: 'parent.messages.communication', slug: 'communication', name: 'Communication', scope: 'children', tier: 'core', summary: 'Three tabs on one screen: circulars and announcements from the school, a message to your child\'s class teacher, and any concern you have raised, what you asked, who is handling it and their reply.' },
           { key: 'parent.messages.teacher_remarks', slug: 'teacher_remarks', name: 'Teacher remarks', scope: 'children', tier: 'core', summary: 'Write a remark about one of your child\'s teachers. It reaches the head of department and the teacher.' },
         ],
       },
@@ -1646,7 +1646,7 @@ export const ROLES: Role[] = [
         name: 'Documents',
         workspace: 'Documents',
         features: [
-          { key: 'parent.documents.certificate_requests', slug: 'certificate_requests', name: 'Certificate requests', scope: 'children', tier: 'core', summary: 'Ask the office for a document about your child — bonafide, transfer certificate, conduct certificate, a duplicate ID card — and follow each request until the signed copy is ready to download.' },
+          { key: 'parent.documents.certificate_requests', slug: 'certificate_requests', name: 'Certificate requests', scope: 'children', tier: 'core', summary: 'Ask the office for a document about your child, bonafide, transfer certificate, conduct certificate, a duplicate ID card, and follow each request until the signed copy is ready to download.' },
         ],
       },
       {
@@ -1654,7 +1654,7 @@ export const ROLES: Role[] = [
         name: 'Leave & Absence',
         workspace: 'Requests',
         features: [
-          { key: 'parent.leave_absence.apply_student_leave', slug: 'apply_student_leave', name: 'Apply Student Leave', scope: 'children', tier: 'core', summary: 'Report absence or apply for leave on one screen: a one-tap reason for tomorrow, or a longer leave application with a medical certificate — and follow each until it is answered.' },
+          { key: 'parent.leave_absence.apply_student_leave', slug: 'apply_student_leave', name: 'Apply Student Leave', scope: 'children', tier: 'core', summary: 'Report absence or apply for leave on one screen: a one-tap reason for tomorrow, or a longer leave application with a medical certificate, and follow each until it is answered.' },
         ],
       },
       {
@@ -1662,7 +1662,7 @@ export const ROLES: Role[] = [
         name: 'Consent & Permissions',
         workspace: 'Requests',
         features: [
-          { key: 'parent.consent_permissions.permission_slips', slug: 'permission_slips', name: 'Permission Slips', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed — trips, medical, photography, data — with what you have already agreed to and when. Signing is one tap and the record is kept.' },
+          { key: 'parent.consent_permissions.permission_slips', slug: 'permission_slips', name: 'Permission Slips', scope: 'children', tier: 'core', summary: 'Every slip the school needs signed, trips, medical, photography, data, with what you have already agreed to and when. Signing is one tap and the record is kept.' },
         ],
       },
       {
@@ -1671,8 +1671,8 @@ export const ROLES: Role[] = [
         workspace: 'Profile',
         features: [
           { key: 'parent.profile.digital_student_id_card_view', slug: 'digital_student_id_card_view', name: 'Digital Student ID Card View', scope: 'children', tier: 'optional', summary: 'Access child\'s digital student ID card with QR code directly within the mobile app.' },
-          { key: 'parent.profile.update_my_details', slug: 'update_my_details', name: 'Update my details', scope: 'children', tier: 'core', summary: 'What the school holds about your child and your household, as the office sees it — and the parts you own left open to correct: home address, blood group, and each parent\'s name, mobile, email and occupation. Saved straight onto the school\'s record.' },
-          { key: 'parent.profile.language', slug: 'language', name: 'Language', scope: 'children', tier: 'core', summary: 'Read the app in English or Telugu. The choice is yours alone — it does not change what anybody else sees.' },
+          { key: 'parent.profile.update_my_details', slug: 'update_my_details', name: 'Update my details', scope: 'children', tier: 'core', summary: 'What the school holds about your child and your household, as the office sees it, and the parts you own left open to correct: home address, blood group, and each parent\'s name, mobile, email and occupation. Saved straight onto the school\'s record.' },
+          { key: 'parent.profile.language', slug: 'language', name: 'Language', scope: 'children', tier: 'core', summary: 'Read the app in English or Telugu. The choice is yours alone, it does not change what anybody else sees.' },
         ],
       },
       {
@@ -1688,7 +1688,7 @@ export const ROLES: Role[] = [
         name: 'Store',
         workspace: 'Store',
         features: [
-          { key: 'parent.store.product_catalogue', slug: 'product_catalogue', name: 'Product catalogue', scope: 'self', tier: 'core', summary: 'The school store, to browse — uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter.' },
+          { key: 'parent.store.product_catalogue', slug: 'product_catalogue', name: 'Product catalogue', scope: 'self', tier: 'core', summary: 'The school store, to browse, uniforms, books, stationery and sports items with their prices and whether they are in stock. Display only; buy at the school counter.' },
         ],
       },
     ],

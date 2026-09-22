@@ -74,12 +74,12 @@ export default function UDISE() {
                 <tr key={r.admission_no}>
                   <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                   <Td className="font-medium">{r.name}</Td>
-                  <Td>{r.class_name ?? '—'}</Td>
+                  <Td>{r.class_name ?? '-'}</Td>
                   <Td className="font-mono text-[12px]">
                     {editing === r.admission_no ? (
                       <Input value={apaar} onChange={setApaar} placeholder="12 digits" />
                     ) : (
-                      r.apaar_id ?? '—'
+                      r.apaar_id ?? '-'
                     )}
                   </Td>
                   <Td>
@@ -87,7 +87,7 @@ export default function UDISE() {
                       ? <CheckCircle2 className="h-4 w-4 text-success" />
                       : <AlertTriangle className="h-4 w-4 text-warning" />}
                   </Td>
-                  <Td className="max-w-md text-[13px] text-destructive">{r.issues || '—'}</Td>
+                  <Td className="max-w-md text-[13px] text-destructive">{r.issues || '-'}</Td>
                   <Td>
                     {editing === r.admission_no ? (
                       <div className="flex gap-1.5">

@@ -73,8 +73,8 @@ export const en = {
   'portal.fresh.updating': 'Updating…',
   'portal.fresh.just_now': 'Updated just now',
   'portal.fresh.ago': 'Updated {ago}',
-  'portal.fresh.offline': 'No connection — showing what we saw {ago}',
-  'portal.fresh.failed': 'Could not refresh — showing what we saw {ago}',
+  'portal.fresh.offline': 'No connection, showing what we saw {ago}',
+  'portal.fresh.failed': 'Could not refresh, showing what we saw {ago}',
   'portal.fresh.retry': 'Try again',
   'portal.fresh.seconds': '{n} seconds ago',
   'portal.fresh.minutes': '{n} min ago',
@@ -315,9 +315,9 @@ export const en = {
   'portal.fees.bounced_note':
     'A payment above was returned by the bank, so the amount is still owed. Please contact the office.',
   'portal.fees.description_due_upi':
-    'For {name}. Pay by UPI below or at the school office — the receipt appears here either way.',
+    'For {name}. Pay by UPI below or at the school office, the receipt appears here either way.',
   'portal.fees.upi_title': 'Pay by UPI',
-  'portal.fees.upi_description': 'Scan with any UPI app — GPay, PhonePe, Paytm, BHIM',
+  'portal.fees.upi_description': 'Scan with any UPI app · GPay, PhonePe, Paytm, BHIM',
   'portal.fees.upi_caption':
     'This pays the school directly. The office records the transfer against this account and the receipt appears here, usually the same day.',
   'portal.fees.upi_for_invoice': 'This code is for {invoice} only.',
@@ -1284,7 +1284,7 @@ export const en = {
   'bento.principal.attention_no_level': 'No level',
   'bento.principal.attention_failed': "Couldn't load what needs attention",
   'bento.principal.attention_loading': 'Checking…',
-  'bento.principal.attention_pending': '—',
+  'bento.principal.attention_pending': '-',
   /* Severity in words. The attention cards carry severity as a tint — pink
      for critical, orange for warning — and colour is never allowed to be the
      only channel, so the word is printed beside the figure at every size. */
@@ -1354,7 +1354,7 @@ export const en = {
      put a wrong number in a management meeting. */
   'bento.principal.source_failed': "Couldn't load this",
   'bento.principal.source_loading': 'Reading…',
-  'bento.principal.source_pending': '—',
+  'bento.principal.source_pending': '-',
   'bento.principal.setup': 'Setup checklist',
   'bento.principal.cover_all_covered': 'Every period is covered.',
   'bento.principal.cover_away': '{count} away',

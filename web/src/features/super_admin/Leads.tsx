@@ -101,7 +101,7 @@ interface Note {
 }
 
 const rupees = (paise?: number) =>
-  paise ? `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—'
+  paise ? `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '-'
 
 /** Today at local midnight, for comparing a YYYY-MM-DD the server sent.
     Not Date.parse: it reads a bare date as UTC, and subtracting a UTC midnight
@@ -396,7 +396,7 @@ function LeadPanel({ lead, onSaved }: { lead: Lead; onSaved: () => void }) {
                 <span className="w-[104px] shrink-0 tabular-nums text-muted-foreground">{n.at}</span>
                 <span className="min-w-0">
                   {n.kind === 'stage' ? <span className="text-muted-foreground">moved {n.body}</span> : n.body}
-                  {n.author && <span className="ml-2 text-muted-foreground">— {n.author}</span>}
+                  {n.author && <span className="ml-2 text-muted-foreground"> · {n.author}</span>}
                 </span>
               </li>
             ))}

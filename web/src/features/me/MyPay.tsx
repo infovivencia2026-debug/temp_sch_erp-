@@ -183,7 +183,7 @@ export default function MyPay() {
               <p className="-mt-1 px-5 pb-4 text-[13px] text-muted-foreground">
                 That is {latestLOP} unpaid {latestLOP === 1 ? 'day' : 'days'} out of{' '}
                 {latest?.paid_days} paid. If you think a day is wrong, the register is what it
-                is taken from — ask HR to check that date rather than the payslip.
+                is taken from, ask HR to check that date rather than the payslip.
               </p>
             )}
           </Card>

@@ -61,19 +61,19 @@ export default function ReceiptSeries() {
         <CellGrid cols={4}>
           <Stat
             label="Financial year"
-            value={series.data?.current_fy ?? '—'}
+            value={series.data?.current_fy ?? '-'}
             hint="April to March"
           />
           <Stat label="Receipts issued this year" value={issuedThisYear} />
           <Stat
             label="Next receipt"
-            value={receipts?.next_preview ?? '—'}
+            value={receipts?.next_preview ?? '-'}
             hint={receipts?.reset_yearly ? 'Restarts each 1 April' : 'Runs continuously'}
           />
           <Stat
             label="Gaps in the series"
             value={totalGaps}
-            hint={totalGaps ? 'An auditor will ask about these' : 'None — the series is intact'}
+            hint={totalGaps ? 'An auditor will ask about these' : 'None, the series is intact'}
           />
         </CellGrid>
 
@@ -170,7 +170,7 @@ export default function ReceiptSeries() {
                 <Td className="tabular-nums">{y.issued}</Td>
                 <Td className="tabular-nums text-muted-foreground">{y.first_seq}</Td>
                 <Td className="tabular-nums text-muted-foreground">{y.last_seq}</Td>
-                <Td className="tabular-nums">{y.gaps > 0 ? y.gaps : '—'}</Td>
+                <Td className="tabular-nums">{y.gaps > 0 ? y.gaps : '-'}</Td>
                 <Td>
                   {y.gaps > 0 ? (
                     <Badge tone="danger">has holes</Badge>
@@ -184,7 +184,7 @@ export default function ReceiptSeries() {
 
           <p className="px-4 pb-3 pt-1 text-[11.5px] text-muted-foreground">
             Receipts issued before numbering was tracked keep their numbers and are not counted
-            here — they have a printed number but no recorded sequence, so including them would
+            here, they have a printed number but no recorded sequence, so including them would
             report holes that do not exist.
           </p>
         </Card>
@@ -328,9 +328,9 @@ function GSTHeads({
               </Badge>
             </Td>
             <Td className="tabular-nums text-muted-foreground">
-              {h.is_taxable ? gstPercent(h.gst_rate_bp) : '—'}
+              {h.is_taxable ? gstPercent(h.gst_rate_bp) : '-'}
             </Td>
-            <Td className="font-mono text-[11.5px] text-muted-foreground">{h.hsn_sac || '—'}</Td>
+            <Td className="font-mono text-[11.5px] text-muted-foreground">{h.hsn_sac || '-'}</Td>
             <Td>
               {mayConfigure && (
                 <Button

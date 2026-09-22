@@ -87,7 +87,7 @@ export default function DriverRun() {
 
   const mine = (live.data?.items ?? []).find((v) => v.vehicle_id === d.vehicle_id)
   const position =
-    !mine ? '—'
+    !mine ? '-'
     : mine.age_seconds == null ? 'No position yet'
     : mine.age_seconds < 120 ? `${Math.round(mine.speed_kmph ?? 0)} km/h`
     : `Last seen ${Math.round(mine.age_seconds / 60)} min ago`
@@ -97,7 +97,7 @@ export default function DriverRun() {
       <PageHead eyebrow="Transport" title="My bus & route" />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Bus" value={d.registration_no ?? '—'} hint={d.model} />
+          <Stat label="Bus" value={d.registration_no ?? '-'} hint={d.model} />
           <Stat
             label="Route"
             value={d.route_name ?? 'Not set'}
@@ -118,8 +118,8 @@ export default function DriverRun() {
               <tr key={s.sequence}>
                 <Td className="num">{s.sequence}</Td>
                 <Td className="font-medium">{s.name}</Td>
-                <Td>{s.pickup_time ?? '—'}</Td>
-                <Td>{s.drop_time ?? '—'}</Td>
+                <Td>{s.pickup_time ?? '-'}</Td>
+                <Td>{s.drop_time ?? '-'}</Td>
                 <Td className="num">{s.riders}</Td>
               </tr>
             ))}

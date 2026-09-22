@@ -98,14 +98,14 @@ export default function ChartOfAccounts() {
                 </Td>
                 <Td><Badge tone={TYPE_TONE[a.type] ?? 'neutral'}>{a.type}</Badge></Td>
                 <Td className="text-right tabular-nums">
-                  {a.is_group ? '—' : side(Math.abs(a.balance_paise))}
+                  {a.is_group ? '-' : side(Math.abs(a.balance_paise))}
                   {!a.is_group && a.balance_paise !== 0 && (
                     <span className="ml-1 text-[12px] text-muted-foreground">
                       {a.balance_paise > 0 ? 'Dr' : 'Cr'}
                     </span>
                   )}
                 </Td>
-                <Td className="tabular-nums text-muted-foreground">{a.postings || '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{a.postings || '-'}</Td>
                 <Td className="text-muted-foreground">
                   {a.is_group && <span className="text-[12px]">heading</span>}
                   {a.is_cash && <span className="text-[12px]">cashbook</span>}
@@ -140,12 +140,12 @@ function NewAccount({ accounts }: { accounts: LedgerAccount[] }) {
 
   const groups = accounts
     .filter((a) => a.is_group && a.type === type)
-    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` }))
+    .map((a) => ({ value: a.id, label: `${a.code} · ${a.name}` }))
 
   return (
     <Card>
       <CardHeader title="Add an account"
-        description="The seeded chart covers an ordinary school. Add to it when a head genuinely repeats — one account per recurring expense beats a Miscellaneous line nobody can explain at the year end." />
+        description="The seeded chart covers an ordinary school. Add to it when a head genuinely repeats, one account per recurring expense beats a Miscellaneous line nobody can explain at the year end." />
       <div className="space-y-5 p-5">
         <FormGrid>
           <Field label="Code" required hint="Numbered by type: 1 assets, 2 liabilities, 3 corpus, 4 income, 5 expenditure">

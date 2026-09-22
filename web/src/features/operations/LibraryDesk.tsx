@@ -197,7 +197,7 @@ function Holds({ rows }: { rows: Reservation[] }) {
       <Card>
         <CardHeader
           title="Place a hold"
-          description="A hold is on the book, not on a particular copy — reserving one copy would leave a reader waiting behind a book that is lost while three identical ones sit on the shelf."
+          description="A hold is on the book, not on a particular copy, reserving one copy would leave a reader waiting behind a book that is lost while three identical ones sit on the shelf."
         />
         <div className="p-4">
           <FormGrid>
@@ -208,7 +208,7 @@ function Holds({ rows }: { rows: Reservation[] }) {
                 placeholder="Choose a title"
                 options={(titles.data?.items ?? []).map((t) => ({
                   value: t.id,
-                  label: t.author ? `${t.title} — ${t.author}` : t.title,
+                  label: t.author ? `${t.title} · ${t.author}` : t.title,
                 }))}
               />
             </Field>
@@ -265,7 +265,7 @@ function Holds({ rows }: { rows: Reservation[] }) {
                 </Td>
                 <Td className="text-muted-foreground">{formatDate(r.placed_at)}</Td>
                 <Td className="tabular-nums text-muted-foreground">
-                  {r.status === 'waiting' ? `#${r.position}` : '—'}
+                  {r.status === 'waiting' ? `#${r.position}` : '-'}
                 </Td>
                 <Td>
                   {r.status === 'ready' ? (
@@ -347,8 +347,8 @@ function StockAudit({ audits }: { audits: Audit[] }) {
     onSuccess: (d) => {
       setLast(
         d.misshelved
-          ? `${d.title} — register says rack ${d.register_rack}, found in ${rack}`
-          : `${d.title} · ${d.accession_no}${d.status === 'issued' ? ' — register says this is on loan' : ''}`,
+          ? `${d.title}, register says rack ${d.register_rack}, found in ${rack}`
+          : `${d.title} · ${d.accession_no}${d.status === 'issued' ? ', register says this is on loan' : ''}`,
       )
       setCode('')
       qc.invalidateQueries({ queryKey: ['library-audits', 'library-missing'] })
@@ -383,10 +383,10 @@ function StockAudit({ audits }: { audits: Audit[] }) {
               <tr key={a.id}>
                 <Td className="font-medium">{a.name}</Td>
                 <Td className="text-muted-foreground">
-                  {a.closed_on ? formatDate(a.closed_on) : '—'}
+                  {a.closed_on ? formatDate(a.closed_on) : '-'}
                 </Td>
                 <Td className="tabular-nums">{a.copies_missing}</Td>
-                <Td className="text-muted-foreground">{a.remarks ?? '—'}</Td>
+                <Td className="text-muted-foreground">{a.remarks ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -400,7 +400,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
       <Card>
         <CardHeader
           title={open.name}
-          description="Scan or type an accession number. Books recorded as on loan are not missing — an audit that says otherwise sends you hunting for books that are in children's bags."
+          description="Scan or type an accession number. Books recorded as on loan are not missing, an audit that says otherwise sends you hunting for books that are in children's bags."
         />
         <div className="p-4">
           <FormGrid>
@@ -429,7 +429,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
           <p className="px-4 pb-4 text-[13px] text-muted-foreground">
             {open.copies_found_on_loan} book{open.copies_found_on_loan === 1 ? '' : 's'} scanned off
             the shelf that the register says {open.copies_found_on_loan === 1 ? 'is' : 'are'} on
-            loan — worth reconciling before you close.
+            loan, worth reconciling before you close.
           </p>
         )}
       </Card>
@@ -451,7 +451,7 @@ function StockAudit({ audits }: { audits: Audit[] }) {
                     <div className="text-[12px] text-muted-foreground">{m.author}</div>
                   )}
                 </Td>
-                <Td className="text-muted-foreground">{m.rack ?? '—'}</Td>
+                <Td className="text-muted-foreground">{m.rack ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -517,7 +517,7 @@ function Indents() {
       <Card>
         <CardHeader
           title="Raise a line"
-          description="Consumable sets bought per child per year — ordered in February, delivered in May, handed out in June. Kept apart from the accession register, which is not for four hundred identical mathematics books."
+          description="Consumable sets bought per child per year, ordered in February, delivered in May, handed out in June. Kept apart from the accession register, which is not for four hundred identical mathematics books."
         />
         <div className="p-4">
           <FormGrid>
@@ -530,7 +530,7 @@ function Indents() {
               />
             </Field>
             <Field label="Book">
-              <Input value={title} onChange={setTitle} placeholder="NCERT Mathematics — Ganit" />
+              <Input value={title} onChange={setTitle} placeholder="NCERT Mathematics · Ganit" />
             </Field>
             <Field label="Copies wanted">
               <Input value={qty} onChange={setQty} type="number" placeholder="48" />
@@ -605,7 +605,7 @@ function Indents() {
                   {r.shortfall > 0 ? (
                     <Badge tone="warning">{r.shortfall} short</Badge>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </Td>
               </tr>
@@ -706,7 +706,7 @@ function SpineLabels() {
     <Card>
       <CardHeader
         title="Spine labels"
-        description="A sheet of call tags with a real Code 39 barcode, sized for a spine. Print on plain label stock — the numbers are the accession numbers already in the register."
+        description="A sheet of call tags with a real Code 39 barcode, sized for a spine. Print on plain label stock, the numbers are the accession numbers already in the register."
         action={rows.length > 0 ? <PrintButton /> : undefined}
       />
       <div className="p-4 print:hidden">

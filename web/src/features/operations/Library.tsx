@@ -182,8 +182,8 @@ export default function Library() {
                         </span>
                       )}
                     </Td>
-                    <Td className="text-muted-foreground">{t.author ?? '—'}</Td>
-                    <Td className="text-muted-foreground">{t.category ?? '—'}</Td>
+                    <Td className="text-muted-foreground">{t.author ?? '-'}</Td>
+                    <Td className="text-muted-foreground">{t.category ?? '-'}</Td>
                     <Td className="tabular-nums">{t.copies}</Td>
                     <Td>
                       <span className={cn('tabular-nums', t.available === 0 && 'text-destructive')}>
@@ -205,7 +205,7 @@ export default function Library() {
         {tab === 'catalogue' && openTitle && (
           <Card>
             <CardHeader
-              title={`Copies — ${openTitle.title}`}
+              title={`Copies · ${openTitle.title}`}
               description="Each physical copy, its rack, and who holds it"
               action={<Button variant="ghost" onClick={() => setOpenTitle(null)}>Close</Button>}
             />
@@ -217,15 +217,15 @@ export default function Library() {
               {(copies.data?.items ?? []).map((c) => (
                 <tr key={c.id}>
                   <Td className="font-mono text-[12px]">{c.accession_no}</Td>
-                  <Td className="font-mono text-[12px] text-muted-foreground">{c.barcode ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{c.rack ?? '—'}</Td>
+                  <Td className="font-mono text-[12px] text-muted-foreground">{c.barcode ?? '-'}</Td>
+                  <Td className="text-muted-foreground">{c.rack ?? '-'}</Td>
                   <Td>
                     {c.on_loan_to
                       ? <span className="text-[13px]">Issued to {c.on_loan_to}</span>
                       : <StatusPill status="available" />}
                   </Td>
                   <Td className="text-muted-foreground">
-                    {c.due_on ? formatDate(c.due_on) : '—'}
+                    {c.due_on ? formatDate(c.due_on) : '-'}
                   </Td>
                 </tr>
               ))}
@@ -267,7 +267,7 @@ export default function Library() {
                       {l.overdue && ' · overdue'}
                     </Td>
                     <Td className="tabular-nums">
-                      {l.fine_paise ? formatPaise(l.fine_paise) : '—'}
+                      {l.fine_paise ? formatPaise(l.fine_paise) : '-'}
                     </Td>
                     <Td>
                       {mayIssue && (

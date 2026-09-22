@@ -34,9 +34,9 @@ const THEME_LABEL: Record<string, string> = {
   dark: 'Dark',
 }
 const DENSITY_LABEL: Record<string, string> = {
-  compact: 'Compact — more rows on screen',
-  comfortable: 'Comfortable — the standard spacing',
-  relaxed: 'Relaxed — more room between rows',
+  compact: 'Compact, more rows on screen',
+  comfortable: 'Comfortable, the standard spacing',
+  relaxed: 'Relaxed, more room between rows',
 }
 
 /* Where the appearance settings live, and nothing more than that.

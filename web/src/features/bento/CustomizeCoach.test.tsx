@@ -142,7 +142,7 @@ describe('the customize coach mark', () => {
     expect(localStorage.getItem(coachKey(dashboard))).toBeNull()
   })
 
-  it('is dismissed by entering the mode — the lesson was learnt', async () => {
+  it('is dismissed by entering the mode, the lesson was learnt', async () => {
     await mount()
     expect(coach()).not.toBeNull()
     await act(async () => {

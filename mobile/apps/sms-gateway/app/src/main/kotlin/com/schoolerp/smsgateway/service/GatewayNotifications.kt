@@ -50,7 +50,7 @@ class GatewayNotifications @Inject constructor(
     }
 
     fun ongoing(status: GatewayStatus?): Notification {
-        val title = status?.institutionName?.let { "SMS gateway — $it" } ?: "SMS gateway"
+        val title = status?.institutionName?.let { "SMS gateway · $it" } ?: "SMS gateway"
         val text = status?.summary ?: "Starting…"
         return NotificationCompat.Builder(context, CHANNEL_STATUS)
             .setSmallIcon(R.drawable.ic_stat_gateway)

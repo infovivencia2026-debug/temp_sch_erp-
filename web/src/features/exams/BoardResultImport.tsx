@@ -251,8 +251,8 @@ export default function BoardResultImport() {
                       <Td className="font-medium">{m.candidate_name}</Td>
                       <Td>{m.admission_no}</Td>
                       <Td>{m.class_name}</Td>
-                      <Td className="tabular-nums">{m.hall_ticket_no ?? '—'}</Td>
-                      <Td className="tabular-nums">{m.registration_no ?? '—'}</Td>
+                      <Td className="tabular-nums">{m.hall_ticket_no ?? '-'}</Td>
+                      <Td className="tabular-nums">{m.registration_no ?? '-'}</Td>
                       <Td><Badge tone="warning">{m.status.replace(/_/g, ' ')}</Badge></Td>
                     </tr>
                   ))}
@@ -263,7 +263,7 @@ export default function BoardResultImport() {
             <Card>
               <CardHeader
                 title="Lines this school cannot place"
-                description="A private candidate at the same centre, or a name typed differently. Attach one to a child only where you are sure — the alternative is one child's result on another's record."
+                description="A private candidate at the same centre, or a name typed differently. Attach one to a child only where you are sure, the alternative is one child's result on another's record."
               />
               {unmatched.length === 0 ? (
                 <EmptyState title="Every line in the file matched a candidate" />
@@ -272,11 +272,11 @@ export default function BoardResultImport() {
                   {unmatched.map((l) => (
                     <tr key={l.line_no}>
                       <Td className="tabular-nums">{l.line_no}</Td>
-                      <Td className="tabular-nums">{l.hall_ticket_no || '—'}</Td>
-                      <Td className="tabular-nums">{l.registration_no || '—'}</Td>
+                      <Td className="tabular-nums">{l.hall_ticket_no || '-'}</Td>
+                      <Td className="tabular-nums">{l.registration_no || '-'}</Td>
                       <Td className="font-medium">{l.candidate_name}</Td>
-                      <Td><Badge tone={RESULT_TONE[l.result] ?? 'neutral'}>{l.result || '—'}</Badge></Td>
-                      <Td className="tabular-nums">{l.percent ?? '—'}</Td>
+                      <Td><Badge tone={RESULT_TONE[l.result] ?? 'neutral'}>{l.result || '-'}</Badge></Td>
+                      <Td className="tabular-nums">{l.percent ?? '-'}</Td>
                       <Td>
                         {l.id && missing.length > 0 && (
                           <Select
@@ -338,11 +338,11 @@ export default function BoardResultImport() {
                           {l.match_method.replace(/_/g, ' ')}
                         </Badge>
                       </Td>
-                      <Td><Badge tone={RESULT_TONE[l.result] ?? 'neutral'}>{l.result || '—'}</Badge></Td>
+                      <Td><Badge tone={RESULT_TONE[l.result] ?? 'neutral'}>{l.result || '-'}</Badge></Td>
                       <Td className="tabular-nums">
-                        {l.total_marks ?? '—'}{l.max_marks ? ` / ${l.max_marks}` : ''}
+                        {l.total_marks ?? '-'}{l.max_marks ? ` / ${l.max_marks}` : ''}
                       </Td>
-                      <Td className="tabular-nums">{l.percent ?? '—'}</Td>
+                      <Td className="tabular-nums">{l.percent ?? '-'}</Td>
                     </tr>
                   ))}
                 </Table>
@@ -355,7 +355,7 @@ export default function BoardResultImport() {
         <Card>
           <CardHeader
             title="Files already imported"
-            description="A board publishes more than once — the main result and then the supplementary — so each file is kept with its own reconciliation."
+            description="A board publishes more than once, the main result and then the supplementary, so each file is kept with its own reconciliation."
           />
           {(imports.data?.items.length ?? 0) === 0 ? (
             <EmptyState title="No result file has been imported yet" />
@@ -364,11 +364,11 @@ export default function BoardResultImport() {
               {(imports.data?.items ?? []).map((i) => (
                 <tr key={i.id}>
                   <Td className="font-medium">{i.exam_name}<span className="block text-[12px] text-muted-foreground">{i.board}</span></Td>
-                  <Td>{i.file_name ?? '—'}</Td>
+                  <Td>{i.file_name ?? '-'}</Td>
                   <Td className="tabular-nums">{i.rows}</Td>
                   <Td className="tabular-nums">{i.matched}</Td>
-                  <Td className="tabular-nums">{i.unmatched || '—'}</Td>
-                  <Td className="tabular-nums">{i.missing_from_file || '—'}</Td>
+                  <Td className="tabular-nums">{i.unmatched || '-'}</Td>
+                  <Td className="tabular-nums">{i.missing_from_file || '-'}</Td>
                   <Td>{i.imported_at}<span className="block text-[12px] text-muted-foreground">{i.imported_by ?? ''}</span></Td>
                   <Td>
                     {i.published_on ? (

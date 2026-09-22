@@ -317,7 +317,7 @@ export default function LiveVehicleMap() {
             <Card>
               <CardHeader
                 title="Fleet"
-                description={`Refreshing every ${ping}s${visible ? '' : ' — paused while this tab is in the background'}.`}
+                description={`Refreshing every ${ping}s${visible ? '' : ', paused while this tab is in the background'}.`}
               />
               <Table
                 head={[
@@ -349,9 +349,9 @@ export default function LiveVehicleMap() {
                         {v.direction ? ` · ${v.direction}` : ''}
                       </Badge>
                     </Td>
-                    <Td>{v.route ?? '—'}</Td>
+                    <Td>{v.route ?? '-'}</Td>
                     <Td>
-                      <div>{v.driver ?? '—'}</div>
+                      <div>{v.driver ?? '-'}</div>
                       {v.driver_phone && (
                         <div className="text-[12.5px] text-muted-foreground">{v.driver_phone}</div>
                       )}
@@ -359,16 +359,16 @@ export default function LiveVehicleMap() {
                     <Td className="text-right">
                       {v.state === 'running' && v.speed_kmph != null
                         ? `${Math.round(v.speed_kmph)} km/h`
-                        : '—'}
+                        : '-'}
                     </Td>
                     <Td>
                       <span className={cn(v.state === 'stale' && 'font-medium text-destructive')}>
-                        {v.trip_id ? ageText(v.age_seconds) : '—'}
+                        {v.trip_id ? ageText(v.age_seconds) : '-'}
                       </span>
                     </Td>
                     <Td className="text-right">
                       {v.battery_pct == null ? (
-                        '—'
+                        '-'
                       ) : (
                         <span
                           className={cn(
@@ -439,7 +439,7 @@ function plotGap(
     }
   return {
     title: 'No position reported yet',
-    body: 'A trip is open, but no phone on it has sent a position. Usually the phone is still finding satellites, or the OS has refused it location — the Location blocked count above tells the two apart.',
+    body: 'A trip is open, but no phone on it has sent a position. Usually the phone is still finding satellites, or the OS has refused it location, the Location blocked count above tells the two apart.',
   }
 }
 
@@ -482,7 +482,7 @@ function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boole
       qc.invalidateQueries({ queryKey: ['driver-notices', vehicleId] })
     },
   })
-  if (!paired) return <span className="text-muted-foreground">—</span>
+  if (!paired) return <span className="text-muted-foreground">-</span>
   const latest = notices.data?.items?.[0]
   return (
     <div className="min-w-[180px] space-y-1">

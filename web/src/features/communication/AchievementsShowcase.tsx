@@ -218,7 +218,7 @@ export default function AchievementsShowcase() {
       <PageHead
         eyebrow="Communication"
         title="School achievements"
-        description="Awards, sporting wins and academic honours — recorded here, and published to parents only once the school has confirmed the parent agreed."
+        description="Awards, sporting wins and academic honours, recorded here, and published to parents only once the school has confirmed the parent agreed."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -385,7 +385,7 @@ export default function AchievementsShowcase() {
             >
               {rows.map((a) => (
                 <tr key={a.id}>
-                  <Td>{a.awarded_on ? formatDate(a.awarded_on) : '—'}</Td>
+                  <Td>{a.awarded_on ? formatDate(a.awarded_on) : '-'}</Td>
                   <Td>
                     {a.student}
                     {a.class && (
@@ -402,7 +402,7 @@ export default function AchievementsShowcase() {
                     {a.level ? (
                       <Badge tone={LEVEL_TONE[a.level] ?? 'neutral'}>{a.level}</Badge>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
                   <Td>{a.media_count}</Td>
@@ -488,7 +488,7 @@ export default function AchievementsShowcase() {
                 {detail.data.consent_confirmed_at ? (
                   <p className="mt-1 text-[13px] text-muted-foreground">
                     Recorded by {detail.data.consent_confirmed_by ?? 'a member of staff'} on{' '}
-                    {formatDate(detail.data.consent_confirmed_at)} —{' '}
+                    {formatDate(detail.data.consent_confirmed_at)} · {' '}
                     {CONSENT_BASES.find((b) => b.value === detail.data!.consent_basis)?.label ??
                       detail.data.consent_basis}
                     .
@@ -498,7 +498,7 @@ export default function AchievementsShowcase() {
                     <p className="mt-1 text-[13px] text-muted-foreground">
                       This school holds no photograph-consent register, so permission is
                       confirmed here, against this achievement. Say where the parent&apos;s
-                      agreement came from — it is what has to be produced if they object.
+                      agreement came from, it is what has to be produced if they object.
                     </p>
                     {mayEdit && (
                       <div className="mt-3 flex flex-wrap items-end gap-3">

@@ -1048,7 +1048,7 @@ func (s *Server) getStatements(w http.ResponseWriter, r *http.Request) {
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		// Income and expenditure: this year's movement, closing vouchers left out.
 		rows, err := tx.Query(r.Context(), `
-			SELECT a.code, a.name, a.type, COALESCE(p.name, '—'),
+			SELECT a.code, a.name, a.type, COALESCE(p.name, '-'),
 			       sum(l.credit_paise) - sum(l.debit_paise)
 			  FROM journal_lines l
 			  JOIN journal_entries e ON e.id = l.entry_id
@@ -1085,7 +1085,7 @@ func (s *Server) getStatements(w http.ResponseWriter, r *http.Request) {
 
 		// Balance sheet: everything ever posted, up to the year end.
 		bs, err := tx.Query(r.Context(), `
-			SELECT a.code, a.name, a.type, COALESCE(p.name, '—'),
+			SELECT a.code, a.name, a.type, COALESCE(p.name, '-'),
 			       sum(l.debit_paise) - sum(l.credit_paise)
 			  FROM journal_lines l
 			  JOIN journal_entries e ON e.id = l.entry_id
@@ -1185,7 +1185,7 @@ func (s *Server) getExpenseAnalysis(w http.ResponseWriter, r *http.Request) {
 	fy := fyFrom(r)
 	start, end := fyRange(fy)
 	items, err := collect(s, r, `
-		SELECT a.id::text, a.code, a.name, COALESCE(p.name,'—'),
+		SELECT a.id::text, a.code, a.name, COALESCE(p.name,'-'),
 		       sum(l.debit_paise) - sum(l.credit_paise),
 		       count(DISTINCT e.id)::int,
 		       COALESCE(sum(l.debit_paise) FILTER (WHERE e.voucher_type = 'purchase'), 0),
@@ -1727,7 +1727,7 @@ func (s *Server) listVendorBills(w http.ResponseWriter, r *http.Request) {
 		                 AND COALESCE(b.due_on, b.bill_date) < CURRENT_DATE
 		            THEN (CURRENT_DATE - COALESCE(b.due_on, b.bill_date))
 		            ELSE 0 END,
-		       CASE WHEN b.status <> 'approved' OR COALESCE(p.paid,0) >= b.total_paise THEN '—'
+		       CASE WHEN b.status <> 'approved' OR COALESCE(p.paid,0) >= b.total_paise THEN '-'
 		            WHEN CURRENT_DATE - COALESCE(b.due_on, b.bill_date) > 90 THEN '90+'
 		            WHEN CURRENT_DATE - COALESCE(b.due_on, b.bill_date) > 60 THEN '61-90'
 		            WHEN CURRENT_DATE - COALESCE(b.due_on, b.bill_date) > 30 THEN '31-60'
@@ -3314,7 +3314,7 @@ func (s *Server) getTaxReport(w http.ResponseWriter, r *http.Request) {
 		// The statutory liability accounts: what is owed to the government and
 		// still sitting in the school's bank.
 		return scanInto(r.Context(), tx, `
-			SELECT a.code, a.name, COALESCE(p.name,'—'),
+			SELECT a.code, a.name, COALESCE(p.name,'-'),
 			       COALESCE(sum(l.credit_paise) - sum(l.debit_paise), 0), false
 			  FROM ledger_accounts a
 			  LEFT JOIN ledger_accounts p ON p.id = a.parent_id

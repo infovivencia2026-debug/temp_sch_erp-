@@ -57,7 +57,7 @@ export default function YearClosing() {
               ? { value: 'A year can be signed now', positive: true }
               : undefined} />
           <Stat label="Current year result"
-            value={current ? inr(current.live_surplus_paise) : '—'} icon={TrendingUp}
+            value={current ? inr(current.live_surplus_paise) : '-'} icon={TrendingUp}
             delta={current
               ? current.live_surplus_paise >= 0
                 ? { value: 'Surplus so far', positive: true }
@@ -72,7 +72,7 @@ export default function YearClosing() {
         <Card>
           <CardHeader
             title="The years"
-            description="The surplus shown for an open year is what a close would compute if it ran now — income less expenditure, with any closing voucher left out. For a closed year it is the figure frozen at the moment of signing, not a number that moves when somebody corrects a later year."
+            description="The surplus shown for an open year is what a close would compute if it ran now, income less expenditure, with any closing voucher left out. For a closed year it is the figure frozen at the moment of signing, not a number that moves when somebody corrects a later year."
           />
           <Table head={['Year', 'Status', 'Vouchers',
             { label: 'Income', align: 'right' }, { label: 'Expenditure', align: 'right' },
@@ -86,12 +86,12 @@ export default function YearClosing() {
                   <Td>
                     <Badge tone={y.status === 'closed' ? 'info' : 'success'}>{y.status}</Badge>
                   </Td>
-                  <Td className="tabular-nums text-muted-foreground">{y.vouchers || '—'}</Td>
+                  <Td className="tabular-nums text-muted-foreground">{y.vouchers || '-'}</Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {y.status === 'closed' ? '—' : rupees(y.live_income_paise)}
+                    {y.status === 'closed' ? '-' : rupees(y.live_income_paise)}
                   </Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {y.status === 'closed' ? '—' : rupees(y.live_expense_paise)}
+                    {y.status === 'closed' ? '-' : rupees(y.live_expense_paise)}
                   </Td>
                   <Td className={`text-right font-medium tabular-nums ${surplus < 0 ? 'text-destructive' : ''}`}>
                     {rupees(Math.abs(surplus))}
@@ -100,11 +100,11 @@ export default function YearClosing() {
                     </div>
                   </Td>
                   <Td className="text-muted-foreground">
-                    {y.closed_on ?? '—'}
+                    {y.closed_on ?? '-'}
                     {y.closed_by && <div className="text-[12px]">{y.closed_by}</div>}
                   </Td>
                   <Td className="tabular-nums text-muted-foreground">
-                    {y.closing_voucher_no ?? '—'}
+                    {y.closing_voucher_no ?? '-'}
                   </Td>
                   <Td>
                     {y.status === 'open' && (
@@ -112,7 +112,7 @@ export default function YearClosing() {
                         <ConfirmButton
                           confirmLabel="Close the year"
                           variant="primary"
-                          question={`Close ${y.fy_label} and put ${rupees(Math.abs(surplus))} into the corpus? This cannot be undone — no entry dated in ${y.fy_label} will be accepted afterwards.`}
+                          question={`Close ${y.fy_label} and put ${rupees(Math.abs(surplus))} into the corpus? This cannot be undone, no entry dated in ${y.fy_label} will be accepted afterwards.`}
                           disabled={close.isPending}
                           onConfirm={() => close.mutate(y.fy_start_year)}>
                           Close {y.fy_label}
@@ -138,8 +138,8 @@ export default function YearClosing() {
               the thirty-first of March.
             </p>
             <p>
-              <span className="font-medium">Two.</span> The difference — the surplus or the
-              deficit — is posted to the corpus, where it stays.
+              <span className="font-medium">Two.</span> The difference, the surplus or the
+              deficit, is posted to the corpus, where it stays.
             </p>
             <p>
               <span className="font-medium">Three.</span> The year is marked closed. From that

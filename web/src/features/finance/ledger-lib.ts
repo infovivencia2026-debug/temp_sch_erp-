@@ -21,7 +21,7 @@ export const inr = (paise: number) => `₹${rupees(paise)}`
    Zero renders as an em dash, not as "0". A trial balance where every account
    shows a nought in both columns is unreadable; the eye needs the blank to
    find the side an account actually sits on. */
-export const side = (paise: number) => (paise ? rupees(paise) : '—')
+export const side = (paise: number) => (paise ? rupees(paise) : '-')
 
 /** Rupees typed into a form back to paise, without a float rounding surprise. */
 export const toPaise = (v: string) => Math.round(Number(v || 0) * 100)
@@ -383,7 +383,7 @@ export function useLedgerSettings() {
 export function accountOptions(accounts: LedgerAccount[] | undefined, ...types: string[]) {
   return (accounts ?? [])
     .filter((a) => !a.is_group && a.is_active && (types.length === 0 || types.includes(a.type)))
-    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` }))
+    .map((a) => ({ value: a.id, label: `${a.code} · ${a.name}` }))
 }
 
 export const ledgerBase = BASE

@@ -111,7 +111,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
 
       {q?.has_structure ? (
         <div className="border-b px-5 py-3 text-[13px]">
-          <span className="font-medium">{q.structure}</span> —{' '}
+          <span className="font-medium">{q.structure}</span> · {' '}
           <span className="tabular-nums">{formatPaise(q.total_paise)}</span> for the
           year, {q.instalments} instalment{q.instalments === 1 ? '' : 's'}.
         </div>
@@ -153,7 +153,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
               )}
             </Td>
             <Td className="text-muted-foreground">
-              {c.decision_note || c.reason || '—'}
+              {c.decision_note || c.reason || '-'}
             </Td>
           </tr>
         ))}

@@ -157,7 +157,7 @@ export default function PeopleGroups() {
       <PageHead
         eyebrow={kind === 'staff' ? 'Staff' : 'Students'}
         title={kind === 'staff' ? 'Staff groups & lists' : 'Groups & lists'}
-        description={`Your own groupings of ${noun} — picked by hand, or kept right by a rule.`}
+        description={`Your own groupings of ${noun}, picked by hand, or kept right by a rule.`}
         actions={
           <Button
             onClick={() => {
@@ -276,7 +276,7 @@ export default function PeopleGroups() {
           ) : rows.length === 0 ? (
             <EmptyState
               title="No groups yet"
-              body={`Make one for a list this school keeps outside the system — the ${
+              body={`Make one for a list this school keeps outside the system, the ${
                 kind === 'staff' ? 'exam duty roster' : 'swimming squad or the 3.15 bus'
               }.`}
             />

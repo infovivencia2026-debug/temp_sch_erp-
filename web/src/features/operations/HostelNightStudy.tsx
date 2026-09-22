@@ -222,7 +222,7 @@ export default function HostelNightStudy() {
                           />
                         ) : (
                           <span className="text-[13px] text-muted-foreground">
-                            {r.minutes_late != null ? `${r.minutes_late} min` : '—'}
+                            {r.minutes_late != null ? `${r.minutes_late} min` : '-'}
                           </span>
                         )}
                       </Td>
@@ -234,7 +234,7 @@ export default function HostelNightStudy() {
                         />
                       </Td>
                       <Td className="text-[12px] text-muted-foreground">
-                        {r.marked_at ? `${r.marked_at.slice(11)} · ${r.marked_by ?? ''}` : '—'}
+                        {r.marked_at ? `${r.marked_at.slice(11)} · ${r.marked_by ?? ''}` : '-'}
                         {r.hall && <div>{r.hall}</div>}
                       </Td>
                     </tr>

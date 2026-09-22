@@ -171,7 +171,7 @@ func (s *Server) updateFamilyDetails(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if strings.TrimSpace(g.Phone) == "" {
-			httpx.BadRequest(w, r, "a guardian needs a phone number — it is where the school's alerts go")
+			httpx.BadRequest(w, r, "a guardian needs a phone number, it is where the school's alerts go")
 			return
 		}
 		req.Guardians[i].FullName = strings.TrimSpace(g.FullName)

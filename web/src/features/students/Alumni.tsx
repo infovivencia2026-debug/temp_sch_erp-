@@ -158,7 +158,7 @@ export default function Alumni() {
                 <tr key={c.student_id}>
                   <Td className="font-medium">{c.full_name}</Td>
                   <Td className="text-muted-foreground">{c.admission_no}</Td>
-                  <Td>{c.left_on ? formatDate(c.left_on) : '—'}</Td>
+                  <Td>{c.left_on ? formatDate(c.left_on) : '-'}</Td>
                   <Td className="tabular-nums">{c.batch_year}</Td>
                   <Td>
                     <EnrolButton studentID={c.student_id} onSaved={refresh} />
@@ -201,7 +201,7 @@ export default function Alumni() {
                   </Td>
                   <Td className="tabular-nums">{a.batch_year}</Td>
                   <Td>
-                    {a.occupation ?? a.higher_study ?? '—'}
+                    {a.occupation ?? a.higher_study ?? '-'}
                     {a.employer && (
                       <span className="block text-[12px] text-muted-foreground">
                         {a.employer}
@@ -218,9 +218,9 @@ export default function Alumni() {
                       <Badge tone="warning">asked not to be written to</Badge>
                     )}
                   </Td>
-                  <Td className="tabular-nums">{a.events_attended || '—'}</Td>
+                  <Td className="tabular-nums">{a.events_attended || '-'}</Td>
                   <Td className="tabular-nums">
-                    {a.contributed_paise ? formatPaise(a.contributed_paise) : '—'}
+                    {a.contributed_paise ? formatPaise(a.contributed_paise) : '-'}
                     {a.last_contribution_on && (
                       <span className="block text-[12px] text-muted-foreground">
                         {formatDate(a.last_contribution_on)}
@@ -248,14 +248,14 @@ export default function Alumni() {
                 <tr key={e.id}>
                   <Td className="font-medium">{e.title}</Td>
                   <Td className="whitespace-nowrap">{formatDate(e.on_date)}</Td>
-                  <Td className="text-muted-foreground">{e.venue ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{e.venue ?? '-'}</Td>
                   <Td>
                     <Badge tone={EVENT_TONE[e.status]}>{e.status}</Badge>
                   </Td>
-                  <Td className="tabular-nums">{e.invited || '—'}</Td>
-                  <Td className="tabular-nums">{e.accepted || '—'}</Td>
+                  <Td className="tabular-nums">{e.invited || '-'}</Td>
+                  <Td className="tabular-nums">{e.accepted || '-'}</Td>
                   <Td className="tabular-nums">
-                    {e.attended || '—'}
+                    {e.attended || '-'}
                     {e.guests > 0 && (
                       <span className="text-[12px] text-muted-foreground">
                         {' '}
@@ -264,7 +264,7 @@ export default function Alumni() {
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    {e.raised_paise ? formatPaise(e.raised_paise) : '—'}
+                    {e.raised_paise ? formatPaise(e.raised_paise) : '-'}
                   </Td>
                 </tr>
               ))}

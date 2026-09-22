@@ -67,7 +67,7 @@ export default function Users() {
       <PageHead
         eyebrow="Access & Security"
         title="Users"
-        description="One person can hold several roles at once. The roles stay separate — the account switches between them rather than merging into one super-user."
+        description="One person can hold several roles at once. The roles stay separate, the account switches between them rather than merging into one super-user."
         actions={
           <Button onClick={() => { setEditing(null); setCreating((c) => !c) }}>
             {creating ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
@@ -84,7 +84,7 @@ export default function Users() {
             label="Two-factor"
             value={withMfa}
             delta={{
-              value: users.length ? `${Math.round((withMfa / users.length) * 100)}% enrolled` : '—',
+              value: users.length ? `${Math.round((withMfa / users.length) * 100)}% enrolled` : '-',
               positive: withMfa * 2 >= users.length,
             }}
           />
@@ -167,7 +167,7 @@ export default function Users() {
                       <span className="ml-2 text-[12px] text-muted-foreground">{u.institution}</span>
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{u.email ?? u.phone ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{u.email ?? u.phone ?? '-'}</Td>
                   <Td>
                     <div className="flex flex-wrap gap-1">
                       {u.roles.length ? (
@@ -178,7 +178,7 @@ export default function Users() {
                       {u.roles.length > 3 && <Badge>+{u.roles.length - 3}</Badge>}
                     </div>
                   </Td>
-                  <Td>{u.active_sessions || '—'}</Td>
+                  <Td>{u.active_sessions || '-'}</Td>
                   <Td className="text-muted-foreground">{formatDate(u.last_login_at)}</Td>
                   <Td>
                     <Badge tone={STATUS_TONE[u.status] ?? 'neutral'}>{u.status}</Badge>
@@ -354,7 +354,7 @@ function AccountForm({
         description={
           editing
             ? 'Adding a role grants a whole workspace; removing one takes it away at the next request.'
-            : 'A person, not a role. Give them everything they do — one login for all of it.'
+            : 'A person, not a role. Give them everything they do, one login for all of it.'
         }
         action={
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -475,7 +475,7 @@ function HandOver({
     <Card>
       <CardHeader
         title={`Hand over ${from.full_name}’s roles`}
-        description="The joiner gains the role exactly when the leaver loses it — one action, so the school is never left with two people holding the same job, or none."
+        description="The joiner gains the role exactly when the leaver loses it, one action, so the school is never left with two people holding the same job, or none."
         action={
           <Button size="sm" variant="ghost" onClick={onClose} title="Close">
             <X className="h-4 w-4" />
@@ -657,7 +657,7 @@ function CustomAccount({ onClose }: { onClose: () => void }) {
               <Field label="Email">
                 <Input value={f.email} onChange={(v) => setF({ ...f, email: v })} />
               </Field>
-              <Field label="Phone" hint="An email or a phone — it needs something to sign in with.">
+              <Field label="Phone" hint="An email or a phone, it needs something to sign in with.">
                 <Input value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
               </Field>
               <Field label="Call the role" hint="Defaults to the person’s name.">

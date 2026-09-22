@@ -196,7 +196,7 @@ function Workload() {
         <tr key={t.user_id}>
           <Td className="font-mono text-xs">{t.employee_code}</Td>
           <Td className="font-medium">{t.full_name}</Td>
-          <Td className="tabular-nums">{t.weekly_periods ?? '—'}</Td>
+          <Td className="tabular-nums">{t.weekly_periods ?? '-'}</Td>
           <Td>
             {/* 30 periods a week is the usual CBSE ceiling for a full-time
                 teacher; over that is worth flagging, not blocking. */}

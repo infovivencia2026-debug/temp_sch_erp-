@@ -129,7 +129,7 @@ func (s *Server) listQuestionPapers(w http.ResponseWriter, r *http.Request) {
 			       /* Formatted here, not scanned raw.
 
 			          It was selected as a bare timestamptz into a *string and
-			          the driver refuses that in binary format — so the screen
+			          the driver refuses that in binary format, so the screen
 			          was a 500 for every teacher who had actually submitted a
 			          paper, and worked perfectly for everybody who had not.
 			          Which is why it looked fine. */

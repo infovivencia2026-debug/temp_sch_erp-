@@ -180,7 +180,7 @@ export default function Wizard() {
         title={d.ready ? 'School details' : 'Set up your school'}
         description={
           d.ready
-            ? 'The classes, sections, subjects, staff, fee heads and the school day — all of it, editable. Pick a section on the left and change what needs changing.'
+            ? 'The classes, sections, subjects, staff, fee heads and the school day, all of it, editable. Pick a section on the left and change what needs changing.'
             : `${d.blocking_remaining} required ${d.blocking_remaining === 1 ? 'step' : 'steps'} left. Each one takes a minute, and the form is on this page.`
         }
         actions={
@@ -258,7 +258,7 @@ export default function Wizard() {
                 <Panel onDone={done} />
               ) : (
                 <p className="text-[14px] text-muted-foreground">
-                  This step has no form yet — use the module's own screen.
+                  This step has no form yet, use the module's own screen.
                 </p>
               )}
             </div>
@@ -341,7 +341,7 @@ function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
       if (found.length === 0) {
         setNote(
           'None of those look like the setup sheets. They are the files whose names ' +
-            'start 01 to 14 — pick the folder they are in, not the zip.',
+            'start 01 to 14, pick the folder they are in, not the zip.',
         )
         return
       }
@@ -361,7 +361,7 @@ function PackGate({ onOpen }: { onOpen: (step: string) => void }) {
           <h3 className="text-[15px] tracking-tight">Your filled-in sheets</h3>
           <p className="text-[13px] text-muted-foreground">
             {left > 0
-              ? `${left} of ${entries.length} still to load. Open a step and its sheet is already in the box — it is checked there, and nothing is written until you say so.`
+              ? `${left} of ${entries.length} still to load. Open a step and its sheet is already in the box, it is checked there, and nothing is written until you say so.`
               : 'Every sheet has been handed to its step.'}
           </p>
           <Button variant="ghost" size="sm" className="ml-auto" onClick={clearPack}>

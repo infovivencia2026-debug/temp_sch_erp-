@@ -66,7 +66,7 @@ func (s *Server) assistantRateLimit(next http.Handler) http.Handler {
 			key = id.UserID.String()
 		}
 		if s.rateLimited(w, r, scopeAssistant, assistantPolicy, key,
-			"You're using the assistant too fast — wait a moment and try again.") {
+			"You're using the assistant too fast, wait a moment and try again.") {
 			return
 		}
 		next.ServeHTTP(w, r)

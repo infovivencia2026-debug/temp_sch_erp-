@@ -65,7 +65,7 @@ export default function SsoMfa() {
         <Card>
           <CardHeader
             title="Multi-factor authentication"
-            description="Applied by role rather than to everybody — eight hundred parent accounts are not a policy any school adopts"
+            description="Applied by role rather than to everybody, eight hundred parent accounts are not a policy any school adopts"
             action={
               <Button
                 disabled={save.isPending}
@@ -173,7 +173,7 @@ export default function SsoMfa() {
               title="Single sign-on is not available on this installation."
               body={data.sso_blocked_by}
               technical={[
-                { label: 'Adapter', value: 'none — internal/auth carries the password path only' },
+                { label: 'Adapter', value: 'none, internal/auth carries the password path only' },
                 { label: 'Stored', value: 'protocol, provider, entity id, metadata URL' },
                 { label: 'Never set from a request', value: 'sso_verified_at' },
               ]}

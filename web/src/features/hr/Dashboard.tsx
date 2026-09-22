@@ -161,7 +161,7 @@ export default function HRDashboard() {
                 {/* Blank means back tomorrow. Writing "tomorrow" would be a
                     guess about a school that may not open tomorrow. */}
                 <Td className="text-muted-foreground">
-                  {p.until ? formatDate(p.until) : '—'}
+                  {p.until ? formatDate(p.until) : '-'}
                 </Td>
               </tr>
             ))}

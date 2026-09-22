@@ -244,7 +244,7 @@ function OnboardingTab({ rows }: { rows: Onboarding[] }) {
           description="Every check is a date, not a tick. A row saying PAN was verified, with no day and nobody attached, is the record an audit treats as unverified."
           action={
             <Select value={employeeId} onChange={setEmployeeId} placeholder="Choose an employee"
-              options={rows.map((r) => ({ value: r.employee_id, label: `${r.full_name} — ${r.employee_code}` }))} />
+              options={rows.map((r) => ({ value: r.employee_id, label: `${r.full_name} · ${r.employee_code}` }))} />
           }
         />
         {!employeeId ? (
@@ -298,9 +298,9 @@ function OnboardingTab({ rows }: { rows: Onboarding[] }) {
               </Td>
               <Td className="text-muted-foreground">{r.joined_on}</Td>
               <Td><Badge tone={r.status === 'completed' ? 'success' : r.status === 'verified' ? 'info' : 'warning'}>{r.status}</Badge></Td>
-              <Td className="text-muted-foreground">{r.aadhaar_verified_on ?? '—'}</Td>
-              <Td className="text-muted-foreground">{r.pan_verified_on ?? '—'}</Td>
-              <Td className="text-muted-foreground">{r.contract_signed_on ?? '—'}</Td>
+              <Td className="text-muted-foreground">{r.aadhaar_verified_on ?? '-'}</Td>
+              <Td className="text-muted-foreground">{r.pan_verified_on ?? '-'}</Td>
+              <Td className="text-muted-foreground">{r.contract_signed_on ?? '-'}</Td>
               <Td className={r.pending.length ? 'text-destructive' : 'text-muted-foreground'}>
                 {r.pending.length ? r.pending.join(', ') : 'nothing'}
               </Td>
@@ -382,14 +382,14 @@ function ExitsTab({ rows }: { rows: Exit[] }) {
               </Td>
               <Td className="text-muted-foreground">{r.kind.replace('_', ' ')}</Td>
               <Td className="text-muted-foreground">{r.notice_on}</Td>
-              <Td className="text-muted-foreground">{r.last_working_day ?? '—'}</Td>
+              <Td className="text-muted-foreground">{r.last_working_day ?? '-'}</Td>
               <Td>{r.interview_on ? <Badge tone="success">done</Badge> : <Badge tone="warning">not held</Badge>}</Td>
               <Td>
                 <Badge tone={r.outstanding === 0 && r.departments > 0 ? 'success' : 'warning'}>
                   {r.departments - r.outstanding} of {r.departments}
                 </Badge>
               </Td>
-              <Td className="tabular-nums">{r.dues_paise ? `₹${rupees(r.dues_paise)}` : '—'}</Td>
+              <Td className="tabular-nums">{r.dues_paise ? `₹${rupees(r.dues_paise)}` : '-'}</Td>
               <Td>
                 <Badge tone={r.settlement_status === 'paid' ? 'success' : 'neutral'}>
                   {r.settlement_status}
@@ -454,7 +454,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
   return (
     <>
       <Card>
-        <CardHeader title={`Exit interview — ${exit.full_name}`}
+        <CardHeader title={`Exit interview · ${exit.full_name}`}
           description="Ratings are optional and the reason is not. A school that collects five stars and no sentence learns nothing it can act on." />
         <div className="space-y-5 p-5">
           <FormGrid>
@@ -560,7 +560,7 @@ function ClearanceLine({
       <Td className="w-32"><Input value={dues} onChange={setDues} type="number" placeholder="0" /></Td>
       <Td><Input value={remarks} onChange={setRemarks} placeholder="Three books not returned" /></Td>
       <Td className="text-muted-foreground">
-        {row.cleared_on ?? '—'}
+        {row.cleared_on ?? '-'}
         {row.cleared_by && <div className="text-[12px]">{row.cleared_by}</div>}
       </Td>
       <Td>
@@ -799,11 +799,11 @@ function PostingsTab() {
                 <div className="text-[12px] font-normal text-muted-foreground">{t.employee_code}</div>
               </Td>
               <Td className="text-muted-foreground">{t.kind}</Td>
-              <Td>{t.to_campus ?? t.to_institution ?? '—'}</Td>
-              <Td className="text-muted-foreground">{t.order_no ?? '—'}</Td>
+              <Td>{t.to_campus ?? t.to_institution ?? '-'}</Td>
+              <Td className="text-muted-foreground">{t.order_no ?? '-'}</Td>
               <Td className="text-muted-foreground">{t.effective_from}</Td>
               <Td className={t.overdue ? 'text-destructive' : 'text-muted-foreground'}>
-                {t.effective_to ?? '—'}{t.overdue && ' · overdue'}
+                {t.effective_to ?? '-'}{t.overdue && ' · overdue'}
               </Td>
               <Td><Badge tone={t.status === 'returned' ? 'success' : 'neutral'}>{t.status}</Badge></Td>
             </tr>
@@ -822,11 +822,11 @@ function PostingsTab() {
               <Td className="font-medium">{s.full_name}
                 <div className="text-[12px] font-normal text-muted-foreground">{s.employee_code}</div>
               </Td>
-              <Td className="text-muted-foreground">{s.designation ?? '—'}</Td>
+              <Td className="text-muted-foreground">{s.designation ?? '-'}</Td>
               <Td className="text-muted-foreground">{s.joined_on}</Td>
               <Td className="text-muted-foreground">{s.confirmed_on ?? 'on probation'}</Td>
               <Td className="tabular-nums">{s.years_of_service}</Td>
-              <Td className="tabular-nums text-muted-foreground">{s.deputed_days || '—'}</Td>
+              <Td className="tabular-nums text-muted-foreground">{s.deputed_days || '-'}</Td>
             </tr>
           ))}
         </Table>

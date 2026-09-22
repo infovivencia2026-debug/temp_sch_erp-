@@ -120,7 +120,7 @@ export default function Appraisal() {
       <PageHead
         eyebrow="Hiring & growth"
         title="Annual performance appraisal"
-        description="A cycle per year, weighted KPIs per role, a self-assessment, the reviewer's rating, moderation, and the conversation that follows. Scores are visible to the person they are about and to the people who decide them — nobody else."
+        description="A cycle per year, weighted KPIs per role, a self-assessment, the reviewer's rating, moderation, and the conversation that follows. Scores are visible to the person they are about and to the people who decide them, nobody else."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -196,7 +196,7 @@ function CyclesTab({ cycles }: { cycles: Cycle[] }) {
       <Card>
         <CardHeader
           title="Start a new review cycle"
-          description="One review cycle a year in most schools. Set when teachers must submit their self-assessment, when the principal's review is due, and what the scores are out of — five is the usual scale here."
+          description="One review cycle a year in most schools. Set when teachers must submit their self-assessment, when the principal's review is due, and what the scores are out of, five is the usual scale here."
         />
         <div className="space-y-5 p-5">
           <FormGrid>
@@ -221,7 +221,7 @@ function CyclesTab({ cycles }: { cycles: Cycle[] }) {
           {cycles.map((c) => (
             <tr key={c.id}>
               <Td><span className="font-medium">{c.name}</span></Td>
-              <Td>{c.academic_year ?? '—'}</Td>
+              <Td>{c.academic_year ?? '-'}</Td>
               <Td><Badge tone={c.status === 'published' ? 'success' : 'info'}>
                 {c.status.replace(/_/g, ' ')}
               </Badge></Td>
@@ -309,7 +309,7 @@ function KPITab({
     <Card>
       <CardHeader
         title="KPIs and weights"
-        description="A teacher's KPIs are not an accountant's. Leave the role unset to define the default set — what a role with no set of its own is appraised against."
+        description="A teacher's KPIs are not an accountant's. Leave the role unset to define the default set, what a role with no set of its own is appraised against."
         action={
           <div className="flex flex-wrap gap-2">
             <Select value={cycleID} onChange={onCycle}
@@ -349,7 +349,7 @@ function KPITab({
             </span>
             {!balanced && (
               <span className="ml-2 text-[13px] text-muted-foreground">
-                — a set must total 100 before any appraisal can be raised against it
+               , a set must total 100 before any appraisal can be raised against it
               </span>
             )}
           </span>
@@ -422,7 +422,7 @@ function RecordsTab({
                   <p className="mb-1 font-medium">Skipped:</p>
                   <ul className="space-y-0.5 text-[13px] text-muted-foreground">
                     {raise.data.skipped.map((s, i) => (
-                      <li key={i}>{s.employee} — {s.reason}</li>
+                      <li key={i}>{s.employee} · {s.reason}</li>
                     ))}
                   </ul>
                 </div>
@@ -453,7 +453,7 @@ function RecordsTab({
                 <span className="block text-[12.5px] text-muted-foreground">{a.employee_code}</span>
               </Td>
               <Td>
-                {a.designation ?? '—'}
+                {a.designation ?? '-'}
                 {a.department && (
                   <span className="block text-[12.5px] text-muted-foreground">{a.department}</span>
                 )}
@@ -467,7 +467,7 @@ function RecordsTab({
                     ? <span className="text-muted-foreground">
                         {(a.moderated_score ?? a.reviewer_score)!.toFixed(2)} provisional
                       </span>
-                    : '—'}
+                    : '-'}
               </Td>
               <Td className="text-right">
                 <div className="flex flex-wrap justify-end gap-2">
@@ -598,7 +598,7 @@ function ReviewForm({
   return (
     <Card>
       <CardHeader
-        title={`Review — ${appraisal.full_name}`}
+        title={`Review · ${appraisal.full_name}`}
         description={
           closed
             ? 'This appraisal is published. The ratings are shown as they were signed off and can no longer be changed here.'
@@ -627,17 +627,17 @@ function ReviewForm({
               <span className="font-medium">{r.title}</span>
               <span className="block text-[12.5px] text-muted-foreground">
                 {r.code}
-                {r.self_note ? ` — “${r.self_note}”` : ''}
+                {r.self_note ? `, “${r.self_note}”` : ''}
               </span>
             </Td>
             <Td className="text-right tabular-nums">{r.weight}</Td>
             <Td className="text-right tabular-nums text-muted-foreground">
-              {r.self_score != null ? r.self_score.toFixed(2) : '—'}
+              {r.self_score != null ? r.self_score.toFixed(2) : '-'}
             </Td>
             <Td className="text-right">
               {closed ? (
                 <span className="tabular-nums">
-                  {r.reviewer_score != null ? r.reviewer_score.toFixed(2) : '—'}
+                  {r.reviewer_score != null ? r.reviewer_score.toFixed(2) : '-'}
                 </span>
               ) : (
                 <Input
@@ -650,7 +650,7 @@ function ReviewForm({
             </Td>
             <Td>
               {closed ? (
-                <span className="text-muted-foreground">{r.reviewer_note ?? '—'}</span>
+                <span className="text-muted-foreground">{r.reviewer_note ?? '-'}</span>
               ) : (
                 <Input
                   srLabel={`Your note for ${r.title}`}
@@ -666,7 +666,7 @@ function ReviewForm({
       <div className="space-y-5 p-5">
         {closed ? (
           <Field label="Reviewer's comments" wide>
-            <p className="text-[14px] text-muted-foreground">{appraisal.reviewer_comments ?? '—'}</p>
+            <p className="text-[14px] text-muted-foreground">{appraisal.reviewer_comments ?? '-'}</p>
           </Field>
         ) : (
           <>
@@ -725,7 +725,7 @@ function DiscussionCard({ appraisal, onDone }: { appraisal: Appraisal; onDone: (
   return (
     <Card>
       <CardHeader
-        title={`Appraisal discussion — ${appraisal.full_name}`}
+        title={`Appraisal discussion · ${appraisal.full_name}`}
         description="What was actually said, and when. This is the part an appeal reads."
         action={<Button variant="ghost" size="sm" onClick={onDone}>Close</Button>}
       />

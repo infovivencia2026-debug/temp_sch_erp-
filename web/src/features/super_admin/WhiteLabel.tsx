@@ -85,8 +85,8 @@ export default function WhiteLabel() {
                     <Badge tone="warning">Not verified</Badge>
                   )}
                 </Td>
-                <Td>{p.login_headline ?? '—'}</Td>
-                <Td>{p.email_from_name ?? '—'}</Td>
+                <Td>{p.login_headline ?? '-'}</Td>
+                <Td>{p.email_from_name ?? '-'}</Td>
                 <Td>
                   {!p.domain_verified_at && (
                     <Button
@@ -113,7 +113,7 @@ export default function WhiteLabel() {
         <Card>
           <CardHeader
             title="Portal and correspondence"
-            description="Changing the domain clears its verification — a host proven last month says nothing about the one typed today"
+            description="Changing the domain clears its verification, a host proven last month says nothing about the one typed today"
             action={
               <div className="flex items-center gap-2">
                 <Select
@@ -194,7 +194,7 @@ export default function WhiteLabel() {
               title="The record here is configuration, not the deployment."
               body="A verified domain tells the sign-in page it may render this school's identity. Adding the host to the ingress and issuing its certificate is the operator's work, and this screen deliberately does not claim to have done it."
               technical={[
-                { label: 'Verification', value: 'platform.tenants.write — the vendor, not the school' },
+                { label: 'Verification', value: 'platform.tenants.write, the vendor, not the school' },
                 { label: 'Storage', value: data.uploads_available ? 'configured' : 'not configured; image keys are recorded but nothing can be uploaded' },
               ]}
             />

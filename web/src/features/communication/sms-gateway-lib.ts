@@ -157,7 +157,7 @@ export function healthTone(h: DeviceHealth): 'success' | 'danger' | 'warning' | 
 export function healthLabel(d: GatewayDevice): string {
   switch (d.health) {
     case 'pending':
-      return d.enrolled_by ? `Waiting for approval — enrolled by ${d.enrolled_by}` : 'Waiting for approval'
+      return d.enrolled_by ? `Waiting for approval, enrolled by ${d.enrolled_by}` : 'Waiting for approval'
     case 'live':
       return 'Sending'
     case 'stale':
@@ -171,7 +171,7 @@ export function healthLabel(d: GatewayDevice): string {
 
 /** "14:30 on 18 Aug", or nothing. Times are already India-local from the API. */
 export function when(iso?: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-IN', {

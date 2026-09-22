@@ -115,7 +115,7 @@ function RoleIndex() {
         body={
           'Everything in this workspace opens once you are made class teacher of a ' +
           'section or given a subject in one. Ask your principal or head of ' +
-          'department to assign you — that is what decides which children you see, ' +
+          'department to assign you, that is what decides which children you see, ' +
           'not your role.'
         }
       />

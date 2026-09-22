@@ -118,7 +118,7 @@ export default function SchoolStore() {
                       {s.kind === 'return' ? 'Return' : 'Sale'}
                     </Badge>
                   </Td>
-                  <Td>{s.student_name ?? s.buyer_name ?? '—'}</Td>
+                  <Td>{s.student_name ?? s.buyer_name ?? '-'}</Td>
                   <Td>
                     {s.payment_mode === 'account'
                       ? `Account${s.invoice_no ? ` · ${s.invoice_no}` : ''}`
@@ -279,7 +279,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
       {
         key: `${Date.now()}-${cur.length}`,
         variantId: chosen.id,
-        itemName: `${chosen.product_name}${chosen.label ? ` — ${chosen.label}` : ''}`,
+        itemName: `${chosen.product_name}${chosen.label ? ` · ${chosen.label}` : ''}`,
         category: 'uniform',
         quantity: Math.max(1, Number(qty) || 1),
         unitPaise: chosen.price_paise,
@@ -311,7 +311,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
   return (
     <Card>
       <CardHeader
-        title={`Store counter — ${session.terminal_name}`}
+        title={`Store counter · ${session.terminal_name}`}
         description={`Opened by ${session.opened_by}. Prices come from the price list; a reduction is a discount.`}
         action={receipt ? <Badge tone="success">Receipt {receipt}</Badge> : undefined}
       />
@@ -323,7 +323,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
               onChange={setVariantId}
               options={(variants.data?.items ?? []).map((v) => ({
                 value: v.id,
-                label: `${v.product_name}${v.label ? ` — ${v.label}` : ''} · ${v.on_hand} left · ${inr(v.price_paise)}`,
+                label: `${v.product_name}${v.label ? ` · ${v.label}` : ''} · ${v.on_hand} left · ${inr(v.price_paise)}`,
               }))}
               placeholder="Pick the size off the shelf"
             />
@@ -410,7 +410,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
               {(results.data?.items ?? []).map((st) => (
                 <Button key={st.id} size="sm" variant="outline"
                   onClick={() => { setStudent(st); setSearch('') }}>
-                  {st.full_name} · {st.class_name ?? '—'}
+                  {st.full_name} · {st.class_name ?? '-'}
                 </Button>
               ))}
             </div>
@@ -428,11 +428,11 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
         {mode === 'wallet' && student && wallet.data && (
           <p className={`mt-4 text-[13px] ${walletShort ? 'text-destructive' : 'text-muted-foreground'}`}>
             {wallet.data.status === 'none'
-              ? 'This child has no wallet yet — top it up at the fee office, or take cash.'
+              ? 'This child has no wallet yet, top it up at the fee office, or take cash.'
               : wallet.data.status !== 'active'
                 ? `This wallet is ${wallet.data.status} and cannot be spent from.`
                 : `Wallet balance ${inr(wallet.data.balance_paise)}` +
-                  (walletShort ? ` — ${inr(totals.total - wallet.data.balance_paise)} short.` : '')}
+                  (walletShort ? ` · ${inr(totals.total - wallet.data.balance_paise)} short.` : '')}
           </p>
         )}
         <div className="mt-5 flex flex-wrap items-center gap-4">
@@ -526,7 +526,7 @@ function ReturnPanel({
           <tr key={l.id}>
             <Td className="font-medium">
               {l.item_name}
-              {l.variant_label ? ` — ${l.variant_label}` : ''}
+              {l.variant_label ? ` · ${l.variant_label}` : ''}
             </Td>
             <Td className="text-right tabular-nums">{l.quantity}</Td>
             <Td className="text-right tabular-nums">{l.returned_quantity}</Td>
@@ -827,7 +827,7 @@ function SizesPanel({ disabled }: { disabled: boolean }) {
           {(variants.data?.items ?? []).map((v) => (
             <tr key={v.id}>
               <Td className="font-medium">{v.product_name}</Td>
-              <Td>{v.label || '—'}</Td>
+              <Td>{v.label || '-'}</Td>
               <Td>{v.item_code}</Td>
               <Td className="text-right tabular-nums">{inr(v.price_paise)}</Td>
               <Td className="text-right tabular-nums">

@@ -71,7 +71,7 @@ export default function BankReconciliation() {
           <Card>
             <CardHeader
               title="No bank account registered yet"
-              description="A reconciliation needs an account to reconcile. Register the school's account first — its number and IFSC are also what the payout file debits."
+              description="A reconciliation needs an account to reconcile. Register the school's account first, its number and IFSC are also what the payout file debits."
             />
             <div className="p-5">
               <RegisterAccount />
@@ -265,7 +265,7 @@ function StatementView({
         <Card>
           <CardHeader
             title="Import the statement"
-            description="Upload the CSV your bank exports. Importing the same file twice adds nothing — every line is fingerprinted."
+            description="Upload the CSV your bank exports. Importing the same file twice adds nothing, every line is fingerprinted."
             action={
               <Button
                 variant="secondary"
@@ -289,7 +289,7 @@ function StatementView({
             title="This period is finalised"
             description={
               st.finalised_by
-                ? `Closed by ${st.finalised_by}. The statement lines cannot change while it stays closed — the database refuses them, not just this screen.`
+                ? `Closed by ${st.finalised_by}. The statement lines cannot change while it stays closed, the database refuses them, not just this screen.`
                 : 'The statement lines cannot change while it stays closed.'
             }
             action={mayFinalise ? <ReopenPeriod id={id} onDone={invalidate} /> : undefined}
@@ -330,7 +330,7 @@ function StatementView({
       <Card>
         <CardHeader
           title="In the books, not on the statement"
-          description="Money the school has recorded that the bank has not — a cheque not yet presented, a transfer still in flight, or a receipt that never reached the bank at all."
+          description="Money the school has recorded that the bank has not, a cheque not yet presented, a transfer still in flight, or a receipt that never reached the bank at all."
         />
         {st.unmatched_book.length === 0 ? (
           <EmptyState
@@ -350,7 +350,7 @@ function StatementView({
                 </Td>
                 <Td className="font-medium">{e.party}</Td>
                 <Td className="font-mono text-[12px] text-muted-foreground">
-                  {e.reference ?? '—'}
+                  {e.reference ?? '-'}
                 </Td>
                 <Td className="text-right tabular-nums">{signedInr(e.amount_paise)}</Td>
               </tr>
@@ -397,9 +397,9 @@ function unmatchedRows({
   return [
     <tr key={line.id}>
       <Td className="text-muted-foreground">{line.txn_date}</Td>
-      <Td className="max-w-[24rem] truncate" >{line.narration || '—'}</Td>
+      <Td className="max-w-[24rem] truncate" >{line.narration || '-'}</Td>
       <Td className="font-mono text-[12px] text-muted-foreground">
-        {line.reference_no ?? '—'}
+        {line.reference_no ?? '-'}
       </Td>
       <Td className="text-right tabular-nums font-medium">{signedInr(line.amount_paise)}</Td>
       <Td>
@@ -467,7 +467,7 @@ function MatchPanel({
         <p className="text-[13px] text-muted-foreground">
           No book entry of exactly {signedInr(line.amount_paise)} within three days of
           this line. Either it has not been entered yet, or this is not a book entry at
-          all — explain it below.
+          all, explain it below.
         </p>
       ) : (
         <div className="space-y-2">
@@ -503,7 +503,7 @@ function MatchPanel({
         <div className="min-w-[320px] flex-1">
           <Field
             label="Or explain it"
-            hint="Bank charges, interest credited, a transfer between the school's own accounts — anything that is genuinely not a book entry."
+            hint="Bank charges, interest credited, a transfer between the school's own accounts, anything that is genuinely not a book entry."
           >
             <Input
               value={explanation}
@@ -549,7 +549,7 @@ function MatchedLines({
     <Card>
       <CardHeader
         title="Already reconciled"
-        description={`${done.length} line(s) matched or explained. Finished business — kept here so a wrong match can be undone.`}
+        description={`${done.length} line(s) matched or explained. Finished business, kept here so a wrong match can be undone.`}
         action={
           <Button variant="secondary" size="sm" onClick={() => setShow(!show)}>
             {show ? 'Hide' : 'Show'}
@@ -581,7 +581,7 @@ function matchedRow({
   return (
     <tr key={line.id}>
       <Td className="text-muted-foreground">{line.txn_date}</Td>
-      <Td className="max-w-[24rem] truncate">{line.narration || '—'}</Td>
+      <Td className="max-w-[24rem] truncate">{line.narration || '-'}</Td>
       <Td className="text-right tabular-nums">{signedInr(line.amount_paise)}</Td>
       <Td>
         {line.explained_as ? (
@@ -711,7 +711,7 @@ function ImportHistory({ statement }: { statement: Statement }) {
           <tr key={i.id}>
             <Td className="font-medium">{i.filename}</Td>
             <Td className="text-muted-foreground">{i.imported_at.slice(0, 16).replace('T', ' ')}</Td>
-            <Td className="text-muted-foreground">{i.imported_by ?? '—'}</Td>
+            <Td className="text-muted-foreground">{i.imported_by ?? '-'}</Td>
             <Td className="tabular-nums">{i.rows_read}</Td>
             <Td className="tabular-nums">{i.rows_inserted}</Td>
             <Td className="tabular-nums text-muted-foreground">{i.rows_duplicate}</Td>
@@ -719,7 +719,7 @@ function ImportHistory({ statement }: { statement: Statement }) {
               {i.rows_rejected > 0 ? (
                 <span className="text-destructive">{i.rows_rejected}</span>
               ) : (
-                '—'
+                '-'
               )}
             </Td>
           </tr>
@@ -749,7 +749,7 @@ function FinalisePanel({ statement, onDone }: { statement: Statement; onDone: ()
     <Card>
       <CardHeader
         title="Close the period"
-        description="Freezes the statement as it stands. The residue is stored and the lines stop moving — reopening later takes a reason and leaves a record."
+        description="Freezes the statement as it stands. The residue is stored and the lines stop moving, reopening later takes a reason and leaves a record."
       />
       <div className="space-y-4 p-5">
         <div className="rounded-md border px-4 py-3 text-[13px]">
@@ -864,7 +864,7 @@ function OpenPeriod({ accounts }: { accounts: { id: string; label: string; bank_
     <Card>
       <CardHeader
         title="Open a period"
-        description="The opening and closing balances are the bank's own figures, typed from the statement. They are allowed to differ from the books — that difference is what this screen exists to explain."
+        description="The opening and closing balances are the bank's own figures, typed from the statement. They are allowed to differ from the books, that difference is what this screen exists to explain."
       />
       <div className="space-y-5 p-5">
         <FormGrid>

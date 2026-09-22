@@ -26,7 +26,7 @@ import {
 
 const BUCKET_TONE: Record<string, 'neutral' | 'warning' | 'danger' | 'success'> = {
   'not due': 'neutral', '0-30': 'neutral', '31-60': 'warning',
-  '61-90': 'warning', '90+': 'danger', '—': 'success',
+  '61-90': 'warning', '90+': 'danger', '-': 'success',
 }
 
 export default function Payables() {
@@ -73,7 +73,7 @@ export default function Payables() {
 
         <Card>
           <CardHeader title="Bills"
-            description="Ageing runs from the due date, which falls back to the vendor's agreed terms when a bill carries none. Approve a bill before paying it — the database refuses payment against a draft." />
+            description="Ageing runs from the due date, which falls back to the vendor's agreed terms when a bill carries none. Approve a bill before paying it, the database refuses payment against a draft." />
           <Table head={['Bill', 'Vendor', 'Head', 'Due', { label: 'Total', align: 'right' },
             { label: 'Paid', align: 'right' }, { label: 'Outstanding', align: 'right' },
             'State', 'Age', '']}
@@ -98,13 +98,13 @@ export default function Payables() {
                     <div className="text-[12px] font-normal text-muted-foreground">{v.category}</div>
                   )}
                 </Td>
-                <Td className="text-[13px] tabular-nums text-muted-foreground">{v.gstin ?? '—'}</Td>
+                <Td className="text-[13px] tabular-nums text-muted-foreground">{v.gstin ?? '-'}</Td>
                 <Td className="text-muted-foreground">{v.payment_terms_days} days</Td>
-                <Td className="tabular-nums text-muted-foreground">{v.bills || '—'}</Td>
+                <Td className="tabular-nums text-muted-foreground">{v.bills || '-'}</Td>
                 <Td className="text-right tabular-nums">{rupees(v.billed_paise)}</Td>
                 <Td className="text-right tabular-nums">{rupees(v.outstanding_paise)}</Td>
                 <Td className={`text-right tabular-nums ${v.overdue_paise ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {v.overdue_paise ? rupees(v.overdue_paise) : '—'}
+                  {v.overdue_paise ? rupees(v.overdue_paise) : '-'}
                 </Td>
               </tr>
             ))}
@@ -148,7 +148,7 @@ function BillRow({ bill }: { bill: VendorBill }) {
         </Td>
         <Td>{bill.vendor_name}</Td>
         <Td className="text-[13px] text-muted-foreground">{bill.expense_code} {bill.expense_name}</Td>
-        <Td className="text-muted-foreground">{bill.due_on ?? '—'}</Td>
+        <Td className="text-muted-foreground">{bill.due_on ?? '-'}</Td>
         <Td className="text-right tabular-nums">{rupees(bill.total_paise)}</Td>
         <Td className="text-right tabular-nums text-muted-foreground">{rupees(bill.paid_paise)}</Td>
         <Td className="text-right font-medium tabular-nums">{rupees(bill.outstanding_paise)}</Td>
@@ -192,7 +192,7 @@ function BillRow({ bill }: { bill: VendorBill }) {
             <div className="space-y-4 py-2">
               <FormGrid>
                 <Field label="Amount (₹)" required
-                  hint={`${rupees(bill.outstanding_paise)} outstanding — the database refuses an overpayment`}>
+                  hint={`${rupees(bill.outstanding_paise)} outstanding, the database refuses an overpayment`}>
                   <Input type="number" value={amount} onChange={setAmount} />
                 </Field>
                 <Field label="Mode">

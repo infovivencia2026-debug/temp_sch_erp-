@@ -182,7 +182,7 @@ export default function Certificates() {
                     <span className="block text-[12px] text-muted-foreground">
                       {[c.class_name && c.section_name
                         ? `${c.class_name}-${c.section_name}` : c.class_name,
-                        c.admission_no].filter(Boolean).join(' · ') || '—'}
+                        c.admission_no].filter(Boolean).join(' · ') || '-'}
                     </span>
                   </Td>
                   {/* WHO TO HAND IT TO, and the number to ring. */}
@@ -294,7 +294,7 @@ export default function Certificates() {
               <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3">
                 <p className="text-[13px]">{duesBlock.message}</p>
                 <Input value={overrideReason} onChange={setOverrideReason}
-                  placeholder="Why the certificate goes out anyway — recorded with your name" className="w-full" />
+                  placeholder="Why the certificate goes out anyway, recorded with your name" className="w-full" />
                 <Button size="sm" variant="secondary"
                   disabled={!overrideReason.trim() || issue.isPending}
                   onClick={() => issue.mutate(true)}>
@@ -339,7 +339,7 @@ export default function Certificates() {
                 value={decision}
                 onChange={setDecision}
                 options={[
-                  { value: 'issued', label: 'Ready — they can collect it' },
+                  { value: 'issued', label: 'Ready, they can collect it' },
                   { value: 'approved', label: 'Approved, not ready yet' },
                   { value: 'cancelled', label: 'Decline' },
                 ]}
@@ -348,7 +348,7 @@ export default function Certificates() {
                 value={note}
                 onChange={setNote}
                 placeholder={decision === 'cancelled'
-                  ? 'Why it was declined — the family will read this'
+                  ? 'Why it was declined, the family will read this'
                   : 'e.g. Given to your son on Tuesday at the office'}
               />
               {decide.isError && (
@@ -379,7 +379,7 @@ export default function Certificates() {
                   <Td className="font-mono text-[12px]">{c.serial_no}</Td>
                   <Td className="font-medium">{c.type}</Td>
                   <Td>{c.student_name}</Td>
-                  <Td>{String(c.snapshot?.class ?? '—')}</Td>
+                  <Td>{String(c.snapshot?.class ?? '-')}</Td>
                   <Td>{formatPaise(Number(c.snapshot?.dues_paise ?? 0))}</Td>
                   <Td className="text-muted-foreground">{formatDate(c.issued_on)}</Td>
                   <Td><Badge tone={statusTone(c.status)}>{c.status}</Badge></Td>
@@ -417,7 +417,7 @@ export default function Certificates() {
             daily. */}
         <details className="mt-5 rounded-[10px] border bg-card">
           <summary className="cursor-pointer px-5 py-3 text-[13.5px] text-muted-foreground">
-            Load a TC register — children who have already left
+            Load a TC register, children who have already left
           </summary>
           <div className="border-t p-5">
             <BulkImport
@@ -426,7 +426,7 @@ export default function Certificates() {
               hint={
                 'The admission number, the date they left, whether they were ' +
                 'transferred or simply did not return, and why. Only the ' +
-                'admission number is required — a school that has the dates but ' +
+                'admission number is required, a school that has the dates but ' +
                 'not the reasons can upload what it has and fill the rest in ' +
                 'later. Uploading again updates a child rather than exiting them twice.'
               }

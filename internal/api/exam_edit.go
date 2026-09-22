@@ -132,7 +132,7 @@ func (s *Server) deleteExam(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r,
 			plural(marks, "mark", "marks")+" and "+
 				plural(cards, "report card", "report cards")+
-				" belong to this exam. Deleting it would take them with it — "+
+				" belong to this exam. Deleting it would take them with it · "+
 				"if this is the wrong exam, check which one your teachers have "+
 				"been entering into")
 		return

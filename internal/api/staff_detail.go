@@ -321,7 +321,7 @@ func (s *Server) assignStaffSubject(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, errNoStaffLogin):
 		httpx.BadRequest(w, r,
-			"give this member of staff a login first — the timetable and the "+
+			"give this member of staff a login first, the timetable and the "+
 				"register identify a teacher by their account, not by their "+
 				"employee record")
 		return

@@ -66,11 +66,11 @@ object SmsFailure {
     fun explain(reason: String?): String = when (reason) {
         null, OK -> "Sent."
         "generic_failure" -> "The network refused the message. Usually no balance on the SIM, or the number is not reachable."
-        "radio_off" -> "The phone's radio is off — flight mode, or the SIM is disabled."
+        "radio_off" -> "The phone's radio is off, flight mode, or the SIM is disabled."
         "no_service" -> "No mobile network where this phone is sitting."
         "radio_not_available" -> "The radio is not responding. Restart the phone."
         "limit_exceeded" -> "The carrier is throttling this SIM. Too many messages too quickly."
-        "null_pdu" -> "The message could not be encoded. Report this — it is a bug."
+        "null_pdu" -> "The message could not be encoded. Report this, it is a bug."
         "fdn_check_failure" -> "Fixed Dialling Numbers is switched on for this SIM and the recipient is not on the list."
         "short_code_not_allowed", "short_code_never_allowed" -> "The recipient looks like a short code, which this SIM may not message."
         "no_default_sms_app" -> "Android has no default SMS app set. Set one in Settings."

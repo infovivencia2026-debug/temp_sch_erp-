@@ -121,7 +121,7 @@ export default function RoleSelect({
            as though the school already ran a library. */
         ...items.map((r) => ({
           value: r.key,
-          label: r.source === 'installable' ? `${r.name} — not set up yet` : r.name,
+          label: r.source === 'installable' ? `${r.name}, not set up yet` : r.name,
         })),
         ...(mayCreate && items.length ? [{ value: '__add_role__', label: '+ Add your own role…' }] : []),
       ]}

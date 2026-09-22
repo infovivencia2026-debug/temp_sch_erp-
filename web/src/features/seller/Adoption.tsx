@@ -38,7 +38,7 @@ export default function Adoption() {
       <PageHead
         eyebrow="Usage & Health"
         title="Adoption metrics"
-        description="Sign-ins, active users and recorded work per school per week — the leading indicator of renewal."
+        description="Sign-ins, active users and recorded work per school per week, the leading indicator of renewal."
       />
       <PageBody>
         <CellGrid cols={4}>
@@ -59,7 +59,7 @@ export default function Adoption() {
         <Card>
           <CardHeader
             title="By school"
-            description="Quietest first — the order an account manager works the list in"
+            description="Quietest first, the order an account manager works the list in"
           />
           <Table
             head={['School', 'Plan', 'Students', 'Accounts', 'Active (28d)', 'Sign-ins', 'Changes', 'Last sign-in']}

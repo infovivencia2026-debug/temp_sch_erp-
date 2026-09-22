@@ -2610,7 +2610,7 @@ const loanApplicationSelectSQL = `
 	       concat_ws(' ', st.first_name, st.last_name), st.admission_no, cl.name,
 	       ap.lender_id::text,
 	       CASE WHEN le.id IS NULL THEN NULL
-	            ELSE le.name || COALESCE(' — ' || le.branch, '') END,
+	            ELSE le.name || COALESCE(' · ' || le.branch, '') END,
 	       ay.name, ap.reference_no, to_char(ap.opened_on,'YYYY-MM-DD'),
 	       ap.amount_sought_paise, ap.status, to_char(ap.status_changed_on,'YYYY-MM-DD'),
 	       ap.sanctioned_amount_paise, ap.disbursed_amount_paise,

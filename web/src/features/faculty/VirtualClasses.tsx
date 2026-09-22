@@ -64,8 +64,8 @@ export default function VirtualClasses() {
               title="No meeting provider is connected"
               body={
                 configured.length > 0
-                  ? `${configured.map((p) => p.display_name).join(', ')} is recorded for this school, but no meeting API is wired to it yet, so the school cannot create meetings automatically. Create the meeting in Zoom or Meet and paste its join link onto the session — everything else on this screen works.`
-                  : 'The school has not connected Zoom, Google Meet or Teams, and no meeting API is wired in this build. Create the meeting yourself and paste its join link onto the session — scheduling, the register and the launch record all work.'
+                  ? `${configured.map((p) => p.display_name).join(', ')} is recorded for this school, but no meeting API is wired to it yet, so the school cannot create meetings automatically. Create the meeting in Zoom or Meet and paste its join link onto the session, everything else on this screen works.`
+                  : 'The school has not connected Zoom, Google Meet or Teams, and no meeting API is wired in this build. Create the meeting yourself and paste its join link onto the session, scheduling, the register and the launch record all work.'
               }
               technical={[
                 { label: 'Status', value: 'provider integration blocked' },
@@ -156,7 +156,7 @@ function Row({ session }: { session: VirtualClass }) {
         )}
       </Td>
       <Td>{session.class_name} {session.section}</Td>
-      <Td>{session.subject ?? '—'}</Td>
+      <Td>{session.subject ?? '-'}</Td>
       <Td>{formatDate(session.scheduled_at)}</Td>
       <Td>{session.duration_minutes} min</Td>
       <Td>
@@ -246,7 +246,7 @@ function Schedule({ onDone }: { onDone: () => void }) {
               }))}
             />
           </Field>
-          <Field label="Subject" hint="Optional — a form period has none">
+          <Field label="Subject" hint="Optional, a form period has none">
             <Select
               value={classSubjectID}
               onChange={setClassSubjectID}
@@ -258,7 +258,7 @@ function Schedule({ onDone }: { onDone: () => void }) {
             />
           </Field>
           <Field label="Topic" required>
-            <Input value={topic} onChange={setTopic} placeholder="Revision — trigonometry" />
+            <Input value={topic} onChange={setTopic} placeholder="Revision, trigonometry" />
           </Field>
           <Field label="When" required>
             <Input

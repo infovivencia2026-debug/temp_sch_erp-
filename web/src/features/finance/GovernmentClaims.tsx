@@ -88,13 +88,13 @@ export default function GovernmentClaims() {
         <CellGrid cols={4}>
           <Stat
             label="Outstanding with the state"
-            value={ageing.isLoading ? '—' : inr(age?.total_outstanding_paise ?? 0)}
+            value={ageing.isLoading ? '-' : inr(age?.total_outstanding_paise ?? 0)}
             icon={Hourglass}
             hint="Claimed and not yet received"
           />
           <Stat
             label="Owed over a year"
-            value={ageing.isLoading ? '—' : inr(overAYear?.outstanding_paise ?? 0)}
+            value={ageing.isLoading ? '-' : inr(overAYear?.outstanding_paise ?? 0)}
             hint={
               ageing.isLoading
                 ? 'Reading the ageing…'
@@ -161,7 +161,7 @@ export default function GovernmentClaims() {
                 <Td className="text-right tabular-nums">{inr(c.claimed_paise)}</Td>
                 <Td className="text-right tabular-nums">
                   {c.status === 'draft' || c.status === 'submitted'
-                    ? '—'
+                    ? '-'
                     : inr(c.sanctioned_paise)}
                 </Td>
                 <Td className="text-right tabular-nums">{inr(c.received_paise)}</Td>
@@ -175,7 +175,7 @@ export default function GovernmentClaims() {
                   {inr(c.outstanding_paise)}
                 </Td>
                 <Td className="text-[13px] text-muted-foreground">
-                  {c.submitted_on ? `${c.age_days} days` : '—'}
+                  {c.submitted_on ? `${c.age_days} days` : '-'}
                 </Td>
                 <Td>
                   <Badge tone={CLAIM_TONE[c.status]}>{CLAIM_LABEL[c.status]}</Badge>
@@ -337,7 +337,7 @@ function ClaimDetailPanel({
   return (
     <Card>
       <CardHeader
-        title={`${d.claim.claim_no} — ${d.claim.scheme_name}`}
+        title={`${d.claim.claim_no} · ${d.claim.scheme_name}`}
         description={`${d.claim.period_start} to ${d.claim.period_end} · ${d.claim.child_count} children · ${CLAIM_LABEL[d.claim.status]}`}
         action={
           <span className="flex flex-wrap gap-2">
@@ -377,7 +377,7 @@ function ClaimDetailPanel({
                   {build.data.skipped.slice(0, 12).map((s) => (
                     <li key={s.admission_no}>
                       {s.student_name} ({s.admission_no}
-                      {s.class_name ? `, ${s.class_name}` : ''}) — {s.why}
+                      {s.class_name ? `, ${s.class_name}` : ''}) · {s.why}
                     </li>
                   ))}
                 </ul>
@@ -443,13 +443,13 @@ function ClaimDetailPanel({
                 <Td className="text-right tabular-nums">{inr(rc.amount_paise)}</Td>
                 <Td className="uppercase text-muted-foreground">{rc.mode}</Td>
                 <Td className="font-mono text-[12px] text-muted-foreground">
-                  {rc.reference_no ?? '—'}
+                  {rc.reference_no ?? '-'}
                   {rc.treasury_voucher && (
                     <span className="block">voucher {rc.treasury_voucher}</span>
                   )}
                 </Td>
-                <Td className="text-muted-foreground">{rc.bank_account ?? '—'}</Td>
-                <Td className="text-muted-foreground">{rc.recorded_by ?? '—'}</Td>
+                <Td className="text-muted-foreground">{rc.bank_account ?? '-'}</Td>
+                <Td className="text-muted-foreground">{rc.recorded_by ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -484,7 +484,7 @@ function ClaimLineRow({ line }: { line: ClaimLine }) {
           {!line.has_concession && ' · no RTE concession on the fee ledger'}
         </span>
       </Td>
-      <Td className="text-muted-foreground">{line.class_name ?? '—'}</Td>
+      <Td className="text-muted-foreground">{line.class_name ?? '-'}</Td>
       <Td>{line.months}</Td>
       <Td className="text-right tabular-nums text-muted-foreground">{inr(line.rate_paise)}</Td>
       <Td className="text-right tabular-nums">{inr(line.claimed_paise)}</Td>
@@ -493,9 +493,9 @@ function ClaimLineRow({ line }: { line: ClaimLine }) {
           short ? 'text-right font-medium tabular-nums text-warning' : 'text-right tabular-nums'
         }
       >
-        {line.sanctioned_paise == null ? '—' : inr(line.sanctioned_paise)}
+        {line.sanctioned_paise == null ? '-' : inr(line.sanctioned_paise)}
       </Td>
-      <Td className="text-[13px] text-muted-foreground">{line.disallowed_reason ?? '—'}</Td>
+      <Td className="text-[13px] text-muted-foreground">{line.disallowed_reason ?? '-'}</Td>
     </tr>
   )
 }
@@ -519,7 +519,7 @@ function SubmitClaim({ claimId, onDone }: { claimId: string; onDone: () => void 
     <div className="space-y-3">
       <h4 className="text-[14px] font-semibold">Send it to the department</h4>
       <p className="text-[13px] text-muted-foreground">
-        The date recorded here is what the ageing counts from. Nothing is transmitted — download
+        The date recorded here is what the ageing counts from. Nothing is transmitted, download
         the claim file above and lodge it the way the department accepts.
       </p>
       <FormGrid>
@@ -580,7 +580,7 @@ function RecordSanction({
     <div className="space-y-3">
       <h4 className="text-[14px] font-semibold">Record the sanction order</h4>
       <p className="text-[13px] text-muted-foreground">
-        Children the order does not mention are sanctioned in full — that is what silence on an
+        Children the order does not mention are sanctioned in full, that is what silence on an
         order means. Name only the ones it reduced or struck off. The status that results is
         worked out from the arithmetic, not chosen here.
       </p>
@@ -746,7 +746,7 @@ function NewClaim({ onCreated }: { onCreated: (id: string) => void }) {
     <Card>
       <CardHeader
         title="Open a claim"
-        description="One per scheme per period. The period is what the department reimburses against — usually a quarter."
+        description="One per scheme per period. The period is what the department reimburses against, usually a quarter."
       />
       <div className="space-y-5 px-5 py-5">
         {schemeOptions.length === 0 && (
@@ -860,7 +860,7 @@ function RatesPanel() {
             </Td>
             <Td className="text-right tabular-nums">{inr(rt.annual_rate_paise)}</Td>
             <Td className="text-[13px] text-muted-foreground">
-              {rt.notification_ref ?? '—'}
+              {rt.notification_ref ?? '-'}
               {rt.notified_on && <span className="block text-[12px]">{rt.notified_on}</span>}
             </Td>
           </tr>
@@ -963,7 +963,7 @@ export function SchemeEditor({ paidTo }: { paidTo: 'school' | 'student' }) {
     <div className="space-y-5 border-t px-5 py-5">
       <p className="text-[13px] text-muted-foreground">
         Whether the money reaches the school or the child is worked out from the kind, not
-        chosen here — a mis-ticked box would put a portal scholarship on the claims screen.
+        chosen here, a mis-ticked box would put a portal scholarship on the claims screen.
       </p>
       <FormGrid>
         <Field label="Short code" required hint="Used to build claim numbers.">

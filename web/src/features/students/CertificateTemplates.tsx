@@ -161,17 +161,17 @@ export default function CertificateTemplates() {
                   </Td>
                   <Td className="text-muted-foreground">{t.subject_kind}</Td>
                   <Td className="text-muted-foreground">
-                    {t.signatory ? `${t.signatory}${t.signatory_role ? `, ${t.signatory_role}` : ''}` : '—'}
+                    {t.signatory ? `${t.signatory}${t.signatory_role ? `, ${t.signatory_role}` : ''}` : '-'}
                   </Td>
                   <Td className="tabular-nums">
-                    {t.issued || '—'}
+                    {t.issued || '-'}
                     {t.pending > 0 && (
                       <span className="block text-[12px] text-warning">
                         {t.pending} waiting
                       </span>
                     )}
                   </Td>
-                  <Td>{t.last_issued_on ? formatDate(t.last_issued_on) : '—'}</Td>
+                  <Td>{t.last_issued_on ? formatDate(t.last_issued_on) : '-'}</Td>
                   <Td>
                     {!t.is_active ? (
                       <Badge tone="neutral">retired</Badge>
@@ -217,7 +217,7 @@ export default function CertificateTemplates() {
           />
           <div className="px-5 pb-5">
             <FormGrid>
-              <Field label="Code" required hint="Short and permanent — TC, BONAFIDE, CONDUCT.">
+              <Field label="Code" required hint="Short and permanent · TC, BONAFIDE, CONDUCT.">
                 <Input
                   value={editing.code}
                   onChange={(v) => setEditing((e) => ({ ...e, code: v }))}
@@ -303,7 +303,7 @@ export default function CertificateTemplates() {
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
                 {placeholders.map((p) => (
                   <span key={p.token}>
-                    <code className="text-secondary-foreground">{p.token}</code> — {p.means}
+                    <code className="text-secondary-foreground">{p.token}</code> · {p.means}
                   </span>
                 ))}
               </p>
@@ -359,7 +359,7 @@ function Preview({ templateID }: { templateID: string }) {
   return (
     <Card>
       <CardHeader
-        title={`Preview — ${p.template}`}
+        title={`Preview · ${p.template}`}
         description="Filled in with the first child on the roll. Shown as text: a template is arbitrary markup typed by a clerk."
       />
       <div className="px-5 pb-5">
@@ -375,7 +375,7 @@ function Preview({ templateID }: { templateID: string }) {
         )}
         {p.unfilled.length > 0 && (
           <p className="mt-3 text-[13px] text-warning">
-            Nothing on record for {p.unfilled.join(', ')} — these print blank.
+            Nothing on record for {p.unfilled.join(', ')}, these print blank.
           </p>
         )}
       </div>

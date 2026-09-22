@@ -170,7 +170,7 @@ export default function ReportBuilder() {
       <PageHead
         eyebrow="Analysis"
         title="Custom report builder"
-        description="Choose a subject, pick the columns, filter and group it. Saved reports run against whatever you are allowed to see — share one and the reader gets their own rows, not yours."
+        description="Choose a subject, pick the columns, filter and group it. Saved reports run against whatever you are allowed to see, share one and the reader gets their own rows, not yours."
         width="wide"
       />
       <PageBody width="wide">
@@ -284,7 +284,7 @@ function SavedReports({
               </Td>
               <Td>
                 {d.shared_with.length === 0 ? (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">-</span>
                 ) : (
                   <span className="flex flex-wrap gap-1">
                     {d.shared_with.map((r) => (
@@ -380,7 +380,7 @@ function ShareCard({
     <Card>
       <CardHeader
         title={`Share “${report.name}”`}
-        description="A role you share with can run this report. They see their own rows — sharing hands over the question, never your answer to it."
+        description="A role you share with can run this report. They see their own rows, sharing hands over the question, never your answer to it."
         action={
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
@@ -530,7 +530,7 @@ function RunPanel({ report, onClose }: { report: Definition; onClose: () => void
             {(runs.data?.items ?? []).map((r) => (
               <tr key={r.id}>
                 <Td>{r.ran_at.replace('T', ' ')}</Td>
-                <Td>{r.ran_by ?? '—'}</Td>
+                <Td>{r.ran_by ?? '-'}</Td>
                 <Td className="text-right tabular-nums">{r.row_count.toLocaleString('en-IN')}</Td>
                 <Td>{r.scope === 'institution' ? 'Whole school' : 'Department'}</Td>
                 <Td>
@@ -557,7 +557,7 @@ function ReportTable({ result }: { result: RunResult }) {
         <p className="border-b bg-warning/5 px-5 py-2.5 text-[13px] text-warning">
           This report matches {result.total.toLocaleString('en-IN')} rows and is capped at{' '}
           {result.row_limit.toLocaleString('en-IN')}. Narrow it with a filter, or raise the cap when
-          you edit it — a shortened list read as a complete one is worse than no list.
+          you edit it, a shortened list read as a complete one is worse than no list.
         </p>
       )}
       <Table
@@ -593,7 +593,7 @@ function ReportTable({ result }: { result: RunResult }) {
    on — an em dash, not a zero — because "0" in a fee column and "never
    recorded" are very different facts. */
 function renderCell(v: string | null | undefined, kind: string) {
-  if (v === null || v === undefined || v === '') return <span className="text-muted-foreground">—</span>
+  if (v === null || v === undefined || v === '') return <span className="text-muted-foreground">-</span>
   if (kind === 'money') {
     const n = Number(v)
     return Number.isFinite(n) ? formatPaise(n) : v
@@ -741,7 +741,7 @@ function ReportEditor({
           {subject.measures.length > 0 && (
             <div>
               <p className="mb-2 text-[13px] font-medium text-secondary-foreground">
-                Totals{!grouped && ' — available once the report is grouped'}
+                Totals{!grouped && ', available once the report is grouped'}
               </p>
               <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {subject.measures.map((m) => (
@@ -797,7 +797,7 @@ function ReportEditor({
             </Field>
             <Field
               label="Row cap"
-              hint={`Blank uses the default. At most ${schema.max_row_limit.toLocaleString('en-IN')} — a report over a whole school is slow past that.`}
+              hint={`Blank uses the default. At most ${schema.max_row_limit.toLocaleString('en-IN')}, a report over a whole school is slow past that.`}
             >
               <Input value={rowLimit} onChange={setRowLimit} type="number" placeholder="500" />
             </Field>
@@ -820,7 +820,7 @@ function ReportEditor({
           {editing ? 'Save changes' : 'Save report'}
         </Button>
         <span className="text-[13px] text-muted-foreground">
-          Trying it runs against your own reach — {schema.scope === 'institution' ? 'the whole school' : 'your department'}.
+          Trying it runs against your own reach · {schema.scope === 'institution' ? 'the whole school' : 'your department'}.
         </span>
       </div>
 

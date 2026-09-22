@@ -995,7 +995,7 @@ func (s *Server) issueStaffPIN(w http.ResponseWriter, r *http.Request) {
 			       pin_failed = 0, pin_locked_until = NULL, updated_at = now(),
 			       /* A PIN is a login. An account the office created and never
 			          gave a password to sits at 'invited', and sign-in only
-			          admits 'active' — so the PIN the office had just issued was
+			          admits 'active', so the PIN the office had just issued was
 			          refused as "do not match" until somebody also reset a
 			          password nobody would use. Issuing the PIN opens the door. */
 			       status = CASE WHEN status = 'invited' THEN 'active' ELSE status END

@@ -123,17 +123,17 @@ ONLY for a real change request, never for a "how do I" question, and never
 invent a kind or a parameter that is not listed here.
 
 Available actions:
-- attendance.mark — mark one student present or absent for a day.
+- attendance.mark, mark one student present or absent for a day.
   params: {"student": "<name or admission number>", "date": "YYYY-MM-DD (optional, defaults to today)", "status": "present|absent|late|half_day|leave|holiday"}
-- marks.enter — set or update one student's mark for a subject in an exam.
+- marks.enter, set or update one student's mark for a subject in an exam.
   params: {"student": "<name or admission number>", "exam": "<exam name, e.g. Term 1>", "subject": "<subject name, e.g. Maths>", "marks": <number>, "is_absent": <true if the child sat no paper, optional>}
-- student.create — admit a new student and place them in a section.
+- student.create, admit a new student and place them in a section.
   params: {"name": "<full name>", "class": "<class, e.g. 6>", "section": "<section, e.g. A>", "guardian_name": "<parent name, optional>", "guardian_phone": "<parent phone, optional>"}
-- guardian.set_phone — add or correct a guardian's phone for a student.
-  params: {"student": "<name or admission number>", "phone": "<new phone>", "guardian_name": "<which parent, optional — defaults to the primary guardian>", "relation": "father|mother|guardian|other (optional)"}
-- fee.payment — record an ordinary counter fee payment for a student.
+- guardian.set_phone, add or correct a guardian's phone for a student.
+  params: {"student": "<name or admission number>", "phone": "<new phone>", "guardian_name": "<which parent, optional, defaults to the primary guardian>", "relation": "father|mother|guardian|other (optional)"}
+- fee.payment, record an ordinary counter fee payment for a student.
   params: {"student": "<name or admission number>", "amount": <rupees>, "mode": "cash|upi|card|neft|cheque|dd|netbanking (defaults to cash)", "head": "<what the payment is for, e.g. tuition, optional>", "reference_no": "<instrument/UPI reference, required for cheque or DD>"}
-- enquiry.create — log an admissions enquiry for a prospective student.
+- enquiry.create, log an admissions enquiry for a prospective student.
   params: {"student_name": "<child name>", "class_sought": "<class, e.g. 3>", "parent_name": "<parent name, optional>", "phone": "<parent phone>", "source": "walk_in|phone|website|referral|campaign|other (optional)"}
 
 fee.payment records an ORDINARY counter payment only. You can never touch bank
@@ -249,7 +249,7 @@ func resolveOneStudent(ctx context.Context, tx pgx.Tx, q string) (id uuid.UUID, 
 		return id, "", "", nil, fmt.Errorf("no active student matches %q", q)
 	}
 	if len(found) > 1 && !strings.EqualFold(found[0].adm, q) && !strings.EqualFold(found[0].name, q) {
-		return id, "", "", nil, fmt.Errorf("more than one student matches %q — use their admission number", q)
+		return id, "", "", nil, fmt.Errorf("more than one student matches %q, use their admission number", q)
 	}
 	f := found[0]
 	return f.id, f.name, f.adm, f.section, nil
@@ -478,7 +478,7 @@ func resolveExamSubjectForStudent(ctx context.Context, tx pgx.Tx, studentID uuid
 	}
 	if len(found) > 1 {
 		return uuid.Nil, 0, "", "", nil, false,
-			fmt.Errorf("more than one paper matches %q / %q — name the exam and subject exactly", exam, subject)
+			fmt.Errorf("more than one paper matches %q / %q, name the exam and subject exactly", exam, subject)
 	}
 	h := found[0]
 	return h.id, h.max, h.subject, h.exam, h.mark, h.absent, nil
@@ -636,7 +636,7 @@ func resolveSectionLabel(ctx context.Context, tx pgx.Tx, label string) (string, 
 		 ORDER BY c.name, s.name
 		 LIMIT 1`, label).Scan(&sid, &display)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", fmt.Errorf("no class and section called %q — create it first, and write it as the school does (e.g. 6 and A)", label)
+		return "", "", fmt.Errorf("no class and section called %q, create it first, and write it as the school does (e.g. 6 and A)", label)
 	}
 	if err != nil {
 		return "", "", err
@@ -795,7 +795,7 @@ func previewGuardianSetPhone(s *Server, r *http.Request, id *httpx.Identity, p m
 		if errors.Is(e, pgx.ErrNoRows) {
 			// Adding a new guardian rather than correcting one.
 			if who == "" {
-				return fmt.Errorf("%s has no guardian on record — give the guardian's name to add one", name)
+				return fmt.Errorf("%s has no guardian on record, give the guardian's name to add one", name)
 			}
 			if relation == "" {
 				relation = "guardian"
@@ -975,7 +975,7 @@ func executeFeePayment(s *Server, r *http.Request, id *httpx.Identity, p map[str
 	}
 	rupees := "₹" + strconv.FormatFloat(float64(receipt.AmountPaise)/100, 'f', 2, 64)
 	if !receipt.Cleared {
-		return fmt.Sprintf("Recorded %s from %s by %s, receipt %s — counts once it clears.",
+		return fmt.Sprintf("Recorded %s from %s by %s, receipt %s, counts once it clears.",
 			rupees, pstr(p, "name"), mode, receipt.ReceiptNo), nil
 	}
 	return fmt.Sprintf("Recorded %s from %s, receipt %s.", rupees, pstr(p, "name"), receipt.ReceiptNo), nil

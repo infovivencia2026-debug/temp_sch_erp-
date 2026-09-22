@@ -280,7 +280,7 @@ func (s *Server) listTeachers(w http.ResponseWriter, r *http.Request) {
 		       /* The section they are already class teacher of, if any.
 
 		          One person cannot be class teacher of two sections at once,
-		          and the dropdown offered them for every one — so the mistake
+		          and the dropdown offered them for every one, so the mistake
 		          was one click away and nothing on screen warned of it. */
 		       COALESCE((SELECT c.name || '-' || sec.name
 		                   FROM sections sec

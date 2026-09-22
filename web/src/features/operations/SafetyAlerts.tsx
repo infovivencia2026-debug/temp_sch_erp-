@@ -68,7 +68,7 @@ function whenText(iso: string): string {
 
 /** Peak against limit, drawn. Bar caps at 100% width but keeps its own text. */
 function OverBar({ peak, limit }: { peak?: number; limit?: number }) {
-  if (peak == null) return <span className="text-muted-foreground">—</span>
+  if (peak == null) return <span className="text-muted-foreground">-</span>
   if (!limit) {
     return <span className="font-medium tabular-nums">{Math.round(peak)} km/h</span>
   }
@@ -120,7 +120,7 @@ function ReviewBox({
   // button, is the difference between a rule the screen teaches and one it
   // springs on you.
   const why = trimmed.length === 0
-    ? 'Say what was done about it — the alert cannot be closed without a note.'
+    ? 'Say what was done about it, the alert cannot be closed without a note.'
     : trimmed.length < 5
       ? 'A few words at least: whoever reads this next was not there.'
       : ''
@@ -219,7 +219,7 @@ export default function SafetyAlerts() {
           <Stat label="Over the limit" value={speeding} icon={Gauge} hint="Sustained speeding, open" />
           <Stat
             label="Worst peak"
-            value={worst?.peak_kmph ? `${Math.round(worst.peak_kmph)} km/h` : '—'}
+            value={worst?.peak_kmph ? `${Math.round(worst.peak_kmph)} km/h` : '-'}
             icon={TriangleAlert}
             hint={worst ? `${worst.registration_no} in a ${worst.limit_kmph}` : 'Nothing open'}
           />
@@ -265,7 +265,7 @@ export default function SafetyAlerts() {
                     <div className="font-medium">{e.registration_no}</div>
                     <div className="text-[12.5px] text-muted-foreground">{e.route ?? 'No route on the trip'}</div>
                   </Td>
-                  <Td>{e.driver ?? '—'}</Td>
+                  <Td>{e.driver ?? '-'}</Td>
                   <Td>
                     <Badge tone={KIND_TONE[e.kind]}>{KIND_LABEL[e.kind] ?? e.kind}</Badge>
                     <div className="text-[12.5px] text-muted-foreground">
@@ -312,7 +312,7 @@ export default function SafetyAlerts() {
               ))}
             </Table>
             <p className="px-5 pb-4 text-[12.5px] text-muted-foreground">
-              Coordinates are given as numbers because this system holds no map data — there is no
+              Coordinates are given as numbers because this system holds no map data, there is no
               basemap and no tile server behind it, and a pin on a blank square would suggest a road
               nobody has drawn. Speed comes from the driver's phone GPS, which is accurate enough to
               start a conversation and not evidence on its own.

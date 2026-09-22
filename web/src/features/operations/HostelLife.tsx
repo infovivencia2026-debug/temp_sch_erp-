@@ -255,7 +255,7 @@ function PassBoard({
               </div>
             </Td>
             <Td>
-              {p.destination ?? '—'}
+              {p.destination ?? '-'}
               <div className="text-[12px] text-muted-foreground">{p.reason}</div>
             </Td>
             <Td className="text-muted-foreground">{formatDate(p.expected_out)}</Td>
@@ -367,7 +367,7 @@ function Complaints() {
     <Card>
       <CardHeader
         title="Complaints"
-        description="Raised by boarders, fixed by the block. Oldest first — a geyser nobody has looked at for a week is the one worth seeing."
+        description="Raised by boarders, fixed by the block. Oldest first, a geyser nobody has looked at for a week is the one worth seeing."
         action={
           <Select
             value={status}
@@ -408,7 +408,7 @@ function Complaints() {
                 )}
               </Td>
               <Td className="text-muted-foreground">
-                {c.student_name ?? '—'}
+                {c.student_name ?? '-'}
                 {c.room && <div className="text-[12px]">Room {c.room}</div>}
               </Td>
               <Td className="text-muted-foreground">{c.category}</Td>
@@ -499,7 +499,7 @@ function Mess() {
     <Card>
       <CardHeader
         title="Mess menu"
-        description="One day at a time, saved together. Clearing a meal removes it — a fast day is a real thing to say."
+        description="One day at a time, saved together. Clearing a meal removes it, a fast day is a real thing to say."
         action={
           <Input
             type="date"

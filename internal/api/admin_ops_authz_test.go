@@ -116,7 +116,7 @@ func TestInventoryReadDoesNotGrantPurchasingWrites(t *testing.T) {
 		{"POST", "/admin-ops/purchasing/orders/" + id + "/receipts"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — reading stock does not grant this",
+			t.Errorf("%s %s: got %d, want 403, reading stock does not grant this",
 				tc.method, tc.path, got)
 		}
 	}
@@ -136,7 +136,7 @@ func TestStoresWriteCannotEditTheApprovalLadder(t *testing.T) {
 		t.Error("POST requisitions: 403 for a holder of operations.inventory.write")
 	}
 	if got := statusOf(t, h, "PUT", "/admin-ops/purchasing/thresholds"); got != http.StatusForbidden {
-		t.Errorf("PUT thresholds: got %d, want 403 — the ladder is institution.settings.write", got)
+		t.Errorf("PUT thresholds: got %d, want 403, the ladder is institution.settings.write", got)
 	}
 }
 
@@ -156,7 +156,7 @@ func TestReceivingDoesNotGrantInvoiceApproval(t *testing.T) {
 		t.Error("POST receipts: 403 for a holder of operations.inventory.write")
 	}
 	if got := statusOf(t, h, "POST", "/admin-ops/purchasing/orders/"+id+"/match"); got != http.StatusForbidden {
-		t.Errorf("POST match: got %d, want 403 — passing a bill is finance.invoices.write", got)
+		t.Errorf("POST match: got %d, want 403, passing a bill is finance.invoices.write", got)
 	}
 }
 
@@ -190,7 +190,7 @@ func TestReportsReadDoesNotGrantFilingTheMDMReturn(t *testing.T) {
 		{"POST", "/admin-ops/mdm/foodgrain"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — filing a return is institution.write",
+			t.Errorf("%s %s: got %d, want 403, filing a return is institution.write",
 				tc.method, tc.path, got)
 		}
 	}
@@ -226,7 +226,7 @@ func TestEmployeesReadDoesNotGrantRunningACycle(t *testing.T) {
 		{"POST", "/admin-ops/evaluation/reviewees/" + id + "/release"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — running a cycle is hr.employees.write",
+			t.Errorf("%s %s: got %d, want 403, running a cycle is hr.employees.write",
 				tc.method, tc.path, got)
 		}
 	}
@@ -257,7 +257,7 @@ func TestFeesReadDoesNotGrantFilingOrDeciding(t *testing.T) {
 		{"POST", "/admin-ops/fee-filings/" + id + "/documents"},
 	} {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — filing is finance.fees.write",
+			t.Errorf("%s %s: got %d, want 403, filing is finance.fees.write",
 				tc.method, tc.path, got)
 		}
 	}
@@ -311,7 +311,7 @@ func TestUngatedRoutesAreDeliberate(t *testing.T) {
 			seen[key] = true
 			if !expectedUngated[key] {
 				t.Errorf("%s reached its handler with no permissions and is not a "+
-					"documented exception — add a RequirePermission, or document why not", key)
+					"documented exception, add a RequirePermission, or document why not", key)
 			}
 		}
 		return nil
@@ -321,7 +321,7 @@ func TestUngatedRoutesAreDeliberate(t *testing.T) {
 	}
 	for key := range expectedUngated {
 		if !seen[key] {
-			t.Errorf("%s is now gated by middleware — good, but update this test's "+
+			t.Errorf("%s is now gated by middleware, good, but update this test's "+
 				"expectation so the list stays honest", key)
 		}
 	}

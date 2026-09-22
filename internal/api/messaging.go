@@ -1361,7 +1361,7 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 
 		   There is now a screen for exactly this, so the error points at it. */
 		return SendResult{}, fmt.Errorf(
-			"there is no %s wording for %q yet — add it under Communication → "+
+			"there is no %s wording for %q yet, add it under Communication → "+
 				"Message channels → Wording", req.Channel, req.TemplateCode)
 	}
 	subject = renderTemplate(subject, req.Vars)

@@ -69,7 +69,7 @@ export default function DistrictMandalMaster() {
             }
             description={
               parent
-                ? `${parent.level} ${parent.code} — showing the ${childLevel}s beneath it`
+                ? `${parent.level} ${parent.code}, showing the ${childLevel}s beneath it`
                 : 'Open a state to reach its districts, and a district to reach its mandals'
             }
             action={
@@ -104,7 +104,7 @@ export default function DistrictMandalMaster() {
                 <Td className="font-mono text-[12.5px]">{l.code}</Td>
                 <Td className="font-medium">{l.name}</Td>
                 <Td>{l.level}</Td>
-                <Td>{l.children || '—'}</Td>
+                <Td>{l.children || '-'}</Td>
                 <Td>
                   {l.active ? <Badge tone="success">In use</Badge> : <Badge tone="neutral">Retired</Badge>}
                 </Td>

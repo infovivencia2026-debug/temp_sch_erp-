@@ -126,7 +126,7 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
                 // Said explicitly: a day the school approved is not the same
                 // as a day somebody simply did not turn up.
                 d?.on_leave && status !== 'leave' ? 'leave approved' : null,
-              ].filter(Boolean).join(' — ')}
+              ].filter(Boolean).join(' · ')}
               className={cn(
                 'relative flex aspect-square items-center justify-center rounded text-[11px] tabular-nums',
                 // The number stays legible on every ground: white on the solid
@@ -510,7 +510,7 @@ export default function Portal() {
                     .filter(Boolean).join(' · ')}
                 />
               ) : (
-                <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '—'} icon={GraduationCap} />
+                <Stat label={t('portal.portal.stat_next_exam')} value={s.next_exam ?? '-'} icon={GraduationCap} />
               )}
               </>
               )}
@@ -542,7 +542,7 @@ export default function Portal() {
                           address shoving a card sideways — was happy to break
                           it at the dash. A clock reading is not a word. */}
                       <span className="w-28 shrink-0 whitespace-nowrap font-mono text-[13px] tabular-nums text-muted-foreground">
-                        {c.starts_at ?? '—'}
+                        {c.starts_at ?? '-'}
                         {c.ends_at ? `–${c.ends_at}` : ''}
                       </span>
                       <span className="min-w-[8rem] flex-1 font-medium">{c.subject}</span>

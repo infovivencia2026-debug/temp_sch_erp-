@@ -27,7 +27,7 @@ func renderDigestPDF(school, periodWord string, rng digestRange, reports []strin
 
 	// Title: the school and what this is.
 	pdf.SetFont("Arial", "B", 18)
-	pdf.MultiCell(0, 9, pdfSafe(school+" — Report digest"), "", "L", false)
+	pdf.MultiCell(0, 9, pdfSafe(school+" · Report digest"), "", "L", false)
 
 	// The period and the range it covers.
 	pdf.SetFont("Arial", "", 11)
@@ -65,7 +65,7 @@ func renderDigestPDF(school, periodWord string, rng digestRange, reports []strin
 // is dropped rather than rendered as a question mark.
 func pdfSafe(s string) string {
 	s = strings.ReplaceAll(s, "₹", "Rs ")
-	s = strings.ReplaceAll(s, "—", "-")
+	s = strings.ReplaceAll(s, "-", "-")
 	var b strings.Builder
 	for _, r := range s {
 		if r <= 0xFF {

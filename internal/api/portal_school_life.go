@@ -1808,7 +1808,7 @@ func (s *Server) deliverFamilyAlerts(ctx context.Context, tx pgx.Tx, inst, user 
 		/* DATED WHEN IT HAPPENED, NOT WHEN IT WAS DELIVERED.
 
 		   These alerts are written the first time a family opens the app, so
-		   created_at defaulted to that moment — and a parent signing in for the
+		   created_at defaulted to that moment, and a parent signing in for the
 		   first time saw a fortnight of school life stamped with one timestamp,
 		   to the minute. Eight notices "at 3:15 PM", including a fee overdue
 		   since 26 August.

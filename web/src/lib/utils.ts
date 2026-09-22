@@ -14,7 +14,7 @@ export function formatPaise(paise: number, locale = 'en-IN') {
 }
 
 export function formatDate(iso?: string | null, locale = 'en-IN') {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' })
     .format(new Date(iso))
 }
@@ -31,7 +31,7 @@ export function formatDate(iso?: string | null, locale = 'en-IN') {
  * implies a precision the record does not have.
  */
 export function formatDateTime(iso?: string | null, locale = 'en-IN') {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -56,7 +56,7 @@ export function formatDateTime(iso?: string | null, locale = 'en-IN') {
    in the data.
 */
 export function formatTime(hhmm?: string | null): string {
-  if (!hhmm) return '—'
+  if (!hhmm) return '-'
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim())
   if (!m) return hhmm
   const h = Number(m[1])

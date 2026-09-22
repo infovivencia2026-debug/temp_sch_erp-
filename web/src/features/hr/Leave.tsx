@@ -218,7 +218,7 @@ export default function Leave() {
         employee_id: form.employee_id || undefined,
       }),
     onSuccess: () => {
-      setApplied('Sent. Whoever approves leave here will see it — the head of department or the principal, whichever gets there first.')
+      setApplied('Sent. Whoever approves leave here will see it, the head of department or the principal, whichever gets there first.')
       setForm({
         from_date: '', to_date: '', reason: '', is_half_day: false,
         leave_type_id: '', employee_id: '',
@@ -512,7 +512,7 @@ export default function Leave() {
                   <Td className="tabular-nums">{l.days}</Td>
                   <Td className="text-muted-foreground">
                     <span className="block max-w-[26ch] truncate" title={l.reason}>
-                      {l.reason || '—'}
+                      {l.reason || '-'}
                     </span>
                   </Td>
                   <Td><StatusPill status={l.status} /></Td>

@@ -77,7 +77,7 @@ export default function Franchises() {
         <Card>
           <CardHeader
             title="Chains"
-            description="A chain is a brand, not a legal entity — each member school keeps its own registration"
+            description="A chain is a brand, not a legal entity, each member school keeps its own registration"
             action={
               <Select
                 value={data.selected ?? ''}
@@ -96,7 +96,7 @@ export default function Franchises() {
               <tr key={f.id}>
                 <Td className="font-mono text-[12.5px]">{f.code}</Td>
                 <Td className="font-medium">{f.name}</Td>
-                <Td>{f.brand_owner ?? '—'}</Td>
+                <Td>{f.brand_owner ?? '-'}</Td>
                 <Td>{bp(f.royalty_bp)}</Td>
                 <Td>{f.members}</Td>
                 <Td>{rupees(f.annual_fee_paise)}</Td>
@@ -113,7 +113,7 @@ export default function Franchises() {
         {current && (
           <Card>
             <CardHeader
-              title={`${current.name} — member schools`}
+              title={`${current.name}, member schools`}
               description={current.brand_standards ?? 'No brand standards recorded for this chain'}
             />
             <Table
@@ -124,9 +124,9 @@ export default function Franchises() {
               {data.members.map((m) => (
                 <tr key={m.institution_id}>
                   <Td className="font-medium">{m.school}</Td>
-                  <Td>{m.district ?? '—'}</Td>
+                  <Td>{m.district ?? '-'}</Td>
                   <Td>{m.students}</Td>
-                  <Td>{m.agreement_no ?? '—'}</Td>
+                  <Td>{m.agreement_no ?? '-'}</Td>
                   <Td>{m.joined_on}</Td>
                   <Td>{rupees(m.annual_fee_paise)}</Td>
                   <Td>

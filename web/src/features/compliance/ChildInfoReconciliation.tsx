@@ -87,9 +87,9 @@ const KIND_TONE: Record<string, 'warning' | 'danger' | 'info'> = {
 }
 
 const ACTIONS = [
-  { value: 'fix_local', label: 'Our record is wrong — fix it here' },
-  { value: 'mark_for_portal', label: 'The portal is wrong — file a change' },
-  { value: 'accept', label: 'Both are right — accept the difference' },
+  { value: 'fix_local', label: 'Our record is wrong, fix it here' },
+  { value: 'mark_for_portal', label: 'The portal is wrong, file a change' },
+  { value: 'accept', label: 'Both are right, accept the difference' },
 ]
 
 // Fields the reconciliation may write back. Class and guardian names change on
@@ -199,7 +199,7 @@ export default function ChildInfoReconciliation() {
             <Stat
               label="Already settled"
               value={latest.suppressed_count}
-              hint="Not shown again — decided on an earlier run"
+              hint="Not shown again, decided on an earlier run"
             />
           </CellGrid>
         )}
@@ -295,16 +295,16 @@ export default function ChildInfoReconciliation() {
                 const chosen = decision[d.id] ?? { action: '', note: '' }
                 return (
                   <tr key={d.id}>
-                    <Td className="font-medium">{d.display_name ?? '—'}</Td>
-                    <Td className="font-mono text-[12px]">{d.admission_no ?? '—'}</Td>
+                    <Td className="font-medium">{d.display_name ?? '-'}</Td>
+                    <Td className="font-mono text-[12px]">{d.admission_no ?? '-'}</Td>
                     <Td>
                       <Badge tone={KIND_TONE[d.kind] ?? 'neutral'}>
                         {KIND_LABEL[d.kind] ?? d.kind}
                       </Badge>
                     </Td>
-                    <Td className="font-mono text-[12px]">{d.field ?? '—'}</Td>
-                    <Td>{d.portal_value ?? '—'}</Td>
-                    <Td>{d.school_value ?? '—'}</Td>
+                    <Td className="font-mono text-[12px]">{d.field ?? '-'}</Td>
+                    <Td>{d.portal_value ?? '-'}</Td>
+                    <Td>{d.school_value ?? '-'}</Td>
                     <Td>
                       <div className="flex flex-col gap-1.5">
                         <Select
@@ -372,16 +372,16 @@ export default function ChildInfoReconciliation() {
               <tr key={res.id}>
                 <Td className="font-mono text-[12px]">{res.match_key}</Td>
                 <Td>{KIND_LABEL[res.kind] ?? res.kind}</Td>
-                <Td className="font-mono text-[12px]">{res.field ?? '—'}</Td>
-                <Td>{res.portal_value ?? '—'}</Td>
-                <Td>{res.school_value ?? '—'}</Td>
+                <Td className="font-mono text-[12px]">{res.field ?? '-'}</Td>
+                <Td>{res.portal_value ?? '-'}</Td>
+                <Td>{res.school_value ?? '-'}</Td>
                 <Td>
                   <Badge tone="neutral">{res.action.replace(/_/g, ' ')}</Badge>
                   {res.note ? (
                     <div className="text-[12px] text-muted-foreground">{res.note}</div>
                   ) : null}
                 </Td>
-                <Td>{res.resolved_by ?? '—'}</Td>
+                <Td>{res.resolved_by ?? '-'}</Td>
                 <Td>
                   {mayResolve && (
                     <Button size="sm" variant="ghost" onClick={() => forget.mutate(res.id)}>
@@ -409,14 +409,14 @@ export default function ChildInfoReconciliation() {
             {(imports.data?.items ?? []).map((i) => (
               <tr key={i.id}>
                 <Td>{formatDate(i.imported_at)}</Td>
-                <Td>{i.file_name ?? '—'}</Td>
+                <Td>{i.file_name ?? '-'}</Td>
                 <Td className="tabular-nums">{i.row_count}</Td>
                 <Td className="tabular-nums">{i.portal_only_count}</Td>
                 <Td className="tabular-nums">{i.school_only_count}</Td>
                 <Td className="tabular-nums">{i.mismatch_count}</Td>
                 <Td className="tabular-nums">{i.suppressed_count}</Td>
                 <Td className="tabular-nums">{i.open_count}</Td>
-                <Td>{i.imported_by ?? '—'}</Td>
+                <Td>{i.imported_by ?? '-'}</Td>
               </tr>
             ))}
           </Table>

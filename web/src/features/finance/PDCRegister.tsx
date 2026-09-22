@@ -77,7 +77,7 @@ export default function PDCRegister() {
       }),
     onSuccess: () => {
       invalidate()
-      toast.ok('Cheque bounced — the invoice is open again and the charge applied')
+      toast.ok('Cheque bounced, the invoice is open again and the charge applied')
     },
   })
 
@@ -118,7 +118,7 @@ export default function PDCRegister() {
                     hint={
                       standing.data?.set
                         ? `School's rule: ₹${standing.data.amount}. Leave blank to use it.`
-                        : 'No school rule set — nothing is charged unless you type an amount.'
+                        : 'No school rule set, nothing is charged unless you type an amount.'
                     }
                   >
                     <Input
@@ -170,8 +170,8 @@ export default function PDCRegister() {
                     {p.student_name}
                     <div className="font-mono text-[12px] text-muted-foreground">{p.admission_no}</div>
                   </Td>
-                  <Td className="font-mono text-[12px]">{p.instrument_no ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{p.bank_name ?? '—'}</Td>
+                  <Td className="font-mono text-[12px]">{p.instrument_no ?? '-'}</Td>
+                  <Td className="text-muted-foreground">{p.bank_name ?? '-'}</Td>
                   <Td>{formatDate(p.cheque_date)}</Td>
                   <Td className="font-medium">{formatPaise(p.amount_paise)}</Td>
                   <Td>

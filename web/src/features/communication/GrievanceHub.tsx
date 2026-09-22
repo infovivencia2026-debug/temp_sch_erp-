@@ -97,8 +97,8 @@ const STATUS_TONE: Record<string, 'neutral' | 'danger' | 'warning' | 'success' |
   closed: 'neutral',
 }
 
-const hrs = (n?: number) => (n == null ? '—' : `${Math.round(n)}h`)
-const days = (n?: number) => (n == null ? '—' : `${n.toFixed(1)}d`)
+const hrs = (n?: number) => (n == null ? '-' : `${Math.round(n)}h`)
+const days = (n?: number) => (n == null ? '-' : `${n.toFixed(1)}d`)
 
 export default function GrievanceHub() {
   const qc = useQueryClient()
@@ -269,8 +269,8 @@ export default function GrievanceHub() {
                   </Td>
                   <Td>{days(p.median_days)}</Td>
                   <Td>{hrs(p.avg_first_response_hours)}</Td>
-                  <Td>{p.department ?? '—'}</Td>
-                  <Td>{p.avg_satisfaction ? p.avg_satisfaction.toFixed(1) : '—'}</Td>
+                  <Td>{p.department ?? '-'}</Td>
+                  <Td>{p.avg_satisfaction ? p.avg_satisfaction.toFixed(1) : '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -347,7 +347,7 @@ export default function GrievanceHub() {
                       <span className="block text-[13px] text-muted-foreground">{g.student}</span>
                     )}
                   </Td>
-                  <Td>{g.assigned_to ?? <span className="text-muted-foreground">—</span>}</Td>
+                  <Td>{g.assigned_to ?? <span className="text-muted-foreground">-</span>}</Td>
                   <Td>
                     {g.resolve_due_at ? (
                       <>
@@ -527,15 +527,15 @@ export default function GrievanceHub() {
           <Table loading={slas.isLoading}
             head={['Category', 'First response', 'Resolution', 'Owner', 'Department', 'Active']}
             empty={(slas.data?.items.length ?? 0) === 0}
-            emptyLabel="No promises set — cases will be triaged without a deadline."
+            emptyLabel="No promises set, cases will be triaged without a deadline."
           >
             {slas.data?.items.map((p) => (
               <tr key={p.category}>
                 <Td>{p.category}</Td>
                 <Td>{p.respond_hours}h</Td>
                 <Td>{p.resolve_hours}h</Td>
-                <Td>{p.default_owner ?? '—'}</Td>
-                <Td>{p.department ?? '—'}</Td>
+                <Td>{p.default_owner ?? '-'}</Td>
+                <Td>{p.department ?? '-'}</Td>
                 <Td>
                   <Badge tone={p.is_active ? 'success' : 'neutral'}>
                     {p.is_active ? 'yes' : 'no'}

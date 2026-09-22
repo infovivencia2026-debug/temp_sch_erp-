@@ -1046,7 +1046,7 @@ func (s *Server) getStudentDiary(w http.ResponseWriter, r *http.Request) {
 
 		    -- The papers this child's own class sits, and only those.
 		    SELECT to_char(es.exam_date,'YYYY-MM-DD'), 'exam',
-		           ex.name || ' — ' || sub.name,
+		           ex.name || ' · ' || sub.name,
 		           concat_ws(' · ',
 		                     CASE WHEN es.duration_minutes IS NOT NULL
 		                          THEN es.duration_minutes || ' min' END,
@@ -1072,7 +1072,7 @@ func (s *Server) getStudentDiary(w http.ResponseWriter, r *http.Request) {
 
 		    -- Club nights this year group may attend.
 		    SELECT to_char(ev.starts_at,'YYYY-MM-DD'), 'club_event',
-		           ev.club_name || ' — ' || ev.title, ev.venue,
+		           ev.club_name || ' · ' || ev.title, ev.venue,
 		           to_char(ev.starts_at,'HH24:MI'), NULL, ev.id::text, false
 		      FROM club_events ev, bounds b
 		     WHERE ev.campus_id = $6 AND ev.status IN ('open','closed','done')

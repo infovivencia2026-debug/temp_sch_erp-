@@ -500,7 +500,7 @@ func (s *Server) getAllStaffOverviewReport(w http.ResponseWriter, r *http.Reques
 
 func staffReportTitle(ov staffOverview) string {
 	if ov.Staff.Designation != "" {
-		return ov.Staff.Name + " — " + ov.Staff.Designation
+		return ov.Staff.Name + " · " + ov.Staff.Designation
 	}
 	return ov.Staff.Name
 }

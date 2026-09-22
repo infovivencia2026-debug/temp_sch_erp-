@@ -51,8 +51,8 @@ export function CsvButton({ href, label = 'Export CSV' }: { href: string; label?
  * how they find out they need to.
  */
 export function pct(v?: number | null) {
-  if (v === null || v === undefined) return '—'
-  if (impossiblePct(v)) return '—'
+  if (v === null || v === undefined) return '-'
+  if (impossiblePct(v)) return '-'
   // One decimal, always. The roll-up SQL rounds to one; anything reaching here
   // unrounded printed as 87.66325536062378%.
   return `${Number(v.toFixed(1))}%`
@@ -94,7 +94,7 @@ export function RefusedPctNotice({ count }: { count: number }) {
       </span>{' '}
       They worked out above 100%, which a share of a paper cannot be. It happens
       when marks were entered against a different maximum from the one on the
-      paper — 50 recorded on a paper out of 20 is an honest 250%. Correct the
+      paper · 50 recorded on a paper out of 20 is an honest 250%. Correct the
       marks, or the paper&rsquo;s maximum, in mark entry; nothing here has been
       rounded down to hide it.
     </p>

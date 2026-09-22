@@ -112,7 +112,7 @@ export default function Entitlements() {
                           set.mutate({ institution_id: s.institution_id, module: m, enabled: !on })
                         }
                       >
-                        {on ? (covered ? 'On' : 'On — beyond plan') : 'Off'}
+                        {on ? (covered ? 'On' : 'On, beyond plan') : 'Off'}
                       </Button>
                     </Td>
                   )
@@ -137,7 +137,7 @@ export default function Entitlements() {
               {beyond.map((s) => (
                 <tr key={s.institution_id}>
                   <Td className="font-medium">{s.school}</Td>
-                  <Td>{s.plan_name ?? '—'}</Td>
+                  <Td>{s.plan_name ?? '-'}</Td>
                   <Td>
                     <Badge tone="warning">{s.beyond_plan.join(', ')}</Badge>
                   </Td>

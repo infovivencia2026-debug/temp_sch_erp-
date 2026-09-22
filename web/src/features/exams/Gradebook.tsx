@@ -368,7 +368,7 @@ export default function Gradebook() {
               placeholder={visible.length ? 'Choose a paper' : 'No papers match'}
               options={visible.map((p) => ({
                 value: p.id,
-                label: `${p.subject} · ${p.exam_name} — ${p.marks_entered}/${p.students} entered`,
+                label: `${p.subject} · ${p.exam_name} · ${p.marks_entered}/${p.students} entered`,
               }))}
             />
             {/* Only once a paper is chosen: before that there is no class, so
@@ -408,7 +408,7 @@ export default function Gradebook() {
             <CellGrid cols={4}>
               <Stat label="Students" value={rows.length} />
               <Stat label="Marks entered" value={`${entered}/${rows.length}`} />
-              <Stat label="Class average" value={entered ? `${avg}/${max}` : '—'} />
+              <Stat label="Class average" value={entered ? `${avg}/${max}` : '-'} />
               <Stat label="Pending" value={rows.length - entered} />
             </CellGrid>
 
@@ -425,7 +425,7 @@ export default function Gradebook() {
               <Card>
                 <CardHeader
                   title="Set up this paper"
-                  description={`Out of ${max} at the moment. Change it before you start — it locks once the first mark is saved.`}
+                  description={`Out of ${max} at the moment. Change it before you start, it locks once the first mark is saved.`}
                 />
                 {/* Card draws the border; the screen supplies the padding
                     inside it. Without this the fields ran to the card's edge
@@ -511,7 +511,7 @@ export default function Gradebook() {
                   <tr key={r.student_id}>
                     <Td className="font-mono text-[12px]">{r.admission_no}</Td>
                     <Td className="font-medium">{r.full_name}</Td>
-                    {!sectionID && <Td className="text-muted-foreground">{r.section || '—'}</Td>}
+                    {!sectionID && <Td className="text-muted-foreground">{r.section || '-'}</Td>}
                     <Td>
                       <input
                         type="number" min={0} max={r.max_marks}
@@ -531,7 +531,7 @@ export default function Gradebook() {
                         aria-label={`Mark ${r.full_name} absent`}
                       />
                     </Td>
-                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '—'}</Td>
+                    <Td>{r.grade ? <Badge tone="primary">{r.grade}</Badge> : '-'}</Td>
                   </tr>
                 ))}
               </Table>

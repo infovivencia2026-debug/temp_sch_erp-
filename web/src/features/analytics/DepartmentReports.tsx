@@ -69,7 +69,7 @@ export default function DepartmentReports() {
             title="Department returns"
             description={
               backlog > 0
-                ? `${backlog} items outstanding across all departments — undelivered lessons and unentered marks.`
+                ? `${backlog} items outstanding across all departments, undelivered lessons and unentered marks.`
                 : 'Nothing outstanding across the departments shown.'
             }
           />
@@ -97,7 +97,7 @@ export default function DepartmentReports() {
                     </Badge>
                   </Td>
                   <Td>{d.staff_absent_days}</Td>
-                  <Td>{d.leave_days_taken ?? '—'}</Td>
+                  <Td>{d.leave_days_taken ?? '-'}</Td>
                   <Td>{d.periods_scheduled}</Td>
                   <Td>{d.lessons_delivered}</Td>
                   <Td>
@@ -113,7 +113,7 @@ export default function DepartmentReports() {
                     {d.pending_leave_requests > 0 ? (
                       <Badge tone="warning">{d.pending_leave_requests}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                 </tr>

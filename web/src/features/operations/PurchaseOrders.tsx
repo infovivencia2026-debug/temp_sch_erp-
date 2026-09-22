@@ -159,7 +159,7 @@ function RequisitionsPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m
       <Card>
         <CardHeader
           title="Requisitions"
-          description="Pending first — an approval nobody has looked at is somebody's work stopped."
+          description="Pending first, an approval nobody has looked at is somebody's work stopped."
           action={mayWrite && !creating ? (
             <Button size="sm" onClick={() => setCreating(true)}>Raise a requisition</Button>
           ) : undefined}
@@ -175,11 +175,11 @@ function RequisitionsPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m
               .map((r) => (
                 <tr key={r.id}>
                   <Td className="font-mono text-[12px]">{r.requisition_no}</Td>
-                  <Td>{r.department ?? '—'}</Td>
+                  <Td>{r.department ?? '-'}</Td>
                   <Td className="text-muted-foreground">{r.raised_on}</Td>
-                  <Td className="text-muted-foreground">{r.needed_by ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{r.needed_by ?? '-'}</Td>
                   <Td className="tabular-nums">{inr(r.estimated_total_paise)}</Td>
-                  <Td className="text-muted-foreground text-[12px]">{r.approval_band ?? '—'}</Td>
+                  <Td className="text-muted-foreground text-[12px]">{r.approval_band ?? '-'}</Td>
                   <Td>
                     <Badge tone={STATUS_TONE[r.status] ?? 'neutral'}>{statusLabel(r.status)}</Badge>
                     {r.order_no && (
@@ -241,7 +241,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
   return (
     <Card>
       <CardHeader
-        title={`${r.requisition_no} — ${r.department ?? 'no department'}`}
+        title={`${r.requisition_no} · ${r.department ?? 'no department'}`}
         description={r.approval_permission
           ? `Approval sits in the "${r.approval_band}" band, which needs ${r.approval_permission}. The server checks that; this screen does not.`
           : 'Not yet submitted, so no approval band has been fixed.'}
@@ -255,7 +255,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
         {lines.map((l) => (
           <tr key={l.id}>
             <Td className="text-muted-foreground">{l.line_no}</Td>
-            <Td className="font-mono text-[12px]">{l.item_code ?? '—'}</Td>
+            <Td className="font-mono text-[12px]">{l.item_code ?? '-'}</Td>
             <Td>{l.description}</Td>
             <Td className="tabular-nums">{l.quantity} {l.unit}</Td>
             <Td className="tabular-nums">{inr(l.rate_paise)}</Td>
@@ -276,7 +276,7 @@ function RequisitionDetail({ id, mayWrite, onDone }: {
             <>
               <label className="flex flex-col gap-1.5 text-[13px]">
                 <span className="text-muted-foreground">
-                  Note — required to reject, and worth writing when approving
+                  Note, required to reject, and worth writing when approving
                 </span>
                 <Textarea value={decisionNote} onChange={setDecisionNote} rows={2} />
               </label>
@@ -355,7 +355,7 @@ function RequisitionForm({ onCancel, onSaved }: {
         <FormNotice error={save.error} />
         <label className="flex flex-col gap-1.5 text-[13px]">
           <span className="text-muted-foreground">
-            Why it is needed — required before it can be submitted
+            Why it is needed, required before it can be submitted
           </span>
           <Textarea value={justification} onChange={setJustification} rows={2}
             placeholder="Forty chairs for the new section in Block B" />
@@ -422,7 +422,7 @@ function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: stri
       <Card>
         <CardHeader
           title="Purchase orders"
-          description="Partly received orders lead — those are the ones somebody has to chase."
+          description="Partly received orders lead, those are the ones somebody has to chase."
         />
         {list.isLoading ? <SkeletonTable columns={8} /> : list.error ? <ErrorState error={list.error} /> : (
           <Table
@@ -437,7 +437,7 @@ function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: stri
                   <Td className="font-mono text-[12px]">{o.po_no}</Td>
                   <Td className="font-medium">{o.vendor}</Td>
                   <Td className="text-muted-foreground">{o.order_date}</Td>
-                  <Td className="text-muted-foreground">{o.expected_on ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{o.expected_on ?? '-'}</Td>
                   <Td className="tabular-nums">{inr(o.total_paise)}</Td>
                   <Td className="tabular-nums">
                     {inr(o.received_paise)}
@@ -507,7 +507,7 @@ function OrderDetail({ id, mayWrite, onDone }: {
     }),
     onSuccess: (r: { grn_no?: string; stock_movements?: number }) => {
       setReceiving(false); setQty({}); setRejected({}); setReason({}); setChallan('')
-      onDone(`${r.grn_no} recorded. ${r.stock_movements ?? 0} stock movement(s) written — the stores balance has already followed.`)
+      onDone(`${r.grn_no} recorded. ${r.stock_movements ?? 0} stock movement(s) written, the stores balance has already followed.`)
     },
   })
 
@@ -523,10 +523,10 @@ function OrderDetail({ id, mayWrite, onDone }: {
     <>
       <Card>
         <CardHeader
-          title={`${o.po_no} — ${o.vendor}`}
+          title={`${o.po_no} · ${o.vendor}`}
           description={o.requisition_no
             ? `Against requisition ${o.requisition_no}.`
-            : 'Raised without a requisition — an exception worth being able to explain.'}
+            : 'Raised without a requisition, an exception worth being able to explain.'}
           action={mayWrite && o.status === 'draft' ? (
             <Button size="sm" disabled={issue.isPending} onClick={() => issue.mutate()}>
               Issue to vendor
@@ -549,18 +549,18 @@ function OrderDetail({ id, mayWrite, onDone }: {
                 {l.description}
                 {l.item_code && (
                   <span className="block font-mono text-[12px] text-muted-foreground">
-                    {l.item_code} — enters stock on receipt
+                    {l.item_code}, enters stock on receipt
                   </span>
                 )}
                 {!l.item_code && (
                   <span className="block text-[12px] text-muted-foreground">
-                    no stock item — receivable, but nothing to shelve
+                    no stock item, receivable, but nothing to shelve
                   </span>
                 )}
               </Td>
               <Td className="tabular-nums">{l.quantity} {l.unit}</Td>
               <Td className="tabular-nums">{l.received_qty}</Td>
-              <Td className="tabular-nums">{l.rejected_qty || '—'}</Td>
+              <Td className="tabular-nums">{l.rejected_qty || '-'}</Td>
               <Td className={cn('tabular-nums', l.outstanding_qty > 0 && 'font-medium text-destructive')}>
                 {l.outstanding_qty}
               </Td>
@@ -628,11 +628,11 @@ function OrderDetail({ id, mayWrite, onDone }: {
             <tr key={g.id}>
               <Td className="font-mono text-[12px]">{g.grn_no}</Td>
               <Td className="text-muted-foreground">{g.received_on}</Td>
-              <Td className="text-muted-foreground">{g.challan_no ?? '—'}</Td>
+              <Td className="text-muted-foreground">{g.challan_no ?? '-'}</Td>
               <Td className="tabular-nums">{g.units_received}</Td>
-              <Td className="tabular-nums">{g.units_rejected || '—'}</Td>
+              <Td className="tabular-nums">{g.units_rejected || '-'}</Td>
               <Td className="tabular-nums text-muted-foreground">{g.stock_movements}</Td>
-              <Td className="text-muted-foreground">{g.received_by ?? '—'}</Td>
+              <Td className="text-muted-foreground">{g.received_by ?? '-'}</Td>
             </tr>
           ))}
         </Table>
@@ -678,7 +678,7 @@ function MatchingPanel({ mayPay, onDone }: { mayPay: boolean; onDone: (m: string
       <Card>
         <CardHeader
           title="Three-way matching"
-          description="Order, receipt, invoice. The exposure is measured against what arrived, not what was ordered — an invoice for goods still on a lorry is the case this stops."
+          description="Order, receipt, invoice. The exposure is measured against what arrived, not what was ordered, an invoice for goods still on a lorry is the case this stops."
         />
         <div className="border-b p-5">
           <label className="flex max-w-md flex-col gap-1.5 text-[13px]">
@@ -690,7 +690,7 @@ function MatchingPanel({ mayPay, onDone }: { mayPay: boolean; onDone: (m: string
                 { value: '', label: 'Choose a received order…' },
                 ...matchable.map((o) => ({
                   value: o.id,
-                  label: `${o.po_no} — ${o.vendor} — ${inr(o.received_paise)} received`,
+                  label: `${o.po_no} · ${o.vendor} · ${inr(o.received_paise)} received`,
                 })),
               ]}
             />
@@ -717,7 +717,7 @@ function MatchingPanel({ mayPay, onDone }: { mayPay: boolean; onDone: (m: string
                 <Td className="tabular-nums">{inr(m.received_paise)}</Td>
                 <Td className="tabular-nums">{inr(m.invoiced_paise)}</Td>
                 <Td className={cn('tabular-nums', m.variance_paise > 0 && 'font-medium text-destructive')}>
-                  {m.variance_paise === 0 ? '—' : inr(m.variance_paise)}
+                  {m.variance_paise === 0 ? '-' : inr(m.variance_paise)}
                 </Td>
                 <Td>
                   <Badge tone={STATUS_TONE[m.status] ?? 'neutral'}>{statusLabel(m.status)}</Badge>
@@ -762,7 +762,7 @@ function MatchForm({ poID, mayPay, onDone }: {
       api.post(`${adminOpsBase}/purchasing/orders/${poID}/match`,
         { vendor_bill_id: billID, decision, note: note.trim() }),
     onSuccess: (_r, decision) => onDone(
-      decision === 'match' ? 'Matched — the bill agrees with what arrived.'
+      decision === 'match' ? 'Matched, the bill agrees with what arrived.'
         : decision === 'accept_variance' ? 'Variance accepted, with a reason on the record.'
           : 'Blocked. Do not pay this until it is explained.'),
   })
@@ -780,7 +780,7 @@ function MatchForm({ poID, mayPay, onDone }: {
       <CellGrid cols={3}>
         <Stat label="Ordered" value={inr(p.ordered_paise)} />
         <Stat label="Received" value={inr(p.received_paise)} hint="At order prices" />
-        <Stat label="Invoiced" value={bill ? inr(bill.total_paise) : '—'} />
+        <Stat label="Invoiced" value={bill ? inr(bill.total_paise) : '-'} />
       </CellGrid>
 
       <label className="flex max-w-md flex-col gap-1.5 text-[13px]">
@@ -792,7 +792,7 @@ function MatchForm({ poID, mayPay, onDone }: {
             { value: '', label: 'Choose the bill…' },
             ...p.bills.map((b) => ({
               value: b.id,
-              label: `${b.bill_no} — ${b.bill_date} — ${inr(b.total_paise)}${b.already_matched ? ' (already matched)' : ''}`,
+              label: `${b.bill_no} · ${b.bill_date} · ${inr(b.total_paise)}${b.already_matched ? ' (already matched)' : ''}`,
             })),
           ]}
         />
@@ -804,7 +804,7 @@ function MatchForm({ poID, mayPay, onDone }: {
           {variance === 0
             ? 'The bill matches what was received exactly. Safe to pass for payment.'
             : variance > 0
-              ? `The bill is ${inr(variance)} more than the goods received. That is the exposure — accept it with a reason, or block it.`
+              ? `The bill is ${inr(variance)} more than the goods received. That is the exposure, accept it with a reason, or block it.`
               : `The bill is ${inr(-variance)} less than the goods received. Worth checking a second bill is not coming.`}
         </div>
       )}
@@ -813,7 +813,7 @@ function MatchForm({ poID, mayPay, onDone }: {
         <>
           <label className="flex flex-col gap-1.5 text-[13px]">
             <span className="text-muted-foreground">
-              Reason — required to accept a difference
+              Reason, required to accept a difference
             </span>
             <Textarea value={note} onChange={setNote} rows={2} />
           </label>
@@ -866,7 +866,7 @@ function LadderPanel({ mayConfigure, onDone }: {
         title="Who may approve what"
         description={d.using_default
           ? 'No ladder configured, so the built-in default applies. Save your own to change it.'
-          : 'Each band names a permission, not a person — so nothing stops while somebody is on leave.'}
+          : 'Each band names a permission, not a person, so nothing stops while somebody is on leave.'}
       />
       {!bands.length ? (
         <EmptyState title="No bands" body="Nothing configured and no default available." />
@@ -889,7 +889,7 @@ function LadderPanel({ mayConfigure, onDone }: {
       )}
       <div className="border-t px-5 py-4 text-[13px] text-muted-foreground">
         {mayConfigure
-          ? 'Editing the ladder is a settings change and replaces the whole set — a ladder with a gap is a requisition nobody may approve.'
+          ? 'Editing the ladder is a settings change and replaces the whole set, a ladder with a gap is a requisition nobody may approve.'
           : 'Changing this needs institution settings rights, deliberately: a store keeper must not be able to raise their own ceiling.'}
         <p className="mt-2">
           Whoever raised a requisition can never approve it, whatever the ladder says.

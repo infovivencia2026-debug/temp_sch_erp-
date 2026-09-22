@@ -293,8 +293,8 @@ func (s *Server) issueStaffLogin(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, errStaffNotActive):
 		httpx.BadRequest(w, r,
 			"this member of staff is not on the roll, so there is nobody to give a "+
-				"login to. Put them back on the roll first — their record, their "+
-				"service and their old attendance are all still here — and then a "+
+				"login to. Put them back on the roll first, their record, their "+
+				"service and their old attendance are all still here, and then a "+
 				"login can be issued.")
 		return
 	case err != nil:

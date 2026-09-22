@@ -167,7 +167,7 @@ function CustomFields({ blockKey, studentID, custom, onChanged }: {
                   </>
                 ) : (
                   <>
-                    <span className="text-right">{v || '—'}</span>
+                    <span className="text-right">{v || '-'}</span>
                     <Button size="sm" variant="ghost"
                       onClick={() => { setEditKey(full); setEditVal(v) }}>Edit</Button>
                     {/* An empty value removes it: the server drops a key whose

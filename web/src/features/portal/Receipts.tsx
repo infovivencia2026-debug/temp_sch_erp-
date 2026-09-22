@@ -83,7 +83,7 @@ export default function Receipts() {
         <CellGrid cols={3}>
           <Stat label={t('portal.receipts.stat_receipts')} value={rows.length} icon={ReceiptIcon} />
           <Stat label={t('portal.receipts.stat_paid_total')} value={formatPaise(total)} />
-          <Stat label={t('portal.receipts.stat_most_recent')} value={rows.length ? formatDate(rows[0].paid_on) : '—'} />
+          <Stat label={t('portal.receipts.stat_most_recent')} value={rows.length ? formatDate(rows[0].paid_on) : '-'} />
         </CellGrid>
 
         {/* The list is chrome once a receipt is open: printing it alongside
@@ -200,7 +200,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
           <Detail label={t('portal.receipts.detail_admission_no')} value={d.admission_no} />
           <Detail
             label={t('portal.receipts.detail_class')}
-            value={[d.class_name, d.section_name].filter(Boolean).join(' ') || '—'}
+            value={[d.class_name, d.section_name].filter(Boolean).join(' ') || '-'}
           />
           <Detail label={t('portal.receipts.detail_paid_on')} value={formatDate(d.paid_on)} />
           <Detail label={t('portal.receipts.detail_method')} value={d.mode + (d.reference_no ? ` · ${d.reference_no}` : '')} />

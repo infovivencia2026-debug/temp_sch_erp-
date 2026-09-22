@@ -195,7 +195,7 @@ func TestPlanFeeChaseIsIdempotentAcrossSweeps(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		again := runOnePlan(t, s, db, w.inst, plan, false)
 		if again.Queued != 0 {
-			t.Fatalf("sweep %d queued %d, want 0 — a duplicate fee reminder is worse than a late one",
+			t.Fatalf("sweep %d queued %d, want 0, a duplicate fee reminder is worse than a late one",
 				i+2, again.Queued)
 		}
 		if again.Duplicates != 1 {
@@ -261,7 +261,7 @@ func TestPlanFeeChaseStopsTheMomentTheInvoiceIsPaid(t *testing.T) {
 
 	run := runOnePlan(t, s, db, w.inst, plan, false)
 	if run.Withdrawn != 1 {
-		t.Fatalf("withdrew %d reminders after payment, want 1 — a parent who paid "+
+		t.Fatalf("withdrew %d reminders after payment, want 1, a parent who paid "+
 			"yesterday must not be chased today", run.Withdrawn)
 	}
 	if run.Matched != 0 || run.Queued != 0 {
@@ -272,7 +272,7 @@ func TestPlanFeeChaseStopsTheMomentTheInvoiceIsPaid(t *testing.T) {
 		t.Errorf("queued rows after payment = %d, want 0", n)
 	}
 	if n := countLog(t, db, w.inst, "cancelled"); n != 1 {
-		t.Errorf("cancelled rows = %d, want 1 — the row is marked and kept, never "+
+		t.Errorf("cancelled rows = %d, want 1, the row is marked and kept, never "+
 			"deleted, so the school can see that it stopped chasing", n)
 	}
 
@@ -325,7 +325,7 @@ func TestPlanAbsenceAlertIsOnePerChildPerDay(t *testing.T) {
 
 	first := runOnePlan(t, s, db, w.inst, plan, false)
 	if first.Matched != 1 {
-		t.Fatalf("occurrences = %d, want 1 — two period rows are one absent day",
+		t.Fatalf("occurrences = %d, want 1, two period rows are one absent day",
 			first.Matched)
 	}
 	if first.Queued != 1 {
@@ -336,7 +336,7 @@ func TestPlanAbsenceAlertIsOnePerChildPerDay(t *testing.T) {
 	markAbsent(t, db, w, w.periods[2:], 0)
 	again := runOnePlan(t, s, db, w.inst, plan, false)
 	if again.Queued != 0 {
-		t.Fatalf("a later register queued %d more, want 0 — a child absent in every "+
+		t.Fatalf("a later register queued %d more, want 0, a child absent in every "+
 			"period must generate one message and not eight", again.Queued)
 	}
 	if n := countLog(t, db, w.inst, ""); n != 1 {
@@ -375,7 +375,7 @@ func TestPlanAbsenceAlertHonoursAnExplanation(t *testing.T) {
 
 	run := runOnePlan(t, s, db, w.inst, plan, false)
 	if run.Matched != 0 || run.Queued != 0 {
-		t.Fatalf("an explained absence produced %d occurrences and %d messages, want 0/0 — "+
+		t.Fatalf("an explained absence produced %d occurrences and %d messages, want 0/0 · "+
 			"texting the parent who just told us teaches them the button does nothing",
 			run.Matched, run.Queued)
 	}
@@ -492,7 +492,7 @@ func TestPlanPreviewNamesPeopleAndAccountsForTheAllowlist(t *testing.T) {
 		t.Fatalf("preview matched %d occurrences, want 1", view.Matched)
 	}
 	if len(view.Sample) != 1 {
-		t.Fatalf("sample has %d rows, want 1 — a number nobody can check is a number "+
+		t.Fatalf("sample has %d rows, want 1, a number nobody can check is a number "+
 			"nobody believes", len(view.Sample))
 	}
 	if view.Sample[0].Name == "" {
@@ -505,7 +505,7 @@ func TestPlanPreviewNamesPeopleAndAccountsForTheAllowlist(t *testing.T) {
 		t.Fatalf("guard mode = %q, want everyone (no row means nobody asked to be held back)", view.GuardMode)
 	}
 	if view.WouldSend != 1 || view.Suppressed != 0 {
-		t.Fatalf("preview says would_send=%d suppressed=%d; want 1/0 — with no policy row "+
+		t.Fatalf("preview says would_send=%d suppressed=%d; want 1/0, with no policy row "+
 			"the message goes out and the preview must say so",
 			view.WouldSend, view.Suppressed)
 	}

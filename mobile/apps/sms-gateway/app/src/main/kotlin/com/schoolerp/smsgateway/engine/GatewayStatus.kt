@@ -105,8 +105,8 @@ data class GatewayStatus(
             val stopper = blockers.firstOrNull { it.stopsSending }
             return when {
                 stopper != null -> stopper.headline
-                queueDepth > 0 -> "Sending — $queueDepth waiting"
-                else -> "Ready — $sentToday sent today"
+                queueDepth > 0 -> "Sending · $queueDepth waiting"
+                else -> "Ready · $sentToday sent today"
             }
         }
 

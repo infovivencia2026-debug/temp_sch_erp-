@@ -295,7 +295,7 @@ export default function Employees() {
                   Handset PIN for {pinHandover.full_name}
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
-                  For the bus tracker and other handset apps. Shown once and stored nowhere —
+                  For the bus tracker and other handset apps. Shown once and stored nowhere, 
                   write it down before pressing Done. Issuing it again replaces this one.
                 </p>
               </div>
@@ -443,8 +443,8 @@ export default function Employees() {
                 <tr key={e.id}>
                   <Td className="font-mono text-[12px]">{e.employee_code}</Td>
                   <Td className="font-medium">{e.full_name}</Td>
-                  <Td className="text-muted-foreground">{e.designation ?? '—'}</Td>
-                  <Td className="text-muted-foreground">{e.department ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{e.designation ?? '-'}</Td>
+                  <Td className="text-muted-foreground">{e.department ?? '-'}</Td>
                   <Td className="text-[13px]">
                     {e.phone && (
                       <a href={`tel:${e.phone}`} className="flex items-center gap-1 text-primary">
@@ -456,10 +456,10 @@ export default function Employees() {
                         <Mail className="h-3 w-3" />email
                       </a>
                     )}
-                    {!e.phone && !e.email && '—'}
+                    {!e.phone && !e.email && '-'}
                   </Td>
                   <Td className="text-muted-foreground">
-                    {e.joined_on ? formatDate(e.joined_on) : '—'}
+                    {e.joined_on ? formatDate(e.joined_on) : '-'}
                   </Td>
                   <Td><StatusPill status={e.status} /></Td>
                   <Td>

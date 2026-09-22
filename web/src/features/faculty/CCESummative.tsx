@@ -89,14 +89,14 @@ export default function CCESummative() {
                   </Td>
                   <Td>{p.class_name}</Td>
                   <Td>{p.subject}</Td>
-                  <Td>{p.exam_date ? formatDate(p.exam_date) : '—'}</Td>
+                  <Td>{p.exam_date ? formatDate(p.exam_date) : '-'}</Td>
                   <Td>{p.max_marks}</Td>
                   <Td>
                     {p.entered >= p.roll && p.roll > 0
                       ? <Badge tone="success">{p.entered} of {p.roll}</Badge>
                       : <Badge tone="warning">{p.entered} of {p.roll}</Badge>}
                   </Td>
-                  <Td>{p.average != null ? p.average.toFixed(1) : '—'}</Td>
+                  <Td>{p.average != null ? p.average.toFixed(1) : '-'}</Td>
                   <Td>
                     <Button
                       variant="secondary"
@@ -166,8 +166,8 @@ function Entry({ paper }: { paper: SummativePaper }) {
   return (
     <Card>
       <CardHeader
-        title={`${paper.exam_name} — ${paper.class_name} ${paper.subject}`}
-        description={`Out of ${paper.max_marks}, pass at ${paper.pass_marks}. Mark a child absent rather than entering zero — the two mean different things on a report card.`}
+        title={`${paper.exam_name} · ${paper.class_name} ${paper.subject}`}
+        description={`Out of ${paper.max_marks}, pass at ${paper.pass_marks}. Mark a child absent rather than entering zero, the two mean different things on a report card.`}
         action={
           <Button onClick={() => save.mutate()} disabled={Object.keys(draft).length === 0}>
             Save marks
@@ -184,7 +184,7 @@ function Entry({ paper }: { paper: SummativePaper }) {
         <Table head={['Roll', 'Child', 'Mark', 'Absent', 'Grade']}>
           {rows.map((r) => (
             <tr key={r.student_id}>
-              <Td>{r.roll_no ?? '—'}</Td>
+              <Td>{r.roll_no ?? '-'}</Td>
               <Td>
                 <span className="font-medium">{r.full_name}</span>
                 <span className="block text-[12px] text-muted-foreground">{r.admission_no}</span>
@@ -215,7 +215,7 @@ function Entry({ paper }: { paper: SummativePaper }) {
                   srLabel={`Mark ${r.full_name} absent`}
                 />
               </Td>
-              <Td>{r.grade ?? '—'}</Td>
+              <Td>{r.grade ?? '-'}</Td>
             </tr>
           ))}
         </Table>

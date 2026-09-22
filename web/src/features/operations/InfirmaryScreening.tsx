@@ -389,18 +389,18 @@ function Checkups({
                 <div className="text-[12px]">{formatDate(c.on_date)}</div>
               </Td>
               <Td className="tabular-nums">
-                {c.height_cm ? `${c.height_cm} cm` : '—'}
+                {c.height_cm ? `${c.height_cm} cm` : '-'}
                 <div className="text-[12px] text-muted-foreground">
                   {c.weight_kg ? `${c.weight_kg} kg` : ''}
                 </div>
               </Td>
               <Td className="tabular-nums">
-                {c.bmi ? <Badge tone={bmiTone(c.bmi)}>{c.bmi}</Badge> : '—'}
+                {c.bmi ? <Badge tone={bmiTone(c.bmi)}>{c.bmi}</Badge> : '-'}
               </Td>
               <Td className="tabular-nums text-[13px]">
                 {c.vision_left || c.vision_right
-                  ? `L ${c.vision_left ?? '—'} · R ${c.vision_right ?? '—'}`
-                  : '—'}
+                  ? `L ${c.vision_left ?? '-'} · R ${c.vision_right ?? '-'}`
+                  : '-'}
                 {c.wears_spectacles && (
                   <div className="text-[12px] text-muted-foreground">Wears spectacles</div>
                 )}
@@ -417,11 +417,11 @@ function Checkups({
                     {c.haemoglobin_gdl}
                   </Badge>
                 ) : (
-                  '—'
+                  '-'
                 )}
               </Td>
               <Td className="text-[13px] text-muted-foreground">
-                {c.examined_by ?? '—'}
+                {c.examined_by ?? '-'}
                 {c.camp && <div className="text-[12px]">{c.camp}</div>}
                 {c.referred_to && (
                   <div className="text-[12px] text-destructive">Referred: {c.referred_to}</div>
@@ -580,7 +580,7 @@ function Camps({ query }: { query: ReturnType<typeof useQuery<List<Camp>>> }) {
                   {c.follow_ups_outstanding > 0 ? (
                     <Badge tone="danger">{c.follow_ups_outstanding} open</Badge>
                   ) : (
-                    <span className="text-[13px] text-muted-foreground">—</span>
+                    <span className="text-[13px] text-muted-foreground">-</span>
                   )}
                 </Td>
                 <Td>
@@ -713,9 +713,9 @@ function CampAttendance({ campId }: { campId: string }) {
                   {s.class_name && ` · ${s.class_name}`}
                 </div>
               </Td>
-              <Td>{s.findings ?? '—'}</Td>
-              <Td className="text-[13px] text-muted-foreground">{s.treatment_given ?? '—'}</Td>
-              <Td className="text-[13px]">{s.referred_to ?? '—'}</Td>
+              <Td>{s.findings ?? '-'}</Td>
+              <Td className="text-[13px] text-muted-foreground">{s.treatment_given ?? '-'}</Td>
+              <Td className="text-[13px]">{s.referred_to ?? '-'}</Td>
               <Td>
                 {s.followed_up ? (
                   <>
@@ -729,7 +729,7 @@ function CampAttendance({ campId }: { campId: string }) {
                 ) : s.follow_up_on ? (
                   <Badge tone="warning">Due {formatDate(s.follow_up_on)}</Badge>
                 ) : (
-                  <span className="text-[13px] text-muted-foreground">—</span>
+                  <span className="text-[13px] text-muted-foreground">-</span>
                 )}
               </Td>
               <Td>

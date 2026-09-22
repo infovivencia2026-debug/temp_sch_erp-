@@ -209,7 +209,7 @@ export function useBankAccounts() {
 export function bankAccountOptions(items?: BankAccount[], payoutsOnly = false) {
   return (items ?? [])
     .filter((a) => a.is_active && (!payoutsOnly || a.allows_payouts))
-    .map((a) => ({ value: a.id, label: `${a.label} — ${a.bank_name} ${a.account_masked}` }))
+    .map((a) => ({ value: a.id, label: `${a.label} · ${a.bank_name} ${a.account_masked}` }))
 }
 
 /* The IFSC shape, checked in the browser as well as twice on the server.

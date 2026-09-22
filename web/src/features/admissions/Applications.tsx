@@ -207,7 +207,7 @@ export default function Applications() {
         v.decision === 'offered'
           ? 'Offer issued. The parent can be told to pay the admission fee.'
           : v.decision === 'waitlisted'
-            ? 'Waitlisted — no seat yet, and ranked against the queue.'
+            ? 'Waitlisted, no seat yet, and ranked against the queue.'
             : v.decision === 'on_hold'
               /* Said differently from waitlisted on purpose: the seat is
                  there, and the reason is what somebody picking this up in
@@ -367,7 +367,7 @@ export default function Applications() {
           <Card>
             <CardHeader
               title="Which steps this school uses"
-              description="Switch off what you do not run — the menu entry and the stage go with it."
+              description="Switch off what you do not run, the menu entry and the stage go with it."
             />
             <div className="flex flex-wrap gap-6 p-5">
               <Checkbox
@@ -582,7 +582,7 @@ export default function Applications() {
                       </span>
                     )}
                   </Td>
-                  <Td className="text-muted-foreground">{a.class_sought ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{a.class_sought ?? '-'}</Td>
                   <Td>
                     {a.parent_name}
                     <a href={`tel:${a.parent_phone}`} className="block text-[12px] text-primary">

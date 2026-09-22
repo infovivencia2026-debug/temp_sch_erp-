@@ -174,7 +174,7 @@ function buildRuns(events: StopEvent[]): Run[] {
    one colour would make a fifteen-minute early arrival and a fifteen-minute
    late one draw identically. */
 function DeviationBar({ mins }: { mins?: number }) {
-  if (mins == null) return <span className="text-muted-foreground">—</span>
+  if (mins == null) return <span className="text-muted-foreground">-</span>
   const CAP = 20
   const clamped = Math.max(-CAP, Math.min(CAP, mins))
   const half = 46
@@ -311,7 +311,7 @@ export default function StopAlerts() {
             period={date}
             hint="A bus ahead of its time is a child not yet outside"
           />
-          <Stat label="Worst delay" value={worst ? `${worst} min` : '—'} icon={Clock} period={date} />
+          <Stat label="Worst delay" value={worst ? `${worst} min` : '-'} icon={Clock} period={date} />
         </CellGrid>
 
         {events.isError ? (
@@ -377,10 +377,10 @@ export default function StopAlerts() {
                         <Td className="text-muted-foreground tabular-nums">{s.sequence}</Td>
                         <Td className="font-medium">{s.stop}</Td>
                         <Td className="tabular-nums text-muted-foreground">
-                          {s.arrived?.scheduled_at ?? '—'}
+                          {s.arrived?.scheduled_at ?? '-'}
                         </Td>
                         <Td className="tabular-nums">
-                          {s.arrived ? clockOf(s.arrived.occurred_at) : '—'}
+                          {s.arrived ? clockOf(s.arrived.occurred_at) : '-'}
                         </Td>
                         <Td>
                           <DeviationBar mins={dev} />
@@ -389,7 +389,7 @@ export default function StopAlerts() {
                           <Badge tone={TONE[kind]}>{deviationText(dev)}</Badge>
                         </Td>
                         <Td className="text-right tabular-nums">
-                          {s.dwellMins == null ? '—' : `${s.dwellMins} min`}
+                          {s.dwellMins == null ? '-' : `${s.dwellMins} min`}
                         </Td>
                         <Td className="tabular-nums text-muted-foreground">
                           {s.departed ? clockOf(s.departed.occurred_at) : 'still there / not logged'}
@@ -408,7 +408,7 @@ export default function StopAlerts() {
 
         <p className="text-[12.5px] text-muted-foreground">
           Times are India local, as recorded by the bus's phone. A stop with no scheduled time on
-          the route has no deviation to report — it is shown, not scored. The geofence column is
+          the route has no deviation to report, it is shown, not scored. The geofence column is
           the radius the stop is fenced at; stops left blank use the school-wide default from the
           tracking policy, and the radius is edited there rather than here.
         </p>

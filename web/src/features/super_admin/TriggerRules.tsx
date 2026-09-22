@@ -59,7 +59,7 @@ export default function TriggerRules() {
       <PageHead
         eyebrow="Messaging"
         title="Automated Trigger Rules"
-        description="When something happens, who hears about it — configured as rules rather than written as code."
+        description="When something happens, who hears about it, configured as rules rather than written as code."
         actions={
           <>
             <Button
@@ -111,7 +111,7 @@ export default function TriggerRules() {
           <Table
             head={['Rule', 'When', 'Who hears', 'How', 'Last run', '']}
             empty={rules.length === 0}
-            emptyLabel="No rules yet. A school with none sends nothing automatically — which is a choice, not a fault."
+            emptyLabel="No rules yet. A school with none sends nothing automatically, which is a choice, not a fault."
           >
             {rules.map((r) => (
               <tr key={r.id}>
@@ -297,7 +297,7 @@ function RuleForm({
     <Card>
       <CardHeader
         title={v.id ? `Edit "${rule.name}"` : 'New rule'}
-        description="When this happens, tell these people this — and not in the middle of the night"
+        description="When this happens, tell these people this, and not in the middle of the night"
         action={
           <>
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -427,7 +427,7 @@ function SweepReport({ results }: { results: SweepResult[] }) {
             <Td>{r.occurrences}</Td>
             <Td>{r.queued}</Td>
             <Td>{r.already_sent}</Td>
-            <Td className="text-[13px] text-muted-foreground">{r.error ?? '—'}</Td>
+            <Td className="text-[13px] text-muted-foreground">{r.error ?? '-'}</Td>
           </tr>
         ))}
       </Table>

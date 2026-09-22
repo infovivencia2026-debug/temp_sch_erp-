@@ -175,7 +175,7 @@ export default function CampaignSequences() {
   const stop = useMutation({
     mutationFn: (id: string) => api.post(`${A}/campaign-enrolments/${id}/stop`, {}),
     onSuccess: () => {
-      toast.ok('Stopped — nothing further will go out')
+      toast.ok('Stopped, nothing further will go out')
       invalidate()
     },
     onError: (e) => toast.error(errText(e)),
@@ -237,7 +237,7 @@ export default function CampaignSequences() {
 
         <Card>
           <div className="p-5 text-[14px] leading-relaxed text-muted-foreground">
-            Touches are queued through the school's existing messaging setup — the same providers,
+            Touches are queued through the school's existing messaging setup, the same providers,
             templates and send-once rules the rest of the product uses. Nothing on this deployment
             flushes that queue on a schedule yet, so “Send what is due” is a button. Pressing it
             twice is safe: a touch already queued is passed over.
@@ -324,7 +324,7 @@ export default function CampaignSequences() {
         {campaignID && (
           <Card key={campaignID}>
             <CardHeader
-              title={`${current?.name ?? 'Sequence'} — the touches`}
+              title={`${current?.name ?? 'Sequence'}, the touches`}
               description="Days are counted from the moment the lead was enrolled, not from today."
             />
             <div className="space-y-5 p-5">
@@ -429,7 +429,7 @@ export default function CampaignSequences() {
                     <Td>
                       {st.quiet_from && st.quiet_to
                         ? `${st.quiet_from.slice(0, 5)}–${st.quiet_to.slice(0, 5)}`
-                        : '—'}
+                        : '-'}
                     </Td>
                     <Td>{st.queued}</Td>
                     <Td>{st.skipped}</Td>
@@ -506,9 +506,9 @@ export default function CampaignSequences() {
                     </Td>
                     <Td>{e.touches_done}</Td>
                     <Td>{e.touches_remaining}</Td>
-                    <Td>{e.next_due ?? '—'}</Td>
+                    <Td>{e.next_due ?? '-'}</Td>
                     <Td className="text-[12.5px] text-muted-foreground">
-                      {e.stopped_reason ?? '—'}
+                      {e.stopped_reason ?? '-'}
                     </Td>
                     <Td>
                       {e.status === 'active' && (
@@ -570,7 +570,7 @@ export default function CampaignSequences() {
                       {SEND_LABEL[o.status] ?? o.status}
                     </Badge>
                   </Td>
-                  <Td className="text-[12.5px] text-muted-foreground">{o.note ?? '—'}</Td>
+                  <Td className="text-[12.5px] text-muted-foreground">{o.note ?? '-'}</Td>
                 </tr>
               ))}
             </Table>

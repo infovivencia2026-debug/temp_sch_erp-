@@ -290,7 +290,7 @@ export default function HostelLaundry() {
                     )}
                   </Td>
                   <Td className="tabular-nums">
-                    {b.items_returned != null ? b.items_returned : '—'}
+                    {b.items_returned != null ? b.items_returned : '-'}
                     {b.returned_on && (
                       <div className="text-[12px] text-muted-foreground">
                         {formatDate(b.returned_on)}
@@ -352,7 +352,7 @@ export default function HostelLaundry() {
                         </div>
                         {short && back.damage_note.trim() === '' && (
                           <p className="text-[12px] text-destructive">
-                            Say what is missing — a bundle counted back short with no note is an
+                            Say what is missing, a bundle counted back short with no note is an
                             argument the warden loses next week.
                           </p>
                         )}

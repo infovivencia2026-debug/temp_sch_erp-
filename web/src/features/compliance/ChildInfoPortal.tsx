@@ -248,7 +248,7 @@ export default function ChildInfoPortal() {
                   ]}
                 />
               </Field>
-              <Field label="Schedule" hint="Free text — there is no scheduler behind this">
+              <Field label="Schedule" hint="Free text, there is no scheduler behind this">
                 <Input
                   value={form.schedule}
                   onChange={(v) => setForm({ ...form, schedule: v })}
@@ -341,7 +341,7 @@ export default function ChildInfoPortal() {
                         ) : null}
                       </>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </Td>
                   <Td className="tabular-nums">{c.run_count}</Td>
@@ -416,7 +416,7 @@ export default function ChildInfoPortal() {
         <Card>
           <CardHeader
             title="Exchange history"
-            description="What an operator did and when. A logbook, not a scheduler — nothing here ran on its own."
+            description="What an operator did and when. A logbook, not a scheduler, nothing here ran on its own."
           />
           {runs.error && <ErrorState error={runs.error} />}
           <Table
@@ -428,14 +428,14 @@ export default function ChildInfoPortal() {
               <tr key={r.id}>
                 <Td>{formatDate(r.started_at)}</Td>
                 <Td>{r.connector_name}</Td>
-                <Td>{r.institution_name ?? '—'}</Td>
+                <Td>{r.institution_name ?? '-'}</Td>
                 <Td>{r.direction}</Td>
                 <Td className="tabular-nums">{r.row_count}</Td>
                 <Td>
                   <Badge tone={r.status === 'ok' ? 'success' : 'danger'}>{r.status}</Badge>
                 </Td>
-                <Td>{r.started_by ?? '—'}</Td>
-                <Td className="max-w-sm text-[13px]">{r.message ?? '—'}</Td>
+                <Td>{r.started_by ?? '-'}</Td>
+                <Td className="max-w-sm text-[13px]">{r.message ?? '-'}</Td>
               </tr>
             ))}
           </Table>

@@ -115,7 +115,7 @@ const RATING_TONE: Record<string, 'neutral' | 'danger' | 'warning' | 'success' |
   not_applicable: 'neutral',
 }
 
-const pct = (bp?: number) => (bp == null ? '—' : `${(bp / 100).toFixed(1)}%`)
+const pct = (bp?: number) => (bp == null ? '-' : `${(bp / 100).toFixed(1)}%`)
 
 export default function SQAACompliance() {
   const qc = useQueryClient()
@@ -263,7 +263,7 @@ export default function SQAACompliance() {
                         onChange={(v) => setNewA({ ...newA, framework_code: v })}
                         options={frameworks.data.items.map((f) => ({
                           value: f.code,
-                          label: `${f.name} v${f.version} — ${f.authority} (${f.standards} standards)`,
+                          label: `${f.name} v${f.version} · ${f.authority} (${f.standards} standards)`,
                         }))}
                         placeholder="Choose a published framework"
                       />
@@ -306,8 +306,8 @@ export default function SQAACompliance() {
                       <Td className="tabular-nums">
                         {a.rated_count}/{a.standard_count}
                       </Td>
-                      <Td className="tabular-nums">{a.gap_count || '—'}</Td>
-                      <Td className="tabular-nums">{a.open_action_count || '—'}</Td>
+                      <Td className="tabular-nums">{a.gap_count || '-'}</Td>
+                      <Td className="tabular-nums">{a.open_action_count || '-'}</Td>
                       <Td className="tabular-nums">{pct(a.score_bp)}</Td>
                       <Td>
                         <Badge
@@ -387,7 +387,7 @@ export default function SQAACompliance() {
                           {d.assessment.submitted_by ? ` by ${d.assessment.submitted_by}` : ''}
                         </div>
                         <div className="text-muted-foreground">
-                          Ratings and evidence are fixed. The action plan below stays live — the
+                          Ratings and evidence are fixed. The action plan below stays live, the
                           gap is still a gap after the return has gone in.
                         </div>
                       </div>
@@ -398,7 +398,7 @@ export default function SQAACompliance() {
                 <Card>
                   <CardHeader
                     title="Standards"
-                    description={`${d.assessment.framework_name ?? d.assessment.framework_code} — the framework is published centrally and is not editable here.`}
+                    description={`${d.assessment.framework_name ?? d.assessment.framework_code}, the framework is published centrally and is not editable here.`}
                   />
                   <Table
                     head={['Domain', 'Standard', 'Weight', 'Rating', 'Evidence', 'Remarks', '']}
@@ -407,15 +407,15 @@ export default function SQAACompliance() {
                     {d.entries.map((e) => (
                       <tr key={e.id}>
                         <Td className="text-[13px] text-muted-foreground">
-                          {e.domain_name ?? e.domain_code ?? '—'}
+                          {e.domain_name ?? e.domain_code ?? '-'}
                         </Td>
                         <Td>
-                          <div className="font-medium">{e.standard_name ?? '—'}</div>
+                          <div className="font-medium">{e.standard_name ?? '-'}</div>
                           <div className="font-mono text-[12px] text-muted-foreground">
                             {e.standard_code ?? ''}
                           </div>
                         </Td>
-                        <Td className="tabular-nums">{e.weight_bp ? pct(e.weight_bp) : '—'}</Td>
+                        <Td className="tabular-nums">{e.weight_bp ? pct(e.weight_bp) : '-'}</Td>
                         <Td>
                           {d.frozen || !mayEdit ? (
                             <Badge tone={RATING_TONE[e.rating] ?? 'neutral'}>
@@ -485,7 +485,7 @@ export default function SQAACompliance() {
                             )}
                           </div>
                         </Td>
-                        <Td className="max-w-xs text-[13px]">{e.remarks ?? '—'}</Td>
+                        <Td className="max-w-xs text-[13px]">{e.remarks ?? '-'}</Td>
                         <Td>
                           {!d.frozen && mayEdit && evidenceFor !== e.id && (
                             <Button size="sm" variant="ghost" onClick={() => setEvidenceFor(e.id)}>
@@ -560,7 +560,7 @@ export default function SQAACompliance() {
                             <div className="text-[12px] text-muted-foreground">{a.detail}</div>
                           ) : null}
                         </Td>
-                        <Td className="font-mono text-[12px]">{a.standard_code ?? '—'}</Td>
+                        <Td className="font-mono text-[12px]">{a.standard_code ?? '-'}</Td>
                         <Td>{a.owner_name ?? 'Unassigned'}</Td>
                         <Td>
                           {a.due_on ? (
@@ -568,7 +568,7 @@ export default function SQAACompliance() {
                               {formatDate(a.due_on)}
                             </span>
                           ) : (
-                            '—'
+                            '-'
                           )}
                         </Td>
                         <Td>

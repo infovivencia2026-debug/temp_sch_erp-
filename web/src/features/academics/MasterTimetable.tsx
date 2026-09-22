@@ -162,7 +162,7 @@ export default function MasterTimetable() {
     mutationFn: () => api.post<DraftHead>(`${OPTIMIZER}/drafts`, { seed: Date.now() % 100000 }),
     onSuccess: (d) => {
       setOpenDraft(d.id)
-      setNote('Worked out. Nothing has changed for teachers yet — open it to look.')
+      setNote('Worked out. Nothing has changed for teachers yet, open it to look.')
       qc.invalidateQueries({ queryKey: ['master-timetable'] })
     },
   })
@@ -171,7 +171,7 @@ export default function MasterTimetable() {
      does: the draft opens, and nothing has reached a teacher yet. */
   function onSectionDraft(draftID: string, sectionName: string) {
     setOpenDraft(draftID)
-    setNote(`Worked out ${sectionName}. Nothing has changed for teachers yet — open it to look.`)
+    setNote(`Worked out ${sectionName}. Nothing has changed for teachers yet, open it to look.`)
     qc.invalidateQueries({ queryKey: ['master-timetable'] })
   }
 
@@ -206,7 +206,7 @@ export default function MasterTimetable() {
         title: 'First, say how many periods each subject needs',
         body:
           'The solver places periods against what the subjects ask for, and nothing asks ' +
-          'for any yet. Fill them in below — one number per subject, set once per class, ' +
+          'for any yet. Fill them in below, one number per subject, set once per class, ' +
           'and every section of that class gets its own timetable built from it. Nothing ' +
           'here can run until it knows what to place.',
       }
@@ -232,7 +232,7 @@ export default function MasterTimetable() {
             title: 'Make a timetable',
             body:
               'The computer works one out from the subjects, the teachers and the school ' +
-              'day. It is only a suggestion — nothing changes for anybody until you look ' +
+              'day. It is only a suggestion, nothing changes for anybody until you look ' +
               'at it and put it in use.',
           }
 
@@ -241,7 +241,7 @@ export default function MasterTimetable() {
       <PageHead
         eyebrow="Academics"
         title="Master timetable"
-        description="The whole school's week. Making one only suggests it — nothing changes for teachers until you put it in use."
+        description="The whole school's week. Making one only suggests it, nothing changes for teachers until you put it in use."
       />
       <PageBody>
         <SectionGrid />
@@ -335,12 +335,12 @@ export default function MasterTimetable() {
                 hint={
                   'One row per period: the class, its section, the day, the period, ' +
                   'the subject, and who teaches it. Upload one section to see the ' +
-                  'shape of it, or the whole school at once — each row names its own ' +
+                  'shape of it, or the whole school at once, each row names its own ' +
                   'section, so it does not matter which. Uploading a section again ' +
                   'replaces those periods rather than doubling them.'
                 }
                 onDone={() => {
-                  setNote('Timetable loaded. It is live for teachers now — check a section below.')
+                  setNote('Timetable loaded. It is live for teachers now, check a section below.')
                   qc.invalidateQueries({ queryKey: ['master-timetable'] })
                 }}
               />
@@ -459,7 +459,7 @@ export default function MasterTimetable() {
                 <Td className="font-medium">
                   {x.class_name}-{x.section_name}
                 </Td>
-                <Td className="tabular-nums">{x.required_periods || '—'}</Td>
+                <Td className="tabular-nums">{x.required_periods || '-'}</Td>
                 <Td
                   className={cn(
                     'tabular-nums',
@@ -473,7 +473,7 @@ export default function MasterTimetable() {
                     </span>
                   )}
                 </Td>
-                {hasDraft && <Td className="tabular-nums">{x.draft_periods || '—'}</Td>}
+                {hasDraft && <Td className="tabular-nums">{x.draft_periods || '-'}</Td>}
               </tr>
             ))}
           </Table>
@@ -548,7 +548,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
     <>
       <Card>
         <CardHeader
-          title={`${dd.draft.name} — what it could not do`}
+          title={`${dd.draft.name}, what it could not do`}
           description="The real output of a generator. Each line names the constraint that bound, because 'required 6, placed 4' suggests no fix and 'the only Maths teacher is at 34 of 35 periods' does."
         />
         {dd.issues.length === 0 ? (
@@ -564,10 +564,10 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
                     {i.severity === 'blocking' ? 'unmet' : 'bent'}
                   </Badge>
                 </Td>
-                <Td>{i.section_name ?? '—'}</Td>
-                <Td>{i.subject_name ?? '—'}</Td>
-                <Td className="tabular-nums">{i.periods_required || '—'}</Td>
-                <Td className="tabular-nums">{i.periods_placed || '—'}</Td>
+                <Td>{i.section_name ?? '-'}</Td>
+                <Td>{i.subject_name ?? '-'}</Td>
+                <Td className="tabular-nums">{i.periods_required || '-'}</Td>
+                <Td className="tabular-nums">{i.periods_placed || '-'}</Td>
                 <Td className="text-muted-foreground">{i.detail}</Td>
               </tr>
             ))}
@@ -602,7 +602,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
               <Td className="tabular-nums">{x.live_periods_now}</Td>
               <Td className="tabular-nums">{x.draft_periods}</Td>
               <Td className={cn('tabular-nums', x.draft_unstaffed > 0 && 'text-warning')}>
-                {x.draft_unstaffed || '—'}
+                {x.draft_unstaffed || '-'}
               </Td>
             </tr>
           ))}
@@ -611,7 +611,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
           <>
             <div className="px-5 pt-5 text-[13px] text-destructive">
               These teachers are already committed in the live grid, in sections this draft does not
-              cover. Publishing will be refused rather than dropping the periods — move them here
+              cover. Publishing will be refused rather than dropping the periods, move them here
               first.
             </div>
             <Table head={['Teacher', 'Day', 'Period', 'In the draft', 'Already teaching']}>
@@ -663,7 +663,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
             </div>
             {warnings.length > 0 && (
               <p className="text-[13px] text-muted-foreground">
-                {warnings.length} soft preference{warnings.length === 1 ? '' : 's'} had to bend —
+                {warnings.length} soft preference{warnings.length === 1 ? '' : 's'} had to bend, 
                 stacked subjects and the like. Worth a look, not a reason to refuse.
               </p>
             )}
@@ -822,7 +822,7 @@ function DraftCard({ draft, open, mayWrite, onOpen }: {
           {!complete && (
             <p className="mt-0.5 text-[13.5px] text-warning">
               {draft.blocking_issues} {draft.blocking_issues === 1 ? 'requirement' : 'requirements'} could
-              not be met — open it to read which, and why.
+              not be met, open it to read which, and why.
             </p>
           )}
           <p className="mt-1.5 text-[12.5px] text-muted-foreground">

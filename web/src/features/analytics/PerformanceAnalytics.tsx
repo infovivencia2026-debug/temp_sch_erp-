@@ -87,12 +87,12 @@ export default function PerformanceAnalytics() {
           <Stat label="Exams analysed" value={new Set(trend.data?.items.map((t) => t.exam_id)).size} />
           <Stat
             label="Weakest subject"
-            value={weakest?.subject ?? '—'}
+            value={weakest?.subject ?? '-'}
             hint={weakest ? pct(weakest.avg_pct) : undefined}
           />
           <Stat
             label="Strongest subject"
-            value={strongest?.subject ?? '—'}
+            value={strongest?.subject ?? '-'}
             hint={strongest ? pct(strongest.avg_pct) : undefined}
           />
           <Stat label="Students at risk" value={risky.length} hint="Below threshold or failing" />
@@ -118,7 +118,7 @@ export default function PerformanceAnalytics() {
               {(trend.data?.items ?? []).map((t) => (
                 <tr key={`${t.exam_id}-${t.class_name}`}>
                   <Td className="font-medium">{t.exam_name}</Td>
-                  <Td className="text-muted-foreground">{t.exam_date ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{t.exam_date ?? '-'}</Td>
                   <Td>{t.class_name}</Td>
                   <Td>{t.students}</Td>
                   <Td>{pct(t.avg_pct)}</Td>
@@ -135,7 +135,7 @@ export default function PerformanceAnalytics() {
           <Card>
             <CardHeader
               title="Subject strength and weakness"
-              description="Weakest first — the order the question is asked in."
+              description="Weakest first, the order the question is asked in."
               action={<CsvButton href={SUBJECTS} />}
             />
             {subjects.isLoading ? (
@@ -219,7 +219,7 @@ export default function PerformanceAnalytics() {
                     {s.subjects_failing > 0 ? (
                       <Badge tone="danger">{s.subjects_failing}</Badge>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </Td>
                   <Td>{pct(s.avg_pct)}</Td>

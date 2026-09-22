@@ -86,7 +86,7 @@ func (s *Server) listStudentProgress(w http.ResponseWriter, r *http.Request) {
 	rows, err := collect(s, r, `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.last_name),
-		       COALESCE(sec.name, '—'), COALESCE(cl.name, '—'),
+		       COALESCE(sec.name, '-'), COALESCE(cl.name, '-'),
 		       att.present, att.marked,
 		       -- COALESCE because the GROUP BY below makes the lateral return
 		       -- no rows at all for a section with no homework set.
@@ -113,7 +113,7 @@ func (s *Server) listStudentProgress(w http.ResponseWriter, r *http.Request) {
 		  ) att ON TRUE
 
 		  /* Homework set to this child's section against what they turned in,
-		     and — the part that makes it fair — what the rest of the section
+		     and, the part that makes it fair, what the rest of the section
 		     managed on the same pieces. A child measured against a perfect
 		     score is being marked down for their school's habits; measured
 		     against the classmates who got the same worksheet, they are not. */
@@ -421,7 +421,7 @@ func (s *Server) recordDisciplineNote(w http.ResponseWriter, r *http.Request) {
 		if len(summary) > 240 {
 			summary = summary[:237] + "…"
 		}
-		summary += " — " + from
+		summary += " · " + from
 
 		/* Who is told, from the two flags rather than from one list.
 
@@ -516,7 +516,7 @@ func (s *Server) listSupportPlans(w http.ResponseWriter, r *http.Request) {
 	items, err := collect(s, r, `
 		SELECT sp.id::text, sp.student_id::text,
 		       concat_ws(' ', st.first_name, st.last_name),
-		       COALESCE(cl.name, '—'), st.cwsn_type,
+		       COALESCE(cl.name, '-'), st.cwsn_type,
 		       sp.concern, sp.accommodations, sp.exam_concession, sp.external_support,
 		       to_char(sp.review_on,'YYYY-MM-DD'), sp.status,
 		       sp.review_on IS NOT NULL AND sp.review_on < current_date

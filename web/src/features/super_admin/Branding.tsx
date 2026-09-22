@@ -88,13 +88,13 @@ export default function Branding() {
           <Table
             head={['Applies to', 'Display name', 'Tagline', 'Colours', 'Custom domain']}
             empty={!data.items.length}
-            emptyLabel={`Nothing overridden yet — everything shows as "${data.institution_name}" in ${data.institution_primary_color}.`}
+            emptyLabel={`Nothing overridden yet, everything shows as "${data.institution_name}" in ${data.institution_primary_color}.`}
           >
             {data.items.map((p) => (
               <tr key={p.id}>
                 <Td className="font-medium">{p.campus ?? 'The whole school'}</Td>
                 <Td>{p.display_name ?? <span className="text-muted-foreground">{data.institution_name}</span>}</Td>
-                <Td>{p.tagline ?? '—'}</Td>
+                <Td>{p.tagline ?? '-'}</Td>
                 <Td>
                   <span className="inline-flex items-center gap-2">
                     <span
@@ -120,10 +120,10 @@ export default function Branding() {
                     p.domain_verified_at ? (
                       <Badge tone="success">{p.custom_domain}</Badge>
                     ) : (
-                      <Badge tone="warning">{p.custom_domain} — unverified</Badge>
+                      <Badge tone="warning">{p.custom_domain}, unverified</Badge>
                     )
                   ) : (
-                    '—'
+                    '-'
                   )}
                 </Td>
               </tr>
@@ -137,7 +137,7 @@ export default function Branding() {
             description={
               data.uploads_available
                 ? 'Image keys refer to files already uploaded through the files endpoint'
-                : 'File storage is not configured on this installation, so a logo cannot be uploaded yet — the keys below are recorded and used once it is'
+                : 'File storage is not configured on this installation, so a logo cannot be uploaded yet, the keys below are recorded and used once it is'
             }
             action={
               <div className="flex items-center gap-2">

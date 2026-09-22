@@ -75,7 +75,7 @@ export default function Budgets() {
 
         <Card>
           <CardHeader
-            title={b?.budget_id ? `${b.name} — ${b.fy_label}` : `Budget — ${fy}`}
+            title={b?.budget_id ? `${b.name} · ${b.fy_label}` : `Budget · ${fy}`}
             description="The budget in force is the revision where there is one and the original otherwise. Both are shown, because a board reading a variance needs to know which figure it was measured against."
             action={b?.status ? <Badge tone={b.status === 'approved' ? 'success' : 'neutral'}>{b.status}</Badge> : undefined}
           />
@@ -95,7 +95,7 @@ export default function Budgets() {
                   <Td className="text-muted-foreground">{l.department ?? 'school-wide'}</Td>
                   <Td className="text-right tabular-nums">{rupees(l.allocated_paise)}</Td>
                   <Td className="text-right tabular-nums text-muted-foreground">
-                    {l.revised_paise != null ? rupees(l.revised_paise) : '—'}
+                    {l.revised_paise != null ? rupees(l.revised_paise) : '-'}
                   </Td>
                   <Td className="text-right tabular-nums">{rupees(l.actual_paise)}</Td>
                   <Td className={`text-right font-medium tabular-nums ${l.variance_paise < 0 ? 'text-destructive' : ''}`}>

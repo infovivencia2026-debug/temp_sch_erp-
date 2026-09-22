@@ -99,7 +99,7 @@ export default function Corrections() {
       api.post(`/api/v1/attendance-workflow/corrections/${id}/decide`, { decision, note }),
     onSuccess: (_r, v) => {
       setDone(v.decision === 'approved'
-        ? 'Approved — the register has been amended.'
+        ? 'Approved, the register has been amended.'
         : 'Rejected. The original mark stands.')
       setNote('')
       qc.invalidateQueries({ queryKey: ['corrections'] })
@@ -265,8 +265,8 @@ export default function Corrections() {
                       <StatusPill status={c.to_status} />
                     </span>
                   </Td>
-                  <Td className="max-w-[24ch] truncate text-muted-foreground" >{c.reason || '—'}</Td>
-                  <Td className="text-muted-foreground">{c.requested_by || '—'}</Td>
+                  <Td className="max-w-[24ch] truncate text-muted-foreground" >{c.reason || '-'}</Td>
+                  <Td className="text-muted-foreground">{c.requested_by || '-'}</Td>
                   <Td><StatusPill status={c.status} /></Td>
                   <Td>
                     {/* Approving is somebody else's job.

@@ -33,7 +33,7 @@ export default function ChildBus() {
       <PageHead
         eyebrow="My child's bus"
         title="Live bus tracking"
-        description="The bus, your child's stop, and the straight-line distance between them. That distance is how far away it is, not how long it will take — the bus still has roads, turns and other stops between the two."
+        description="The bus, your child's stop, and the straight-line distance between them. That distance is how far away it is, not how long it will take, the bus still has roads, turns and other stops between the two."
       />
       <Freshness query={feed} />
       <PageBody>
@@ -50,7 +50,7 @@ export default function ChildBus() {
             <p className="text-[12.5px] text-muted-foreground">
               {every && visible
                 ? `Refreshing every ${every} seconds while this tab is in front of you.`
-                : 'Not refreshing — nothing is on a run, or this tab is in the background.'}
+                : 'Not refreshing, nothing is on a run, or this tab is in the background.'}
             </p>
           </>
         )}
@@ -76,14 +76,14 @@ function ChildCard({ row, staleAfter }: { row: ChildBusRow; staleAfter: number }
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
           <Fact label="Stop" value={row.stop ?? 'Not recorded'} />
-          <Fact label="Scheduled" value={row.scheduled_at ?? '—'} />
+          <Fact label="Scheduled" value={row.scheduled_at ?? '-'} />
           <Fact
             label="Straight-line distance"
-            value={row.metres_away != null ? `${row.metres_away} m` : '—'}
+            value={row.metres_away != null ? `${row.metres_away} m` : '-'}
           />
           <Fact
             label="Arrives in about"
-            value={row.eta_minutes != null ? `${row.eta_minutes} min` : '—'}
+            value={row.eta_minutes != null ? `${row.eta_minutes} min` : '-'}
           />
           <Fact label="Last position" value={ageText(row.age_seconds)} />
         </dl>

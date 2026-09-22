@@ -307,7 +307,7 @@ function OverviewBody({
 
   const presentToday = attendance.marked_today && attendance.present_pct_today != null
     ? `${attendance.present_pct_today}%`
-    : '—'
+    : '-'
 
   return (
     <>
@@ -323,7 +323,7 @@ function OverviewBody({
           icon={ClipboardCheck}
           hint={attendance.marked_today ? undefined : 'No register marked today'}
         />
-        <Stat label="Class teacher" value={o.class_teacher || '—'} icon={UserCheck} />
+        <Stat label="Class teacher" value={o.class_teacher || '-'} icon={UserCheck} />
         <Stat label="Subjects taught" value={o.subject_teachers.length} icon={BookOpen} />
       </CellGrid>
 
@@ -341,7 +341,7 @@ function OverviewBody({
               <tr key={s.student_id}>
                 <Td className="font-medium">{s.name}</Td>
                 <Td className="font-mono text-[13px] text-muted-foreground">{s.admission_no}</Td>
-                <Td className="tabular-nums">{s.roll ?? '—'}</Td>
+                <Td className="tabular-nums">{s.roll ?? '-'}</Td>
                 <Td>
                   {withPhone.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2">
@@ -447,7 +447,7 @@ function OverviewBody({
                     <div key={st.subject} className="text-[14px]">
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="font-medium">{st.subject}</span>
-                        <span className="text-right text-muted-foreground">{st.teacher || '—'}</span>
+                        <span className="text-right text-muted-foreground">{st.teacher || '-'}</span>
                       </div>
                       <TeacherContact phone={st.phone} email={st.email} />
                     </div>

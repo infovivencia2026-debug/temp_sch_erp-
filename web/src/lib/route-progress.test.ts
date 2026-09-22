@@ -59,7 +59,7 @@ describe('routeProgress', () => {
 
 describe('distanceText', () => {
   it('reads as a person says it', () => {
-    expect(distanceText(undefined)).toBe('—')
+    expect(distanceText(undefined)).toBe('-')
     expect(distanceText(340.4)).toBe('340 m')
     expect(distanceText(999)).toBe('999 m')
     expect(distanceText(1000)).toBe('1.0 km')

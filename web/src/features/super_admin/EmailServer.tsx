@@ -47,15 +47,15 @@ interface MailPreset {
 const PRESETS: MailPreset[] = [
   {
     key: 'gmail', label: 'Gmail', host: 'smtp.gmail.com', port: 587, security: 'starttls',
-    note: 'Needs an App Password, not the Gmail password — turn on 2-Step Verification first, then Google Account → Security → App passwords. The From address must be the same account, or Gmail rewrites it. Roughly 500 recipients a day.',
+    note: 'Needs an App Password, not the Gmail password, turn on 2-Step Verification first, then Google Account → Security → App passwords. The From address must be the same account, or Gmail rewrites it. Roughly 500 recipients a day.',
   },
   {
     key: 'workspace', label: 'Google Workspace', host: 'smtp.gmail.com', port: 587, security: 'starttls',
-    note: 'Same server as Gmail and the same App Password requirement, on your own domain. Roughly 2,000 recipients a day, and you can send as office@yourschool.com — which is what stops fee notices looking personal.',
+    note: 'Same server as Gmail and the same App Password requirement, on your own domain. Roughly 2,000 recipients a day, and you can send as office@yourschool.com, which is what stops fee notices looking personal.',
   },
   {
     key: 'm365', label: 'Microsoft 365', host: 'smtp.office365.com', port: 587, security: 'starttls',
-    note: 'The tenant administrator must enable SMTP AUTH on the mailbox — it is off by default and Microsoft is retiring it, so check this still works before you depend on it for a fee run.',
+    note: 'The tenant administrator must enable SMTP AUTH on the mailbox, it is off by default and Microsoft is retiring it, so check this still works before you depend on it for a fee run.',
   },
   {
     key: 'outlook', label: 'Outlook.com / Hotmail', host: 'smtp-mail.outlook.com', port: 587, security: 'starttls',
@@ -67,7 +67,7 @@ const PRESETS: MailPreset[] = [
   },
   {
     key: 'zoho_in', label: 'Zoho Mail (India)', host: 'smtp.zoho.in', port: 587, security: 'starttls',
-    note: 'For accounts on zoho.in. Use smtp.zoho.com if the account was created on the global site — the two are not interchangeable. An App Password is required when two-factor is on.',
+    note: 'For accounts on zoho.in. Use smtp.zoho.com if the account was created on the global site, the two are not interchangeable. An App Password is required when two-factor is on.',
   },
   {
     key: 'icloud', label: 'iCloud Mail', host: 'smtp.mail.me.com', port: 587, security: 'starttls',
@@ -80,11 +80,11 @@ const PRESETS: MailPreset[] = [
   {
     key: 'sendgrid', label: 'SendGrid', host: 'smtp.sendgrid.net', port: 587, security: 'starttls',
     username: 'apikey',
-    note: 'The username is the literal word "apikey" — filled in above, and it is correct as it stands. The password is the API key itself.',
+    note: 'The username is the literal word "apikey", filled in above, and it is correct as it stands. The password is the API key itself.',
   },
   {
     key: 'ses_mumbai', label: 'Amazon SES (Mumbai)', host: 'email-smtp.ap-south-1.amazonaws.com', port: 587, security: 'starttls',
-    note: 'The credential is a pair of SES SMTP credentials generated in the SES console — NOT your AWS access key, which will be refused. A new SES account is in the sandbox and can only mail verified addresses until you ask for production access.',
+    note: 'The credential is a pair of SES SMTP credentials generated in the SES console · NOT your AWS access key, which will be refused. A new SES account is in the sandbox and can only mail verified addresses until you ask for production access.',
   },
 ]
 
@@ -181,7 +181,7 @@ export default function EmailServer({ platform = false }: { platform?: boolean }
                 </Td>
                 <Td>{p.queued}</Td>
                 <Td>{p.sent_today}</Td>
-                <Td className="text-[13px] text-muted-foreground">{p.last_error ?? '—'}</Td>
+                <Td className="text-[13px] text-muted-foreground">{p.last_error ?? '-'}</Td>
               </tr>
             ))}
           </Table>
@@ -201,7 +201,7 @@ export default function EmailServer({ platform = false }: { platform?: boolean }
               <tr key={row.id}>
                 <Td className="whitespace-nowrap">{when(row.queued_at)}</Td>
                 <Td>{row.recipient}</Td>
-                <Td>{row.subject ?? row.template_code ?? '—'}</Td>
+                <Td>{row.subject ?? row.template_code ?? '-'}</Td>
                 <Td>
                   <Badge tone={statusTone(row.status)}>{row.status}</Badge>
                   {row.send_after && row.status === 'queued' && (
@@ -353,7 +353,7 @@ function SmtpPanel({ provider }: { provider: Provider }) {
           <Field label="Port" required hint="587 for STARTTLS, 465 for implicit TLS, 25 for a local relay.">
             <Input value={String(v.port ?? '')} onChange={(x) => set('port', Number(x) || 0)} />
           </Field>
-          <Field label="Encryption" hint="Named, not guessed from the port — an appliance that does not offer STARTTLS simply hangs.">
+          <Field label="Encryption" hint="Named, not guessed from the port, an appliance that does not offer STARTTLS simply hangs.">
             <Select value={v.security ?? 'starttls'} onChange={(x) => set('security', x)} options={SECURITY} />
           </Field>
           <Field label="Username" hint="Leave empty for a relay that authenticates by IP rather than by password.">
@@ -433,8 +433,8 @@ function SmtpPanel({ provider }: { provider: Provider }) {
                   two states have different fixes and only one of them involves
                   typing anything. */}
               {/^configured but switched off$/.test(provider.reason ?? '')
-                ? ' — tick “Send email through this server” above and press Save, then test.'
-                : ' — fill in the server above and press Save, then test.'}
+                ? ', tick “Send email through this server” above and press Save, then test.'
+                : ', fill in the server above and press Save, then test.'}
             </p>
           )}
           {/* A change that has not been saved is not a change the test can use:
@@ -443,7 +443,7 @@ function SmtpPanel({ provider }: { provider: Provider }) {
           {provider.configured && (draft || enabled !== provider.enabled) && (
             <p className="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px]">
               These settings have not been saved. A test sends through the saved
-              server, not what is on screen — press Save first.
+              server, not what is on screen, press Save first.
             </p>
           )}
           <div className="mt-3">

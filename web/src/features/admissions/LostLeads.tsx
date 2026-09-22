@@ -102,7 +102,7 @@ export default function LostLeads() {
   const optOut = useMutation({
     mutationFn: (id: string) => api.post(`${A}/leads/${id}/opt-out`, {}),
     onSuccess: () => {
-      toast.ok('Recorded — every sequence for this parent has stopped')
+      toast.ok('Recorded, every sequence for this parent has stopped')
       invalidate()
     },
     onError: (e) => toast.error(errText(e)),
@@ -143,10 +143,10 @@ export default function LostLeads() {
         <CellGrid cols={4}>
           <Stat label="Lost in this period" value={lostRows.length} icon={TrendingDown} />
           <Stat label="No reason recorded" value={unrecorded} icon={HelpCircle} />
-          <Stat label="Biggest single group" value={topRow ? topRow.group : '—'} />
+          <Stat label="Biggest single group" value={topRow ? topRow.group : '-'} />
           <Stat
             label="…and how many that is"
-            value={topRow ? `${topRow.lost}${topRow.share_percent != null ? ` (${topRow.share_percent}%)` : ''}` : '—'}
+            value={topRow ? `${topRow.lost}${topRow.share_percent != null ? ` (${topRow.share_percent}%)` : ''}` : '-'}
           />
         </CellGrid>
 
@@ -211,7 +211,7 @@ export default function LostLeads() {
         <Card>
           <CardHeader
             title="The pattern"
-            description="Share is withheld below five enquiries in a group — one lost enquiry is not a rate."
+            description="Share is withheld below five enquiries in a group, one lost enquiry is not a rate."
             action={
               <div className="w-full sm:w-[220px]">
                 <Select value={by} onChange={setBy} options={LOST_DIMENSIONS} />
@@ -249,7 +249,7 @@ export default function LostLeads() {
                     )}
                   </Td>
                   <Td className="text-[13px] text-muted-foreground">
-                    {r.top_reason ? `${r.top_reason} (${r.top_reason_count ?? 0})` : '—'}
+                    {r.top_reason ? `${r.top_reason} (${r.top_reason_count ?? 0})` : '-'}
                   </Td>
                 </tr>
               ))}
@@ -316,7 +316,7 @@ export default function LostLeads() {
                       </span>
                     )}
                   </Td>
-                  <Td>{r.class_sought ?? '—'}</Td>
+                  <Td>{r.class_sought ?? '-'}</Td>
                   <Td>{r.source}</Td>
                   <Td>{r.counsellor ?? 'Unassigned'}</Td>
                   <Td>
@@ -326,9 +326,9 @@ export default function LostLeads() {
                       <Badge tone="warning">Not recorded</Badge>
                     )}
                   </Td>
-                  <Td className="text-[12.5px] text-muted-foreground">{r.note ?? '—'}</Td>
+                  <Td className="text-[12.5px] text-muted-foreground">{r.note ?? '-'}</Td>
                   <Td className="text-right tabular-nums">{r.days_worked} d</Td>
-                  <Td>{r.lost_on ?? '—'}</Td>
+                  <Td>{r.lost_on ?? '-'}</Td>
                   <Td>
                     <Button
                       size="sm"

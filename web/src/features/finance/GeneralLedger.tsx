@@ -54,17 +54,17 @@ export default function GeneralLedger() {
       />
       <PageBody width="wide">
         <CellGrid cols={4}>
-          <Stat label="Debits" value={t ? inr(t.totals.closing_debit_paise) : '—'}
+          <Stat label="Debits" value={t ? inr(t.totals.closing_debit_paise) : '-'}
             period={t ? `closing, ${t.fy_label}` : undefined} />
-          <Stat label="Credits" value={t ? inr(t.totals.closing_credit_paise) : '—'}
+          <Stat label="Credits" value={t ? inr(t.totals.closing_credit_paise) : '-'}
             period={t ? `closing, ${t.fy_label}` : undefined} />
-          <Stat label="Difference" value={t ? rupees(t.difference_paise) : '—'} icon={Scale}
+          <Stat label="Difference" value={t ? rupees(t.difference_paise) : '-'} icon={Scale}
             delta={t
               ? t.balanced
                 ? { value: 'The books balance', positive: true }
-                : { value: 'Out of balance — investigate before reading anything else', positive: false }
+                : { value: 'Out of balance, investigate before reading anything else', positive: false }
               : undefined} />
-          <Stat label="Accounts with a balance" value={t?.rows.length ?? '—'}
+          <Stat label="Accounts with a balance" value={t?.rows.length ?? '-'}
             hint="Accounts never posted to are left off" />
         </CellGrid>
 
@@ -151,9 +151,9 @@ function PostVoucher() {
           <Field label="Kind">
             <Select value={type} onChange={setType} options={[
               { value: 'journal', label: 'Journal' },
-              { value: 'receipt', label: 'Receipt — money in' },
-              { value: 'payment', label: 'Payment — money out' },
-              { value: 'contra', label: 'Contra — between own accounts' },
+              { value: 'receipt', label: 'Receipt, money in' },
+              { value: 'payment', label: 'Payment, money out' },
+              { value: 'contra', label: 'Contra, between own accounts' },
               { value: 'purchase', label: 'Purchase' },
               { value: 'sales', label: 'Sales' },
             ]} />
@@ -279,7 +279,7 @@ function VoucherRegister({ fy }: { fy: string }) {
               <tr key={i}>
                 <Td className="tabular-nums text-muted-foreground">{l.code}</Td>
                 <Td className="font-medium">{l.name}</Td>
-                <Td className="text-muted-foreground">{l.memo ?? '—'}</Td>
+                <Td className="text-muted-foreground">{l.memo ?? '-'}</Td>
                 <Td className="text-right tabular-nums">{side(l.debit_paise)}</Td>
                 <Td className="text-right tabular-nums">{side(l.credit_paise)}</Td>
               </tr>
@@ -301,7 +301,7 @@ function TrialBalanceTab({ query }: { query: ReturnType<typeof useQuery<TrialBal
   return (
     <Card>
       <CardHeader
-        title={`Trial balance — ${t.fy_label}`}
+        title={`Trial balance · ${t.fy_label}`}
         description="Opening, the year's movement, and the closing position. Each pair balances for its own reason, which is why a difference in any one of them points straight at where to look."
         action={
           <Badge tone={t.balanced ? 'success' : 'danger'} solid={!t.balanced}>
@@ -363,7 +363,7 @@ function StatementsTab({ fy }: { fy: string }) {
     <>
       <Card>
         <CardHeader
-          title={`Income and expenditure — ${s.fy_label}`}
+          title={`Income and expenditure · ${s.fy_label}`}
           description="The year's own result. Closing vouchers are left out on purpose: a close writes every income and expense account back to nil, so counting it would report a closed year as having earned nothing."
           action={
             <Badge tone={ie.surplus_paise >= 0 ? 'success' : 'danger'}>
@@ -413,7 +413,7 @@ function StatementsTab({ fy }: { fy: string }) {
       <Card>
         <CardHeader
           title={`Balance sheet as at ${s.fy_label.slice(0, 4) ? `31 March ${Number(s.fy_label.slice(0, 4)) + 1}` : ''}`}
-          description="Everything ever posted, up to the year end. The surplus not yet closed appears on the liabilities side because until the year is closed the result belongs to nobody's account — leaving it out is why a balance sheet fails to tie."
+          description="Everything ever posted, up to the year end. The surplus not yet closed appears on the liabilities side because until the year is closed the result belongs to nobody's account, leaving it out is why a balance sheet fails to tie."
           action={
             <Badge tone={bs.balanced ? 'success' : 'danger'} solid={!bs.balanced}>
               {bs.balanced ? 'ties' : `out by ${rupees(bs.difference_paise)}`}
@@ -443,7 +443,7 @@ function StatementsTab({ fy }: { fy: string }) {
           ))}
           {bs.surplus_not_yet_closed !== 0 && (
             <tr>
-              <Td className="text-muted-foreground">—</Td>
+              <Td className="text-muted-foreground">-</Td>
               <Td>
                 Surplus not yet closed
                 <div className="text-[12px] text-muted-foreground">

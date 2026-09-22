@@ -38,7 +38,7 @@ export function proximityError(metres: number): string | null {
   if (!Number.isFinite(metres) || !Number.isInteger(metres))
     return 'Enter a whole number of metres.'
   if (metres < PROXIMITY_MIN)
-    return `${metres} m is closer than the alert can be set. The nearest is ${PROXIMITY_MIN} m — by then the bus is at the stop.`
+    return `${metres} m is closer than the alert can be set. The nearest is ${PROXIMITY_MIN} m, by then the bus is at the stop.`
   if (metres > PROXIMITY_MAX)
     return `${metres} m is further than the alert can be set. The furthest is ${PROXIMITY_MAX} m (5 km).`
   return null
@@ -51,10 +51,10 @@ export function proximityError(metres: number): string | null {
    is what makes it choosable. */
 export function walkText(metres: number): string {
   const mins = Math.round(metres / 80)
-  if (metres < 200) return 'about a minute or two on foot — practically at the stop'
+  if (metres < 200) return 'about a minute or two on foot, practically at the stop'
   if (mins <= 1) return 'about a minute on foot'
   if (metres >= 1000)
-    return `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)} km — roughly a ${mins}-minute walk`
+    return `${(metres / 1000).toFixed(metres % 1000 === 0 ? 0 : 1)} km, roughly a ${mins}-minute walk`
   return `roughly a ${mins}-minute walk`
 }
 
@@ -67,7 +67,7 @@ export function batteryText(seconds: number): string {
   if (seconds <= 15)
     return 'The freshest picture available, and the most battery: the map fetches several times a minute for the whole run.'
   if (seconds <= 45)
-    return 'A good balance — the bus moves a street or so between updates, and the drain is modest.'
+    return 'A good balance, the bus moves a street or so between updates, and the drain is modest.'
   if (seconds <= 120)
     return 'Easy on the battery. The bus may be a few hundred metres past where the map shows it.'
   return 'Barely touches the battery, but the map is a rough guide rather than a live position.'
@@ -104,7 +104,7 @@ export function childOptions(rows: ChildBusRow[]) {
     { value: ALL_CHILDREN, label: 'All my children' },
     ...rows.map((r) => ({
       value: r.student_id,
-      label: `${r.student_name} — ${r.route}`,
+      label: `${r.student_name} · ${r.route}`,
     })),
   ]
 }

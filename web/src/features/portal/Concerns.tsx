@@ -117,7 +117,7 @@ export default function Concerns() {
             value={
               open.length
                 ? t('portal.concerns.days', { count: Math.max(...open.map((c) => c.open_days)) })
-                : '—'
+                : '-'
             }
           />
         </CellGrid>

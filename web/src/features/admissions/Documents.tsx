@@ -149,7 +149,7 @@ export default function Documents({
                   />
                 </div>
               ) : (
-                <span className="text-muted-foreground">—</span>
+                <span className="text-muted-foreground">-</span>
               )}
             </Td>
             <Td className="text-muted-foreground">
@@ -160,7 +160,7 @@ export default function Documents({
                     <div className="text-[12px]">{d.verified_at}</div>
                   )}
                 </>
-              ) : '—'}
+              ) : '-'}
             </Td>
             <Td>
               {canWrite && (
@@ -196,7 +196,7 @@ export default function Documents({
                         disabled={decide.isPending}
                         title={d.file_id
                           ? 'Mark this document verified'
-                          : 'Mark verified — the school has seen the original'}
+                          : 'Mark verified, the school has seen the original'}
                         onClick={() => decide.mutate({ id: d.id, status: 'verified' })}
                       >
                         <Check className="h-3.5 w-3.5" />

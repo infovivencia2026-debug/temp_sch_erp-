@@ -136,8 +136,8 @@ export default function Students() {
           >
             <Td className="font-mono text-xs">{s.admission_no}</Td>
             <Td className="font-medium">{s.full_name}</Td>
-            <Td>{s.class_name ? `${s.class_name}-${s.section_name ?? '?'}` : '—'}</Td>
-            <Td className="tabular-nums">{s.roll_no ?? '—'}</Td>
+            <Td>{s.class_name ? `${s.class_name}-${s.section_name ?? '?'}` : '-'}</Td>
+            <Td className="tabular-nums">{s.roll_no ?? '-'}</Td>
             <Td>{formatDate(s.admission_date)}</Td>
             <Td>
               <Badge tone={s.status === 'active' ? 'success' : 'neutral'}>{s.status}</Badge>

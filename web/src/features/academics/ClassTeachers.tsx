@@ -118,7 +118,7 @@ export default function ClassTeachers() {
     <Card className="mb-5">
       <CardHeader
         title="Class teachers"
-        description="One per section. A class teacher marks the daily register and sees every student in the section, whatever they teach — change it whenever somebody moves on."
+        description="One per section. A class teacher marks the daily register and sees every student in the section, whatever they teach, change it whenever somebody moves on."
         action={
           <Button
             size="sm"
@@ -134,14 +134,14 @@ export default function ClassTeachers() {
         <FormNotice error={save.error} ok={saved} />
         {unowned > 0 && (
           <p className="mb-2 text-[12.5px] text-muted-foreground">
-            {unowned} {unowned === 1 ? 'section has' : 'sections have'} no class teacher — nobody
+            {unowned} {unowned === 1 ? 'section has' : 'sections have'} no class teacher, nobody
             marks that register.
           </p>
         )}
       </div>
 
       <Table head={['Class', 'Section', 'Students', 'Class teacher', '']} empty={!rows.length}
-        emptyLabel="No sections yet — add them on the setup wizard first.">
+        emptyLabel="No sections yet, add them on the setup wizard first.">
         {rows.map((s) => (
           <tr key={s.id}>
             <Td className="font-medium">{s.class_name}</Td>

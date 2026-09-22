@@ -130,11 +130,11 @@ export default function CreditBank() {
                       <span className="font-medium">{e.course_title}</span>
                       {e.level && <Badge>{e.level.replace('_', ' ')}</Badge>}
                     </Td>
-                    <Td>{e.subject ?? <span className="text-muted-foreground">—</span>}</Td>
-                    <Td>{e.academic_year ?? '—'}</Td>
-                    <Td>{e.session ?? '—'}</Td>
+                    <Td>{e.subject ?? <span className="text-muted-foreground">-</span>}</Td>
+                    <Td>{e.academic_year ?? '-'}</Td>
+                    <Td>{e.session ?? '-'}</Td>
                     <Td className="text-right tabular-nums">{e.credits}</Td>
-                    <Td>{e.grade ?? '—'}</Td>
+                    <Td>{e.grade ?? '-'}</Td>
                     <Td>
                       <Badge tone={TONE[e.status] ?? 'neutral'}>{e.status}</Badge>
                     </Td>

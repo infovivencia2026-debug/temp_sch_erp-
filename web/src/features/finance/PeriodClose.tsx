@@ -163,7 +163,7 @@ export default function PeriodClose() {
                       )}
                     </Td>
                     <Td className="text-muted-foreground">
-                      {m.closed_at ?? '—'}
+                      {m.closed_at ?? '-'}
                       {m.closed_by && <div className="text-[12px]">{m.closed_by}</div>}
                     </Td>
                     <Td>

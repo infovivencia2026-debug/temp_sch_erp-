@@ -69,7 +69,7 @@ export default function DemandGeneration() {
         : ''
       setResult(
         (r.skipped
-          ? `${r.created} invoices raised. ${r.skipped} skipped — already billed for this instalment.`
+          ? `${r.created} invoices raised. ${r.skipped} skipped, already billed for this instalment.`
           : `${r.created} invoices raised.`) + arrears,
       )
       qc.invalidateQueries({ queryKey: ['finance'] })
@@ -101,7 +101,7 @@ export default function DemandGeneration() {
                 onChange={setStructure}
                 options={items.map((s) => ({
                   value: s.id,
-                  label: s.class_name ? `${s.name} — ${s.class_name}` : s.name,
+                  label: s.class_name ? `${s.name} · ${s.class_name}` : s.name,
                 }))}
                 placeholder="Select…"
               />
@@ -159,13 +159,13 @@ export default function DemandGeneration() {
             <Table
               head={['Structure', 'Class', 'Year', 'Heads', 'Total']}
               empty={!items.length}
-              emptyLabel="No fee structure defined yet — set one up before raising a demand."
+              emptyLabel="No fee structure defined yet, set one up before raising a demand."
             >
               {items.map((s) => (
                 <tr key={s.id}>
                   <Td className="font-medium">{s.name}</Td>
                   <Td>{s.class_name ?? 'All'}</Td>
-                  <Td className="text-muted-foreground">{s.academic_year ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{s.academic_year ?? '-'}</Td>
                   <Td className="tabular-nums">{s.lines}</Td>
                   <Td className="tabular-nums">{formatPaise(s.total_paise)}</Td>
                 </tr>

@@ -295,7 +295,7 @@ function Catalogue({
               <Td>
                 <span className="font-medium">{h.title}</span>
                 <span className="block text-[13px] text-muted-foreground">
-                  {[h.author, h.publisher, h.identifier].filter(Boolean).join(' · ') || '—'}
+                  {[h.author, h.publisher, h.identifier].filter(Boolean).join(' · ') || '-'}
                 </span>
               </Td>
               <Td>{KIND_LABEL[h.kind] ?? h.kind}</Td>
@@ -310,7 +310,7 @@ function Catalogue({
               </Td>
               <Td>
                 {h.subject_tags.length === 0 ? (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">-</span>
                 ) : (
                   <span className="flex flex-wrap gap-1">
                     {h.subject_tags.map((t) => (
@@ -436,12 +436,12 @@ function HoldingStatus({ holding }: { holding: Holding }) {
     return <Badge tone="success">Open to you</Badge>
   }
   if (holding.available_to_me) {
-    return <Badge tone="success">Yours until {holding.due_on ?? '—'}</Badge>
+    return <Badge tone="success">Yours until {holding.due_on ?? '-'}</Badge>
   }
   if (holding.on_loan) {
     return (
       <Badge tone="warning">
-        Out until {holding.due_on ?? '—'}
+        Out until {holding.due_on ?? '-'}
         {holding.readers_waiting > 0 && ` · ${holding.readers_waiting} waiting`}
       </Badge>
     )
@@ -658,7 +658,7 @@ function VisibilityForm({ holding, onClose }: { holding: Holding; onClose: () =>
     <Card>
       <CardHeader
         title={`Who sees “${holding.title}”`}
-        description="Tick nothing and everyone sees it. Tick a class or a role and only they do — which is how a research database reaches the staff room and not Class 2."
+        description="Tick nothing and everyone sees it. Tick a class or a role and only they do, which is how a research database reaches the staff room and not Class 2."
         action={
           <Button size="sm" variant="ghost" onClick={onClose}>
             <X className="h-3.5 w-3.5" />
@@ -741,7 +741,7 @@ function Providers({ librarian }: { librarian: boolean }) {
         <div className="p-5">
           <UnavailableState
             title="No provider is connected on this deployment."
-            body="EBSCO, JSTOR and ProQuest each need a paid subscription and a signed link resolver. The seam is built — record what the school holds below and the titles behind it are catalogued and visible — but opening one answers honestly rather than sending a reader to a dead link. Connecting a provider is a code change, not a setting."
+            body="EBSCO, JSTOR and ProQuest each need a paid subscription and a signed link resolver. The seam is built, record what the school holds below and the titles behind it are catalogued and visible, but opening one answers honestly rather than sending a reader to a dead link. Connecting a provider is a code change, not a setting."
             technical={[
               { label: 'Endpoint', value: 'GET /api/v1/ops/digital-library/holdings/{id}/access' },
               { label: 'Answers', value: '503 provider_unavailable' },
@@ -754,7 +754,7 @@ function Providers({ librarian }: { librarian: boolean }) {
       <Card>
         <CardHeader
           title="Subscriptions the school holds"
-          description="A record, not a connection. No password is stored here — there is nothing yet that could use one."
+          description="A record, not a connection. No password is stored here, there is nothing yet that could use one."
           action={
             librarian && (
               <Button size="sm" onClick={() => setAdding(true)}>
@@ -780,7 +780,7 @@ function Providers({ librarian }: { librarian: boolean }) {
               <Td>{p.kind}</Td>
               <Td>
                 <span className="break-all text-[13px] text-muted-foreground">
-                  {p.base_url ?? '—'}
+                  {p.base_url ?? '-'}
                 </span>
               </Td>
               <Td className="text-right tabular-nums">{p.holdings}</Td>
@@ -876,7 +876,7 @@ function ProviderForm({ onClose }: { onClose: () => void }) {
         </FormGrid>
         <Checkbox
           label="The librarian holds the login"
-          hint="Recorded as a fact only. The password is not stored here — nothing yet could use it, and holding a secret to do nothing with is worse than not holding it."
+          hint="Recorded as a fact only. The password is not stored here, nothing yet could use it, and holding a secret to do nothing with is worse than not holding it."
           checked={hasCredentials}
           onChange={setHasCredentials}
         />

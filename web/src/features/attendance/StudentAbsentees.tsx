@@ -292,7 +292,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
           <PageHead
             eyebrow="Attendance"
             title="Present & absent"
-            description="Who came in and who is away today, and where the call home stands — updates live as the office records each call."
+            description="Who came in and who is away today, and where the call home stands, updates live as the office records each call."
             actions={controls}
           />
           <PageBody>{content}</PageBody>

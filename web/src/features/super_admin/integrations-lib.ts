@@ -100,7 +100,7 @@ export const HEALTH_TONE: Record<IntegrationHealth, 'success' | 'danger' | 'warn
 export const HEALTH_LABEL: Record<IntegrationHealth, string> = {
   ok: 'Working',
   failing: 'Failing',
-  stale: 'Silent — check it',
+  stale: 'Silent, check it',
   idle: 'Never run',
   not_configured: 'Not set up',
   unknown: 'Cannot tell',
@@ -124,7 +124,7 @@ export function fixPath(fixKey: string): string | undefined {
 
 /** Dates are shown in full. "2 days ago" hides the thing being looked for. */
 export function whenLabel(iso?: string) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleString('en-IN', {

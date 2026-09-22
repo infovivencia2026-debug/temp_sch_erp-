@@ -71,7 +71,7 @@ func (s *Server) createGenericAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Email) == "" && strings.TrimSpace(req.Phone) == "" {
-		httpx.BadRequest(w, r, "an email or a phone number — the account needs something to sign in with")
+		httpx.BadRequest(w, r, "an email or a phone number, the account needs something to sign in with")
 		return
 	}
 	roleName := strings.TrimSpace(req.RoleName)
@@ -160,7 +160,7 @@ func (s *Server) createGenericAccount(w http.ResponseWriter, r *http.Request) {
 	})
 	switch {
 	case dupRole:
-		httpx.BadRequest(w, r, "a role called "+roleName+" already exists — give this one a different name")
+		httpx.BadRequest(w, r, "a role called "+roleName+" already exists, give this one a different name")
 		return
 	case err != nil && strings.Contains(err.Error(), "users_institution_email"):
 		httpx.Error(w, r, http.StatusConflict, "email_in_use",

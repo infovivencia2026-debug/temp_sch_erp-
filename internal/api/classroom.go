@@ -492,7 +492,7 @@ func (s *Server) listLanguageElections(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT el.id::text, st.id::text, st.admission_no,
 			       concat_ws(' ', st.first_name, st.last_name),
-			       COALESCE(sec.name, '—'), el.slot, o.id::text, sub.name,
+			       COALESCE(sec.name, '-'), el.slot, o.id::text, sub.name,
 			       el.status, el.note, to_char(el.decided_on, 'YYYY-MM-DD')
 			  FROM student_language_elections el
 			  JOIN students st ON st.id = el.student_id
@@ -755,7 +755,7 @@ func (s *Server) getLanguageAllocation(w http.ResponseWriter, r *http.Request) {
 			)
 			SELECT st.id::text, st.admission_no,
 			       concat_ws(' ', st.first_name, st.last_name),
-			       COALESCE(sec.name, '—'),
+			       COALESCE(sec.name, '-'),
 			       array_agg(slots.slot ORDER BY slots.slot)
 			  FROM students st
 			  JOIN enrollments en ON en.student_id = st.id AND en.status = 'active'
@@ -1740,7 +1740,7 @@ func (s *Server) listCaptureBatches(w http.ResponseWriter, r *http.Request) {
 			args = append(args, res.SectionIDs)
 		}
 		rows, err := tx.Query(r.Context(), `
-			SELECT b.id::text, b.section_id::text, COALESCE(sec.name, '—'),
+			SELECT b.id::text, b.section_id::text, COALESCE(sec.name, '-'),
 			       to_char(b.on_date, 'YYYY-MM-DD'),
 			       to_char(b.captured_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       to_char(b.synced_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
@@ -1926,7 +1926,7 @@ func (s *Server) listDiaryEntries(w http.ResponseWriter, r *http.Request) {
 			where = append(where, fmt.Sprintf("d.section_id = ANY($%d)", len(args)))
 		}
 		rows, err := tx.Query(r.Context(), `
-			SELECT d.id::text, d.section_id::text, COALESCE(sec.name, '—'), sub.name,
+			SELECT d.id::text, d.section_id::text, COALESCE(sec.name, '-'), sub.name,
 			       to_char(d.on_date, 'YYYY-MM-DD'), d.kind, d.body,
 			       d.captured_offline, d.is_visible_to_family, u.full_name
 			  FROM class_diary_entries d
@@ -2051,7 +2051,7 @@ func (s *Server) listGradableTests(w http.ResponseWriter, r *http.Request) {
 			args = append(args, res.SectionIDs)
 		}
 		rows, err := tx.Query(r.Context(), `
-			SELECT t.id::text, t.title, t.section_id::text, COALESCE(sec.name, '—'),
+			SELECT t.id::text, t.title, t.section_id::text, COALESCE(sec.name, '-'),
 			       sub.name, t.status,
 			       COALESCE(q.n, 0), COALESCE(q.total, 0),
 			       (SELECT count(*) FROM enrollments e

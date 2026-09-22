@@ -161,7 +161,7 @@ export default function PerformanceOverview() {
         <CellGrid cols={4}>
           <Stat
             label="Pass rate"
-            value={s?.pass_rate !== undefined && s?.pass_rate !== null ? `${s.pass_rate}%` : '—'}
+            value={s?.pass_rate !== undefined && s?.pass_rate !== null ? `${s.pass_rate}%` : '-'}
             icon={GraduationCap}
             delta={
               s?.candidates
@@ -173,13 +173,13 @@ export default function PerformanceOverview() {
             label="Average"
             value={
               overMax > 0 || (s?.average_percent ?? 0) > 100
-                ? '—'
+                ? '-'
                 : s?.average_percent != null
                   ? `${s.average_percent}%`
-                  : '—'
+                  : '-'
             }
             icon={Users}
-            hint={overMax > 0 ? 'Withheld — marks above the paper maximum' : `${s?.papers ?? 0} papers`}
+            hint={overMax > 0 ? 'Withheld, marks above the paper maximum' : `${s?.papers ?? 0} papers`}
           />
           <Stat label="Distinctions" value={s?.distinctions ?? 0} icon={Award} hint="75% and above" />
           <Stat
@@ -200,10 +200,10 @@ export default function PerformanceOverview() {
               <CellGrid cols={4}>
                 <Stat label="Board examination" value={board.exam_name} />
                 <Stat label="Candidates in the file" value={board.candidates ?? 0} />
-                <Stat label="Board pass rate" value={board.pass_rate != null ? `${board.pass_rate}%` : '—'} />
+                <Stat label="Board pass rate" value={board.pass_rate != null ? `${board.pass_rate}%` : '-'} />
                 <Stat
                   label="Against our own papers"
-                  value={gap != null ? `${gap > 0 ? '+' : ''}${gap} pts` : '—'}
+                  value={gap != null ? `${gap > 0 ? '+' : ''}${gap} pts` : '-'}
                   hint={board.published_on ? `published ${formatDate(board.published_on)}` : 'not published to parents yet'}
                 />
               </CellGrid>
@@ -228,17 +228,17 @@ export default function PerformanceOverview() {
                   <Td className="tabular-nums">{r.entered}</Td>
                   <Td className="tabular-nums">
                     {(r.marks_above_max ?? 0) > 0 || (r.average_percent ?? 0) > 100
-                      ? '—'
+                      ? '-'
                       : r.average_percent != null
                         ? `${r.average_percent}%`
-                        : '—'}
+                        : '-'}
                   </Td>
                   <Td>
                     <Badge tone={(r.pass_rate ?? 0) >= 90 ? 'success' : (r.pass_rate ?? 0) >= 70 ? 'warning' : 'danger'}>
-                      {r.pass_rate ?? '—'}%
+                      {r.pass_rate ?? '-'}%
                     </Badge>
                   </Td>
-                  <Td className="tabular-nums">{r.below_pass || '—'}</Td>
+                  <Td className="tabular-nums">{r.below_pass || '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -263,10 +263,10 @@ export default function PerformanceOverview() {
                   <Td><Badge tone={a.backlogs > 2 ? 'danger' : 'warning'}>{a.backlogs}</Badge></Td>
                   <Td className="tabular-nums">
                     {(a.percent ?? 0) > 100
-                      ? '—'
+                      ? '-'
                       : a.percent != null
                         ? `${a.percent}%`
-                        : '—'}
+                        : '-'}
                   </Td>
                 </tr>
               ))}

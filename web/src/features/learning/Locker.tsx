@@ -116,7 +116,7 @@ export default function Locker() {
         ) : (
           <>
             <CellGrid cols={3}>
-              <Stat label="Locker" value={l.locker_no ?? '—'} icon={Lock}
+              <Stat label="Locker" value={l.locker_no ?? '-'} icon={Lock}
                 hint={l.location ?? undefined} />
               <Stat label="Times opened" value={events.filter((e) => e.action === 'opened').length}
                 icon={History} />
@@ -131,7 +131,7 @@ export default function Locker() {
             <Card>
               <CardHeader
                 title="Combination"
-                description="Asking for it puts a line in the log. That is deliberate — it is what makes the log worth reading."
+                description="Asking for it puts a line in the log. That is deliberate, it is what makes the log worth reading."
               />
               <div className="space-y-4 p-5">
                 {shown ? (
@@ -203,8 +203,8 @@ export default function Locker() {
                         {ACTION_LABEL[e.action] ?? e.action}
                       </Badge>
                     </Td>
-                    <Td>{e.actor ?? <span className="text-muted-foreground">—</span>}</Td>
-                    <Td className="text-[13px] text-muted-foreground">{e.note ?? '—'}</Td>
+                    <Td>{e.actor ?? <span className="text-muted-foreground">-</span>}</Td>
+                    <Td className="text-[13px] text-muted-foreground">{e.note ?? '-'}</Td>
                   </tr>
                 ))}
               </Table>

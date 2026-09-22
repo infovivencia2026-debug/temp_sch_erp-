@@ -239,7 +239,7 @@ export default function RolesPermissions() {
                   <Input value={newName} onChange={setNewName} placeholder="e.g. Senior Accountant" />
                   <p className="text-[12px] text-muted-foreground">
                     Starts from the role selected on the left, so you adjust rather than build
-                    from nothing. Every built-in is a preset this way — Accounts, HR and the
+                    from nothing. Every built-in is a preset this way · Accounts, HR and the
                     rest are starting points, and the copy is yours to change.
                   </p>
                   <div className="flex gap-2">
@@ -285,7 +285,7 @@ export default function RolesPermissions() {
                         <div className="font-mono text-[12px] text-muted-foreground">{r.key}</div>
                       </Td>
                       <Td>{r.capabilities}</Td>
-                      <Td>{r.users || '—'}</Td>
+                      <Td>{r.users || '-'}</Td>
                     </tr>
                   ))}
                 </Table>
@@ -296,7 +296,7 @@ export default function RolesPermissions() {
               <Card>
                 <CardHeader
                   title="Roles you can add"
-                  description="Not set up by default — most schools do not need them"
+                  description="Not set up by default, most schools do not need them"
                 />
                 <div className="divide-y">
                   {notInstalled.map((r) => (

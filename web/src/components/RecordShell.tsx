@@ -262,7 +262,7 @@ export function Field({ k, v, mono }: { k: string; v?: string | null; mono?: boo
     <div className="flex justify-between gap-4 px-5 py-2">
       <dt className="text-muted-foreground">{k}</dt>
       <dd className={cn('text-right font-medium', mono && 'font-mono text-[12px]')}>
-        {v || '—'}
+        {v || '-'}
       </dd>
     </div>
   )

@@ -72,7 +72,7 @@ export default function CanteenTerminal() {
             hint="Across every open drawer" />
           <Stat label="Charged to accounts" value={inr(charged)} icon={Coins}
             hint="Invoiced, not in the drawer" />
-          <Stat label="Tills out of tolerance" value={variance.data?.items.length ?? '—'}
+          <Stat label="Tills out of tolerance" value={variance.data?.items.length ?? '-'}
             icon={ScaleIcon} hint="Last thirty days" />
         </CellGrid>
 
@@ -134,13 +134,13 @@ export default function CanteenTerminal() {
                 <tr key={s.id}>
                   <Td className="font-medium">{s.terminal_name}</Td>
                   <Td>{s.opened_by}</Td>
-                  <Td>{s.closed_at ? new Date(s.closed_at).toLocaleString('en-IN') : '—'}</Td>
+                  <Td>{s.closed_at ? new Date(s.closed_at).toLocaleString('en-IN') : '-'}</Td>
                   <Td className="text-right tabular-nums">{inr(s.expected_cash_paise ?? 0)}</Td>
                   <Td className="text-right tabular-nums">{inr(s.counted_cash_paise ?? 0)}</Td>
                   <Td className="text-right tabular-nums">
                     <VarianceBadge paise={s.variance_paise} tolerance={s.variance_tolerance_paise} />
                   </Td>
-                  <Td>{s.variance_reason ?? '—'}</Td>
+                  <Td>{s.variance_reason ?? '-'}</Td>
                 </tr>
               ))}
             </Table>
@@ -323,7 +323,7 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
   return (
     <Card>
       <CardHeader
-        title={`Ring up — ${session.terminal_name}`}
+        title={`Ring up · ${session.terminal_name}`}
         description={`Opened by ${session.opened_by}. ${session.sale_count} sales so far.`}
         action={receipt ? <Badge tone="success">Receipt {receipt}</Badge> : undefined}
       />
@@ -415,7 +415,7 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
             <div className="mt-3 flex flex-wrap gap-2">
               {(results.data?.items ?? []).map((st) => (
                 <Button key={st.id} size="sm" variant="outline" onClick={() => { setStudent(st); setSearch('') }}>
-                  {st.full_name} · {st.class_name ?? '—'}
+                  {st.full_name} · {st.class_name ?? '-'}
                 </Button>
               ))}
             </div>
@@ -433,11 +433,11 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
         {mode === 'wallet' && student && wallet.data && (
           <p className={`mt-4 text-[13px] ${walletShort ? 'text-destructive' : 'text-muted-foreground'}`}>
             {wallet.data.status === 'none'
-              ? 'This child has no wallet yet — top it up at the fee office, or take cash.'
+              ? 'This child has no wallet yet, top it up at the fee office, or take cash.'
               : wallet.data.status !== 'active'
                 ? `This wallet is ${wallet.data.status} and cannot be spent from.`
                 : `Wallet balance ${inr(wallet.data.balance_paise)}` +
-                  (walletShort ? ` — ${inr(totals.total - wallet.data.balance_paise)} short.` : '')}
+                  (walletShort ? ` · ${inr(totals.total - wallet.data.balance_paise)} short.` : '')}
           </p>
         )}
         <div className="mt-5 flex flex-wrap items-center gap-4">
@@ -598,7 +598,7 @@ export function VariancePanel({ kind = 'canteen' as const }: { kind?: 'canteen' 
                   tolerance={report.data?.variance_tolerance_paise ?? 0}
                 />
               </Td>
-              <Td>{v.variance_reason ?? '—'}</Td>
+              <Td>{v.variance_reason ?? '-'}</Td>
             </tr>
           ))}
         </Table>

@@ -180,7 +180,7 @@ func (s *Server) getStudentLedger(w http.ResponseWriter, r *http.Request) {
 			   GROUP BY i.id
 			  UNION ALL
 			  SELECT to_char(p.paid_on,'YYYY-MM-DD'), 'payment',
-			         COALESCE(p.receipt_no,'—'),
+			         COALESCE(p.receipt_no,'-'),
 			         CASE WHEN p.status = 'pending' THEN 'Cheque held (post-dated)'
 			              WHEN p.status = 'bounced' THEN 'Cheque dishonoured'
 			              /* An adjustment is not money received. The one the
@@ -477,7 +477,7 @@ func (s *Server) getReceipt(w http.ResponseWriter, r *http.Request) {
 			className, sectionName, reference, collectedBy              *string
 		)
 		if err := tx.QueryRow(r.Context(), `
-			SELECT COALESCE(p.receipt_no,'—'), p.amount_paise, p.mode, p.status, p.paid_on,
+			SELECT COALESCE(p.receipt_no,'-'), p.amount_paise, p.mode, p.status, p.paid_on,
 			       p.reference_no,
 			       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
 			       st.admission_no, i.name, c.name, sec.name, u.full_name
@@ -695,7 +695,7 @@ func (s *Server) listDefaulters(w http.ResponseWriter, r *http.Request) {
 
 		          Read from the column the send writes rather than from
 		          notifications: a notification exists only for somebody with an
-		          app account, and most families a school texts have none — so
+		          app account, and most families a school texts have none, so
 		          this read "never" for every family it had just written to. */
 		       to_char(st.last_fee_reminder_at, 'YYYY-MM-DD"T"HH24:MI'),
 		       COALESCE(GREATEST(0, (CURRENT_DATE - min(i.due_on))), 0),
@@ -722,7 +722,7 @@ func (s *Server) listDefaulters(w http.ResponseWriter, r *http.Request) {
 		   /* ?all=1 widens this to everybody who owes anything.
 
 		      The screen is an ageing report, so it has always been invoices
-		      PAST their due date — which is right for "who is late" and wrong
+		      PAST their due date, which is right for "who is late" and wrong
 		      for "who do I chase". A school sending the September reminder
 		      wants the family whose instalment falls due next week as much as
 		      the one already a fortnight over, and that family was invisible
@@ -999,7 +999,7 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			
 			      The guard against billing twice looked for any invoice at
 			      this instalment whatever its state, so cancelling a wrong
-			      one — the whole remedy for a bill raised in error — left the
+			      one, the whole remedy for a bill raised in error, left the
 			      child permanently unbillable: the raise reported "skipped"
 			      for ever and nobody could see why. Cancelling is the ONLY
 			      way to undo a bad invoice, and it must therefore also be the
@@ -1230,7 +1230,7 @@ func (s *Server) listConcessions(w http.ResponseWriter, r *http.Request) {
 		       fh.name, fc.kind, fc.percent::text, fc.amount_paise, fc.reason,
 		       u.full_name, fc.status,
 		       /* THE WHOLE HISTORY, which is the point of keeping refusals.
-		          Who asked, who decided, when, and what they wrote — a table
+		          Who asked, who decided, when, and what they wrote, a table
 		          of approvals alone reads as a school that approves
 		          everything, and the same request comes back next term and is
 		          decided from nothing. */

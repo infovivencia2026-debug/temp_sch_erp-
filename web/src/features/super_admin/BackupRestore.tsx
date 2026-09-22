@@ -177,9 +177,9 @@ export default function BackupRestore() {
                   </Badge>
                   {r.error && <span className="block text-[12px] text-destructive">{r.error}</span>}
                 </Td>
-                <Td>{r.restore_point?.replace('T', ' ').slice(0, 16) ?? '—'}</Td>
+                <Td>{r.restore_point?.replace('T', ' ').slice(0, 16) ?? '-'}</Td>
                 <Td>{bytes(r.size_bytes)}</Td>
-                <Td className="font-mono text-[12px]">{r.object_key ?? '—'}</Td>
+                <Td className="font-mono text-[12px]">{r.object_key ?? '-'}</Td>
               </tr>
             ))}
           </Table>

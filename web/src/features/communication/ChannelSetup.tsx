@@ -94,7 +94,7 @@ export default function ChannelSetup() {
       <PageHead
         eyebrow="Communication"
         title="Message channels"
-        description="How this school reaches families. Set a channel up here and every circular, reminder and receipt uses it — there is no second place these are configured."
+        description="How this school reaches families. Set a channel up here and every circular, reminder and receipt uses it, there is no second place these are configured."
       />
       <PageBody>
         <Card>

@@ -238,7 +238,7 @@ export default function Tenants() {
         <Card>
           <CardHeader
             title="Every school"
-            description={`${rows.length} registered — plan, roll, setup and when each was last used.`}
+            description={`${rows.length} registered, plan, roll, setup and when each was last used.`}
           />
           {rows.length === 0 ? (
             <EmptyState title="No customers yet" body="Provision the first school to get started." />
@@ -526,7 +526,7 @@ function ProvisionForm({
               onChange={(x) => set('plan_code', x)}
               options={plans.map((p) => ({
                 value: p.code,
-                label: `${p.name} — ${formatPaise(p.price_paise)}/yr`,
+                label: `${p.name} · ${formatPaise(p.price_paise)}/yr`,
               }))}
             />
           </Field>
@@ -672,8 +672,8 @@ function AccessHub({
         title="Who may sign in"
         description={
           blocked
-            ? `${blocked} school${blocked === 1 ? '' : 's'} blocked. Suspending keeps every record — nothing is deleted, and nothing needs restarting.`
-            : 'Every school can sign in. Suspending keeps every record — nothing is deleted, and nothing needs restarting.'
+            ? `${blocked} school${blocked === 1 ? '' : 's'} blocked. Suspending keeps every record, nothing is deleted, and nothing needs restarting.`
+            : 'Every school can sign in. Suspending keeps every record, nothing is deleted, and nothing needs restarting.'
         }
       />
       <Table head={['School', 'Subscription', 'Students', 'Renews', 'Access', '']}>
@@ -696,7 +696,7 @@ function AccessHub({
               )}
             </Td>
             <Td className="num text-muted-foreground">
-              {t.renews_on ? formatDate(t.renews_on) : '—'}
+              {t.renews_on ? formatDate(t.renews_on) : '-'}
             </Td>
             <Td>
               <Badge tone={t.status === 'suspended' ? 'danger' : 'success'}>
@@ -747,7 +747,7 @@ function CapacityBoard({ rows }: { rows: Tenant[] }) {
       <Card>
         <CardHeader
           title="Past the plan"
-          description="Counted from the live headcount, not from what was sold — a school that admitted forty children this morning is forty seats heavier this morning."
+          description="Counted from the live headcount, not from what was sold, a school that admitted forty children this morning is forty seats heavier this morning."
         />
         {over.length === 0 ? (
           <EmptyState title="Every school inside its plan" body="Nothing to renegotiate today." />
@@ -756,9 +756,9 @@ function CapacityBoard({ rows }: { rows: Tenant[] }) {
             {over.map((t) => (
               <tr key={t.id}>
                 <Td className="whitespace-nowrap font-medium">{t.name}</Td>
-                <Td>{t.plan_name ?? t.plan ?? '—'}</Td>
+                <Td>{t.plan_name ?? t.plan ?? '-'}</Td>
                 <Td className="num">{t.students}</Td>
-                <Td className="num">{t.licensed_students ?? '—'}</Td>
+                <Td className="num">{t.licensed_students ?? '-'}</Td>
                 <Td className="num">
                   <Badge tone="danger">{t.over_by} over</Badge>
                 </Td>
@@ -780,8 +780,8 @@ function CapacityBoard({ rows }: { rows: Tenant[] }) {
             {soon.map((t) => (
               <tr key={t.id}>
                 <Td className="whitespace-nowrap font-medium">{t.name}</Td>
-                <Td>{t.plan_name ?? t.plan ?? '—'}</Td>
-                <Td className="num">{t.renews_on ? formatDate(t.renews_on) : '—'}</Td>
+                <Td>{t.plan_name ?? t.plan ?? '-'}</Td>
+                <Td className="num">{t.renews_on ? formatDate(t.renews_on) : '-'}</Td>
                 <Td className="num">{t.students}</Td>
                 <Td>
                   <Badge tone={t.over_by > 0 ? 'warning' : 'neutral'}>
@@ -833,7 +833,7 @@ function LedgerBoard({ rows, plans }: { rows: Tenant[]; plans: Plan[] }) {
         {priced.map(({ t, plan, annual }) => (
           <tr key={t.id}>
             <Td className="whitespace-nowrap font-medium">{t.name}</Td>
-            <Td className="whitespace-nowrap">{plan?.name ?? t.plan ?? '—'}</Td>
+            <Td className="whitespace-nowrap">{plan?.name ?? t.plan ?? '-'}</Td>
             <Td>
               {t.subscription_status ? (
                 <Badge tone={SUB_TONE[t.subscription_status] ?? 'neutral'}>
@@ -843,14 +843,14 @@ function LedgerBoard({ rows, plans }: { rows: Tenant[]; plans: Plan[] }) {
                 <span className="text-muted-foreground">none</span>
               )}
             </Td>
-            <Td className="num">{annual ? formatPaise(annual) : '—'}</Td>
+            <Td className="num">{annual ? formatPaise(annual) : '-'}</Td>
             {/* The same contract expressed two ways, because a vendor reads
                 the book monthly and sells it annually. */}
             <Td className="num text-muted-foreground">
-              {annual ? formatPaise(Math.round(annual / 12)) : '—'}
+              {annual ? formatPaise(Math.round(annual / 12)) : '-'}
             </Td>
             <Td className="num text-muted-foreground">
-              {t.renews_on ? formatDate(t.renews_on) : '—'}
+              {t.renews_on ? formatDate(t.renews_on) : '-'}
             </Td>
           </tr>
         ))}

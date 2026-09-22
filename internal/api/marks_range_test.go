@@ -75,7 +75,7 @@ func TestValidateMark(t *testing.T) {
 			}
 			var ceiling *markCeilingError
 			if !errors.As(err, &ceiling) {
-				t.Fatalf("error is %T, want *markCeilingError — the handlers "+
+				t.Fatalf("error is %T, want *markCeilingError, the handlers "+
 					"match on that type to build the 4xx", err)
 			}
 			for _, want := range tc.wantIn {

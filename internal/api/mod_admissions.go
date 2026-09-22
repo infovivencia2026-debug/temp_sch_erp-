@@ -607,7 +607,7 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 	// cannot read back: the person who sets it is not the one who finds it.
 	if req.Decision == "on_hold" && strings.TrimSpace(req.Remarks) == "" {
 		httpx.BadRequest(w, r,
-			"say what is being waited on — the fee, a concession decision, a document")
+			"say what is being waited on, the fee, a concession decision, a document")
 		return
 	}
 	if !valid[req.Decision] {
@@ -665,7 +665,7 @@ func (s *Server) decideApplication(w http.ResponseWriter, r *http.Request) {
 			          $3 is decided_by, a uuid. Inside a CASE whose omitted
 			          ELSE is an untyped NULL, Postgres cannot deduce one type
 			          for the parameter and refuses the whole statement with
-			          "inconsistent types deduced for parameter $3" — which
+			          "inconsistent types deduced for parameter $3", which
 			          reached the screen as "something went wrong" on a button
 			          that had worked for months until this column was added. */
 			       hold_reason = CASE WHEN $2 = 'on_hold'

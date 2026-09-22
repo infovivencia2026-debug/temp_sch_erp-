@@ -81,7 +81,7 @@ func TestStudentLifeRefusesWallModerationToAChild(t *testing.T) {
 
 	for _, tc := range wallModerationRoutes {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a child must not moderate the wall",
+			t.Errorf("%s %s: got %d, want 403, a child must not moderate the wall",
 				tc.method, tc.path, got)
 		}
 	}
@@ -100,7 +100,7 @@ func TestStudentLifeRefusesSupervisionToAChild(t *testing.T) {
 
 	for _, tc := range teachingSupervisionRoutes {
 		if got := statusOf(t, h, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — a child must not hold the teacher's view",
+			t.Errorf("%s %s: got %d, want 403, a child must not hold the teacher's view",
 				tc.method, tc.path, got)
 		}
 	}
@@ -123,7 +123,7 @@ func TestStudentLifeKeepsWallAndTeachingAuthoritiesApart(t *testing.T) {
 	moderator := mountedStudentLife(identityWith(rbac.SelfProfileRead, rbac.AnnouncementsWrite))
 	for _, tc := range teachingSupervisionRoutes {
 		if got := statusOf(t, moderator, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — moderating the wall is not teaching a class",
+			t.Errorf("%s %s: got %d, want 403, moderating the wall is not teaching a class",
 				tc.method, tc.path, got)
 		}
 	}
@@ -131,7 +131,7 @@ func TestStudentLifeKeepsWallAndTeachingAuthoritiesApart(t *testing.T) {
 	teacher := mountedStudentLife(identityWith(rbac.SelfProfileRead, rbac.HomeworkWrite))
 	for _, tc := range wallModerationRoutes {
 		if got := statusOf(t, teacher, tc.method, tc.path); got != http.StatusForbidden {
-			t.Errorf("%s %s: got %d, want 403 — setting homework is not publishing to the wall",
+			t.Errorf("%s %s: got %d, want 403, setting homework is not publishing to the wall",
 				tc.method, tc.path, got)
 		}
 	}
@@ -204,11 +204,11 @@ func TestStudentLifeLetsAChildReachTheOwnershipCheck(t *testing.T) {
 	} {
 		got := statusOf(t, h, tc.method, tc.path)
 		if got == http.StatusForbidden {
-			t.Errorf("%s %s: 403 — a child's own screen must reach the ownership check, not be refused at the door",
+			t.Errorf("%s %s: 403, a child's own screen must reach the ownership check, not be refused at the door",
 				tc.method, tc.path)
 		}
 		if got == http.StatusNotFound || got == http.StatusMethodNotAllowed {
-			t.Errorf("%s %s: %d — the route is not mounted", tc.method, tc.path, got)
+			t.Errorf("%s %s: %d, the route is not mounted", tc.method, tc.path, got)
 		}
 	}
 }

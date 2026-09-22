@@ -495,7 +495,7 @@ func (s *Server) findSiblings(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := collect(s, r, `
 		SELECT st.id::text, concat_ws(' ', st.first_name, st.last_name),
-		       st.admission_no, COALESCE(c.name, '—'),
+		       st.admission_no, COALESCE(c.name, '-'),
 		       CASE WHEN g.phone = a.parent_phone THEN 'same guardian phone'
 		            ELSE 'same parent name' END
 		  FROM applications a
@@ -1154,7 +1154,7 @@ func (s *Server) messageApplicants(w http.ResponseWriter, r *http.Request) {
 	   now be admitted. "On hold" alone does not survive that gap. */
 	if req.Status == "on_hold" && strings.TrimSpace(req.HoldReason) == "" {
 		httpx.BadRequest(w, r,
-			"say what is being waited on — the fee, a concession decision, a "+
+			"say what is being waited on, the fee, a concession decision, a "+
 				"document. Whoever picks this up will not have been in the room")
 		return
 	}

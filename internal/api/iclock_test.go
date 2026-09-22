@@ -29,7 +29,7 @@ func TestSplitLooseKeepsTheTimestampWhole(t *testing.T) {
 
 func TestSplitLooseRefusesALineTooShortToBeAPunch(t *testing.T) {
 	if got := splitLoose("1042 2026-09-01"); got != nil {
-		t.Fatalf("got %q, want nil — a punch needs an id, a date and a time", got)
+		t.Fatalf("got %q, want nil, a punch needs an id, a date and a time", got)
 	}
 }
 

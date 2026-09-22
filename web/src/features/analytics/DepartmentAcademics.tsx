@@ -74,7 +74,7 @@ export default function DepartmentAcademics() {
         <Card>
           <CardHeader
             title="By department"
-            description="A department's subjects and classes are those its teachers are assigned to — the staff record carries the only department link in the schema."
+            description="A department's subjects and classes are those its teachers are assigned to, the staff record carries the only department link in the schema."
           />
           {isLoading ? (
             <Loading />
@@ -92,7 +92,7 @@ export default function DepartmentAcademics() {
               {rows.map((d) => (
                 <tr key={d.department_id}>
                   <Td className="font-medium">{d.name}</Td>
-                  <Td className="text-muted-foreground">{d.head ?? '—'}</Td>
+                  <Td className="text-muted-foreground">{d.head ?? '-'}</Td>
                   <Td>{d.teachers}</Td>
                   <Td>{d.subjects}</Td>
                   <Td>{d.sections}</Td>
