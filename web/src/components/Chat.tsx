@@ -220,7 +220,15 @@ export function ChatThread({
       </div>
 
       {canSend ? (
-        <div className="border-t bg-muted/40 px-2 py-2 sm:px-3">
+        <div
+          /* The bar sits on the bottom edge. It used to carry even padding top
+             and bottom on top of the screen's own safe-area inset, which on a
+             desktop — where that inset is zero — read as a band of empty white
+             under the box. The gap above the box stays; below it is only the
+             phone's home-indicator allowance, and nothing when there is none. */
+          className="border-t bg-muted/40 px-2 pt-2 sm:px-3"
+          style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
+        >
           {(files.length > 0 || uploading > 0) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {files.map((f) => (
