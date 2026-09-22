@@ -241,7 +241,7 @@ function repaint() {
      bento-theme.css are the first reader: a mesh gradient is not a token, it
      is a rule, and a rule needs a hook. Slugged (lower case, hyphens) so the
      selector is a plain attribute match. Removed with the palette. */
-  if (shipped) root.dataset.palette = shipped.name.toLowerCase().replace(/s+/g, '-')
+  if (shipped) root.dataset.palette = shipped.name.toLowerCase().replace(/\s+/g, '-')
   else delete root.dataset.palette
   for (const [key, token] of BENTO_MAP) {
     const v = paint[key]
