@@ -26,7 +26,7 @@ import { useSession } from '@/lib/session'
    the request, and a missed hint costs nothing but a poll's worth of delay. */
 
 type LiveEvent = {
-  type: 'message' | 'typing' | 'notification'
+  type: 'message' | 'typing' | 'notification' | 'read'
   scope?: 'staff' | 'parent' | 'counselor' | ''
   from: string
   keys?: Record<string, string>
@@ -234,6 +234,21 @@ export function useLiveStream() {
           qc.invalidateQueries({ queryKey: ['attention'] })
           // Announce it unless it is our own echo or the thread is on screen.
           if (ev.from && ev.from !== me) announce(ev, me)
+          break
+        case 'read':
+          /* The other side has seen it: the sender's thread refetches so the
+             tick turns blue now rather than on the next poll. Nothing else
+             changes, so nothing else is invalidated and nothing is announced
+             -- being read is not an event anybody needs told about. */
+          if (ev.scope === 'staff') {
+            qc.invalidateQueries({ queryKey: ['staff-messages', k.peer] })
+            if (k.to) qc.invalidateQueries({ queryKey: ['staff-messages', k.to] })
+            qc.invalidateQueries({ queryKey: ['staff-threads'] })
+          } else if (ev.scope === 'parent') {
+            qc.invalidateQueries({ queryKey: ['parent-messages', k.student] })
+            qc.invalidateQueries({ queryKey: ['portal-thread', k.student, k.teacher] })
+            qc.invalidateQueries({ queryKey: ['parent-threads'] })
+          }
           break
         case 'notification':
           qc.invalidateQueries({ queryKey: ['notifications'] })

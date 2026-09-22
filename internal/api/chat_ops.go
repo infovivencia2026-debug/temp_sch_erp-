@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
 )
 
 /*
@@ -150,11 +151,28 @@ func (s *Server) markParentThreadRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, uerr := tx.Exec(r.Context(), `
+		tag, uerr := tx.Exec(r.Context(), `
 			UPDATE parent_teacher_messages SET read_at = now()
 			 WHERE student_id = $1 AND parent_user_id = $2 AND teacher_user_id = $3
 			   AND sender_user_id <> $4 AND read_at IS NULL`, sid, pid, tid, id.UserID)
-		return uerr
+		if uerr != nil || tag.RowsAffected() == 0 {
+			return uerr
+		}
+		/* Tell the sender, now. Without this the second tick waited for their
+		   next poll -- half a minute of a message that has plainly been read
+		   still showing as merely delivered. Nothing marked, nothing said. */
+		other := pid
+		if id.UserID == pid {
+			other = tid
+		}
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{other}, Type: "read",
+			Scope: "parent", From: id.UserID,
+			Keys: map[string]string{
+				"student": sid.String(), "parent": pid.String(), "teacher": tid.String(),
+			},
+		})
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

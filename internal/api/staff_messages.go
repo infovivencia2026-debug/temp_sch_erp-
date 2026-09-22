@@ -232,11 +232,20 @@ func (s *Server) markStaffThreadRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, uerr := tx.Exec(r.Context(), `
+		tag, uerr := tx.Exec(r.Context(), `
 			UPDATE staff_messages SET read_at = now()
 			 WHERE party_a = least($1, $2::uuid) AND party_b = greatest($1, $2::uuid)
 			   AND sender_user_id = $2 AND read_at IS NULL`, id.UserID, other)
-		return uerr
+		if uerr != nil || tag.RowsAffected() == 0 {
+			return uerr
+		}
+		// The sender's open screen turns the tick blue at once; see chat_ops.go.
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{other}, Type: "read",
+			Scope: "staff", From: id.UserID,
+			Keys: map[string]string{"peer": id.UserID.String(), "to": other.String()},
+		})
+		return nil
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)

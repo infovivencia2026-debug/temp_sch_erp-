@@ -199,6 +199,18 @@ export function ChatThread({
      sit at the end of the thread with a clock on them; see `submit`. Declared
      here because the list the screen renders is the two together. */
   const [outgoing, setOutgoing] = useState<ChatMessage[]>([])
+  /* A stand-in is retired when the thread comes back carrying it. Matching on
+     the words and the sender rather than an id, because the id the server
+     chose is not the one this screen invented. */
+  useEffect(() => {
+    setOutgoing((cur) => {
+      if (cur.length === 0) return cur
+      const landed = new Set(messages.filter((m) => m.mine).map((m) => m.body))
+      const kept = cur.filter((m) => m.pending || m.failed || !landed.has(m.body))
+      return kept.length === cur.length ? cur : kept
+    })
+  }, [messages])
+
   const all = useMemo(() => [...messages, ...outgoing], [messages, outgoing])
   const shown = useMemo(() => {
     const q = needle.trim().toLowerCase()
@@ -269,8 +281,14 @@ export function ChatThread({
     async (draftMsg: ChatMessage, payload: { body: string; attachments: Attachment[]; reply_to_id?: string }) => {
       try {
         await onSend(payload)
-        // The refetch carries the real message; drop our stand-in.
-        setOutgoing((cur) => cur.filter((m) => m.id !== draftMsg.id))
+        /* Hold the stand-in until the server's own copy is on screen.
+           Dropping it the moment the POST returned left a gap -- the bubble
+           vanished and came back when the refetch landed, which on a slow
+           line is a message that blinks out of existence. `sentBodies` below
+           retires it the moment the real one appears. */
+        setOutgoing((cur) =>
+          cur.map((m) => (m.id === draftMsg.id ? { ...m, pending: false } : m)),
+        )
       } catch {
         setOutgoing((cur) =>
           cur.map((m) => (m.id === draftMsg.id ? { ...m, pending: false, failed: true } : m)),
