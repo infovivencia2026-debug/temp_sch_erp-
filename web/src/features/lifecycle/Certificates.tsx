@@ -5,6 +5,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 import { useRouteFeature } from '@/lib/catalog'
 import { formatDate, formatPaise } from '@/lib/utils'
 import CardViewer from '@/components/CardViewer'
@@ -216,7 +217,7 @@ export default function Certificates() {
         <Card>
           <CardHeader title="Issue a certificate" />
           <div className="space-y-3 p-5">
-            <Input value={search} onChange={setSearch} placeholder="Search student by name or admission no." className="w-full" />
+            <SearchBox value={search} onChange={setSearch} placeholder="Search student by name or admission no." className="w-full" />
             {search.trim().length >= 2 && (
               <div className="flex flex-wrap gap-1.5">
                 {(results.data?.items ?? []).map((s) => (

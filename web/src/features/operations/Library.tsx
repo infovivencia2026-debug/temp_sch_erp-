@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
+import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton,
+  Button, SkeletonTable, ErrorState, FormNotice, EmptyState, ExportButton,
 } from '@/components/ui'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
@@ -159,12 +159,7 @@ export default function Library() {
               title="Catalogue"
               description="Availability is counted from open loans, not from a status flag"
               action={
-                <span className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <span className="[&_input]:pl-8">
-                    <Input value={search} onChange={setSearch} placeholder="Title, author or ISBN" />
-                  </span>
-                </span>
+                <SearchBox value={search} onChange={setSearch} placeholder="Title, author or ISBN" />
               }
             />
             {titles.isLoading ? (

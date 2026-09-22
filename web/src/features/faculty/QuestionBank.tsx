@@ -147,7 +147,7 @@ export default function QuestionBank() {
             title="Questions"
             action={
               <>
-                <Input value={search} onChange={setSearch} placeholder="Search the stem" />
+                <SearchBox value={search} onChange={setSearch} placeholder="Search the stem" />
                 <Select
                   value={subject}
                   onChange={setSubject}

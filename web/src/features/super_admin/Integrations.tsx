@@ -7,7 +7,6 @@ import {
   CardHeader,
   CellGrid,
   ErrorState,
-  Input,
   SkeletonTable,
   PageBody,
   PageHead,
@@ -15,6 +14,7 @@ import {
   Table,
   Td,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 import {
   HEALTH_LABEL,
   HEALTH_TONE,
@@ -127,11 +127,10 @@ export default function Integrations() {
                 title="Connectors"
                 description={data?.note}
                 action={
-                  <Input
+                  <SearchBox
                     value={filter}
                     onChange={setFilter}
                     placeholder="Filter connectors"
-                    srLabel="Filter connectors by name, group or provider"
                   />
                 }
               />

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FileText, Search } from 'lucide-react'
+import { FileText } from 'lucide-react'
+import { SearchBox } from '@/components/rows'
 import {
   Card, CardHeader, Button, Input, Textarea, Loading, ErrorState, Badge, FormNotice,
 } from '@/components/ui'
@@ -86,15 +87,12 @@ export default function MessageTemplates() {
   return (
     <div className="space-y-4 p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[240px] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={setQ}
-            placeholder="Search the wording, or the code"
-            className="w-full pl-8"
-          />
-        </div>
+        <SearchBox
+          value={q}
+          onChange={setQ}
+          placeholder="Search the wording, or the code"
+          className="min-w-[240px] flex-1"
+        />
         <p className="text-[13px] text-muted-foreground">
           {groups.length} message{groups.length === 1 ? '' : 's'}
         </p>

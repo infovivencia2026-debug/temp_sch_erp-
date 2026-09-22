@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Home, GraduationCap, Users, Wallet, BookOpen, MessageSquare, ClipboardList,
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
-  CornerDownLeft, House, Pin, PinOff, Ellipsis,
+  CornerDownLeft, House, Pin, PinOff, Ellipsis, X,
   Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard, LayoutGrid,
   FileCheck2, FileText, FolderTree, Handshake, Inbox, KeyRound, Landmark,
   LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
@@ -688,12 +688,21 @@ export function BentoLauncher({
 
         <div className="relative mb-7">
           {/* The glyph sits ON the field, not on the page, so it takes the
-              card's ink rather than the page's. */}
-          <Search
-            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2
-                       text-[var(--bento-ink)]"
-            aria-hidden="true"
-          />
+              card's ink rather than the page's. It is a real button: empty, it
+              drops the cursor in the field; with text, it clears the filter in
+              one tap — a fat target on a phone. */}
+          <button
+            type="button"
+            onClick={() => { if (q) setQ(''); inputRef.current?.focus() }}
+            aria-label={q ? t('bento.launcher.clear') : t('bento.launcher.filter', { count: String(rows.length) })}
+            className="absolute left-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center
+                       justify-center rounded-[8px] text-[var(--bento-ink)] transition-colors
+                       hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparent)]
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]
+                       [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+          >
+            {q ? <X className="size-4" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
+          </button>
           {/* The field is a card, so its words are the card's ink. Its edge
               is mixed from the ink rather than taken from `--bento-line`,
               which at 1.13:1 against the page left the one text input on the

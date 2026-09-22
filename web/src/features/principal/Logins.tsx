@@ -9,6 +9,7 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Select, Input, Reload, SkeletonTable, ErrorState,
   Field, FormGrid, FormNotice,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 import { cn, formatDate } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 
@@ -995,10 +996,11 @@ function PermissionOverrides({
         ) : (
           <>
             <div className="mb-3">
-              <Input
+              <SearchBox
                 value={featureSearch}
                 onChange={setFeatureSearch}
                 placeholder="Search features by name"
+                className="w-full"
               />
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2">

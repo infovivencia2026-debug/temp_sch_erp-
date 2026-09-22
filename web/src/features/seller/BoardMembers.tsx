@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
   Input, Checkbox, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 
 /* Cross-institution board members, minted from the vendor console.
 
@@ -335,7 +336,7 @@ function CreateForm({
             <>
               {all.length > 8 && (
                 <div className="mb-2">
-                  <Input value={filter} onChange={setFilter} placeholder="Filter schools" />
+                  <SearchBox value={filter} onChange={setFilter} placeholder="Filter schools" className="w-full" />
                 </div>
               )}
               <div className="max-h-64 overflow-y-auto rounded-md border">

@@ -1905,6 +1905,7 @@ export const te: Partial<Messages> = {
   'bento.launcher.empty': '“{q}”కి ఏదీ సరిపోలలేదు',
   'bento.launcher.hint': 'కదలడానికి పైకి కిందికి, తెరవడానికి Enter, మూసివేయడానికి Esc',
   'bento.launcher.filter': '{count} ఫీచర్లను ఫిల్టర్ చేయండి…',
+  'bento.launcher.clear': 'ఫిల్టర్ క్లియర్ చేయండి',
   'bento.dock.all': 'అన్ని ఫీచర్లు',
   'bento.dock.work': 'పని',
   'bento.dock.apps': 'యాప్‌లు',

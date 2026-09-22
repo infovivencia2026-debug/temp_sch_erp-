@@ -10,8 +10,8 @@
  * they cannot do is export a page the screen never loaded: where a list is
  * paged or capped server-side, the file holds what was on screen and says so.
  */
-import { useMemo, useState, type ReactNode } from 'react'
-import { Download, Search } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { Download, Search, X } from 'lucide-react'
 import { Button, Input } from './ui'
 
 export interface Column<T> {
@@ -124,11 +124,28 @@ export function SearchBox({
   placeholder?: string
   className?: string
 }) {
+  const box = useRef<HTMLDivElement>(null)
+  const has = value.length > 0
+  // The magnifier is a real button now, not decoration: empty, it puts the
+  // cursor in the field (a fat, obvious tap target on a phone); with text in
+  // it, it turns into a clear, so wiping a search is one tap rather than a
+  // hunt for the end of the word and a held backspace.
+  const act = () => {
+    if (has) { onChange(''); }
+    box.current?.querySelector('input')?.focus()
+  }
   return (
-    <div className={`relative ${className}`}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+    <div ref={box} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={act}
+        aria-label={has ? 'Clear search' : placeholder}
+        className="absolute left-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-[6px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9"
+      >
+        {has ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
+      </button>
       <Input value={value} onChange={onChange} placeholder={placeholder}
-        srLabel={placeholder} className="pl-8" />
+        srLabel={placeholder} className="pl-9" />
     </div>
   )
 }

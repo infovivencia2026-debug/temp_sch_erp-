@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Search, Phone, Mail, Printer } from 'lucide-react'
+import { Phone, Mail, Printer } from 'lucide-react'
+import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, Input, SkeletonTable, ErrorState, FormNotice,
+  Button, SkeletonTable, ErrorState, FormNotice,
 } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import CardViewer from '@/components/CardViewer'
@@ -408,12 +409,7 @@ export default function Employees() {
             description={`${rows.length} of ${all.length}`}
             action={
               <div className="flex flex-wrap items-center gap-2">
-                <span className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <span className="[&_input]:pl-8">
-                    <Input value={search} onChange={setSearch} placeholder="Name, code or role" />
-                  </span>
-                </span>
+                <SearchBox value={search} onChange={setSearch} placeholder="Name, code or role" />
                 {/* One printout of every teacher's load and results — the term's
                     staff review, off the same overview each record shows. */}
                 <Button

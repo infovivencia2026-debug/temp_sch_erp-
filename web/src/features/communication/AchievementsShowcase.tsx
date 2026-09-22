@@ -7,6 +7,7 @@ import {
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
   SkeletonTable, ErrorState,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 import { useCan } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
 import { commsQueryKeys } from './comms-keys'
@@ -352,11 +353,10 @@ export default function AchievementsShowcase() {
             title="The register"
             action={
               <div className="flex flex-wrap items-center gap-2">
-                <Input
+                <SearchBox
                   value={filters.q}
                   onChange={(v) => setFilters({ ...filters, q: v })}
                   placeholder="Search titles"
-                  srLabel="Search achievements"
                 />
                 <Select
                   value={filters.kind}

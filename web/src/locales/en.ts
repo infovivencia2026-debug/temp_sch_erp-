@@ -2186,6 +2186,7 @@ export const en = {
   'bento.launcher.empty': 'Nothing matches “{q}”',
   'bento.launcher.hint': 'Up and down to move, Enter to open, Esc to close',
   'bento.launcher.filter': 'Filter {count} features…',
+  'bento.launcher.clear': 'Clear filter',
   'bento.dock.all': 'All features',
   'bento.dock.work': 'Work',
   'bento.dock.apps': 'Apps',

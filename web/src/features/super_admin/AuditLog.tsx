@@ -4,8 +4,9 @@ import { ChevronDown, ChevronRight, History, ScrollText } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Input, Select, Loading, ErrorState, EmptyState,
+  Badge, Select, Loading, ErrorState, EmptyState,
 } from '@/components/ui'
+import { SearchBox } from '@/components/rows'
 import { cn } from '@/lib/utils'
 
 /* Who changed what.
@@ -90,7 +91,7 @@ export default function AuditLog() {
             description={`${rows.length} shown, newest first`}
             action={
               <>
-                <Input value={q} onChange={setQ} placeholder="Search the action" />
+                <SearchBox value={q} onChange={setQ} placeholder="Search the action" />
                 <Select
                   value={entity}
                   onChange={setEntity}

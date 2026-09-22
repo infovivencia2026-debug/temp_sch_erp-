@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Phone, Search } from 'lucide-react'
+import { AlertTriangle, Phone } from 'lucide-react'
+import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Input, Button, SkeletonTable, ErrorState,
+  Button, SkeletonTable, ErrorState,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useDebouncedValue } from '@/lib/debounce'
@@ -86,12 +87,7 @@ export default function Infirmary() {
                   <AlertTriangle className="h-3.5 w-3.5" />
                   {flagged ? 'Showing flagged only' : 'Flagged only'}
                 </Button>
-                <span className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <span className="[&_input]:pl-8">
-                    <Input value={search} onChange={setSearch} placeholder="Name or admission no." />
-                  </span>
-                </span>
+                <SearchBox value={search} onChange={setSearch} placeholder="Name or admission no." />
               </span>
             }
           />
