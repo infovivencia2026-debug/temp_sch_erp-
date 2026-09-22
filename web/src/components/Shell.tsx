@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog'
 import Notifications from '@/components/Notifications'
 import Outbox from '@/components/Outbox'
+import { LiveToasts } from '@/components/LiveToasts'
 import { useOfflineWarm } from '@/lib/offline-warm'
 import { AssistantTab } from '@/components/AssistantTab'
 import FirstRunTour from './FirstRunTour'
@@ -593,7 +594,10 @@ export function Shell({
         className={cn(
           'shrink-0 flex-row bg-sidebar',
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[288px]',
-          'max-md:border-r max-md:transition-transform',
+          /* The line between the sidebar and the page, at every width. It was
+             drawn only below lg, so on a desktop the white sidebar ran into
+             the white page with nothing marking where one ended. */
+          'border-r max-md:transition-transform',
           'md:max-lg:w-[58px] lg:w-[282px]',
           navOpen ? 'flex max-md:translate-x-0' : 'hidden md:flex max-md:-translate-x-full',
           /* The tablet drawer: the in-flow 58px rail lifts into the same 288px
@@ -1217,6 +1221,10 @@ export function Shell({
               queued on a screen the person has usually already left, so it
               cannot live on that screen. */}
           <Outbox />
+          {/* The corner card for a message that landed in a conversation not
+              on screen — tap opens it. Mounted once, here, so a split work
+              area does not draw it twice. */}
+          <LiveToasts />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useSession } from '@/lib/session'
 
 /* THE OTHER END OF THE LIVE BUS.
 
@@ -11,6 +12,13 @@ import { api } from '@/lib/api'
    blanket invalidate the 30s revision poll does. The poll stays; this is
    what makes the gap between the two ends of a conversation a second rather
    than half a minute.
+
+   AND THE RULE EVERY PHONE FOLLOWS. A message that lands in the conversation
+   you are looking at just appears. A message that lands anywhere else gets a
+   notification — a card in the corner naming who wrote, and the phone's own
+   notification where the person has allowed it — and tapping either opens
+   that conversation. Whether "you are looking at it" is decided here, from
+   which threads have a ChatThread mounted and whether the tab is visible.
 
    Cookie-authenticated like every other call, through the same Pages proxy.
    Closed while the tab is hidden and reopened when it is seen again, exactly
@@ -25,12 +33,10 @@ type LiveEvent = {
   at: string
 }
 
-/* Who is typing to me, keyed by conversation. Entries expire on their own so a
-   tab that closed mid-word never leaves "typing…" on the screen. */
-const TYPING_TTL_MS = 5000
-const typing = new Map<string, number>()
-const listeners = new Set<() => void>()
-function emit() { for (const l of listeners) l() }
+export type TypingTarget =
+  | { scope: 'staff'; peer: string }
+  | { scope: 'parent'; student: string; parent: string; teacher: string }
+  | { scope: 'counselor'; thread: string }
 
 /** The key a conversation is known by, on both sides of the bus. */
 export function typingKey(t: TypingTarget): string {
@@ -41,10 +47,17 @@ export function typingKey(t: TypingTarget): string {
   }
 }
 
-export type TypingTarget =
-  | { scope: 'staff'; peer: string }
-  | { scope: 'parent'; student: string; parent: string; teacher: string }
-  | { scope: 'counselor'; thread: string }
+/* Which conversations are on screen right now. A ChatThread registers its
+   target through useTyping while it is mounted; a message for one of these
+   is drawn in place and not announced. */
+const openConversations = new Map<string, number>()
+
+/* Who is typing to me, keyed by conversation. Entries expire on their own so a
+   tab that closed mid-word never leaves "typing…" on the screen. */
+const TYPING_TTL_MS = 5000
+const typing = new Map<string, number>()
+const listeners = new Set<() => void>()
+function emit() { for (const l of listeners) l() }
 
 function keyFromEvent(ev: LiveEvent): string | null {
   const k = ev.keys ?? {}
@@ -56,15 +69,25 @@ function keyFromEvent(ev: LiveEvent): string | null {
   }
 }
 
-/** Whether the other party in this conversation is typing right now. */
+/** Whether the other party in this conversation is typing right now. Also
+    marks the conversation as open on this screen for as long as it is used. */
 export function useTyping(target: TypingTarget | undefined): boolean {
   const key = target ? typingKey(target) : ''
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb)
+      if (key) openConversations.set(key, (openConversations.get(key) ?? 0) + 1)
       // Expiry is time-based, so re-read once a second while anyone listens.
       const t = window.setInterval(cb, 1000)
-      return () => { listeners.delete(cb); window.clearInterval(t) }
+      return () => {
+        listeners.delete(cb)
+        window.clearInterval(t)
+        if (key) {
+          const n = (openConversations.get(key) ?? 1) - 1
+          if (n <= 0) openConversations.delete(key)
+          else openConversations.set(key, n)
+        }
+      }
     },
     () => (key ? (typing.get(key) ?? 0) > Date.now() : false),
     () => false,
@@ -73,9 +96,12 @@ export function useTyping(target: TypingTarget | undefined): boolean {
 
 /* "I am typing to you." Throttled per conversation so a fast typist sends one
    post every few seconds rather than one per keystroke; the server validates
-   that the caller is a party to the conversation and fans it to the other. */
+   that the caller is a party to the conversation and fans it to the other.
+   A keystroke is also the one user gesture the browser accepts for asking
+   permission to show notifications, so the first one asks — once. */
 const lastSent = new Map<string, number>()
 export function sendTyping(target: TypingTarget) {
+  askNotificationPermission()
   const key = typingKey(target)
   const now = Date.now()
   if ((lastSent.get(key) ?? 0) > now - 3000) return
@@ -83,8 +109,97 @@ export function sendTyping(target: TypingTarget) {
   void api.post('/api/v1/live/typing', target).catch(() => { /* a hint; never surfaced */ })
 }
 
+let asked = false
+function askNotificationPermission() {
+  if (asked || typeof Notification === 'undefined') return
+  asked = true
+  if (Notification.permission === 'default') {
+    try { void Notification.requestPermission() } catch { /* older browsers */ }
+  }
+}
+
+/* ---- The in-app notification cards ------------------------------------- */
+
+export interface LiveToast {
+  id: number
+  title: string
+  body: string
+  href: string
+  at: number
+}
+let toasts: LiveToast[] = []
+const toastListeners = new Set<() => void>()
+function emitToasts() { for (const l of toastListeners) l() }
+let toastSeq = 1
+
+export function useLiveToasts(): LiveToast[] {
+  return useSyncExternalStore(
+    (cb) => { toastListeners.add(cb); return () => { toastListeners.delete(cb) } },
+    () => toasts,
+    () => toasts,
+  )
+}
+export function dismissToast(id: number) {
+  toasts = toasts.filter((t) => t.id !== id)
+  emitToasts()
+}
+function pushToast(t: Omit<LiveToast, 'id' | 'at'>) {
+  const toast = { ...t, id: toastSeq++, at: Date.now() }
+  // One card per conversation: a second message replaces the first rather
+  // than stacking a column of them.
+  toasts = [...toasts.filter((x) => x.href !== t.href), toast].slice(-4)
+  emitToasts()
+  window.setTimeout(() => dismissToast(toast.id), 9000)
+}
+
+/** SPA navigation without a component: push the URL and tell the router. */
+export function goTo(href: string) {
+  window.history.pushState({}, '', href)
+  window.dispatchEvent(new PopStateEvent('popstate'))
+}
+
+/* Where a tap should land, from the recipient's side of the conversation. */
+function hrefFor(ev: LiveEvent, me: string | undefined): string | null {
+  const k = ev.keys ?? {}
+  switch (ev.scope) {
+    case 'staff':
+      return `/go/communication/messages?with=${ev.from}`
+    case 'parent':
+      if (!k.student || !k.parent || !k.teacher) return null
+      return me === k.parent
+        ? `/go/direct_teacher_messaging?student_id=${k.student}&teacher_user_id=${k.teacher}`
+        : `/go/messages?box=parents&child=${k.student}&with=${k.parent}`
+    case 'counselor':
+      return k.thread ? `/go/counselling/family_conversations?thread=${k.thread}` : null
+    default:
+      return null
+  }
+}
+
+function announce(ev: LiveEvent, me: string | undefined) {
+  const key = keyFromEvent(ev)
+  // Looking at it already: it appears in place, and that is the notification.
+  if (key && openConversations.has(key) && document.visibilityState === 'visible') return
+  const href = hrefFor(ev, me)
+  if (!href) return
+  const who = ev.keys?.from_name || 'Someone'
+  const about = ev.keys?.child ? ` about ${ev.keys.child}` : ''
+  const title = ev.scope === 'counselor' ? who : `New message from ${who}`
+  const body = ev.scope === 'counselor' ? 'A new message in the conversation' : `Tap to open the conversation${about}`
+  pushToast({ title, body, href })
+  // The phone's own notification too, where allowed — so a message reaches a
+  // person whose screen is on another app, which is how WhatsApp is read.
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(title, { body, tag: key ?? href })
+      n.onclick = () => { window.focus(); goTo(href); n.close() }
+    } catch { /* not available here */ }
+  }
+}
+
 export function useLiveStream() {
   const qc = useQueryClient()
+  const me = useSession().user?.id
   useEffect(() => {
     if (typeof window === 'undefined' || !('EventSource' in window)) return
     let es: EventSource | null = null
@@ -116,6 +231,9 @@ export function useLiveStream() {
           }
           // A message is also a notification; the bell should not lag it.
           qc.invalidateQueries({ queryKey: ['notifications'] })
+          qc.invalidateQueries({ queryKey: ['attention'] })
+          // Announce it unless it is our own echo or the thread is on screen.
+          if (ev.from && ev.from !== me) announce(ev, me)
           break
         case 'notification':
           qc.invalidateQueries({ queryKey: ['notifications'] })
@@ -136,7 +254,15 @@ export function useLiveStream() {
       // On error the browser retries by itself; nothing to do but stay quiet.
     }
     const close = () => { es?.close(); es = null }
-    const onVisibility = () => { if (document.hidden) close(); else open() }
+    /* KEPT OPEN WHILE THE TAB IS HIDDEN — that is the whole point.
+
+       The message a person needs told about is the one that lands while they
+       are in another app. Closing the stream on hide (as the poll pauses) would
+       silence exactly that case; the phone's notification can only fire if the
+       hint arrives. One held connection per tab is the price, and it is the
+       price every chat app pays. On becoming visible, reconnect if the browser
+       let it drop. */
+    const onVisibility = () => { if (!document.hidden) open() }
 
     open()
     document.addEventListener('visibilitychange', onVisibility)
@@ -144,5 +270,5 @@ export function useLiveStream() {
       document.removeEventListener('visibilitychange', onVisibility)
       close()
     }
-  }, [qc])
+  }, [qc, me])
 }

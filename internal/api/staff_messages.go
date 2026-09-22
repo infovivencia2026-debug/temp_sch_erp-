@@ -306,7 +306,7 @@ func (s *Server) sendStaffMessage(w http.ResponseWriter, r *http.Request) {
 		s.publishLive(r.Context(), tx, live.Event{
 			Institution: id.InstitutionID, Users: []uuid.UUID{other, id.UserID},
 			Type: "message", Scope: "staff", From: id.UserID,
-			Keys: map[string]string{"peer": id.UserID.String(), "to": other.String()},
+			Keys: map[string]string{"peer": id.UserID.String(), "to": other.String(), "from_name": from},
 		})
 		return nil
 	})

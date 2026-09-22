@@ -2538,7 +2538,7 @@ func (s *Server) postCounselorMessage(w http.ResponseWriter, r *http.Request) {
 		s.publishLive(r.Context(), tx, live.Event{
 			Institution: id.InstitutionID, Users: others, Type: "message",
 			Scope: "counselor", From: id.UserID,
-			Keys: map[string]string{"thread": thread.String()},
+			Keys: map[string]string{"thread": thread.String(), "from_name": "Counselling conversation"},
 		})
 		return nil
 	})

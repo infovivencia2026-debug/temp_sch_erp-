@@ -1228,6 +1228,7 @@ func (s *Server) sendPortalMessage(w http.ResponseWriter, r *http.Request) {
 			Type: "message", Scope: "parent", From: id.UserID,
 			Keys: map[string]string{
 				"student": sid.String(), "parent": parentID.String(), "teacher": teacherID.String(),
+				"from_name": from, "child": child,
 			},
 		})
 
