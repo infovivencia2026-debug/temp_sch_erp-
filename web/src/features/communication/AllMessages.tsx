@@ -44,6 +44,16 @@ interface Item {
   teacher_user_id?: string
   acked?: number
   asked?: number
+  teacher_name?: string
+  teacher_code?: string
+  parent_name?: string
+  parent_relation?: string
+  child_name?: string
+  child_class?: string
+  admission_no?: string
+  reply_by?: string
+  reply_body?: string
+  reply_at?: string
 }
 
 interface Counts {
@@ -60,6 +70,11 @@ const CHANNEL_LABEL: Record<Channel, string> = {
   concern: 'Concern',
   staff: 'Staff',
   circular: 'Circular',
+}
+
+/** "14:05" in the reader's own timezone. */
+function time(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 }
 
 function ago(iso: string): string {
@@ -123,15 +138,19 @@ export default function AllMessages() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Parent → teacher" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
+          <Stat label="Parent → teacher waiting" value={counts?.parent_teacher ?? '–'} icon={MessageSquare}
             active={channel === 'parent_teacher'} onClick={tile('parent_teacher')} />
-          <Stat label="Concerns" value={counts?.concerns ?? '–'} icon={ShieldAlert}
+          <Stat label="Concerns waiting" value={counts?.concerns ?? '–'} icon={ShieldAlert}
             active={channel === 'concern'} onClick={tile('concern')} />
-          <Stat label="Staff" value={counts?.staff ?? '–'} icon={Users}
+          <Stat label="Staff waiting" value={counts?.staff ?? '–'} icon={Users}
             active={channel === 'staff'} onClick={tile('staff')} />
           <Stat label="Circulars awaiting ack" value={counts?.circulars ?? '–'} icon={Megaphone}
             active={channel === 'circular'} onClick={tile('circular')} />
         </CellGrid>
+        <p className="text-[12px] text-muted-foreground">
+          Each tile counts what is still waiting for a reply, across the whole school —
+          pressing one filters the list below without changing the counts.
+        </p>
         <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
           <HeartHandshake className="h-4 w-4" />
           {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open — private; counted here, never read.
@@ -156,7 +175,62 @@ export default function AllMessages() {
             />
             <ul className="divide-y">
               {items.map((it) => {
-                const inner = (
+                const inner =
+                  it.channel === 'parent_teacher' ? (
+                    /* Who wrote to whom, spelled out: the teacher with her staff
+                       code, the child with class and admission number, the
+                       guardian with their relation — then the message, then the
+                       school's last answer if there is one. A desk cannot act on
+                       "kalyan → Lakshmi". */
+                    <div className="space-y-2 px-5 py-4">
+                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                        <div className="min-w-0">
+                          <div className="text-[15px] font-semibold">{it.teacher_name || '—'}</div>
+                          <div className="text-[12px] text-muted-foreground">
+                            {it.teacher_code ? `Staff ${it.teacher_code}` : 'Teacher'}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right text-[12px] text-muted-foreground">
+                          <Badge tone={it.pending ? 'warning' : 'neutral'}>
+                            {it.pending ? 'waiting for reply' : 'answered'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="text-[13px]">
+                        <span className="text-muted-foreground">Student </span>
+                        <span className="font-medium">{it.child_name}</span>
+                        {it.child_class && <span className="text-muted-foreground"> · {it.child_class}</span>}
+                        {it.admission_no && (
+                          <span className="font-mono text-[12px] text-muted-foreground"> · {it.admission_no}</span>
+                        )}
+                      </div>
+                      <div className="text-[13px]">
+                        <span className="text-muted-foreground">
+                          {it.parent_relation
+                            ? it.parent_relation.charAt(0).toUpperCase() + it.parent_relation.slice(1)
+                            : 'Parent'}{' '}
+                        </span>
+                        <span className="font-medium">{it.parent_name}</span>
+                      </div>
+
+                      <div className="rounded-lg bg-muted px-3 py-2">
+                        <div className="text-[11px] font-semibold text-muted-foreground">
+                          {it.from} · {formatDate(it.last_at)} {time(it.last_at)} · {ago(it.last_at)} ago
+                        </div>
+                        <div className="text-[14px]">{it.last_body}</div>
+                      </div>
+
+                      {it.reply_body && (
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                          <div className="text-[11px] font-semibold text-muted-foreground">
+                            Replied by {it.reply_by} · {formatDate(it.reply_at!)} {time(it.reply_at!)}
+                          </div>
+                          <div className="text-[14px]">{it.reply_body}</div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div className="flex flex-wrap items-start gap-x-4 gap-y-1 px-5 py-3">
                     <div className="w-[120px] shrink-0">
                       <Badge tone={it.pending ? 'warning' : 'neutral'}>{CHANNEL_LABEL[it.channel]}</Badge>
@@ -171,7 +245,7 @@ export default function AllMessages() {
                       </div>
                     </div>
                     <div className="shrink-0 text-right text-[12px] text-muted-foreground">
-                      <div>{formatDate(it.last_at)} · {ago(it.last_at)}</div>
+                      <div>{formatDate(it.last_at)} {time(it.last_at)} · {ago(it.last_at)}</div>
                       {it.pending ? (
                         <div className="font-semibold text-warning">
                           {it.channel === 'circular' && it.asked != null
@@ -185,7 +259,7 @@ export default function AllMessages() {
                       ) : null}
                     </div>
                   </div>
-                )
+                  )
                 const cls = 'block hover:bg-accent/50'
                 if (it.channel === 'parent_teacher')
                   return (
@@ -250,8 +324,8 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   return (
     <Card>
       <CardHeader
-        title={item.title}
-        description={item.about ? `About ${item.about}` : undefined}
+        title={`${item.parent_name ?? 'Parent'} → ${item.teacher_name ?? 'Teacher'}`}
+        description={[item.child_name, item.child_class, item.admission_no].filter(Boolean).join(' · ')}
         action={<Button variant="secondary" size="sm" onClick={onClose}>Close</Button>}
       />
       <div className="max-h-[50vh] space-y-3 overflow-y-auto px-5 py-4">

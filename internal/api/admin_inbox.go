@@ -53,6 +53,22 @@ type inboxItem struct {
 	// Ack progress for a circular that asked for one.
 	Acked *int `json:"acked,omitempty"`
 	Asked *int `json:"asked,omitempty"`
+	/* Who the conversation is actually between, spelled out. A desk reading
+	   "kalyan → Lakshmi · Nikhil" cannot tell which Lakshmi, which Nikhil or
+	   whose parent, so each party is named with what identifies them: the
+	   teacher's staff code, the child's class, section and admission number,
+	   and the guardian's relation. */
+	TeacherName *string `json:"teacher_name,omitempty"`
+	TeacherCode *string `json:"teacher_code,omitempty"`
+	ParentName  *string `json:"parent_name,omitempty"`
+	ParentRel   *string `json:"parent_relation,omitempty"`
+	ChildName   *string `json:"child_name,omitempty"`
+	ChildClass  *string `json:"child_class,omitempty"`
+	AdmissionNo *string `json:"admission_no,omitempty"`
+	// The school's latest answer on the thread, when there is one.
+	ReplyBy   *string `json:"reply_by,omitempty"`
+	ReplyBody *string `json:"reply_body,omitempty"`
+	ReplyAt   *string `json:"reply_at,omitempty"`
 }
 
 type inboxCounts struct {
@@ -76,11 +92,40 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 
 	items := []inboxItem{}
 	var counts inboxCounts
+	/* Every channel is counted, whichever one is being looked at.
+	   The tiles are both the filter and the score: counting only the selected
+	   channel zeroed the other three the moment somebody pressed one, which
+	   read as "nothing else is waiting" rather than "you are looking at
+	   staff". So the queries always run and the channel filter applies to the
+	   list alone. */
+	keep := func(it inboxItem) {
+		switch it.Channel {
+		case "parent_teacher":
+			if it.Pending {
+				counts.ParentTeacher++
+			}
+		case "concern":
+			if it.Pending {
+				counts.Concerns++
+			}
+		case "staff":
+			if it.Pending {
+				counts.Staff++
+			}
+		case "circular":
+			if it.Pending {
+				counts.Circulars++
+			}
+		}
+		if channel == "" || channel == it.Channel {
+			items = append(items, it)
+		}
+	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		ctx := r.Context()
 
 		// --- parent ↔ teacher: one row per thread, the latest message on it.
-		if channel == "" || channel == "parent_teacher" {
+		{
 			rows, err := tx.Query(ctx, `
 				WITH last AS (
 				  SELECT DISTINCT ON (m.student_id, m.parent_user_id, m.teacher_user_id)
@@ -88,18 +133,43 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				         m.sender_user_id, m.body, m.sent_at
 				    FROM parent_teacher_messages m
 				   ORDER BY m.student_id, m.parent_user_id, m.teacher_user_id, m.sent_at DESC
+				), reply AS (
+				  -- The school's newest word on each thread: anything not sent by
+				  -- the parent, whoever on the staff side wrote it.
+				  SELECT DISTINCT ON (m.student_id, m.parent_user_id, m.teacher_user_id)
+				         m.student_id, m.parent_user_id, m.teacher_user_id,
+				         m.sender_user_id, m.body, m.sent_at
+				    FROM parent_teacher_messages m
+				   WHERE m.sender_user_id <> m.parent_user_id
+				   ORDER BY m.student_id, m.parent_user_id, m.teacher_user_id, m.sent_at DESC
 				)
 				SELECT l.student_id::text, l.parent_user_id::text, l.teacher_user_id::text,
 				       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-				       COALESCE(pu.full_name, ''), COALESCE(tu.full_name, ''),
+				       st.admission_no,
+				       COALESCE(concat_ws('-', c.name, sec.name), ''),
+				       COALESCE(pu.full_name, ''), COALESCE(g.relation, ''),
+				       COALESCE(tu.full_name, ''), COALESCE(emp.employee_code, ''),
 				       COALESCE(su.full_name, ''), l.body, l.sent_at,
-				       l.sender_user_id = l.parent_user_id
+				       l.sender_user_id = l.parent_user_id,
+				       ru.full_name, rp.body, rp.sent_at
 				  FROM last l
 				  JOIN students st ON st.id = l.student_id
+				  LEFT JOIN LATERAL (
+				      SELECT e.class_id, e.section_id FROM enrollments e
+				       WHERE e.student_id = st.id ORDER BY e.enrolled_on DESC LIMIT 1
+				  ) en ON true
+				  LEFT JOIN classes  c   ON c.id = en.class_id
+				  LEFT JOIN sections sec ON sec.id = en.section_id
 				  LEFT JOIN users pu ON pu.id = l.parent_user_id
+				  LEFT JOIN guardians g ON g.user_id = l.parent_user_id
 				  LEFT JOIN users tu ON tu.id = l.teacher_user_id
+				  LEFT JOIN employees emp ON emp.user_id = l.teacher_user_id
 				  LEFT JOIN users su ON su.id = l.sender_user_id
-				 WHERE ($1 = '%%' OR lower(concat_ws(' ', st.first_name, st.last_name, pu.full_name, tu.full_name, l.body)) LIKE $1)
+				  LEFT JOIN reply rp ON rp.student_id = l.student_id
+				                    AND rp.parent_user_id = l.parent_user_id
+				                    AND rp.teacher_user_id = l.teacher_user_id
+				  LEFT JOIN users ru ON ru.id = rp.sender_user_id
+				 WHERE ($1 = '%%' OR lower(concat_ws(' ', st.first_name, st.last_name, st.admission_no, pu.full_name, tu.full_name, l.body)) LIKE $1)
 				 ORDER BY l.sent_at DESC
 				 LIMIT 300`, search)
 			if err != nil {
@@ -107,25 +177,43 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 			}
 			for rows.Next() {
 				var it inboxItem
-				var sid, pid, tid, child, parent, teacher, sender string
+				var sid, pid, tid, child, adm, klass, parent, rel, teacher, code, sender string
 				var at time.Time
-				if err := rows.Scan(&sid, &pid, &tid, &child, &parent, &teacher, &sender,
-					&it.LastBody, &at, &it.Pending); err != nil {
+				var replyBy, replyBody *string
+				var replyAt *time.Time
+				if err := rows.Scan(&sid, &pid, &tid, &child, &adm, &klass, &parent, &rel,
+					&teacher, &code, &sender, &it.LastBody, &at, &it.Pending,
+					&replyBy, &replyBody, &replyAt); err != nil {
 					rows.Close()
 					return err
 				}
 				it.Channel = "parent_teacher"
 				it.Key = sid + "|" + pid + "|" + tid
-				it.Title = parent + " → " + teacher
+				it.Title = teacher
 				it.From = sender
 				it.About = &child
 				it.Handler = &teacher
 				it.LastAt = at.Format(time.RFC3339)
 				it.StudentID, it.ParentUserID, it.TeacherUserID = &sid, &pid, &tid
-				if it.Pending {
-					counts.ParentTeacher++
+				it.TeacherName, it.ParentName, it.ChildName = &teacher, &parent, &child
+				if code != "" {
+					it.TeacherCode = &code
 				}
-				items = append(items, it)
+				if rel != "" {
+					it.ParentRel = &rel
+				}
+				if klass != "" {
+					it.ChildClass = &klass
+				}
+				if adm != "" {
+					it.AdmissionNo = &adm
+				}
+				it.ReplyBy, it.ReplyBody = replyBy, replyBody
+				if replyAt != nil {
+					v := replyAt.Format(time.RFC3339)
+					it.ReplyAt = &v
+				}
+				keep(it)
 			}
 			rows.Close()
 			if err := rows.Err(); err != nil {
@@ -134,7 +222,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// --- concerns: the ticket, and whether the family has heard back.
-		if channel == "" || channel == "concern" {
+		{
 			rows, err := tx.Query(ctx, `
 				SELECT t.id::text, t.subject, t.status, t.category,
 				       COALESCE(ru.full_name, ''),
@@ -179,10 +267,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				it.Handler = handler
 				it.Status = &st
 				it.LastAt = at.Format(time.RFC3339)
-				if it.Pending {
-					counts.Concerns++
-				}
-				items = append(items, it)
+				keep(it)
 			}
 			rows.Close()
 			if err := rows.Err(); err != nil {
@@ -191,7 +276,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// --- staff ↔ staff: one row per pair, the latest message.
-		if channel == "" || channel == "staff" {
+		{
 			rows, err := tx.Query(ctx, `
 				WITH last AS (
 				  SELECT DISTINCT ON (m.party_a, m.party_b)
@@ -225,10 +310,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				it.Title = na + " ↔ " + nb
 				it.From = sender
 				it.LastAt = at.Format(time.RFC3339)
-				if it.Pending {
-					counts.Staff++
-				}
-				items = append(items, it)
+				keep(it)
 			}
 			rows.Close()
 			if err := rows.Err(); err != nil {
@@ -238,7 +320,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 
 		// --- circulars: one-way, but one that asked for an acknowledgement is
 		// waiting until everybody it went to has answered.
-		if channel == "" || channel == "circular" {
+		{
 			rows, err := tx.Query(ctx, `
 				SELECT a.id::text, a.title, a.kind, COALESCE(a.audience_role, ''),
 				       COALESCE(cu.full_name, ''), left(a.body, 200),
@@ -277,10 +359,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 					it.Acked, it.Asked = &acked, &asked
 					it.Pending = asked > acked
 				}
-				if it.Pending {
-					counts.Circulars++
-				}
-				items = append(items, it)
+				keep(it)
 			}
 			rows.Close()
 			if err := rows.Err(); err != nil {

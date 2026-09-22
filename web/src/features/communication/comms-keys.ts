@@ -21,6 +21,25 @@ import { lazy } from 'react'
  * whichever order the integrator happened to write.
  */
 export const commsKeys = {
+  /* Staff to staff, for the roles that had no way to write to anybody.
+     A librarian, an accountant, the nurse, the warden, HR, transport — every
+     one of them can be written to and none of them had a screen to write
+     from, so asking a class teacher anything meant leaving the product. The
+     endpoint never gated on a permission (any non-family account may message
+     any other), so this is a door onto a room that was already there. */
+  'activity_coord.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'counsellor.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'discipline_officer.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'exam_controller.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'finance.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'hostel_warden.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'hr.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'it_admin.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'librarian.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'nurse.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'operations.communication.messages': lazy(() => import('../comms/StaffMessages')),
+  'transport_manager.communication.messages': lazy(() => import('../comms/StaffMessages')),
+
   // The principal's desk over every channel — see AllMessages.tsx.
   'institution_admin.communication.all_messages': lazy(() => import('./AllMessages')),
   'institution_admin.communication.grievances': lazy(

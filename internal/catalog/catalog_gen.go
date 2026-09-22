@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 402 features.
+// Roles is the catalog: 23 roles, 414 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -620,6 +620,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "exam_controller.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -780,6 +788,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "librarian.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -821,6 +837,14 @@ var Roles = []Role{
 					{Key: "transport_manager.transport.route_attendance", Slug: "route_attendance", Name: "Route attendance", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Boarding and alighting scans for each route, morning and afternoon."},
 					{Key: "transport_manager.transport.delays_exceptions", Slug: "delays_exceptions", Name: "Delays & exceptions", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Routes running late, breakdowns and any child not scanned."},
 					{Key: "transport_manager.transport.live_vehicle_tracking", Slug: "live_vehicle_tracking", Name: "Live vehicle tracking", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Where every bus is now, against the route it should be running."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "transport_manager.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
@@ -876,6 +900,14 @@ var Roles = []Role{
 				Workspace: "Hostel",
 				Features: []Feature{
 					{Key: "operations.hostel.hostel_rooms", Slug: "hostel_rooms", Name: "Hostel & rooms", Scope: Scope("campus"), Tier: Tier("core"), Summary: "Rooms, beds and who is in them; put a boarder in a free bed."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "operations.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
@@ -943,6 +975,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "nurse.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -975,6 +1015,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "counsellor.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -1003,6 +1051,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "discipline_officer.discipline.conduct_notes", Slug: "conduct_notes", Name: "Conduct notes", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Badges and demerits: record praise or a concern against a child, and read what others have written."},
 					{Key: "discipline_officer.discipline.incident_log", Slug: "incident_log", Name: "Incident log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Conduct records escalated by the office: severity, counselling, the parent meeting, and any suspension."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "discipline_officer.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
@@ -1040,6 +1096,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "hostel_warden.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -1069,6 +1133,14 @@ var Roles = []Role{
 					{Key: "activity_coord.activities.clubs_activities", Slug: "clubs_activities", Name: "Clubs & activities", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The clubs, coaching and electives the school runs — when each meets, what it costs and who is in it."},
 					{Key: "activity_coord.activities.achievements_showcase", Slug: "achievements_showcase", Name: "Achievements showcase", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Awards and sports results, and the family's consent before a child's name goes in front of the school."},
 					{Key: "activity_coord.activities.circulars", Slug: "circulars", Name: "Circulars", Scope: Scope("institution"), Tier: Tier("core"), Summary: "A notice to the classes concerned — fixtures, practice times, a trip — with who has read it."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "activity_coord.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
@@ -1132,6 +1204,14 @@ var Roles = []Role{
 				Features: []Feature{
 					{Key: "finance.banking_reports.match_bank_records", Slug: "match_bank_records", Name: "Match bank records", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The bank statement against what the software recorded, cash and online together, so the month closes on one number rather than two. Student bank accounts for refunds and scholarships sit alongside."},
 					{Key: "finance.banking_reports.accounting_tax_reports", Slug: "accounting_tax_reports", Name: "Accounting & tax reports", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The daybook and cashbook, the ledger and trial balance, the chart of accounts, the year-end close, and the tax and audit statements — with a one-click export for the school's accountant."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "finance.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
@@ -1310,6 +1390,14 @@ var Roles = []Role{
 				},
 			},
 			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "hr.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
+				},
+			},
+			{
 				Slug: "my_profile",
 				Name: "My Profile",
 				Workspace: "My Profile",
@@ -1384,6 +1472,14 @@ var Roles = []Role{
 					{Key: "it_admin.systems.audit_log", Slug: "audit_log", Name: "Audit log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who changed what, when, from where."},
 					{Key: "it_admin.systems.background_jobs", Slug: "background_jobs", Name: "Background jobs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Queue depth, retries and failures, and starting a job by hand."},
 					{Key: "it_admin.systems.integrations", Slug: "integrations", Name: "Integrations", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every connector the school has switched on, whether it is working, and what an unset one needs."},
+				},
+			},
+			{
+				Slug: "communication",
+				Name: "Communication",
+				Workspace: "Communication",
+				Features: []Feature{
+					{Key: "it_admin.communication.messages", Slug: "messages", Name: "Messages", Scope: Scope("institution"), Tier: Tier("core"), Summary: "One colleague at a time. The staff address book — every teacher and every member of staff — and the thread you have with each of them, for asking a class teacher or the office something rather than sending a notice to the school."},
 				},
 			},
 			{
