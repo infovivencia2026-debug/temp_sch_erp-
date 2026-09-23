@@ -862,7 +862,7 @@ export function AssistantTab() {
                      it, which is true until the day a painted region sits
                      between them. */
                   className={cn(
-                    'whitespace-pre-wrap rounded-[12px] px-3 py-2 text-[13px]',
+                    'whitespace-pre-wrap rounded-[12px] px-3.5 py-2.5 text-[14.5px] leading-relaxed',
                     turn.role === 'user' && 'bg-primary text-primary-foreground',
                     turn.role === 'bot' && 'bg-accent text-accent-foreground',
                     turn.role === 'error' &&
@@ -1137,9 +1137,9 @@ export function AssistantTab() {
               disabled={state !== 'idle'}
               aria-label="Attach a spreadsheet to import"
               title="Attach a spreadsheet to import"
-              className="grid size-8 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+              className="grid size-11 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
             >
-              <Paperclip className="size-3.5" />
+              <Paperclip className="size-4" />
             </button>
             <input
               ref={inputRef}
@@ -1153,7 +1153,12 @@ export function AssistantTab() {
               maxLength={4000}
               placeholder={dictation.supported ? 'Ask, or press the microphone…' : 'Ask a question…'}
               aria-label="Your question"
-              className="min-w-0 flex-1 rounded-[12px] border bg-background px-3.5 py-2 text-[13.5px]
+              /* A BIG BOX. The owner's word. 13.5px in a 36px field read as an
+                 afterthought under a full-height panel; the box is where the
+                 whole conversation starts, so it is the largest text on the
+                 panel and tall enough to be found with a thumb. 16px also
+                 keeps iOS from zooming the page when the field is focused. */
+              className="min-w-0 flex-1 rounded-[14px] border bg-background px-4 py-3 text-[16px]
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {/* Drawn only where it works. Firefox has no speech recognition at
@@ -1178,7 +1183,7 @@ export function AssistantTab() {
                 aria-pressed={speakOn}
                 title={speakOn ? 'Spoken answers on' : 'Read answers aloud'}
                 className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-full border transition-colors',
+                  'grid size-11 shrink-0 place-items-center rounded-full border transition-colors',
                   speakOn ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
                 )}
               >
@@ -1209,7 +1214,7 @@ export function AssistantTab() {
                 aria-pressed={handsFree}
                 title={handsFree ? 'Hands-free on' : 'Hands-free conversation'}
                 className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-full border transition-colors',
+                  'grid size-11 shrink-0 place-items-center rounded-full border transition-colors',
                   handsFree ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
                 )}
               >
@@ -1225,7 +1230,7 @@ export function AssistantTab() {
                 aria-pressed={dictation.listening}
                 title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
                 className={cn(
-                  `grid size-8 shrink-0 place-items-center rounded-full border transition-colors
+                  `grid size-11 shrink-0 place-items-center rounded-full border transition-colors
                    disabled:opacity-40`,
                   dictation.listening
                     ? 'border-destructive bg-destructive text-white'
