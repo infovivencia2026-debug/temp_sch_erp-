@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +117,13 @@ func (s *Server) liveStream(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	rc := http.NewResponseController(w)
+	/* THE 40-SECOND CUT. The server carries a 30s read and write deadline for
+	   every request, sized for small JSON. On a stream the read deadline fires
+	   in the background reader and Go cancels the request context — logged as
+	   "client or proxy closed" at 40s on every stream, with nothing sent. A
+	   stream is the one request those deadlines must not touch. */
+	_ = rc.SetReadDeadline(time.Time{})
+	_ = rc.SetWriteDeadline(time.Time{})
 
 	events, unsubscribe := s.Live.Subscribe(id.UserID)
 	defer unsubscribe()
@@ -192,7 +200,15 @@ func (s *Server) LiveProbe(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	rc := http.NewResponseController(w)
-	for i := 1; i <= 12; i++ {
+	_ = rc.SetReadDeadline(time.Time{})
+	_ = rc.SetWriteDeadline(time.Time{})
+	// ?seconds=90 (capped at 120) proves the stream outlives the 30s server
+	// deadlines and whatever sits in front; the default stays short.
+	ticks := 12
+	if n, err := strconv.Atoi(r.URL.Query().Get("seconds")); err == nil && n > 0 && n <= 120 {
+		ticks = n
+	}
+	for i := 1; i <= ticks; i++ {
 		if _, err := fmt.Fprintf(w, "data: tick %d %s\n\n", i, time.Now().UTC().Format("15:04:05.000")); err != nil {
 			return
 		}
