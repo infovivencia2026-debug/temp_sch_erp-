@@ -78,6 +78,36 @@ export default function GoTo() {
         }
       }
     }
+
+    /* Fourth pass: the old name of a screen that was renamed or split.
+
+       A notification is a stored string; the link it was written with does
+       not change when the catalogue does. Each entry maps a slug the server
+       has written (or still writes) to the slugs a reader might hold for the
+       same screen, tried in order, so a link from before a rename still lands
+       on the screen rather than on "that screen has moved". */
+    const LEGACY: Record<string, string[]> = {
+      direct_teacher_messaging: ['communication', 'messages'],
+      family_conversations: ['communication', 'messages'],
+      messages: ['communication'],
+      fee_receipts: ['fees_payments', 'take_fee_payment', 'collections_dues'],
+      concessions: ['fees_payments', 'concessions_refunds', 'collections_dues'],
+      report_cards: ['results_report_cards', 'report_cards'],
+      remarks: ['child_remarks', 'teacher_remarks', 'class_teacher_remarks'],
+      staff_records: ['staff_groups_lists', 'staff_360', 'staff_overview'],
+      homework: ['homework_academics', 'homework_classwork', 'homework_assignments'],
+    }
+    for (const alt of LEGACY[want] ?? []) {
+      for (const role of catalog.roles) {
+        for (const section of role.sections) {
+          const f = section.features.find((x) => usable(x) && x.slug === alt)
+          if (f) {
+            navigate(`/${role.key}/${section.slug}/${f.slug}${search}`, { replace: true })
+            return
+          }
+        }
+      }
+    }
   }, [catalog.roles, sectionSlug, featureSlug, navigate, search])
 
   /* The first screen this reader can actually open, for the way back. Resolved

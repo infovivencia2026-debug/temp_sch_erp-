@@ -191,7 +191,7 @@ function hrefFor(ev: LiveEvent, me: string | undefined): string | null {
     case 'parent':
       if (!k.student || !k.parent || !k.teacher) return null
       return me === k.parent
-        ? `/go/direct_teacher_messaging?student_id=${k.student}&teacher_user_id=${k.teacher}`
+        ? `/go/messages/communication?tab=teacher&student_id=${k.student}&teacher_user_id=${k.teacher}`
         : `/go/messages?box=parents&child=${k.student}&with=${k.parent}`
     case 'counselor':
       return k.thread ? `/go/counselling/family_conversations?thread=${k.thread}` : null

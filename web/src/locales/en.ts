@@ -966,8 +966,7 @@ export const en = {
      had to notice a line disappear, and people do not notice that. */
   'portal.teacher_messages.sent': 'Sent',
   'portal.teacher_messages.read_at': 'Read {at}',
-  'portal.teacher_messages.draft_placeholder':
-    'Ravi has been finding the algebra homework hard. Could we talk about it?',
+  'portal.teacher_messages.draft_placeholder': 'Message',
   'portal.teacher_messages.sending': 'Sending…',
   'portal.teacher_messages.action_send': 'Send',
   'portal.teacher_messages.badge_to': 'to {name}',
