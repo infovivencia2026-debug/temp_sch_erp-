@@ -798,7 +798,7 @@ export function AssistantTab() {
               to be divided by a single hairline and nothing else, so the bot's
               answer carries no border and the question keeps only its soft
               wash of colour. */}
-           <div className="mx-auto w-full max-w-[600px] divide-y divide-border">
+           <div className="mx-auto w-full max-w-[600px]">
             {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
@@ -821,7 +821,7 @@ export function AssistantTab() {
               </div>
             )}
             {turns.map((turn, i) => (
-              <div key={i} className="w-full py-1.5 first:pt-0">
+              <div key={i} className="w-full border-b border-border py-2 first:pt-0">
                 <div
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
