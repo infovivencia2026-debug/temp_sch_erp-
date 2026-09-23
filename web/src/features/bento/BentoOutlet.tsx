@@ -1,7 +1,7 @@
 import { LoaderBlock } from '@/components/Loader'
 import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useCatalog, usable } from '@/lib/catalog'
+import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import '../portal/parent.css'
 import { bentoComponentFor } from './bento-registry'
@@ -46,9 +46,10 @@ import { OfflineBanner } from '@/components/OfflineBanner'
     section which actually opens. Anything else — /account, an unknown role, a
     section this account does not hold — resolves to nothing and therefore
     falls through to classic. */
-function useRouteFeatureKey(override?: string): string | undefined {
-  const catalog = useCatalog()
+export function useRouteFeatureKey(override?: string): string | undefined {
+  const catalog = useCatalogIfAny()
   const { pathname } = useLocation()
+  if (!catalog) return undefined
 
   /* A pane names its own path. The browser's location describes one pane of a
      split — the focused one — so resolving from it would give all four panes
@@ -165,9 +166,18 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
     )
   })()
 
-  // A classic screen fades in on navigation too — keyed on the route so the
-  // animation plays once per screen, not on every in-place re-render.
-  if (layout !== 'bento') {
+  /* BENTO IS THE HOME, AND ONLY THE HOME.
+
+     The layout preference used to strip the header and sidebar from every
+     screen and put the dock under all of them, while only the Home keys had
+     a board to show: a person opened Fees from the dock and got the classic
+     fee screen floating in a chromeless page with a pill over its first row.
+     The owner's words: bento should only be there in home. So the bento
+     wrapper -- the ground, the dock clearance, no chrome -- is used exactly
+     where a board renders, and every other screen is the classic screen
+     with its own chrome, whatever the preference says. useIsBentoScreen is
+     the same test, for the Shell. */
+  if (layout !== 'bento' || !Screen) {
     return (
       <div key={key} className="screen-fade">
         <OfflineBanner />
@@ -243,7 +253,9 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
       className={cn(
         'screen-fade',
         'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
-        Screen ? 'min-h-full lg:h-full lg:overflow-hidden' : 'min-h-full',
+        // Only a board reaches this wrapper now, and a board is measured to
+        // the window on a desk and must not scroll.
+        'min-h-full lg:h-full lg:overflow-hidden',
       )}
       /* The workspace this screen belongs to, for stylesheets that dress one
          role's screens differently: the parent's calm pass in
@@ -308,6 +320,15 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
       </div>
     </div>
   )
+}
+
+/** Whether the current URL renders a bento board: the Home of a role that
+    has one, under the bento preference. The Shell drops its chrome exactly
+    here and nowhere else. */
+export function useIsBentoScreen(path?: string): boolean {
+  const { layout } = useLayout()
+  const key = useRouteFeatureKey(path)
+  return layout === 'bento' && !!key && !!bentoComponentFor(key)
 }
 
 export default BentoOutlet
