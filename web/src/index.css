@@ -3033,19 +3033,26 @@ body[data-scroll-lock] {
   }
 }
 
-/* The loading mark: three triangles lit in turn. Drawn in the current ink so
-   it belongs to any surface; the whole thing breathes at a slow, even pace
-   rather than spinning, which is what made the old spinners feel frantic. */
-.tri-loader { fill: currentColor; }
-.tri-loader polygon { opacity: 0.22; animation: tri-lit 1.2s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
-.tri-loader polygon:nth-child(2) { animation-delay: 0.2s; }
-.tri-loader polygon:nth-child(3) { animation-delay: 0.4s; }
-@keyframes tri-lit {
-  0%, 60%, 100% { opacity: 0.22; transform: scale(1); }
-  30% { opacity: 1; transform: scale(1.12); }
+/* The loading mark: a ring with one lit arc, turning. The track is the
+   current ink at low alpha and the arc is the ink itself, so the mark sits
+   on any surface without a colour of its own. 0.8s per turn -- brisk enough
+   to read as alive, slow enough not to read as frantic. Under reduced motion
+   the ring holds still: a ring with a gap is still "not finished". */
+.ring-loader {
+  display: inline-block;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border-style: solid;
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+  border-top-color: currentColor;
+  animation: ring-spin 0.8s linear infinite;
 }
+@supports not (color: color-mix(in srgb, red, blue)) {
+  .ring-loader { border-color: rgba(128, 128, 128, 0.25); border-top-color: currentColor; }
+}
+@keyframes ring-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .tri-loader polygon { animation: none; opacity: 0.5; }
+  .ring-loader { animation: none; }
 }
 
 /* THE TEXT SIZE SETTING, ON A PRODUCT WRITTEN IN PIXELS.
@@ -3126,12 +3133,19 @@ body[data-scroll-lock] {
   from { background-position: 200% 0; }
   to   { background-position: -200% 0; }
 }
+/* VISIBLE. The bone was hsl(var(--muted)) on hsl(var(--background)), and on
+   the light theme those two are a few points apart: measured, the bars
+   were a ghost of the page, a screen that read as blank with a faint smear
+   on it -- which is what "looks nasty" meant. The bone is now the
+   foreground's own ink at a low alpha, so it is a definite soft grey on the
+   light ground and a definite soft light on the dark one, from one rule.
+   The band stays the card colour: a light passing over grey. */
 .skeleton {
-  background-color: hsl(var(--muted));
+  background-color: hsl(var(--foreground) / 0.08);
   background-image: linear-gradient(
     100deg,
     transparent 30%,
-    hsl(var(--card) / 0.55) 50%,
+    hsl(var(--card) / 0.7) 50%,
     transparent 70%
   );
   background-size: 200% 100%;

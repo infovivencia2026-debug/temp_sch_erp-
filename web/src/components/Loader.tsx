@@ -3,12 +3,17 @@ import { useDelayed } from '@/components/Skeleton'
 
 /* One loading mark for the whole product.
  *
- * Three small triangles, lit one after another. It is drawn in the current
- * ink at reduced opacity so it belongs to whatever surface it sits on, and it
- * never appears for the first 220ms so cached screens do not flicker a mark
- * on their way in. Under reduced motion the three sit still at half strength.
+ * A thin ring with one lit arc, turning. It replaces three small triangles
+ * lit in sequence, which at 22px in the middle of an empty panel read as a
+ * glyph nobody recognised -- a stray icon rather than "working". A ring
+ * is the mark every phone and browser already uses for the same fact, so
+ * it needs no learning. Drawn in the current ink at reduced opacity so it
+ * belongs to whatever surface it sits on; the arc is the ink at full
+ * strength. Under reduced motion it holds still at the same strength: a
+ * ring with a gap still says "not finished", which was always the message.
  *
- * The sentence is kept for screen readers: `role="status"` says it once. */
+ * The name stays TriLoader so the three call sites are untouched. The
+ * sentence is kept for screen readers: `role="status"` says it once. */
 export function TriLoader({
   size = 20,
   className,
@@ -20,18 +25,11 @@ export function TriLoader({
 }) {
   return (
     <span role="status" aria-live="polite" className={cn('inline-flex items-center justify-center', className)}>
-      <svg
-        className="tri-loader"
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
+      <span
+        className="ring-loader"
+        style={{ width: size, height: size, borderWidth: Math.max(2, Math.round(size / 9)) }}
         aria-hidden="true"
-        focusable="false"
-      >
-        <polygon points="12,2 17,10 7,10" />
-        <polygon points="6,13 11,21 1,21" />
-        <polygon points="18,13 23,21 13,21" />
-      </svg>
+      />
       <span className="sr-only">{label ?? 'Loading…'}</span>
     </span>
   )
