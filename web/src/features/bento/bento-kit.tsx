@@ -698,7 +698,28 @@ export function StatCell({
           </span>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      {/* THE FIGURE TAKES THE SLACK.
+
+          The label, the number and the sentence were stacked at the top of a
+          cell that is a fixed square at lg, so every stat card was a line of
+          text and then a third of a tile of nothing. Read as thin -- the
+          board looked like a grid of half-empty boxes rather than tiles, and
+          worst on the one-column cards, where the note is hidden by design
+          and the figure was the only thing left above the void.
+
+          flex-1 hands this row the leftover height and centres the number in
+          it, so the card fills whatever it was given: the label stays at the
+          top edge, the sentence and the cue stay at the bottom, and the
+          figure sits in the middle of what is left instead of on top of it.
+          Nothing about the SIZE of the number changes -- that is capped
+          against the card by --bento-fig and --fig-cap in index.css, which is
+          the right place for it and already does the job.
+
+          items-center rather than items-baseline: with one child a baseline
+          is the same box, and if a card ever puts a unit beside the figure
+          the two should share a middle inside a row that is now taller than
+          the text. */}
+      <div className="mt-3 flex min-h-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
         {/* Sized against the viewport, not fixed: as large as the glass can
             afford, never so large the card has to choose between clipping and
             a scrollbar. Weight 500, not 800: the size carries the emphasis,
