@@ -556,7 +556,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
       if (input.current) input.current.value = ''
     }
   }
-  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={56} />
+  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={56} className="!rounded-[10px]" />
   if (!editable) return face
   return (
     <span className="relative inline-block shrink-0">
@@ -570,7 +570,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
       />
       <button
         type="button"
-        className="group relative block rounded-full"
+        className="group relative block rounded-[10px]"
         title={e.photo_file_id ? 'Change the photo' : 'Add a photo'}
         aria-label={e.photo_file_id ? `Change the photo of ${e.full_name}` : `Add a photo of ${e.full_name}`}
         disabled={busy}
