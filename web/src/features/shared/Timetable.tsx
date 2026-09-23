@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List, type Section, type Period, type TimetableEntry, type Teacher } from '@/lib/api'
-import { Card, CardHeader, Table, Td, Badge, Select, Loading, SkeletonTable, ErrorState } from '@/components/ui'
+import { Card, CardHeader, Table, Td, Badge, Select, Loading, SkeletonTable, ErrorState, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import WeekGrid from '@/components/WeekGrid'
 import DayTimeline from '@/components/DayTimeline'
@@ -57,7 +57,7 @@ export default function Timetable() {
             onClick={() => setTab(t.id)}
             className={cn(
               'rounded-t-md px-3 py-1.5 text-sm',
-              t.id === tabId ? 'border-b-2 border-primary font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+              t.id === tabId ? tabClass(true) : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {t.label}

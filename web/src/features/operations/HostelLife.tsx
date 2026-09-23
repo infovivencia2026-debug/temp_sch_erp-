@@ -5,8 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 /* A warden's evening.
@@ -171,7 +170,7 @@ export default function HostelLife() {
           </Card>
         )}
 
-        <div className="flex gap-1 border-b">
+        <div className={TAB_BAR}>
           {(
             [
               ['passes', 'Outpasses'],
@@ -186,8 +185,8 @@ export default function HostelLife() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               {label}

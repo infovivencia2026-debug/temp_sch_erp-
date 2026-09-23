@@ -2307,3 +2307,28 @@ export function Reload({
     </Button>
   )
 }
+
+/* ONE WAY TO DRAW A TAB.
+
+   Twenty-four screens drew their own underline tabs, in five slightly
+   different sizes and weights, and two drew pill strips of their own. The
+   differences were never decisions; they were copies drifting. These are the
+   canonical classes; a screen composes them with cn() and adds nothing that
+   changes the look. TAB_BAR is the row, tabClass(active) the button; SEG_BAR
+   and segClass are the pill strip used where a screen switches between two
+   or three views of the same thing. */
+export const TAB_BAR = 'flex flex-wrap gap-1 border-b'
+
+export function tabClass(active: boolean): string {
+  return active
+    ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium text-foreground transition-colors'
+    : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground'
+}
+
+export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1'
+
+export function segClass(active: boolean): string {
+  return active
+    ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
+    : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
+}

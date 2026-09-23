@@ -6,8 +6,7 @@ import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
-  Loading, ErrorState,
-} from '@/components/ui'
+  Loading, ErrorState, tabClass, TAB_BAR } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/lib/session'
 
@@ -302,7 +301,7 @@ export default function StaffMessages() {
             A teacher opening Messages is asking who has written to me, and
             answering that in two separate places is how one of them goes
             unread for a week. */}
-        <div className="flex flex-wrap justify-center gap-1 border-b">
+        <div className={cn(TAB_BAR, 'justify-center')}>
           {([
             ['staff', 'Colleagues', staffUnread],
             ['parents', 'Parents', parentUnread],
@@ -314,8 +313,8 @@ export default function StaffMessages() {
               aria-current={box === k}
               className={
                 box === k
-                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               {label}

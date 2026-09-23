@@ -8,8 +8,7 @@ import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSession } from '@/lib/session'
 
@@ -238,7 +237,7 @@ export default function TransportOffice() {
           <Stat label="This month" value={incidents.data?.items.length ?? 0} />
         </CellGrid>
 
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
               key={k}
@@ -247,8 +246,8 @@ export default function TransportOffice() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />

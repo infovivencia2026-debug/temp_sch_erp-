@@ -7,8 +7,7 @@ import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
   Input, Select, Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
-  ConfirmButton,
-} from '@/components/ui'
+  ConfirmButton, tabClass, TAB_BAR } from '@/components/ui'
 
 /* The rules a payslip already assumed.
 
@@ -157,12 +156,12 @@ export default function LeavePolicy() {
 
         <FormNotice error={save.error} ok={save.isSuccess ? 'Saved. Payroll reads this from the next run.' : undefined} />
 
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k}
               className={tab === k
-                ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'}>
+                ? tabClass(true)
+                : tabClass(false)}>
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
             </button>

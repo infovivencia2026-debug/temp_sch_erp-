@@ -73,7 +73,7 @@ export function ImportButton({
   return (
     <>
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={() => setOpen(true)}
         title={title ?? `Import ${nice} from a spreadsheet`}

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Mail, MessageSquare, Phone } from 'lucide-react'
-import { PageHead, PageBody, Card, Loading } from '@/components/ui'
+import { PageHead, PageBody, Card, Loading, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 const EmailServer = lazy(() => import('../super_admin/EmailServer'))
@@ -73,10 +73,10 @@ export default function EduCloudChannels() {
                   type="button"
                   onClick={() => setTab(t.id)}
                   className={cn(
-                    'flex items-center gap-2 rounded-t-md px-4 py-2 text-[14px] transition-colors',
+                    
                     t.id === active
-                      ? 'border-b-2 border-primary font-medium'
-                      : 'text-muted-foreground hover:text-foreground',
+                      ? tabClass(true)
+                      : tabClass(false),
                   )}
                 >
                   <Icon className="h-4 w-4" aria-hidden />

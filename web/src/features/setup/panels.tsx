@@ -4028,7 +4028,7 @@ export function BoardImplications({ board }: { board: string }) {
 
       {open && (
         <div className="scroll-x">
-        <table className="mt-3 w-full text-[12px]">
+        <table className="mt-3 w-full text-[13px]">
           <thead>
             <tr className="text-left text-muted-foreground">
               <th className="py-1">Grade</th><th>From</th><th>To</th><th>Points</th>

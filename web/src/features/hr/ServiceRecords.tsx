@@ -5,8 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
-} from '@/components/ui'
+  Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useEmployeeRoster } from '@/lib/rosters'
 
 /* What a school has to be able to produce when somebody asks.
@@ -140,12 +139,12 @@ export default function ServiceRecords() {
             hint="Requested, adverse, or lapsed past its re-check date" />
         </CellGrid>
 
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k}
               className={tab === k
-                ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'}>
+                ? tabClass(true)
+                : tabClass(false)}>
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
             </button>

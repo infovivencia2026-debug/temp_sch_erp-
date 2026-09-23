@@ -350,7 +350,7 @@ function ClaimDetailPanel({
             )}
             {mayExport && d.claim.child_count > 0 && (
               <a href={`${concessionsBase}/claims/${claimId}/file`} download>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="secondary">
                   <Download className="h-3.5 w-3.5" /> Claim file (CSV)
                 </Button>
               </a>

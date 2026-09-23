@@ -296,7 +296,7 @@ export default function CampaignSequences() {
                 <Td>{c.touches_due}</Td>
                 <Td>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setCampaignID(c.id)}>
+                    <Button size="sm" variant="secondary" onClick={() => setCampaignID(c.id)}>
                       Open
                     </Button>
                     <Button

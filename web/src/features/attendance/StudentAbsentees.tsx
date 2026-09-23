@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState,
-} from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, segClass, SEG_BAR } from '@/components/ui'
 
 /* Student absentees — the monitoring view.
  *
@@ -185,7 +185,7 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
         <div
           role="tablist"
           aria-label="Present or absent"
-          className="mx-auto mb-3 flex w-fit gap-1 rounded-md border bg-muted p-1"
+          className={cn(SEG_BAR, 'mx-auto mb-3')}
         >
           {(['absent', 'present'] as Tab[]).map((t) => (
             <button
@@ -196,8 +196,8 @@ export default function StudentAbsentees({ embedded = false }: { embedded?: bool
               onClick={() => setTab(t)}
               className={
                 tab === t
-                  ? 'rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
-                  : 'rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
+                  ? segClass(true)
+                  : segClass(false)
               }
             >
               {t === 'absent' ? `Absent (${total})` : `Present (${presentTotal})`}
