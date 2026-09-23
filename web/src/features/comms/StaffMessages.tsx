@@ -459,6 +459,10 @@ export default function StaffMessages() {
                   body: m.body,
                   at: m.sent_at,
                   mine: m.mine,
+                  /* The school's side of the paper is the right. A colleague's
+                     reply from the desk sits with the teacher's own, not with
+                     the family's -- the family is the other party here. */
+                  right: m.sender_side ? m.sender_side !== 'parent' : m.mine,
                   read_at: m.read_at,
                   sender: `${m.sender_name}${m.sender_side ? ` · ${m.sender_side}` : ''}`,
                   attachments: m.attachments,

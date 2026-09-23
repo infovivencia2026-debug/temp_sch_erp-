@@ -42,6 +42,9 @@ export interface ChatMessage {
   sender?: string
   /** Set once the other side has actually seen it; drawn as two blue ticks. */
   read_at?: string
+  /** Draw on the right regardless of `mine`: the school's side of a thread on
+      a staff screen. Ticks and the sender's own controls still follow `mine`. */
+  right?: boolean
   attachments?: Attachment[]
   /** What this message answers, quoted as it read when it was quoted. */
   reply_to_id?: string
@@ -551,6 +554,11 @@ export function ChatThread({
               o.at.slice(0, 10) === day && Math.abs(+new Date(o.at) - +new Date(m.at)) < 5 * 60_000
             const first = sep || !sameAs(prev)
             const last = !sameAs(next)
+            /* Which side of the paper. Yours, unless the screen says otherwise:
+               on a staff screen everything the school wrote -- the teacher's
+               own words and the principal's reply from the desk -- sits on the
+               school's side, and only the family's on the other. */
+            const right = m.right ?? m.mine
             return (
               <div key={m.id}>
                 {sep && (
@@ -560,15 +568,15 @@ export function ChatThread({
                     </span>
                   </div>
                 )}
-                <div className={cn('group flex items-end gap-1', last ? 'mb-2' : 'mb-[3px]', m.mine ? 'justify-end' : 'justify-start')}>
+                <div className={cn('group flex items-end gap-1', last ? 'mb-2' : 'mb-[3px]', right ? 'justify-end' : 'justify-start')}>
                   {/* Answer this one. Left of your own bubble, right of theirs,
                       so the control never sits where the text begins. */}
-                  <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', m.mine ? 'items-end' : 'items-start')}>
+                  <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', right ? 'items-end' : 'items-start')}>
                   <div
                     {...holdHandlers(m)}
                     className={cn(
                       'chat-bubble chat-settle relative px-[16px] py-[12px] [@media(pointer:coarse)]:select-none text-[15.5px] leading-[1.42]',
-                      m.mine ? 'chat-mine' : 'chat-theirs',
+                      right ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
                       m.pending && 'opacity-80',

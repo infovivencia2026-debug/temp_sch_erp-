@@ -1032,6 +1032,16 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		SELECT m.id::text, m.body,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
+		       /* Whose side wrote it. The parent's screen names a third sender
+		          -- the principal answering from the All messages desk -- by
+		          their role, so "Ramesh" reads as the school's head and not as
+		          the class teacher under another name. */
+		       CASE WHEN m.sender_user_id = m.parent_user_id THEN 'parent'
+		            WHEN m.sender_user_id = m.teacher_user_id THEN 'teacher'
+		            ELSE COALESCE((SELECT r.name FROM user_roles ur
+		                             JOIN roles r ON r.id = ur.role_id
+		                            WHERE ur.user_id = m.sender_user_id AND r.key <> 'parent'
+		                            ORDER BY r.name LIMIT 1), 'school') END,
 		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'), m.attachments
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
@@ -1041,7 +1051,7 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
 			var raw []byte
-			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.ReadAt, &raw)
+			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.SenderSide, &v.ReadAt, &raw)
 			v.Attachments = scanAttachments(raw)
 			return v, err
 		})

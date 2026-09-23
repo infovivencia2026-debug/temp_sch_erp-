@@ -37,6 +37,8 @@ interface Message {
   body: string
   sent_at: string
   sender_name: string
+  /** 'parent', 'teacher', or the role of a third school-side sender. */
+  sender_side?: string
   mine: boolean
   read_at?: string
   attachments?: Attachment[]
@@ -209,9 +211,19 @@ export default function TeacherMessages() {
               at: m.sent_at,
               mine: m.mine,
               read_at: m.read_at,
-              sender: m.sender_name,
+              /* The teacher needs no label -- the screen is named after them.
+                 Anybody else from the school answering in this thread is
+                 named with their role, so a reply from the head reads as the
+                 head's and not as the teacher's. */
+              sender:
+                m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent'
+                  ? `${m.sender_name} · ${m.sender_side}`
+                  : m.sender_name,
               attachments: m.attachments,
             }))}
+            showSender={messages.some(
+              (m) => !m.mine && !!m.sender_side && m.sender_side !== 'teacher' && m.sender_side !== 'parent',
+            )}
             loading={thread.isLoading}
             empty={t('portal.teacher_messages.empty_thread_body')}
             canSend={teacher !== ''}

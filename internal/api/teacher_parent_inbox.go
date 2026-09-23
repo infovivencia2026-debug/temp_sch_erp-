@@ -218,7 +218,11 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
 		       CASE WHEN m.sender_user_id = m.parent_user_id THEN 'parent'
-		            ELSE 'teacher' END,
+		            WHEN m.sender_user_id = m.teacher_user_id THEN 'teacher'
+		            ELSE COALESCE((SELECT r.name FROM user_roles ur
+		                             JOIN roles r ON r.id = ur.role_id
+		                            WHERE ur.user_id = m.sender_user_id AND r.key <> 'parent'
+		                            ORDER BY r.name LIMIT 1), 'school') END,
 		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'),
 		       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI:SS.US'),
