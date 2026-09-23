@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, Volume2, VolumeX, Headphones, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet } from 'lucide-react'
+import { Mic, Square, X, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
-import { useDictation, speak, speakServer, stopSpeaking, speechOutputSupported, playTypeTick, unlockAudio } from '@/lib/speech'
+import { useDictation } from '@/lib/speech'
 import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
@@ -314,43 +314,32 @@ export function AssistantTab() {
      apart from what was typed so an interim result, which the recogniser
      revises word by word, replaces the last interim rather than accumulating
      "how how do how do I". */
-  /* Voice output and the hands-free loop. speakOn reads each answer aloud;
-     handsFree also re-opens the microphone once the answer has been spoken, so
-     a question and its reply can go back and forth without touching the
-     keyboard. Both remembered per browser. */
-  const [speakOn, setSpeakOn] = useState(() => {
-    try { return localStorage.getItem('erp.assistant.speak') === '1' } catch { return false }
-  })
-  const [handsFree, setHandsFree] = useState(false)
-  const handsFreeRef = useRef(handsFree)
-  handsFreeRef.current = handsFree
-  const speakRef = useRef(speakOn)
-  speakRef.current = speakOn
-
+  /* NO SOUND. The assistant used to read answers aloud, run a hands-free
+     loop and tick as it printed. The owner asked for none of it: the ball
+     says what state it is in, the text is the answer. Dictation IN stays --
+     that is the person's voice, not the bot's. */
   const typed = useRef('')
+  /* The ball churns while keys are landing and settles 900ms after the last
+     one: "typing" is a moment, not a state of the draft. */
+  const [typingNow, setTypingNow] = useState(false)
+  const typingTimer = useRef(0)
+  const noteTyping = useCallback(() => {
+    setTypingNow(true)
+    window.clearTimeout(typingTimer.current)
+    typingTimer.current = window.setTimeout(() => setTypingNow(false), 900)
+  }, [])
+  useEffect(() => () => window.clearTimeout(typingTimer.current), [])
   const dictation = useDictation((text, final) => {
     setDraft(text ? `${typed.current}${typed.current ? ' ' : ''}${text}` : typed.current)
     if (final) {
       typed.current = draftWith(typed.current, text)
-      // Hands-free: the recogniser's final result is the question -- send it
-      // without waiting for a keypress, and let the spoken answer restart it.
-      if (handsFreeRef.current) {
-        const m = typed.current.trim()
-        typed.current = ''
-        if (m) void ask(m)
-      }
     }
   })
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
-    // Closing the panel silences a running answer and shuts the microphone --
-    // nobody expects a corner tab to keep talking after it is gone.
-    if (!open) {
-      stopSpeaking()
-      if (dictation.listening) dictation.stop()
-      if (handsFreeRef.current) setHandsFree(false)
-    }
+    // Closing the panel shuts the microphone.
+    if (!open && dictation.listening) dictation.stop()
     // dictation read at call time; adding it re-runs on its own state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -362,31 +351,6 @@ export function AssistantTab() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [turns, state])
 
-  /* Read a NEW bot answer aloud when voice output is on, and -- in hands-free
-     mode -- re-open the microphone once it has finished, so the conversation
-     continues on its own. Guarded by a count so a re-render that does not add a
-     message never re-speaks the last one. */
-  const spokenCount = useRef(turns.length)
-  useEffect(() => {
-    if (turns.length <= spokenCount.current) {
-      spokenCount.current = turns.length
-      return
-    }
-    spokenCount.current = turns.length
-    const last = turns[turns.length - 1]
-    if (!last || last.role !== 'bot') return
-    if (speakRef.current || handsFreeRef.current) {
-      const done = () => {
-        if (handsFreeRef.current && dictation.supported && !dictation.listening) dictation.start()
-      }
-      // The natural server voice first; the browser's own speech only if that
-      // did not start (off the cloud, or the voice service refused).
-      void speakServer(last.text, done).then((ok) => { if (!ok) speak(last.text, done) })
-    }
-    // dictation is intentionally not a dep: it is read at call time, and adding
-    // it would re-run this on its own state changes and re-speak.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns])
 
   /* The answer PRINTS itself, a few characters at a time, rather than landing
      whole. A block of text appearing at once reads as a page that was already
@@ -441,14 +405,9 @@ export function AssistantTab() {
     const delay = Math.max(PRINT_MIN_MS, Math.min(PRINT_MAX_MS, Math.round(PRINT_TARGET_MS / total)))
     let n = 0
     let lingerTimer = 0
-    // No printing sound while the answer is also being spoken -- the voice is
-    // enough, and ticks under it are just noise.
-    const withSound = !speakRef.current && !handsFreeRef.current
     const timer = window.setInterval(() => {
       n += 1
       setPrintedLen(n)
-      // A tick every third character: enough to hear the machine, not a buzz.
-      if (withSound && n % 3 === 0) playTypeTick()
       if (n >= total) {
         window.clearInterval(timer)
         setPrintingIdx(-1)
@@ -478,10 +437,6 @@ export function AssistantTab() {
   async function ask(override?: string) {
     const message = (override ?? draft).trim()
     if (!message || state !== 'idle') return
-    // Prime sound on the tap that asked, so the answer -- spoken and ticking --
-    // is audible on mobile, where sound is only allowed from a gesture.
-    unlockAudio()
-    stopSpeaking()
     if (dictation.listening) dictation.stop()
     setDraft('')
     typed.current = ''
@@ -602,7 +557,6 @@ export function AssistantTab() {
       const data = await res.json().catch(() => null)
       if (!res.ok) throw new Error(data?.error?.message ?? 'The change could not be made.')
       setActionState(i, { state: 'done', result: data.message })
-      if (speakRef.current || handsFreeRef.current) void speakServer(data.message).then((ok) => { if (!ok) speak(data.message) })
     } catch (e) {
       setActionState(i, { state: 'error', result: (e as Error).message })
     }
@@ -761,7 +715,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-6 z-40 grid size-28 place-items-center rounded-full
+          `fixed right-6 z-40 grid size-36 place-items-center rounded-full
            border bg-card shadow-xl
            transition-[transform,box-shadow,background-color]
            hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
@@ -771,8 +725,8 @@ export function AssistantTab() {
         )}
         style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
       >
-        {/* TWICE THE SIZE, the owner's ask: 88px, in a 112px button. */}
-        <AssistantOrb state={state} size={88} awake={hover} />
+        {/* BIG, the owner's ask, twice and then more: 120px in a 144px button. */}
+        <AssistantOrb state={state} size={120} awake={hover} />
       </button>
 
       {open && (
@@ -829,7 +783,7 @@ export function AssistantTab() {
           <div
             className="flex shrink-0 justify-center pb-1 pt-4"
           >
-            <AssistantOrb state={state} size={88} />
+            <AssistantOrb state={state} size={120} typing={typingNow} />
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
@@ -1168,6 +1122,7 @@ export function AssistantTab() {
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value)
+                noteTyping()
                 // Typing supersedes anything a half-finished spoken phrase would
                 // have been appended to, so the two never fight over the box.
                 typed.current = e.target.value
@@ -1188,61 +1143,6 @@ export function AssistantTab() {
                 nothing when pressed is worse than an absent one, because the
                 person presses it, waits, and concludes the assistant is
                 broken. */}
-            {/* Read answers aloud. Persisted per browser; turning it off also
-                silences whatever is speaking right now. */}
-            {speechOutputSupported() && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSpeakOn((v) => {
-                    const next = !v
-                    try { localStorage.setItem('erp.assistant.speak', next ? '1' : '0') } catch { /* private mode */ }
-                    if (!next) stopSpeaking()
-                    return next
-                  })
-                }}
-                aria-label={speakOn ? 'Turn off spoken answers' : 'Read answers aloud'}
-                aria-pressed={speakOn}
-                title={speakOn ? 'Spoken answers on' : 'Read answers aloud'}
-                className={cn(
-                  'grid size-11 shrink-0 place-items-center rounded-full border transition-colors',
-                  speakOn ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
-                )}
-              >
-                {speakOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-              </button>
-            )}
-            {/* Hands-free: send on the final spoken phrase and re-open the mic
-                once the answer has been read, so a whole exchange needs no
-                keypress. Only offered where both halves work. */}
-            {dictation.supported && speechOutputSupported() && (
-              <button
-                type="button"
-                onClick={() => {
-                  setHandsFree((v) => {
-                    const next = !v
-                    if (next) {
-                      setSpeakOn(true)
-                      try { localStorage.setItem('erp.assistant.speak', '1') } catch { /* private mode */ }
-                      if (dictation.supported && !dictation.listening) dictation.start()
-                    } else {
-                      stopSpeaking()
-                      if (dictation.listening) dictation.stop()
-                    }
-                    return next
-                  })
-                }}
-                aria-label={handsFree ? 'Turn off hands-free' : 'Hands-free conversation'}
-                aria-pressed={handsFree}
-                title={handsFree ? 'Hands-free on' : 'Hands-free conversation'}
-                className={cn(
-                  'grid size-11 shrink-0 place-items-center rounded-full border transition-colors',
-                  handsFree ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
-                )}
-              >
-                <Headphones className="size-3.5" />
-              </button>
-            )}
             {dictation.supported && (
               <button
                 type="button"

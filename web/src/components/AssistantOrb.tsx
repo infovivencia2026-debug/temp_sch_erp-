@@ -35,9 +35,15 @@ export function AssistantOrb({
   state,
   size = 40,
   awake = false,
+  typing = false,
 }: {
   state: OrbState
   size?: number
+  /* Being typed at. The owner wanted the ball to move quickly while a
+     question is being written -- the same churn as thinking, so the ball
+     answers each keystroke -- and to settle again a moment after the last
+     key. Wins over awake, because a hover is a smaller thing than typing. */
+  typing?: boolean
   /* Pointed at. Applied on top of whatever the state asked for, rather than
      as a fourth state: a hover during "thinking" must not slow the ball to
      some hover speed. It quickens a little and brightens, and leaves the
@@ -47,8 +53,9 @@ export function AssistantOrb({
   const ref = useRef<HTMLSpanElement>(null)
   // The target lives in a ref: the easing loop reads it every frame, and a
   // re-run of the effect on each change would tear the loop down.
-  const target = useRef(RATE[state] * (awake ? 1.4 : 1))
-  target.current = RATE[state] * (awake ? 1.4 : 1)
+  const want = typing ? Math.max(RATE[state], RATE.thinking) : RATE[state] * (awake ? 1.4 : 1)
+  const target = useRef(want)
+  target.current = want
 
   useEffect(() => {
     const el = ref.current
@@ -75,7 +82,7 @@ export function AssistantOrb({
       ref={ref}
       className="fluid-orb"
       data-state={state}
-      data-awake={awake ? '' : undefined}
+      data-awake={awake || typing ? '' : undefined}
       style={{ width: size, height: size, ['--orb-size' as string]: `${size}px` }}
       aria-hidden="true"
     >
