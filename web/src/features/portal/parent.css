@@ -338,7 +338,15 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  margin: -14px auto 12px;
+  /* NOT TUCKED UNDER THE HEAD.
+
+     This pulled the line up by 14px to sit in the head's own bottom padding.
+     On a phone the head is sticky with a blurred wash at z-index 20, so the
+     line slid underneath it and the top half of "Updated just now" was
+     painted over -- a sentence with its ascenders shaved off, on every parent
+     screen that loads anything. The gap the tuck was buying is worth less
+     than a legible line. */
+  margin: 0 auto 12px;
   padding: 0 20px;
   max-width: 1040px;
   width: 100%;
@@ -444,10 +452,10 @@
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
   }
-  /* The negative margin that tucks the Freshness line under the head's own
-     bottom padding is measured against the 16px the phone head keeps. */
+  /* Clear of the sticky head, which paints a blurred wash over anything that
+     scrolls beneath it -- including a line tucked up into its padding. */
   .parent-fresh {
-    margin-top: -6px;
+    margin-top: 0;
     padding: 0 20px;
   }
 
