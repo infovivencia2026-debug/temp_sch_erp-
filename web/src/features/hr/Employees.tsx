@@ -556,7 +556,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
       if (input.current) input.current.value = ''
     }
   }
-  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={56} className="!rounded-[10px]" />
+  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={62} className="!rounded-[10px]" />
   if (!editable) return face
   return (
     <span className="relative inline-block shrink-0">
