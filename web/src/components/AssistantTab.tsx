@@ -715,7 +715,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-6 z-40 grid size-36 place-items-center rounded-full
+          `fixed right-6 z-40 grid size-16 place-items-center rounded-full
            border bg-card shadow-xl
            transition-[transform,box-shadow,background-color]
            hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
@@ -725,8 +725,7 @@ export function AssistantTab() {
         )}
         style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
       >
-        {/* BIG, the owner's ask, twice and then more: 120px in a 144px button. */}
-        <AssistantOrb state={state} size={120} awake={hover} />
+        <AssistantOrb state={state} size={44} awake={hover} />
       </button>
 
       {open && (
@@ -783,7 +782,8 @@ export function AssistantTab() {
           <div
             className="flex shrink-0 justify-center pb-1 pt-4"
           >
-            <AssistantOrb state={state} size={120} typing={typingNow} />
+            {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
+            <AssistantOrb state={state} size={160} typing={typingNow} />
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
