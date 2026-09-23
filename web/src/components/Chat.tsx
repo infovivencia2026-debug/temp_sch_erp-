@@ -190,14 +190,23 @@ export function ChatThread({
   useEffect(() => {
     if (!onSeen || !lastIncoming || told.current === lastIncoming) return
     if (typeof document !== 'undefined' && document.hidden) return
-    if (!atBottom) return
+    /* Not "only at the bottom". A thread short enough to need no scrolling
+       never reports being at the bottom on some browsers, so the tick never
+       turned blue at all on the conversations most likely to be read at a
+       glance. On screen and looked at is read. */
     told.current = lastIncoming
     onSeen()
-  }, [lastIncoming, atBottom, onSeen])
+  }, [lastIncoming, onSeen])
 
   /* Find something in a long thread. A conversation about one child runs for a
      year; "what did we agree about the bus" is a search, not a scroll. */
   const [finding, setFinding] = useState(false)
+  const findBox = useRef<HTMLInputElement | null>(null)
+  // autoFocus alone does not raise a phone keyboard; asking for the focus
+  // after the bar is on screen does.
+  useEffect(() => {
+    if (finding) setTimeout(() => findBox.current?.focus(), 30)
+  }, [finding])
   const [needle, setNeedle] = useState('')
   /* Messages this screen has sent and the server has not yet confirmed. They
      sit at the end of the thread with a clock on them; see `submit`. Declared
@@ -464,9 +473,14 @@ export function ChatThread({
       {/* Find, and how many are showing. The bar only appears when asked for,
           so an ordinary thread is not fronted by a search box nobody wanted. */}
       {finding && (
-        <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+        /* Sticky and solid, not a faint strip at the top of a thread somebody
+           is reading the bottom of: pressing the search button while looking
+           at the composer moved something 600px away, which reads as the
+           button doing nothing. */
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-card px-3 py-2 shadow-sm">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
+            ref={findBox}
             autoFocus
             value={needle}
             onChange={(e) => setNeedle(e.target.value)}
@@ -477,7 +491,7 @@ export function ChatThread({
               }
             }}
             placeholder="Find in this conversation"
-            className="min-w-0 flex-1 bg-transparent text-[14px] outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[15px] outline-none"
           />
           <span className="shrink-0 text-[12px] text-muted-foreground">
             {needle.trim() ? `${shown.length} of ${messages.length}` : `${messages.length}`}
@@ -653,8 +667,12 @@ export function ChatThread({
           rect={acting.rect}
           mine={acting.m.mine}
           onClose={() => setActing(null)}
-          onReply={canSend ? () => setReplyTo(acting.m) : undefined}
-          onDelete={onUnsend && acting.m.mine && !acting.m.deleted ? () => deleteMessage(acting.m.id) : undefined}
+          onReply={canSend && !acting.m.id.startsWith('pending-') ? () => setReplyTo(acting.m) : undefined}
+          onDelete={
+            onUnsend && acting.m.mine && !acting.m.deleted && !acting.m.id.startsWith('pending-')
+              ? () => deleteMessage(acting.m.id)
+              : undefined
+          }
         />
       )}
 
@@ -855,8 +873,8 @@ function AttachmentView({ a }: { a: Attachment }) {
      control on the page a person has already used somewhere else. */
   if (isAudio(a)) {
     return (
-      <div className="mb-1 flex items-center gap-2">
-        <audio controls preload="none" src={a.url} className="h-9 max-w-[230px]" />
+      <div className="chat-audio mb-1 flex items-center gap-2 rounded-xl px-1.5 py-1">
+        <audio controls preload="none" src={a.url} className="h-9 max-w-[220px]" />
         <a
           href={a.url}
           download={a.name}
@@ -961,8 +979,15 @@ const chatCSS = `
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 .chat-mine {
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  /* NOT THE BRAND COLOUR.
+
+     This took hsl(var(--primary)), so a school themed in red sent every
+     message in a red bubble -- which reads as an error, not as something you
+     said. A conversation's own blue, fixed, the way every messaging app fixes
+     it: the brand belongs to the chrome around the thread, not to the words
+     inside it. */
+  background-color: #2f6fed;
+  color: #ffffff;
   border-radius: 20px 20px 4px 20px;
 }
 /* A run of bubbles from the same person: only the first points at them, the
@@ -970,7 +995,7 @@ const chatCSS = `
 .chat-theirs.chat-run { border-radius: 20px; }
 .chat-mine.chat-run { border-radius: 20px; }
 .chat-bubble a { color: inherit; text-decoration: underline; word-break: break-all; }
-.chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.85); }
+.chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.88); }
 .chat-theirs .text-muted-foreground { color: #9aa5b6; }
 .chat-meta { font-size: 12px; color: #9aa5b6; padding: 0 6px; }
 /* A quote and a file row are painted by the bubble they sit in. Left as
@@ -982,6 +1007,11 @@ const chatCSS = `
 .chat-mine .chat-quote { border-color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.16); border-radius: 10px; }
 .chat-mine .chat-quote__who { color: #ffffff; }
 .chat-mine .chat-quote__body { color: rgba(255,255,255,0.82); }
+/* The browser draws its own audio controls and will not be told otherwise, so
+   the player sits on a light panel in both bubbles rather than fighting the
+   colour behind it. */
+.chat-audio { background: rgba(255, 255, 255, 0.92); }
+.chat-theirs .chat-audio { background: rgba(16, 24, 40, 0.04); }
 .chat-theirs .chat-file { background: rgba(16, 24, 40, 0.04); }
 .chat-theirs .chat-file:hover { background: rgba(16, 24, 40, 0.07); }
 .chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }

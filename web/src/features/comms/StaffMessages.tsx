@@ -414,6 +414,7 @@ export default function StaffMessages() {
             <ChatScreen
               open={!!openChild && !!openWith}
               title={openParent ? openParent.parent_name : 'Conversation'}
+              photoId={openParent?.student_photo}
               subtitle={
                 openParent
                   ? `Parent of ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
