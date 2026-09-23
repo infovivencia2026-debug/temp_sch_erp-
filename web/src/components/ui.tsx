@@ -1068,10 +1068,16 @@ export function Badge({
   children,
   tone = 'neutral',
   solid,
+  className,
 }: {
   children: ReactNode
   tone?: keyof typeof TONES
   solid?: boolean
+  /* Spacing, almost always: a badge set straight after a sentence has nothing
+     between it and the last character, so the dot lands against the word. The
+     caller says how much room it wants rather than every badge in the product
+     carrying a margin it may not need. */
+  className?: string
 }) {
   if (solid) {
     return (
@@ -1084,6 +1090,7 @@ export function Badge({
           tone === 'primary' && 'bg-primary/12 text-primary',
           tone === 'info' && 'bg-info/12 text-info',
           tone === 'neutral' && 'bg-muted text-secondary-foreground',
+          className,
         )}
       >
         {children}
@@ -1091,7 +1098,7 @@ export function Badge({
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]">
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]', className)}>
       <span className={cn('status-dot', TONES[tone])} />
       {children}
     </span>

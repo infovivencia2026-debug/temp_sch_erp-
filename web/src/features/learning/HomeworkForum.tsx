@@ -203,9 +203,9 @@ export default function HomeworkForum() {
                       <div className="min-w-0">
                         <p className="text-[14px] font-medium">
                           {t.title}
-                          {t.status !== 'open' && <Badge tone="neutral">{t.status}</Badge>}
+                          {t.status !== 'open' && <Badge tone="neutral" className="ml-2">{t.status}</Badge>}
                           {t.withheld_count > 0 && (
-                            <Badge tone="warning">{t.withheld_count} held back</Badge>
+                            <Badge tone="warning" className="ml-2">{t.withheld_count} held back</Badge>
                           )}
                         </p>
                         <p className="mt-1 text-[12.5px] text-muted-foreground">

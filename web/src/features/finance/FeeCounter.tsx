@@ -291,7 +291,7 @@ export default function FeeCounter() {
                       <Td className="whitespace-nowrap text-muted-foreground">
                         {formatDate(d.due_on)}
                         {d.days_overdue > 0 && (
-                          <Badge tone="danger">{d.days_overdue}d late</Badge>
+                          <Badge tone="danger" className="ml-2">{d.days_overdue}d late</Badge>
                         )}
                       </Td>
                       <Td className="whitespace-nowrap tabular-nums">

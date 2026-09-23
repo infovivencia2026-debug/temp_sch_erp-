@@ -197,7 +197,7 @@ function AccountRow({
         <Td className="font-mono text-[13px]">
           {shown ?? account.account_masked}
           {account.is_primary && (
-            <Badge tone="primary">
+            <Badge tone="primary" className="ml-2">
               <Star className="h-3 w-3" /> primary
             </Badge>
           )}
