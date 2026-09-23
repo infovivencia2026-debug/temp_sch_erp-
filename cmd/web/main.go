@@ -28,6 +28,7 @@ import (
 	"github.com/school-erp/erp/internal/auth"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
+	"github.com/school-erp/erp/internal/eventlog"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/ratelimit"
@@ -58,6 +59,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	/* Warnings and errors also go to app_events, per school, for the day a
+	   principal asks what happened on an afternoon two months ago. stdout
+	   keeps writing exactly what it wrote; this is a tee. See eventlog. */
+	eventlog.Attach(db, "web")
 	defer db.Close()
 
 	/* The live bus: one dedicated LISTEN connection per instance, outside the

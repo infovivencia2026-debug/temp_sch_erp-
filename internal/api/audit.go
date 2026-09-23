@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -289,9 +290,26 @@ type auditRow struct {
 }
 
 // listAudit is the trail viewer: what changed, who changed it, and when.
+//
+/* A PAGE WITH A NEXT, AND A DATE TO ASK FOR.
+
+   This was the newest hundred rows and nothing else: no date parameter at
+   all, so an auditor asking about the second week of June had no way to
+   reach it past the hundredth row of today, while the tile above counted
+   four hundred thousand. Now `since`/`until` bound the query and
+   `before_id` walks it backwards a page at a time; `next_before` in the
+   answer is what the client sends to continue. Keyed on id rather than time
+   because id is unique and monotonic, so a page never repeats or skips a
+   row written in the same second. */
 func (s *Server) listAudit(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := clampInt(q.Get("limit"), 100, 1, 500)
+	var beforeID *int64
+	if v := strings.TrimSpace(q.Get("before_id")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			beforeID = &n
+		}
+	}
 
 	items, err := collect(s, r, `
 		SELECT a.id, to_char(a.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
@@ -301,16 +319,86 @@ func (s *Server) listAudit(w http.ResponseWriter, r *http.Request) {
 		 WHERE ($1::text IS NULL OR a.entity_type = $1)
 		   AND ($2::uuid IS NULL OR a.actor_user_id = $2)
 		   AND ($3::text IS NULL OR a.action ILIKE '%' || $3 || '%')
+		   AND ($5::date IS NULL OR (a.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $5)
+		   AND ($6::date IS NULL OR (a.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $6)
+		   AND ($7::bigint IS NULL OR a.id < $7)
 		 ORDER BY a.id DESC
 		 LIMIT $4`,
 		[]any{nullString(q.Get("entity")), nullString(q.Get("actor")),
-			nullString(q.Get("q")), limit},
+			nullString(q.Get("q")), limit,
+			nullString(q.Get("since")), nullString(q.Get("until")), beforeID},
 		func(rows pgx.Rows) (auditRow, error) {
 			var v auditRow
 			return v, rows.Scan(&v.ID, &v.At, &v.Actor, &v.Action, &v.Entity,
 				&v.IP, &v.Request, &v.Response)
 		})
-	respond(w, r, items, err)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	out := map[string]any{"items": items}
+	if len(items) == limit {
+		out["next_before"] = items[len(items)-1].ID
+	}
+	httpx.JSON(w, http.StatusOK, out)
+}
+
+// appEventRow is one line the system said about itself, for this school.
+type appEventRow struct {
+	ID        int64   `json:"id"`
+	At        string  `json:"at"`
+	Level     string  `json:"level"`
+	Message   string  `json:"message"`
+	Source    string  `json:"source"`
+	RequestID *string `json:"request_id,omitempty"`
+	Actor     *string `json:"actor,omitempty"`
+	Attrs     any     `json:"attrs,omitempty"`
+}
+
+/*
+listAppEvents is the other half of the trail: not what a person changed,
+
+	but what the system warned or failed at while serving this school. Written
+	by internal/eventlog from the slog stream, kept per school, never purged.
+	Same paging shape as listAudit.
+*/
+func (s *Server) listAppEvents(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit := clampInt(q.Get("limit"), 100, 1, 500)
+	var beforeID *int64
+	if v := strings.TrimSpace(q.Get("before_id")); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			beforeID = &n
+		}
+	}
+	items, err := collect(s, r, `
+		SELECT e.id, to_char(e.at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
+		       e.level, e.message, e.source, e.request_id, u.full_name, e.attrs
+		  FROM app_events e
+		  LEFT JOIN users u ON u.id = e.user_id
+		 WHERE ($1::text IS NULL OR e.level = $1)
+		   AND ($2::text IS NULL OR e.message ILIKE '%' || $2 || '%')
+		   AND ($4::date IS NULL OR (e.at AT TIME ZONE 'Asia/Kolkata')::date >= $4)
+		   AND ($5::date IS NULL OR (e.at AT TIME ZONE 'Asia/Kolkata')::date <= $5)
+		   AND ($6::bigint IS NULL OR e.id < $6)
+		 ORDER BY e.id DESC
+		 LIMIT $3`,
+		[]any{nullString(q.Get("level")), nullString(q.Get("q")), limit,
+			nullString(q.Get("since")), nullString(q.Get("until")), beforeID},
+		func(rows pgx.Rows) (appEventRow, error) {
+			var v appEventRow
+			return v, rows.Scan(&v.ID, &v.At, &v.Level, &v.Message, &v.Source,
+				&v.RequestID, &v.Actor, &v.Attrs)
+		})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	out := map[string]any{"items": items}
+	if len(items) == limit {
+		out["next_before"] = items[len(items)-1].ID
+	}
+	httpx.JSON(w, http.StatusOK, out)
 }
 
 // getAuditSummary powers the viewer's filters: what kinds of change exist.

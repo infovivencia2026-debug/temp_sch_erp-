@@ -21,6 +21,7 @@ import (
 	"github.com/school-erp/erp/internal/api"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
+	"github.com/school-erp/erp/internal/eventlog"
 	"github.com/school-erp/erp/internal/push"
 	"github.com/school-erp/erp/internal/queue"
 )
@@ -46,6 +47,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	/* Warnings and errors also go to app_events, per school, for the day a
+	   principal asks what happened on an afternoon two months ago. stdout
+	   keeps writing exactly what it wrote; this is a tee. See eventlog. */
+	eventlog.Attach(db, "worker")
 	defer db.Close()
 
 	// REDIS_URL is read by config for as long as the env files carry it, and

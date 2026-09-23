@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, History, ScrollText } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Badge, Select, Loading, ErrorState, EmptyState,
+  Badge, Select, Loading, ErrorState, EmptyState, Input, Button,
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { cn } from '@/lib/utils'
@@ -45,25 +45,55 @@ const VERBS: Record<string, { label: string; tone: 'neutral' | 'success' | 'dang
   DELETE: { label: 'deleted', tone: 'danger' },
 }
 
+interface Paged<T> { items: T[]; next_before?: number }
+
+interface EventRow {
+  id: number
+  at: string
+  level: string
+  message: string
+  source: string
+  request_id?: string
+  actor?: string
+  attrs?: Record<string, unknown>
+}
+
 export default function AuditLog() {
   const [entity, setEntity] = useState('')
   const [q, setQ] = useState('')
+  const [since, setSince] = useState('')
+  const [until, setUntil] = useState('')
   const [open, setOpen] = useState<number | null>(null)
 
   const params = new URLSearchParams()
   if (entity) params.set('entity', entity)
   if (q.trim()) params.set('q', q.trim())
+  if (since) params.set('since', since)
+  if (until) params.set('until', until)
 
-  const { data, isLoading, error } = useQuery({
+  /* A PAGE WITH A NEXT, NOT THE NEWEST HUNDRED.
+
+     This fetched one hundred rows and drew them under a header claiming
+     "every change in the last 90 days" and a tile counting four hundred
+     thousand. There was no date parameter, so the second week of June was
+     unreachable past today's hundredth row. Pages now walk backwards by id
+     (next_before from the server), and a date range asks the question an
+     auditor actually has. */
+  const audit = useInfiniteQuery({
     queryKey: ['audit', params.toString()],
-    queryFn: () => api.get<List<Row>>(`/api/v1/admin/audit?${params}`),
+    queryFn: ({ pageParam }) =>
+      api.get<Paged<Row>>(`/api/v1/admin/audit?${params}${pageParam ? `&before_id=${pageParam}` : ''}`),
+    initialPageParam: 0 as number,
+    getNextPageParam: (last) => last.next_before ?? undefined,
   })
   const { data: summary } = useQuery({
     queryKey: ['audit-summary'],
     queryFn: () => api.get<List<Bucket>>('/api/v1/admin/audit/summary'),
   })
 
-  const rows = data?.items ?? []
+  const rows = audit.data?.pages.flatMap((p) => p.items) ?? []
+  const isLoading = audit.isLoading
+  const error = audit.error
   const buckets = summary?.items ?? []
   const total = buckets.reduce((n, b) => n + b.count, 0)
 
@@ -72,7 +102,7 @@ export default function AuditLog() {
       <PageHead
         eyebrow="Access & Security"
         title="Audit trail"
-        description="Every change made through the system in the last 90 days, who made it, when, and what they sent. Passwords and tokens are never recorded."
+        description="Every change made through the system, who made it, when, and what they sent -- and what the system itself warned or failed at while serving this school. Passwords and tokens are never recorded. Nothing here is ever purged."
       />
       <PageBody>
         <CellGrid cols={3}>
@@ -88,9 +118,11 @@ export default function AuditLog() {
         <Card>
           <CardHeader
             title="Changes"
-            description={`${rows.length} shown, newest first`}
+            description={`${rows.length} shown, newest first${audit.hasNextPage ? ' — more below' : ''}`}
             action={
               <>
+                <Input type="date" value={since} onChange={setSince} srLabel="From date" />
+                <Input type="date" value={until} onChange={setUntil} srLabel="To date" />
                 <SearchBox value={q} onChange={setQ} placeholder="Search the action" />
                 <Select
                   value={entity}
@@ -157,9 +189,112 @@ export default function AuditLog() {
               })}
             </ul>
           )}
+          {audit.hasNextPage && (
+            <div className="border-t px-5 py-3">
+              <Button size="sm" variant="secondary" disabled={audit.isFetchingNextPage} onClick={() => audit.fetchNextPage()}>
+                {audit.isFetchingNextPage ? 'Loading…' : 'Show older changes'}
+              </Button>
+            </div>
+          )}
         </Card>
+
+        <SystemEvents since={since} until={until} />
       </PageBody>
     </>
+  )
+}
+
+/* WHAT THE SYSTEM SAID ABOUT ITSELF, FOR THIS SCHOOL.
+
+   The audit trail records what a person changed. It never recorded what the
+   process warned or failed at while it worked -- the message that could not
+   be queued, the allocation that rolled back -- because those went to stdout,
+   which knows nothing of tenants and is forgotten in thirty days. app_events
+   keeps every WARN and ERROR per school, stamped with the request and the
+   user it was serving, and never purges it. This is where "what happened
+   here that afternoon" is answered two months later. */
+const LEVEL_TONE: Record<string, 'warning' | 'danger' | 'neutral'> = { WARN: 'warning', ERROR: 'danger' }
+
+function SystemEvents({ since, until }: { since: string; until: string }) {
+  const [level, setLevel] = useState('')
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState<number | null>(null)
+  const params = new URLSearchParams()
+  if (level) params.set('level', level)
+  if (q.trim()) params.set('q', q.trim())
+  if (since) params.set('since', since)
+  if (until) params.set('until', until)
+
+  const events = useInfiniteQuery({
+    queryKey: ['audit-events', params.toString()],
+    queryFn: ({ pageParam }) =>
+      api.get<Paged<EventRow>>(`/api/v1/admin/audit/events?${params}${pageParam ? `&before_id=${pageParam}` : ''}`),
+    initialPageParam: 0 as number,
+    getNextPageParam: (last) => last.next_before ?? undefined,
+  })
+  const rows = events.data?.pages.flatMap((p) => p.items) ?? []
+
+  return (
+    <Card>
+      <CardHeader
+        title="System events"
+        description="Warnings and errors raised while serving this school. Kept for good."
+        action={
+          <>
+            <SearchBox value={q} onChange={setQ} placeholder="Search the message" />
+            <Select
+              value={level}
+              onChange={setLevel}
+              placeholder="Any level"
+              options={[{ value: 'WARN', label: 'Warnings' }, { value: 'ERROR', label: 'Errors' }]}
+            />
+          </>
+        }
+      />
+      {events.isLoading ? (
+        <Loading />
+      ) : events.error ? (
+        <ErrorState error={events.error} />
+      ) : rows.length === 0 ? (
+        <EmptyState title="Nothing raised" body="The system has not warned or failed while serving this school in this range." />
+      ) : (
+        <ul className="divide-y">
+          {rows.map((e) => {
+            const expanded = open === e.id
+            return (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpen(expanded ? null : e.id)}
+                  className="flex w-full items-start gap-3 px-5 py-3 text-left transition-colors duration-150 hover:bg-accent/60"
+                >
+                  <Badge tone={LEVEL_TONE[e.level] ?? 'neutral'}>{e.level}</Badge>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px]">{e.message}</p>
+                    <p className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
+                      {e.source}{e.actor ? ` · ${e.actor}` : ''}{e.request_id ? ` · ${e.request_id}` : ''}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-right text-[13px] text-muted-foreground">{when(e.at)}</span>
+                </button>
+                {expanded && (
+                  <div className="border-t bg-muted/30 px-5 py-4">
+                    <Payload label="Details" value={e.attrs} />
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {events.hasNextPage && (
+        <div className="border-t px-5 py-3">
+          <Button size="sm" variant="secondary" disabled={events.isFetchingNextPage} onClick={() => events.fetchNextPage()}>
+            {events.isFetchingNextPage ? 'Loading…' : 'Show older events'}
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }
 

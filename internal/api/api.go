@@ -1515,6 +1515,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/role-presets", s.listRolePresets)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit", s.listAudit)
 			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit/summary", s.getAuditSummary)
+			// What the system said about itself while serving this school.
+			r.With(httpx.RequirePermission(rbac.AuditRead)).Get("/audit/events", s.listAppEvents)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Put("/users/{id}/status", s.setUserStatus)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users/{id}/reset-password", s.resetUserPassword)
 			r.With(httpx.RequirePermission(rbac.RolesRead)).Get("/roles", s.listRoles)
