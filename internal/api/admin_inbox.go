@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -69,6 +70,9 @@ type inboxItem struct {
 	ReplyBy   *string `json:"reply_by,omitempty"`
 	ReplyBody *string `json:"reply_body,omitempty"`
 	ReplyAt   *string `json:"reply_at,omitempty"`
+	// The last few messages of the thread, oldest first, so the desk shows
+	// the exchange itself and not only its newest line.
+	Recent []recentMsg `json:"recent"`
 }
 
 type inboxCounts struct {
@@ -93,50 +97,6 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 		status = "all"
 	}
 	search := "%" + strings.ToLower(strings.TrimSpace(q.Get("q"))) + "%"
-	/* Narrowing the list without narrowing the score.
-
-	   A desk with four hundred conversations on it needs to ask smaller
-	   questions: what came in this week, what is Grade 6-B saying, what has
-	   this one teacher been dealing with. These filter the LIST; the tiles go
-	   on counting the whole school, exactly as pressing a channel tile does,
-	   so a filter can never make the school look quieter than it is.
-
-	   Applied here rather than inside each of the five queries: the channels
-	   hold different columns for the same idea, and one predicate over the
-	   rows they all produce cannot drift out of step with itself. */
-	fromDate := strings.TrimSpace(q.Get("from"))
-	toDate := strings.TrimSpace(q.Get("to"))
-	klass := strings.ToLower(strings.TrimSpace(q.Get("class")))
-	who := strings.ToLower(strings.TrimSpace(q.Get("person")))
-
-	within := func(it inboxItem) bool {
-		// last_at is RFC3339; a date compares by its first ten characters.
-		day := it.LastAt
-		if len(day) > 10 {
-			day = day[:10]
-		}
-		if fromDate != "" && day < fromDate {
-			return false
-		}
-		if toDate != "" && day > toDate {
-			return false
-		}
-		if klass != "" {
-			if it.ChildClass == nil || strings.ToLower(*it.ChildClass) != klass {
-				return false
-			}
-		}
-		if who != "" {
-			hay := strings.ToLower(strings.Join([]string{
-				it.Title, it.From, derefStr(it.TeacherName), derefStr(it.ParentName),
-				derefStr(it.Handler), derefStr(it.ChildName),
-			}, " "))
-			if !strings.Contains(hay, who) {
-				return false
-			}
-		}
-		return true
-	}
 
 	items := []inboxItem{}
 	var counts inboxCounts
@@ -169,7 +129,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				counts.Circulars++
 			}
 		}
-		if (channel == "" || channel == it.Channel) && within(it) {
+		if channel == "" || channel == it.Channel {
 			items = append(items, it)
 		}
 	}
@@ -203,7 +163,17 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				       COALESCE(tu.full_name, ''), COALESCE(emp.employee_code, ''),
 				       COALESCE(su.full_name, ''), l.body, l.sent_at,
 				       l.sender_user_id = l.parent_user_id, l.read_at IS NULL,
-				       ru.full_name, rp.body, rp.sent_at
+				       ru.full_name, rp.body, rp.sent_at,
+				       (SELECT COALESCE(json_agg(json_build_object(
+				                 'sender', COALESCE(xu.full_name, ''),
+				                 'from_school', x.sender_user_id <> x.parent_user_id,
+				                 'body', x.body, 'at', x.sent_at) ORDER BY x.sent_at), '[]'::json)
+				          FROM (SELECT m2.sender_user_id, m2.parent_user_id, m2.body, m2.sent_at
+				                  FROM parent_teacher_messages m2
+				                 WHERE m2.student_id = l.student_id AND m2.parent_user_id = l.parent_user_id
+				                   AND m2.teacher_user_id = l.teacher_user_id
+				                 ORDER BY m2.sent_at DESC LIMIT 3) x
+				          LEFT JOIN users xu ON xu.id = x.sender_user_id)
 				  FROM last l
 				  JOIN students st ON st.id = l.student_id
 				  LEFT JOIN LATERAL (
@@ -234,9 +204,10 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				var replyBy, replyBody *string
 				var replyAt *time.Time
 				var parentWrote, unread bool
+				var recentRaw []byte
 				if err := rows.Scan(&sid, &pid, &tid, &child, &adm, &klass, &parent, &rel,
 					&teacher, &code, &sender, &it.LastBody, &at, &parentWrote, &unread,
-					&replyBy, &replyBody, &replyAt); err != nil {
+					&replyBy, &replyBody, &replyAt, &recentRaw); err != nil {
 					rows.Close()
 					return err
 				}
@@ -269,6 +240,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 					it.AdmissionNo = &adm
 				}
 				it.ReplyBy, it.ReplyBody = replyBy, replyBody
+				it.Recent = parseRecent(recentRaw)
 				if replyAt != nil {
 					v := replyAt.Format(time.RFC3339)
 					it.ReplyAt = &v
@@ -346,7 +318,16 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				)
 				SELECT l.party_a::text, l.party_b::text,
 				       COALESCE(ua.full_name, ''), COALESCE(ub.full_name, ''),
-				       COALESCE(su.full_name, ''), l.body, l.sent_at, l.read_at IS NULL
+				       COALESCE(su.full_name, ''), l.body, l.sent_at, l.read_at IS NULL,
+				       (SELECT COALESCE(json_agg(json_build_object(
+				                 'sender', COALESCE(xu.full_name, ''),
+				                 'from_school', x.sender_user_id = l.party_a,
+				                 'body', x.body, 'at', x.sent_at) ORDER BY x.sent_at), '[]'::json)
+				          FROM (SELECT m2.sender_user_id, m2.body, m2.sent_at
+				                  FROM staff_messages m2
+				                 WHERE m2.party_a = l.party_a AND m2.party_b = l.party_b
+				                 ORDER BY m2.sent_at DESC LIMIT 3) x
+				          LEFT JOIN users xu ON xu.id = x.sender_user_id)
 				  FROM last l
 				  LEFT JOIN users ua ON ua.id = l.party_a
 				  LEFT JOIN users ub ON ub.id = l.party_b
@@ -361,11 +342,13 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				var it inboxItem
 				var a, b, na, nb, sender string
 				var at time.Time
-				if err := rows.Scan(&a, &b, &na, &nb, &sender, &it.LastBody, &at, &it.Pending); err != nil {
+				var recentRaw []byte
+				if err := rows.Scan(&a, &b, &na, &nb, &sender, &it.LastBody, &at, &it.Pending, &recentRaw); err != nil {
 					rows.Close()
 					return err
 				}
 				it.Channel = "staff"
+				it.Recent = parseRecent(recentRaw)
 				it.Key = a + "|" + b
 				it.Title = na + " ↔ " + nb
 				it.From = sender
@@ -619,14 +602,11 @@ func (s *Server) adminInboxReplyParent(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-/*
-adminInboxStaffThread reads one conversation between two colleagues, for
-
-	the desk. Read-only: the principal is not a party to it and cannot write
-	into it -- the reply goes through Messages, in their own name, on their
-	own thread with either person. Under the same read-everything permission
-	the inbox itself needs.
-*/
+/* adminInboxStaffThread reads one conversation between two colleagues, for
+   the desk. Read-only: the principal is not a party to it and cannot write
+   into it -- the reply goes through Messages, in their own name, on their
+   own thread with either person. Under the same read-everything permission
+   the inbox itself needs. */
 func (s *Server) adminInboxStaffThread(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	q := r.URL.Query()
@@ -683,11 +663,20 @@ func (s *Server) adminInboxStaffThread(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-// derefStr is "" for a nil pointer, so a filter can join optional names into
-// one haystack without a branch per field.
-func derefStr(p *string) string {
-	if p == nil {
-		return ""
+// recentMsg is one line of a thread as the desk card shows it.
+type recentMsg struct {
+	Sender     string `json:"sender"`
+	FromSchool bool   `json:"from_school"`
+	Body       string `json:"body"`
+	At         string `json:"at"`
+}
+
+// parseRecent turns the json_agg column into the list; a broken or empty
+// column reads as none rather than failing the whole desk.
+func parseRecent(raw []byte) []recentMsg {
+	var out []recentMsg
+	if len(raw) == 0 || json.Unmarshal(raw, &out) != nil || out == nil {
+		return []recentMsg{}
 	}
-	return *p
+	return out
 }
