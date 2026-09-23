@@ -640,7 +640,7 @@ export function ChatThread({
               value={draft}
               rows={1}
               placeholder={placeholder}
-              className="chat-composer min-h-[40px] flex-1 resize-none rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
+              className="chat-composer min-h-[40px] flex-1 resize-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
               onChange={(e) => {
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
