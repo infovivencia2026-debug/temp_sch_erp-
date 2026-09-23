@@ -62,6 +62,90 @@ func UPIIntent(vpa, payeeName string, amountPaise int64, note string) string {
 	return b.String()
 }
 
+/* WHICH UPI APP, CHOSEN BY THE PARENT RATHER THAN BY ANDROID.
+
+   `upi://pay?...` names a payment and not an app. Android resolves the scheme
+   against whatever holds the default handler, and once a parent has tapped
+   "Always" on any UPI-capable app -- WhatsApp, on a great many phones --
+   every later tap goes straight there with no chooser. A parent whose money
+   is in Google Pay taps "pay" and lands in a WhatsApp account they have never
+   funded, and nothing on screen explains it.
+
+   The fix is not a cleverer generic link; the OS default is the OS's to keep.
+   It is to ask the question on the page, the way every payment page in the
+   country does: one button per app, each addressing that app directly.
+
+     Android  intent://pay?...#Intent;scheme=upi;package=<pkg>;end
+              The package makes it unambiguous, so the default never applies.
+              An app that is not installed falls through to the chooser
+              instead of failing, which is the behaviour we want anyway.
+
+     iOS      <scheme>://... -- the app's own registered scheme. Nothing
+              opens if it is not installed, which is why the generic entry
+              and the QR both stay on the page.
+
+   Generic stays last, and keeps the old behaviour for anyone whose app is
+   not listed. The QR above it needs none of this: a scan happens inside the
+   app the parent has already chosen to open. */
+
+// UPIApp is one payment app, and how to reach it on each phone.
+type UPIApp struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+	// Android is an intent: URI naming the package, so the OS default handler
+	// is bypassed. Empty for the generic entry, which uses Intent.
+	Android string `json:"android,omitempty"`
+	// IOS is the app's own URL scheme. Empty where it has none.
+	IOS string `json:"ios,omitempty"`
+}
+
+/*
+The apps an Indian school's families actually hold, by share.
+
+	Package names and schemes are the published, long-stable ones. They are a
+	list rather than a switch so a school that meets a sixth app is a line
+	here, and so a name that changes is one edit and a test, not a hunt
+	through string concatenation.
+
+	WhatsApp is deliberately absent as a BUTTON while remaining perfectly able
+	to serve the generic link: it is a messenger that also does UPI, it is the
+	default that caused this bug, and a parent who wants it will find it under
+	"Another UPI app". Nothing here blocks it.
+*/
+var upiApps = []struct {
+	key, label, androidPkg, iosScheme string
+}{
+	{"gpay", "Google Pay", "com.google.android.apps.nbu.paisa.user", "tez://upi/pay"},
+	{"phonepe", "PhonePe", "com.phonepe.app", "phonepe://pay"},
+	{"paytm", "Paytm", "net.one97.paytm", "paytmmp://pay"},
+	{"bhim", "BHIM", "in.org.npci.upiapp", "bhim://pay"},
+}
+
+// UPIAppLinks returns one entry per app the parent can be sent to directly,
+// and a generic last entry for everything else. Same payment in every one:
+// the query is built once by UPIIntent and reused, so an app cannot be sent a
+// different amount from the one in the QR.
+func UPIAppLinks(vpa, payeeName string, amountPaise int64, note string) []UPIApp {
+	intent := UPIIntent(vpa, payeeName, amountPaise, note)
+	// Everything after "upi://pay?" -- the query the other forms reuse.
+	query := strings.TrimPrefix(intent, "upi://pay?")
+
+	out := make([]UPIApp, 0, len(upiApps)+1)
+	for _, a := range upiApps {
+		out = append(out, UPIApp{
+			Key:   a.key,
+			Label: a.label,
+			Android: "intent://pay?" + query +
+				"#Intent;scheme=upi;action=android.intent.action.VIEW;package=" + a.androidPkg + ";end",
+			IOS: a.iosScheme + "?" + query,
+		})
+	}
+	// The generic one: no package, so Android asks -- or honours a default
+	// the parent set deliberately, which is their right.
+	out = append(out, UPIApp{Key: "other", Label: "Another UPI app"})
+	return out
+}
+
 // Rupees renders paise as the plain decimal a UPI intent wants: "1234.50",
 // no grouping, no symbol, always two places.
 func Rupees(paise int64) string {

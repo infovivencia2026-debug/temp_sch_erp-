@@ -90,3 +90,40 @@ func TestUPIQRPNG(t *testing.T) {
 		t.Fatalf("not a PNG: %d bytes", len(png))
 	}
 }
+
+/* The chooser exists because a bare upi:// link never asked.
+
+   Pins the two things a parent's tap depends on: that every app is sent the
+   SAME payment the QR carries, and that the Android form names a package --
+   the moment it does not, the OS default takes the tap back and WhatsApp
+   opens again, which is the bug this was written for. */
+func TestUPIAppLinksCarryOnePaymentAndNameThePackage(t *testing.T) {
+	apps := UPIAppLinks("school@okhdfcbank", "Vivencia School", 125050, "Fee 2031 INV-7")
+	if len(apps) < 2 {
+		t.Fatalf("no apps offered: %v", apps)
+	}
+	want := UPIIntent("school@okhdfcbank", "Vivencia School", 125050, "Fee 2031 INV-7")
+	query := strings.TrimPrefix(want, "upi://pay?")
+
+	var generic int
+	for _, a := range apps {
+		if a.Android == "" && a.IOS == "" {
+			generic++
+			continue
+		}
+		if !strings.Contains(a.Android, ";package=") {
+			t.Errorf("%s: android link names no package, so the OS default wins: %s", a.Key, a.Android)
+		}
+		if !strings.Contains(a.Android, "scheme=upi") {
+			t.Errorf("%s: android link does not declare the upi scheme: %s", a.Key, a.Android)
+		}
+		// The same amount and note in every form; a chooser that paid a
+		// different sum depending on the button would be worse than none.
+		if !strings.Contains(a.Android, query) || !strings.Contains(a.IOS, query) {
+			t.Errorf("%s: does not carry the same payment as the QR\n android %s\n ios %s", a.Key, a.Android, a.IOS)
+		}
+	}
+	if generic != 1 {
+		t.Errorf("want exactly one generic entry for an app not listed, got %d", generic)
+	}
+}

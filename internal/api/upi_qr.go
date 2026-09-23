@@ -29,8 +29,15 @@ type upiCode struct {
 	PayeeName   string `json:"payee_name"`
 	AmountPaise int64  `json:"amount_paise"`
 	Note        string `json:"note,omitempty"`
-	// The upi://pay URI. On a phone, an <a href> to it opens the UPI app.
+	// The upi://pay URI. On a phone, an <a href> to it opens whichever UPI
+	// app holds the OS default -- which is why Apps exists beside it.
 	Intent string `json:"intent"`
+	/* One entry per payment app, so the parent picks rather than the phone.
+	   A bare upi:// link goes to the default handler with no chooser, and on
+	   a great many phones that is WhatsApp: a parent whose money is in
+	   Google Pay tapped "pay" and landed somewhere they had never funded.
+	   See fees.UPIAppLinks. */
+	Apps []fees.UPIApp `json:"apps,omitempty"`
 	// A data: URI of the PNG, ready for an <img src>.
 	Image string `json:"image"`
 }
@@ -88,6 +95,7 @@ func (s *Server) getUPICode(w http.ResponseWriter, r *http.Request) {
 		AmountPaise: amount,
 		Note:        note,
 		Intent:      intent,
+		Apps:        fees.UPIAppLinks(vpa, payee, amount, note),
 		Image:       "data:image/png;base64," + base64.StdEncoding.EncodeToString(png),
 	})
 }
