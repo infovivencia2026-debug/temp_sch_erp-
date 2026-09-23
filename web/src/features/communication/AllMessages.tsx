@@ -342,6 +342,13 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         showSender
         loading={thread.isLoading}
         empty="Nothing said yet."
+        /* The desk may withdraw what the desk itself wrote, within the same
+           window as anybody. Somebody else's message is theirs to take back. */
+        onUnsend={async (id) => {
+          await api.del(`/api/v1/chat/messages/${id}?channel=parent`)
+          qc.invalidateQueries({ queryKey: ['admin-inbox-thread'] })
+          qc.invalidateQueries({ queryKey: ['admin-inbox'] })
+        }}
         onSend={(m) => reply.mutate({ body: m.body })}
         sending={reply.isPending}
         error={reply.error}

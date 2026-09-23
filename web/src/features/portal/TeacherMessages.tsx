@@ -217,6 +217,14 @@ export default function TeacherMessages() {
             canSend={teacher !== ''}
             onSend={(m) => send.mutate(m)}
             sending={send.isPending}
+            /* A parent can take back what they have just written, for the
+               same fifteen minutes the server allows anybody. Held-message
+               Delete is absent on the teacher's messages, which is right:
+               it is the teacher's to withdraw, not theirs. */
+            onUnsend={async (id) => {
+              await api.del(`/api/v1/chat/messages/${id}?channel=parent`)
+              qc.invalidateQueries({ queryKey: ['portal-thread'] })
+            }}
             error={send.error}
             placeholder={t('portal.teacher_messages.draft_placeholder')}
             height="min-h-0"
