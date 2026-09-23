@@ -290,6 +290,7 @@ export function useLiveStream() {
           // message anywhere may change what is waiting there.
           qc.invalidateQueries({ queryKey: ['admin-inbox'] })
           qc.invalidateQueries({ queryKey: ['admin-inbox-thread'] })
+          qc.invalidateQueries({ queryKey: ['admin-inbox-staff-thread'] })
           /* Only what this hint touches. The staff screen keys its thread by
              the OTHER person's id: for the recipient that is `from`, for the
              sender's own echo it is `to`. */

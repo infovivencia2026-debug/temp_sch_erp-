@@ -114,8 +114,8 @@ export default function AllMessages() {
        hint it receives, but the principal is not a party to a parent's
        thread with a teacher, so the hint may never reach this tab. A short
        poll is the guarantee: a message sent anywhere in the school is on
-       this desk within five seconds. */
-    refetchInterval: 5_000,
+       this desk within half a minute -- the stream is what makes it a second. */
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   })
 
@@ -325,7 +325,7 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   const thread = useQuery({
     queryKey: ['admin-inbox-thread', item.key],
     queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/thread?${coords}`),
-    refetchInterval: 3_000,
+    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   })
   const reply = useMutation({
@@ -397,7 +397,7 @@ function StaffThread({
   const thread = useQuery({
     queryKey: ['admin-inbox-staff-thread', item.key],
     queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/staff-thread?a=${a}&b=${b}`),
-    refetchInterval: 3_000,
+    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   })
   const [left] = item.title.split(' ↔ ')
