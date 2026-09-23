@@ -783,7 +783,7 @@ export function AssistantTab() {
             className="flex shrink-0 justify-center pb-1 pt-4"
           >
             {/* BIG, the owner's ask -- inside the chat, not the corner button. */}
-            <AssistantOrb state={state} size={160} typing={typingNow} />
+            <AssistantOrb state={state} size={160} typing={typingNow} subtle />
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's

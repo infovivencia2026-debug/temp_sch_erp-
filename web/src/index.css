@@ -3110,6 +3110,10 @@ body[data-scroll-lock] {
   transition: filter 300ms ease, transform 300ms ease;
   animation: fluid-breathe 8s ease-in-out infinite alternate;
 }
+/* The subtle ball: the same circle, the colour turned well down. */
+.fluid-orb[data-subtle] { filter: saturate(0.7); }
+.fluid-orb[data-subtle] .fluid-orb__blob { opacity: 0.45; }
+.fluid-orb[data-subtle] .fluid-orb__glass { opacity: 0.8; }
 .fluid-orb__blob {
   position: absolute;
   border-radius: 50%;

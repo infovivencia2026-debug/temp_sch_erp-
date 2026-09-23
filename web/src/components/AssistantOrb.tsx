@@ -36,6 +36,7 @@ export function AssistantOrb({
   size = 40,
   awake = false,
   typing = false,
+  subtle = false,
 }: {
   state: OrbState
   size?: number
@@ -49,6 +50,10 @@ export function AssistantOrb({
      some hover speed. It quickens a little and brightens, and leaves the
      state's own rate alone. */
   awake?: boolean
+  /* Quiet. At 160px inside the chat the full-strength blobs were a lava
+     lamp beside the words; this fades them and takes the saturation down so
+     the ball reads as a soft circle that happens to be moving. */
+  subtle?: boolean
 }) {
   const ref = useRef<HTMLSpanElement>(null)
   // The target lives in a ref: the easing loop reads it every frame, and a
@@ -83,6 +88,7 @@ export function AssistantOrb({
       className="fluid-orb"
       data-state={state}
       data-awake={awake || typing ? '' : undefined}
+      data-subtle={subtle ? '' : undefined}
       style={{ width: size, height: size, ['--orb-size' as string]: `${size}px` }}
       aria-hidden="true"
     >
