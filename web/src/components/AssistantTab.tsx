@@ -818,6 +818,19 @@ export function AssistantTab() {
             <X className="size-4" />
           </button>
 
+          {/* THE BALL IS ALWAYS AT THE TOP. It used to sit on the empty state
+             and leave with it, so once a conversation had begun the one thing
+             that shows whether the assistant is reading or writing was gone
+             from the panel. It lives above the log now, at every stage, and
+             carries the state: a still drift when idle, churning while it
+             looks something up, flowing while it answers. No bar under it --
+             the owner asked for none -- just the ball and air. */}
+          <div
+            className="flex shrink-0 justify-center pb-1 pt-4"
+          >
+            <AssistantOrb state={state} size={44} />
+          </div>
+
           <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
             {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
@@ -831,8 +844,7 @@ export function AssistantTab() {
                  has a character in it -- the way a placeholder does -- so the
                  first typed word is not sharing the panel with a sentence
                  telling it what to be. */
-              <div className="flex flex-col items-center gap-3 px-6 pb-4 pt-10 text-center">
-                <AssistantOrb state="idle" size={40} />
+              <div className="flex flex-col items-center gap-3 px-6 pb-4 pt-4 text-center">
                 <p className="text-[13.5px] font-medium leading-tight">
                   Ask about the school, or tell me what to do.
                 </p>
