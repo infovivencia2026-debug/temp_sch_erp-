@@ -463,9 +463,9 @@ export function ChatThread({
                     )}
                     {/* What it answers, quoted. */}
                     {m.reply_to_id && (m.reply_body || m.reply_sender) && (
-                      <div className="mb-1 border-l-2 border-primary/60 bg-black/5 px-2 py-1 text-[12.5px]">
-                        {m.reply_sender && <div className="font-semibold text-primary">{m.reply_sender}</div>}
-                        <div className="line-clamp-2 text-muted-foreground">{m.reply_body || 'Attachment'}</div>
+                      <div className="chat-quote mb-1.5 border-l-2 px-2 py-1 text-[12.5px]">
+                        {m.reply_sender && <div className="chat-quote__who font-semibold">{m.reply_sender}</div>}
+                        <div className="chat-quote__body line-clamp-2">{m.reply_body || 'Attachment'}</div>
                       </div>
                     )}
                     {m.deleted ? (
@@ -767,7 +767,7 @@ function AttachmentView({ a }: { a: Attachment }) {
       href={a.url}
       download={a.name}
       title={`Download ${a.name}`}
-      className="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-3 py-2 text-[13px] hover:bg-black/10"
+      className="chat-file mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-[13px]"
     >
       <FileText className="h-4 w-4 shrink-0" />
       <span className="min-w-0 flex-1">
@@ -850,6 +850,20 @@ const chatCSS = `
 .chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.85); }
 .chat-theirs .text-muted-foreground { color: #9aa5b6; }
 .chat-meta { font-size: 11px; color: #9aa5b6; padding: 0 6px; }
+/* A quote and a file row are painted by the bubble they sit in. Left as
+   dark-on-light they were unreadable inside the blue one -- a blue name on a
+   blue ground -- and that is the whole reason a bubble has a colour. */
+.chat-theirs .chat-quote { border-color: hsl(var(--primary)); background: rgba(16, 24, 40, 0.04); border-radius: 10px; }
+.chat-theirs .chat-quote__who { color: hsl(var(--primary)); }
+.chat-theirs .chat-quote__body { color: #9aa5b6; }
+.chat-mine .chat-quote { border-color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.16); border-radius: 10px; }
+.chat-mine .chat-quote__who { color: #ffffff; }
+.chat-mine .chat-quote__body { color: rgba(255,255,255,0.82); }
+.chat-theirs .chat-file { background: rgba(16, 24, 40, 0.04); }
+.chat-theirs .chat-file:hover { background: rgba(16, 24, 40, 0.07); }
+.chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }
+.chat-mine .chat-file:hover { background: rgba(255,255,255,0.24); }
+.chat-mine .chat-file .text-muted-foreground { color: rgba(255,255,255,0.8); }
 .chat-daypill {
   background-color: #eef2f7;
   color: #9aa5b6;
