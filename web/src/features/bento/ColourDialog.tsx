@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Crosshair, Plus, RotateCcw, X } from 'lucide-react'
 import {
   usePaint, usePalettes, savePalette, deletePalette, applyPalette, resetPaint,
-  REGIONS, CHANNELS, BUILT_IN_PALETTES, currentPalette,
+  PICKABLE_REGIONS, CHANNELS, BUILT_IN_PALETTES, currentPalette,
   type Region, type Channel, type Hsl,
 } from '@/lib/paint'
 import { applyPersonality } from '@/lib/personality'
@@ -362,6 +363,24 @@ const PRESETS: { id: 'blue' | 'mint' | 'violet' | 'amber' | 'rose'; hsl: Hsl }[]
    It was a second dialog beside Appearance, which meant two doors in the menu
    to two halves of one question — how should this look. It is a section now,
    and ColourDialog is gone rather than kept as a wrapper nobody opens. */
+/* What was clicked, as an element the picker offers.
+
+   Only the work area, the bars and the dock carry data-paint; a card is many
+   elements and a button is hundreds, so neither is tagged. The picker reads
+   them off the thing under the pointer instead: a button first, because a
+   button sits inside a card and the nearer answer is the one meant, then a
+   card or a bento cell, then the tagged region behind it. A status-tinted
+   cell names its tint. */
+function regionUnder(target: HTMLElement | null): Region | undefined {
+  if (!target) return undefined
+  if (target.closest('.btn, button, [role="button"]')) return 'buttons'
+  const tone = target.closest<HTMLElement>('[data-tone]')?.dataset.tone
+  if (tone === 'critical' || tone === 'warning' || tone === 'success') return tone
+  if (target.closest('.card, .bento-cell, .bento-widget')) return 'cards'
+  const r = target.closest<HTMLElement>('[data-paint]')?.dataset.paint
+  return r && (PICKABLE_REGIONS as readonly string[]).includes(r) ? (r as Region) : undefined
+}
+
 export function ColourPanel({
   onPickingChange,
 }: {
@@ -389,8 +408,8 @@ export function ColourPanel({
      bottom bar is the dock here, and says so. */
   const regions = useMemo(
     () => (layout === 'bento'
-      ? REGIONS.filter((r) => r !== 'topbar' && r !== 'sidebar')
-      : REGIONS),
+      ? PICKABLE_REGIONS.filter((r) => r !== 'topbar' && r !== 'sidebar')
+      : PICKABLE_REGIONS),
     [layout],
   )
   const regionLabel = (r: Region) =>
@@ -446,12 +465,11 @@ export function ColourPanel({
         setPicking(false)
         return
       }
-      const el = target?.closest<HTMLElement>('[data-paint]')
       e.preventDefault()
       e.stopPropagation()
       setPicking(false)
-      const r = el?.dataset.paint as Region | undefined
-      if (r && (REGIONS as readonly string[]).includes(r)) setRegion(r)
+      const r = regionUnder(target)
+      if (r) setRegion(r)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setPicking(false)
@@ -493,6 +511,23 @@ export function ColourPanel({
 
   return (
     <div className={cn(picking && 'opacity-25')}>
+        {picking && createPortal(
+          <div
+            /* Outside the dialog on purpose: the dialog is invisible while
+               aiming, and this is the one thing left on screen that says what
+               is happening and how to stop. A click on it cancels, the same
+               as Esc. */
+            role="status"
+            onClick={() => setPicking(false)}
+            className="fixed left-1/2 top-3 z-[80] -translate-x-1/2 cursor-pointer rounded-full
+                       border bg-card px-4 py-2 text-[12.5px] shadow-[var(--lift-float)]"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+          >
+            <Crosshair className="mr-1.5 inline size-3.5 align-[-2px]" aria-hidden="true" />
+            {t('bento.colour.picking_hint')}
+          </div>,
+          document.body,
+        )}
 
         {/* Palettes: saved sets and the shipped ones, first, because picking one
             is the whole act for most people; the wheel below is for the few who

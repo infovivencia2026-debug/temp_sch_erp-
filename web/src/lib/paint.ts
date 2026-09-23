@@ -25,17 +25,32 @@ import { applyTheme } from './theme'
    recoloured at all, by anybody, ever. Together with the `-soft` bug below
    that is the whole of "I cannot change the colour of a few cells": five
    domains were paintable and broken, seven were not paintable at all. */
-export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards'
+export type Region = 'workarea' | 'topbar' | 'sidebar' | 'bottombar' | 'cards' | 'buttons'
   | 'students' | 'academics' | 'attendance' | 'finance' | 'staff' | 'admissions'
   | 'communication' | 'operations' | 'reports' | 'critical' | 'warning' | 'success'
 export type Channel = 'bg' | 'text' | 'accent'
 
 export const REGIONS: readonly Region[] = [
-  'workarea', 'topbar', 'sidebar', 'bottombar', 'cards',
+  'workarea', 'topbar', 'sidebar', 'bottombar', 'cards', 'buttons',
   'students', 'academics', 'attendance', 'finance', 'staff', 'admissions',
   'communication', 'operations', 'reports', 'critical', 'warning', 'success',
 ] as const
 export const CHANNELS: readonly Channel[] = ['bg', 'text', 'accent'] as const
+
+/* THE ELEMENTS A PERSON CAN POINT AT.
+
+   The colour dialog used to offer every region above as a chip -- Students,
+   Academics, Finance, Staff, Admissions ... -- and the owner's reaction was
+   that those are departments, not things on the screen. A person opening
+   "Select element" is thinking "the cards", "the buttons", "the bar at the
+   bottom", so the chips are the generic parts of the screen and the three
+   status tints that colour a cell whatever its department. The domain keys
+   stay in Region because shipped palettes still carry them and a saved
+   palette from before must still load; they are simply not offered. */
+export const PICKABLE_REGIONS: readonly Region[] = [
+  'workarea', 'topbar', 'sidebar', 'bottombar', 'cards', 'buttons',
+  'critical', 'warning', 'success',
+] as const
 
 /** An HSL triple, kept unresolved so it can be written straight into a token
     that the rest of the stylesheet composes with alpha. */

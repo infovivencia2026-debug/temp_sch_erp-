@@ -1310,8 +1310,15 @@ export function AppearanceDialog({
            flex-col overflow-hidden rounded-none sm:rounded-[16px] border
            shadow-[var(--lift-float)]`,
           SURFACE, EDGE,
-          // Still clickable while aiming, so the dialog can be used to cancel.
-          picking && 'pointer-events-auto opacity-25',
+          /* GONE while aiming, not dimmed. At a quarter opacity the settings
+             window still covered the middle of the screen, so the things a
+             person most wants to point at -- the cards under it -- were the
+             ones they could not reach without guessing through a haze. The
+             owner asked for it to disappear. `invisible` keeps it mounted,
+             so the channel and colour already chosen are still there when
+             the pick lands; the colour panel floats a small pill with the
+             way out (Esc) while the window is away. */
+          picking && 'invisible',
         )}
         onClick={(e) => e.stopPropagation()}
       >

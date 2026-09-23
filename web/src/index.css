@@ -1654,6 +1654,16 @@
      rather than belonging to a region. */
   :root { --primary: var(--paint-workarea-accent, var(--primary-base, 217 91% 60%)); }
 
+  /* Buttons are their own element in the picker. Painted, the primary button
+     takes the chosen pair; unpainted, it keeps following --primary, which
+     the accent above owns. The :has() guard is what beats the bg-primary
+     utility on the button (see the note on specificity below); it matches on
+     every page, so the fallbacks are what carry the unpainted case. */
+  :root:has([data-paint]) .btn[data-variant='primary'] {
+    background-color: hsl(var(--paint-buttons-bg, var(--primary)));
+    color: hsl(var(--paint-buttons-text, var(--primary-foreground)));
+  }
+
   /* A painted region has to OUT-SPECIFY the utility that dressed it.
 
      The four rules above are attribute selectors — one specificity point —
