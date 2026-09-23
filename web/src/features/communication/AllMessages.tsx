@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ChatScreen } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, Stat, Select, Input, Field,
   SkeletonTable, ErrorState, EmptyState,
@@ -55,6 +56,7 @@ interface Item {
   reply_by?: string
   reply_body?: string
   reply_at?: string
+  recent?: { sender: string; from_school: boolean; body: string; at: string }[]
 }
 
 interface Counts {
@@ -81,25 +83,13 @@ export default function AllMessages() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Item | null>(null)
   const [openStaff, setOpenStaff] = useState<Item | null>(null)
-  /* Smaller questions of a big desk: what came in this week, what is one
-     class saying, what has one teacher been dealing with. The tiles keep
-     counting the whole school either way, so a filter cannot make the school
-     look quieter than it is. */
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [klass, setKlass] = useState('')
-  const [person, setPerson] = useState('')
 
   const params = new URLSearchParams({ status })
   if (channel) params.set('channel', channel)
   if (q.trim()) params.set('q', q.trim())
-  if (from) params.set('from', from)
-  if (to) params.set('to', to)
-  if (klass) params.set('class', klass)
-  if (person.trim()) params.set('person', person.trim())
 
   const inbox = useQuery({
-    queryKey: ['admin-inbox', channel, status, q.trim(), from, to, klass, person.trim()],
+    queryKey: ['admin-inbox', channel, status, q.trim()],
     queryFn: () => api.get<{ items: Item[]; counts: Counts }>(`/api/v1/admin/inbox?${params}`),
     placeholderData: (prev) => prev,
     /* Live. The stream (lib/live-stream.ts) invalidates this on any message
@@ -117,20 +107,6 @@ export default function AllMessages() {
 
   const counts = inbox.data?.counts
   const items = inbox.data?.items ?? []
-
-  /* The class picker is built from what the desk has seen, and remembered:
-     a filtered fetch returns only that class, which would collapse the list
-     to the one choice and strand whoever picked it. */
-  const [classes, setClasses] = useState<string[]>([])
-  useEffect(() => {
-    if (klass) return
-    const seen = Array.from(
-      new Set(items.map((i) => i.child_class).filter((c): c is string => !!c)),
-    ).sort()
-    if (seen.length) setClasses((cur) => (cur.join('|') === seen.join('|') ? cur : seen))
-  }, [items, klass])
-
-  const filtered = !!(from || to || klass || person.trim())
 
   const tile = (c: '' | Channel) => () => setChannel(channel === c ? '' : c)
 
@@ -171,39 +147,6 @@ export default function AllMessages() {
           <Stat label="Circulars awaiting ack" value={counts?.circulars ?? '–'} icon={Megaphone}
             active={channel === 'circular'} onClick={tile('circular')} />
         </div>
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card px-4 py-3">
-          <Field label="From">
-            <Input type="date" value={from} onChange={setFrom} />
-          </Field>
-          <Field label="To">
-            <Input type="date" value={to} onChange={setTo} />
-          </Field>
-          <Field label="Class">
-            <Select
-              value={klass}
-              onChange={setKlass}
-              placeholder="Every class"
-              options={classes.map((c) => ({ value: c, label: c }))}
-            />
-          </Field>
-          <Field label="Teacher or parent">
-            <Input value={person} onChange={setPerson} placeholder="A name" />
-          </Field>
-          {filtered && (
-            <button
-              type="button"
-              className="h-9 rounded-md border px-3 text-[13px] font-medium hover:bg-accent"
-              onClick={() => {
-                setFrom('')
-                setTo('')
-                setKlass('')
-                setPerson('')
-              }}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
         <p className="text-[12px] text-muted-foreground">
           Each tile counts what is still waiting for a reply, across the whole school,
           pressing one filters the list below without changing the counts.
@@ -220,16 +163,8 @@ export default function AllMessages() {
         ) : items.length === 0 ? (
           <Card>
             <EmptyState
-              title={
-                filtered ? 'Nothing matches these filters.'
-                : status === 'pending' ? 'Nothing is waiting on the school.'
-                : 'No messages match.'
-              }
-              body={
-                filtered ? 'Widen the dates, the class or the name, or clear the filters.'
-                : status === 'pending' ? 'Every conversation has been answered.'
-                : 'Change the filter above.'
-              }
+              title={status === 'pending' ? 'Nothing is waiting on the school.' : 'No messages match.'}
+              body={status === 'pending' ? 'Every conversation has been answered.' : 'Change the filter above.'}
             />
           </Card>
         ) : (
@@ -238,7 +173,6 @@ export default function AllMessages() {
               {channel ? CHANNEL_LABEL[channel] : 'Every channel'}
               <span className="text-[12.5px] font-normal text-muted-foreground">
                 {items.length} conversation{items.length === 1 ? '' : 's'}, newest first
-                {filtered && ' · filtered'}
               </span>
             </h2>
             {items.map((it) => {
@@ -467,26 +401,33 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
               )}
             </div>
           </div>
-          <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-indigo-500 bg-muted/40 px-4 py-3 text-[14px] leading-relaxed">
-            <span className="whitespace-pre-wrap">{it.last_body}</span>
-          </div>
-          {it.reply_body && (
-            <div className="mt-3 flex gap-3">
-              <span
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200"
-                aria-hidden="true"
-              >
-                {initials(it.reply_by ?? '')}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 text-[12px] text-muted-foreground">
-                  Replied by <span className="font-semibold text-foreground">{it.reply_by}</span>
-                  {it.reply_at && <> · {when(it.reply_at)}</>}
+          {/* The exchange itself, last three lines, oldest first: the family
+              on the left, the school on the right. Only the newest line was
+              shown before, and a desk that had just watched three texts go
+              by could not see them. */}
+          {(it.recent ?? []).length > 0 ? (
+            <div className="space-y-1.5">
+              {(it.recent ?? []).map((m, i) => (
+                <div key={i} className={cn('flex', m.from_school ? 'justify-end' : 'justify-start')}>
+                  <div
+                    className={cn(
+                      'max-w-[85%] rounded-lg px-3 py-2 text-[14px] leading-relaxed',
+                      m.from_school
+                        ? 'rounded-tr-sm border border-l-[3px] border-l-emerald-500 bg-emerald-50/60 dark:bg-emerald-900/10'
+                        : 'rounded-tl-sm border border-l-[3px] border-l-indigo-500 bg-muted/40',
+                    )}
+                  >
+                    <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
+                      {m.sender} · {when(m.at)}
+                    </div>
+                    <span className="whitespace-pre-wrap">{m.body}</span>
+                  </div>
                 </div>
-                <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-emerald-500 bg-emerald-50/60 px-4 py-2.5 text-[14px] leading-relaxed dark:bg-emerald-900/10">
-                  <span className="whitespace-pre-wrap">{it.reply_body}</span>
-                </div>
-              </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-indigo-500 bg-muted/40 px-4 py-3 text-[14px] leading-relaxed">
+              <span className="whitespace-pre-wrap">{it.last_body}</span>
             </div>
           )}
         </div>
