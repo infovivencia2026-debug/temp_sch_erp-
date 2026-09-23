@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { shrinkImage } from '@/lib/shrink-image'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Paperclip, Send } from 'lucide-react'
+import { Check, ChevronRight, Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
+import { ChatThread } from '@/components/Chat'
+import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState,
@@ -575,6 +577,23 @@ function FamilyNotices({ rows, onAck, acking }: {
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const waiting = rows.filter((r) => r.requires_ack && !r.acknowledged_by_me).length
+  const open = rows.find((c) => c.id === openId) ?? null
+
+  /* A NOTICE OPENS LIKE A CHAT.
+
+     The list expanded a row in place, which on a phone put the notice's
+     first line under the thumb and the rest below the fold. A tap now opens
+     the notice on its own screen, drawn as a message from the school -- the
+     same paper, bubble and header every other conversation here uses -- with
+     the acknowledgement where the composer would be. The list itself is laid
+     out as a phone lays out chats: the sender's initials, the title, a line
+     of the notice, the time on the right. */
+  const sender = (c: Circular) => c.published_by || 'School office'
+  const when = (c: Circular) => (c.published_at_full ?? c.published_at).replace('T', ' ')
+  const iso = (c: Circular) => {
+    const s = c.published_at_full ?? c.published_at
+    return s.length === 10 ? `${s}T09:00` : s
+  }
 
   return (
     <Card>
@@ -591,61 +610,79 @@ function FamilyNotices({ rows, onAck, acking }: {
       ) : (
         <ul className="divide-y">
           {rows.map((c) => {
-            const open = openId === c.id
             const needsMe = c.requires_ack && !c.acknowledged_by_me
             return (
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => setOpenId(open ? null : c.id)}
-                  aria-expanded={open}
-                  className="flex w-full items-start gap-3 px-5 py-3.5 text-left hover:bg-muted/50"
+                  onClick={() => setOpenId(c.id)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
                 >
+                  <PersonAvatar name={sender(c)} size={44} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[14.5px] font-medium">{c.title}</span>
-                      {needsMe && <Badge tone="warning">needs your acknowledgement</Badge>}
-                      {c.requires_ack && c.acknowledged_by_me && (
-                        <Badge tone="success">acknowledged</Badge>
-                      )}
+                    <div className="flex items-baseline gap-2">
+                      <span className={cn('min-w-0 flex-1 truncate text-[14.5px]', needsMe ? 'font-semibold' : 'font-medium')}>
+                        {c.title}
+                      </span>
+                      <span className="shrink-0 text-[11.5px] text-muted-foreground">{formatDate(c.published_at)}</span>
                     </div>
-                    {/* Date and time, because "24 Aug" on a notice about this
-                        afternoon is the half that does not help. */}
-                    <div className="mt-0.5 text-[12.5px] text-muted-foreground">
-                      {(c.published_at_full ?? c.published_at).replace('T', ' ')}
-                      {c.published_by && ` \u00b7 ${c.published_by}`}
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
+                        {c.body?.replace(/\s+/g, ' ').trim() || sender(c)}
+                      </span>
+                      {needsMe && <Badge tone="warning">acknowledge</Badge>}
+                      {c.requires_ack && c.acknowledged_by_me && <Badge tone="success">acknowledged</Badge>}
                     </div>
                   </div>
-                  <ChevronDown
-                    className={cn(
-                      'mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                      open && 'rotate-180',
-                    )}
-                    aria-hidden
-                  />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 </button>
-
-                {open && (
-                  <div className="px-5 pb-4">
-                    <p className="max-w-[70ch] whitespace-pre-wrap text-[14px]">
-                      {c.body || 'This notice has no further detail.'}
-                    </p>
-                    {needsMe && (
-                      <Button
-                        className="mt-3"
-                        size="sm"
-                        disabled={acking}
-                        onClick={() => onAck(c.id)}
-                      >
-                        I have read this
-                      </Button>
-                    )}
-                  </div>
-                )}
               </li>
             )
           })}
         </ul>
+      )}
+
+      {open && (
+        <ChatScreen
+          open
+          title={open.title}
+          subtitle={`${sender(open)} \u00b7 ${when(open)}`}
+          onBack={() => setOpenId(null)}
+        >
+          <ChatThread
+            messages={[{
+              id: open.id,
+              body: open.body || 'This notice has no further detail.',
+              at: iso(open),
+              mine: false,
+              sender: sender(open),
+            }]}
+            showSender
+            canSend={false}
+            onSend={() => {}}
+            height="min-h-0"
+            cannotSendNote={
+              open.requires_ack ? (
+                open.acknowledged_by_me ? (
+                  <span className="inline-flex items-center gap-2 text-success">
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                    You acknowledged this notice.
+                  </span>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span>The school asks you to confirm you have read this.</span>
+                    <Button size="sm" disabled={acking} onClick={() => onAck(open.id)}>
+                      <Check className="h-4 w-4" />
+                      I have read this
+                    </Button>
+                  </div>
+                )
+              ) : (
+                'Notices are one-way. To reply, write to the class teacher under Message teacher.'
+              )
+            }
+          />
+        </ChatScreen>
       )}
     </Card>
   )
