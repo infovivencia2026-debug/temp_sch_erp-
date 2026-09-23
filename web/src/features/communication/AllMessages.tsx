@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import { ChatScreen } from '@/components/ChatScreen'
+import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
@@ -52,6 +52,8 @@ interface Item {
   parent_relation?: string
   child_name?: string
   child_class?: string
+  child_photo?: string
+  teacher_photo?: string
   admission_no?: string
   reply_by?: string
   reply_body?: string
@@ -437,12 +439,14 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
         ) : null}
       </div>
       <div className="flex gap-3.5 px-5 py-4">
-        <span
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-100 text-[13px] font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200"
-          aria-hidden="true"
-        >
-          {initials(it.from)}
-        </span>
+        {/* The face of whoever wrote it, where the school holds one: the
+            child's when a parent wrote, the teacher's when the school did. A
+            desk of forty cards is otherwise forty coloured circles. */}
+        <PersonAvatar
+          name={it.from || it.title}
+          photoId={it.from === it.parent_name ? it.child_photo : it.teacher_photo}
+          size={40}
+        />
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <div className="flex min-w-0 items-baseline gap-1.5">
@@ -516,12 +520,6 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
 function cap(s?: string | null): string {
   if (!s) return ''
   return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (!parts.length) return '?'
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase()
 }
 
 /** "05 Sept 2026, 07:34 AM (17d ago)" */

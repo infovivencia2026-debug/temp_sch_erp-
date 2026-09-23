@@ -65,7 +65,11 @@ type inboxItem struct {
 	ParentRel   *string `json:"parent_relation,omitempty"`
 	ChildName   *string `json:"child_name,omitempty"`
 	ChildClass  *string `json:"child_class,omitempty"`
-	AdmissionNo *string `json:"admission_no,omitempty"`
+	// The child's photograph and the teacher's, so the desk shows faces and
+	// not a column of coloured initials. Absent where the school holds none.
+	ChildPhoto   *string `json:"child_photo,omitempty"`
+	TeacherPhoto *string `json:"teacher_photo,omitempty"`
+	AdmissionNo  *string `json:"admission_no,omitempty"`
 	// The school's latest answer on the thread, when there is one.
 	ReplyBy   *string `json:"reply_by,omitempty"`
 	ReplyBody *string `json:"reply_body,omitempty"`
@@ -205,6 +209,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				       COALESCE(concat_ws('-', c.name, sec.name), ''),
 				       COALESCE(pu.full_name, ''), COALESCE(g.relation, ''),
 				       COALESCE(tu.full_name, ''), COALESCE(emp.employee_code, ''),
+				       st.photo_file_id::text, emp.photo_file_id::text,
 				       COALESCE(su.full_name, ''), l.body, l.sent_at,
 				       l.sender_user_id = l.parent_user_id, l.read_at IS NULL,
 				       ru.full_name, rp.body, rp.sent_at,
@@ -250,7 +255,8 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				var parentWrote, unread bool
 				var recentRaw []byte
 				if err := rows.Scan(&sid, &pid, &tid, &child, &adm, &klass, &parent, &rel,
-					&teacher, &code, &sender, &it.LastBody, &at, &parentWrote, &unread,
+					&teacher, &code, &it.ChildPhoto, &it.TeacherPhoto,
+					&sender, &it.LastBody, &at, &parentWrote, &unread,
 					&replyBy, &replyBody, &replyAt, &recentRaw); err != nil {
 					rows.Close()
 					return err
