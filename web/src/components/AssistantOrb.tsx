@@ -58,7 +58,11 @@ export function AssistantOrb({
   const ref = useRef<HTMLSpanElement>(null)
   // The target lives in a ref: the easing loop reads it every frame, and a
   // re-run of the effect on each change would tear the loop down.
-  const want = typing ? Math.max(RATE[state], RATE.thinking) : RATE[state] * (awake ? 1.4 : 1)
+  /* The subtle ball has less colour to move, so it moves more: nearly
+     double the drift, or at 160px with the blobs faded the motion was there
+     and nobody could see it. */
+  const base = RATE[state] * (subtle ? 1.9 : 1)
+  const want = typing ? Math.max(base, RATE.thinking * (subtle ? 1.3 : 1)) : base * (awake ? 1.4 : 1)
   const target = useRef(want)
   target.current = want
 
