@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseRupees } from '@/lib/money'
 import {
   PageHead, PageBody, Card, CardHeader, Table, Td, Badge, Button, Input,
   FormNotice, SkeletonTable, ErrorState, EmptyState,
@@ -94,7 +95,7 @@ function PendingRow({ r }: { r: Recharge }) {
   // Defaults to what was asked, so the common case is one press and no typing.
   const [amount, setAmount] = useState(String(r.messages))
   const [response, setResponse] = useState('')
-  const n = Number(amount)
+  const n = parseRupees(amount)
   const valid = Number.isInteger(n) && n >= 0
 
   return (

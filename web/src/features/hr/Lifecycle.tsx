@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, DoorOpen, FileSignature, Route, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -445,7 +446,7 @@ function ExitDetail({ exit }: { exit: Exit }) {
   const settle = useMutation({
     mutationFn: () =>
       api.post(`/api/v1/hr/exits/${exit.id}/settle`, {
-        settlement_paise: Math.round(Number(settlement || 0) * 100),
+        settlement_paise: rupeesToPaise(settlement || 0),
       }),
     onSuccess: invalidate,
   })
@@ -544,7 +545,7 @@ function ClearanceLine({
     onSign({
       department_code: row.code,
       status,
-      dues_paise: Math.round(Number(dues || 0) * 100),
+      dues_paise: rupeesToPaise(dues || 0),
       remarks: remarks || undefined,
     })
 

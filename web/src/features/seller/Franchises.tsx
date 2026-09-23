@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -228,7 +229,7 @@ export default function Franchises() {
                         franchise_id: current.id,
                         institution_id: school,
                         agreement_no: agreement,
-                        annual_fee_paise: Math.round((Number(fee) || 0) * 100),
+                        annual_fee_paise: rupeesToPaise(fee),
                         compliance_percent: compliance === '' ? null : Number(compliance),
                         last_audited_on: audited,
                       },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseRupees } from '@/lib/money'
 import {
   Card, CardHeader, Button, ConfirmButton, Input, Field, FormGrid, FormNotice, Badge,
   Table, Td, SkeletonTable, ErrorState, EmptyState,
@@ -41,7 +42,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
   const stop = useStopMetering(credit.channel)
   const entries = useCreditEntries(credit.channel)
 
-  const n = Number(amount)
+  const n = parseRupees(amount)
   const valid = amount.trim() !== '' && Number.isInteger(n) && n !== 0
 
   return (

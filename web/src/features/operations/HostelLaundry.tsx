@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Shirt } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -88,7 +89,7 @@ export default function HostelLaundry() {
         items_sent: Number(form.items_sent || 0),
         item_detail: form.item_detail || undefined,
         // Rupees on the form, paise on the wire.
-        charge_paise: Math.round(Number(form.charge_rupees || 0) * 100),
+        charge_paise: rupeesToPaise(form.charge_rupees || 0),
       }),
     onSuccess: () => {
       setOpen(false)

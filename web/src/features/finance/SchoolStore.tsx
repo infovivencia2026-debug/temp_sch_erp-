@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Package, Shirt, TriangleAlert } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
@@ -658,7 +659,7 @@ function ProductEditor({
         hsn_code: hsn,
         // Basis points on the wire, so the rate is an integer and never a
         // float that has to be compared for equality later.
-        tax_rate_bp: Math.round(Number(tax || 0) * 100),
+        tax_rate_bp: rupeesToPaise(tax || 0),
         sale_price_paise: toPaise(price),
         return_window_days: window.trim() === '' ? null : Number(window),
         image_key: imageKey,

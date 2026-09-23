@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useStudentRoster } from '@/lib/rosters'
@@ -123,7 +124,7 @@ export default function Concessions() {
     mutationFn: () =>
       api.post('/api/v1/fees/refunds', {
         student_id: refundStudent,
-        amount_paise: Math.round(Number(refundAmount || 0) * 100),
+        amount_paise: rupeesToPaise(refundAmount || 0),
         reason: refundReason,
       }),
     onSuccess: () => {

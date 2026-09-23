@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
@@ -270,7 +271,7 @@ export default function Applications() {
       /* Rupees to paise at the boundary, so nothing downstream has to wonder
          which unit it is holding. */
       form_fee_paise: form.form_fee.trim()
-        ? Math.round(Number(form.form_fee) * 100)
+        ? rupeesToPaise(form.form_fee)
         : undefined,
       form_fee_paid: form.form_fee.trim() ? form.form_fee_paid : undefined,
       form_fee_receipt: form.form_fee_receipt || undefined,

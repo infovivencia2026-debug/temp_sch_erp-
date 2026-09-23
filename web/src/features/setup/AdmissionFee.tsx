@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -82,7 +83,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
       kind,
       percent: mode === 'percent' ? percent : '',
       // Rupees on the screen, paise in the database.
-      amount_paise: mode === 'amount' ? Math.round(Number(amount) * 100) : undefined,
+      amount_paise: mode === 'amount' ? rupeesToPaise(amount) : undefined,
       reason,
     }),
     onSuccess: () => { setOpen(false); setPercent(''); setAmount(''); setReason('') },
@@ -128,8 +129,8 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
 
   const afterConcession = mode === 'percent' && Number(percent) > 0
     ? q.total_paise - Math.round(q.total_paise * Number(percent) / 100)
-    : mode === 'amount' && Number(amount) > 0
-      ? Math.max(0, q.total_paise - Math.round(Number(amount) * 100))
+    : mode === 'amount' && parseRupees(amount) > 0
+      ? Math.max(0, q.total_paise - rupeesToPaise(amount))
       : null
 
   return (

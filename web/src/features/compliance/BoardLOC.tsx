@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Download, Lock } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -131,7 +132,7 @@ export default function BoardLOC() {
         exam_name: form.exam_name,
         stage: form.stage || undefined,
         title: form.title || undefined,
-        fee_per_candidate_paise: Math.round(Number(form.fee || 0) * 100),
+        fee_per_candidate_paise: rupeesToPaise(form.fee || 0),
       }),
     onSuccess: (r) => {
       setSelected(r.id)

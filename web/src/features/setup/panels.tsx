@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, KeyRound, Maximize2, Minimize2, Plus, Wand2, X } from 'lucide-react'
@@ -276,8 +277,6 @@ function SaveRow({
    checkbox is a checkbox nobody can tell the state of. */
 const CHECKBOX =
   'h-4 w-4 shrink-0 accent-primary [@media(pointer:coarse)]:min-w-[44px]'
-
-const rupeesToPaise = (r: string) => Math.round(parseFloat(r || '0') * 100)
 
 // --- 1. school profile ------------------------------------------------------
 
@@ -2913,8 +2912,8 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
      written. */
   const total = (lines ?? Object.keys(amounts)).reduce((a, id) => {
     const t = byTerm[id]
-    if (t && t.length) return a + t.reduce((b, v) => b + (parseFloat(v) || 0), 0)
-    return a + (parseFloat(amounts[id] ?? '') || 0)
+    if (t && t.length) return a + t.reduce((b, v) => b + (parseRupees(v) || 0), 0)
+    return a + (parseRupees(amounts[id] ?? '') || 0)
   }, 0)
 
   return (
@@ -2983,7 +2982,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
           const open = terms.length > 0
           const dues = byDue[h.id] ?? []
           const dueOpen = dues.length > 0
-          const termTotal = terms.reduce((a, t) => a + (parseFloat(t) || 0), 0)
+          const termTotal = terms.reduce((a, t) => a + (parseRupees(t) || 0), 0)
           return (
           <div key={h.id} className="rounded-md border p-2.5">
             <div className="grid grid-cols-[minmax(0,1fr)_8rem_auto] items-center gap-2">
@@ -3034,7 +3033,7 @@ function FeeStructuresPanel({ onDone }: PanelProps) {
                     setByTerm(rest)
                     return
                   }
-                  const yearly = parseFloat(amounts[h.id] ?? '') || 0
+                  const yearly = parseRupees(amounts[h.id] ?? '') || 0
                   const each = yearly ? String(Math.round(yearly / n)) : ''
                   setByTerm({ ...byTerm, [h.id]: Array.from({ length: n }, () => each) })
                   if (!byDue[h.id]) {

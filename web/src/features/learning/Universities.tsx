@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe2, CalendarClock, Trophy } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -104,7 +105,7 @@ export default function Universities() {
         entrance_exams: exams || undefined,
         // Entered in rupees because that is what a prospectus conversation is
         // in; stored in paise because that is what every amount here is.
-        annual_fee_paise: fee ? Math.round(Number(fee) * 100) : undefined,
+        annual_fee_paise: fee ? rupeesToPaise(fee) : undefined,
         scholarship_sought: scholarship,
         notes: notes || undefined,
       }),

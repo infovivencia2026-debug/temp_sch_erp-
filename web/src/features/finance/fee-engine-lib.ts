@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { rupeesToPaise } from '@/lib/money'
 import { api, type List } from '@/lib/api'
 
 /* Shared vocabulary for the three fee engine screens.
@@ -281,7 +282,7 @@ export function useFeeEngineMutation<TArgs, TResult>(
 export const gstPercent = (bp: number) => `${(bp / 100).toFixed(2)}%`
 
 /** Basis points from a percentage typed into a form, without a float surprise. */
-export const toBasisPoints = (v: string) => Math.round(Number(v || 0) * 100)
+export const toBasisPoints = (v: string) => rupeesToPaise(v || 0)
 
 export const statusTone = (status: string): 'success' | 'warning' | 'neutral' =>
   status === 'active' ? 'success' : status === 'draft' ? 'warning' : 'neutral'

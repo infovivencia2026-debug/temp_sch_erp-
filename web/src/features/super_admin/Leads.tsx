@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Phone, Mail, MapPin, Users, CalendarClock, AlertTriangle, UserX } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -329,7 +330,7 @@ function LeadPanel({ lead, onSaved }: { lead: Lead; onSaved: () => void }) {
         <Field label="Worth" hint="Rupees. Read as a pipeline total above.">
           <Input
             value={lead.value_paise ? String(lead.value_paise / 100) : ''}
-            onChange={(v) => save.mutate({ value_paise: Math.round(Number(v || 0) * 100) })}
+            onChange={(v) => save.mutate({ value_paise: rupeesToPaise(v || 0) })}
             placeholder="60000"
           />
         </Field>

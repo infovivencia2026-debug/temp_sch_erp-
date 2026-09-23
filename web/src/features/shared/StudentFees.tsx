@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -85,7 +86,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
       student_id: studentID,
       kind,
       percent: mode === 'percent' ? percent : '',
-      amount_paise: mode === 'amount' ? Math.round(Number(amount) * 100) : undefined,
+      amount_paise: mode === 'amount' ? rupeesToPaise(amount) : undefined,
       reason,
     }),
     onSuccess: () => {

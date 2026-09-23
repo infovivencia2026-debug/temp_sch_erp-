@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Landmark, Wallet, ListTree, Settings2 } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -217,7 +218,7 @@ function ControlAccounts() {
   const [limitDraft, setLimitDraft] = useState<string | null>(null)
   const [methodDraft, setMethodDraft] = useState<string | null>(null)
   const limit = limitDraft !== null
-    ? Math.round(Number(limitDraft || 0) * 100)
+    ? rupeesToPaise(limitDraft || 0)
     : settings.data?.petty_cash_limit_paise ?? 200000
   const method = methodDraft ?? settings.data?.default_depreciation_method ?? 'straight_line'
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, CalendarHeart, ListOrdered, Megaphone, ScrollText, Users } from 'lucide-react'
@@ -1150,7 +1151,7 @@ function Prospectus() {
                   phone: form.phone,
                   kind: form.kind,
                   mode: form.mode,
-                  amount_paise: Math.round(Number(form.amount) * 100),
+                  amount_paise: rupeesToPaise(form.amount),
                 })
               }
             >

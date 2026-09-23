@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseRupees } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -59,7 +60,7 @@ export default function PDCRegister() {
      nothing. Typing overrides it for this cheque only. */
   const effectiveFine = fine.trim() === ''
     ? (standing.data?.amount ?? 0)
-    : Math.max(0, parseFloat(fine) || 0)
+    : Math.max(0, parseRupees(fine) || 0)
 
   const clear = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/fees/payments/${id}/clear`),
@@ -137,7 +138,7 @@ export default function PDCRegister() {
                   disabled={saveStanding.isPending || fine.trim() === ''}
                   onClick={() => {
                     setSavingRule(true)
-                    saveStanding.mutate(Math.max(0, parseFloat(fine) || 0))
+                    saveStanding.mutate(Math.max(0, parseRupees(fine) || 0))
                   }}
                 >
                   {savingRule && saveStanding.isPending ? 'Saving…' : 'Make this the rule'}

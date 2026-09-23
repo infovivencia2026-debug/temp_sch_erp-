@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Wallet } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
@@ -69,7 +70,7 @@ const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> 
 }
 
 // Rupees in the box, paise on the wire — the API never sees a decimal.
-const toPaise = (rupees: string) => Math.round(parseFloat(rupees || '0') * 100)
+const toPaise = (rupees: string) => rupeesToPaise(rupees)
 
 export default function StudentWallets() {
   const toast = useToast()

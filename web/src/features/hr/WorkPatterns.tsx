@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
@@ -65,7 +66,7 @@ type Draft = typeof BLANK
 /* Money is entered in rupees and stored in paise, as everywhere else here. A
    school typing 500 means five hundred rupees and would be startled to find it
    had set five. */
-const toPaise = (r: string) => Math.round(Number(r) * 100)
+const toPaise = (r: string) => rupeesToPaise(r)
 const toRupees = (p?: number | null) => (p == null ? '' : String(p / 100))
 
 export default function WorkPatterns() {

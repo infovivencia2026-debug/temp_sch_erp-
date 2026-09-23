@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { rupeesToPaise } from '@/lib/money'
 import { api, type List } from '@/lib/api'
 
 /* Shared vocabulary for the ten accounting screens.
@@ -24,7 +25,7 @@ export const inr = (paise: number) => `₹${rupees(paise)}`
 export const side = (paise: number) => (paise ? rupees(paise) : '-')
 
 /** Rupees typed into a form back to paise, without a float rounding surprise. */
-export const toPaise = (v: string) => Math.round(Number(v || 0) * 100)
+export const toPaise = (v: string) => rupeesToPaise(v || 0)
 
 /** 2026 to "2026-27", which is how every Indian financial document reads. */
 export const fyLabel = (fy: number) => `${fy}-${String((fy + 1) % 100).padStart(2, '0')}`

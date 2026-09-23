@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Mail, Phone, ShieldBan, UserRound } from 'lucide-react'
@@ -920,7 +921,7 @@ function PostLog({ rows }: { rows: Post[] }) {
               onClick={() =>
                 save.mutate({
                   ...form,
-                  charges_paise: form.charges ? Math.round(Number(form.charges) * 100) : undefined,
+                  charges_paise: form.charges ? rupeesToPaise(form.charges) : undefined,
                 })
               }
             >

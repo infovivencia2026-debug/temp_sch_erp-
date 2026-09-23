@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle, Bus, BusFront, Fuel, IdCard, MapPin, QrCode, Route, ShieldCheck, Users,
@@ -1135,7 +1136,7 @@ function Logs() {
         on_date: form.on_date,
         odometer_km: form.odometer_km ? Number(form.odometer_km) : undefined,
         litres: form.litres ? Number(form.litres) : undefined,
-        amount_paise: Math.round(Number(form.amount || 0) * 100),
+        amount_paise: rupeesToPaise(form.amount || 0),
         vendor: form.vendor,
         next_due_on: form.next_due_on,
       }),

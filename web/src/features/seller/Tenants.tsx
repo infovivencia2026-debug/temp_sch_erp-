@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, KeyRound, Plus, X } from 'lucide-react'
@@ -972,7 +973,7 @@ function PlanForm({
     mutationFn: () => {
       const body = {
         name: name.trim(),
-        price_paise: Math.round(Number(rupees || 0) * 100),
+        price_paise: rupeesToPaise(rupees || 0),
         max_students: cap.trim() === '' ? null : Number(cap),
         max_campuses: campuses.trim() === '' ? null : Number(campuses),
         modules: everything ? [] : picked,

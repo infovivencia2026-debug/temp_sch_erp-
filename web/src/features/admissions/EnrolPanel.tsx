@@ -7,6 +7,7 @@
  * then hand over.
  */
 import { useState } from 'react'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useCan } from '@/lib/session'
@@ -95,7 +96,7 @@ export default function EnrolPanel({
     .filter((l) => services.includes(l.service!))
     .reduce((n, l) => n + l.amount_paise, 0)
 
-  const waived = Math.round(Number(concession || 0) * 100)
+  const waived = rupeesToPaise(concession || 0)
   /* Never below zero, and never more than the bill. A waiver larger than the
      fee would otherwise read as the school owing the family money. */
   const billed = (f?.total_paise ?? 0) + optedTotal
@@ -127,7 +128,7 @@ export default function EnrolPanel({
       {
         student_id: done!.student_id,
         // Rupees in the box, paise on the wire: the API never sees a decimal.
-        amount_paise: Math.round(parseFloat(paid || '0') * 100),
+        amount_paise: rupeesToPaise(paid),
         mode,
         reference_no: reference || undefined,
         bank_name: bank || undefined,
@@ -170,7 +171,7 @@ export default function EnrolPanel({
             <p className="text-[13px] text-muted-foreground">Receipt issued</p>
             <p className="font-mono text-[20px] font-medium">{receipt}</p>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              &#8377;{rupees(Math.round(parseFloat(paid || '0') * 100))} taken by{' '}
+              &#8377;{rupees(rupeesToPaise(paid))} taken by{' '}
               {MODES.find((m) => m.value === mode)?.label.toLowerCase()}. The full
               receipt, with every fee head on it, is on the fee counter.
             </p>
@@ -210,7 +211,7 @@ export default function EnrolPanel({
                 </>
               )}
               <Button
-                disabled={!(parseFloat(paid || '0') > 0) || collect.isPending}
+                disabled={!(parseRupees(paid) > 0) || collect.isPending}
                 onClick={() => collect.mutate()}
               >
                 {collect.isPending ? 'Recording…' : 'Record payment'}

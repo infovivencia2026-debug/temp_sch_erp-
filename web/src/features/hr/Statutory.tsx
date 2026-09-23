@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Banknote, Calculator, FileSpreadsheet, HandCoins, Landmark, ShieldCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -340,7 +341,7 @@ function IncomeTax() {
         employee_id: employeeId,
         section,
         particulars,
-        declared_paise: Math.round(Number(amount || 0) * 100),
+        declared_paise: rupeesToPaise(amount || 0),
         regime: regime || undefined,
       }),
     onSuccess: () => {
@@ -566,8 +567,8 @@ function Advances() {
     mutationFn: () =>
       api.post('/api/v1/payroll/loans', {
         employee_id: employeeId,
-        principal_paise: Math.round(Number(principal || 0) * 100),
-        instalment_paise: Math.round(Number(instalment || 0) * 100),
+        principal_paise: rupeesToPaise(principal || 0),
+        instalment_paise: rupeesToPaise(instalment || 0),
         reason,
       }),
     onSuccess: () => {
@@ -816,7 +817,7 @@ function Contractors() {
                   vendor: form.vendor,
                   service: form.service,
                   claimed_days: Number(form.claimed_days),
-                  rate_paise: Math.round(Number(form.rate) * 100),
+                  rate_paise: rupeesToPaise(form.rate),
                   invoice_no: form.invoice_no,
                 })
               }
@@ -968,7 +969,7 @@ function Rates() {
           <Field label="PF wage ceiling (₹)" hint="The wage contributions are computed on, not a cut-off for coverage.">
             <Input
               value={String(v.pf_wage_ceiling_paise / 100)}
-              onChange={(x) => setDraft({ ...v, pf_wage_ceiling_paise: Math.round(Number(x) * 100) })}
+              onChange={(x) => setDraft({ ...v, pf_wage_ceiling_paise: rupeesToPaise(x) })}
               type="number"
             />
           </Field>
@@ -984,7 +985,7 @@ function Rates() {
           <Field label="ESI wage threshold (₹)" hint="Above this, ESI stops entirely.">
             <Input
               value={String(v.esi_wage_threshold_paise / 100)}
-              onChange={(x) => setDraft({ ...v, esi_wage_threshold_paise: Math.round(Number(x) * 100) })}
+              onChange={(x) => setDraft({ ...v, esi_wage_threshold_paise: rupeesToPaise(x) })}
               type="number"
             />
           </Field>
@@ -997,14 +998,14 @@ function Rates() {
           <Field label="Per proxy period (₹)" hint="School policy, not law, which is why it lives here.">
             <Input
               value={String(v.substitution_rate_paise / 100)}
-              onChange={(x) => setDraft({ ...v, substitution_rate_paise: Math.round(Number(x) * 100) })}
+              onChange={(x) => setDraft({ ...v, substitution_rate_paise: rupeesToPaise(x) })}
               type="number"
             />
           </Field>
           <Field label="Overtime per hour (₹)">
             <Input
               value={String(v.overtime_hourly_paise / 100)}
-              onChange={(x) => setDraft({ ...v, overtime_hourly_paise: Math.round(Number(x) * 100) })}
+              onChange={(x) => setDraft({ ...v, overtime_hourly_paise: rupeesToPaise(x) })}
               type="number"
             />
           </Field>

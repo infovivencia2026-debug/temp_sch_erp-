@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookMarked, GraduationCap, HeartPulse, ShieldAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -184,7 +185,7 @@ function ServiceBookTab() {
         employee_id: employeeId, entry_kind: kind, event_date: eventDate, title,
         particulars: particulars || undefined,
         order_no: orderNo || undefined,
-        pay_paise: pay ? Math.round(Number(pay) * 100) : undefined,
+        pay_paise: pay ? rupeesToPaise(pay) : undefined,
       }),
     onSuccess: () => {
       setTitle(''); setParticulars(''); setOrderNo(''); setPay('')

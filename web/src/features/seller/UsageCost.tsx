@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Database, HardDrive, MessageSquare, Server } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -69,7 +70,7 @@ function bytes(n: number): string {
 }
 
 /** Rupees in, paise stored. The form talks in the unit the invoice is in. */
-const toPaise = (rupees: string) => Math.round((Number(rupees) || 0) * 100)
+const toPaise = (rupees: string) => rupeesToPaise(rupees)
 const toRupees = (paise: number) => (paise / 100).toString()
 
 export default function UsageCost() {

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import {
@@ -270,7 +271,7 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
       kind,
       pay_by: kind === 'full_payment' ? payBy : '',
       percent: mode === 'percent' ? percent : '',
-      amount_paise: mode === 'amount' ? Math.round(Number(amount) * 100) : undefined,
+      amount_paise: mode === 'amount' ? rupeesToPaise(amount) : undefined,
       reason,
     }),
     onSuccess: () => { setPercent(''); setAmount(''); setReason(''); onChanged() },
@@ -279,8 +280,8 @@ function ApplicantFee({ row, mayAsk, onChanged }: {
   const fee = Number(row.fee_paise)
   const after = mode === 'percent' && Number(percent) > 0
     ? fee - Math.round(fee * Number(percent) / 100)
-    : mode === 'amount' && Number(amount) > 0
-      ? Math.max(0, fee - Math.round(Number(amount) * 100))
+    : mode === 'amount' && parseRupees(amount) > 0
+      ? Math.max(0, fee - rupeesToPaise(amount))
       : null
 
   return (

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Briefcase, ClipboardList, GraduationCap, UserCheck } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -226,8 +227,8 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
         positions: Number(positions) || 1,
         // Rupees on the form, paise on the wire. Money is bigint paise
         // everywhere below this line and never a float.
-        salary_min_paise: minSalary ? Math.round(Number(minSalary) * 100) : undefined,
-        salary_max_paise: maxSalary ? Math.round(Number(maxSalary) * 100) : undefined,
+        salary_min_paise: minSalary ? rupeesToPaise(minSalary) : undefined,
+        salary_max_paise: maxSalary ? rupeesToPaise(maxSalary) : undefined,
         min_qualification: qualification || undefined,
         justification: justification || undefined,
         submit: true,

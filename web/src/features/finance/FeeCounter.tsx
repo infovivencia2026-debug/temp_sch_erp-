@@ -1,4 +1,5 @@
 import { Fragment, useRef, useState } from 'react'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
@@ -107,7 +108,7 @@ export default function FeeCounter() {
   const penalty = useMutation({
     mutationFn: (v: { id: string }) =>
       api.post(`/api/v1/fees/invoices/${v.id}/penalty`, {
-        amount: Number(penaltyAmount),
+        amount: parseRupees(penaltyAmount),
         reason: penaltyReason.trim(),
       }),
     onSuccess: () => {
@@ -127,7 +128,7 @@ export default function FeeCounter() {
       api.post<{ payment_id: string; receipt_no: string }>('/api/v1/fees/payments', {
         student_id: studentId,
         // Rupees in the box, paise on the wire — the API never sees a decimal.
-        amount_paise: Math.round(parseFloat(amount || '0') * 100),
+        amount_paise: rupeesToPaise(amount),
         mode,
         reference_no: reference || undefined,
         bank_name: bank || undefined,
@@ -164,7 +165,7 @@ export default function FeeCounter() {
   }
 
   const isCheque = mode === 'cheque' || mode === 'dd'
-  const amountPaise = Math.round(parseFloat(amount || '0') * 100)
+  const amountPaise = rupeesToPaise(amount)
   /* Why the button is dead, not merely that it is.
 
      Three separate conditions disabled Collect and the clerk was told none of
@@ -359,7 +360,7 @@ export default function FeeCounter() {
                               disabled={
                                 penalty.isPending
                                 || !penaltyReason.trim()
-                                || !(Number(penaltyAmount) > 0)
+                                || !(parseRupees(penaltyAmount) > 0)
                               }
                               onClick={() => penalty.mutate({ id: d.invoice_id })}
                             >

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarHeart, GraduationCap, HandCoins, UserPlus } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -390,7 +391,7 @@ function NewContribution({
       api.post('/api/v1/academics/admin/alumni/contributions', {
         alumni_profile_id: profileID,
         event_id: eventID,
-        amount_paise: Math.round(Number(rupees) * 100),
+        amount_paise: rupeesToPaise(rupees),
         kind,
         purpose,
         receipt_no: receipt,
@@ -454,7 +455,7 @@ function NewContribution({
         </FormGrid>
         <div className="mt-5 flex items-center gap-3">
           <Button
-            disabled={save.isPending || !profileID || !Number(rupees)}
+            disabled={save.isPending || !profileID || !parseRupees(rupees)}
             onClick={() => save.mutate()}
           >
             Record gift

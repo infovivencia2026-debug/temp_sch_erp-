@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import {
@@ -95,7 +96,7 @@ export default function SalarySetup() {
             component_id,
             // Rupees on screen, paise in the database — the whole schema is
             // integer paise so no salary is ever a float.
-            amount_paise: Math.round(Number(val) * 100),
+            amount_paise: rupeesToPaise(val),
           })),
       }),
     onSuccess: () => {
@@ -310,7 +311,7 @@ export default function SalarySetup() {
                 {formatPaise(
                   Object.entries(amounts).reduce((a, [id, v]) => {
                     const c = components.find((x) => x.id === id)
-                    return c?.kind === 'earning' ? a + Math.round(Number(v || 0) * 100) : a
+                    return c?.kind === 'earning' ? a + rupeesToPaise(v || 0) : a
                   }, 0),
                 )}{' '}
                 a month before deductions.

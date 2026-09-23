@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rupeesToPaise } from '@/lib/money'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, IndianRupee, Trash2 } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -143,7 +144,7 @@ export default function HostelRoomChecks() {
             damage_note: l.damage_note || undefined,
             // Rupees on the form, paise on the wire: the schema stores money
             // as bigint paise everywhere and a float never touches it.
-            charge_paise: Math.round(Number(l.charge_rupees || 0) * 100),
+            charge_paise: rupeesToPaise(l.charge_rupees || 0),
           })),
       }),
     onSuccess: () => {
