@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
 import { useCatalogIfAny, featurePath } from '@/lib/catalog'
 import { useLayout, isRemoved } from '@/lib/widgets'
@@ -56,6 +56,35 @@ export function FeatureCells() {
   useEffect(() => {
     for (const k of hidden) removeFromDashboard(k)
   }, [hidden.join(',')])
+
+  /* THE NEW TILE COMES TO YOU.
+
+     On a phone the board is pages of four, and the first page is usually
+     the anchor card alone; a tile declared after everything else lands on
+     the last page. So "Add to home" said "Fees is on your home" and the
+     home, on page one, looked exactly as it had -- which the owner reported
+     as "I can't see it". When a key appears that was not there a moment
+     ago, the pager is scrolled to the page the layer packed it onto, after
+     the frame in which it was packed. A desk shows every page at once and
+     needs nothing. */
+  const seen = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const now = new Set(keys)
+    const before = seen.current
+    seen.current = now
+    if (!before || !layer?.spots) return
+    const fresh = keys.find((k) => !before.has(k))
+    if (!fresh) return
+    const id = FEATURE_PREFIX + fresh
+    const t = window.setTimeout(() => {
+      const page = layer.spots?.get(id)?.page
+      if (page === undefined) return
+      document
+        .querySelector<HTMLElement>(`.bento-board .bento-page[data-page="${page}"]`)
+        ?.scrollIntoView({ behavior: layer.still ? 'auto' : 'smooth', inline: 'start', block: 'nearest' })
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [keys.join(','), layer?.spots])
 
   if (!layer) return null
   return (
