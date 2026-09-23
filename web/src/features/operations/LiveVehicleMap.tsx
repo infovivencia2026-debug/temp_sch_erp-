@@ -518,7 +518,7 @@ function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boole
           {send.isError && <div className="text-[12px] text-destructive">Could not send.</div>}
         </div>
       ) : (
-        <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
           Message driver
         </Button>
       )}

@@ -27,7 +27,7 @@ export function CsvButton({ href, label = 'Export CSV' }: { href: string; label?
   const sep = href.includes('?') ? '&' : '?'
   return (
     <a href={`${href}${sep}format=csv`} download>
-      <Button variant="outline" size="sm">
+      <Button variant="secondary" size="sm">
         <Download className="h-3.5 w-3.5" />
         {label}
       </Button>

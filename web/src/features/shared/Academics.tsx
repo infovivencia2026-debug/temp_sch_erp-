@@ -4,8 +4,7 @@ import { Pencil } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type Section, type Klass, type Subject, type AcademicYear } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState,
-} from '@/components/ui'
+  PageHead, PageBody, Card, Table, Td, Badge, Button, Input, Reload, SkeletonTable, ErrorState, tabClass } from '@/components/ui'
 import { useRouteFeature } from '@/lib/catalog'
 import { ImportButton } from '@/components/DataPortActions'
 import { formatDate, cn } from '@/lib/utils'
@@ -71,7 +70,7 @@ export default function Academics() {
                 onClick={() => setTab(t.id)}
                 className={cn(
                   'rounded-t-md px-3 py-1.5 text-sm',
-                  t.id === tabId ? 'border-b-2 border-primary font-medium text-primary' : 'text-muted-foreground hover:text-foreground',
+                  t.id === tabId ? tabClass(true) : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {t.label}

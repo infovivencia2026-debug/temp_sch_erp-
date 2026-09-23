@@ -6,8 +6,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
-  SkeletonTable, SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+  SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 
 /* The admissions funnel.
@@ -229,7 +228,7 @@ export default function Funnel() {
             and offering five others beside it is what made three menu entries
             indistinguishable. */}
         {!view && (
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
               key={k}
@@ -238,8 +237,8 @@ export default function Funnel() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />

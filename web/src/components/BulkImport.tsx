@@ -1379,7 +1379,7 @@ export function IssueLogins({ entity }: { entity: string }) {
             </p>
           )}
           <div className="max-h-72 overflow-auto rounded-md border">
-            <table className="w-full text-[12.5px]">
+            <table className="w-full text-[13px]">
               <thead className="sticky top-0 bg-muted">
                 <tr>
                   <th className="px-2 py-1.5 text-left font-medium">Name</th>
@@ -1439,7 +1439,7 @@ function SheetTable({ rows, limit, firstRowNumber }: {
 }) {
   const body = limit ? rows.slice(1, limit + 1) : rows.slice(1)
   return (
-    <table className="w-full text-[12.5px]">
+    <table className="w-full text-[13px]">
       <thead className="sticky top-0 bg-muted">
         <tr>
           {/* Fixed and unwrapped. The column was sized by its content, so a

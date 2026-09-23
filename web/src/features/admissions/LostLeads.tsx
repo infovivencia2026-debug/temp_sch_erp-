@@ -197,7 +197,7 @@ export default function LostLeads() {
                 Close as lost
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => optOut.mutate(leadID)}
                 disabled={!leadID || optOut.isPending}
               >

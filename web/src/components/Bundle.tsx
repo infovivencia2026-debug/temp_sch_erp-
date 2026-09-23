@@ -1,6 +1,6 @@
 import { Suspense, type ComponentType, type LazyExoticComponent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Loading } from '@/components/ui'
+import { Loading, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 /* One menu entry, several screens behind it.
@@ -57,10 +57,10 @@ export default function Bundle({ tabs }: { tabs: BundleTab[] }) {
               setParams(next, { replace: true })
             }}
             className={cn(
-              'rounded-t-md px-3 py-2 text-[13.5px] font-medium transition-colors',
+              
               t.key === active.key
-                ? 'border-b-2 border-primary text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+                ? tabClass(true)
+                : tabClass(false),
             )}
           >
             {t.label}

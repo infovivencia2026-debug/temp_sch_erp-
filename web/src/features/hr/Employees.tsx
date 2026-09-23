@@ -8,8 +8,7 @@ import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice,
-} from '@/components/ui'
+  Button, SkeletonTable, ErrorState, FormNotice, tabClass } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import CardViewer from '@/components/CardViewer'
 import IDCards from './IDCards'
@@ -213,10 +212,10 @@ export default function Employees() {
               aria-current={t.key === tab ? 'page' : undefined}
               onClick={() => openTab(t.key)}
               className={cn(
-                'rounded-t-md px-3 py-2 text-[13.5px] font-medium transition-colors',
+                
                 t.key === tab
-                  ? 'border-b-2 border-primary text-foreground'
-                  : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+                  ? tabClass(true)
+                  : tabClass(false),
               )}
             >
               {t.label}

@@ -408,7 +408,7 @@ function StoreCounter({ session, disabled }: { session: TillSession; disabled: b
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {(results.data?.items ?? []).map((st) => (
-                <Button key={st.id} size="sm" variant="outline"
+                <Button key={st.id} size="sm" variant="secondary"
                   onClick={() => { setStudent(st); setSearch('') }}>
                   {st.full_name} · {st.class_name ?? '-'}
                 </Button>

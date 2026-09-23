@@ -6,8 +6,7 @@ import { useRouteFeature } from '@/lib/catalog'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, PrintButton,
-} from '@/components/ui'
+  Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, PrintButton, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
 
@@ -137,7 +136,7 @@ export default function LibraryDesk() {
           <Stat label="Audit" value={open ? 'Open' : 'Closed'} />
         </CellGrid>
 
-        <div className="flex gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
               key={k}
@@ -146,8 +145,8 @@ export default function LibraryDesk() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />

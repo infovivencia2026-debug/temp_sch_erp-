@@ -4,8 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  FormGrid, Field as FormField, Select, Input, Textarea, FormNotice, Button,
-} from '@/components/ui'
+  FormGrid, Field as FormField, Select, Input, Textarea, FormNotice, Button, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 /* Every field a school holds about a child, in one dialog, grouped.
@@ -260,7 +259,7 @@ export default function StudentEditDialog({ student, onClose, onSaved }: {
               className={cn(
                 'rounded-t-md px-3 py-2 text-[13.5px]',
                 tab === g.key
-                  ? 'border-b-2 border-primary font-medium'
+                  ? tabClass(true)
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >

@@ -7,8 +7,7 @@ import { useStudentRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Field, FormGrid, FormNotice, Input, Select,
-  SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+  SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { formatDate } from '@/lib/utils'
 
@@ -226,7 +225,7 @@ export default function FrontDesk() {
           <Stat label="Post at the desk" value={undelivered.length} icon={Mail} />
         </CellGrid>
 
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button
               key={k}
@@ -235,8 +234,8 @@ export default function FrontDesk() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />

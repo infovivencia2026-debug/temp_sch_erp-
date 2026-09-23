@@ -5,8 +5,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
-  Loading, SkeletonTable, ErrorState, EmptyState,
-} from '@/components/ui'
+  Loading, SkeletonTable, ErrorState, EmptyState, tabClass } from '@/components/ui'
 import { useStudentRoster } from '@/lib/rosters'
 
 /* The nurse's day: who came in, and what they were given.
@@ -159,8 +158,8 @@ export default function InfirmaryClinic() {
               aria-current={tab === k}
               className={
                 tab === k
-                  ? '-mb-px border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                  : '-mb-px border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'
+                  ? tabClass(true)
+                  : tabClass(false)
               }
             >
               {label}

@@ -271,7 +271,7 @@ export default function FormBuilder() {
                 <Td>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       setFormID(f.id)
                       setVersionID('')
@@ -656,7 +656,7 @@ function VersionsCard({
         }
         action={
           <>
-            <Button variant="outline" onClick={onTakeDraft} disabled={busy}>
+            <Button variant="secondary" onClick={onTakeDraft} disabled={busy}>
               Take a draft
             </Button>
             {form && (
@@ -688,7 +688,7 @@ function VersionsCard({
             <Td>{v.applications}</Td>
             <Td>{v.published_at ?? '-'}</Td>
             <Td>
-              <Button size="sm" variant="outline" onClick={() => onPick(v.id)}>
+              <Button size="sm" variant="secondary" onClick={() => onPick(v.id)}>
                 {v.status === 'draft' ? 'Edit' : 'View'}
               </Button>
             </Td>

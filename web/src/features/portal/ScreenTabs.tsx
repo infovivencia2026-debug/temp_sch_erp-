@@ -1,5 +1,7 @@
 import { useState, type ComponentType, type LazyExoticComponent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { segClass, SEG_BAR } from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 /* Several catalogue screens behind one menu entry.
  *
@@ -44,7 +46,7 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
         <div
           role="tablist"
           aria-label={label}
-          className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1"
+          className={SEG_BAR}
         >
           {tabs.map((t) => (
             <button
@@ -55,8 +57,8 @@ export default function ScreenTabs({ tabs, label }: { tabs: ScreenTab[]; label: 
               onClick={() => pick(t.key)}
               className={
                 active === t.key
-                  ? 'whitespace-nowrap rounded-sm bg-card px-3 py-1 text-[13px] font-medium text-foreground shadow-sm [@media(pointer:coarse)]:py-2.5'
-                  : 'whitespace-nowrap rounded-sm px-3 py-1 text-[13px] text-muted-foreground hover:text-foreground [@media(pointer:coarse)]:py-2.5'
+                  ? cn(segClass(true), 'whitespace-nowrap')
+                  : cn(segClass(false), 'whitespace-nowrap')
               }
             >
               {t.label}

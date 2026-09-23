@@ -76,7 +76,7 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
 
   return (
     <div className="overflow-x-auto p-4">
-      <table className="w-full text-sm">
+      <table className="w-full text-[13px]">
         <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th className="py-1 pr-4">Day</th>

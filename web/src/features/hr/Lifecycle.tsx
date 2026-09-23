@@ -6,8 +6,7 @@ import { printDocument } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState,
-} from '@/components/ui'
+  Input, Select, Textarea, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import AddStaff from './AddStaff'
 import { invalidateKeys } from '@/lib/invalidate'
@@ -185,12 +184,12 @@ export default function Lifecycle() {
             value={`₹${rupees(open.reduce((s, e) => s + e.dues_paise, 0))}`} icon={ShieldCheck} />
         </CellGrid>
 
-        <div className="flex flex-wrap gap-1 border-b">
+        <div className={TAB_BAR}>
           {TABS.map(([k, label, Icon]) => (
             <button key={k} type="button" onClick={() => setTab(k)} aria-current={tab === k}
               className={tab === k
-                ? '-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2 text-[14px] font-medium'
-                : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground hover:text-foreground'}>
+                ? tabClass(true)
+                : tabClass(false)}>
               <Icon className="h-3.5 w-3.5" aria-hidden />
               {label}
             </button>
