@@ -21,12 +21,15 @@ func TestValidVPA(t *testing.T) {
 	}
 }
 
-/* The example pinned on both sides. web/src/lib/upi.test.ts builds the same
-   intent from the same inputs and expects the same string; change one and the
-   other must change with it, or a code drawn by the SPA and one drawn by the
-   server would differ for the same payment. */
+/*
+The example pinned on both sides. web/src/lib/upi.test.ts builds the same
+
+	intent from the same inputs and expects the same string; change one and the
+	other must change with it, or a code drawn by the SPA and one drawn by the
+	server would differ for the same payment.
+*/
 func TestUPIIntentEncodesAsAURINotAForm(t *testing.T) {
-	got := UPIIntent("kalyan.qb@axl", "Vivencia High School", 1183300, "Fee 2026/0142 INV-7")
+	got := UPIIntent(Payment{VPA: "kalyan.qb@axl", PayeeName: "Vivencia High School", AmountPaise: 1183300, Note: "Fee 2026/0142 INV-7"})
 	want := "upi://pay?pa=kalyan.qb@axl&pn=Vivencia%20High%20School&am=11833.00&cu=INR&tn=Fee%202026%2F0142%20INV-7"
 	if got != want {
 		t.Errorf("UPIIntent\n got: %s\nwant: %s", got, want)
@@ -40,14 +43,14 @@ func TestUPIIntentEncodesAsAURINotAForm(t *testing.T) {
 }
 
 func TestUPIIntentOmitsAnEmptyNote(t *testing.T) {
-	got := UPIIntent("school@sbi", "S", 100, "   ")
+	got := UPIIntent(Payment{VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Note: "   "})
 	if strings.Contains(got, "tn=") {
 		t.Errorf("blank note was sent: %s", got)
 	}
 }
 
 func TestUPIIntentClipsToTheSpecLimits(t *testing.T) {
-	got := UPIIntent("school@sbi", strings.Repeat("x", 120), 100, strings.Repeat("y", 80))
+	got := UPIIntent(Payment{VPA: "school@sbi", PayeeName: strings.Repeat("x", 120), AmountPaise: 100, Note: strings.Repeat("y", 80)})
 	if !strings.Contains(got, "&pn="+strings.Repeat("x", 99)+"&am=") {
 		t.Errorf("payee name was not clipped to 99 characters: %s", got)
 	}
@@ -56,7 +59,7 @@ func TestUPIIntentClipsToTheSpecLimits(t *testing.T) {
 	}
 	// Clipped on characters, not bytes: a three-byte Telugu letter must
 	// survive whole or not at all.
-	got = UPIIntent("school@sbi", "S", 100, strings.Repeat("క", 60))
+	got = UPIIntent(Payment{VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Note: strings.Repeat("క", 60)})
 	tn := got[strings.Index(got, "&tn=")+4:]
 	if tn != strings.Repeat("%E0%B0%95", 50) {
 		t.Errorf("note should be exactly 50 whole characters, got %s", tn)
@@ -82,7 +85,7 @@ func TestUPINote(t *testing.T) {
 }
 
 func TestUPIQRPNG(t *testing.T) {
-	png, err := UPIQRPNG(UPIIntent("school@sbi", "S", 100, "Fee"), 200)
+	png, err := UPIQRPNG(UPIIntent(Payment{VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Note: "Fee"}), 200)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,18 +94,21 @@ func TestUPIQRPNG(t *testing.T) {
 	}
 }
 
-/* The chooser exists because a bare upi:// link never asked.
+/*
+The chooser exists because a bare upi:// link never asked.
 
-   Pins the two things a parent's tap depends on: that every app is sent the
-   SAME payment the QR carries, and that the Android form names a package --
-   the moment it does not, the OS default takes the tap back and WhatsApp
-   opens again, which is the bug this was written for. */
+	Pins the two things a parent's tap depends on: that every app is sent the
+	SAME payment the QR carries, and that the Android form names a package --
+	the moment it does not, the OS default takes the tap back and WhatsApp
+	opens again, which is the bug this was written for.
+*/
 func TestUPIAppLinksCarryOnePaymentAndNameThePackage(t *testing.T) {
-	apps := UPIAppLinks("school@okhdfcbank", "Vivencia School", 125050, "Fee 2031 INV-7")
+	pay := Payment{VPA: "school@okhdfcbank", PayeeName: "Vivencia School", AmountPaise: 125050, Note: "Fee 2031 INV-7"}
+	apps := UPIAppLinks(pay)
 	if len(apps) < 2 {
 		t.Fatalf("no apps offered: %v", apps)
 	}
-	want := UPIIntent("school@okhdfcbank", "Vivencia School", 125050, "Fee 2031 INV-7")
+	want := UPIIntent(pay)
 	query := strings.TrimPrefix(want, "upi://pay?")
 
 	var generic int
@@ -125,5 +131,38 @@ func TestUPIAppLinksCarryOnePaymentAndNameThePackage(t *testing.T) {
 	}
 	if generic != 1 {
 		t.Errorf("want exactly one generic entry for an app not listed, got %d", generic)
+	}
+}
+
+/*
+A merchant account's QR needs mc; a personal one must not carry it.
+
+	This is the bug the column exists for: a school whose bank gave it a
+	merchant collection account got a code with no merchant category, and UPI
+	apps refused it as an invalid QR while every other field was correct.
+*/
+func TestUPIIntentMerchantFields(t *testing.T) {
+	personal := UPIIntent(Payment{VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Note: "Fee"})
+	if strings.Contains(personal, "mc=") || strings.Contains(personal, "tr=") {
+		t.Errorf("a personal address must carry neither mc nor tr: %s", personal)
+	}
+
+	merchant := UPIIntent(Payment{
+		VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Note: "Fee",
+		MerchantCode: "8211", Ref: "INV-12/3 A_4",
+	})
+	if !strings.Contains(merchant, "&mc=8211") {
+		t.Errorf("merchant category missing: %s", merchant)
+	}
+	// Slash, space and underscore become hyphens: tr is matched against bank
+	// records and a re-encoded slash is what stops it matching.
+	if !strings.Contains(merchant, "&tr=INV-12-3-A-4") {
+		t.Errorf("reference not reduced to tr's alphabet: %s", merchant)
+	}
+	// A reference without a category would be a merchant field on a personal
+	// QR, which is the same mistake in the other direction.
+	noCode := UPIIntent(Payment{VPA: "school@sbi", PayeeName: "S", AmountPaise: 100, Ref: "INV-1"})
+	if strings.Contains(noCode, "tr=") {
+		t.Errorf("tr sent without mc: %s", noCode)
 	}
 }

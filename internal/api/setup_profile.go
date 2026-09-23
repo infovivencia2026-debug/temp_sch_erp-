@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -777,9 +778,16 @@ func (s *Server) listClassSubjects(w http.ResponseWriter, r *http.Request) {
    own pair of endpoints now; the profile PUT no longer touches these
    columns at all. */
 
+// merchantCodeRe is the ISO 18245 category: exactly four digits.
+var merchantCodeRe = regexp.MustCompile(`^[0-9]{4}$`)
+
 type paymentSettings struct {
 	UPIVPA       string `json:"upi_vpa"`
 	UPIPayeeName string `json:"upi_payee_name"`
+	/* The bank's merchant category, for a school on a MERCHANT collection
+	   account. Blank for an ordinary personal address, which is most schools
+	   and needs none -- see migration 00336 and fees.UPIIntent. */
+	UPIMerchantCode string `json:"upi_merchant_code"`
 	// SchoolName is what the payee name falls back to; shown as the
 	// placeholder so the form says what "blank" means.
 	SchoolName string `json:"school_name,omitempty"`
@@ -793,9 +801,10 @@ func (s *Server) getPaymentSettings(w http.ResponseWriter, r *http.Request) {
 	var out paymentSettings
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
-			SELECT COALESCE(upi_vpa,''), COALESCE(upi_payee_name,''), name
+			SELECT COALESCE(upi_vpa,''), COALESCE(upi_payee_name,''),
+			       COALESCE(upi_merchant_code,''), name
 			  FROM institutions WHERE id = $1`, id.InstitutionID).
-			Scan(&out.UPIVPA, &out.UPIPayeeName, &out.SchoolName)
+			Scan(&out.UPIVPA, &out.UPIPayeeName, &out.UPIMerchantCode, &out.SchoolName)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -824,15 +833,32 @@ func (s *Server) updatePaymentSettings(w http.ResponseWriter, r *http.Request) {
 	if req.UPIVPA == "" {
 		req.UPIPayeeName = ""
 	}
+	/* Four digits or nothing. The column's CHECK says the same, but a typed
+	   "8211 (schools)" should come back as a correctable sentence rather than
+	   a constraint violation read as a 500. */
+	req.UPIMerchantCode = strings.TrimSpace(req.UPIMerchantCode)
+	if req.UPIVPA == "" {
+		req.UPIMerchantCode = ""
+	}
+	if req.UPIMerchantCode != "" && !merchantCodeRe.MatchString(req.UPIMerchantCode) {
+		httpx.BadRequest(w, r, "the merchant category code is the four digits the bank gave you, such as 8211")
+		return
+	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		_, err := tx.Exec(r.Context(), `
-			UPDATE institutions SET upi_vpa = $2, upi_payee_name = $3, updated_at = now()
-			 WHERE id = $1`, id.InstitutionID, nullString(req.UPIVPA), nullString(req.UPIPayeeName))
+			UPDATE institutions
+			   SET upi_vpa = $2, upi_payee_name = $3, upi_merchant_code = $4,
+			       updated_at = now()
+			 WHERE id = $1`, id.InstitutionID, nullString(req.UPIVPA),
+			nullString(req.UPIPayeeName), nullString(req.UPIMerchantCode))
 		return err
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"upi_vpa": req.UPIVPA, "upi_payee_name": req.UPIPayeeName})
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"upi_vpa": req.UPIVPA, "upi_payee_name": req.UPIPayeeName,
+		"upi_merchant_code": req.UPIMerchantCode,
+	})
 }

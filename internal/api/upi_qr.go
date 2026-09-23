@@ -64,11 +64,13 @@ func (s *Server) getUPICode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var vpa, payee string
+	var vpa, payee, merchantCode string
 	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		return tx.QueryRow(r.Context(), `
-			SELECT COALESCE(upi_vpa,''), COALESCE(NULLIF(upi_payee_name,''), name)
-			  FROM institutions WHERE id = $1`, id.InstitutionID).Scan(&vpa, &payee)
+			SELECT COALESCE(upi_vpa,''), COALESCE(NULLIF(upi_payee_name,''), name),
+			       COALESCE(upi_merchant_code,'')
+			  FROM institutions WHERE id = $1`, id.InstitutionID).
+			Scan(&vpa, &payee, &merchantCode)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -80,7 +82,19 @@ func (s *Server) getUPICode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note := fees.UPINote(q.Get("note"))
-	intent := fees.UPIIntent(vpa, payee, amount, note)
+	/* The reference the office matches a transfer against, carried only on a
+	   merchant code (see fees.UPIIntent). The caller passes the invoice
+	   number; absent one, the note stands in, which is still better for
+	   reconciliation than an empty tr. */
+	ref := strings.TrimSpace(q.Get("ref"))
+	if ref == "" {
+		ref = note
+	}
+	pay := fees.Payment{
+		VPA: vpa, PayeeName: payee, AmountPaise: amount, Note: note,
+		MerchantCode: merchantCode, Ref: ref,
+	}
+	intent := fees.UPIIntent(pay)
 	png, err := fees.UPIQRPNG(intent, size)
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -95,7 +109,7 @@ func (s *Server) getUPICode(w http.ResponseWriter, r *http.Request) {
 		AmountPaise: amount,
 		Note:        note,
 		Intent:      intent,
-		Apps:        fees.UPIAppLinks(vpa, payee, amount, note),
+		Apps:        fees.UPIAppLinks(pay),
 		Image:       "data:image/png;base64," + base64.StdEncoding.EncodeToString(png),
 	})
 }

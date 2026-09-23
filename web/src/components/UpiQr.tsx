@@ -61,6 +61,7 @@ export default function UpiQr({
   payeeName,
   amountPaise,
   note,
+  reference,
   size = 220,
   caption,
 }: {
@@ -70,14 +71,19 @@ export default function UpiQr({
   payeeName: string
   amountPaise: number
   note?: string
+  /** The invoice this pays, sent as the UPI transaction reference on a
+      merchant account so the office can match the transfer to the bill.
+      Ignored for a personal address, which carries no reference. */
+  reference?: string
   size?: number
   /** What to say under the code. Absent, nothing is said. */
   caption?: string
 }) {
   const q = new URLSearchParams({ amount_paise: String(Math.round(amountPaise)), size: String(size * 2) })
   if (note) q.set('note', note)
+  if (reference) q.set('ref', reference)
   const code = useQuery({
-    queryKey: ['upi-code', amountPaise, note ?? '', size],
+    queryKey: ['upi-code', amountPaise, note ?? '', reference ?? '', size],
     queryFn: () => api.get<UpiCode>(`/api/v1/fees/upi-code?${q.toString()}`),
     enabled: amountPaise > 0,
     staleTime: 60 * 60 * 1000,

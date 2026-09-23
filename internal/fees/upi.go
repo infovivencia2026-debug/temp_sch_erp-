@@ -42,24 +42,86 @@ const (
 	upiNoteMax      = 50
 )
 
-// UPIIntent builds the upi://pay URI for a fixed-amount payment to vpa. The
-// note is what the payer's app shows and what tends to reach the bank
-// narration, so callers put the admission number in it. An empty note is
-// omitted rather than sent blank.
-func UPIIntent(vpa, payeeName string, amountPaise int64, note string) string {
+/*
+Payment describes one fee payment, in the terms a UPI app reads.
+
+	MerchantCode and Ref are the pair that a MERCHANT account needs and a
+	personal one must not carry -- see UPIIntent.
+*/
+type Payment struct {
+	VPA         string
+	PayeeName   string
+	AmountPaise int64
+	Note        string
+	/* The ISO 18245 merchant category from the school's bank; empty for an
+	   ordinary personal address. Schools are usually 8211. */
+	MerchantCode string
+	/* A reference for this payment, unique enough for the office to match a
+	   transfer to a bill. Sent only alongside a merchant category, because
+	   that is the QR shape it belongs to. */
+	Ref string
+}
+
+/*
+UPIIntent builds the upi://pay URI a UPI app decodes.
+
+	pa/pn/am/cu/tn is a complete intent for a PERSONAL address and is what this
+	sent for everyone. A school whose bank gave it a MERCHANT collection
+	account has a different contract: the payee resolves as a merchant, the app
+	validates the code as a merchant QR, and one with no merchant category is
+	refused -- "invalid QR" at the counter, over a code that is well-formed by
+	every other measure. mc carries the category and tr the reference that
+	shape also expects.
+
+	Both are omitted entirely when MerchantCode is empty, so a personal address
+	keeps exactly the intent that works today. Adding mc to a personal VPA
+	would be the same mistake in the other direction.
+*/
+func UPIIntent(p Payment) string {
 	var b strings.Builder
 	b.WriteString("upi://pay?pa=")
-	b.WriteString(vpa)
+	b.WriteString(p.VPA)
 	b.WriteString("&pn=")
-	b.WriteString(percentEncode(clipRunes(strings.TrimSpace(payeeName), upiPayeeNameMax)))
+	b.WriteString(percentEncode(clipRunes(strings.TrimSpace(p.PayeeName), upiPayeeNameMax)))
+	if mc := strings.TrimSpace(p.MerchantCode); mc != "" {
+		b.WriteString("&mc=")
+		b.WriteString(percentEncode(mc))
+		if ref := upiRef(p.Ref); ref != "" {
+			b.WriteString("&tr=")
+			b.WriteString(ref)
+		}
+	}
 	b.WriteString("&am=")
-	b.WriteString(Rupees(amountPaise))
+	b.WriteString(Rupees(p.AmountPaise))
 	b.WriteString("&cu=INR")
-	if n := clipRunes(strings.TrimSpace(note), upiNoteMax); n != "" {
+	if n := clipRunes(strings.TrimSpace(p.Note), upiNoteMax); n != "" {
 		b.WriteString("&tn=")
 		b.WriteString(percentEncode(n))
 	}
 	return b.String()
+}
+
+// upiRefMax is the transaction reference limit in the linking specification.
+const upiRefMax = 35
+
+/*
+upiRef reduces a reference to what tr accepts: letters, digits and hyphen.
+
+	An invoice number written "INV-12/3" would otherwise put a slash in a field
+	that is matched against bank records, and the slash is the character most
+	likely to come back re-encoded and stop matching.
+*/
+func upiRef(s string) string {
+	var b strings.Builder
+	for _, r := range strings.TrimSpace(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-':
+			b.WriteRune(r)
+		case r == ' ' || r == '/' || r == '_':
+			b.WriteRune('-')
+		}
+	}
+	return clipRunes(b.String(), upiRefMax)
 }
 
 /* WHICH UPI APP, CHOSEN BY THE PARENT RATHER THAN BY ANDROID.
@@ -125,8 +187,8 @@ var upiApps = []struct {
 // and a generic last entry for everything else. Same payment in every one:
 // the query is built once by UPIIntent and reused, so an app cannot be sent a
 // different amount from the one in the QR.
-func UPIAppLinks(vpa, payeeName string, amountPaise int64, note string) []UPIApp {
-	intent := UPIIntent(vpa, payeeName, amountPaise, note)
+func UPIAppLinks(p Payment) []UPIApp {
+	intent := UPIIntent(p)
 	// Everything after "upi://pay?" -- the query the other forms reuse.
 	query := strings.TrimPrefix(intent, "upi://pay?")
 

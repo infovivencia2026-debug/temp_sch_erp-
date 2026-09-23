@@ -225,6 +225,7 @@ export default function PortalFees() {
                   payeeName={upiPayee}
                   amountPaise={upiAmount}
                   note={upiNote('Fee', d.admission_no, upiTarget?.invoice_no)}
+                  reference={upiTarget?.invoice_no}
                   caption={t('portal.fees.upi_caption')}
                 />
                 {upiTarget && (

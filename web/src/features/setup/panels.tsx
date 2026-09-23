@@ -470,6 +470,9 @@ function ProfilePanel({ onDone }: PanelProps) {
 interface PaymentSettings {
   upi_vpa?: string
   upi_payee_name?: string
+  /** The bank's merchant category, for a school on a merchant collection
+      account. Blank for an ordinary personal UPI address. */
+  upi_merchant_code?: string
   school_name?: string
 }
 
@@ -483,7 +486,11 @@ function PaymentsPanel({ onDone }: PanelProps) {
   const set = (k: keyof PaymentSettings, val: string) => setF({ ...(f ?? cur ?? {}), [k]: val })
   const save = useSave(
     (body: Partial<PaymentSettings>) =>
-      api.put('/api/v1/setup/payments', { upi_vpa: body.upi_vpa ?? '', upi_payee_name: body.upi_payee_name ?? '' }),
+      api.put('/api/v1/setup/payments', {
+        upi_vpa: body.upi_vpa ?? '',
+        upi_payee_name: body.upi_payee_name ?? '',
+        upi_merchant_code: body.upi_merchant_code ?? '',
+      }),
     onDone,
   )
   return (
@@ -503,6 +510,22 @@ function PaymentsPanel({ onDone }: PanelProps) {
         </Field>
         <Field label="Payee name shown in the UPI app" hint="Blank uses the school's name.">
           <Input value={v.upi_payee_name ?? ''} onChange={(x) => set('upi_payee_name', x)} placeholder={cur?.school_name ?? ''} />
+        </Field>
+        {/* Only a merchant account needs this, and only a merchant account
+            is refused without it: UPI apps validate a merchant QR and reject
+            one carrying no category, which reads at the counter as "invalid
+            QR" over a code that is otherwise correct. A personal address
+            must leave it blank -- the same field filled in wrongly breaks a
+            code that works. */}
+        <Field
+          label="Merchant category code"
+          hint="Only if the bank gave the school a merchant UPI account — it is the four digits on that paperwork, usually 8211 for schools. Leave blank for an ordinary UPI ID."
+        >
+          <Input
+            value={v.upi_merchant_code ?? ''}
+            onChange={(x) => set('upi_merchant_code', x)}
+            placeholder="8211"
+          />
         </Field>
       </FormGrid>
       <p className="mt-3 text-[12.5px] text-muted-foreground">

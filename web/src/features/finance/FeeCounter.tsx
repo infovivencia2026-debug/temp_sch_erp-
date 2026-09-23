@@ -425,11 +425,15 @@ export default function FeeCounter() {
                       ) : (
                         <div className="rounded-xl border bg-muted/30 p-4">
                           <p className="mb-3 text-center text-[13px] font-medium">Show the parent this code</p>
+          {/* No invoice at the counter -- the clerk is taking money against
+              the ledger -- so the admission number is the reference the
+              office matches the transfer on. */}
                           <UpiQr
                             vpa={upiVpa}
                             payeeName={upiPayee}
                             amountPaise={amountPaise}
                             note={upiNote('Fee', l.admission_no)}
+                            reference={l.admission_no}
                             size={200}
                           />
                         </div>
