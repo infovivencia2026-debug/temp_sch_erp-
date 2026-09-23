@@ -1,4 +1,4 @@
-# Data safety form — answers for EDU CLOUD (`com.schoolerp.parent`)
+# Data safety form — answers for WISEN (`com.schoolerp.parent`)
 
 Play Console → Policy → App content → **Data safety**. Answer exactly as below;
 every answer is derived from what the app and its backend actually do (see the

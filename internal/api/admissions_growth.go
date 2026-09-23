@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -1766,6 +1767,37 @@ func (s *Server) insertPublicApplication(ctx context.Context, tx pgx.Tx, inst, v
 	s.issueEnquiryLogin(ctx, tx, inst, *enquiryID,
 		strings.TrimSpace(core["first_name"]+" "+core["last_name"]),
 		core["parent_name"], core["parent_phone"], core["parent_email"])
+
+	/* AND SAY WE HAVE IT.
+
+	   An application typed at the counter has been acknowledged since it was
+	   built (mod_admissions.go). One filled in on the website -- twenty fields,
+	   by a parent at home, with nobody across a desk to say "that's gone
+	   through" -- was acknowledged by a line of text on the page they were
+	   about to close. Close the tab and there was nothing: no number to quote,
+	   nothing to search an inbox for, and no answer that evening when somebody
+	   at home asks whether the form went.
+
+	   The message and its template already existed; only this path never sent
+	   one. On WhatsApp and SMS as well as email, because a family that found
+	   the school online is on a phone, and the login message beside it already
+	   goes all three ways.
+
+	   Never fails the application. A form that was filled in was filled in,
+	   and notifyApplicantOn runs in its own savepoint; a family with neither
+	   address is the ordinary case, not a fault. */
+	if facts, ferr := loadApplicantFacts(ctx, tx, appID); ferr == nil {
+		if err := s.notifyApplicantOn(ctx, tx, inst, appID,
+			"admissions.application_received", facts, nil, "stage:submitted",
+			[]string{"whatsapp", "sms", "email"}); err != nil &&
+			!errors.Is(err, errNoApplicantEmail) {
+			slog.Warn("web application acknowledgement not queued",
+				"application", appID, "err", err)
+		}
+	} else {
+		slog.Warn("web application acknowledgement skipped",
+			"application", appID, "err", ferr)
+	}
 
 	for _, a := range answers {
 		fieldID, err := uuid.Parse(a.Field.ID)

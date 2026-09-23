@@ -23,7 +23,7 @@ command -v java >/dev/null || { echo "java not found: install JDK 17" >&2; exit 
 # operator sees it; bump it in app/build.gradle.kts before a re-upload.
 VC=$(grep -oE 'versionCode *= *[0-9]+' "$APP/app/build.gradle.kts" | grep -oE '[0-9]+$')
 VN=$(grep -oE 'versionName *= *"[^"]+"' "$APP/app/build.gradle.kts" | cut -d'"' -f2)
-echo "=== EDU CLOUD parent app  versionName=$VN versionCode=$VC  portal=$PORTAL_URL ==="
+echo "=== WISEN parent app  versionName=$VN versionCode=$VC  portal=$PORTAL_URL ==="
 
 cd "$APP"
 ./gradlew --no-daemon clean bundleRelease -PportalUrl="$PORTAL_URL"

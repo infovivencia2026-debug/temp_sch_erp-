@@ -1,6 +1,6 @@
-# EDU CLOUD — Google Play submission kit
+# WISEN — Google Play submission kit
 
-**App:** EDU CLOUD (parent / school app) · **Package:** `com.schoolerp.parent` · **Project:** `mobile/apps/parent/`
+**App:** WISEN (parent / school app) · **Package:** `com.schoolerp.parent` · **Project:** `mobile/apps/parent/`
 **Portal it loads:** https://school-erp-cqj.pages.dev · **API:** Cloud Run, asia-south1
 
 This folder holds everything needed to publish the Android app on Google Play:
@@ -137,5 +137,5 @@ So **this whole folder is ~30 KB of text and graphics, and the AAB will be about
 
 ## 5. Notes an assessor may raise
 - The app is a WebView shell of the school portal. Play permits this when the app **adds value beyond the website** (push notifications, offline pages, biometric lock, home-screen presence, deep links) — all present. Say so in the full description; it is already worded that way.
-- The store icon and feature graphic reuse the app's existing launcher mark (a bus). If you have proper EDU CLOUD brand art, replace `assets/icon-512.png` (keep 512×512, no transparency) and the feature graphic.
+- The store icon and feature graphic reuse the app's existing launcher mark (a bus). If you have proper WISEN brand art, replace `assets/icon-512.png` (keep 512×512, no transparency) and the feature graphic.
 - Children's data: the *users* are adults; the app is **not** child-directed. Do not opt into the "Designed for Families" programme — it would impose requirements (ad SDK certification, etc.) that do not apply.

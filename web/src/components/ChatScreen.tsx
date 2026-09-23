@@ -54,7 +54,17 @@ export function ChatScreen({
       aria-modal="true"
       // The bottom inset belongs to the composer, which is the thing actually
       // sitting on the edge; applying it here too left a white band under it.
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      //
+      // `bottom` is the keyboard, not zero. This surface is `inset-0`, and on
+      // iOS -- Safari and the parent app's WKWebView alike -- the layout
+      // viewport does not shrink for the keyboard, so inset-0 kept the
+      // composer a keyboard's height below the bottom of the screen: the
+      // parent could see the conversation and not the box they were typing
+      // into. Lifting the whole surface rather than padding it means the
+      // message list shortens too, so the last message stays the thing above
+      // the composer instead of being covered by it. --kb is 0px wherever the
+      // engine already resized for the keyboard (lib/keyboard.ts).
+      style={{ paddingTop: 'env(safe-area-inset-top)', bottom: 'var(--kb, 0px)' }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b bg-background px-1.5 py-1.5 sm:px-3">
         <button

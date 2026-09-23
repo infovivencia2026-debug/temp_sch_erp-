@@ -18,12 +18,12 @@ keytool -genkeypair -v \
   -keystore ~/.local/erp-release/educloud-upload.jks \
   -alias educloud-upload \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -dname "CN=EDU CLOUD, O=[OPERATOR LEGAL NAME], L=[CITY], ST=[STATE], C=IN"
+  -dname "CN=WISEN, O=[OPERATOR LEGAL NAME], L=[CITY], ST=[STATE], C=IN"
 ```
 Windows PowerShell:
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.local\erp-release" | Out-Null
-keytool -genkeypair -v -keystore "$env:USERPROFILE\.local\erp-release\educloud-upload.jks" -alias educloud-upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=EDU CLOUD, O=[OPERATOR LEGAL NAME], L=[CITY], ST=[STATE], C=IN"
+keytool -genkeypair -v -keystore "$env:USERPROFILE\.local\erp-release\educloud-upload.jks" -alias educloud-upload -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=WISEN, O=[OPERATOR LEGAL NAME], L=[CITY], ST=[STATE], C=IN"
 ```
 Choose a long store password; use the same for the key password (Android's PKCS12 default requires it).
 

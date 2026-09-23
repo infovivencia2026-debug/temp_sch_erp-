@@ -8,6 +8,7 @@ import '@/lib/personality'
 import { startOutbox } from './lib/outbox'
 import { reportScrollToShell } from './lib/shell-scroll'
 import { startHaptics } from './lib/haptics'
+import { trackKeyboardInset } from './lib/keyboard'
 import { clearPersistedQueriesOnSignOut } from './lib/query-persist'
 
 /* iOS Safari pinch-zoom. touch-action on the root covers Android and newer
@@ -35,6 +36,12 @@ reportScrollToShell()
 /* A short tap back when a control is pressed. One document-level listener
    rather than a prop on several hundred buttons. */
 startHaptics()
+
+/* Publishes --kb, how much of the viewport the on-screen keyboard is covering,
+   so the screens that sit on the bottom edge can get out from under it. Here
+   rather than in a component because the listener is one per document and the
+   value is read from CSS, not from React. */
+trackKeyboardInset()
 
 /* The parent's stored answers go the instant a sign-out link is pressed --
    before the navigation, which is the last moment any of this code runs. See

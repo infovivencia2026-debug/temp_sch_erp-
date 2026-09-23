@@ -1,4 +1,4 @@
-EDU CLOUD is the official app for schools that run on the EDU CLOUD platform. If your child's school has given you a login, this app puts everything the school shares with you in one place — and tells you the moment something needs your attention.
+WISEN is the official app for schools that run on the WISEN platform. If your child's school has given you a login, this app puts everything the school shares with you in one place — and tells you the moment something needs your attention.
 
 WHAT YOU GET AS A PARENT
 • Attendance — see today's mark and the month at a glance, and hear about an absence the same morning.
@@ -22,4 +22,4 @@ PRIVACY
 The app has no ads and no third-party analytics. It does not ask for your location, contacts or messages. Your school controls the records; you see only the children linked to your account. Everything travels encrypted. Read the full policy at https://school-erp-cqj.pages.dev/privacy and how to delete your account at https://school-erp-cqj.pages.dev/delete-account.
 
 WHO CAN USE IT
-You need a login from a school that uses EDU CLOUD — the school creates it for you. If you do not have one, ask your school office. Support: [SUPPORT_EMAIL]
+You need a login from a school that uses WISEN — the school creates it for you. If you do not have one, ask your school office. Support: [SUPPORT_EMAIL]

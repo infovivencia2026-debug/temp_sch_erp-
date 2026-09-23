@@ -72,8 +72,26 @@ type applicantFacts struct {
 }
 
 // errNoApplicantEmail is the ordinary case, not a fault: a form taken across
-// the counter with a phone number and no email address.
+// the counter with a phone number and no email address. Since the
+// acknowledgement also goes by phone it means "no address on any channel
+// asked for", which is what every caller already reports it as.
 var errNoApplicantEmail = errors.New("no email address on this application")
+
+/*
+occurrenceFor keeps the dedupe key unchanged for a single-channel send.
+
+	The key is what stops a stage set twice from sending twice. Single-channel
+	callers have been writing rows under the bare key since this was built, and
+	appending a channel to it would make every one of those look new -- so an
+	offer already emailed would go out again the first time this ships. Only a
+	multi-channel send needs the suffix, and none of those have any history.
+*/
+func occurrenceFor(occurrence, channel string, channels int) string {
+	if occurrence == "" || channels < 2 {
+		return occurrence
+	}
+	return occurrence + ":" + channel
+}
 
 // loadApplicantFacts reads the one row every message here is built from.
 //
@@ -127,8 +145,36 @@ notifyApplicant sends one templated email to an applicant's parent.
 */
 func (s *Server) notifyApplicant(ctx context.Context, tx pgx.Tx, inst, appID uuid.UUID,
 	code string, f applicantFacts, extra map[string]any, occurrence string) error {
+	return s.notifyApplicantOn(ctx, tx, inst, appID, code, f, extra, occurrence, []string{"email"})
+}
 
-	if strings.TrimSpace(f.Email) == "" {
+/*
+notifyApplicantOn is notifyApplicant over a named set of channels.
+
+	Every stage message here went by email alone, and for most of them that is
+	still the right choice -- an offer is a document a family keeps. The
+	acknowledgement is not: it is read once, on a phone, by a parent who wants
+	to know the form arrived. Half the families this product serves gave a
+	mobile number and no email address at all, and for every one of them
+	"notify the applicant" resolved to errNoApplicantEmail and silence.
+
+	So the channels are the caller's to choose. A channel with no address is
+	skipped rather than refused, and the old error is returned only when NOTHING
+	could be sent -- which is what the callers already read it to mean.
+*/
+func (s *Server) notifyApplicantOn(ctx context.Context, tx pgx.Tx, inst, appID uuid.UUID,
+	code string, f applicantFacts, extra map[string]any, occurrence string,
+	channels []string) error {
+
+	email := strings.TrimSpace(f.Email)
+	phone := strings.TrimSpace(f.Phone)
+	var usable []string
+	for _, c := range channels {
+		if (c == "email" && email != "") || (c != "email" && phone != "") {
+			usable = append(usable, c)
+		}
+	}
+	if len(usable) == 0 {
 		return errNoApplicantEmail
 	}
 	/* Its own savepoint, so a failed send cannot take the caller's work with
@@ -144,21 +190,40 @@ func (s *Server) notifyApplicant(ctx context.Context, tx pgx.Tx, inst, appID uui
 		vars[k] = v
 	}
 	id := appID
-	_, err := s.QueueMessage(ctx, tx, inst, SendRequest{
-		Channel:      "email",
-		TemplateCode: code,
-		Vars:         vars,
-		Recipient:    strings.TrimSpace(f.Email),
-		// Empty occurrence means "send it even if it looks like one I sent
-		// before", which is right for a person typing a message and wrong for
-		// a stage that can be set twice.
-		SourceKind:    "application",
-		SourceID:      &id,
-		OccurrenceKey: occurrence,
-	})
-	if err != nil {
+	/* One send per channel, and one failure is not all of them.
+
+	   A school with no SMTP server configured must still reach the family on
+	   WhatsApp; the reverse holds just as often. So the error is kept only if
+	   EVERY channel failed -- anything else would roll back sends that
+	   worked. */
+	var lastErr error
+	sent := 0
+	for _, channel := range usable {
+		to := phone
+		if channel == "email" {
+			to = email
+		}
+		if _, err := s.QueueMessage(ctx, tx, inst, SendRequest{
+			Channel:      channel,
+			TemplateCode: code,
+			Vars:         vars,
+			Recipient:    to,
+			// Empty occurrence means "send it even if it looks like one I sent
+			// before", which is right for a person typing a message and wrong for
+			// a stage that can be set twice. Per channel, so one family is not
+			// sent the same stage twice down the same wire.
+			SourceKind:    "application",
+			SourceID:      &id,
+			OccurrenceKey: occurrenceFor(occurrence, channel, len(usable)),
+		}); err != nil {
+			lastErr = err
+			continue
+		}
+		sent++
+	}
+	if sent == 0 {
 		_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT notify_applicant")
-		return err
+		return lastErr
 	}
 	_, _ = tx.Exec(ctx, "RELEASE SAVEPOINT notify_applicant")
 	return nil

@@ -1,4 +1,4 @@
-# Target audience and content — answers for EDU CLOUD
+# Target audience and content — answers for WISEN
 
 Play Console → Policy → App content → **Target audience and content**.
 

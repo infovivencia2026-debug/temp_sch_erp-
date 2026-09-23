@@ -26,7 +26,7 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) { throw "java not fou
 $gradle = Get-Content (Join-Path $App "app\build.gradle.kts") -Raw
 $vc = [regex]::Match($gradle, 'versionCode\s*=\s*(\d+)').Groups[1].Value
 $vn = [regex]::Match($gradle, 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
-Write-Host "=== EDU CLOUD parent app  versionName=$vn versionCode=$vc  portal=$Portal ==="
+Write-Host "=== WISEN parent app  versionName=$vn versionCode=$vc  portal=$Portal ==="
 
 Push-Location $App
 try {
