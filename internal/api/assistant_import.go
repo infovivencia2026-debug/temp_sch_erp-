@@ -36,14 +36,16 @@ import (
    Every write runs under InTenant(tenantScope(id)), so RLS confines it to the
    caller's own school exactly as the setup screen's import does. */
 
-/* assistantImportableEntities is the assistant's red line, in one place.
+/*
+assistantImportableEntities is the assistant's red line, in one place.
 
-   Presence here = the bot may import it, and the value is the human label shown
-   on the confirm card. The excluded entities are as important as the included
-   ones: staff_payroll and payslips (pay), and staff / staff_history (which
-   create staff records and their logins) are NOT here and can never be imported
-   through the assistant, no matter how a request is phrased. Everything a school
-   office legitimately loads in bulk is. */
+	Presence here = the bot may import it, and the value is the human label shown
+	on the confirm card. The excluded entities are as important as the included
+	ones: staff_payroll and payslips (pay), and staff / staff_history (which
+	create staff records and their logins) are NOT here and can never be imported
+	through the assistant, no matter how a request is phrased. Everything a school
+	office legitimately loads in bulk is.
+*/
 var assistantImportableEntities = map[string]string{
 	"classes":          "Classes and sections",
 	"sections":         "Sections",
@@ -217,15 +219,17 @@ func (s *Server) assistantRunImport(r *http.Request, id *httpx.Identity, entity 
 	return s.runBulkImportCSV(r, id, entity, importSpecs[entity], raw, commit)
 }
 
-/* assistantRunStudents drives the standalone students importer.
+/*
+assistantRunStudents drives the standalone students importer.
 
-   importStudents is a whole HTTP handler with its own parsing and its own undo
-   record, and factoring it apart the way the shared importer was is a larger
-   change than this feature needs. Instead the raw CSV is handed to it through an
-   internal request that carries the caller's own context -- so IdentityFrom and
-   the tenant scope inside it are the caller's -- and its JSON reply is read back
-   into the same importResult shape. Nothing about the write changes: it is the
-   exact code the /students/import route runs. */
+	importStudents is a whole HTTP handler with its own parsing and its own undo
+	record, and factoring it apart the way the shared importer was is a larger
+	change than this feature needs. Instead the raw CSV is handed to it through an
+	internal request that carries the caller's own context -- so IdentityFrom and
+	the tenant scope inside it are the caller's -- and its JSON reply is read back
+	into the same importResult shape. Nothing about the write changes: it is the
+	exact code the /students/import route runs.
+*/
 func (s *Server) assistantRunStudents(r *http.Request, raw []byte, filename string, commit bool) (importResult, string, error) {
 	req := r.Clone(r.Context())
 	req.Method = http.MethodPost

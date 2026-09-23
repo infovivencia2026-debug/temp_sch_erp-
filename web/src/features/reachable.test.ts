@@ -88,7 +88,6 @@ const KNOWN = new Set([
   'features/operations/MDMRegister',
   'features/operations/MDMUtilisation',
   'features/operations/Workspace',
-  'features/portal/Forum',
   'features/principal/Dashboard',
   'features/setup/PeriodUpload',
   'features/students/Alumni',

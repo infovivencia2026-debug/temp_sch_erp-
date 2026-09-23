@@ -843,82 +843,10 @@ export const te: Partial<Messages> = {
   // The parents' class board, translated alongside the rest of the portal: a
   // forum left in English while its neighbours are Telugu is the worst of
   // both, because it is exactly the screen parents talk to each other on.
-  'portal.forum.loading': 'మీ తరగతి బోర్డు తెరుస్తున్నాం…',
-  'portal.forum.loading_thread': 'థ్రెడ్ తెరుస్తున్నాం…',
-  'portal.forum.eyebrow': 'సందేశాలు',
-  'portal.forum.title': 'తరగతి తల్లిదండ్రుల ఫోరం',
-  'portal.forum.description':
-    'ఒక తరగతి తల్లిదండ్రుల మధ్య సమన్వయం కోసం, విహారయాత్ర, కార్యక్రమం, ఎవరు తీసుకెళ్తారు.',
-  'portal.forum.stat_threads': 'థ్రెడ్‌లు',
-  'portal.forum.stat_mine': 'మీరు మొదలుపెట్టినవి',
-  'portal.forum.stat_class': 'తరగతి',
-  'portal.forum.stat_class_all': 'మీ తరగతులన్నీ',
-  'portal.forum.picker_title': 'ఏ తరగతి',
-  'portal.forum.picker_description':
-    'ఒక్కో పిల్లవాడికి ఒక్కో బోర్డు. మీ పిల్లలు ఉన్న తరగతుల బోర్డులను మాత్రమే మీరు చదవగలరు, ఇతరవి కాదు.',
-  'portal.forum.picker_label': 'తరగతి బోర్డు',
-  'portal.forum.picker_all': 'మీ తరగతులన్నీ',
-  'portal.forum.no_board_title': 'ఇంకా తరగతి బోర్డు లేదు',
-  'portal.forum.no_board_body':
-    'మీ పిల్లల ప్రవేశం రికార్డులో నమోదైన తర్వాత బోర్డు కనిపిస్తుంది. ఇది తప్పు అనిపిస్తే, ఆఫీసు అడ్మిషన్‌ను సరిచూడగలదు.',
-  'portal.forum.threads_title': 'థ్రెడ్‌లు',
-  'portal.forum.threads_description': 'ముందుగా పిన్ చేసిన నోటీసులు, ఆ తర్వాత చర్చలో ఉన్నవి.',
-  'portal.forum.threads_empty': 'ఈ బోర్డులో ఇంకా ఎవరూ థ్రెడ్ మొదలుపెట్టలేదు.',
-  'portal.forum.col_thread': 'థ్రెడ్',
-  'portal.forum.col_started_by': 'మొదలుపెట్టినవారు',
-  'portal.forum.col_replies': 'జవాబులు',
-  'portal.forum.col_last': 'చివరి కదలిక',
-  'portal.forum.action_open': 'తెరవండి',
-  'portal.forum.action_close': 'మూసివేయండి',
-  'portal.forum.action_post': 'బోర్డులో పెట్టండి',
-  'portal.forum.action_reply': 'జవాబు ఇవ్వండి',
-  'portal.forum.action_report': 'ఈ థ్రెడ్‌పై ఫిర్యాదు చేయండి',
-  'portal.forum.posted': 'పెట్టారు.',
-  'portal.forum.badge_mine': 'మీరు',
-  'portal.forum.badge_staff': 'స్కూల్',
-  'portal.forum.badge_open': 'తెరిచి ఉంది',
-  'portal.forum.badge_locked': 'మూసి ఉంది',
-  'portal.forum.compose_title': 'థ్రెడ్ మొదలుపెట్టండి',
-  'portal.forum.compose_description':
-    'ఈ తరగతిలోని మిగతా తల్లిదండ్రులు తెలుసుకోవలసినది, లేదా కలిసి నిర్ణయించవలసినది.',
-  'portal.forum.field_child': 'ఏ పిల్లలు',
-  'portal.forum.field_child_hint': 'థ్రెడ్ ఏ తరగతి బోర్డుకు వెళ్తుందో ఇది నిర్ణయిస్తుంది.',
-  'portal.forum.field_child_placeholder': 'పిల్లలను ఎంచుకోండి',
-  'portal.forum.field_category': 'ఇది దేని గురించి',
-  'portal.forum.field_title': 'ఒక్క వాక్యంలో',
-  'portal.forum.field_title_placeholder': 'శుక్రవారం మ్యూజియానికి వాహన సదుపాయం',
-  'portal.forum.field_body': 'మీరు చెప్పాలనుకుంటున్నది',
-  'portal.forum.named_notice':
-    'మీరు ఇక్కడ పెట్టే ప్రతిదానిపై మీ పేరు, పిల్లలతో మీ సంబంధం కనిపిస్తాయి. పేరు లేకుండా పెట్టడం కుదరదు.',
-  'portal.forum.grievance_notice':
-    'ఏదైనా తప్పు జరిగితే, దాన్ని ఫిర్యాదుల కింద పెట్టండి. ఆ మార్గం గోప్యమైనది, ట్రాక్ అవుతుంది, గడువులోపు సమాధానం వస్తుంది; ఈ బోర్డు అలా కాదు.',
   // Telugu is verb-final, so the three values land before the verb and in a
   // different order from English: when, then who, then "started it".
-  'portal.forum.thread_by': '{at}న {name} ({relation}) మొదలుపెట్టారు',
-  'portal.forum.thread_missing': 'ఆ థ్రెడ్‌ను తెరవలేకపోయాం.',
-  'portal.forum.no_replies': 'ఇంకా జవాబులు లేవు.',
-  'portal.forum.reply_placeholder': 'జవాబు రాయండి…',
-  'portal.forum.pick_child_first': 'జవాబు ఇచ్చే ముందు ఇది ఏ పిల్లల గురించో ఎంచుకోండి.',
-  'portal.forum.locked_because': 'కొత్త జవాబులకు మూసివేశారు: {reason}',
-  'portal.forum.converted_notice':
-    'స్కూల్ దీన్ని ఫిర్యాదుల జాబితాలోకి మార్చింది, అక్కడ ఇది ట్రాక్ అవుతుంది, సమాధానం వస్తుంది. ఫిర్యాదుల కింద దీన్ని అనుసరించవచ్చు.',
-  'portal.forum.taken_down': 'తొలగించారు: {reason}',
-  'portal.forum.report_explainer':
-    'సిబ్బంది చదవవలసినది ఏదైనా ఉంటే ఫిర్యాదు చేయండి. ఫిర్యాదు చేస్తే అది దాగదు, ఒక వ్యక్తి నిర్ణయిస్తారు.',
-  'portal.forum.report_label': 'దీనిలో ఏం తప్పు ఉంది',
-  'portal.forum.report_placeholder': 'దీనిలో ఏం తప్పు ఉంది',
-  'portal.forum.report_confirm': 'ఫిర్యాదు చేయండి',
-  'portal.forum.report_question': 'ఈ థ్రెడ్‌ను, మీరు చెప్పిన కారణాన్ని ఒక సిబ్బంది చదువుతారు.',
-  'portal.forum.reported': 'ఫిర్యాదు చేశారు. ఒక సిబ్బంది దీన్ని చదువుతారు.',
   // The board's own categories. Not server data: this repository chose these
   // words, so they are translated like any other label it shows.
-  'portal.forum.category_general': 'సాధారణం',
-  'portal.forum.category_event': 'ఒక కార్యక్రమం',
-  'portal.forum.category_trip': 'ఒక విహారయాత్ర',
-  'portal.forum.category_volunteering': 'స్వచ్ఛందంగా సాయం',
-  'portal.forum.category_logistics': 'రాకపోకలు',
-  'portal.forum.category_lost_found': 'పోయినవి, దొరికినవి',
-  'portal.forum.category_question': 'ఒక ప్రశ్న',
 
   // --- common (shared by more than one screen) ---------------------------
   'common.cancel': 'రద్దు',

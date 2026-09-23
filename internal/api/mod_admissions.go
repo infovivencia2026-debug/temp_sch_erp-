@@ -81,11 +81,14 @@ type enquiryInputError struct{ msg string }
 
 func (e enquiryInputError) Error() string { return e.msg }
 
-/* applyCreateEnquiry validates and records one admissions enquiry, returning
-   the new id, which link channels could not be reached, and the parent login it
-   minted. Shared by createEnquiry (the front-desk screen) and the assistant's
-   enquiry.create action so both capture the enquiry, send the application link
-   and issue the watch-it login in the one transaction. */
+/*
+applyCreateEnquiry validates and records one admissions enquiry, returning
+
+	the new id, which link channels could not be reached, and the parent login it
+	minted. Shared by createEnquiry (the front-desk screen) and the assistant's
+	enquiry.create action so both capture the enquiry, send the application link
+	and issue the watch-it login in the one transaction.
+*/
 func (s *Server) applyCreateEnquiry(r *http.Request, id *httpx.Identity, req upsertEnquiryRequest) (string, []string, applicantWelcome, error) {
 	if strings.TrimSpace(req.StudentName) == "" || strings.TrimSpace(req.Phone) == "" {
 		return "", nil, applicantWelcome{}, enquiryInputError{"student_name and phone are required"}

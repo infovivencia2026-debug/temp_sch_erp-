@@ -273,9 +273,9 @@ var exportable = map[string]exportSpec{
 	   bucket sums back to the totals. This is the file to read a child's fees at a
 	   glance and to reconcile a spreadsheet against, cell for cell. */
 	"fees_by_student": {
-		title:  "Fees by student, everything",
-		about:  "One row per child with the whole fee picture: total billed, concession, net, paid and due, then Term 1/2/3 billed·paid·due and Books, Uniform and Transport billed·paid.",
-		perm:   "finance.fees.read",
+		title: "Fees by student, everything",
+		about: "One row per child with the whole fee picture: total billed, concession, net, paid and due, then Term 1/2/3 billed·paid·due and Books, Uniform and Transport billed·paid.",
+		perm:  "finance.fees.read",
 		header: []string{"Admission No", "Student", "Class", "Section",
 			"Total Billed (Rs)", "Concession (Rs)", "Net (Rs)", "Total Paid (Rs)", "Total Due (Rs)",
 			"Term 1 Billed", "Term 1 Paid", "Term 1 Due",

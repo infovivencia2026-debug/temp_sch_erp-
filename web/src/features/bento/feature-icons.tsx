@@ -114,7 +114,6 @@ export const FEATURE_ICONS: Record<string, string> = {
   class_teacher_remarks: 'rate_review', // Class teacher remarks
   class_timetable: 'table_chart', // Class timetable
   class_transport_fee_setup: 'price_change', // Class & transport fee setup
-  classmate_homework_help_forum: 'forum', // Classmate Homework Help Forum
   classroom_communication: 'chat', // Classroom communication
   clubs_activities: 'sports_soccer', // Clubs & activities
   collections_dues: 'account_balance_wallet', // Collections & dues

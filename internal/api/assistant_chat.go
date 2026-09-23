@@ -733,23 +733,25 @@ func (s *Server) assistantRoles(r *http.Request, id *httpx.Identity) []string {
 	return roles
 }
 
-/* assistantData — the role-scoped answer layer (feature B).
+/*
+assistantData — the role-scoped answer layer (feature B).
 
-   The model never touches the database. Instead, when a question looks like it
-   is about the school's own data, this fetches a few facts UNDER THE ASKER'S
-   OWN IDENTITY and permissions and hands them to the model as ground truth.
+	The model never touches the database. Instead, when a question looks like it
+	is about the school's own data, this fetches a few facts UNDER THE ASKER'S
+	OWN IDENTITY and permissions and hands them to the model as ground truth.
 
-   Two guards make it safe on a multi-tenant system:
-     1. Every read runs in InTenant(tenantScope(id)), so row-level security
-        confines it to the asker's own institution — no other school's rows can
-        be reached even by a crafted question.
-     2. Each fact is gated on the permission its own screen requires, so a
-        parent or a teacher without it simply gets nothing here and the bot
-        stays help-only for them. Personal, per-child answers (a single
-        family's fees) are deliberately NOT here yet — that needs per-subject
-        scoping and its own review.
+	Two guards make it safe on a multi-tenant system:
+	  1. Every read runs in InTenant(tenantScope(id)), so row-level security
+	     confines it to the asker's own institution — no other school's rows can
+	     be reached even by a crafted question.
+	  2. Each fact is gated on the permission its own screen requires, so a
+	     parent or a teacher without it simply gets nothing here and the bot
+	     stays help-only for them. Personal, per-child answers (a single
+	     family's fees) are deliberately NOT here yet — that needs per-subject
+	     scoping and its own review.
 
-   Returns "" when there is nothing to add, which is the common case. */
+	Returns "" when there is nothing to add, which is the common case.
+*/
 func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []string, q string) string {
 	if id == nil {
 		return ""
@@ -853,7 +855,10 @@ func (s *Server) assistantData(r *http.Request, id *httpx.Identity, roles []stri
 				 ORDER BY st.first_name
 				 LIMIT 5`, ql)
 			if err == nil {
-				type stu struct{ id, name, adm, class, sec string; roll *int }
+				type stu struct {
+					id, name, adm, class, sec string
+					roll                      *int
+				}
 				var found []stu
 				for rows.Next() {
 					var s stu

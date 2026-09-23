@@ -106,11 +106,11 @@ type classOverview struct {
 	ClassTeacherPhone string                `json:"class_teacher_phone"`
 	ClassTeacherEmail string                `json:"class_teacher_email"`
 	SubjectTeachers   []classSubjectTeacher `json:"subject_teachers"`
-	Students        []classStudent        `json:"students"`
-	Attendance      classAttendance       `json:"attendance"`
-	Marks           classMarks            `json:"marks"`
-	Timetable       []classTimetableEntry `json:"timetable"`
-	Fees            classFees             `json:"fees"`
+	Students          []classStudent        `json:"students"`
+	Attendance        classAttendance       `json:"attendance"`
+	Marks             classMarks            `json:"marks"`
+	Timetable         []classTimetableEntry `json:"timetable"`
+	Fees              classFees             `json:"fees"`
 }
 
 // computeClassOverview is the single source of truth behind the overview

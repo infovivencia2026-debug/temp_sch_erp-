@@ -631,14 +631,14 @@ func (s *Server) listTeachingMaterials(w http.ResponseWriter, r *http.Request) {
 }
 
 type materialRequest struct {
-	ClassSubjectID string   `json:"class_subject_id,omitempty"`
-	SectionID      string   `json:"section_id,omitempty"`
-	Title          string   `json:"title"`
-	Description    string   `json:"description,omitempty"`
-	Kind           string   `json:"kind,omitempty"`
-	FileID         string   `json:"file_id,omitempty"`
-	ExternalURL    string   `json:"external_url,omitempty"`
-	IsPublished    *bool    `json:"is_published,omitempty"`
+	ClassSubjectID string `json:"class_subject_id,omitempty"`
+	SectionID      string `json:"section_id,omitempty"`
+	Title          string `json:"title"`
+	Description    string `json:"description,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+	FileID         string `json:"file_id,omitempty"`
+	ExternalURL    string `json:"external_url,omitempty"`
+	IsPublished    *bool  `json:"is_published,omitempty"`
 	// The digital library's audience: class (the section or subject above),
 	// school, or students (the ids listed). Omitted, it is worked out from
 	// what else was given. expires_in_days is "show for a week"; omitted or
@@ -1537,14 +1537,14 @@ func (s *Server) getBankQuestion(w http.ResponseWriter, r *http.Request) {
 }
 
 type bankQuestionRequest struct {
-	ClassSubjectID string  `json:"class_subject_id"`
-	SyllabusUnitID string  `json:"syllabus_unit_id,omitempty"`
-	Kind           string  `json:"kind,omitempty"`
-	Difficulty     string  `json:"difficulty,omitempty"`
-	BloomLevel     string  `json:"bloom_level,omitempty"`
-	Stem           string  `json:"stem"`
-	DefaultMarks   float64 `json:"default_marks,omitempty"`
-	Explanation    string  `json:"explanation,omitempty"`
+	ClassSubjectID string            `json:"class_subject_id"`
+	SyllabusUnitID string            `json:"syllabus_unit_id,omitempty"`
+	Kind           string            `json:"kind,omitempty"`
+	Difficulty     string            `json:"difficulty,omitempty"`
+	BloomLevel     string            `json:"bloom_level,omitempty"`
+	Stem           string            `json:"stem"`
+	DefaultMarks   float64           `json:"default_marks,omitempty"`
+	Explanation    string            `json:"explanation,omitempty"`
 	IsActive       *bool             `json:"is_active,omitempty"`
 	Options        []bankOptionInput `json:"options,omitempty"`
 }

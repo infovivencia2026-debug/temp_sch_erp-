@@ -124,12 +124,15 @@ type guardianInputError struct{ msg string }
 
 func (e guardianInputError) Error() string { return e.msg }
 
-/* upsertGuardianForStudent adds or corrects one guardian of a child, returning
-   the guardian id and name. Shared by saveStudentGuardian (the family screen)
-   and the assistant's guardian.set_phone action so both apply the identical
-   contact-and-login sync and uniqueness handling. The caller runs it inside a
-   tenant transaction and supplies the student-scope predicate, so RLS and the
-   caller's own sections both bound which family may be touched. */
+/*
+upsertGuardianForStudent adds or corrects one guardian of a child, returning
+
+	the guardian id and name. Shared by saveStudentGuardian (the family screen)
+	and the assistant's guardian.set_phone action so both apply the identical
+	contact-and-login sync and uniqueness handling. The caller runs it inside a
+	tenant transaction and supplies the student-scope predicate, so RLS and the
+	caller's own sections both bound which family may be touched.
+*/
 func (s *Server) upsertGuardianForStudent(r *http.Request, id *httpx.Identity, tx pgx.Tx, sid uuid.UUID, pred string, args []any, req guardianWriteRequest) (string, string, error) {
 	name := strings.TrimSpace(req.FullName)
 	if name == "" {

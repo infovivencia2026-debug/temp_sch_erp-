@@ -820,7 +820,6 @@ func (s *Server) Routes() http.Handler {
 			s.mountPortalAdmission(r)
 			s.mountParentPortal(r)
 			s.mountParentSchoolLife(r)
-			s.mountParentForum(r)
 			s.mountStudentLearning(r)
 			s.mountStudentLife(r)
 			s.mountStudentGrowth(r)

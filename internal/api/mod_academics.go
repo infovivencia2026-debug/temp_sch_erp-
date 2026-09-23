@@ -373,10 +373,13 @@ func (s *Server) enterMarks(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"written": written})
 }
 
-/* applyMarksEntry is the validated marks write, shared by enterMarks (the HTTP
-   handler) and the assistant's marks.enter action so both apply the same
-   authorisation, the same ceiling check and the same upsert. Returns the number
-   of rows written and a typed error the caller maps to its own response. */
+/*
+applyMarksEntry is the validated marks write, shared by enterMarks (the HTTP
+
+	handler) and the assistant's marks.enter action so both apply the same
+	authorisation, the same ceiling check and the same upsert. Returns the number
+	of rows written and a typed error the caller maps to its own response.
+*/
 func (s *Server) applyMarksEntry(r *http.Request, id *httpx.Identity, req marksEntryRequest) (int, error) {
 	esID, err := uuid.Parse(req.ExamSubjectID)
 	if err != nil {

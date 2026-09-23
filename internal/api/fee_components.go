@@ -156,20 +156,21 @@ func addComponentLines(ctx context.Context, tx pgx.Tx, inst, invoiceID, student,
 	return nil
 }
 
+/*
+applyFlatConcession puts a head-less flat concession on the invoice once.
 
-/* applyFlatConcession puts a head-less flat concession on the invoice once.
+	"₹5,000 off, no particular head" was promised against the bill, and
+	concessions_grant says so: absent a head, the concession applies to the
+	whole bill. Matched per line it was applied per line. So it lands here,
+	after every line exists, on the line with the most left to discount --
+	the same home mod_admissions gives an admission waiver, and for the same
+	reason: spreading it would change what each head collected, and the heads
+	are what the accounts are cut by. Capped at what that line can carry.
 
-   "₹5,000 off, no particular head" was promised against the bill, and
-   concessions_grant says so: absent a head, the concession applies to the
-   whole bill. Matched per line it was applied per line. So it lands here,
-   after every line exists, on the line with the most left to discount --
-   the same home mod_admissions gives an admission waiver, and for the same
-   reason: spreading it would change what each head collected, and the heads
-   are what the accounts are cut by. Capped at what that line can carry.
-
-   Once per INVOICE, which is the reading the grant screen states. A school
-   that means "once per year" splits the figure across its instalments when
-   it grants it; that is a decision the office makes, not one this guesses. */
+	Once per INVOICE, which is the reading the grant screen states. A school
+	that means "once per year" splits the figure across its instalments when
+	it grants it; that is a decision the office makes, not one this guesses.
+*/
 func applyFlatConcession(ctx context.Context, tx pgx.Tx, invoiceID, student, year uuid.UUID) error {
 	var flat int64
 	if err := tx.QueryRow(ctx, `

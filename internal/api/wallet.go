@@ -351,19 +351,21 @@ type walletInputError struct{ msg string }
 
 func (e walletInputError) Error() string { return e.msg }
 
-/* SPENDING THE WALLET — shared by the counter and the fee desk.
+/*
+SPENDING THE WALLET — shared by the counter and the fee desk.
 
-   A spend is written inside the caller's transaction, beside the sale or the
-   payment it pays for, and the ledger row points back at it (pos_sale_id or
-   payment_id). One event, two rows, linked: neither the till nor the ledger
-   counts it twice, and a sale that fails after the debit rolls the debit back.
+	A spend is written inside the caller's transaction, beside the sale or the
+	payment it pays for, and the ledger row points back at it (pos_sale_id or
+	payment_id). One event, two rows, linked: neither the till nor the ledger
+	counts it twice, and a sale that fails after the debit rolls the debit back.
 
-   The account row is locked FOR UPDATE first, so two tills cannot both spend
-   the same balance; the check here gives the clerk a sentence with the numbers
-   in it, and the trigger's refusal to go negative is the backstop if anything
-   slips past. walletSpendError is the family of refusals a spend can meet —
-   no wallet, a frozen one, not enough in it — for callers to map onto their
-   own 400 type (refusal at the counter, feeInputError at the fee desk). */
+	The account row is locked FOR UPDATE first, so two tills cannot both spend
+	the same balance; the check here gives the clerk a sentence with the numbers
+	in it, and the trigger's refusal to go negative is the backstop if anything
+	slips past. walletSpendError is the family of refusals a spend can meet —
+	no wallet, a frozen one, not enough in it — for callers to map onto their
+	own 400 type (refusal at the counter, feeInputError at the fee desk).
+*/
 type walletSpendError struct{ msg string }
 
 func (e walletSpendError) Error() string { return e.msg }

@@ -418,9 +418,9 @@ type tillSessionView struct {
 	AccountPaise     int64 `json:"account_sales_paise"`
 	// Drawn from children's wallets: not in the drawer, so not in the cash-up,
 	// but part of what the counter sold.
-	WalletPaise      int64 `json:"wallet_sales_paise"`
-	SaleCount        int   `json:"sale_count"`
-	ReturnCount      int   `json:"return_count"`
+	WalletPaise int64 `json:"wallet_sales_paise"`
+	SaleCount   int   `json:"sale_count"`
+	ReturnCount int   `json:"return_count"`
 	// The tolerance in force, so the screen flags without a second round trip.
 	TolerancePaise int64 `json:"variance_tolerance_paise"`
 }
@@ -862,15 +862,15 @@ type storeProductView struct {
 }
 
 type storeProductRequest struct {
-	ID           string  `json:"id"`
-	Code         string  `json:"code"`
-	Name         string  `json:"name"`
-	Category     string  `json:"category"`
-	HSNCode      string  `json:"hsn_code"`
-	TaxRateBP    *int    `json:"tax_rate_bp"`
-	PricePaise   *int64  `json:"sale_price_paise"`
-	ReturnWindow *int    `json:"return_window_days"`
-	IsActive     *bool   `json:"is_active"`
+	ID           string `json:"id"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Category     string `json:"category"`
+	HSNCode      string `json:"hsn_code"`
+	TaxRateBP    *int   `json:"tax_rate_bp"`
+	PricePaise   *int64 `json:"sale_price_paise"`
+	ReturnWindow *int   `json:"return_window_days"`
+	IsActive     *bool  `json:"is_active"`
 	// A files.id, served through /api/v1/files/{id}. Empty clears the picture.
 	ImageKey string `json:"image_key"`
 }

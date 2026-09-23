@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 414 features. */
+/** 23 roles, 413 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1483,7 +1483,6 @@ export const ROLES: Role[] = [
         workspace: 'Academics',
         features: [
           { key: 'student.homework.homework_assignments', slug: 'homework_assignments', name: 'Homework & assignments', scope: 'self', tier: 'core', summary: 'View due/overdue/submitted work; submit files/text where enabled.' },
-          { key: 'student.homework.classmate_homework_help_forum', slug: 'classmate_homework_help_forum', name: 'Classmate Homework Help Forum', scope: 'self', tier: 'optional', summary: 'Moderated discussion board where students can post homework questions and share study hints.' },
         ],
       },
       {

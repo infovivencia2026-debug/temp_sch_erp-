@@ -4319,20 +4319,22 @@ func (s *Server) bulkImport(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, out)
 }
 
-/* runBulkImportCSV is the shared engine behind every CSV import.
+/*
+runBulkImportCSV is the shared engine behind every CSV import.
 
-   Factored out of bulkImport so the in-chat assistant importer
-   (assistant_import.go) can drive the exact same dry-run and commit pipeline
-   over a multipart upload, rather than reimplementing parsing, validation,
-   per-row savepoints and the undo record. The HTTP handler owns the request
-   plumbing (permission, MaxBytesReader, JSON responses); this owns the import.
+	Factored out of bulkImport so the in-chat assistant importer
+	(assistant_import.go) can drive the exact same dry-run and commit pipeline
+	over a multipart upload, rather than reimplementing parsing, validation,
+	per-row savepoints and the undo record. The HTTP handler owns the request
+	plumbing (permission, MaxBytesReader, JSON responses); this owns the import.
 
-   It returns the result, a client-facing message (a 400 the caller should show,
-   e.g. "that file has no header row") and a server error (a 500). At most one of
-   the two error returns is non-empty; when both are empty the result is final.
+	It returns the result, a client-facing message (a 400 the caller should show,
+	e.g. "that file has no header row") and a server error (a 500). At most one of
+	the two error returns is non-empty; when both are empty the result is final.
 
-   Caller MUST have already checked spec.Perm for id: this writes under
-   InTenant(tenantScope(id)) but does not gate. */
+	Caller MUST have already checked spec.Perm for id: this writes under
+	InTenant(tenantScope(id)) but does not gate.
+*/
 func (s *Server) runBulkImportCSV(r *http.Request, id *httpx.Identity, entity string, spec importSpec, raw []byte, commit bool) (importResult, string, error) {
 	reader := csv.NewReader(bytes.NewReader(raw))
 	reader.TrimLeadingSpace = true

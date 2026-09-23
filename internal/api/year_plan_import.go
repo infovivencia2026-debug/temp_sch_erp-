@@ -33,16 +33,18 @@ import (
    subject's chapter list and a school should see what it is about to replace.
 */
 
-/* THE SHAPE, AS A FILE.
+/*
+THE SHAPE, AS A FILE.
 
-   This importer was written against one school's workbook export and
-   described the shape it wanted only in the error it gave when it did not get
-   it: "expected a Subject and a Sheet_Name column". A school arriving with a
-   different workbook -- every other school -- had nothing to open and copy.
+	This importer was written against one school's workbook export and
+	described the shape it wanted only in the error it gave when it did not get
+	it: "expected a Subject and a Sheet_Name column". A school arriving with a
+	different workbook -- every other school -- had nothing to open and copy.
 
-   Four columns, three example rows. Sheet_Name is the class, written the way
-   the school's own workbook names its sheets, because that is what the
-   resolver below is built to read: "G-6", "Grade 6", "VI" and "6" all land. */
+	Four columns, three example rows. Sheet_Name is the class, written the way
+	the school's own workbook names its sheets, because that is what the
+	resolver below is built to read: "G-6", "Grade 6", "VI" and "6" all land.
+*/
 func (s *Server) getYearPlanTemplate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="year-plan-template.csv"`)

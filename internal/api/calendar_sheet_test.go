@@ -2,12 +2,14 @@ package api
 
 import "testing"
 
-/* The school's own calendar, read the way it is written.
+/*
+The school's own calendar, read the way it is written.
 
-   Yajur's calendar is a daily sheet: every day of the year, the kind in
-   square brackets before the name, and two things on one day separated by a
-   bar. This is the reader that turns a cell into entries, checked against the
-   cells that actually appear in that file. */
+	Yajur's calendar is a daily sheet: every day of the year, the kind in
+	square brackets before the name, and two things on one day separated by a
+	bar. This is the reader that turns a cell into entries, checked against the
+	cells that actually appear in that file.
+*/
 func TestSheetCalendarEntriesReadTheOfficeFormat(t *testing.T) {
 	cases := []struct {
 		cell string

@@ -57,11 +57,8 @@ var wallModerationRoutes = []struct{ method, path string }{
 	{http.MethodGet, "/campus/wall/" + uuid.NewString() + "/history"},
 }
 
-// The teacher's half of the homework forum and the hand-raise record.
+// The teacher's half of the hand-raise record.
 var teachingSupervisionRoutes = []struct{ method, path string }{
-	{http.MethodGet, "/homework/forum/supervision"},
-	{http.MethodPost, "/homework/forum/threads/" + uuid.NewString() + "/remove"},
-	{http.MethodPost, "/homework/forum/posts/" + uuid.NewString() + "/remove"},
 	{http.MethodGet, "/live-classes/" + uuid.NewString() + "/hands"},
 	{http.MethodPost, "/live-classes/hands/" + uuid.NewString() + "/call-on"},
 	{http.MethodGet, "/live-classes/engagement"},
@@ -192,11 +189,6 @@ func TestStudentLifeLetsAChildReachTheOwnershipCheck(t *testing.T) {
 		{http.MethodDelete, "/diary/notes/" + uuid.NewString()},
 		{http.MethodGet, "/preferences/display"},
 		{http.MethodPut, "/preferences/display"},
-		{http.MethodGet, "/homework/forum/threads"},
-		{http.MethodPost, "/homework/forum/threads"},
-		{http.MethodGet, "/homework/forum/threads/" + uuid.NewString()},
-		{http.MethodPost, "/homework/forum/threads/" + uuid.NewString() + "/posts"},
-		{http.MethodPost, "/homework/forum/threads/" + uuid.NewString() + "/resolve"},
 		{http.MethodGet, "/live-classes"},
 		{http.MethodPost, "/live-classes/" + uuid.NewString() + "/hand"},
 		{http.MethodPost, "/live-classes/" + uuid.NewString() + "/hand/lower"},

@@ -47,11 +47,14 @@ func (s *Server) mountLive(r chi.Router) {
 	r.Post("/live/seen", s.liveSeen)
 }
 
-/* liveSeen is POST /live/seen: "this conversation is on my screen". The bell
-   entries that pointed at it are marked read, so a person who has just read
-   the messages is not also told about them — the rule every phone follows.
-   The conversation is identified the same way the typing signal names it,
-   and matched against the link each notification was written with. */
+/*
+liveSeen is POST /live/seen: "this conversation is on my screen". The bell
+
+	entries that pointed at it are marked read, so a person who has just read
+	the messages is not also told about them — the rule every phone follows.
+	The conversation is identified the same way the typing signal names it,
+	and matched against the link each notification was written with.
+*/
 func (s *Server) liveSeen(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	var req typingRequest
@@ -187,12 +190,15 @@ func (s *Server) liveStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/* LiveProbe is a public, unauthenticated stream that ticks once a second for
-   twelve seconds and ends. It exists to answer one question from a terminal:
-   do bytes reach a client incrementally through the proxies in front of this
-   service, or are they buffered and delivered at the end? `curl -N` against
-   the Pages origin and against the Cloud Run origin, with timestamps, tells
-   which hop buffers. It carries no data and takes no input. */
+/*
+LiveProbe is a public, unauthenticated stream that ticks once a second for
+
+	twelve seconds and ends. It exists to answer one question from a terminal:
+	do bytes reach a client incrementally through the proxies in front of this
+	service, or are they buffered and delivered at the end? `curl -N` against
+	the Pages origin and against the Cloud Run origin, with timestamps, tells
+	which hop buffers. It carries no data and takes no input.
+*/
 func (s *Server) LiveProbe(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
@@ -226,9 +232,12 @@ func (s *Server) LiveProbe(w http.ResponseWriter, r *http.Request) {
 	_ = rc.Flush()
 }
 
-/* publishLive puts a hint on the bus from inside the writer's transaction.
-   Never fails the write it sits beside: a message that saved but whose hint
-   did not go out is still a message, and the poll picks it up. */
+/*
+publishLive puts a hint on the bus from inside the writer's transaction.
+
+	Never fails the write it sits beside: a message that saved but whose hint
+	did not go out is still a message, and the poll picks it up.
+*/
 func (s *Server) publishLive(ctx context.Context, tx pgx.Tx, ev live.Event) {
 	if s.Live == nil || len(ev.Users) == 0 {
 		return
@@ -237,7 +246,7 @@ func (s *Server) publishLive(ctx context.Context, tx pgx.Tx, ev live.Event) {
 }
 
 type typingRequest struct {
-	Scope   string `json:"scope"` // staff | parent | counselor
+	Scope   string `json:"scope"`             // staff | parent | counselor
 	Peer    string `json:"peer,omitempty"`    // staff: the colleague's user id
 	Student string `json:"student,omitempty"` // parent: the child
 	Parent  string `json:"parent,omitempty"`  // parent: the parent's user id
@@ -245,12 +254,15 @@ type typingRequest struct {
 	Thread  string `json:"thread,omitempty"`  // counselor: the thread id
 }
 
-/* liveTyping is POST /live/typing: "I am typing to you". No row is written;
-   the request is validated against the conversation it claims — you may only
-   signal a conversation you are actually a party to — and then a typing
-   event is put on the bus for the other party. The client throttles to one
-   post every few seconds while the composer has focus; the event expires on
-   the receiving side, so a closed tab never leaves "typing…" on the screen. */
+/*
+liveTyping is POST /live/typing: "I am typing to you". No row is written;
+
+	the request is validated against the conversation it claims — you may only
+	signal a conversation you are actually a party to — and then a typing
+	event is put on the bus for the other party. The client throttles to one
+	post every few seconds while the composer has focus; the event expires on
+	the receiving side, so a closed tab never leaves "typing…" on the screen.
+*/
 func (s *Server) liveTyping(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	if s.Live == nil {

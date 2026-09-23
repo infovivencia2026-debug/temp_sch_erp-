@@ -300,12 +300,15 @@ func (s *Server) collectFee(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/* applyFeePayment validates a counter payment and records it, returning the
-   receipt. Shared by collectFee (the till screen) and the assistant's
-   fee.payment action so both take an ORDINARY counter payment the same way —
-   allocate across outstanding invoices, issue a numbered receipt, tell the
-   family. It never touches bank accounts, refunds or payroll: those are not
-   payments and are not reachable from here. */
+/*
+applyFeePayment validates a counter payment and records it, returning the
+
+	receipt. Shared by collectFee (the till screen) and the assistant's
+	fee.payment action so both take an ORDINARY counter payment the same way —
+	allocate across outstanding invoices, issue a numbered receipt, tell the
+	family. It never touches bank accounts, refunds or payroll: those are not
+	payments and are not reachable from here.
+*/
 func (s *Server) applyFeePayment(r *http.Request, id *httpx.Identity, req collectRequest) (*fees.Receipt, error) {
 	studentID, err := uuid.Parse(req.StudentID)
 	if err != nil {

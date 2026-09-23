@@ -40,7 +40,6 @@ export const studentLifeKeys = {
   'student.campus_life.student_wall_peer_recognition': screen(() => import('./StudentWall')),
   'student.home.digital_diary_schedule': screen(() => import('./Diary')),
   'student.home.custom_theme_selection': screen(() => import('./ThemeSelection')),
-  'student.homework.classmate_homework_help_forum': screen(() => import('./HomeworkForum')),
   'student.learning.virtual_classroom_hand_raise_telemetry': screen(() => import('./HandRaise')),
 
   /* Days in a row, badges, and the board in the foyer. All three read records
