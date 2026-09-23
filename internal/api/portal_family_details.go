@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -143,6 +144,10 @@ type familyDetailsUpdate struct {
 	} `json:"guardians"`
 }
 
+// errNotOwnGuardianRow is a guardian row the caller does not own: another
+// adult on the same child. Their contact details are theirs.
+var errNotOwnGuardianRow = errors.New("you can change only your own details; ask the office to change another guardian's")
+
 // updateFamilyDetails writes the fields the family owns. The child must be
 // one of the caller's own (whichChild), and each guardian row must be linked
 // to that child — a guardian id from somebody else's family is refused, not
@@ -197,6 +202,23 @@ func (s *Server) updateFamilyDetails(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		for _, g := range req.Guardians {
+			/* ONLY YOUR OWN ROW.
+
+			   This was scoped to the child: any guardian linked to the child
+			   could rewrite any other guardian on that child -- name, mobile,
+			   email. The card above the form says, truthfully, that the phone
+			   here is where the school's calls and alerts go. So a father
+			   could put his own number against the mother's row and every
+			   absence call, fee reminder and bus alert went to him, and she
+			   was told nothing. listPortalConcerns reasons about exactly this
+			   custody case for grievances; this write never did.
+
+			   The predicate is the caller's user id on the guardian row, so a
+			   parent edits the details that are theirs and nobody else's. The
+			   co-parent's typo is the office's to correct, which is where a
+			   change to somebody else's contact number belongs. A row that is
+			   not the caller's is refused, not skipped: a silent skip would
+			   look like a saved change. */
 			tag, err := tx.Exec(r.Context(), `
 				UPDATE guardians g
 				   SET full_name  = $3,
@@ -204,17 +226,22 @@ func (s *Server) updateFamilyDetails(w http.ResponseWriter, r *http.Request) {
 				       email      = NULLIF($5, ''),
 				       occupation = NULLIF($6, '')
 				  FROM student_guardians sg
-				 WHERE g.id = $2 AND sg.guardian_id = g.id AND sg.student_id = $1`,
-				sid, g.ID, g.FullName, g.Phone, g.Email, g.Occupation)
+				 WHERE g.id = $2 AND sg.guardian_id = g.id AND sg.student_id = $1
+				   AND g.user_id = $7`,
+				sid, g.ID, g.FullName, g.Phone, g.Email, g.Occupation, id.UserID)
 			if err != nil {
 				return err
 			}
 			if tag.RowsAffected() == 0 {
-				return errAbsenceOutOfScope
+				return errNotOwnGuardianRow
 			}
 		}
 		return nil
 	})
+	if errors.Is(err, errNotOwnGuardianRow) {
+		httpx.Forbidden(w, r, errNotOwnGuardianRow.Error())
+		return
+	}
 	if err == errAbsenceOutOfScope {
 		httpx.Forbidden(w, r, "a guardian of this child")
 		return

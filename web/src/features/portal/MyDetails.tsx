@@ -102,8 +102,16 @@ export default function MyDetails() {
   }, [details.data])
 
   const save = useMutation({
+    /* Only the caller's own guardian row goes up. The server refuses any
+       other -- another adult's name and mobile are theirs, and the phone on
+       this card is where the school's calls go -- so sending the whole list
+       would turn a save into a 403 for anyone with a co-parent on record. */
     mutationFn: (d: Draft) =>
-      api.put<{ ok: boolean }>('/api/v1/portal/family-details', { student_id: studentId, ...d }),
+      api.put<{ ok: boolean }>('/api/v1/portal/family-details', {
+        student_id: studentId,
+        ...d,
+        guardians: d.guardians.filter((g) => details.data?.guardians.find((x) => x.id === g.id)?.mine),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['family-details', studentId] })
       qc.invalidateQueries({ queryKey: ['my-students'] })
@@ -203,20 +211,39 @@ export default function MyDetails() {
                       {g.is_primary && <Badge>primary contact</Badge>}
                       {g.is_emergency && <Badge tone="warning">emergency contact</Badge>}
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field label="Full name" required>
-                        <Input value={draft.guardians[i]?.full_name ?? ''} onChange={(v) => setGuardian(i, { full_name: v })} />
-                      </Field>
-                      <Field label="Mobile number" required>
-                        <Input type="tel" value={draft.guardians[i]?.phone ?? ''} onChange={(v) => setGuardian(i, { phone: v })} />
-                      </Field>
-                      <Field label="Email">
-                        <Input type="email" value={draft.guardians[i]?.email ?? ''} onChange={(v) => setGuardian(i, { email: v })} />
-                      </Field>
-                      <Field label="Occupation">
-                        <Input value={draft.guardians[i]?.occupation ?? ''} onChange={(v) => setGuardian(i, { occupation: v })} />
-                      </Field>
-                    </div>
+                    {/* Another adult's row is shown, not edited. It used to be
+                        four live inputs with only a "you" badge to tell the
+                        rows apart, and the write was scoped to the child --
+                        so either parent could put their own number against
+                        the other's row and take every alert. */}
+                    {g.mine ? (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Field label="Full name" required>
+                          <Input value={draft.guardians[i]?.full_name ?? ''} onChange={(v) => setGuardian(i, { full_name: v })} />
+                        </Field>
+                        <Field label="Mobile number" required>
+                          <Input type="tel" value={draft.guardians[i]?.phone ?? ''} onChange={(v) => setGuardian(i, { phone: v })} />
+                        </Field>
+                        <Field label="Email">
+                          <Input type="email" value={draft.guardians[i]?.email ?? ''} onChange={(v) => setGuardian(i, { email: v })} />
+                        </Field>
+                        <Field label="Occupation">
+                          <Input value={draft.guardians[i]?.occupation ?? ''} onChange={(v) => setGuardian(i, { occupation: v })} />
+                        </Field>
+                      </div>
+                    ) : (
+                      <>
+                        <dl className="grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-2">
+                          <div><dt className="text-[12px] text-muted-foreground">Full name</dt><dd>{g.full_name}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">Mobile number</dt><dd>{g.phone || '—'}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">Email</dt><dd>{g.email || '—'}</dd></div>
+                          <div><dt className="text-[12px] text-muted-foreground">Occupation</dt><dd>{g.occupation || '—'}</dd></div>
+                        </dl>
+                        <p className="mt-3 text-[12.5px] text-muted-foreground">
+                          Only they can change these from their own sign-in. If something here is wrong, tell the office.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
