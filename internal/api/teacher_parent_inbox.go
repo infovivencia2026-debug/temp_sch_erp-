@@ -42,6 +42,13 @@ type teacherThreadRow struct {
 	LastMessage string `json:"last_message"`
 	LastAt      string `json:"last_at"`
 	Unread      int    `json:"unread"`
+	/* The child's face, on the school's side of the conversation.
+
+	   A teacher answering eight families reads "Nikhil Gupta" and has to
+	   remember which of the four Nikhils that is. The photograph the office
+	   already holds settles it before the name is read. Absent for a child
+	   with no photograph on file, which the screen draws as initials. */
+	StudentPhoto *string `json:"student_photo,omitempty"`
 
 	// Whose conversation this is. Sent only to a reader seeing somebody
 	// else's threads; a teacher's own inbox has one teacher in it.
@@ -116,6 +123,7 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 		       m.parent_user_id::text, pu.full_name,
 		       m.body, to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
 		       m.teacher_user_id::text, tu.full_name,
+		       st.photo_file_id::text,
 		       (SELECT count(*)::int FROM parent_teacher_messages un
 		         WHERE un.student_id = m.student_id
 		           AND un.parent_user_id = m.parent_user_id
@@ -138,7 +146,7 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 			var v teacherThreadRow
 			return v, rows.Scan(&v.StudentID, &v.StudentName, &v.ClassName,
 				&v.ParentID, &v.ParentName, &v.LastMessage, &v.LastAt,
-				&v.TeacherID, &v.TeacherName, &v.Unread)
+				&v.TeacherID, &v.TeacherName, &v.StudentPhoto, &v.Unread)
 		})
 	if err != nil {
 		httpx.Internal(w, r, err)

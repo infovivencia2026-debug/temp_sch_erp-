@@ -5,7 +5,7 @@ import { api, type List } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { PageHead, PageBody, Card, CardHeader, Field, Select, EmptyState } from '@/components/ui'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import { ChatScreen } from '@/components/ChatScreen'
+import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
@@ -27,6 +27,8 @@ interface Teacher {
   full_name: string
   subject?: string
   class_teacher: boolean
+  /** The staff photograph, where the school holds one. */
+  photo?: string
   unread: number
 }
 
@@ -154,12 +156,10 @@ export default function TeacherMessages() {
                     onClick={() => setTeacher(x.user_id)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/60"
                   >
-                    <span
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-[15px] font-semibold text-primary"
-                      aria-hidden="true"
-                    >
-                      {x.full_name.charAt(0).toUpperCase()}
-                    </span>
+                    {/* The face first. A parent knows the maths sir by sight
+                        long before they know his name, and a column of six
+                        names tells them nothing about which is which. */}
+                    <PersonAvatar name={x.full_name} photoId={x.photo} size={44} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14.5px] font-medium">
                         {x.class_teacher
@@ -189,6 +189,7 @@ export default function TeacherMessages() {
         <ChatScreen
           open={teacher !== ''}
           title={chosenTeacher?.full_name ?? t('portal.teacher_messages.thread_title')}
+          photoId={chosenTeacher?.photo}
           subtitle={
             chosenTeacher?.class_teacher
               ? t('portal.teacher_messages.thread_class_teacher')

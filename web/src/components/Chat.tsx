@@ -448,11 +448,12 @@ export function ChatThread({
                       onUnsend={onUnsend ? () => void onUnsend(m.id) : undefined}
                     />
                   )}
+                  <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', m.mine ? 'items-end' : 'items-start')}>
                   <div
                     className={cn(
-                      'chat-bubble relative max-w-[85%] rounded-[8px] px-[9px] pt-[6px] pb-[7px] text-[14.2px] leading-[19px] sm:max-w-[70%]',
+                      'chat-bubble relative px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
                       m.mine ? 'chat-mine' : 'chat-theirs',
-                      first && (m.mine ? 'chat-tail-mine rounded-tr-none' : 'chat-tail-theirs rounded-tl-none'),
+                      !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
                       m.pending && 'opacity-80',
                     )}
@@ -470,26 +471,20 @@ export function ChatThread({
                     {m.deleted ? (
                       <p className="italic text-muted-foreground">
                         This message was withdrawn.
-                        <span aria-hidden="true" className="inline-block h-0" style={{ width: 52 }} />
                       </p>
                     ) : (
                       <>
                         {(m.attachments ?? []).map((a) => (
                           <AttachmentView key={a.file_id} a={a} />
                         ))}
-                        {/* The time and ticks float in the bottom-right corner, so a
-                            short message and its time share one line; the trailing
-                            spacer keeps the last line of text from running under them. */}
-                        {m.body && (
-                          <p className="whitespace-pre-wrap break-words">
-                            {linkify(m.body)}
-                            <span aria-hidden="true" className="inline-block h-0 align-baseline" style={{ width: m.mine ? 74 : 52 }} />
-                          </p>
-                        )}
-                        {!m.body && <span aria-hidden="true" className="inline-block h-0" style={{ width: m.mine ? 74 : 52 }} />}
+                        {m.body && <p className="whitespace-pre-wrap break-words">{linkify(m.body)}</p>}
                       </>
                     )}
-                    <p className="absolute bottom-[3px] right-[7px] flex items-center gap-[3px] text-[11px] leading-none text-muted-foreground">
+                    </div>
+                    {/* The time sits under the bubble, not inside it: nothing has
+                        to be written around it and a one-word message keeps its
+                        shape. */}
+                    <p className="chat-meta mt-[4px] flex items-center gap-[4px] leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine &&
@@ -826,29 +821,41 @@ const chatCSS = `
    The dotted paper is fixed, not scrolled: a pattern that slides under the
    bubbles as the thread scrolls reads as movement in the corner of the eye. */
 .chat-paper {
-  background-color: #efeae2;
-  background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px);
-  background-size: 14px 14px;
-  background-attachment: local;
-  background-repeat: repeat;
+  background-color: #fbfcfe;
 }
-.chat-theirs { background-color: #ffffff; color: #111b21; }
-.chat-mine { background-color: #d9fdd3; color: #111b21; }
-.chat-bubble { box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); }
-.chat-bubble .text-muted-foreground { color: #667781; }
-.chat-bubble a { color: #027eb5; text-decoration: underline; word-break: break-all; }
-/* The tail: the small wedge that points at who said it, on the first bubble
-   of a run only, the way every messaging app draws it. */
-.chat-tail-theirs::before, .chat-tail-mine::before {
-  content: ''; position: absolute; top: 0; width: 8px; height: 13px;
+/* Two bubbles, and they are shapes rather than boxes.
+
+   The old pair were the messaging app everybody copies: a tinted green, a
+   1px shadow, a wedge for a tail, the time tucked into the bottom-right of
+   the text. This is the other convention and the one the school asked for --
+   a wide radius with one corner pulled in to point at the speaker, the
+   sender's own words carried in the product's blue, and the time set outside
+   the bubble underneath it, where it never has to be written around. */
+.chat-theirs {
+  background-color: #ffffff;
+  color: #202b3c;
+  border-radius: 20px 20px 20px 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
-.chat-tail-theirs::before {
-  left: -8px; background-color: #ffffff;
-  clip-path: polygon(100% 0, 0 0, 100% 100%);
+.chat-mine {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: 20px 20px 4px 20px;
 }
-.chat-tail-mine::before {
-  right: -8px; background-color: #d9fdd3;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+/* A run of bubbles from the same person: only the first points at them, the
+   rest are plain, so a paragraph broken into four messages reads as one. */
+.chat-theirs.chat-run { border-radius: 20px; }
+.chat-mine.chat-run { border-radius: 20px; }
+.chat-bubble a { color: inherit; text-decoration: underline; word-break: break-all; }
+.chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.85); }
+.chat-theirs .text-muted-foreground { color: #9aa5b6; }
+.chat-meta { font-size: 11px; color: #9aa5b6; padding: 0 6px; }
+.chat-daypill {
+  background-color: #eef2f7;
+  color: #9aa5b6;
+  border-radius: 12px;
+  padding: 4px 14px;
+  box-shadow: none;
 }
 /* Typing, drawn as the other person's bubble with three breathing dots. */
 .chat-dot {

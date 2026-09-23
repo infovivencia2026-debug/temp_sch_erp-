@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import { ChatScreen } from '@/components/ChatScreen'
+import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
@@ -74,6 +74,7 @@ interface Message {
 interface ParentThread {
   student_id: string
   student_name: string
+  student_photo?: string
   class_name?: string
   parent_user_id: string
   parent_name: string
@@ -361,6 +362,9 @@ export default function StaffMessages() {
                           : 'hover:bg-muted/60',
                       )}
                     >
+                      <span className="flex items-start gap-3">
+                      <PersonAvatar name={t.student_name || t.parent_name} photoId={t.student_photo} size={44} />
+                      <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
                           {t.parent_name}
@@ -390,6 +394,8 @@ export default function StaffMessages() {
                       </span>
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
                         {t.last_message ?? ''}
+                      </span>
+                      </span>
                       </span>
                     </button>
                   </li>
