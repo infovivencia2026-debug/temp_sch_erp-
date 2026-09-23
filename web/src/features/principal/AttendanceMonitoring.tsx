@@ -28,7 +28,7 @@ export default function AttendanceMonitoring() {
    * rows — so a school with two thousand marked registers, none of them dated
    * today, was told "no attendance has been marked yet" while the dashboard
    * next door reported a month's worth. The shortage list below is computed
-   * over every register ever marked, so the right question is whether any
+   * over this year's daily register, so the right question is whether any
    * exist at all, and the thirty-day trend is the endpoint that can answer it
    * without a date of its own being passed in. Its emptiness is now reported
    * as what it is — no register in the last thirty days — rather than as a

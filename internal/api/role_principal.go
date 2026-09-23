@@ -399,6 +399,22 @@ type shortageRow struct {
 // the fallback rather than an arbitrary round number.
 func (s *Server) getAttendanceShortage(w http.ResponseWriter, r *http.Request) {
 	threshold := clampInt(r.URL.Query().Get("threshold"), 75, 1, 100)
+	/* THE WHOLE LIST, THIS YEAR, THE DAILY REGISTER.
+
+	   This was LIMIT 100 over every attendance row ever written, and the
+	   screen's "Below threshold" tile was the length of what came back. So a
+	   school with 340 children under 75% -- one bad term in any 1,200-student
+	   school -- displayed 100, pegged there for ever, and the child at 74%
+	   who fell off the end was the one this list exists to name: 75% is the
+	   board's exam-eligibility floor. No cap: the set is bounded by the
+	   roll, and a principal reading an eligibility list needs all of it.
+
+	   Same three guards as the report card. Only the current year -- a
+	   lifetime figure cannot be moved by this term, which is the whole point
+	   of showing it in time to act. Only the daily row (period_id IS NULL):
+	   period-wise rows are up to eight a day and double-count the day beside
+	   it. And 'holiday' and 'leave' are statuses a teacher may write rather
+	   than leave the day blank, not absences. */
 	items, err := collect(s, r, `
 		SELECT st.id::text, st.admission_no,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
@@ -408,14 +424,17 @@ func (s *Server) getAttendanceShortage(w http.ResponseWriter, r *http.Request) {
 		       round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))
 		             / NULLIF(count(*),0))
 		  FROM student_attendance sa
+		  JOIN academic_years ay ON ay.is_current
 		  JOIN students st ON st.id = sa.student_id
 		  LEFT JOIN sections sec ON sec.id = sa.section_id
 		  LEFT JOIN classes  c   ON c.id = sec.class_id
+		 WHERE sa.period_id IS NULL
+		   AND sa.status NOT IN ('holiday','leave')
+		   AND sa.on_date BETWEEN ay.starts_on AND ay.ends_on
 		 GROUP BY st.id, c.name, sec.name
 		HAVING round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))
 		             / NULLIF(count(*),0)) < $1
-		 ORDER BY 8
-		 LIMIT 100`, []any{threshold},
+		 ORDER BY 8`, []any{threshold},
 		func(rows pgx.Rows) (shortageRow, error) {
 			var v shortageRow
 			return v, rows.Scan(&v.StudentID, &v.AdmissionNo, &v.FullName,
