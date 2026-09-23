@@ -845,8 +845,10 @@ export function AssistantTab() {
                     /* No box around the words: the separator line is the
                        whole division, the owner said. A question is told from
                        an answer by weight and ink alone. */
-                    'whitespace-pre-wrap px-1 py-2 text-[14.5px] leading-relaxed',
-                    turn.role === 'user' && 'font-medium text-foreground',
+                    'whitespace-pre-wrap rounded-[10px] px-3 py-2 text-[14.5px] leading-relaxed',
+                    /* A subtle tint, no edge: the question sits on the
+                       faintest wash of the accent, the answer on none. */
+                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.06)] font-medium text-foreground',
                     turn.role === 'bot' && 'text-foreground/90',
                     turn.role === 'error' &&
                       'bg-destructive text-destructive-foreground',
