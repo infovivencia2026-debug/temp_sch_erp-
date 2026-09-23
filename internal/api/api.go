@@ -1489,6 +1489,9 @@ func (s *Server) Routes() http.Handler {
 			// The teachers' daily sign-in code -- see day_code.go.
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/day-code", s.getDayCode)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Put("/day-code", s.setDayCode)
+			// The school's privacy switches -- see privacy.go.
+			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/privacy", s.getPrivacy)
+			r.With(httpx.RequirePermission(rbac.UsersWrite)).Put("/privacy", s.setPrivacy)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users", s.listUsers)
 			r.With(httpx.RequirePermission(rbac.UsersRead)).Get("/users/{id}", s.getUser)
 			r.With(httpx.RequirePermission(rbac.UsersWrite)).Post("/users", s.createUser)

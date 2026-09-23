@@ -233,6 +233,17 @@ func run() error {
 		// a link on screen; where nothing can carry it, it says so.
 		EmailReady: apiServer.EmailProviderReady,
 	}
+	// The privacy notice: public, because the people it is written for --
+	// a parent deciding whether to sign in, the Play Store reviewer -- have
+	// no account. See internal/templates/privacy.gohtml.
+	r.Get("/privacy", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = tpl.ExecuteTemplate(w, "privacy.gohtml", map[string]any{
+			"AssetVersion": static.Version(),
+			"SupportEmail": os.Getenv("SUPPORT_EMAIL"),
+			"Updated":      "23 September 2026",
+		})
+	})
 	r.Get("/forgot", reset.ShowForgot)
 	r.Post("/forgot", reset.Forgot)
 	r.Get("/reset", reset.ShowReset)

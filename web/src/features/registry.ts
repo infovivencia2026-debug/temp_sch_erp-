@@ -136,6 +136,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      login whose person has been deleted, which are the two things a school
      actually needs from it. See the file for the longer version. */
   'institution_admin.staff.logins_access': screen(() => import('./principal/Logins')),
+  'institution_admin.staff.privacy': screen(() => import('./principal/Privacy')),
   'institution_admin.staff.interaction_log': screen(() => import('./principal/InteractionLog')),
   /* The same Branding screen the vendor uses, now in the school's own menu.
      The endpoints behind it ask for settings.write and institution.read, which

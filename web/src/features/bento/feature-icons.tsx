@@ -208,6 +208,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   lms_study_material_upload: 'upload_file', // LMS Study Material Upload
   login_session_audit: 'login', // Login & session audit
   logins_access: 'lock_person', // Logins & access
+  privacy: 'policy', // Privacy
   logins_sessions: 'login', // Logins & sessions
   lost_found_item_board: 'search', // Lost & Found Item Board
   lost_found_photo_board_with_claim_verification: 'photo_camera', // Lost & Found Photo Board with Claim Verification

@@ -87,6 +87,14 @@ func (t *Throttle) Allowed(ctx context.Context, identifier string) (bool, time.D
 // Failed counts one wrong attempt and reports whether it tipped the
 // identifier into a lockout -- the moment worth telling the principal about.
 func (t *Throttle) Failed(ctx context.Context, identifier string) (locked bool) {
+	return t.FailedN(ctx, identifier, maxFailedAttempts)
+}
+
+// FailedN is Failed with its own ceiling. The per-address count uses a higher
+// one: a classroom NAT carries every teacher in the building, and eight wrong
+// day codes between them in five minutes is a Monday, not an attack. Forty is
+// not a Monday.
+func (t *Throttle) FailedN(ctx context.Context, identifier string, max int) (locked bool) {
 	if t.db != nil {
 		err := t.db.AsPlatform(ctx, func(tx pgx.Tx) error {
 			return tx.QueryRow(ctx, `
@@ -100,7 +108,7 @@ func (t *Throttle) Failed(ctx context.Context, identifier string) (locked bool) 
 				                           ELSE login_throttle.locked_until END,
 				       last_seen = now()
 				RETURNING locked_until IS NOT NULL AND locked_until > now() AND failures = 0`,
-				identifier, maxFailedAttempts, lockoutDuration.String()).Scan(&locked)
+				identifier, max, lockoutDuration.String()).Scan(&locked)
 		})
 		if err == nil {
 			return locked
@@ -116,7 +124,7 @@ func (t *Throttle) Failed(ctx context.Context, identifier string) (locked bool) 
 	}
 	rec.count++
 	rec.lastSeen = time.Now()
-	if rec.count >= maxFailedAttempts {
+	if rec.count >= max {
 		rec.lockedTil = time.Now().Add(lockoutDuration)
 		rec.count = 0
 		return true

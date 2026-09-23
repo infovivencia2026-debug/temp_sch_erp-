@@ -80,6 +80,11 @@ var redactKeys = map[string]bool{
 	"password": true, "new_password": true, "current_password": true,
 	"temporary_password": true, "csrf_token": true, "token": true,
 	"secret": true, "api_key": true, "access_key": true,
+	/* Identity numbers. aadhaar_last4 was reaching audit_log bodies that
+	   it_admin and support_admin can read; the trail records that a record
+	   changed, never the number on it. PAN and the full Aadhaar likewise. */
+	"aadhaar": true, "aadhaar_last4": true, "aadhaar_number": true,
+	"pan": true, "pan_number": true,
 	/* The API key issue response, which is the only payload in the product
 	   that ever contains a usable machine credential. "token" above already
 	   covers the field it is returned in; these are here because the same

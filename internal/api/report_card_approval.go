@@ -567,7 +567,7 @@ func (s *Server) announceReportCards(r *http.Request, cards []uuid.UUID,
 			  JOIN LATERAL (
 			        SELECT g.phone, g.email::text FROM student_guardians sg
 			          JOIN guardians g ON g.id = sg.guardian_id
-			         WHERE sg.student_id = rc.student_id AND $2
+			         WHERE sg.student_id = rc.student_id AND $2`+guardianAlertFilter+`
 			        UNION ALL
 			        /* The child's own contact details are their login's: a
 			           student row holds no phone, because a child who has one

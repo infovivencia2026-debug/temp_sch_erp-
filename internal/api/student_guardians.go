@@ -50,6 +50,10 @@ type guardianWriteRequest struct {
 	// Who the school rings first, and whose consent the office records. One
 	// per child: setting it clears the flag on the others.
 	IsPrimary bool `json:"is_primary"`
+	// Portal access on this link. Nil leaves each as it was; an empty
+	// access_until clears the date. See migrations/00341_privacy.sql.
+	PortalBlocked *bool   `json:"portal_blocked,omitempty"`
+	AccessUntil   *string `json:"access_until,omitempty"`
 }
 
 // A parent's number and address are sign-in identifiers, unique per school.
@@ -344,6 +348,19 @@ func (s *Server) upsertGuardianForStudent(r *http.Request, id *httpx.Identity, t
 				VALUES ($1,$2::uuid,$3,false)
 				ON CONFLICT (student_id, guardian_id) DO NOTHING`,
 				sid, guardianID, id.InstitutionID); err != nil {
+				return err
+			}
+		}
+
+		if req.PortalBlocked != nil || req.AccessUntil != nil {
+			if _, err := tx.Exec(r.Context(), `
+				UPDATE student_guardians
+				   SET portal_blocked = COALESCE($3, portal_blocked),
+				       access_until = CASE WHEN $4::text IS NULL THEN access_until
+				                           WHEN $4 = '' THEN NULL
+				                           ELSE $4::date END
+				 WHERE student_id = $1 AND guardian_id = $2::uuid`,
+				sid, guardianID, req.PortalBlocked, req.AccessUntil); err != nil {
 				return err
 			}
 		}

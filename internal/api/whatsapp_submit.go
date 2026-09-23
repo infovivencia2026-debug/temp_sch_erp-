@@ -82,6 +82,8 @@ var waCategories = map[string]string{
 	"admissions.enquiry_link":    "UTILITY",
 	"admissions.portal_login":    "UTILITY",
 	"admissions.portal_existing": "UTILITY",
+	"admissions.portal_ready":    "UTILITY",
+	"admissions.applicant_ready": "UTILITY",
 	/* The acknowledgement a family gets for filling the form. A parent who
 	   applied online reads WhatsApp, not email -- and a great many gave no
 	   email address at all. */

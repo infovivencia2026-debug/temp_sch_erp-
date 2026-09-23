@@ -401,6 +401,9 @@ type guardian struct {
 	Phone     *string `json:"phone,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	IsPrimary bool    `json:"is_primary"`
+	// Portal access on the link: blocked outright, or until a date.
+	PortalBlocked bool    `json:"portal_blocked"`
+	AccessUntil   *string `json:"access_until,omitempty"`
 	// Optional, and blank is an ordinary answer — most schools photograph the
 	// child and not the parents.
 	PhotoFileID *string `json:"photo_file_id,omitempty"`
@@ -454,7 +457,8 @@ func (s *Server) getStudent(w http.ResponseWriter, r *http.Request) {
 
 		rows, err := tx.Query(r.Context(), `
 			SELECT g.id::text, g.full_name, g.relation, g.phone, g.email::text,
-			       sg.is_primary, g.photo_file_id::text
+			       sg.is_primary, g.photo_file_id::text,
+			       sg.portal_blocked, to_char(sg.access_until, 'YYYY-MM-DD')
 			  FROM student_guardians sg
 			  JOIN guardians g ON g.id = sg.guardian_id
 			 WHERE sg.student_id = $1
@@ -465,7 +469,8 @@ func (s *Server) getStudent(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		for rows.Next() {
 			var g guardian
-			if err := rows.Scan(&g.ID, &g.FullName, &g.Relation, &g.Phone, &g.Email, &g.IsPrimary, &g.PhotoFileID); err != nil {
+			if err := rows.Scan(&g.ID, &g.FullName, &g.Relation, &g.Phone, &g.Email, &g.IsPrimary, &g.PhotoFileID,
+				&g.PortalBlocked, &g.AccessUntil); err != nil {
 				return err
 			}
 			d.Guardians = append(d.Guardians, g)

@@ -356,7 +356,7 @@ func (s *Server) announceAbsences(
 		      SELECT g.user_id, g.phone, g.email::text AS email
 		        FROM student_guardians sg
 		        JOIN guardians g ON g.id = sg.guardian_id
-		       WHERE sg.student_id = st.id
+		       WHERE sg.student_id = st.id`+guardianAlertFilter+`
 		      UNION ALL
 		      -- The child's own account, where they have one.
 		      SELECT u.id, u.phone, u.email::text FROM users u WHERE u.id = st.user_id

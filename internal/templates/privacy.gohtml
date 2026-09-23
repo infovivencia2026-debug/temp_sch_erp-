@@ -1,0 +1,107 @@
+{{define "privacy.gohtml"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · WISEN</title>
+<meta name="description" content="What the WISEN school platform collects, why, who can see it, how long it is kept, and how to ask for it to be corrected or erased.">
+<link rel="stylesheet" href="/static/app.css?v={{.AssetVersion}}">
+{{template "themeboot"}}
+<style>
+  /* The auth card is sized for a form. A notice is prose, so it gets a
+     reading width and the card's own edge, nothing else. */
+  .auth main.card.notice { max-width: 46rem; text-align: left; }
+  .notice h1 { margin-bottom: .25rem; }
+  .notice h2 { font-size: 1.05rem; margin: 1.6rem 0 .4rem; }
+  .notice p, .notice li { line-height: 1.55; }
+  .notice ul { padding-left: 1.2rem; }
+  .notice .meta { opacity: .7; font-size: .9rem; margin-bottom: 1rem; }
+  .notice table { width: 100%; border-collapse: collapse; font-size: .95rem; margin: .5rem 0 1rem; }
+  .notice th, .notice td { text-align: left; vertical-align: top; padding: .45rem .5rem; border-bottom: 1px solid rgba(128,128,128,.25); }
+</style>
+</head>
+<body class="auth">
+  <div class="auth-top">{{template "themebtn"}}</div>
+  <main class="card notice">
+    <h1>Privacy notice</h1>
+    <p class="meta">Last updated {{.Updated}} · Written to the Digital Personal Data Protection Act, 2023</p>
+
+    <p>WISEN is the software a school uses to run its office: admissions, fees,
+    attendance, exams, transport and messages to families. This notice says what
+    the platform holds about you or your child, why, who can see it, how long it
+    stays, and what you can ask for.</p>
+
+    <h2>Who is responsible</h2>
+    <p><strong>Your school</strong> decides what is collected and why. In the words of
+    the Act it is the <em>data fiduciary</em>. Questions about your own or your
+    child's records go to the school office first.</p>
+    <p><strong>WISEN</strong>, the company that makes and hosts the platform, processes
+    that data on the school's instructions and does not use it for anything
+    else. It is the <em>data processor</em>.
+    {{if .SupportEmail}}You can reach it at <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a>.{{end}}</p>
+
+    <h2>What is collected, and why</h2>
+    <table>
+      <tr><th>About</th><th>What</th><th>Why</th></tr>
+      <tr><td>A student</td><td>Name, date of birth, class, photo, admission number, attendance, marks, health notes the family gives, bus stop</td><td>To run the school year: registers, report cards, safety on the bus</td></tr>
+      <tr><td>A parent or guardian</td><td>Name, relation, phone, email, occupation and annual income where declared for a concession</td><td>To reach you, to sign you in, and to work out fee concessions and RTE eligibility</td></tr>
+      <tr><td>Fees</td><td>Invoices, receipts, the last four digits of a payment reference. Never a card number or a UPI PIN — payment happens in your bank's app</td><td>Billing and receipts the school must keep for its accounts</td></tr>
+      <tr><td>Staff</td><td>Employment, attendance, pay, statutory identifiers the law requires (PAN, UAN)</td><td>Payroll and statutory filings</td></tr>
+      <tr><td>Identity documents</td><td>Aadhaar is stored only as its last four digits, and only when a scheme the school takes part in requires it</td><td>Government schemes; never for sign-in, never in the audit log</td></tr>
+      <tr><td>Use of the app</td><td>Sign-ins (time, device, approximate location from the network), pages opened, what was changed and by whom</td><td>Security, and an audit trail a school can show an inspector</td></tr>
+    </table>
+
+    <h2>Who can see it</h2>
+    <ul>
+      <li><strong>School staff</strong>, each only what their role needs. A class teacher sees their class; the accounts desk sees fees, not marks.</li>
+      <li><strong>You</strong>, for your own child. A school may limit alerts about marks and fees to the primary guardian on record, and may end a guardian's access when custody or enrolment changes.</li>
+      <li><strong>Message providers</strong> (SMS, WhatsApp, email) receive the message and your number or address, to deliver it. Nothing else.</li>
+      <li><strong>Payment providers</strong> receive the amount and a reference when you choose to pay online.</li>
+      <li><strong>WISEN support staff</strong> can reach a school's records only during a support session the school can see in its own audit trail.</li>
+    </ul>
+    <p>The platform does not sell data, does not show advertising, and does not
+    use your child's data to train anything.</p>
+
+    <h2>Where it is kept</h2>
+    <p>On servers in India (Google Cloud, Mumbai region). Backups are encrypted.
+    Files a school uploads (photos, certificates) are stored in the same region.</p>
+
+    <h2>How long</h2>
+    <ul>
+      <li>Academic and fee records: for as long as the school is required to keep them, which for most Indian boards and for tax is at least eight years after the year they concern.</li>
+      <li>Messages and the audit trail: kept by the school; the school can ask for a retention period to be applied.</li>
+      <li>Sign-in sessions: ended automatically after a period of inactivity; the device list is kept for ninety days.</li>
+      <li>An enquiry that never became an admission: erased after the admission season unless you asked to be contacted again.</li>
+    </ul>
+
+    <h2>Your rights</h2>
+    <p>Under the Act you may ask the school to show you what it holds about you or
+    your child, to correct it, to erase what it no longer needs, and to name
+    someone to act for you. You may withdraw consent for anything that was based
+    on consent — for example, a photograph on the school wall — without it
+    affecting your child's schooling. Ask the school office; the school will
+    answer within thirty days. If you are not satisfied, you may complain to the
+    Data Protection Board of India.</p>
+
+    <h2>Children</h2>
+    <p>A child's record is created and controlled by the school with the consent
+    of a parent or guardian. Students who sign in themselves see only their own
+    work. The platform does not track children's behaviour for advertising or
+    profiling.</p>
+
+    <h2>Security</h2>
+    <p>Every school's data is separated from every other's at the database level.
+    Traffic is encrypted. Passwords are stored as salted, peppered hashes and are
+    never shown or sent after the first issue. Staff sign-ins can require a
+    second factor; a wrong password locks the account for five minutes after
+    eight attempts.</p>
+
+    <h2>Changes</h2>
+    <p>When this notice changes, the date at the top changes with it and the
+    school is told. The version in force is always the one at this address.</p>
+
+    <p class="fineprint"><a href="/login">Back to sign in</a></p>
+  </main>
+{{template "themejs"}}
+</body>
+</html>{{end}}

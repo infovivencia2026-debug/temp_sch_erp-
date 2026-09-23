@@ -179,7 +179,11 @@ func resolveUncached(ctx context.Context, db *database.DB, id *httpx.Identity) (
 			SELECT sg.student_id
 			  FROM student_guardians sg
 			  JOIN guardians g ON g.id = sg.guardian_id
-			 WHERE g.user_id = $1`, id.UserID); err != nil {
+			 WHERE g.user_id = $1
+			   -- A link the school has ended or blocked (custody, a withdrawn
+			   -- child) grants nothing: see migrations/00341_privacy.sql.
+			   AND NOT sg.portal_blocked
+			   AND (sg.access_until IS NULL OR sg.access_until >= current_date)`, id.UserID); err != nil {
 			return fmt.Errorf("students: %w", err)
 		}
 		return nil

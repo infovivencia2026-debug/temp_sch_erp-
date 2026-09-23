@@ -179,7 +179,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	// Throttle before touching the database. Without this, the sign-in form is
 	// an unlimited password oracle, and the constant-time dummy hash below only
 	// hides *which* accounts exist — it does nothing to slow guessing.
-	if ok, wait := h.throttle.Allowed(r.Context(), identifier); !ok {
+	/* AND BY ADDRESS. Per identifier alone, N known staff numbers bought N
+	   times eight guesses at a six-digit day code every five minutes; the
+	   address making them is the thing they have in common. RealIP has
+	   already reduced RemoteAddr to the client's address. */
+	ipKey := "ip:" + r.RemoteAddr
+	ok, wait := h.throttle.Allowed(r.Context(), identifier)
+	if ok {
+		ok, wait = h.throttle.Allowed(r.Context(), ipKey)
+	}
+	if !ok {
 		slog.Warn("login throttled", "identifier", identifier, "retry_in", wait.String())
 		h.record(r.Context(), r, LoginEvent{Outcome: "locked", Identifier: identifier})
 		h.render(w, r, http.StatusTooManyRequests, loginPage{
@@ -194,6 +203,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	won, err := h.authenticate(r.Context(), identifier, password)
 	if err != nil {
 		locked := h.throttle.Failed(r.Context(), identifier)
+		h.throttle.FailedN(r.Context(), ipKey, maxFailedAttempts*5)
 		outcome := "wrong_password"
 		switch {
 		case errors.Is(err, errNoAccount):

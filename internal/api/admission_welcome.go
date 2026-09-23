@@ -295,6 +295,7 @@ func (s *Server) queueFamilyLogin(ctx context.Context, tx pgx.Tx, set providerSe
 	}
 	sid := c.SourceID
 	var sent []string
+	emailOnly := credentialsByEmailOnly(ctx, tx, inst)
 	for _, channel := range welcomeChannels {
 		to := strings.TrimSpace(c.Phone)
 		if channel == "email" {
@@ -303,9 +304,15 @@ func (s *Server) queueFamilyLogin(ctx context.Context, tx pgx.Tx, set providerSe
 		if to == "" {
 			continue
 		}
+		// The phone channels carry the notice without the password when the
+		// school keeps credentials to email -- see privacy.go.
+		tcode := code
+		if channel != "email" && emailOnly && c.Password != "" {
+			tcode = "admissions.portal_ready"
+		}
 		if _, err := s.queueWith(ctx, tx, inst, set, SendRequest{
 			Channel:      channel,
-			TemplateCode: code,
+			TemplateCode: tcode,
 			Vars:         vars,
 			Recipient:    to,
 			SourceKind:   c.SourceKind,

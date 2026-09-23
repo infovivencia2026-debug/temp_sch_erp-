@@ -952,6 +952,26 @@ var builtinTemplates = map[string]builtinTemplate{
 	// The same moment for a family already on the rolls - a second child, or a
 	// parent who enquired before. Naming the account is useful; replacing the
 	// password they signed in with this morning would not be.
+	/* THE NOTICE WITHOUT THE PASSWORD. With the school's
+	   credentials_by_email_only switch on (the default), SMS and WhatsApp
+	   carry these two and the password goes by email alone: a password sent
+	   to a number nobody has verified is sent to whoever holds that number
+	   now. Where there is no email, the office reads the password off the
+	   screen and hands it over. */
+	"admissions.applicant_ready": {
+		Subject: "Track your admission at {{school_name}}",
+		Body: "Namaste {{parent_name}}, thank you for your enquiry about {{student_name}} " +
+			"at {{school_name}}.\n\nYou can follow the admission here:\n{{portal_url}}\n\n" +
+			"Sign in as: {{sign_in_as}}\nYour password has been sent to your email address. " +
+			"If you did not give one, the school office will hand it to you.",
+	},
+	"admissions.portal_ready": {
+		Subject: "Your parent login for {{school_name}}",
+		Body: "Namaste {{parent_name}}, welcome to {{school_name}}.\n\n" +
+			"You can now see fees, attendance, homework and the bus here:\n{{portal_url}}\n\n" +
+			"Sign in as: {{sign_in_as}}\nYour password has been sent to your email address. " +
+			"If you did not give one, the school office will hand it to you.",
+	},
 	"admissions.applicant_existing": {
 		Subject: "{{school_name}}: your enquiry is on your existing login",
 		Body: "Namaste {{parent_name}}, your enquiry about {{student_name}} at " +
@@ -2392,7 +2412,7 @@ func (s *Server) audienceFor(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 			SELECT g.user_id, g.email::text, g.phone, g.full_name
 			  FROM student_guardians sg
 			  JOIN guardians g ON g.id = sg.guardian_id
-			 WHERE sg.student_id = $1 AND sg.institution_id = $2
+			 WHERE sg.student_id = $1 AND sg.institution_id = $2`+guardianAlertFilter+`
 			 ORDER BY sg.is_primary DESC, g.full_name`, *sub.StudentID, inst)
 		if err != nil {
 			return nil, err

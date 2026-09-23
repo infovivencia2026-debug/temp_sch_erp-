@@ -66,6 +66,7 @@ interface Profile {
   guardians: {
     id?: string; full_name: string; relation: string; phone: string
     email: string; is_primary: boolean; photo_file_id?: string
+    portal_blocked?: boolean; access_until?: string
     occupation?: string
     annual_income?: number | null
     /** none | issued | active | invited | suspended … — the parent's own login. */
@@ -2129,6 +2130,8 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                     <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium">
                       {g.full_name}
                       {g.is_primary && <Badge tone="primary">primary</Badge>}
+                      {g.portal_blocked && <Badge tone="danger">no portal access</Badge>}
+                      {!g.portal_blocked && g.access_until && <Badge tone="warning">access until {g.access_until}</Badge>}
                     </p>
                     <p className="text-[13px] text-muted-foreground">
                       {[
@@ -2635,6 +2638,10 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
     annual_income: guardian?.annual_income != null ? String(guardian.annual_income) : '',
   })
   const [primary, setPrimary] = useState(guardian?.is_primary ?? false)
+  /* Portal access on the link -- custody, a withdrawn child. Blocked sees
+     nothing and hears nothing; a date ends it on that day. */
+  const [blocked, setBlocked] = useState(guardian?.portal_blocked ?? false)
+  const [until, setUntil] = useState(guardian?.access_until ?? '')
   const set = (k: keyof typeof f) => (v: string) => setF({ ...f, [k]: v })
   const reachable = f.phone.trim() !== '' || f.email.trim() !== ''
   return (
@@ -2669,12 +2676,20 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
         <FormField label="Annual income (₹)" hint="As declared; used for concessions and RTE.">
           <Input value={f.annual_income} onChange={set('annual_income')} placeholder="3,60,000" />
         </FormField>
+        <FormField label="Portal access until" hint="Blank keeps it open. After this date they see nothing and hear nothing.">
+          <Input value={until} onChange={setUntil} placeholder="YYYY-MM-DD" />
+        </FormField>
       </FormGrid>
-      <div className="mt-3">
+      <div className="mt-3 space-y-2">
         <Checkbox
           label="Ring this parent first"
           checked={primary}
           onChange={setPrimary}
+        />
+        <Checkbox
+          label="Block portal access (custody, or the child has left)"
+          checked={blocked}
+          onChange={setBlocked}
         />
       </div>
       <div className="mt-4 flex items-center gap-2">
@@ -2687,6 +2702,8 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
                 ? Number(f.annual_income.replace(/[^0-9]/g, ''))
                 : undefined,
               is_primary: primary,
+              portal_blocked: blocked,
+              access_until: until.trim(),
             })
           }
         >

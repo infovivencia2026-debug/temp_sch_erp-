@@ -129,7 +129,7 @@ func (s *Server) sendFeeReminders(w http.ResponseWriter, r *http.Request) {
 				SELECT g.user_id, g.phone, g.email::text
 				  FROM student_guardians sg
 				  JOIN guardians g ON g.id = sg.guardian_id
-				 WHERE sg.student_id = $1
+				 WHERE sg.student_id = $1`+guardianAlertFilter+`
 				UNION ALL
 				SELECT u.id, u.phone, u.email::text
 				  FROM students st JOIN users u ON u.id = st.user_id

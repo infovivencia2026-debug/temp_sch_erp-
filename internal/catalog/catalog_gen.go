@@ -80,7 +80,7 @@ type Role struct {
 	Sections []Section
 }
 
-// Roles is the catalog: 23 roles, 413 features.
+// Roles is the catalog: 23 roles, 414 features.
 var Roles = []Role{
 	{
 		Key:  "seller_admin",
@@ -400,6 +400,7 @@ var Roles = []Role{
 					{Key: "institution_admin.staff.leaves_subs", Slug: "leaves_subs", Name: "Leaves & Subs", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Leave the department heads have passed up, and long leave that needs the principal's signature. Shows who is away today across the school and which periods are still uncovered."},
 					{Key: "institution_admin.staff.roles_permissions", Slug: "roles_permissions", Name: "Roles & permissions", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who can see and do what. Each role is a grid of feature groups with a level and a data scope, not a list of permission keys. The built-in roles are read-only and restored on every upgrade; copy one to make a role of your own and then add or remove groups on it."},
 					{Key: "institution_admin.staff.logins_access", Slug: "logins_access", Name: "Logins & access", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Every login at this school: who it belongs to, whether it can still sign in, the roles it carries, when it last signed in and how many devices it is signed in on right now. Issue a login, reset a password, deactivate and reactivate, and sign a device out. Flags accounts whose staff, student or guardian record no longer exists, which is how a login outlives the person."},
+					{Key: "institution_admin.staff.privacy", Slug: "privacy", Name: "Privacy", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Who hears about a child (the primary guardian only, or every linked adult), whether a new login's password travels by email only, and where a guardian's portal access is ended or blocked. Links the privacy notice families are shown."},
 					{Key: "institution_admin.staff.interaction_log", Slug: "interaction_log", Name: "Interaction log", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Everything that passed between any two people at the school, in one list: messages between colleagues, a teacher's exchange with a family, the counsellor's thread, a remark written about a child, a fee taken at the counter. Pick one or two people, a kind and a window; search the text; export as CSV. Read-only, with a link to where each item lives."},
 					{Key: "institution_admin.staff.branding", Slug: "branding", Name: "Branding", Scope: Scope("institution"), Tier: Tier("core"), Summary: "The school's own logo, name, colours and support contacts, shown in the app header, the browser tab, receipts and the sign-in page. Set once; a campus can override the school's where it runs its own identity. The vendor confirms a custom web address separately."},
 					{Key: "institution_admin.staff.staff_groups_lists", Slug: "staff_groups_lists", Name: "Staff groups & lists", Scope: Scope("institution"), Tier: Tier("core"), Summary: "Named groups of staff, exam duty, the lab-trained four, everybody at one branch. Same rules as the student groups, over staff fields and your own imported columns."},

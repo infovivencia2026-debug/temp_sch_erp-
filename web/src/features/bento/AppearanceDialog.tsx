@@ -282,6 +282,10 @@ const LINK_GROUPS: LinkGroup[] = [
         at: ['getting_started', 'school_setup'],
         note: 'The sixteen steps of setting the school up, in order, with what is done and what is left.',
       },
+      {
+        at: ['staff', 'privacy'],
+        note: 'Who hears about a child, how a new login travels, and the notice families are shown.',
+      },
       /* The tracking policy is a genuine settings screen wearing a hardware
          name. The catalogue calls it GPS hardware integration and describes
          IMEI mapping, but there is no hardware: what the screen actually

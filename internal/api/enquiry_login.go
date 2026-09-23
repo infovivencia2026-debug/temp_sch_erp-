@@ -214,10 +214,17 @@ func (s *Server) issueEnquiryLogin(
 	   Collected per channel and returned in the note, which is the same place
 	   every other outcome of this function already goes. */
 	var failed []string
+	emailOnly := credentialsByEmailOnly(ctx, tx, inst)
 	for _, channel := range applicantChannels {
 		to := phone
 		if channel == "email" {
 			to = email
+		}
+		// The phone channels carry the notice without the password when the
+		// school keeps credentials to email -- see privacy.go.
+		tcode := code
+		if channel != "email" && emailOnly && out.Password != "" {
+			tcode = "admissions.applicant_ready"
 		}
 		if to == "" {
 			if channel == "email" {
@@ -227,7 +234,7 @@ func (s *Server) issueEnquiryLogin(
 		}
 		res, err := s.QueueMessage(ctx, tx, inst, SendRequest{
 			Channel:      channel,
-			TemplateCode: code,
+			TemplateCode: tcode,
 			Vars:         vars,
 			Recipient:    to,
 			SourceKind:   "enquiry",
