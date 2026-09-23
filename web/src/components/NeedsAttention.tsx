@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
+import { useLayout as useLayoutMode } from '@/lib/layout'
 import { cn } from '@/lib/utils'
 
 /* The panel every role opens the product to read.
@@ -111,8 +112,12 @@ export default function NeedsAttention({ name }: { name?: string }) {
    * Order is the order they were added, so the row does not reshuffle itself
    * under somebody who is reaching for the third tile. */
   const dashKeys = useShortcuts()
+  /* On a bento home the shortcuts are tiles on the board itself
+     (features/bento/FeatureCells), so the strip here would show every one
+     of them twice. It stays for the classic home, which has no board. */
+  const { layout: layoutMode } = useLayoutMode()
   const shortcuts = useMemo(() => {
-    if (!dashKeys.length) return []
+    if (!dashKeys.length || layoutMode === 'bento') return []
     const byKey = new Map<string, { key: string; name: string; href: string }>()
     for (const role of catalog.roles) {
       for (const section of role.sections) {
@@ -127,7 +132,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
       }
     }
     return dashKeys.map((k) => byKey.get(k)).filter((x): x is NonNullable<typeof x> => !!x)
-  }, [dashKeys, catalog])
+  }, [dashKeys, catalog, layoutMode])
   const [nudged, setNudged] = useState('')
   const nudge = useMutation({
     mutationFn: () =>

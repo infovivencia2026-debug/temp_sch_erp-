@@ -135,6 +135,13 @@ export function useCatalog(): CatalogResponse {
   return ctx
 }
 
+/** The catalogue if one is mounted, else null. For a component that lives
+    inside every board -- the home-shortcut tiles -- and must render nothing,
+    not throw, where a board is mounted without the app shell around it. */
+export function useCatalogIfAny(): CatalogResponse | null {
+  return useContext(CatalogContext)
+}
+
 /**
  * The role the CHROME should draw itself as: from the URL where the URL names
  * one the account holds, and otherwise the first role the account holds.

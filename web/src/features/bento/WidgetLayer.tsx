@@ -14,6 +14,7 @@ import {
 import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
+import { FeatureCells } from './FeatureCells'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
 import { QuickMenu, type QuickTier } from './bento-cards'
 import { usePhone } from '@/lib/viewport'
@@ -914,6 +915,7 @@ export function WidgetLayer({
       {/* The metric cells the layout holds, after the board's own. No
           board file knows they exist; see MetricCells. */}
       <MetricCells />
+      <FeatureCells />
 
       {/* ONE EMPTY ELEMENT PER PAGE, AND IT IS WHAT MAKES THE PAGER SNAP.
           A snap position exists only where an element declares one; the cards

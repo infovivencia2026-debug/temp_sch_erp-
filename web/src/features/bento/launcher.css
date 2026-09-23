@@ -343,6 +343,41 @@
   outline: none;
 }
 
+/* The phone's form of the same menu: a sheet on the bottom edge, under a
+   scrim, portalled to the body so no grid overflow can clip it. The two
+   rows are finger-sized; the title says which tile was held. */
+.lch-menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  background: color-mix(in srgb, var(--bento-ink) 38%, transparent);
+}
+.lch-menu.lch-menu--sheet {
+  position: fixed;
+  top: auto;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 80;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 16px;
+}
+.lch-menu.lch-menu--sheet .lch-menu__title {
+  margin: 4px 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+}
+.lch-menu.lch-menu--sheet button {
+  padding: 14px 12px;
+  font-size: 15px;
+  gap: 12px;
+}
+.lch-menu.lch-menu--sheet button svg { width: 18px; height: 18px; }
+
 /* ---- the announcement ----------------------------------------------------- */
 
 /* A pin made by long-press has no visible menu to confirm it; the live region

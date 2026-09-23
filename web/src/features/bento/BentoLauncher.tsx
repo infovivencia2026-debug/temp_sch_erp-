@@ -19,7 +19,9 @@ import { useRecents } from '@/lib/recents'
 import { FeatureGlyph } from '@/components/FeatureGlyph'
 import { usePins, togglePin } from '@/lib/pins'
 import { useShortcuts, toggleDashboard } from '@/lib/shortcuts'
+import { createPortal } from 'react-dom'
 import { usePhone } from '@/lib/viewport'
+import { cn } from '@/lib/utils'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
 import './launcher.css'
@@ -829,6 +831,7 @@ function Tile({
   menuFor: string | null
   setMenuFor: (id: string | null) => void
 }) {
+  const phone = usePhone()
   const t = useT()
   const { r, context } = slot
   const href = featurePath(roleKey, r.sectionSlug, r.slug)
@@ -979,27 +982,51 @@ function Tile({
       >
         <Ellipsis aria-hidden="true" />
       </button>
-      {menuOpen && (
-        <div className="lch-menu" role="menu" onClick={(e) => e.stopPropagation()}>
-          <button
-            ref={menuRef}
-            type="button"
-            role="menuitem"
-            onClick={() => onPin(r)}
+      {menuOpen && (() => {
+        const menu = (
+          <div
+            className={cn('lch-menu', phone && 'lch-menu--sheet')}
+            role="menu"
+            aria-label={t('bento.launcher.more_for', { name: r.name })}
+            onClick={(e) => e.stopPropagation()}
           >
-            {pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
-            {t(pinned ? 'bento.launcher.unpin' : 'bento.launcher.pin')}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => onDashboard(r)}
-          >
-            <LayoutGrid aria-hidden="true" />
-            {dashKeys.includes(r.key) ? 'Remove from home' : 'Add to home'}
-          </button>
-        </div>
-      )}
+            {phone && <p className="lch-menu__title">{r.name}</p>}
+            <button
+              ref={menuRef}
+              type="button"
+              role="menuitem"
+              onClick={() => onPin(r)}
+            >
+              {pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+              {t(pinned ? 'bento.launcher.unpin' : 'bento.launcher.pin')}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => onDashboard(r)}
+            >
+              <LayoutGrid aria-hidden="true" />
+              {dashKeys.includes(r.key) ? 'Remove from home' : 'Add to home'}
+            </button>
+          </div>
+        )
+        /* ON A PHONE THE MENU IS A SHEET, NOT A POPOVER.
+
+           The popover hangs off the tile's top-right corner at 128px wide,
+           and a launcher tile on a phone is about 80px: the menu ran past
+           the tile, past its neighbour, and was clipped by the grid's own
+           overflow -- "Pin" visible, "Add to home" cut off. A portal to the
+           body, fixed to the bottom edge under a scrim, is the shape every
+           phone uses for a long-press menu, and it is clipped by nothing. */
+        if (!phone) return menu
+        return createPortal(
+          <>
+            <div className="lch-menu-scrim" onClick={() => setMenuFor(null)} aria-hidden="true" />
+            {menu}
+          </>,
+          document.body,
+        )
+      })()}
     </div>
   )
 }
