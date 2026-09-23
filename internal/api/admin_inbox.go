@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
+	"github.com/school-erp/erp/internal/queue"
 )
 
 /*
@@ -634,12 +636,80 @@ func (s *Server) adminInboxReplyParent(w http.ResponseWriter, r *http.Request) {
 		if !exists {
 			return pgx.ErrNoRows
 		}
-		_, err := tx.Exec(r.Context(), `
+		var msgID uuid.UUID
+		if err := tx.QueryRow(r.Context(), `
 			INSERT INTO parent_teacher_messages
 			    (institution_id, student_id, parent_user_id, teacher_user_id, sender_user_id, body)
-			VALUES ($1, $2, $3, $4, $5, $6)`,
-			id.InstitutionID, sid, pid, tid, id.UserID, body)
-		return err
+			VALUES ($1, $2, $3, $4, $5, $6)
+			RETURNING id`,
+			id.InstitutionID, sid, pid, tid, id.UserID, body).Scan(&msgID); err != nil {
+			return err
+		}
+
+		/* TOLD, AND TOLD NOW.
+
+		   The desk's reply went into the table and nowhere else: no bell for
+		   the parent, no live hint for a chat that was open, no message out of
+		   the building. A teacher's reply does all three, and a reply from the
+		   head is no less a reply. Same notification, same live event (to the
+		   parent, the teacher whose thread it is, and the desk itself), same
+		   outbound message. */
+		var from, child string
+		if err := tx.QueryRow(r.Context(),
+			`SELECT full_name FROM users WHERE id = $1`, id.UserID).Scan(&from); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(r.Context(), `
+			SELECT trim(first_name || ' ' || COALESCE(last_name,''))
+			  FROM students WHERE id = $1`, sid).Scan(&child); err != nil {
+			return err
+		}
+		summary := body
+		if len(summary) > 240 {
+			summary = summary[:237] + "…"
+		}
+		parentLink := "/go/direct_teacher_messaging?student_id=" + sid.String() + "&teacher_user_id=" + tid.String()
+		if err := notify(r, tx, id.InstitutionID, pid, &sid, "parent_message",
+			"Message from "+from+" about "+child, summary,
+			parentLink, "parent_teacher_message", &msgID); err != nil {
+			return err
+		}
+		if tid != id.UserID {
+			teacherLink := "/go/messages?box=parents&child=" + sid.String() + "&with=" + pid.String()
+			if err := notify(r, tx, id.InstitutionID, tid, &sid, "parent_message",
+				from+" replied to "+child+"'s family", summary,
+				teacherLink, "parent_teacher_message", &msgID); err != nil {
+				return err
+			}
+		}
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{pid, tid, id.UserID},
+			Type: "message", Scope: "parent", From: id.UserID,
+			Keys: map[string]string{
+				"student": sid.String(), "parent": pid.String(), "teacher": tid.String(),
+				"from_name": from, "child": child,
+			},
+		})
+		if s.Queue != nil {
+			if _, err := s.Queue.Enqueue(r.Context(), queue.TypeMessageSend,
+				queue.MessageSendPayload{
+					Envelope: queue.Envelope{
+						InstitutionID: id.InstitutionID, ActorUserID: id.UserID,
+						RequestID: httpx.RequestIDFrom(r.Context()), JobID: uuid.New(),
+					},
+					Channel: "email", TemplateKey: "student.remark",
+					ToUserID: pid,
+					Vars: map[string]any{
+						"title":   "About " + child,
+						"summary": body,
+						"teacher": from,
+						"on_date": time.Now().Format("2 January 2006"),
+					},
+				}, queue.HeavyOptions()...); err != nil {
+				httpx.LogError(r, err)
+			}
+		}
+		return nil
 	})
 	if err == pgx.ErrNoRows {
 		httpx.NotFound(w, r)
