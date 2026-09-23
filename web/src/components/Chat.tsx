@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDown, Check, CheckCheck, Clock, Download, FileText,
-  Copy, Mic, Paperclip, Reply, Search, Send, Square, Trash2, X,
+  Copy, Mic, Paperclip, Pause, Play, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { shrinkImage } from '@/lib/shrink-image'
@@ -867,25 +867,118 @@ function isAudio(a: Attachment) {
   return (a.content_type ?? '').startsWith('audio/')
 }
 
-function AttachmentView({ a }: { a: Attachment }) {
-  /* A voice note plays where it was sent. The browser's own player: it knows
-     the codecs, it has the scrub bar and the speed control, and it is the one
-     control on the page a person has already used somewhere else. */
-  if (isAudio(a)) {
-    return (
-      <div className="chat-audio mb-1 flex items-center gap-2 rounded-xl px-1.5 py-1">
-        <audio controls preload="none" src={a.url} className="h-9 max-w-[220px]" />
-        <a
-          href={a.url}
-          download={a.name}
-          title={`Download ${a.name}`}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-black/5"
-        >
-          <Download className="h-4 w-4" />
-        </a>
-      </div>
-    )
+/* A VOICE NOTE, DRAWN RATHER THAN DELEGATED.
+ *
+ * The browser's own <audio> is a grey slab with its own colours and its own
+ * chrome, and inside a coloured bubble it looks like something that fell into
+ * the conversation. This is the control every messaging app draws instead: a
+ * round play button, a bar of ticks that fills as it plays and can be tapped
+ * to seek, and the length -- counting up while it runs, the total when it is
+ * idle.
+ *
+ * The bars are not a real waveform. Decoding the audio to measure it means
+ * downloading and decoding every note in the thread before any of them can be
+ * shown, which on a school connection is the wrong trade; the heights are
+ * derived from the file's own id, so one note always looks like itself and two
+ * notes look different from each other. What is honest here is the position,
+ * the length and the playing state, and those are real.
+ */
+function VoiceNote({ a }: { a: Attachment }) {
+  const audio = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [at, setAt] = useState(0)
+  const [len, setLen] = useState(0)
+
+  // A stable, file-specific set of heights: the same note looks the same on
+  // every screen and after every reload.
+  const bars = useMemo(() => {
+    let seed = 0
+    for (const ch of a.file_id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0
+    return Array.from({ length: 27 }, (_, i) => {
+      seed = (seed * 1103515245 + 12345) >>> 0
+      return 5 + ((seed >>> (i % 7)) % 16)
+    })
+  }, [a.file_id])
+
+  const toggle = () => {
+    const el = audio.current
+    if (!el) return
+    if (el.paused) void el.play()
+    else el.pause()
   }
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = audio.current
+    if (!el || !len) return
+    const box = e.currentTarget.getBoundingClientRect()
+    el.currentTime = ((e.clientX - box.left) / box.width) * len
+  }
+
+  const done = len ? Math.min(1, at / len) : 0
+  const shown = playing || at > 0 ? at : len
+
+  return (
+    <div className="chat-voice mb-1 flex w-[232px] max-w-full items-center gap-2.5">
+      <audio
+        ref={audio}
+        src={a.url}
+        preload="metadata"
+        onLoadedMetadata={(e) => setLen(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false)
+          setAt(0)
+        }}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? 'Pause' : 'Play'}
+        className="chat-voice__play grid h-9 w-9 shrink-0 place-items-center rounded-full"
+      >
+        {playing ? <Pause className="h-4 w-4" /> : <Play className="ml-[2px] h-4 w-4" />}
+      </button>
+      <div className="min-w-0 flex-1">
+        <div
+          role="presentation"
+          onClick={seek}
+          className="flex h-[26px] cursor-pointer items-center gap-[2px]"
+        >
+          {bars.map((h, i) => (
+            <span
+              key={i}
+              className={cn('chat-voice__bar', i / bars.length <= done && 'is-played')}
+              style={{ height: h }}
+            />
+          ))}
+        </div>
+        <div className="chat-voice__time mt-0.5 text-[11.5px] tabular-nums">{clock(shown)}</div>
+      </div>
+      <a
+        href={a.url}
+        download={a.name}
+        title={`Download ${a.name}`}
+        className="chat-voice__get grid h-7 w-7 shrink-0 place-items-center rounded-full"
+      >
+        <Download className="h-3.5 w-3.5" />
+      </a>
+    </div>
+  )
+}
+
+/** Seconds as 0:07 / 1:23. */
+function clock(sec: number): string {
+  if (!isFinite(sec) || sec < 0) return '0:00'
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function AttachmentView({ a }: { a: Attachment }) {
+  if (isAudio(a)) return <VoiceNote a={a} />
   /* A tap saves the file.
    *
    * The link opened a new tab, which the server answered with
@@ -1010,8 +1103,18 @@ const chatCSS = `
 /* The browser draws its own audio controls and will not be told otherwise, so
    the player sits on a light panel in both bubbles rather than fighting the
    colour behind it. */
-.chat-audio { background: rgba(255, 255, 255, 0.92); }
-.chat-theirs .chat-audio { background: rgba(16, 24, 40, 0.04); }
+/* The voice note takes the colour of the bubble it is in, the way the words
+   do: a white button on blue, a blue button on white, and the bar behind the
+   played part dimmed rather than recoloured. */
+.chat-voice__bar { width: 2.5px; border-radius: 2px; flex: 1 1 auto; }
+.chat-mine .chat-voice__bar { background: rgba(255,255,255,0.42); }
+.chat-mine .chat-voice__bar.is-played { background: #ffffff; }
+.chat-theirs .chat-voice__bar { background: #ccd7e6; }
+.chat-theirs .chat-voice__bar.is-played { background: #2f6fed; }
+.chat-mine .chat-voice__play { background: #ffffff; color: #2f6fed; }
+.chat-theirs .chat-voice__play { background: #2f6fed; color: #ffffff; }
+.chat-mine .chat-voice__time, .chat-mine .chat-voice__get { color: rgba(255,255,255,0.85); }
+.chat-theirs .chat-voice__time, .chat-theirs .chat-voice__get { color: #9aa5b6; }
 .chat-theirs .chat-file { background: rgba(16, 24, 40, 0.04); }
 .chat-theirs .chat-file:hover { background: rgba(16, 24, 40, 0.07); }
 .chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }

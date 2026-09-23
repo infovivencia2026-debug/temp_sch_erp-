@@ -810,7 +810,12 @@ func (s *Server) reachableTeachers(r *http.Request, sid uuid.UUID) ([]teacherRow
 		     ORDER BY e.enrolled_on DESC LIMIT 1
 		)
 		SELECT t.user_id::text, u.full_name, t.subject, bool_or(t.class_teacher),
-		       max(emp.photo_file_id)::text,
+		       /* A scalar subquery, not max(): Postgres has no max() for uuid,
+		          so the aggregate form made this whole query fail -- and with it
+		          the parent's list of teachers, which came back empty. */
+		       (SELECT e2.photo_file_id::text FROM employees e2
+		         WHERE e2.user_id = t.user_id AND e2.photo_file_id IS NOT NULL
+		         LIMIT 1),
 		       (SELECT count(*)::int FROM parent_teacher_messages m
 		         WHERE m.student_id = $1 AND m.parent_user_id = $2
 		           AND m.teacher_user_id = t.user_id
@@ -838,9 +843,6 @@ func (s *Server) reachableTeachers(r *http.Request, sid uuid.UUID) ([]teacherRow
 		         AND te.teacher_user_id IS NOT NULL
 		  ) t
 		  JOIN users u ON u.id = t.user_id
-		  -- The staff record carries the photograph; a teacher without one
-		  -- simply has no face here and the screen draws their initials.
-		  LEFT JOIN employees emp ON emp.user_id = t.user_id
 		 WHERE u.status = 'active'
 		 GROUP BY t.user_id, u.full_name, t.subject
 		 ORDER BY bool_or(t.class_teacher) DESC, u.full_name`,

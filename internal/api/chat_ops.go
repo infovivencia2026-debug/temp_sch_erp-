@@ -119,7 +119,11 @@ func (s *Server) amendMessage(w http.ResponseWriter, r *http.Request, unsend boo
 		}
 		if unsend {
 			_, err := tx.Exec(r.Context(),
-				`UPDATE `+table+` SET body = '', attachments = NULL, deleted_at = now() WHERE id = $1`, mid)
+				/* An empty list, not NULL: the column is NOT NULL with a default
+				   of '[]', so setting it to NULL failed the constraint and every
+				   withdrawal came back as "something went wrong". */
+				`UPDATE `+table+` SET body = '', attachments = '[]'::jsonb, deleted_at = now()
+				  WHERE id = $1`, mid)
 			return err
 		}
 		_, err := tx.Exec(r.Context(),
