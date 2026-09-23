@@ -23,11 +23,12 @@ import { cn } from '@/lib/utils'
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { YearSwitch } from '@/components/YearSwitch'
 import { InstitutionSwitch } from '@/components/InstitutionSwitch'
-import { BentoOutlet, useIsBentoScreen } from '@/features/bento/BentoOutlet'
+import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
 import PaneArea from '@/components/PaneArea'
 import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
+import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
 import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
@@ -435,9 +436,8 @@ export function Shell({
      Everything the header carried — the switch, sign-out, notifications — goes
      with it, which is why BentoEscape exists and why it renders before this is
      allowed to hide anything. */
-  /* Chromeless only where a board is drawn -- the Home -- not on every
-     screen the preference is on. See BentoOutlet. */
-  const chromeless = useIsBentoScreen()
+  const { layout } = useLayout()
+  const chromeless = layout === 'bento'
 
   /* THE DRAWER, AND ONLY WHEN IT IS ACTUALLY A DRAWER.
 
