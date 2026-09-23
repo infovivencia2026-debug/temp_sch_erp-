@@ -636,7 +636,7 @@ function CampAttendance({ campId }: { campId: string }) {
         title="Children seen at this camp"
         description="Open referrals first. A screening that finds nine problems and chases none of them has recorded nine problems."
       />
-      <div className="space-y-4 px-4 pb-4">
+      <div className="space-y-4 px-4 pb-4 pt-4">
         <FormGrid>
           <Field label="Child" required>
             <Select

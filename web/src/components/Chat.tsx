@@ -718,7 +718,7 @@ function AttachmentView({ a }: { a: Attachment }) {
       href={a.url}
       download={a.name}
       title={`Download ${a.name}`}
-      className="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-2 py-1.5 text-[13px] hover:bg-black/10"
+      className="mb-1 flex items-center gap-2 rounded-md bg-black/5 px-3 py-2 text-[13px] hover:bg-black/10"
     >
       <FileText className="h-4 w-4 shrink-0" />
       <span className="min-w-0 flex-1">

@@ -271,7 +271,7 @@ export default function Outcomes() {
 
         <Card>
           <CardHeader title="Write an outcome" />
-          <div className="grid gap-6 px-5 pb-5 lg:grid-cols-2">
+          <div className="grid gap-6 px-5 pb-5 lg:grid-cols-2 pt-4">
             <NewProgrammeOutcome save={savePO} />
             <NewCourseOutcome
               save={saveCO}

@@ -1033,7 +1033,7 @@ export default function StudentProfile() {
                 </Badge>
               }
             />
-            <div className="flex flex-wrap items-center gap-3 px-5 pb-5">
+            <div className="flex flex-wrap items-center gap-3 px-5 pb-5 pt-4">
               {can('students.write') ? (
                 <>
                   {/* ONE DROPDOWN, not a row of buttons.
@@ -1802,7 +1802,7 @@ export default function StudentProfile() {
               this year's collection would be wrong in every report. */}
           {!!(detail.data?.prior_years ?? []).length && (
             <>
-              <p className="eyebrow border-t px-5 pt-4">
+              <p className="eyebrow border-t px-5 pb-4 pt-4">
                 Before this system â as the school recorded it
               </p>
               <Table

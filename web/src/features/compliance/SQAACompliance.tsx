@@ -255,7 +255,7 @@ export default function SQAACompliance() {
                   title="Start an assessment"
                   description="Every standard in the framework is laid out unrated, so progress is visible from the first day."
                 />
-                <div className="space-y-3 px-5 pb-5">
+                <div className="space-y-3 px-5 pb-5 pt-4">
                   <FormGrid>
                     <Field label="Framework" required>
                       <Select
@@ -607,7 +607,7 @@ export default function SQAACompliance() {
                       title="Submit the assessment"
                       description="Fixes the ratings and the evidence. Unrated standards and missing required evidence are refused, because a half-rated framework reads to a board as a school that scored badly rather than one that had not finished."
                     />
-                    <div className="flex flex-wrap gap-2 px-5 pb-5">
+                    <div className="flex flex-wrap gap-2 px-5 pb-5 pt-4">
                       <Button disabled={submit.isPending} onClick={() => submit.mutate(false)}>
                         {submit.isPending ? 'Submitting…' : 'Submit'}
                       </Button>

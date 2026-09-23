@@ -410,7 +410,7 @@ function ShareCard({
             {report.shared_with.map((r) => (
               <span
                 key={r}
-                className="inline-flex items-center gap-1.5 rounded-sm border px-2 py-1 text-[13px]"
+                className="inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-[13px]"
               >
                 {schema.roles.find((x) => x.key === r)?.name ?? r}
                 <button

@@ -428,7 +428,7 @@ function BusRegister() {
             title="Not scanned"
             description="Allocated to this run and unaccounted for. Worth a phone call before the bus leaves."
           />
-          <p className="px-4 pb-4 text-[13px] text-muted-foreground">
+          <p className="px-4 pb-4 text-[13px] text-muted-foreground pt-4">
             {unscanned.map((u) => u.full_name).join(', ')}
           </p>
         </Card>

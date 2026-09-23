@@ -271,7 +271,7 @@ export default function AchievementsShowcase() {
                             setPicked(s)
                             setStudentSearch(`${s.full_name} · ${s.admission_no}`)
                           }}
-                          className="rounded-md border px-2 py-1 text-[13px] hover:bg-accent"
+                          className="rounded-md border px-3 py-1.5 text-[13px] hover:bg-accent"
                         >
                           {s.full_name} · {s.admission_no}
                         </button>

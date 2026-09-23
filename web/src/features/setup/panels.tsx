@@ -4134,7 +4134,7 @@ function EditableSection({ section }: { section: Section }) {
       /* The tag opens for renaming; the cross removes. Two intentions, and one
          of them cannot be undone -- so they are two targets rather than one
          control that behaves differently depending on where you land. */
-      <span className="inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-[13px]">
+      <span className="inline-flex items-center gap-1 rounded-sm border px-2.5 py-1 text-[13px]">
         <button
           type="button"
           onClick={() => setOpen(true)}

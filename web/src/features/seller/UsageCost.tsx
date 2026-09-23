@@ -177,7 +177,7 @@ export default function UsageCost() {
               title="What the installation costs you"
               description="Nothing in the product knows what your server or your storage costs, those arrive as invoices by email. Enter them once and every school's share is worked out from what it actually uses."
             />
-            <div className="space-y-4 px-5 pb-5">
+            <div className="space-y-4 px-5 pb-5 pt-4">
               {save.isError && <FormNotice error={save.error} />}
               <FormGrid>
                 <Field
@@ -273,7 +273,7 @@ export default function UsageCost() {
             the cost column is measured will price against it. */}
         <Card>
           <CardHeader title="What this screen cannot tell you" />
-          <p className="max-w-[72ch] px-5 pb-5 text-[14px] text-muted-foreground">
+          <p className="max-w-[72ch] px-5 pb-5 text-[14px] text-muted-foreground pt-4">
             {data.not_measured}
           </p>
         </Card>

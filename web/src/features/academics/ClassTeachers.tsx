@@ -130,7 +130,7 @@ export default function ClassTeachers() {
         }
       />
 
-      <div className="px-5 pt-3">
+      <div className="px-5 pb-3 pt-3">
         <FormNotice error={save.error} ok={saved} />
         {unowned > 0 && (
           <p className="mb-2 text-[12.5px] text-muted-foreground">

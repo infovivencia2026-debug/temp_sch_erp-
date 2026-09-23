@@ -400,7 +400,7 @@ export default function BoardLOC() {
                       title="File this list with the board"
                       description="Revalidates against the roll first, then freezes. Nothing on a filed list can be edited afterwards."
                     />
-                    <div className="space-y-3 px-5 pb-5">
+                    <div className="space-y-3 px-5 pb-5 pt-4">
                       <FormGrid>
                         <Field label="Board acknowledgement no." hint="If the board gave you one">
                           <Input value={ack} onChange={setAck} placeholder="Optional" />

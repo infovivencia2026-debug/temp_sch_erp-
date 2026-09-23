@@ -526,7 +526,7 @@ function FeaturesEditor({ roleID }: { roleID: string }) {
           </Button>
         }
       />
-      <div className="px-5 pt-4 text-[12px] text-muted-foreground">
+      <div className="px-5 pb-4 pt-4 text-[12px] text-muted-foreground">
         Turning a feature on adds it to this role’s menu. The person still needs the
         matching permission above for the screen to work.
       </div>

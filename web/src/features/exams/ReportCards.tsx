@@ -797,7 +797,7 @@ export default function ReportCards() {
             <CardHeader
               title="Released"
             />
-            <p className="px-5 pt-4 text-[13px] text-muted-foreground">
+            <p className="px-5 pb-4 pt-4 text-[13px] text-muted-foreground">
               What has gone out, and when. A card a family has already read is
               corrected by generating it again and releasing it again.
             </p>

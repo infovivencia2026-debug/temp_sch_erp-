@@ -147,7 +147,7 @@ export default function DriverRun() {
 
         <Card>
           <CardHeader title="Papers" />
-          <p className="px-4 pb-4 text-sm text-muted-foreground">
+          <p className="px-4 pb-4 text-sm text-muted-foreground pt-4">
             {d.next_expiry ? `The next of insurance, fitness, permit or PUC lapses on ${formatDate(d.next_expiry)}.` : 'No expiry date is recorded on this bus.'}
             {d.attendant ? ` Attendant: ${d.attendant}.` : ''}
           </p>

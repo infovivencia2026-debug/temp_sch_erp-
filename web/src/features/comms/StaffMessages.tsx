@@ -336,7 +336,7 @@ export default function StaffMessages() {
                     : undefined
                 }
               />
-              <div className="space-y-2 px-4 pb-3">
+              <div className="space-y-2 px-4 pb-3 pt-3">
                 <Input value={find} onChange={setFind} placeholder="Find a parent, child or class" />
                 <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
                   <input
@@ -472,7 +472,7 @@ export default function StaffMessages() {
         <div className="grid gap-4">
           <Card className="min-w-0">
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
-            <div className="space-y-2 px-4 pb-3">
+            <div className="space-y-2 px-4 pb-3 pt-3">
               <Input value={find} onChange={setFind} placeholder="Find a name" />
               <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
                 <input

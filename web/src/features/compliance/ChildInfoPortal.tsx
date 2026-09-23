@@ -190,7 +190,7 @@ export default function ChildInfoPortal() {
             title="Export a school's roster"
             description="The file you upload on the portal. Its columns match what the reconciliation reads back, so a round trip needs no mapping step."
           />
-          <div className="flex flex-wrap items-end gap-3 px-5 pb-5">
+          <div className="flex flex-wrap items-end gap-3 px-5 pb-5 pt-4">
             <div className="min-w-64">
               <Field label="School" required>
                 <Select
@@ -226,7 +226,7 @@ export default function ChildInfoPortal() {
             title={form.id ? 'Edit connector' : 'Add a connector'}
             description="One row per state portal. These are platform rows: no school can read them, and the credential is encrypted before it is stored and never returned."
           />
-          <div className="space-y-3 px-5 pb-5">
+          <div className="space-y-3 px-5 pb-5 pt-4">
             <FormGrid>
               <Field label="State code" required>
                 <Input
