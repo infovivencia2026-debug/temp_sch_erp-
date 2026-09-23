@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send } from 'lucide-react'
+import { MessageSquare, ShieldAlert, Users, Megaphone, HeartHandshake, Send, X } from 'lucide-react'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
-  PageHead, PageBody, Card, Stat, Select, Input, Field,
+  PageHead, PageBody, Card, CardHeader, Button, Stat, Select, Input, Field,
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useFeatureHref } from '../bento/bento-kit'
+import { usePhone } from '@/lib/viewport'
 
 /* All messages.
  *
@@ -217,6 +218,16 @@ export default function AllMessages() {
           {counts?.counsellor ?? '–'} counselling thread{counts?.counsellor === 1 ? '' : 's'} open, private; counted here, never read.
         </p>
 
+        {/* On a desk the conversation opens BESIDE the list, the way the web
+            chat does: the feed narrows to the left, the thread sits on the
+            right and stays put while the feed scrolls. Only a phone takes the
+            whole screen, where there is no room for two. */}
+        <div
+          className={cn(
+            'space-y-4',
+            (open || openStaff) && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
+          )}
+        >
         {inbox.isLoading ? (
           <SkeletonTable columns={5} />
         ) : inbox.error ? (
@@ -271,6 +282,7 @@ export default function AllMessages() {
 
         {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
         {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} />}
+        </div>
       </PageBody>
     </>
   )
@@ -323,11 +335,10 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   })
 
   return (
-    <ChatScreen
-      open
+    <ThreadPane
       title={`${item.parent_name ?? 'Parent'} ↔ ${item.teacher_name ?? 'Teacher'}`}
       subtitle={[item.child_name, item.child_class, item.admission_no].filter(Boolean).join(' · ')}
-      onBack={onClose}
+      onClose={onClose}
     >
       <ChatThread
         messages={(thread.data?.items ?? []).map((m) => ({
@@ -358,7 +369,7 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         placeholder="Reply to the parent, sent in your name; the teacher sees it too"
         height="min-h-0"
       />
-    </ChatScreen>
+    </ThreadPane>
   )
 }
 
@@ -375,7 +386,7 @@ function StaffThread({ item, onClose }: { item: Item; onClose: () => void }) {
   })
   const [left] = item.title.split(' ↔ ')
   return (
-    <ChatScreen open title={item.title} subtitle="Between two colleagues, read from the desk" onBack={onClose}>
+    <ThreadPane title={item.title} subtitle="Between two colleagues, read from the desk" onClose={onClose}>
       <ChatThread
         messages={(thread.data?.items ?? []).map((m) => ({
           id: m.id,
@@ -396,7 +407,7 @@ function StaffThread({ item, onClose }: { item: Item; onClose: () => void }) {
         cannotSendNote="You are reading a conversation between two colleagues. To write to either of them, open Messages."
         height="min-h-0"
       />
-    </ChatScreen>
+    </ThreadPane>
   )
 }
 
@@ -541,4 +552,47 @@ function when(iso: string): string {
   const m = Math.floor(ms / 60_000)
   const rel = m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`
   return `${date}, ${t} (${rel})`
+}
+
+/* Where a conversation opens: beside the list on a desk, over everything on a
+   phone. The two-pane web chat is what a person at a desk expects; a sheet
+   that hides the list is what a thumb expects. */
+function ThreadPane({
+  title,
+  subtitle,
+  onClose,
+  actions,
+  children,
+}: {
+  title: ReactNode
+  subtitle?: ReactNode
+  onClose: () => void
+  actions?: ReactNode
+  children: ReactNode
+}) {
+  const phone = usePhone()
+  if (phone) {
+    return (
+      <ChatScreen open title={title} subtitle={subtitle} onBack={onClose} actions={actions}>
+        {children}
+      </ChatScreen>
+    )
+  }
+  return (
+    <Card className="flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4">
+      <CardHeader
+        title={title}
+        description={subtitle}
+        action={
+          <div className="flex items-center gap-2">
+            {actions}
+            <Button size="sm" variant="ghost" onClick={onClose} title="Close" aria-label="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        }
+      />
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </Card>
+  )
 }
