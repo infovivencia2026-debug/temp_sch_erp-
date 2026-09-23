@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path'
  * type-checks, and is dead; even a direct URL answers "not in your
  * workspace". live-tracking-keys.ts records this happening once already.
  *
- * 20 keys were in that state when this test was written, nine of them
+ * 19 keys remain frozen below (20 when this test was written; the digital library was the first rewired), nine of them
  * the only door to a finished screen with live endpoints behind it. They are
  * frozen below. Wire one to a real key, or delete it, and take it out of
  * KNOWN. Add a new dead key and this fails, naming it.
@@ -65,7 +65,6 @@ const KNOWN = new Set<string>([
   'institution_admin.directory_workload.teacher_workload_timetable_overview',
   'institution_admin.evaluation.appraisals',
   'institution_admin.library.annual_book_stock_verification',
-  'institution_admin.library.digital_library_usage',
   'institution_admin.library.fine_penalty_summary',
   'institution_admin.library.new_session_textbook_orders',
   'institution_admin.statutory_returns.govt_returns',

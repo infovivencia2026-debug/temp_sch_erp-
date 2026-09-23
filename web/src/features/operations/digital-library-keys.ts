@@ -8,8 +8,16 @@ import { lazy } from 'react'
  * reads registry.ts, so the server only marks this live once the spread is in
  * place.
  *
- * The key below was checked against internal/catalog/catalog_gen.go before
- * being written.
+ * THE KEY MOVED, AND THE SCREEN WAS UNREACHABLE FOR THE WHOLE TIME.
+ *
+ * This mapped `institution_admin.library.digital_library_usage`, a key the
+ * catalogue does not hold -- so the one screen that manages the school's
+ * digital holdings, their audiences and their providers rendered for nobody,
+ * while the librarian's "OPAC Digital Book Search" opened the PHYSICAL
+ * catalogue. The librarian's key is what this screen is: the digital
+ * catalogue, searchable, with Open and Borrow on each title. It is mapped to
+ * that key now, and catalog-keys.test.ts is what stops the next move going
+ * unnoticed.
  *
  * The catalogue entry promises single sign-on to EBSCO and JSTOR. This
  * deployment holds neither subscription, so the screen does not pretend to:
@@ -25,7 +33,7 @@ import { lazy } from 'react'
  * queue owns it, so this screen places a hold and never invents a due date.
  */
 export const digitalLibraryKeys = {
-  'institution_admin.library.digital_library_usage': lazy(
+  'librarian.library.opac_digital_book_search': lazy(
     () => import('./DigitalLibrary'),
   ),
 }

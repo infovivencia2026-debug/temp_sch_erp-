@@ -455,7 +455,7 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'librarian.library.book_issue_return_terminal': screen(() => import('./operations/Library')),
   'institution_admin.library.fine_penalty_summary': screen(() => import('./operations/Library')),
   'librarian.library.fines': screen(() => import('./operations/Library')),
-  'librarian.library.opac_digital_book_search': screen(() => import('./operations/Library')),
+  // opac_digital_book_search is the digital catalogue: see digital-library-keys.ts.
 
   /* The rest of a librarian's year, kept off the issue counter: the hold
      queue, the annual stock audit, the textbook indent and the label sheet.
