@@ -207,11 +207,9 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
           <Detail label={t('portal.receipts.detail_status')} value={d.status} />
         </div>
 
-        {/* The primitives, not a hand-rolled table: `responsive-table` alone
-            styles the collapse but only Table/Td inject the data-label each
-            cell needs, and without them a parent on a phone got three bare
-            right-aligned values with nothing saying which was the invoice
-            number and which the amount. */}
+        {/* The primitives, not a hand-rolled table: Table/Td carry the sizing,
+            the sideways scroll and the frozen first column a phone needs, and
+            a copy of their classes drifts the first time either changes. */}
         <div className="mt-6">
           <Table head={[t('portal.receipts.col_invoice'), t('portal.receipts.col_particulars'), { label: t('portal.receipts.col_line_amount'), align: 'right' }]}>
             {d.lines.map((l) => (

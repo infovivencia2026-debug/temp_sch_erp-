@@ -507,7 +507,7 @@ function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boole
             placeholder="Return to school, run cancelled."
             onSubmit={() => { if (body.trim() && !send.isPending) send.mutate() }}
           />
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <Button size="sm" disabled={send.isPending || !body.trim()} onClick={() => send.mutate()}>
               Send to driver
             </Button>

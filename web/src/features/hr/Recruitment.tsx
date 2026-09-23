@@ -329,7 +329,7 @@ function PostsTab({ posts }: { posts: Vacancy[] }) {
               <Td><Badge tone={statusTone(v.status)}>{v.status.replace(/_/g, ' ')}</Badge></Td>
               <Td className="text-right">
                 {mayWrite && v.status === 'pending_approval' && (
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     <Button size="sm" onClick={() => decide.mutate({ id: v.id, action: 'approve' })}>
                       Approve
                     </Button>

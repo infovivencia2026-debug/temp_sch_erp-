@@ -100,7 +100,7 @@ export default function HallOfFame() {
           </Field>
         </FormGrid>
         <FormNotice error={add.error} />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button disabled={!form.title.trim() || !form.holder.trim() || add.isPending} onClick={() => add.mutate()}>
             {add.isPending ? 'Adding…' : 'Add'}
           </Button>

@@ -246,7 +246,7 @@ export default function EvaluationOversight() {
                   <Td className="tabular-nums text-muted-foreground">{c.min_responses}</Td>
                   <Td><Badge tone={CYCLE_TONE[c.status] ?? 'neutral'}>{c.status}</Badge></Td>
                   <Td>
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       <Button size="sm" variant="secondary"
                         onClick={() => setOpen(open === c.id ? null : c.id)}>
                         {open === c.id ? 'Close' : 'Open'}

@@ -222,7 +222,7 @@ export default function FirstRunTour() {
           <Button variant="ghost" onClick={close}>
             {last ? 'Close' : 'Skip'}
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {at > 0 && (
               <Button variant="secondary" onClick={() => setAt(at - 1)}>
                 Back

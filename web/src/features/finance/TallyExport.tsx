@@ -440,7 +440,7 @@ function Runs({
                 )}
               </Td>
               <Td className="text-right">
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <a href={`${tallyExportBase}/runs/${r.id}/file`} download>
                     <Button variant="ghost" size="sm">
                       <Download className="h-3.5 w-3.5" />

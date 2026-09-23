@@ -483,7 +483,7 @@ export function BoardRoll(props: RollProps) {
                   <Td>{a.requested_at}</Td>
                   <Td><Badge tone={a.status === 'sent' ? 'warning' : 'neutral'}>{a.status}</Badge></Td>
                   <Td>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {a.status === 'requested' && (
                         <Button size="sm" variant="secondary" onClick={() => decide.mutate({ id: a.id, decision: 'sent' })}>
                           Sent to the board

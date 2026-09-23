@@ -1516,7 +1516,7 @@ function Routes() {
                     <span className="text-[13px] font-medium text-muted-foreground">
                       Stop {i + 1}
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <Button size="sm" variant="ghost" disabled={i === 0} onClick={() => moveStop(i, -1)}>
                         Up
                       </Button>

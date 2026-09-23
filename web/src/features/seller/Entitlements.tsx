@@ -73,11 +73,11 @@ export default function Entitlements() {
           />
           {/* Hand-rolled <table> before this: it copied the shared component's
               header and cell classes but not its cells' data-label, and that
-              is the one part that is not decoration. Below 640px every row
-              becomes a stacked card and each cell prints the column it came
-              from — so this matrix collapsed into an unlabelled column of
-              thirty "On"/"Off" buttons with no way to tell which module any of
-              them switched. Same markup as before on the desktop, because it
+              is the one part that is not decoration. When narrow tables
+              still stacked into cards, each cell printed the column it came
+              from — and this hand-rolled matrix collapsed into an unlabelled
+              column of thirty "On"/"Off" buttons with no way to tell which
+              module any of them switched. Same markup as before on the desktop, because it
               is the same component the classes were copied from. */}
           <Table
             wide

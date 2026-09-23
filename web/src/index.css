@@ -767,10 +767,10 @@
 
      The upper bound is the same 900px the component uses to decide the
      scrolling in the first place, so the freeze and the scroll cannot drift
-     apart. The lower bound is the stacking breakpoint: below it there is no
-     table left to freeze a column of, each row is its own card, and a sticky
-     cell inside a block layout would cost a stacking context for nothing. */
-  @media (min-width: 640px) and (max-width: 900px) {
+     apart. There is no lower bound any more: a phone gets the same scrolling
+     table as a tablet (rows no longer stack into cards), so it needs the
+     frozen column most of all. */
+  @media (max-width: 900px) {
     .responsive-table :where(thead th, tbody td):first-child {
       position: sticky;
       left: 0;
@@ -895,10 +895,32 @@
      cannot simply clip its overflow -- menus and date pickers open out of
      cards -- so the last block takes the card's own curve instead, one
      pixel tighter to sit inside the hairline. */
-  .card > .table-frame:last-child,
-  .card > .table-frame:last-child > .scroll-x {
+  /* THE FRAME CLIPS, WHEREVER IT SITS AT THE BOTTOM.
+
+     The rule above this one reached only a frame that was the card's DIRECT
+     and LAST child, and it rounded the scroller alone. Three things it
+     could not see, each of them a square corner on a rounded card: a
+     wrapper div between the card and the table (eleven screens), a sibling
+     after the table -- a notice that renders empty, a footer that does not
+     (a hundred and seventy-eight), and the table's own pager, which is drawn
+     below the scroller inside the frame and so IS the bottom edge of every
+     table longer than ten rows. The finance screens looked chipped because
+     nearly all of them page.
+
+     So: any frame that is the last element of its parent, or is followed
+     only by something empty, takes the card's curve on its bottom corners
+     and clips to it. Clipping the frame costs nothing -- the scroller inside
+     it already clips (overflow-x: auto makes overflow-y auto), so no menu
+     that lives in a cell was escaping it anyway. A frame that is the last
+     of a wrapper mid-card also rounds, invisibly: its ground and the card's
+     are the same colour. Descendant, not child, so the wrapper cases are
+     covered; :has() for the empty-sibling case, which older engines simply
+     skip, keeping the plain :last-child form. */
+  .card .table-frame:last-child,
+  .card .table-frame:has(+ :empty:last-child) {
     border-bottom-left-radius: calc(var(--radius-card) - 1px);
     border-bottom-right-radius: calc(var(--radius-card) - 1px);
+    overflow: hidden;
   }
 
   /* A table header is a label row, not a band. The tint is enough to hold the
@@ -1100,108 +1122,34 @@
   .reveal { animation: none; opacity: 1; transform: none; }
 }
 
-/* Tables become cards on a phone.
+/* A TABLE STAYS A TABLE.
 
-   Every table in the app carries .responsive-table and every cell carries the
-   column header in data-label, injected by the Table component. Below the sm
-   breakpoint the grid collapses: the header row is dropped, each row becomes
-   a bordered card, and each cell prints its own label beside its value.
+   Below 860px every table used to collapse into a stack of labelled cards:
+   the header row dropped, each row a bordered box, each cell printing its own
+   column name beside its value. It read well for a three-column receipt list
+   and badly for everything else -- a fee ledger became a wall of "Amount"
+   labels one could not run a finger down, a matrix of thirty On/Off switches
+   turned into a column of thirty unlabelled rows, and a table of twelve
+   students was a page of twelve tall cards. The owner's verdict was "no going
+   down in the table". So the rows stay rows at every width. What a narrow
+   screen gets instead is the sideways scroll the component already sizes for
+   (NARROW_WIDE), the drawn scrollbar and edge shadow that announce it, and
+   the frozen first column that keeps the row's name on screen while the
+   figures scroll past. */
 
-   Cells whose value is the row's subject — the first one — keep their weight
-   and skip the label, because repeating "Name" above a person's name is
-   noise. Cells with a colSpan get no label at all; they are notes, not
-   fields. */
-/* Stack wide tables into labelled cards up to 860px, not just 639px. Below the
-   old breakpoint a multi-column table (Logins, with name/contact/roles/status/
-   sessions) still ran off the side on a large phone or a small tablet -- a
-   cramped sideways scroll with the last columns cut off. The card layout reads
-   far better at those widths, so it now covers them too. */
-@media (max-width: 860px) {
-  .responsive-table,
-  .responsive-table tbody,
-  .responsive-table tr,
-  .responsive-table td {
-    display: block;
-  }
+/* A CELL HOLDS ITS LINE.
 
-  .responsive-table,
-  .responsive-table tbody,
-  .responsive-table td {
-    width: 100%;
-  }
-
-  /* The card row sizes itself INSIDE its own margins.
-
-     `width: 100%` here measured the full table and then the 0.75rem side
-     margins pushed the card 11px further right than the scroller could show,
-     so every card at 390px was clipped down its right edge: a phone number
-     lost its last digit, a name lost its surname, and the row's Open button
-     sat half off the screen with no way to reach it -- while the 11px of
-     phantom overflow also lit the scroll-x edge shadow, promising a sideways
-     scroll on a table that had nothing more to the right. A block's auto
-     width is exactly "the space left after my margins", which is what a card
-     laid inside a gutter wants. */
-  .responsive-table tr {
-    width: auto;
-  }
-
-  .responsive-table thead {
-    display: none;
-  }
-
-  .responsive-table tr {
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
-    padding: 0.25rem 0;
-    margin: 0.5rem 0.75rem;
-    background: hsl(var(--card));
-  }
-
-  .responsive-table td {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.3rem 0.85rem;
-    text-align: right;
-  }
-
-  .responsive-table td[data-label]::before {
-    content: attr(data-label);
-    flex: 0 0 auto;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    text-align: left;
-    color: hsl(var(--muted-foreground));
-  }
-
-  /* The first cell is the row's subject — a name, a receipt number. It reads
-     as a heading rather than as one more labelled field. */
-  .responsive-table td:first-child {
-    justify-content: flex-start;
-    padding-top: 0.6rem;
-    text-align: left;
-    font-weight: 500;
-  }
-  .responsive-table td:first-child::before {
-    display: none;
-  }
-
-  /* An empty state still spans the card rather than sitting in a column.
-
-     `justify-content` and not `text-align` alone: the cell is a flex row here,
-     so its text is a flex item and `text-align: center` centred nothing -- the
-     "No applications yet" line sat hard against the left edge of a 309px card
-     while the rule above it said centre. It also has to shed the first-child
-     treatment, because the empty line is not the row's subject and reading it
-     in the subject's weight makes an empty table look like it has one entry. */
-  .responsive-table td[colspan] {
-    justify-content: center;
-    text-align: center;
-    font-weight: 400;
-  }
+   `overflow-wrap: anywhere` on td (above) let a squeezed column break a
+   surname, a receipt number or a sentence over two or three lines, which is
+   the other way a table "goes down". On screen a cell keeps to one line and
+   the table takes the width its content needs; past the card it scrolls. A
+   cell that WANTS to wrap -- a remark, an address -- says so with
+   `whitespace-normal`, and the print rules above re-enable wrapping for
+   paper, where there is no scroller. Block children inside a cell (a name
+   over a sub-line) still stack, because nowrap is about text, not boxes. */
+.responsive-table :where(th, td) {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 /* Printing.

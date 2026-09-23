@@ -218,7 +218,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
               only to demands raised after that.
             </p>
             <FormNotice error={grant.error} />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 disabled={grant.isPending || !reason.trim()
                   || (mode === 'percent' ? !percent : !amount)}

@@ -461,17 +461,15 @@ export function useSort<T>(
 export type Column = string | { label: string; key?: string; align?: 'right' }
 
 /**
- * A table that stops being a table on a phone.
+ * A table that stays a table on a phone.
  *
- * Below `sm` each row becomes a stacked card and every cell grows a label from
- * the column header, because a nine-column fee ledger scrolled sideways on a
- * 360px screen is unreadable — and a parent checking a due date is the single
- * most common phone session this system will ever serve.
- *
- * The labels are injected here rather than passed at each of the twenty-odd
- * call sites: a header and its cells are already required to line up, so
- * asking every caller to repeat the header on each cell would only create a
- * second place for them to disagree.
+ * Rows used to become stacked, labelled cards below `sm`. That was dropped
+ * (index.css, "A TABLE STAYS A TABLE"): every width now gets real rows, cells
+ * that keep to one line, a sideways scroll sized to the content and a frozen
+ * first column. Each cell still carries its column header in data-label --
+ * injected here rather than at the call sites, so a header and its cells
+ * cannot disagree -- for anything that wants to name a value without the
+ * header in view.
  */
 /* Ten. Enough that a page is worth turning, few enough that the tenth row is
    still on screen with the header above it on a laptop. */
@@ -487,9 +485,8 @@ const WIDE_AT = 8
 
 /* THE BAND BETWEEN THE PHONE AND THE DESK.
 
-   Below 640px a row is a stacked card and nothing is squeezed; past about
-   900px there is room for the columns. In between is a band that belonged to
-   nobody, and it is not a rare one: a phone turned sideways, a 10-inch tablet
+   Past about 900px there is room for the columns. Below it is a band that
+   belonged to nobody, and it is not a rare one: a phone turned sideways, a 10-inch tablet
    held upright, a laptop with the browser sharing the screen with a PDF.
 
    Measured at 640px, a five-column student list with the admission numbers a

@@ -197,7 +197,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
                 <Textarea rows={2} value={reason} onChange={setReason} />
               </FormField>
               <FormNotice error={ask.error} />
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   disabled={ask.isPending || !reason.trim()
                     || (mode === 'percent' ? !percent : !amount)}
