@@ -1113,9 +1113,9 @@ export function AssistantTab() {
               disabled={state !== 'idle'}
               aria-label="Attach a spreadsheet to import"
               title="Attach a spreadsheet to import"
-              className="grid size-11 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
+              className="grid size-8 shrink-0 place-items-center rounded-full border transition-colors hover:bg-accent disabled:opacity-40"
             >
-              <Paperclip className="size-4" />
+              <Paperclip className="size-3.5" />
             </button>
             <input
               ref={inputRef}
@@ -1152,7 +1152,7 @@ export function AssistantTab() {
                 aria-pressed={dictation.listening}
                 title={dictation.listening ? 'Stop listening' : 'Ask by voice'}
                 className={cn(
-                  `grid size-11 shrink-0 place-items-center rounded-full border transition-colors
+                  `grid size-8 shrink-0 place-items-center rounded-full border transition-colors
                    disabled:opacity-40`,
                   dictation.listening
                     ? 'border-destructive bg-destructive text-white'
