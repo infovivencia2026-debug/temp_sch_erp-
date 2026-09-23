@@ -29,6 +29,7 @@ interface Thread {
   user_id: string
   full_name: string
   designation?: string
+  photo?: string
   unread: number
   last_message?: string
   last_at?: string
@@ -501,6 +502,9 @@ export default function StaffMessages() {
                       t.user_id === openWith ? 'bg-accent' : 'hover:bg-muted/60',
                     )}
                   >
+                    <span className="flex items-start gap-3">
+                    <PersonAvatar name={t.full_name} photoId={t.photo} size={44} />
+                    <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">
                       <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
                         {t.full_name}
@@ -518,6 +522,8 @@ export default function StaffMessages() {
                     <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
                       {t.last_message ?? t.designation ?? 'No messages yet'}
                     </span>
+                    </span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -533,6 +539,7 @@ export default function StaffMessages() {
             open={!!openWith}
             title={open?.full_name ?? 'Conversation'}
             subtitle={open?.designation ?? undefined}
+            photoId={open?.photo}
             onBack={() => setOpenWith('')}
           >
             <ChatThread

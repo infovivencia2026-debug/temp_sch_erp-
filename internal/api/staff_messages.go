@@ -36,9 +36,12 @@ type staffThreadRow struct {
 	UserID   string  `json:"user_id"`
 	FullName string  `json:"full_name"`
 	Role     *string `json:"designation,omitempty"`
-	Unread   int     `json:"unread"`
-	Last     *string `json:"last_message,omitempty"`
-	LastAt   *string `json:"last_at,omitempty"`
+	// The colleague's own photograph, from the staff record. A school address
+	// book of a hundred names reads faster with faces in it.
+	Photo  *string `json:"photo,omitempty"`
+	Unread int     `json:"unread"`
+	Last   *string `json:"last_message,omitempty"`
+	LastAt *string `json:"last_at,omitempty"`
 }
 
 type staffMessageRow struct {
@@ -77,7 +80,7 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 
 	items, err := collect(s, r, `
-		SELECT u.id::text, u.full_name, d.name,
+		SELECT u.id::text, u.full_name, d.name, e.photo_file_id::text,
 		       (SELECT count(*)::int FROM staff_messages m
 		         WHERE m.sender_user_id = u.id
 		           AND (m.party_a = $1 OR m.party_b = $1)
@@ -122,7 +125,7 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		[]any{id.UserID},
 		func(rows pgx.Rows) (staffThreadRow, error) {
 			var v staffThreadRow
-			return v, rows.Scan(&v.UserID, &v.FullName, &v.Role, &v.Unread, &v.Last, &v.LastAt)
+			return v, rows.Scan(&v.UserID, &v.FullName, &v.Role, &v.Photo, &v.Unread, &v.Last, &v.LastAt)
 		})
 	respond(w, r, items, err)
 }
