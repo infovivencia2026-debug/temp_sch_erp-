@@ -218,12 +218,39 @@ function announce(ev: LiveEvent, me: string | undefined) {
   pushToast({ title, body, href })
   // The phone's own notification too, where allowed — so a message reaches a
   // person whose screen is on another app, which is how WhatsApp is read.
-  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    try {
-      const n = new Notification(title, { body, tag: key ?? href })
-      n.onclick = () => { window.focus(); goTo(href); n.close() }
-    } catch { /* not available here */ }
-  }
+  void showSystemNotification(title, body, key ?? href, href)
+}
+
+/* THE PHONE'S OWN BANNER.
+
+   `new Notification()` is the desktop way and it throws on Android Chrome --
+   "Illegal constructor" -- which is exactly the phone every parent here
+   holds. On a phone a notification is shown by the service worker, with the
+   link carried in `data`, and the worker's notificationclick opens it (see
+   sw-src.js). The constructor stays as the fallback for a browser with no
+   worker, and a failure of either is silent: the in-app card is already up. */
+async function showSystemNotification(title: string, body: string, tag: string, href: string) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  try {
+    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : undefined
+    if (reg && 'showNotification' in reg) {
+      await reg.showNotification(title, { body, tag, data: { href }, icon: '/app/icon-192.png', badge: '/app/icon-192.png' })
+      return
+    }
+  } catch { /* fall through to the constructor */ }
+  try {
+    const n = new Notification(title, { body, tag })
+    n.onclick = () => { window.focus(); goTo(href); n.close() }
+  } catch { /* not available here */ }
+}
+
+/* A tap on the worker's banner arrives here as a message; the page then
+   navigates the way the in-app card does. Installed once per page. */
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e: MessageEvent) => {
+    const d = e.data as { type?: string; href?: string } | null
+    if (d?.type === 'erp-open' && typeof d.href === 'string' && d.href.startsWith('/')) goTo(d.href)
+  })
 }
 
 /* The conversation an event belongs to, as a target — so a message that

@@ -13,7 +13,7 @@ export function LiveToasts() {
   if (toasts.length === 0) return null
   return (
     <div
-      className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--dock-reserve,0px)+12px)] z-[70] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4"
+      className="pointer-events-none fixed inset-x-3 bottom-[calc(var(--dock-reserve,0px)+12px)] z-[200] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4 sm:bottom-4"
       aria-live="polite"
     >
       {toasts.map((t) => (

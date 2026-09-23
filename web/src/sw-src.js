@@ -109,6 +109,29 @@ self.addEventListener('message', (e) => {
   }
 })
 
+/* A TAP ON THE BANNER OPENS THE CONVERSATION.
+
+   The page shows a message's notification through this worker, because on a
+   phone that is the only way one is shown (lib/live-stream.ts). The link is
+   in `data.href`. If a tab of the app is open it is focused and told to
+   navigate — the same in-page navigation the in-app card does, no reload; if
+   none is, one is opened on the link. */
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const href = typeof e.notification.data?.href === 'string' ? e.notification.data.href : '/'
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (list) => {
+      const tab = list.find((c) => 'focus' in c) ?? null
+      if (tab) {
+        try { await tab.focus() } catch { /* the OS may refuse; the message still goes */ }
+        tab.postMessage({ type: 'erp-open', href })
+        return
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(href)
+    }),
+  )
+})
+
 async function warmShell(urls) {
   const c = await caches.open(SHELL)
   for (const u of urls.slice(0, 120)) {
