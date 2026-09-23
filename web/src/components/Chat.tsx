@@ -451,7 +451,13 @@ export function ChatThread({
   /* The hold is confirmed the way a phone confirms one: a tick of haptic and a
      small pop, at the moment the menu appears rather than when the finger
      lands, so a press that became a scroll makes no sound. */
+  /* A hold that opens the menu must not also count as a tap. Without this the
+     press that lifts a photograph also opens the photograph, and the viewer
+     appears under the menu. */
+  const heldJust = useRef(false)
+
   const confirmHold = useCallback((m: ChatMessage, el: HTMLElement) => {
+    heldJust.current = true
     setActing({ m, rect: el.getBoundingClientRect() })
     try {
       navigator.vibrate?.(12)
@@ -478,6 +484,12 @@ export function ChatThread({
           },
           onPointerUp: cancelHold,
           onPointerCancel: cancelHold,
+          onClickCapture: (e: React.MouseEvent) => {
+            if (!heldJust.current) return
+            heldJust.current = false
+            e.preventDefault()
+            e.stopPropagation()
+          },
           onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => {
             e.preventDefault()
             confirmHold(m, e.currentTarget)
@@ -1041,23 +1053,39 @@ function clock(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function AttachmentView({ a }: { a: Attachment }) {
+function AttachmentView({ a, lifted }: { a: Attachment; lifted?: boolean }) {
+  const [viewing, setViewing] = useState(false)
   if (isAudio(a)) return <VoiceNote a={a} />
-  /* A tap saves the file.
+
+  /* A PHOTOGRAPH IS LOOKED AT FIRST AND SAVED SECOND.
    *
-   * The link opened a new tab, which the server answered with
-   * Content-Disposition: attachment, so the file downloaded and left an empty
-   * tab behind. On a phone that read as nothing having happened. `download`
-   * asks for the save directly, under the name the sender gave it rather than
-   * the uuid the store keeps it under, and a mark on the row says so. */
+   * Tapping one downloaded it, which is the wrong first answer: somebody who
+   * taps a picture in a conversation wants to see it larger, and a parent on a
+   * phone got a file in their downloads folder and no view of the thing. It
+   * opens full screen now, with the save inside the viewer where it belongs.
+   *
+   * `lifted` is the copy the long-press draws: it is not interactive, because
+   * a picture that opens a viewer from inside the menu would put a viewer on
+   * top of a menu on top of a thread. */
   if (isImage(a)) {
     return (
-      <a href={a.url} download={a.name} className="relative mb-1 block w-fit" title={`Download ${a.name}`}>
-        <img src={a.url} alt={a.name} loading="lazy" className="max-h-64 max-w-full rounded-md" style={{ display: 'block' }} />
-        <span className="absolute bottom-1.5 right-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white">
-          <Download className="h-4 w-4" />
-        </span>
-      </a>
+      <>
+        <button
+          type="button"
+          onClick={() => !lifted && setViewing(true)}
+          className="relative mb-1 block w-fit"
+          title={lifted ? a.name : `View ${a.name}`}
+        >
+          <img
+            src={a.url}
+            alt={a.name}
+            loading="lazy"
+            className="max-h-64 max-w-full rounded-md"
+            style={{ display: 'block' }}
+          />
+        </button>
+        {viewing && <ImageViewer a={a} onClose={() => setViewing(false)} />}
+      </>
     )
   }
   return (
@@ -1074,6 +1102,50 @@ function AttachmentView({ a }: { a: Attachment }) {
       </span>
       <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
     </a>
+  )
+}
+
+/* The picture, full screen and on black, with the two things to do to it: go
+   back, or keep it. Escape and the browser's own Back close it, because on a
+   phone Back is what a person reaches for. */
+function ImageViewer({ a, onClose }: { a: Attachment; onClose: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-[140] flex flex-col bg-black/95" role="dialog" aria-modal="true">
+      <div className="flex shrink-0 items-center gap-3 px-3 py-3 text-white">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <span className="min-w-0 flex-1 truncate text-[14px]">{a.name}</span>
+        <a
+          href={a.url}
+          download={a.name}
+          aria-label={`Download ${a.name}`}
+          className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+        >
+          <Download className="h-5 w-5" />
+        </a>
+      </div>
+      {/* The picture itself takes the rest, and a tap on the black closes. */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="flex min-h-0 flex-1 cursor-default items-center justify-center p-3"
+      >
+        <img src={a.url} alt={a.name} className="max-h-full max-w-full object-contain" />
+      </button>
+    </div>
   )
 }
 
@@ -1363,9 +1435,21 @@ function MessageActions({
             mine ? 'chat-mine' : 'chat-theirs',
           )}
         >
-          <p className="line-clamp-6 whitespace-pre-wrap break-words">
-            {m.deleted ? 'This message was withdrawn.' : m.body || describe(m)}
-          </p>
+          {/* The message as it actually is. Naming a photograph "Photo" and a
+              voice note "Voice note" was describing the thing to somebody who
+              is looking straight at it: the lifted copy shows the picture and
+              the player, so what rises out of the thread is recognisably the
+              message that was held. */}
+          {m.deleted ? (
+            <p className="italic opacity-80">This message was withdrawn.</p>
+          ) : (
+            <>
+              {(m.attachments ?? []).map((a) => (
+                <AttachmentView key={a.file_id} a={a} lifted />
+              ))}
+              {m.body && <p className="line-clamp-6 whitespace-pre-wrap break-words">{m.body}</p>}
+            </>
+          )}
         </div>
       </div>
 
