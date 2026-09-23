@@ -27,6 +27,7 @@ import { ArrangeSheet } from './ArrangeSheet'
 import type { Hsl } from '@/lib/paint'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* Arranging the dashboard, the way a phone home screen is arranged.
 
@@ -210,7 +211,7 @@ function SizeMenu({
 }) {
   const t = useT()
   const layer = useWidgetLayer()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const btn = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => setOpen(false), [])
   const current = tierOf(cw, ch, phone)
@@ -1225,7 +1226,7 @@ export function ColourPick({
   const layer = useWidgetLayer()
   const phone = layer?.phone ?? (typeof window !== 'undefined' && window.innerWidth < 640)
   const still = (layer?.still ?? false) || osStill()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const { mounted, shown } = useEnterExit(open, still, DUR_FAST_MS)
   const [at, setAt] = useState<Pos | null>(null)
   const [typed, setTyped] = useState<string | null>(null)

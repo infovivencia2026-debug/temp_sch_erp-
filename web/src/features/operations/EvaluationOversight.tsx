@@ -12,6 +12,7 @@ import {
   adminOpsBase,
   type EvalCycle, type Reviewee, type RelationResult,
 } from './admin-ops-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* 360 evaluation oversight.
  *
@@ -59,7 +60,7 @@ export default function EvaluationOversight() {
   const can = useCan()
   const mayRun = can('hr.employees.write')
 
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const [note, setNote] = useState('')
 
   const list = useQuery({

@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/api'
-import { Suspense, useEffect, useMemo, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useParams, Link } from 'react-router-dom'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import {
@@ -396,6 +397,44 @@ function Home() {
    resolving the same way. React Router puts the given location into context
    for everything below, so a screen inside a pane reading useLocation or
    useParams sees its own pane rather than the address bar. */
+/* A SCREEN LEAVES THE WAY IT ARRIVED.
+
+   The router swapped screens the instant the address changed: the old one
+   was gone in the same frame the new one began its fade, so every navigation
+   started with a blink of empty ground. The owner's words: no page should
+   diminish abruptly; they should go naturally.
+
+   The View Transitions API is the natural tool. The document is snapshotted
+   as it is, the state change is committed, and the browser cross-fades the
+   two snapshots on its own compositor -- index.css shapes that crossing: the
+   leaving screen fades and settles a touch smaller while the arriving one
+   settles in from a touch larger, both on the shell's own settle curve. The
+   shell's chrome is in both snapshots unchanged, so it simply stays.
+
+   This holds the PREVIOUS location until the snapshot is taken. flushSync
+   inside the callback is what the API needs: the DOM must be in its new
+   state when the callback resolves, not one render later. Browsers without
+   the API, and people who asked for reduced motion, get the plain swap and
+   the arrival fade they had. */
+function RoutedScreen() {
+  const location = useLocation()
+  const [shown, setShown] = useState(location)
+  useLayoutEffect(() => {
+    if (shown.key === location.key) return
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!doc.startViewTransition || still) {
+      setShown(location)
+      return
+    }
+    doc.startViewTransition(() => flushSync(() => setShown(location)))
+    // shown is the thing being replaced; reading it fresh would re-run this
+    // on its own update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location])
+  return <AppRoutes location={shown.pathname + shown.search + shown.hash} />
+}
+
 export function AppRoutes({ location }: { location?: string }) {
   return (
     <Routes location={location}>
@@ -572,7 +611,7 @@ export default function App() {
             {/* Inside the session, because it asks a signed-in question. */}
             <Live />
             <Shell renderAt={(path) => <AppRoutes location={path} />}>
-              <AppRoutes />
+              <RoutedScreen />
             </Shell>
             </I18nProvider>
           </CatalogProvider>

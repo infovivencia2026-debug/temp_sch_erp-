@@ -10,6 +10,7 @@ import { Select } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { type List } from '@/lib/api'
 import { ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
+import { useOpenState } from '@/lib/motion'
 
 /* Appointing somebody, from the HR account.
  *
@@ -38,7 +39,7 @@ import { ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
 
 export default function AddStaff({ onDone }: { onDone?: () => void }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [added, setAdded] = useState('')
 
 

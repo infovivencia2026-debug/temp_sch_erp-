@@ -14,6 +14,7 @@ import {
   useGrantCertificates, useGrantCertificate, GRANT_CATEGORIES, DISPOSITION_LABEL,
   type GrantSanction, type GrantCertificate,
 } from './collections-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* Grant-in-aid.
 
@@ -500,7 +501,7 @@ function Certificates({
 }) {
   const qc = useQueryClient()
   const list = useGrantCertificates()
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const [no, setNo] = useState('')
 
   const create = useMutation({

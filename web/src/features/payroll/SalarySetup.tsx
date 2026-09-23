@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import BulkImport from '@/components/BulkImport'
+import { useOpenState } from '@/lib/motion'
 
 /* What each person is paid — the thing payroll could not run without.
  *
@@ -57,7 +58,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 export default function SalarySetup() {
   const qc = useQueryClient()
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const [from, setFrom] = useState(today())
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [done, setDone] = useState('')

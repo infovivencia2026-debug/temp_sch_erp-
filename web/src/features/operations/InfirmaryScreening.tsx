@@ -8,6 +8,7 @@ import {
   Loading, SkeletonTable, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
+import { useOpenState } from '@/lib/motion'
 
 /* Screening: the annual card, and the camps that fill it in.
 
@@ -205,7 +206,7 @@ function Checkups({
 }) {
   const qc = useQueryClient()
   const students = useStudents()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [form, setForm] = useState({
     student_id: '',
     camp_id: '',
@@ -436,7 +437,7 @@ function Checkups({
 
 function Camps({ query }: { query: ReturnType<typeof useQuery<List<Camp>>> }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [chosen, setChosen] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '',

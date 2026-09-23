@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Receipt as ReceiptIcon } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -10,6 +9,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useOpenState } from '@/lib/motion'
 
 /* The family's own copy of a receipt.
 
@@ -59,7 +59,7 @@ interface ReceiptDetail {
 
 export default function Receipts() {
   const t = useT()
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const receipts = useQuery({
     queryKey: ['portal-receipts'],
     queryFn: () => api.get<List<ReceiptRow>>('/api/v1/portal/receipts'),

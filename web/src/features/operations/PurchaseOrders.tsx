@@ -12,6 +12,7 @@ import {
   type Requisition, type RequisitionLine, type PurchaseOrder,
   type OrderLine, type GoodsReceipt, type InvoiceMatch, type ApprovalBand,
 } from './admin-ops-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* The purchase order workflow.
  *
@@ -126,7 +127,7 @@ export default function PurchaseOrders() {
 // --- requisitions ------------------------------------------------------------
 
 function RequisitionsPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: string) => void }) {
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
   const list = useQuery({
@@ -397,7 +398,7 @@ function RequisitionForm({ onCancel, onSaved }: {
 // --- orders ------------------------------------------------------------------
 
 function OrdersPanel({ mayWrite, onDone }: { mayWrite: boolean; onDone: (m: string) => void }) {
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const list = useQuery({
     queryKey: ['admin-ops', 'purchasing', 'orders'],

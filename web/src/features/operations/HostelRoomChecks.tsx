@@ -10,6 +10,7 @@ import {
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
+import { useOpenState } from '@/lib/motion'
 
 /* The room handover.
 
@@ -106,7 +107,7 @@ const blankLine = (item = ''): Draft => ({
 export default function HostelRoomChecks() {
   const qc = useQueryClient()
   const [kind, setKind] = useState('')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [head, setHead] = useState({
     room_id: '',

@@ -6,6 +6,7 @@ import {
   SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { formatPaise, formatTime } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* WHAT THE PUNCHES ADD UP TO.
 
@@ -127,7 +128,7 @@ function DayList({ employeeId, month }: { employeeId: string; month: string }) {
 
 export default function StaffHours() {
   const [month, setMonth] = useState(thisMonth)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const q = useQuery({
     queryKey: ['staff-hours', month],

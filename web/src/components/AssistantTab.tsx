@@ -8,6 +8,7 @@ import { useSession } from '@/lib/session'
 import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 import { PickerMenu } from '@/components/PickerMenu'
+import { useOpenState } from '@/lib/motion'
 
 /* A tiny, safe Markdown render for the bot's answers.
 
@@ -266,7 +267,7 @@ function linksFromText(catalog: CatalogResponse, text?: string): ScreenLink[] {
 
 export function AssistantTab() {
   const session = useSession()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   /* NOT ON SETTINGS.
    *
    * The orb floats above the dock at a fixed corner, which is right over a

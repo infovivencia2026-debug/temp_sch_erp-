@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, TRACK, SLIDER, SEAM, SURFACE } from './ColourDialog'
+import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
 
@@ -177,7 +178,7 @@ export function DropdownRow<T extends string>({
   /** Renders each option in its own face, so the menu is a set of specimens. */
   optionStyle?: (v: T) => React.CSSProperties
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   // Close on a click anywhere outside, and on Escape -- the two exits every

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Button, Input } from '@/components/ui'
+import { useOpenState } from '@/lib/motion'
 
 /* The password again, before money moves.
 
@@ -12,7 +13,7 @@ import { Button, Input } from '@/components/ui'
    here, because a payment is exactly the thing that must not be sent twice
    by a helper that lost track of what it was sending. */
 export default function ReauthPrompt() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

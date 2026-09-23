@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Upload } from 'lucide-react'
 import BulkImport from '@/components/BulkImport'
 import { Button, ExportButton as ReportExportButton } from '@/components/ui'
 import { useOverlayHistory } from '@/lib/overlay-history'
+import { useOpenState } from '@/lib/motion'
 
 /* Two header actions for every screen whose data the backend can already read
  * in and hand back out.
@@ -68,7 +69,7 @@ export function ImportButton({
   endpoint?: string
   templateUrl?: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const nice = entity.replace(/_/g, ' ')
   return (
     <>

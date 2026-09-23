@@ -29,6 +29,7 @@ import StudentFees from './StudentFees'
 import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
+import { useOpenState } from '@/lib/motion'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -2464,7 +2465,7 @@ function GuardianPhoto({ studentID, guardian }: {
      column a third of the page wide wrapped to three lines under every name.
      Four parents made a card of file-upload advice with the phone numbers
      somewhere underneath. */
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   if (!open) {
     return (
       <Button size="sm" variant="ghost" className="mt-0.5 px-0"
@@ -2581,7 +2582,7 @@ function AddDetailField({ studentID, onChanged }: {
   studentID: string
   onChanged: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
   const save = useMutation({

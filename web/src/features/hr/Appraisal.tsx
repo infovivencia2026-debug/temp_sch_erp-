@@ -7,6 +7,7 @@ import {
   Table, Td, Badge, Button, Field, FormGrid, FormNotice,
   Input, Select, Textarea, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useCan } from '@/lib/session'
+import { useOpenState } from '@/lib/motion'
 
 /* The annual KPI appraisal.
 
@@ -373,7 +374,7 @@ function RecordsTab({
 }: { cycles: Cycle[]; cycleID: string; onCycle: (v: string) => void }) {
   const qc = useQueryClient()
   const mayWrite = useCan()('hr.employees.write')
-  const [open, setOpen] = useState<Appraisal | null>(null)
+  const [open, setOpen] = useOpenState<Appraisal | null>(null)
 
   const records = useQuery({
     queryKey: ['hr-growth', 'records', cycleID],

@@ -11,6 +11,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { useOpenState } from '@/lib/motion'
 
 /* The parents' board for one class.
 
@@ -105,7 +106,7 @@ export default function Forum() {
   const qc = useQueryClient()
   const { children, chosen, setChosen } = useChildren()
   const [board, setBoard] = useState('')
-  const [open, setOpen] = useState('')
+  const [open, setOpen] = useOpenState('')
 
   const boards = useQuery({
     queryKey: ['parent-forum-boards'],

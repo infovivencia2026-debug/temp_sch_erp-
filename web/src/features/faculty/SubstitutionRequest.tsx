@@ -7,6 +7,7 @@ import {
   Input, Textarea, Field, FormGrid, FormNotice, Checkbox, Loading, SkeletonTable, ErrorState, EmptyState,
 } from '@/components/ui'
 import { WEEKDAYS, cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* Asking for your classes to be covered, and answering the ask.
 
@@ -111,7 +112,7 @@ export default function SubstitutionRequest() {
   const [reason, setReason] = useState('')
   const [picked, setPicked] = useState<Record<string, boolean>>({})
   const [leaveID, setLeaveID] = useState('')
-  const [open, setOpen] = useState('')
+  const [open, setOpen] = useOpenState('')
 
   const periods = useQuery({
     queryKey: ['timetable-cover', 'my-periods', from, to],

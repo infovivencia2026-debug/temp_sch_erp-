@@ -9,6 +9,7 @@ import {
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice, Input, Select,
   SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* The admissions funnel.
 
@@ -820,7 +821,7 @@ function OpenDays() {
   const qc = useQueryClient()
   const [form, setForm] = useState<Record<string, string>>({ capacity: '25' })
   const [times, setTimes] = useState('09:00, 10:00, 11:00')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const list = useQuery({
     queryKey: ['open-days'],
@@ -1022,7 +1023,7 @@ function BookForm({
   full: boolean
   onBook: (v: Record<string, unknown>) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
 

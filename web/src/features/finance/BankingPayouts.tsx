@@ -13,6 +13,7 @@ import {
   BATCH_TONES, type PayoutBatch, type PayoutBatchDetail, type PayoutCandidate,
   type PayoutProvider,
 } from './banking-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* Connected banking payouts.
 
@@ -522,7 +523,7 @@ function AddBeneficiaries({ batchId, onDone }: { batchId: string; onDone: () => 
 function NewBatch() {
   const qc = useQueryClient()
   const accounts = useBankAccounts()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [accountId, setAccountId] = useState('')
   const [purpose, setPurpose] = useState('vendor')
   const [valueDate, setValueDate] = useState('')

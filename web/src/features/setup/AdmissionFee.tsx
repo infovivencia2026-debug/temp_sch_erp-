@@ -6,6 +6,7 @@ import {
   FormGrid, Field as FormField, Select, Input, Textarea, FormNotice, Button,
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* What the class costs, and the concession agreed at the desk.
 
@@ -49,7 +50,7 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
   studentID?: string
   studentName?: string
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [kind, setKind] = useState('staff_ward')
   const [mode, setMode] = useState<'percent' | 'amount'>('percent')
   const [percent, setPercent] = useState('')

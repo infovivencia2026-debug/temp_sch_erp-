@@ -8,6 +8,7 @@ import {
   Badge, Button, Select, Loading, SkeletonTiles, ErrorState, EmptyState, FormNotice, PrintButton,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* The NEP Holistic Progress Card.
 
@@ -322,7 +323,7 @@ function CompetencyRow({
   onRate: (level?: number, note?: string) => void
 }) {
   const [note, setNote] = useState('')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const mine = c.views.find((v) => (isStaff ? v.role === 'teacher' : v.role !== 'teacher'))
 
   return (

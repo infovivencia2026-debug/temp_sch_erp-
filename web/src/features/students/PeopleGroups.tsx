@@ -7,6 +7,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Button, Input, Select, Table, Td,
   Badge, EmptyState, ErrorState, SkeletonTable, FormNotice, FormGrid, Field,
 } from '@/components/ui'
+import { useOpenState } from '@/lib/motion'
 
 /* The school's own groupings.
 
@@ -84,7 +85,7 @@ export default function PeopleGroups() {
   const noun = kind === 'staff' ? 'staff' : 'children'
 
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState(BLANK)
   const [showing, setShowing] = useState<string | null>(null)

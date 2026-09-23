@@ -14,6 +14,7 @@ import {
   type Claim, type ClaimAgeing, type ClaimDetail, type ClaimLine,
   type ReimbursementRate,
 } from './concessions-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* Government reimbursement claims.
 
@@ -916,7 +917,7 @@ function RatesPanel() {
 
 export function SchemeEditor({ paidTo }: { paidTo: 'school' | 'student' }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [kind, setKind] = useState(

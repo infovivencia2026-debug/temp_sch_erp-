@@ -12,6 +12,7 @@ import {
   feeEngineBase, gstPercent, toBasisPoints, useFeeEngineMutation, useReceiptSeries,
   type FeeHeadOption, type ReceiptSeries as Series,
 } from './fee-engine-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* GST compliant receipt numbering.
 
@@ -297,7 +298,7 @@ function GSTHeads({
   mayConfigure: boolean
   onNotify: (m: string) => void
 }) {
-  const [open, setOpen] = useState('')
+  const [open, setOpen] = useOpenState('')
   const taxable = heads.filter((h) => h.is_taxable)
   const missingHSN = taxable.filter((h) => !h.hsn_sac)
 

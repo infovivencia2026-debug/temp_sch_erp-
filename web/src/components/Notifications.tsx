@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* The bell in the header, and the panel it opens.
 
@@ -85,7 +86,7 @@ function timeOf(iso: string): string {
 }
 
 export default function Notifications() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   /* Kept mounted for one animation after the close.
 
      Unmounting on the click is what makes a panel vanish: the drawer came in

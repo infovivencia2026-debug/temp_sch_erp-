@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { SearchBox } from '@/components/rows'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* Who changed what.
 
@@ -63,7 +64,7 @@ export default function AuditLog() {
   const [q, setQ] = useState('')
   const [since, setSince] = useState('')
   const [until, setUntil] = useState('')
-  const [open, setOpen] = useState<number | null>(null)
+  const [open, setOpen] = useOpenState<number | null>(null)
 
   const params = new URLSearchParams()
   if (entity) params.set('entity', entity)
@@ -218,7 +219,7 @@ const LEVEL_TONE: Record<string, 'warning' | 'danger' | 'neutral'> = { WARN: 'wa
 function SystemEvents({ since, until }: { since: string; until: string }) {
   const [level, setLevel] = useState('')
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState<number | null>(null)
+  const [open, setOpen] = useOpenState<number | null>(null)
   const params = new URLSearchParams()
   if (level) params.set('level', level)
   if (q.trim()) params.set('q', q.trim())

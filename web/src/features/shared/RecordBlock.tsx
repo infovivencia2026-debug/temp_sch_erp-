@@ -7,6 +7,7 @@ import {
   Textarea, Select,
 } from '@/components/ui'
 import { Field } from '@/components/RecordShell'
+import { useOpenState } from '@/lib/motion'
 
 /* A block of the record, and the form that changes it.
 
@@ -224,7 +225,7 @@ export function RecordBlock({
   onChanged: () => void
   children?: ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
 
   const mine = Object.entries(custom ?? {})
     .filter(([k]) => k.startsWith(blockKey + '/'))

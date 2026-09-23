@@ -12,6 +12,7 @@ import { Button, Field, FormGrid, FormNotice, Input, Select, Badge } from '@/com
 import { cn } from '@/lib/utils'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { SETUP_KEYS, invalidateKeys } from '@/lib/invalidate'
+import { useOpenState } from '@/lib/motion'
 
 /* The forms behind each wizard step.
 
@@ -3643,7 +3644,7 @@ function StaffLogins({ staff }: { staff: Teacher[] }) {
      already posts to. */
   const [issued, setIssued] = useState<Record<string, { user: string; pass: string }>>({})
   const [failed, setFailed] = useState('')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [full, setFull] = useState(false)
   /* COUNTED ON THE ROLL, NOT ON THE LIST.
 
@@ -3984,7 +3985,7 @@ interface BoardPreset {
 }
 
 export function BoardImplications({ board }: { board: string }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const boards = useQuery({
     queryKey: ['setup', 'boards'],
     queryFn: () => api.get<{ items: BoardPreset[] }>('/api/v1/setup/boards'),
@@ -4098,7 +4099,7 @@ export function BoardImplications({ board }: { board: string }) {
    would take it. */
 function EditableSection({ section }: { section: Section }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [name, setName] = useState(section.name)
   const [capacity, setCapacity] = useState(String(section.capacity))
   const [failed, setFailed] = useState('')

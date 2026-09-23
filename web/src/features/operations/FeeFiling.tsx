@@ -11,6 +11,7 @@ import {
   adminOpsBase, inr, toPaise, FILING_STATUS,
   type FeeFiling as Filing, type FilingLine, type FilingDocument, type VarianceRow,
 } from './admin-ops-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* Fee regulatory committee filing.
  *
@@ -64,7 +65,7 @@ export default function FeeFiling() {
   const can = useCan()
   const mayWrite = can('finance.fees.write')
 
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const [note, setNote] = useState('')
 
   const list = useQuery({

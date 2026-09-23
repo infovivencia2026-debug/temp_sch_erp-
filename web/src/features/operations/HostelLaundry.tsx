@@ -10,6 +10,7 @@ import {
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useStudentRoster } from '@/lib/rosters'
+import { useOpenState } from '@/lib/motion'
 
 /* Laundry.
 
@@ -59,7 +60,7 @@ const STATUS_LABEL: Record<Bundle['status'], string> = {
 export default function HostelLaundry() {
   const qc = useQueryClient()
   const [status, setStatus] = useState('')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [counting, setCounting] = useState<string | null>(null)
   const [back, setBack] = useState({ items_returned: '', damage_note: '' })
   const [form, setForm] = useState({

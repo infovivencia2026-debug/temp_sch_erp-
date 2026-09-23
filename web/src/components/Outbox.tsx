@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CloudOff, RefreshCw, X } from 'lucide-react'
 import { discard, flush, subscribe, type Queued } from '@/lib/outbox'
+import { useOpenState } from '@/lib/motion'
 
 /* WHAT IS WAITING TO BE SENT, WHERE SOMEBODY CAN SEE IT.
 
@@ -19,7 +20,7 @@ import { discard, flush, subscribe, type Queued } from '@/lib/outbox'
    red would teach people to fear a state they will be in every week. */
 export default function Outbox() {
   const [rows, setRows] = useState<Queued[]>([])
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   useEffect(() => subscribe(setRows), [])
 
   const waiting = rows.filter((r) => !r.sent_at)

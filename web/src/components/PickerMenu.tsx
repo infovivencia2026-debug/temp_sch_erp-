@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* ONE DROPDOWN, EVERYWHERE OUTSIDE A FORM FIELD.
 
@@ -56,7 +57,7 @@ export function PickerMenu<T extends string>({
   /** A custom trigger. Receives nothing; the whole node becomes the button. */
   children?: ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [active, setActive] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<

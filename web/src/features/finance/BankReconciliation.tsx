@@ -13,6 +13,7 @@ import {
   useBankAccounts, bankAccountOptions, MATCH_KIND_LABELS,
   type Reconciliation, type Statement, type StatementLine, type MatchCandidate,
 } from './banking-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* The bank reconciliation statement.
 
@@ -904,7 +905,7 @@ function OpenPeriod({ accounts }: { accounts: { id: string; label: string; bank_
 function RegisterAccount() {
   const qc = useQueryClient()
   const can = useCan()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [label, setLabel] = useState('')
   const [bankName, setBankName] = useState('')
   const [branch, setBranch] = useState('')

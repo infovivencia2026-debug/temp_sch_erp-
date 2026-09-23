@@ -12,6 +12,7 @@ import {
   Loading, SkeletonTable, SkeletonTiles, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSession } from '@/lib/session'
+import { useOpenState } from '@/lib/motion'
 
 /* Lazy: maplibre and its stylesheet are a few hundred kilobytes, and most
    visits to this screen are about fuel or a driver's licence, not a stop's
@@ -772,7 +773,7 @@ function Incidents({ rows }: { rows: Incident[] }) {
 
 function Drivers({ rows }: { rows: Staff[] }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [form, setForm] = useState<Record<string, string>>({ role: 'driver' })
 
   const employees = useQuery({
@@ -1336,7 +1337,7 @@ const BLANK_ROUTE = { name: '', code: '', vehicle_id: '', distance_km: '' }
 function Routes() {
   const qc = useQueryClient()
   const vehicles = useVehicles()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState({ ...BLANK_ROUTE })
   const [stops, setStops] = useState<StopForm[]>([{ ...BLANK_STOP }])
@@ -1753,7 +1754,7 @@ function Routes() {
 function Buses() {
   const qc = useQueryClient()
   const routes = useRoutes()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<Record<string, string>>(BLANK)
 

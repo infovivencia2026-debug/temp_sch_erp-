@@ -10,6 +10,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useOpenState } from '@/lib/motion'
 
 /* What is waiting on a parent's signature.
 
@@ -210,7 +211,7 @@ export default function Consent() {
 function RequestTrip({ children_ }: { children_: Child[] }) {
   const t = useT()
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [picked, setPicked] = useState('')
   const [reason, setReason] = useState('')
   const [destination, setDestination] = useState('')

@@ -13,6 +13,7 @@ import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import { formatDate, cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* The application, from submitted to enrolled.
  *
@@ -158,7 +159,7 @@ export default function Applications() {
   })
   const set = (k: keyof typeof blank) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  const [open, setOpen] = useState<Application | null>(null)
+  const [open, setOpen] = useOpenState<Application | null>(null)
   const [remarks, setRemarks] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [score, setScore] = useState('')

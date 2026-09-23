@@ -1435,7 +1435,7 @@ export function Select({
   /** Overrides the id-detection when a caller knows better either way. */
   allowCustom?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const [custom, setCustom] = useState<{ value: string; label: string }[]>([])
@@ -2014,6 +2014,7 @@ export {
   Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonTiles, SkeletonStat, SkeletonCards,
   SkeletonForm, SkeletonPage, SkeletonBoard, SkeletonShell, useDelayed,
 } from './Skeleton'
+import { useOpenState } from '@/lib/motion'
 
 /**
  * Print this page.

@@ -13,6 +13,7 @@ import ScrollBox from './ScrollBox'
 import { useSession } from '@/lib/session'
 import { FeatureGlyph } from './FeatureGlyph'
 import { hueFor } from '@/features/bento/BentoLauncher'
+import { useOpenState } from '@/lib/motion'
 
 /* A child or a parent, found by name, admission number or mobile.
 
@@ -44,7 +45,7 @@ interface PersonHit {
 export function CommandSearch() {
   const catalog = useCatalog()
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
 
   /* Back closes the panel rather than the app. See useOverlayHistory: this is
      state, not a route, so nothing was on the history stack for the phone's

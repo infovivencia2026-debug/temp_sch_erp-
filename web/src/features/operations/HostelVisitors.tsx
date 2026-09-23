@@ -8,6 +8,7 @@ import {
   SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useStudentRoster } from '@/lib/rosters'
+import { useOpenState } from '@/lib/motion'
 
 /* Relatives visiting a boarder.
 
@@ -61,7 +62,7 @@ export default function HostelVisitors() {
   const qc = useQueryClient()
   const [date, setDate] = useState(today())
   const [onSite, setOnSite] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [form, setForm] = useState({
     student_id: '',
     full_name: '',

@@ -13,6 +13,7 @@ import {
   type StudentBankAccount,
 } from './banking-lib'
 import { useDebouncedValue } from '@/lib/debounce'
+import { useOpenState } from '@/lib/motion'
 
 /* The student bank account register.
 
@@ -276,7 +277,7 @@ function AccountRow({
 
 function AddAccount() {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [studentQuery, setStudentQuery] = useState('')
   const [studentId, setStudentId] = useState('')
   const [holder, setHolder] = useState('')

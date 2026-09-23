@@ -10,6 +10,7 @@ import {
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { useOpenState } from '@/lib/motion'
 
 interface Thread {
   id: string
@@ -69,7 +70,7 @@ export default function HomeworkForum() {
   const { children, studentId, chosen, setChosen } = useChildren()
   const ready = readyFor(children, studentId)
 
-  const [open, setOpen] = useState('')
+  const [open, setOpen] = useOpenState('')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [homeworkId, setHomeworkId] = useState('')

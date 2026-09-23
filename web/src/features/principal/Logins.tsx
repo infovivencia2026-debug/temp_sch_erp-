@@ -13,6 +13,7 @@ import { SearchBox } from '@/components/rows'
 import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } from './SecurityDesk'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
+import { useOpenState } from '@/lib/motion'
 
 /* Who can sign in to this school.
 
@@ -401,7 +402,7 @@ export default function Logins() {
 function Devices({ user, onClose }: { user: AdminUser; onClose: () => void }) {
   const qc = useQueryClient()
   const [showEnded, setShowEnded] = useState(false)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
   const { data, isLoading, error } = useQuery({
     queryKey: ['school-logins-sessions', user.id, showEnded],
     queryFn: () =>

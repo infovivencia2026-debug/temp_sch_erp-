@@ -16,6 +16,7 @@ import {
   type LoanStatus,
 } from './concessions-lib'
 import { useDebouncedValue } from '@/lib/debounce'
+import { useOpenState } from '@/lib/motion'
 
 /* Education loan assistance.
 
@@ -45,7 +46,7 @@ export default function LoanAssistance() {
 
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const needle = useDebouncedValue(search.trim())
   const apps = useQuery({
@@ -630,7 +631,7 @@ function NewApplication({ onCreated }: { onCreated: (id: string) => void }) {
 
 function LendersPanel({ mayWrite }: { mayWrite: boolean }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [name, setName] = useState('')
   const [kind, setKind] = useState('public_sector_bank')
   const [branch, setBranch] = useState('')

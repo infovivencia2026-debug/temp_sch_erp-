@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useCan } from '@/lib/session'
+import { useOpenState } from '@/lib/motion'
 
 /* The conduct file, from the office's side.
 
@@ -70,7 +71,7 @@ export default function DisciplineLog() {
   const mayHandle = useCan()('students.write')
   const [status, setStatus] = useState('')
   const [severity, setSeverity] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const log = useQuery({
     queryKey: ['incidents', status, severity],

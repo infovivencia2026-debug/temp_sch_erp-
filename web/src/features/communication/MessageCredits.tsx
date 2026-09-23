@@ -9,6 +9,7 @@ import {
   type CreditBalance,
 } from '@/features/super_admin/messaging-lib'
 import { formatDate } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /* HOW MANY MESSAGES ARE LEFT, AND WHERE THE REST WENT.
 
@@ -37,7 +38,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [low, setLow] = useState(String(credit.low_water))
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const topUp = useTopUpCredits(credit.channel)
   const stop = useStopMetering(credit.channel)
   const entries = useCreditEntries(credit.channel)

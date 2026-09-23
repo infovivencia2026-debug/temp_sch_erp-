@@ -7,6 +7,7 @@ import {
   Button, Field, FormGrid, FormNotice, Input, Select, Textarea, Checkbox,
   Loading, SkeletonTable, ErrorState, EmptyState, tabClass } from '@/components/ui'
 import { useStudentRoster } from '@/lib/rosters'
+import { useOpenState } from '@/lib/motion'
 
 /* The nurse's day: who came in, and what they were given.
 
@@ -189,7 +190,7 @@ function VisitLog({
 }) {
   const qc = useQueryClient()
   const students = useStudents()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [form, setForm] = useState({
     student_id: '',
     complaint: '',
@@ -424,7 +425,7 @@ function MedicationRegister({ date }: { date: string }) {
   const qc = useQueryClient()
   const students = useStudents()
   const [incidents, setIncidents] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [form, setForm] = useState({
     student_id: '',
     medicine: '',

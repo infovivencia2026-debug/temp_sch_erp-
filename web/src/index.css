@@ -2383,6 +2383,34 @@ dialog,
   animation: route-enter var(--motion-route) var(--motion-ease) both;
 }
 
+/* THE CROSSING BETWEEN TWO SCREENS.
+
+   App.tsx hands each navigation to the View Transitions API (see
+   RoutedScreen); these two rules are the choreography. The leaving screen
+   fades while settling a touch smaller, the arriving one fades in while
+   settling from a touch larger -- the two are read as one surface giving way
+   to the next, the way a sheet does on a phone, rather than a cut. Both on
+   --motion-ease, the settle curve every surface in this file already moves
+   on; the leave is shorter than the arrive because the eye is on what comes.
+   The scale is 1.5%: enough to feel the depth, never enough to see a zoom.
+
+   While the crossing runs the arrival fade on [data-page-enter] is switched
+   off, or the new screen would fade twice. Reduced motion never starts a
+   transition (App.tsx), so these rules never apply there. */
+::view-transition-old(root) {
+  animation: vt-leave 200ms var(--motion-ease) both;
+}
+::view-transition-new(root) {
+  animation: vt-arrive 340ms var(--motion-ease) both;
+}
+@keyframes vt-leave {
+  to { opacity: 0; transform: scale(0.985); }
+}
+@keyframes vt-arrive {
+  from { opacity: 0; transform: scale(1.015); }
+}
+html:active-view-transition [data-page-enter] { animation: none; }
+
 /* THE DOCK ARRIVES OUT OF THE EDGE IT LIVES ON.
 
    Entering Focus used to make the dock simply exist; it now rises the small
@@ -3111,9 +3139,25 @@ body[data-scroll-lock] {
   animation: fluid-breathe 8s ease-in-out infinite alternate;
 }
 /* The subtle ball: the same circle, the colour turned well down. */
-.fluid-orb[data-subtle] { filter: saturate(0.75); }
+.fluid-orb[data-subtle] {
+  filter: saturate(0.75);
+  /* The edge barely there: the inner rim and the outer shadow that draw the
+     ball as an object go, and a faint fade into the panel takes their place. */
+  box-shadow: inset 0 0 calc(var(--orb-size) * 0.12) rgba(255, 255, 255, 0.35);
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(224, 244, 236, 0.22) 0%,
+      rgba(228, 240, 238, 0.30) 70%,
+      rgba(236, 240, 244, 0.55) 90%,
+      rgba(240, 242, 246, 0.35) 100%);
+}
 .fluid-orb[data-subtle] .fluid-orb__blob { opacity: 0.62; }
 .fluid-orb[data-subtle] .fluid-orb__glass { opacity: 0.8; }
+/* A little yellow, very little: the lime blob warms toward a pale gold. */
+.fluid-orb[data-subtle] .fluid-orb__blob-4 {
+  background: radial-gradient(circle,
+    rgba(240, 214, 96, 0.78) 0%, rgba(232, 210, 110, 0.5) 48%, rgba(236, 220, 140, 0) 100%);
+}
 .fluid-orb__blob {
   position: absolute;
   border-radius: 50%;

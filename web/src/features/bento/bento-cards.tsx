@@ -6,6 +6,7 @@ import { useWidgetSize } from '@/lib/widget-size'
 import { Menu, TierGlyph } from './Menu'
 import { tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import './quick-menu.css'
+import { useOpenState } from '@/lib/motion'
 /* The editorial card vocabulary — see docs/BENTO_CARD_PATTERNS.md.
    Twelve drawings, one card shell, and a single colour rule: every mark is
    `currentColor`. The cell has already resolved its own ink — black on a pale
@@ -833,7 +834,7 @@ export function QuickMenu({
   }
 }) {
   const t = useT()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const btn = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => setOpen(false), [])
   const name = t('bento.widgets.more_for', { label })

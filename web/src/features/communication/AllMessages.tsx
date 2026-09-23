@@ -12,6 +12,7 @@ import {
 } from '@/components/ui'
 import { useFeatureHref } from '../bento/bento-kit'
 import { usePhone } from '@/lib/viewport'
+import { useOpenState } from '@/lib/motion'
 
 /* All messages.
  *
@@ -84,7 +85,7 @@ export default function AllMessages() {
   const [channel, setChannel] = useState<'' | Channel>('')
   const [status, setStatus] = useState<'pending' | 'answered' | 'all'>('all')
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState<Item | null>(null)
+  const [open, setOpen] = useOpenState<Item | null>(null)
   const [openStaff, setOpenStaff] = useState<Item | null>(null)
   const [openConcern, setOpenConcern] = useState<Item | null>(null)
   const [openCircular, setOpenCircular] = useState<Item | null>(null)

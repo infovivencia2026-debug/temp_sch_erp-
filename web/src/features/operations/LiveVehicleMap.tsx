@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils'
 import { FleetMap } from '@/components/FleetMap'
 import { useTabVisible, useVisibleInterval } from '@/lib/visible'
+import { useOpenState } from '@/lib/motion'
 
 /* Where the fleet is, right now.
 
@@ -461,7 +462,7 @@ type DriverNotice = {
    shown as anything. */
 function DriverMessage({ vehicleId, paired }: { vehicleId: string; paired: boolean }) {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [body, setBody] = useState('')
   // The main poll above stops with the tab; this one did not, so a hidden map
   // still asked for every bus's notices once a minute for nobody. Same gate.

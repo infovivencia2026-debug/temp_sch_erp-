@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useDebouncedValue } from '@/lib/debounce'
+import { useOpenState } from '@/lib/motion'
 
 /* The student council: the posts, who holds them, and what they actually did.
 
@@ -202,7 +203,7 @@ export default function StudentCouncil() {
 }
 
 function LogDuty({ memberID, onSaved }: { memberID: string; onSaved: () => void }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [duty, setDuty] = useState('')
   const [performed, setPerformed] = useState(true)
 

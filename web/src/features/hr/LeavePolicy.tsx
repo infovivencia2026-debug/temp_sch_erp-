@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Clock, Scale } from 'lucide-react'
 import { api } from '@/lib/api'
 import { formatTime } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
@@ -297,7 +298,7 @@ function RulesTab({
    nothing on any screen called it. */
 function NewLeaveType() {
   const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useOpenState(false)
   const [f, setF] = useState({ name: '', code: '', quota: '', paid: true, carry: false })
   const [note, setNote] = useState<{ error?: unknown; ok?: string }>({})
 

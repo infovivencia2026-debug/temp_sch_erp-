@@ -10,6 +10,7 @@ import { formatDate, cn } from '@/lib/utils'
 import StoryViewer, { initials, type StoryGroup, type StoryItem, type StoryMedia } from '@/components/StoryViewer'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { useOpenState } from '@/lib/motion'
 
 interface Resource {
   id: string
@@ -91,7 +92,7 @@ function toStory(r: Resource, seen: boolean): StoryItem {
 export default function Resources() {
   const { children, studentId, chosen, setChosen } = useChildren()
   const [kind, setKind] = useState('')
-  const [open, setOpen] = useState<number | null>(null)
+  const [open, setOpen] = useOpenState<number | null>(null)
   const [seenNow, setSeenNow] = useState<Set<string>>(() => new Set())
   const ready = readyFor(children, studentId)
   const qc = useQueryClient()

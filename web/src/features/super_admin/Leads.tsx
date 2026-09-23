@@ -8,6 +8,7 @@ import {
   Field, FormGrid, FormNotice, Input, SkeletonTiles, ErrorState, EmptyState,
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import { useOpenState } from '@/lib/motion'
 
 /* THE SALES PIPELINE.
 
@@ -121,7 +122,7 @@ export default function Leads() {
   const qc = useQueryClient()
   const toast = useToast()
   const [stage, setStage] = useState<'' | Stage>('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const leads = useQuery({
     queryKey: ['sales-leads'],

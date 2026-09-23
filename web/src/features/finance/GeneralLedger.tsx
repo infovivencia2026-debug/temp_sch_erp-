@@ -10,6 +10,7 @@ import {
   inr, side, rupees, toPaise, fyOptions, currentFY, useAccounts, accountOptions,
   ledgerBase, type TrialBalance, type Statements, type Voucher, type VoucherLine,
 } from './ledger-lib'
+import { useOpenState } from '@/lib/motion'
 
 /* The general ledger: post a voucher, read the books back.
 
@@ -223,7 +224,7 @@ function PostVoucher() {
 }
 
 function VoucherRegister({ fy }: { fy: string }) {
-  const [open, setOpen] = useState('')
+  const [open, setOpen] = useOpenState('')
   const vouchers = useQuery({
     queryKey: ['ledgers', 'vouchers', fy],
     queryFn: () => api.get<List<Voucher>>(`${ledgerBase}/vouchers?fy=${fy}`),

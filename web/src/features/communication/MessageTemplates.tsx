@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { api, type List } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useOpenState } from '@/lib/motion'
 
 /**
  * The words the school actually sends.
@@ -53,7 +54,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 export default function MessageTemplates() {
   const qc = useQueryClient()
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useOpenState<string | null>(null)
 
   const templates = useQuery({
     queryKey: ['message-templates'],
