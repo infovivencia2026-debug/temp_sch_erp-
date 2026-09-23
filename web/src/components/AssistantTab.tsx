@@ -794,7 +794,11 @@ export function AssistantTab() {
              width of a 520px pane, and centred so both sides read as one
              conversation rather than a volley. */}
           <div ref={logRef} className="flex-1 overflow-y-auto px-3 py-3">
-           <div className="mx-auto w-full max-w-[600px] space-y-2.5">
+           {/* ONE LINE BETWEEN TURNS. No boxes: the owner asked for the turns
+              to be divided by a single hairline and nothing else, so the bot's
+              answer carries no border and the question keeps only its soft
+              wash of colour. */}
+           <div className="mx-auto w-full max-w-[600px] divide-y divide-border">
             {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
@@ -817,7 +821,7 @@ export function AssistantTab() {
               </div>
             )}
             {turns.map((turn, i) => (
-              <div key={i} className="w-full">
+              <div key={i} className="w-full py-1.5 first:pt-0">
                 <div
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
@@ -839,7 +843,7 @@ export function AssistantTab() {
                   className={cn(
                     'whitespace-pre-wrap rounded-[14px] px-4 py-3 text-[14.5px] leading-relaxed',
                     turn.role === 'user' && 'bg-[hsl(var(--primary)/0.12)] text-foreground',
-                    turn.role === 'bot' && 'border bg-card text-card-foreground',
+                    turn.role === 'bot' && 'text-foreground',
                     turn.role === 'error' &&
                       'bg-destructive text-destructive-foreground',
                   )}
