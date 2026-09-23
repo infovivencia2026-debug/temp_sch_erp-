@@ -46,6 +46,9 @@ export default function TabStrip() {
   const { paths, split, closeSplit } = usePanes()
   const { layout } = useLayout()
   const [menu, setMenu] = useState<MenuTarget | null>(null)
+  const holdTimer = useRef<number | undefined>(undefined)
+  const holdFrom = useRef<{ x: number; y: number } | null>(null)
+  const held = useRef(false)
   const activeRef = useRef<HTMLDivElement | null>(null)
   /* Referentially stable: the popover's document listeners depend on it. */
   const dismiss = useCallback(() => setMenu(null), [])
@@ -200,6 +203,38 @@ export default function TabStrip() {
               // return to when the menu closes.
               const anchor = e.currentTarget.querySelector<HTMLElement>('[role="tab"]') ?? e.currentTarget
               setMenu({ path: t.path, title: t.title, anchor })
+            }}
+            /* A HOLD IS A FINGER'S RIGHT-CLICK.
+
+               The strip shows from 1024px, and an iPad in landscape is
+               exactly that wide with no mouse: the tab menu -- close others,
+               close to the right, pin -- was reachable by nobody there. The
+               same half-second hold chat messages use, cancelled by a drift
+               of more than a few pixels (that is a scroll of the strip), and
+               the tap that follows a hold is swallowed so the tab does not
+               also navigate. */
+            onPointerDown={(e) => {
+              if (e.pointerType === 'mouse') return
+              const box = e.currentTarget
+              holdFrom.current = { x: e.clientX, y: e.clientY }
+              window.clearTimeout(holdTimer.current)
+              holdTimer.current = window.setTimeout(() => {
+                held.current = true
+                const anchor = box.querySelector<HTMLElement>('[role="tab"]') ?? box
+                setMenu({ path: t.path, title: t.title, anchor })
+              }, 500)
+            }}
+            onPointerMove={(e) => {
+              const p = holdFrom.current
+              if (p && (Math.abs(e.clientX - p.x) > 8 || Math.abs(e.clientY - p.y) > 8)) {
+                window.clearTimeout(holdTimer.current)
+                holdFrom.current = null
+              }
+            }}
+            onPointerUp={() => { window.clearTimeout(holdTimer.current); holdFrom.current = null }}
+            onPointerCancel={() => { window.clearTimeout(holdTimer.current); holdFrom.current = null }}
+            onClickCapture={(e) => {
+              if (held.current) { held.current = false; e.stopPropagation(); e.preventDefault() }
             }}
             className={cn(
               /* THE STRIP SCROLLS; THE TABS DO NOT SHRINK.
