@@ -214,7 +214,39 @@ export function ChatThread({
     })
   }, [messages])
 
-  const all = useMemo(() => [...messages, ...outgoing], [messages, outgoing])
+  /* DELETE HAPPENS ON SCREEN FIRST.
+   *
+   * Waiting for the server before the message changes meant pressing Delete
+   * and watching the words sit there for a second, which reads as a control
+   * that did not work -- and on a slow connection, as a broken one. The
+   * message becomes "withdrawn" the moment it is asked for, exactly as the
+   * server is about to record it, and fades between the two states so the
+   * thread does not jump.
+   *
+   * The request goes behind it. If it fails -- past the fifteen minutes, or
+   * no network -- the words come back and the error is shown, which is the
+   * honest outcome and the only one worth interrupting somebody for. */
+  const [withdrawn, setWithdrawn] = useState<string[]>([])
+
+  const deleteMessage = useCallback(
+    (id: string) => {
+      if (!onUnsend) return
+      setWithdrawn((cur) => (cur.includes(id) ? cur : [...cur, id]))
+      void Promise.resolve(onUnsend(id)).catch((e: unknown) => {
+        setWithdrawn((cur) => cur.filter((x) => x !== id))
+        setUploadError(
+          e instanceof Error ? e.message : 'That message could not be withdrawn.',
+        )
+      })
+    },
+    [onUnsend],
+  )
+
+  const all = useMemo(() => {
+    const merged = [...messages, ...outgoing]
+    if (withdrawn.length === 0) return merged
+    return merged.map((m) => (withdrawn.includes(m.id) ? { ...m, deleted: true, body: '' } : m))
+  }, [messages, outgoing, withdrawn])
   const shown = useMemo(() => {
     const q = needle.trim().toLowerCase()
     if (!q) return all
@@ -558,7 +590,7 @@ export function ChatThread({
                   <div
                     {...holdHandlers(m)}
                     className={cn(
-                      'chat-bubble relative select-none px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
+                      'chat-bubble chat-settle relative select-none px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
                       m.mine ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
@@ -576,7 +608,7 @@ export function ChatThread({
                       </div>
                     )}
                     {m.deleted ? (
-                      <p className="italic text-muted-foreground">
+                      <p className="chat-withdrawn italic text-muted-foreground">
                         This message was withdrawn.
                       </p>
                     ) : (
@@ -659,7 +691,7 @@ export function ChatThread({
           mine={acting.m.mine}
           onClose={() => setActing(null)}
           onReply={canSend ? () => setReplyTo(acting.m) : undefined}
-          onDelete={onUnsend && acting.m.mine && !acting.m.deleted ? () => void onUnsend(acting.m.id) : undefined}
+          onDelete={onUnsend && acting.m.mine && !acting.m.deleted ? () => deleteMessage(acting.m.id) : undefined}
         />
       )}
 
@@ -1065,6 +1097,18 @@ const chatCSS = `
 .chat-menu__row:last-child { border-bottom: 0; }
 .chat-menu__row:active { background: rgba(255, 255, 255, 0.1); }
 .chat-menu__row--danger { color: #ff453a; }
+/* The words going, rather than blinking out: the bubble keeps its place in
+   the thread and its new sentence arrives over about a fifth of a second. */
+/* A withdrawn message is usually shorter than the one it replaces, so the
+   bubble changes size. Transitioning the colour and the shadow with it stops
+   that being a snap, and the thread above keeps its place because nothing
+   else moves. */
+.chat-settle { transition: background-color 180ms ease, box-shadow 180ms ease; }
+.chat-withdrawn { animation: chat-withdrawn-in 180ms ease-out both; }
+@keyframes chat-withdrawn-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 `
 
 /* THE PRESSED MESSAGE, LIFTED OUT OF THE THREAD.
