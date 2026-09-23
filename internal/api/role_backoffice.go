@@ -444,8 +444,11 @@ type employeeRow struct {
 	Designation  *string `json:"designation,omitempty"`
 	Phone        *string `json:"phone,omitempty"`
 	Email        *string `json:"email,omitempty"`
-	JoinedOn     string  `json:"joined_on"`
-	Status       string  `json:"status"`
+	// The face on the record, when one has been put there; the list draws
+	// it on every row, as the students' list does.
+	PhotoFileID *string `json:"photo_file_id,omitempty"`
+	JoinedOn    string  `json:"joined_on"`
+	Status      string  `json:"status"`
 	// How many periods a week they are timetabled for. Zero is the state that
 	// makes a clash check meaningless and a substitution board silent, so it
 	// travels with the person rather than having to be asked for separately.
@@ -518,7 +521,7 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(r.Context(), `
 			SELECT e.id::text, e.user_id::text, e.employee_code, e.staff_number,
 			       e.device_user_id, concat_ws(' ', e.first_name, e.last_name),
-			       d.name, dg.name, e.phone, e.email::text,
+			       d.name, dg.name, e.phone, e.email::text, e.photo_file_id::text,
 			       to_char(e.joined_on,'YYYY-MM-DD'), e.status,
 			       (SELECT count(*)::int FROM timetable_entries te
 			         WHERE te.teacher_user_id = e.user_id)`+from+`
@@ -532,7 +535,7 @@ func (s *Server) listEmployees(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var v employeeRow
 			if err := rows.Scan(&v.ID, &v.UserID, &v.Code, &v.StaffNumber, &v.DeviceUserID,
-				&v.FullName, &v.Department, &v.Designation, &v.Phone, &v.Email,
+				&v.FullName, &v.Department, &v.Designation, &v.Phone, &v.Email, &v.PhotoFileID,
 				&v.JoinedOn, &v.Status, &v.PeriodsWeek); err != nil {
 				return err
 			}

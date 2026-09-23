@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Phone, Mail, Printer } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Phone, Mail, Printer, Camera } from 'lucide-react'
+import StudentAvatar from '@/components/StudentAvatar'
 import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
@@ -69,6 +70,7 @@ interface Employee {
   department?: string
   phone?: string
   email?: string
+  photo_file_id?: string
   joined_on?: string
   status: string
   employment_type?: string
@@ -442,7 +444,12 @@ export default function Employees() {
               {rows.map((e) => (
                 <tr key={e.id}>
                   <Td className="font-mono text-[12px]">{e.employee_code}</Td>
-                  <Td className="font-medium">{e.full_name}</Td>
+                  <Td className="font-medium">
+                    <span className="flex items-center gap-2.5">
+                      <StaffPhoto e={e} editable={can('hr.employees.write')} />
+                      <span>{e.full_name}</span>
+                    </span>
+                  </Td>
                   <Td className="text-muted-foreground">{e.designation ?? '-'}</Td>
                   <Td className="text-muted-foreground">{e.department ?? '-'}</Td>
                   <Td className="text-[13px]">
@@ -513,5 +520,68 @@ export default function Employees() {
         )}
       </PageBody>
     </>
+  )
+}
+
+/* The face on the row, and the way to put it there.
+
+   A staff list read by name alone is where the wrong person gets a login,
+   a leave or a salary line. Every row carries the photograph, with initials
+   on a colour of the person's own where none is on file. Anyone who may
+   edit staff records can tap the picture to upload one: the file goes up
+   through the same upload every screen uses, then PUT /employees/{id}/photo
+   points the record at it. */
+function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
+  const qc = useQueryClient()
+  const input = useRef<HTMLInputElement | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const pick = async (list: FileList | null) => {
+    const f = list?.[0]
+    if (!f) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const form = new FormData()
+      form.append('file', f, f.name)
+      const up = await fetch('/api/v1/files', { method: 'POST', credentials: 'same-origin', body: form })
+      if (!up.ok) throw new Error('The photo could not be uploaded.')
+      const j = (await up.json()) as { file_id: string }
+      await api.put(`/api/v1/setup/employees/${e.id}/photo`, { file_id: j.file_id })
+      qc.invalidateQueries({ queryKey: ['employees'] })
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : 'The photo could not be saved.')
+    } finally {
+      setBusy(false)
+      if (input.current) input.current.value = ''
+    }
+  }
+  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={36} />
+  if (!editable) return face
+  return (
+    <span className="relative inline-block shrink-0">
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={(ev) => void pick(ev.target.files)}
+      />
+      <button
+        type="button"
+        className="group relative block rounded-full"
+        title={e.photo_file_id ? 'Change the photo' : 'Add a photo'}
+        aria-label={e.photo_file_id ? `Change the photo of ${e.full_name}` : `Add a photo of ${e.full_name}`}
+        disabled={busy}
+        onClick={() => input.current?.click()}
+      >
+        {face}
+        <span className="absolute -bottom-0.5 -right-0.5 grid h-4 w-4 place-items-center rounded-full border bg-background text-muted-foreground group-hover:text-primary">
+          <Camera className="h-2.5 w-2.5" />
+        </span>
+      </button>
+      {err && <span className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap rounded bg-destructive px-1.5 py-0.5 text-[11px] text-white">{err}</span>}
+    </span>
   )
 }
