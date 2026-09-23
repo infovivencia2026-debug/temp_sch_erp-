@@ -922,7 +922,7 @@ function VoiceNote({ a }: { a: Attachment }) {
   const shown = playing || at > 0 ? at : len
 
   return (
-    <div className="chat-voice mb-1 flex w-[232px] max-w-full items-center gap-2.5">
+    <div className="chat-voice mb-1 flex w-[214px] max-w-full items-center gap-2.5">
       <audio
         ref={audio}
         src={a.url}
@@ -979,14 +979,6 @@ function VoiceNote({ a }: { a: Attachment }) {
         </div>
         <div className="chat-voice__time mt-0.5 text-[11.5px] tabular-nums">{clock(shown)}</div>
       </div>
-      <a
-        href={a.url}
-        download={a.name}
-        title={`Download ${a.name}`}
-        className="chat-voice__get grid h-7 w-7 shrink-0 place-items-center rounded-full"
-      >
-        <Download className="h-3.5 w-3.5" />
-      </a>
     </div>
   )
 }
@@ -1135,8 +1127,8 @@ const chatCSS = `
 .chat-theirs .chat-voice__bar.is-played { background: #2f6fed; }
 .chat-mine .chat-voice__play { background: #ffffff; color: #2f6fed; }
 .chat-theirs .chat-voice__play { background: #2f6fed; color: #ffffff; }
-.chat-mine .chat-voice__time, .chat-mine .chat-voice__get { color: rgba(255,255,255,0.85); }
-.chat-theirs .chat-voice__time, .chat-theirs .chat-voice__get { color: #9aa5b6; }
+.chat-mine .chat-voice__time { color: rgba(255,255,255,0.85); }
+.chat-theirs .chat-voice__time { color: #9aa5b6; }
 .chat-theirs .chat-file { background: rgba(16, 24, 40, 0.04); }
 .chat-theirs .chat-file:hover { background: rgba(16, 24, 40, 0.07); }
 .chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }
