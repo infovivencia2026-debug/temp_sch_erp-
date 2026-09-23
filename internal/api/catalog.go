@@ -248,7 +248,10 @@ func (s *Server) catalogRoleKeys(r *http.Request) (map[string]bool, bool, error)
 	   granted on the role rather than on a permission count, because "holds
 	   nearly everything" is a coincidence that would quietly widen the day
 	   somebody adds a permission the principal does not have. */
-	if held["institution_admin"] && r.URL.Query().Get("all_roles") == "1" {
+	// Always on for the head, not behind a switch: the user asked for every
+	// desk to be there by default, and a switch that had to be found first
+	// was the thing in the way. The offices only; see below.
+	if held["institution_admin"] {
 		every := map[string]bool{}
 		for _, role := range catalog.Roles {
 			/* The offices, not the families and not the vendor.
