@@ -761,7 +761,7 @@ export function AssistantTab() {
              this follows it rather than guessing, and falls back to the old
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
-          `fixed right-6 z-40 grid size-16 place-items-center rounded-full
+          `fixed right-6 z-40 grid size-28 place-items-center rounded-full
            border bg-card shadow-xl
            transition-[transform,box-shadow,background-color]
            hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
@@ -771,7 +771,8 @@ export function AssistantTab() {
         )}
         style={{ bottom: 'calc(var(--dock-h, 0px) + 1.25rem)' }}
       >
-        <AssistantOrb state={state} size={44} awake={hover} />
+        {/* TWICE THE SIZE, the owner's ask: 88px, in a 112px button. */}
+        <AssistantOrb state={state} size={88} awake={hover} />
       </button>
 
       {open && (
@@ -828,7 +829,7 @@ export function AssistantTab() {
           <div
             className="flex shrink-0 justify-center pb-1 pt-4"
           >
-            <AssistantOrb state={state} size={44} />
+            <AssistantOrb state={state} size={88} />
           </div>
 
           {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
