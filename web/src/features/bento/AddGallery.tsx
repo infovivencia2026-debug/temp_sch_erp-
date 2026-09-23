@@ -1,5 +1,5 @@
 import {
-  useEffect, useId, useLayoutEffect, useRef, useState,
+  Fragment, useEffect, useId, useLayoutEffect, useRef, useState,
   type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactElement,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -39,6 +39,9 @@ export type GalleryItem = {
   id: string
   label: string
   hint?: string
+  /** The heading this item sits under: the board's own cards, figures with
+      a period, screens. Absent means the board's own cards. */
+  group?: string
   /** The tiers that fit on the board right now; the rest render disabled. */
   tiers: SizeTier[]
   /** The tier Enter adds at, and the one the preview is drawn as. */
@@ -130,7 +133,7 @@ export function placePanel(
 }
 
 export function AddGallery({
-  open, items, phone, onAdd, onClose, anchor,
+  open, items: all, phone, onAdd, onClose, anchor,
 }: {
   open: boolean
   items: GalleryItem[]
@@ -145,6 +148,21 @@ export function AddGallery({
   const still = useReduceMotion()
   const uid = useId()
   const panelRef = useRef<HTMLDivElement>(null)
+  /* A FILTER, ONCE THE LIST IS LONG.
+
+     The gallery held a board's own cards -- a handful. It now also holds
+     every figure and every screen the account can open, which for a
+     principal is a hundred tiles. A hundred tiles is a list nobody scrolls;
+     it is a list somebody types into. The box appears past a dozen items,
+     and everything below -- the keyboard walk, the active tile, the
+     grid -- reads the filtered list, so the arrows never land on a tile
+     the filter has hidden. */
+  const [q, setQ] = useState('')
+  const needle = q.trim().toLowerCase()
+  const items = needle
+    ? all.filter((i) => `${i.label} ${i.hint ?? ''} ${i.group ?? ''}`.toLowerCase().includes(needle))
+    : all
+  const filterable = all.length > 12
   const tileRefs = useRef(new Map<string, HTMLDivElement>())
   const anchorRef = useRef(anchor)
   anchorRef.current = anchor
@@ -383,6 +401,16 @@ export function AddGallery({
           <div className="min-w-0">
             <p className="bento-gallery__title">{t('bento.add_gallery.title')}</p>
             <p className="bento-gallery__hint">{t('bento.add_gallery.hint')}</p>
+            {filterable && (
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={t('bento.add_gallery.filter')}
+                aria-label={t('bento.add_gallery.filter')}
+                className="bento-gallery__filter"
+              />
+            )}
           </div>
           <button
             type="button"
@@ -399,9 +427,14 @@ export function AddGallery({
             <p className="bento-gallery__empty">{t('bento.add_gallery.empty')}</p>
           ) : (
             <div className="bento-gallery__grid" role="group" aria-label={t('bento.add_gallery.cards')}>
-              {items.map((item) => (
+              {items.map((item, idx) => (
+                <Fragment key={item.id}>
+                {/* A heading where the group changes: the board's own cards
+                    first, then figures, then screens. Spans the grid row. */}
+                {(idx === 0 || items[idx - 1].group !== item.group) && (
+                  <p className="bento-gallery__group" aria-hidden="true">{item.group ?? t('bento.add_gallery.cards')}</p>
+                )}
                 <Tile
-                  key={item.id}
                   item={item}
                   uid={uid}
                   active={item.id === activeId}
@@ -417,6 +450,7 @@ export function AddGallery({
                     else tileRefs.current.delete(item.id)
                   }}
                 />
+                </Fragment>
               ))}
             </div>
           )}

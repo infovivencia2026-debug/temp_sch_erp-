@@ -14,7 +14,9 @@ import {
 import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
 import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
-import { FeatureCells } from './FeatureCells'
+import { FeatureCells, FEATURE_PREFIX } from './FeatureCells'
+import { useCatalogIfAny, usable } from '@/lib/catalog'
+import { useShortcuts, addToDashboard } from '@/lib/shortcuts'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
 import { QuickMenu, type QuickTier } from './bento-cards'
 import { usePhone } from '@/lib/viewport'
@@ -877,9 +879,41 @@ export function WidgetLayer({
       id: METRIC_PREFIX + m.key,
       label: m.label,
       hint: m.hint,
+      group: t('bento.add_gallery.metrics'),
       tiers: smallTiers,
       defaultTier: smallTiers.includes('small') ? 'small' : smallTiers[0] ?? 'small',
     }))
+  /* AND EVERY SCREEN THE ACCOUNT CAN OPEN, as a tile.
+
+     "Add to home" from the launcher's long-press was the only door onto the
+     board for a screen; a person standing at the board's own "+" had no way
+     to know it existed. The same screens are listed here -- every feature
+     this account may open, across the roles it holds, minus the ones already
+     on the home -- and adding one is the same act as the launcher's: the key
+     goes on the shortcuts list, and FeatureCells draws it. The catalogue is
+     read without throwing, for a layer mounted without one around it. */
+  const shortcuts = useShortcuts()
+  const catalog = useCatalogIfAny()
+  const featureItems: GalleryItem[] = []
+  {
+    const seenKey = new Set<string>(shortcuts)
+    for (const role of catalog?.roles ?? []) {
+      for (const section of role.sections) {
+        for (const f of section.features) {
+          if (!usable(f) || seenKey.has(f.key)) continue
+          seenKey.add(f.key)
+          featureItems.push({
+            id: FEATURE_PREFIX + f.key,
+            label: f.name,
+            hint: `${section.workspace || section.name}`,
+            group: t('bento.add_gallery.screens'),
+            tiers: smallTiers,
+            defaultTier: smallTiers.includes('small') ? 'small' : smallTiers[0] ?? 'small',
+          })
+        }
+      }
+    }
+  }
   const items: GalleryItem[] = off.map((d) => {
     const tiers = (phone ? PHONE_TIERS : TIERS).filter((tier) => {
       if (phone) return true
@@ -901,11 +935,15 @@ export function WidgetLayer({
        changed nothing. This puts it at the end of the order at the chosen
        size, which is exactly where the tier list above tested that it
        fits, in one write. */
+    /* A screen is a shortcut first: the key on the list is what FeatureCells
+       draws, and the launcher's "Remove from home" reads the same list. The
+       layout entry beside it carries the size that was chosen. */
+    if (id.startsWith(FEATURE_PREFIX)) addToDashboard(id.slice(FEATURE_PREFIX.length))
     add(id, d.w, d.h, visible)
     buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
-    if (off.length + metricItems.length <= 1) setGallery(false)
+    if (off.length + metricItems.length + featureItems.length <= 1) setGallery(false)
   }
 
   return (
@@ -1009,7 +1047,7 @@ export function WidgetLayer({
       {arranging && (
         <AddGallery
           open={gallery}
-          items={[...items, ...metricItems]}
+          items={[...items, ...metricItems, ...featureItems]}
           phone={phone}
           onAdd={onAdd}
           onClose={() => setGallery(false)}

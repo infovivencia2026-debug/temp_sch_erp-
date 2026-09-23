@@ -2720,6 +2720,8 @@ export const en = {
   'bento.period.year': 'This year',
   'bento.period.all': 'All time',
   'bento.add_gallery.metrics': 'Figures with a period',
+  'bento.add_gallery.screens': 'Screens',
+  'bento.add_gallery.filter': 'Filter…',
   'bento.widgets.moved_to': '{label} moved to position {n} of {total}',
   'bento.widgets.removed_card': '{label} removed. Undo is in the toolbar.',
   /* The launcher's app grid: the pinned row a person curates, the "…" on a

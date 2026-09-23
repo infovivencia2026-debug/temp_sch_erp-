@@ -114,6 +114,28 @@
   line-height: 1.35;
   opacity: 0.65;
 }
+.bento-gallery__filter {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.bento-gallery__filter:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.bento-gallery__group {
+  grid-column: 1 / -1;
+  margin: 10px 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  opacity: .6;
+}
 .bento-gallery__close {
   flex: 0 0 auto;
   display: grid;
