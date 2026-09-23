@@ -128,10 +128,12 @@ const PALETTE_KEY = 'erp.palette'
     stored name, including one of the older palettes — still wins, so nobody
     who has already chosen loses their choice on the release that adds this.
 
-    Aurora since September 2026: the owner's mesh-gradient card faces (see
-    the palette's own note below, and the aurora section of bento-theme.css).
+    Aurora, the mesh-gradient card faces, was the default for a few weeks in
+    September 2026 and was removed at the owner's request on the 23rd.
     Pearl and Vivid stay shipped and one click away. */
-export const DEFAULT_PALETTE = 'Aurora'
+/* Light Modern since 2026-09-23: the owner asked for Aurora -- the mesh
+   gradient card faces -- to be removed. */
+export const DEFAULT_PALETTE = 'Light Modern'
 
 let activePalette: string | null =
   typeof window === 'undefined' ? null : (() => {
@@ -221,7 +223,10 @@ function repaint() {
     written.push(k)
   }
 
-  const shipped = paletteByName(activePalette)
+  /* A stored name this build no longer ships (Aurora, removed) is treated
+     as the default rather than as "no palette": the person never chose to
+     have nothing. */
+  const shipped = paletteByName(activePalette) ?? (activePalette ? paletteByName(DEFAULT_PALETTE) : null)
   if (shipped) for (const [k, v] of Object.entries(shipped.tokens)) set(k, v)
 
   /* WHICH REGIONS ARE ACTUALLY PAINTED, said out loud on the root.
@@ -1200,85 +1205,6 @@ export const BUILT_IN_PALETTES: readonly BuiltInPalette[] = [
       '--dom-warning': '#d7a677',
       '--dom-warning-soft': '#221911',
       '--dom-warning-text': '#f6f6f8',
-    },
-  },
-
-  /* AURORA: the owner's "Premium Aurora Gradient Pack" -- twelve soft mesh
-     gradients, each a pastel base with four saturated blobs fading into it,
-     on big rounded cards that glow from inside.
-
-     A gradient is not a token, so this palette is the half that IS tokens
-     and bento-theme.css (the aurora section) is the other half: with this
-     palette on, every bento cell wears one of the twelve meshes, chosen by
-     the cell's domain (students Electric Blue, finance Mint Aurora,
-     communication Pink Sky, warnings Peach Bloom, critical Sunset Glow ...)
-     or, for a plain card, by its position round the board.
-
-     What the tokens carry: each domain's soft is its gradient's BASE, and its
-     ink is the gradient's strongest blob walked darker until it clears
-     4.62:1 on the white card, on the base, and on the brightest point a
-     55% blob makes over the base -- the brightest place any figure can sit.
-     Ground, rules and muted are Pearl's, at the theme's separation
-     baseline, so the board keeps its edges. Light only, as the source is. */
-  {
-    name: 'Aurora',
-    mode: 'light',
-    tokens: {
-      '--bento-bg': '#eaedf5',
-      '--bento-card': '#ffffff',
-      '--bento-card-2': '#dfe3ee',
-      '--bento-ink': '#000000',
-      '--bento-muted': '#3a3d45',
-      '--bento-line': '#c7cddc',
-      '--bento-dock-bg': '#eaedf5',
-      '--bento-dock-ink': '#000000',
-      '--bento-mint': '#13826e',
-      '--bento-mint-tint': '#e2fff6',
-      '--bento-purple': '#9840ff',
-      '--bento-purple-tint': '#eee5ff',
-      '--bento-pink': '#e20071',
-      '--bento-pink-tint': '#f5eaff',
-      '--bento-orange': '#e41f00',
-      '--bento-orange-tint': '#fff1ea',
-      '--bento-anchor-from': '#dce8ff',
-      '--bento-anchor-to': '#f5eaff',
-      '--bento-anchor-ink': '#000000',
-      '--dom-students': '#002d9c',
-      '--dom-students-soft': '#dce8ff',
-      '--dom-students-text': '#000000',
-      '--dom-academics': '#5300b5',
-      '--dom-academics-soft': '#eee5ff',
-      '--dom-academics-text': '#000000',
-      '--dom-finance': '#0f6555',
-      '--dom-finance-soft': '#e2fff6',
-      '--dom-finance-text': '#000000',
-      '--dom-operations': '#00288c',
-      '--dom-operations-soft': '#e6efff',
-      '--dom-operations-text': '#000000',
-      '--dom-reports': '#2200c6',
-      '--dom-reports-soft': '#eeeaff',
-      '--dom-reports-text': '#000000',
-      '--dom-staff': '#8a0043',
-      '--dom-staff-soft': '#e9e8ff',
-      '--dom-staff-text': '#000000',
-      '--dom-admissions': '#3300cc',
-      '--dom-admissions-soft': '#e6f5ff',
-      '--dom-admissions-text': '#000000',
-      '--dom-attendance': '#00527d',
-      '--dom-attendance-soft': '#e7f8ff',
-      '--dom-attendance-text': '#000000',
-      '--dom-communication': '#830042',
-      '--dom-communication-soft': '#f5eaff',
-      '--dom-communication-text': '#000000',
-      '--dom-critical': '#8e0021',
-      '--dom-critical-soft': '#fff0e8',
-      '--dom-critical-text': '#000000',
-      '--dom-success': '#0f6555',
-      '--dom-success-soft': '#e2fff6',
-      '--dom-success-text': '#000000',
-      '--dom-warning': '#9f1600',
-      '--dom-warning-soft': '#fff1ea',
-      '--dom-warning-text': '#000000',
     },
   },
 
