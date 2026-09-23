@@ -14,6 +14,20 @@ import { useOverlayHistory } from '@/lib/overlay-history'
    piece, so no layout has to know about it. Back (the arrow, the browser's
    own Back, Escape) closes it and the list underneath is exactly as it was:
    useOverlayHistory pushes a history entry on open for that. */
+
+/* The circle with the person's initials, as every chat app draws a contact
+   without a photo: two letters from the first two words, and a colour that
+   is stable for a name so the same person looks the same on every screen. */
+function initialsOf(name: string): string {
+  const words = name.replace(/[↔·]/g, ' ').trim().split(/\s+/).filter(Boolean)
+  return words.slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?'
+}
+function avatarColour(name: string): string {
+  let h = 0
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return `hsl(${h} 45% 48%)`
+}
+
 export function ChatScreen({
   open,
   title,
@@ -66,7 +80,7 @@ export function ChatScreen({
       // engine already resized for the keyboard (lib/keyboard.ts).
       style={{ paddingTop: 'env(safe-area-inset-top)', bottom: 'var(--kb, 0px)' }}
     >
-      <div className="flex shrink-0 items-center gap-1.5 border-b bg-background px-1.5 py-1.5 sm:px-3">
+      <div className="flex shrink-0 items-center gap-1.5 border-b bg-[#f0f2f5] px-1.5 py-1.5 text-[#111b21] sm:px-3">
         <button
           type="button"
           onClick={back}
@@ -76,9 +90,18 @@ export function ChatScreen({
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
+        {typeof title === 'string' && (
+          <div
+            aria-hidden="true"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[15px] font-semibold text-white"
+            style={{ backgroundColor: avatarColour(title) }}
+          >
+            {initialsOf(title)}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold leading-tight">{title}</div>
-          {subtitle && <div className="truncate text-[12.5px] text-muted-foreground">{subtitle}</div>}
+          <div className="truncate text-[16px] font-semibold leading-tight">{title}</div>
+          {subtitle && <div className="truncate text-[12.5px] text-[#667781]">{subtitle}</div>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </div>

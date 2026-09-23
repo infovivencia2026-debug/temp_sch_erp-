@@ -414,20 +414,30 @@ export function ChatThread({
             Nothing in this conversation matches "{needle}".
           </div>
         ) : (
-          shown.map((m) => {
+          shown.map((m, i) => {
             const day = m.at.slice(0, 10)
             const sep = day !== lastDay
             lastDay = day
+            /* Runs. Messages from one side, close together, sit as a group:
+               tight spacing, one tail on the first. That is what makes a
+               thread read as a conversation rather than a list. */
+            const prev = shown[i - 1]
+            const next = shown[i + 1]
+            const sameAs = (o?: ChatMessage) =>
+              !!o && o.mine === m.mine && (o.sender ?? '') === (m.sender ?? '') &&
+              o.at.slice(0, 10) === day && Math.abs(+new Date(o.at) - +new Date(m.at)) < 5 * 60_000
+            const first = sep || !sameAs(prev)
+            const last = !sameAs(next)
             return (
               <div key={m.id}>
                 {sep && (
                   <div className="my-3 flex justify-center">
-                    <span className="chat-daypill rounded-md px-2.5 py-1 text-[11.5px] font-medium shadow-sm">
+                    <span className="chat-daypill rounded-[7.5px] px-3 py-[5px] text-[12.5px] font-medium uppercase tracking-wide">
                       {dayLabel(day)}
                     </span>
                   </div>
                 )}
-                <div className={cn('group mb-1.5 flex items-end gap-1', m.mine ? 'justify-end' : 'justify-start')}>
+                <div className={cn('group flex items-end gap-1', last ? 'mb-2' : 'mb-[3px]', m.mine ? 'justify-end' : 'justify-start')}>
                   {/* Answer this one. Left of your own bubble, right of theirs,
                       so the control never sits where the text begins. */}
                   {!m.deleted && !m.pending && !m.failed && canSend && m.mine && (
@@ -440,14 +450,15 @@ export function ChatThread({
                   )}
                   <div
                     className={cn(
-                      'chat-bubble relative max-w-[85%] rounded-lg px-2.5 py-1.5 text-[14px] shadow-sm sm:max-w-[70%]',
-                      m.mine ? 'chat-mine rounded-tr-sm' : 'chat-theirs rounded-tl-sm',
+                      'chat-bubble relative max-w-[85%] rounded-[8px] px-[9px] pt-[6px] pb-[7px] text-[14.2px] leading-[19px] sm:max-w-[70%]',
+                      m.mine ? 'chat-mine' : 'chat-theirs',
+                      first && (m.mine ? 'chat-tail-mine rounded-tr-none' : 'chat-tail-theirs rounded-tl-none'),
                       m.failed && 'ring-1 ring-destructive',
                       m.pending && 'opacity-80',
                     )}
                   >
-                    {showSender && !m.mine && m.sender && (
-                      <p className="mb-0.5 text-[12px] font-semibold text-primary">{m.sender}</p>
+                    {showSender && !m.mine && m.sender && first && (
+                      <p className="mb-0.5 text-[12.5px] font-semibold" style={{ color: hueFor(m.sender) }}>{m.sender}</p>
                     )}
                     {/* What it answers, quoted. */}
                     {m.reply_to_id && (m.reply_body || m.reply_sender) && (
@@ -457,27 +468,39 @@ export function ChatThread({
                       </div>
                     )}
                     {m.deleted ? (
-                      <p className="italic text-muted-foreground">This message was withdrawn.</p>
+                      <p className="italic text-muted-foreground">
+                        This message was withdrawn.
+                        <span aria-hidden="true" className="inline-block h-0" style={{ width: 52 }} />
+                      </p>
                     ) : (
                       <>
                         {(m.attachments ?? []).map((a) => (
                           <AttachmentView key={a.file_id} a={a} />
                         ))}
-                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                        {/* The time and ticks float in the bottom-right corner, so a
+                            short message and its time share one line; the trailing
+                            spacer keeps the last line of text from running under them. */}
+                        {m.body && (
+                          <p className="whitespace-pre-wrap break-words">
+                            {linkify(m.body)}
+                            <span aria-hidden="true" className="inline-block h-0 align-baseline" style={{ width: m.mine ? 74 : 52 }} />
+                          </p>
+                        )}
+                        {!m.body && <span aria-hidden="true" className="inline-block h-0" style={{ width: m.mine ? 74 : 52 }} />}
                       </>
                     )}
-                    <p className="mt-0.5 flex items-center justify-end gap-1 text-[10.5px] leading-none text-muted-foreground">
+                    <p className="absolute bottom-[3px] right-[7px] flex items-center gap-[3px] text-[11px] leading-none text-muted-foreground">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine &&
                         (m.failed ? (
                           <span className="font-semibold text-destructive">not sent</span>
                         ) : m.pending ? (
-                          <Clock className="h-3.5 w-3.5" aria-label="Sending" />
+                          <Clock className="h-[15px] w-[15px]" aria-label="Sending" />
                         ) : m.read_at ? (
-                          <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" aria-label={`Seen ${formatDateTime(m.read_at)}`} />
+                          <CheckCheck className="h-4 w-4 text-[#53bdeb]" aria-label={`Seen ${formatDateTime(m.read_at)}`} />
                         ) : (
-                          <Check className="h-3.5 w-3.5" aria-label="Sent" />
+                          <Check className="h-4 w-4" aria-label="Sent" />
                         ))}
                     </p>
                     {m.failed && (
@@ -500,13 +523,12 @@ export function ChatThread({
             the other person ignoring you for ten seconds. Expires on its own
             (lib/live-stream.ts), so a closed tab never leaves it behind. */}
         {otherTyping && (
-          <div className="mt-2 flex items-center gap-1.5 text-[12px] text-muted-foreground" aria-live="polite">
-            <span className="inline-flex gap-0.5" aria-hidden="true">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
-            </span>
-            typing…
+          <div className="mb-2 flex justify-start" aria-live="polite" aria-label="Typing">
+            <div className="chat-bubble chat-theirs chat-tail-theirs relative inline-flex items-center gap-[5px] rounded-[8px] rounded-tl-none px-[12px] py-[11px]">
+              <span className="chat-dot" />
+              <span className="chat-dot [animation-delay:160ms]" />
+              <span className="chat-dot [animation-delay:320ms]" />
+            </div>
           </div>
         )}
       </div>
@@ -518,10 +540,16 @@ export function ChatThread({
         <button
           type="button"
           onClick={() => toBottom()}
-          className="absolute bottom-[4.5rem] right-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-[12.5px] font-semibold text-primary-foreground shadow-lg"
+          className="chat-jump absolute bottom-[4.75rem] right-4 z-10 grid h-10 w-10 place-items-center rounded-full"
+          aria-label={behind > 0 ? `${behind} new messages, jump to latest` : 'Jump to latest'}
+          title="Jump to latest"
         >
-          <ArrowDown className="h-4 w-4" />
-          {behind > 0 ? `${behind} new` : 'Latest'}
+          <ArrowDown className="h-5 w-5" />
+          {behind > 0 && (
+            <span className="absolute -top-1.5 right-0 grid min-w-[20px] place-items-center rounded-full bg-[#25d366] px-1.5 py-[2px] text-[11px] font-bold leading-none text-white">
+              {behind > 99 ? '99+' : behind}
+            </span>
+          )}
         </button>
       )}
 
@@ -532,7 +560,7 @@ export function ChatThread({
              desktop — where that inset is zero — read as a band of empty white
              under the box. The gap above the box stays; below it is only the
              phone's home-indicator allowance, and nothing when there is none. */
-          className="border-t bg-muted/40 px-2 pt-2 sm:px-3"
+          className="chat-bar px-2 pt-1.5 sm:px-3"
           style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
         >
           {(replyTo || editing) && (
@@ -608,7 +636,7 @@ export function ChatThread({
             )}
             <button
               type="button"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+              className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5"
               title="Find in this conversation"
               aria-label="Find in this conversation"
               onClick={() => setFinding((v) => !v)}
@@ -617,7 +645,7 @@ export function ChatThread({
             </button>
             {/* A voice note is an attachment, so it lives behind the same
                 permission as one. */}
-            {allowAttachments && (
+            {allowAttachments && !draft.trim() && (
               <VoiceButton
                 disabled={files.length >= 10}
                 onRecorded={(file) => void upload(file)}
@@ -626,7 +654,7 @@ export function ChatThread({
             {allowAttachments && (
               <button
                 type="button"
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+                className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5"
                 title="Attach a photo or file"
                 aria-label="Attach a photo or file"
                 onClick={() => fileInput.current?.click()}
@@ -640,7 +668,7 @@ export function ChatThread({
               value={draft}
               rows={1}
               placeholder={placeholder}
-              className="chat-composer min-h-[40px] flex-1 resize-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-2xl border bg-background px-3.5 py-2 text-[14px] leading-6 outline-none focus:ring-2 focus:ring-primary/30"
+              className="chat-composer min-h-[42px] max-h-[7.5rem] flex-1 resize-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[21px] border-0 px-4 py-[11px] text-[15px] leading-5 shadow-sm outline-none focus:shadow-[0_0_0_2px_rgba(0,168,132,0.35)]"
               onChange={(e) => {
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
@@ -656,12 +684,12 @@ export function ChatThread({
             />
             <button
               type="submit"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
+              className="chat-send grid h-[42px] w-[42px] shrink-0 place-items-center rounded-full text-white transition-transform active:scale-95 disabled:opacity-40"
               disabled={sending || uploading > 0 || (!draft.trim() && files.length === 0)}
               aria-label="Send"
               title="Send (Enter)"
             >
-              <Send className="h-4.5 w-4.5" />
+              <Send className="ml-[2px] h-5 w-5" />
             </button>
           </form>
         </div>
@@ -671,6 +699,32 @@ export function ChatThread({
       <style>{chatCSS}</style>
     </div>
   )
+}
+
+/* Web addresses in a message open as links; a parent pasting a form URL
+   should not have to copy it out by hand. Only http(s) -- anything else is
+   text. */
+const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)])/g
+function linkify(body: string): ReactNode {
+  const parts = body.split(URL_RE)
+  if (parts.length === 1) return body
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer">
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+}
+
+/* One colour per sender name in a group thread, the way a chat app tells
+   the counsellor from the class teacher at a glance. Stable for a name. */
+function hueFor(name?: string): string {
+  let h = 0
+  for (const ch of name ?? '') h = (h * 31 + ch.charCodeAt(0)) % 360
+  return `hsl(${h} 55% 38%)`
 }
 
 function isAudio(a: Attachment) {
@@ -780,13 +834,44 @@ const chatCSS = `
 }
 .chat-theirs { background-color: #ffffff; color: #111b21; }
 .chat-mine { background-color: #d9fdd3; color: #111b21; }
+.chat-bubble { box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); }
 .chat-bubble .text-muted-foreground { color: #667781; }
+.chat-bubble a { color: #027eb5; text-decoration: underline; word-break: break-all; }
+/* The tail: the small wedge that points at who said it, on the first bubble
+   of a run only, the way every messaging app draws it. */
+.chat-tail-theirs::before, .chat-tail-mine::before {
+  content: ''; position: absolute; top: 0; width: 8px; height: 13px;
+}
+.chat-tail-theirs::before {
+  left: -8px; background-color: #ffffff;
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+.chat-tail-mine::before {
+  right: -8px; background-color: #d9fdd3;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+/* Typing, drawn as the other person's bubble with three breathing dots. */
+.chat-dot {
+  width: 7px; height: 7px; border-radius: 9999px; background-color: #8696a0;
+  animation: chat-dot 1.2s ease-in-out infinite;
+}
+@keyframes chat-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .chat-dot { animation: none; opacity: .7; } }
+/* The bar under the thread and the controls in it. */
+.chat-bar { background-color: #f0f2f5; border-top: 1px solid rgba(11,20,26,0.06); }
+.chat-icon { color: #54656f; }
+.chat-send { background-color: #00a884; }
+.chat-send:hover:not(:disabled) { background-color: #06957a; }
+.chat-jump { background-color: #ffffff; color: #54656f; box-shadow: 0 2px 6px rgba(11,20,26,0.25); }
 /* The composer is one line that grows with the text and nothing a person can
    drag: a hand-resized box is a layout nobody asked for and it does not
    survive the next render. */
 .chat-composer { resize: none; background-color: #ffffff; color: #111b21; }
 .chat-composer::placeholder { color: #8696a0; }
-.chat-daypill { background-color: rgba(255,255,255,0.92); color: #667781; }
+.chat-daypill { background-color: #ffffff; color: #54656f; box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); }
 `
 
 /* What you can do to one message: answer it, and -- if it is yours and recent
@@ -971,7 +1056,7 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
       disabled={disabled}
       title="Record a voice note"
       aria-label="Record a voice note"
-      className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
+      className="chat-icon grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-black/5 disabled:opacity-40"
     >
       <Mic className="h-5 w-5" />
     </button>
