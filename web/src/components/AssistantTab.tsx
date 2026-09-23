@@ -800,36 +800,38 @@ export function AssistantTab() {
                      md:inset-y-0 md:left-auto md:right-0 md:w-[min(40vw,520px)]
                      md:border-l md:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]"
         >
-          <header className="flex items-center gap-2.5 border-b px-3 py-2.5">
-            <AssistantOrb state={state} size={36} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold leading-tight">Assistant</p>
-              <p className="text-[11.5px] text-muted-foreground">
-                {state === 'thinking' ? 'Looking it up…'
-                  : state === 'answering' ? 'Answering'
-                  : ENDPOINT ? 'Ready' : 'Not connected'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close assistant"
-              className="grid size-7 place-items-center rounded-full text-muted-foreground
-                         transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          </header>
+          {/* NO HEADER BAR. The panel had a strip across the top -- orb, the
+             word "Assistant", a status line and a close button -- and the
+             owner asked for it to go: the orb is already on the empty state,
+             the status is what the orb's motion says, and a title over a chat
+             is a label on a thing that names itself. What must survive it is
+             the way out on a phone, where the panel is the whole screen and
+             there is no Escape key. One small close button in the corner. */}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close assistant"
+            className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full
+                       text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
+          >
+            <X className="size-4" />
+          </button>
 
           <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
-            {turns.length === 0 && (
+            {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
                  owner's request: they were generic, they were the same for
                  every role, and a clerk who has opened this panel two hundred
                  times does not need to be offered "How do I collect a fee?" a
-                 two-hundred-and-first. The box below is the whole invitation. */
-              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 pb-10 text-center">
+                 two-hundred-and-first. The box below is the whole invitation.
+
+                 It sits at the TOP, not centred, and goes the moment a draft
+                 has a character in it -- the way a placeholder does -- so the
+                 first typed word is not sharing the panel with a sentence
+                 telling it what to be. */
+              <div className="flex flex-col items-center gap-3 px-6 pb-4 pt-10 text-center">
                 <AssistantOrb state="idle" size={40} />
                 <p className="text-[13.5px] font-medium leading-tight">
                   Ask about the school, or tell me what to do.
