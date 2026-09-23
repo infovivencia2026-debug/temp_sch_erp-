@@ -38,10 +38,18 @@ export const WIDTHS = [1, 2, 3, 4, 5] as const
 export const HEIGHTS = [1, 2, 3, 4, 5] as const
 
 /** What a placed widget carries. Order is the array position. */
+/** The window a metric cell reads over. Named, not dated: "this month" is
+    the same setting in October and in March. */
+export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'term' | 'year' | 'all'
+export const PERIODS: readonly Period[] = ['today', 'yesterday', 'week', 'month', 'term', 'year', 'all']
+export const DEFAULT_PERIOD: Period = 'month'
+
 export interface Placed {
   id: string
   w: number
   h: number
+  /** For a metric cell: the period it is set to. Absent means DEFAULT_PERIOD. */
+  period?: Period
   /** The colour chosen from the wheel, or absent for the colour the dashboard
       gave it.
 
@@ -236,7 +244,11 @@ function read(dashboard: string): Layout {
                leaves the card with no background at all. */
             const hsl = validHsl(p.tint)
             const tint = hsl ? { tint: hsl } : {}
-            if (w && h) return [{ id: p.id, w, h, ...tint }]
+            // A period that is no longer a name this build knows is dropped,
+            // and the cell falls back to the default rather than to nothing.
+            const pp = (p as { period?: unknown }).period
+            const period = typeof pp === 'string' && (PERIODS as readonly string[]).includes(pp) ? { period: pp as Period } : {}
+            if (w && h) return [{ id: p.id, w, h, ...tint, ...period }]
             if (typeof p.size === 'string' && p.size in DIMS) {
               const d = DIMS[p.size as WidgetSize]
               return [{ id: p.id, w: d.w, h: d.h, ...tint }]
@@ -349,6 +361,23 @@ export function useLayout(dashboard: string) {
       write(dashboard, {
         placed: l.placed.filter((p) => p.id !== id),
         removed: l.removed.includes(id) ? l.removed : [...l.removed, id],
+      })
+    },
+    [dashboard],
+  )
+
+  /* The period on a metric cell. Placed if it was not, at its current
+     size, so a cell whose period was picked before anything else was
+     touched still has a row to carry the choice. */
+  const setPeriod = useCallback(
+    (id: string, period: Period, w = 1, h = 1) => {
+      const l = current(dashboard)
+      const has = l.placed.some((p) => p.id === id)
+      write(dashboard, {
+        placed: has
+          ? l.placed.map((p) => (p.id === id ? { ...p, period } : p))
+          : [...l.placed, { id, w, h, period }],
+        removed: l.removed.filter((r) => r !== id),
       })
     },
     [dashboard],
@@ -579,7 +608,7 @@ export function useLayout(dashboard: string) {
     [dashboard],
   )
 
-  return { layout, place, add, remove, resize, setTier, recolour, move, reset, undo, canUndo, tidy, applyPreset }
+  return { layout, place, add, remove, resize, setTier, setPeriod, recolour, move, reset, undo, canUndo, tidy, applyPreset }
 }
 
 /** The width and height a widget should render at: what the person chose,
@@ -590,6 +619,11 @@ export function dimsOf(layout: Layout, id: string, fallback: WidgetSize): { w: n
 }
 
 /** The colour a widget was given, if any. */
+/** The period a metric cell is set to; the default where none was chosen. */
+export function periodOf(layout: Layout, id: string): Period {
+  return layout.placed.find((p) => p.id === id)?.period ?? DEFAULT_PERIOD
+}
+
 export function tintOf(layout: Layout, id: string): Hsl | null {
   return layout.placed.find((p) => p.id === id)?.tint ?? null
 }

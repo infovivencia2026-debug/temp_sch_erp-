@@ -10,10 +10,10 @@ import {
   DIMS, TINT_STARTS, softTintBg, inkFor, cssHsl, hexToHsl, hslToHex,
   rowsNeeded, BOARD_ROWS, PRESETS, dropIndex,
   paginate, pageCount, PHONE_COLS, PHONE_ROWS,
-  type WidgetSize, type BoardWidget, type Spot, type Preset,
-} from '@/lib/widgets'
+  type WidgetSize, type BoardWidget, type Spot, type Preset, periodOf, PERIODS, type Period } from '@/lib/widgets'
 import { TIERS, PHONE_TIERS, tierOf, dimsForTier, tierLabelKey, type SizeTier } from '@/lib/size-tiers'
 import { AddGallery, placePanel, type GalleryItem, type Pos } from './AddGallery'
+import { MetricCells, useMetricCatalogue, periodLabelKey, METRIC_PREFIX } from './MetricCells'
 import { Menu, TierGlyph, DUR_FAST_MS, DUR_MS, osStill, useEnterExit } from './Menu'
 import { QuickMenu, type QuickTier } from './bento-cards'
 import { usePhone } from '@/lib/viewport'
@@ -446,7 +446,7 @@ function drawnDims(
    Refresh ("export is incompatible"), which falls back to invalidating the
    module. Re-evaluating this file builds a NEW context object, so <Widget>
    starts reading a different context than <WidgetLayer> is filling. */
-function useWidgetLayer() {
+export function useWidgetLayer() {
   return useContext(Ctx)
 }
 
@@ -858,6 +858,27 @@ export function WidgetLayer({
      added rather than a card dropped. The default is the tier the card was
      designed at, or the first that fits if that one does not. */
   const visibleDims = visible.map((v) => drawnDims(layout, v.id, v.size))
+  /* AND EVERY FIGURE THIS ROLE MAY READ.
+
+     The board's own cells are the first list; this is the second, from the
+     server's metric registry, minus the ones already on the board. It is
+     what makes the gallery non-empty on the seventeen boards that used to
+     open on "everything is on the board": a person adds Fees collected or
+     Absences or Books issued, and sets its period on the cell. */
+  const catalogue = useMetricCatalogue()
+  const onBoard = new Set(layout.placed.map((p) => p.id))
+  const smallTiers = (phone ? PHONE_TIERS : TIERS).filter((tier) =>
+    phone ? true : rowsNeeded([...visibleDims, dimsForTier(tier, false)]) <= maxRows,
+  )
+  const metricItems: GalleryItem[] = (catalogue.data?.items ?? [])
+    .filter((m) => !onBoard.has(METRIC_PREFIX + m.key))
+    .map((m) => ({
+      id: METRIC_PREFIX + m.key,
+      label: m.label,
+      hint: m.hint,
+      tiers: smallTiers,
+      defaultTier: smallTiers.includes('small') ? 'small' : smallTiers[0] ?? 'small',
+    }))
   const items: GalleryItem[] = off.map((d) => {
     const tiers = (phone ? PHONE_TIERS : TIERS).filter((tier) => {
       if (phone) return true
@@ -883,13 +904,16 @@ export function WidgetLayer({
     buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
-    if (off.length <= 1) setGallery(false)
+    if (off.length + metricItems.length <= 1) setGallery(false)
   }
 
   return (
     <Ctx.Provider value={value}>
       <span ref={markRef} className="hidden" aria-hidden="true" />
       {children}
+      {/* The metric cells the layout holds, after the board's own. No
+          board file knows they exist; see MetricCells. */}
+      <MetricCells />
 
       {/* ONE EMPTY ELEMENT PER PAGE, AND IT IS WHAT MAKES THE PAGER SNAP.
           A snap position exists only where an element declares one; the cards
@@ -983,7 +1007,7 @@ export function WidgetLayer({
       {arranging && (
         <AddGallery
           open={gallery}
-          items={items}
+          items={[...items, ...metricItems]}
           phone={phone}
           onAdd={onAdd}
           onClose={() => setGallery(false)}
@@ -1400,6 +1424,7 @@ export function Widget({
   size: declaredSize,
   index,
   optional,
+  periodic,
   children,
 }: {
   id: string
@@ -1409,11 +1434,13 @@ export function Widget({
   index: number
   /** Offered in the add tray rather than placed on the board by default. */
   optional?: boolean
+  /** A metric cell: the "…" offers the period it reads over. */
+  periodic?: boolean
   /** Given the span to render at, because the cell owns its own <Cell>. */
   children: (span: CellSpan) => ReactNode
 }) {
   const layer = useWidgetLayer()
-  const { layout, remove, recolour, move, setTier } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, remove, recolour, move, setTier, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const t = useT()
 
   const { w, h } = dimsOf(layout, id, declaredSize)
@@ -1817,6 +1844,18 @@ export function Widget({
           canOpen={() => cardLink() !== null}
           onCustomize={() => layer.enterFor(id)}
           onTier={(tier) => setTier(id, tier, phone, w)}
+          period={
+            periodic
+              ? {
+                  value: periodOf(layout, id),
+                  options: PERIODS.map((p) => ({ value: p, label: t(periodLabelKey(p) as never) })),
+                  onChange: (v) => {
+                    setPeriod(id, v as Period, cw, ch)
+                    buzz('tap')
+                  },
+                }
+              : undefined
+          }
           onHide={() => {
             remove(id)
             buzz('tap')

@@ -1459,6 +1459,9 @@ func (s *Server) Routes() http.Handler {
 		// The board's one question, by campus. Read-only by construction.
 		s.mountBoard(r)
 		r.Get("/attention", s.getAttention)
+		// The cells any board can add, gated per metric -- see metrics.go.
+		r.Get("/metrics", s.listMetrics)
+		r.Get("/metrics/{key}", s.getMetric)
 
 		// The first-run tour is every user's own, so it sits outside /seller.
 		r.Get("/tour", s.getTour)

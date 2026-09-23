@@ -809,6 +809,7 @@ export function QuickMenu({
   onTier,
   onHide,
   colour,
+  period,
 }: {
   label: string
   phone: boolean
@@ -823,6 +824,13 @@ export function QuickMenu({
   /** The colour row — `ColourPick` with a label — supplied by the caller
       because the wheel lives with the layer. */
   colour?: ReactNode
+  /** For a metric cell: the period it reads over, and the choice. Absent on
+      every other card, which draws no period row. */
+  period?: {
+    value: string
+    options: { value: string; label: string }[]
+    onChange: (value: string) => void
+  }
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -876,6 +884,25 @@ export function QuickMenu({
             {on && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
           </button>
         ))}
+        {period && (
+          <>
+            <div className="bento-menu__rule" role="separator" />
+            <div className="bento-menu__head" aria-hidden="true">{t('bento.widgets.period')}</div>
+            {period.options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={o.value === period.value}
+                className={cn('bento-menu__item', o.value === period.value && 'is-on')}
+                onClick={act(() => period.onChange(o.value))}
+              >
+                <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                {o.value === period.value && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+              </button>
+            ))}
+          </>
+        )}
         {colour && (
           <>
             <div className="bento-menu__rule" role="separator" />
