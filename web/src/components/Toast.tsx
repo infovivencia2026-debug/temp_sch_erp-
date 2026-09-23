@@ -117,7 +117,7 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
            being there on the next paint. See .toast-in in index.css. */
         t.kind === 'error'
           ? 'toast-in pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-md border border-destructive/30 bg-card px-3 py-2.5 text-[14px] shadow-pop'
-          : 'toast-glass pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border px-6 py-4 text-[15px] font-medium shadow-2xl',
+          : 'toast-glass pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-xl border px-4 py-3 text-[14px] font-medium',
       )}
     >
       <span
@@ -162,16 +162,13 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
    it; a plain card where it does not (the old phones this runs on), so the
    words never sit on a see-through nothing. */
 const glassCSS = `
-.toast-glass { background: rgba(255,255,255,0.62); border-color: rgba(255,255,255,0.55); color: #111b21;
-  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
-  animation: toast-pop 180ms cubic-bezier(.2,.9,.3,1.2); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .toast-glass { background: rgba(20,24,28,0.55); border-color: rgba(255,255,255,0.12); color: #e9edef; }
-}
-:root[data-theme="dark"] .toast-glass { background: rgba(20,24,28,0.55); border-color: rgba(255,255,255,0.12); color: #e9edef; }
+.toast-glass { background: hsl(var(--popover) / 0.84); border-color: hsl(var(--border)); color: hsl(var(--foreground));
+  box-shadow: var(--lift-float, 0 12px 32px rgba(0,0,0,0.18));
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  animation: toast-pop 160ms cubic-bezier(.2,.9,.3,1.15); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .toast-glass { background: hsl(var(--card)); color: hsl(var(--foreground)); }
+  .toast-glass { background: hsl(var(--popover)); }
 }
-@keyframes toast-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes toast-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .toast-glass { animation: none; } }
 `
