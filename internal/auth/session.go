@@ -439,11 +439,13 @@ func identityFrom(rec *sessionRecord) httpx.Identity {
 		   answered "is this a full operator?" by proxy, and the proxy failed
 		   open: support_admin holds neither key, so a support engineer would
 		   have been read as a full operator and handed every school's records.
-		   super_admin is the only role that operates the installation, so
-		   holding super_admin is the whole test. */
+		   The roles that operate the installation are named in
+		   rbac.OperatorRoles -- super_admin, and since 2026-09-23 the seller
+		   too, at the owner's instruction -- so holding one is the whole
+		   test. */
 		id.Restricted = true
 		for _, k := range rec.roleKeys {
-			if k == rbac.PlatformOperatorRole {
+			if rbac.OperatorRoles[k] {
 				id.Restricted = false
 			}
 		}

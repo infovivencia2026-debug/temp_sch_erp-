@@ -27,6 +27,18 @@ import (
 // than as a string literal buried in session resolution.
 const PlatformOperatorRole = "super_admin"
 
+// OperatorRoles are the platform roles NOT held to their granted permission
+// list: Identity.Can answers yes to everything for them.
+//
+// seller_admin joined super_admin here on 2026-09-23 at the owner's
+// instruction -- "everything should be controlled by that": this installation
+// has one seller account and no super_admin, so the seller IS the operator,
+// and its console kept meeting "missing permission: platform.tenants.write"
+// on screens it must be able to open. support_admin stays restricted: a
+// support desk reaches across every school and must still be limited to what
+// it was given.
+var OperatorRoles = map[string]bool{PlatformOperatorRole: true, "seller_admin": true}
+
 // PlatformRoles belong to the installation, not to any school.
 var PlatformRoles = map[string]bool{
 	PlatformOperatorRole: true, "seller_admin": true, "support_admin": true,
