@@ -22,10 +22,17 @@ Correcting what was said: edit, and unsend.
 
 	Two rules make this safe in a school record rather than merely convenient:
 
-	ONLY THE AUTHOR, AND ONLY FOR A WHILE. editWindow after sending, the sender
-	may rewrite or withdraw their own message. After that it is part of the
-	record: a parent who was told a thing on Tuesday cannot find on Friday that
-	nobody ever said it.
+	ONLY THE AUTHOR. Nobody may touch anybody else's words, on either side of
+	any conversation.
+
+	REWRITING IS FOR A WHILE; WITHDRAWING IS NOT. An edit has a window --
+	editWindow -- because a message quietly rewritten a week later is a record
+	that cannot be trusted: a parent told a thing on Tuesday must not find on
+	Friday that it says something else. Withdrawing carries no such risk and no
+	window, because it hides nothing: the row stays, its place in the thread
+	stays, and what is left says a message was withdrawn. The author of a
+	message sent to the wrong family last month can still take it back, which
+	is the whole point of the control.
 
 	AND NOTHING VANISHES. An unsent message keeps its row and its place in the
 	thread, with its body cleared and deleted_at set, so the conversation still
@@ -106,7 +113,8 @@ func (s *Server) amendMessage(w http.ResponseWriter, r *http.Request, unsend boo
 			// changed nothing.
 			return errChatTooOld
 		}
-		if time.Since(sentAt) > editWindow {
+		// The window is the edit's; withdrawing has none. See the note above.
+		if !unsend && time.Since(sentAt) > editWindow {
 			return errChatTooOld
 		}
 		if unsend {
@@ -124,7 +132,7 @@ func (s *Server) amendMessage(w http.ResponseWriter, r *http.Request, unsend boo
 	case err == errChatNotYours:
 		httpx.Forbidden(w, r, "the author of this message")
 	case err == errChatTooOld:
-		httpx.BadRequest(w, r, "a message can be changed for fifteen minutes after it is sent")
+		httpx.BadRequest(w, r, "a message can be edited for fifteen minutes after it is sent; after that it can only be withdrawn")
 	case err != nil:
 		httpx.Internal(w, r, err)
 	default:

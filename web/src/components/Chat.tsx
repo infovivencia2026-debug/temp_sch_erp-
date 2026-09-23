@@ -4,6 +4,7 @@ import {
   Copy, Mic, Paperclip, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
+import { shrinkImage } from '@/lib/shrink-image'
 import { Loading } from '@/components/ui'
 import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
 
@@ -265,44 +266,6 @@ export function ChatThread({
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 140) + 'px'
   }, [draft])
-
-  /* A PHONE PHOTOGRAPH IS NOT A DOCUMENT.
-
-     A modern handset takes a 4MB picture, and on a school's connection that
-     is most of a minute of "Uploading…" for something that will be looked at
-     in a bubble 280px wide. Anything over 1600px on its long edge is drawn
-     into a canvas at 1600 and re-encoded as JPEG at 0.82 -- typically 4MB to
-     under 400KB, indistinguishable at the size it is read.
-
-     Only photographs: a PDF, a document, a voice note and an image already
-     small enough go up untouched, because re-encoding those either destroys
-     them or gains nothing. If anything about the canvas fails, the original
-     is sent, which is the behaviour this had before. */
-  const shrinkImage = async (f: File): Promise<File> => {
-    if (!f.type.startsWith('image/') || f.type === 'image/gif' || f.size < 600_000) return f
-    try {
-      const bitmap = await createImageBitmap(f)
-      const max = 1600
-      const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height))
-      if (scale === 1 && f.size < 1_500_000) return f
-      const w = Math.round(bitmap.width * scale)
-      const h = Math.round(bitmap.height * scale)
-      const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return f
-      ctx.drawImage(bitmap, 0, 0, w, h)
-      bitmap.close?.()
-      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.82))
-      if (!blob || blob.size >= f.size) return f
-      return new File([blob], f.name.replace(/\.(png|webp|heic|heif|jpeg|jpg)$/i, '') + '.jpg', {
-        type: 'image/jpeg',
-      })
-    } catch {
-      return f
-    }
-  }
 
   const upload = async (list: FileList | File | null) => {
     if (!list) return
@@ -590,7 +553,7 @@ export function ChatThread({
                   <div
                     {...holdHandlers(m)}
                     className={cn(
-                      'chat-bubble chat-settle relative select-none px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
+                      'chat-bubble chat-settle relative select-none px-[16px] py-[12px] text-[15.5px] leading-[1.42]',
                       m.mine ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
@@ -598,11 +561,11 @@ export function ChatThread({
                     )}
                   >
                     {showSender && !m.mine && m.sender && first && (
-                      <p className="mb-0.5 text-[12.5px] font-semibold" style={{ color: hueFor(m.sender) }}>{m.sender}</p>
+                      <p className="mb-0.5 text-[13.5px] font-semibold" style={{ color: hueFor(m.sender) }}>{m.sender}</p>
                     )}
                     {/* What it answers, quoted. */}
                     {m.reply_to_id && (m.reply_body || m.reply_sender) && (
-                      <div className="chat-quote mb-1.5 border-l-2 px-2 py-1 text-[12.5px]">
+                      <div className="chat-quote mb-1.5 border-l-2 px-2.5 py-1.5 text-[13.5px]">
                         {m.reply_sender && <div className="chat-quote__who font-semibold">{m.reply_sender}</div>}
                         <div className="chat-quote__body line-clamp-2">{m.reply_body || 'Attachment'}</div>
                       </div>
@@ -1009,7 +972,7 @@ const chatCSS = `
 .chat-bubble a { color: inherit; text-decoration: underline; word-break: break-all; }
 .chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.85); }
 .chat-theirs .text-muted-foreground { color: #9aa5b6; }
-.chat-meta { font-size: 11px; color: #9aa5b6; padding: 0 6px; }
+.chat-meta { font-size: 12px; color: #9aa5b6; padding: 0 6px; }
 /* A quote and a file row are painted by the bubble they sit in. Left as
    dark-on-light they were unreadable inside the blue one -- a blue name on a
    blue ground -- and that is the whole reason a bubble has a colour. */
@@ -1190,7 +1153,7 @@ function MessageActions({
       >
         <div
           className={cn(
-            'chat-bubble chat-lift px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
+            'chat-bubble chat-lift px-[16px] py-[12px] text-[15.5px] leading-[1.42]',
             mine ? 'chat-mine' : 'chat-theirs',
           )}
         >

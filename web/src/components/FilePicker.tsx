@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { shrinkImage } from '@/lib/shrink-image'
 import { Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 
@@ -80,7 +81,9 @@ export default function FilePicker({
     })
   }
 
-  function send(file: File) {
+  async function send(original: File) {
+    // A photograph is shrunk before it goes; everything else is sent as it is.
+    const file = await shrinkImage(original)
     setError('')
     setProgress(0)
     const body = new FormData()
@@ -171,7 +174,7 @@ export default function FilePicker({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button size="sm" disabled={progress !== null} onClick={() => send(pending)}>
+            <Button size="sm" disabled={progress !== null} onClick={() => void send(pending)}>
               {progress !== null ? `Uploading ${progress}%` : 'Upload this file'}
             </Button>
             <Button

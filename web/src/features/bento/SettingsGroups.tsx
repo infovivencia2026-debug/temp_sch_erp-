@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { shrinkImage } from '@/lib/shrink-image'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -210,7 +211,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
     setFailed(null)
     try {
       const form = new FormData()
-      form.append('file', f)
+      form.append('file', await shrinkImage(f))
       const up = await fetch('/api/v1/files', { method: 'POST', body: form })
       if (!up.ok) throw new Error('That picture did not upload')
       const { file_id } = (await up.json()) as { file_id: string }

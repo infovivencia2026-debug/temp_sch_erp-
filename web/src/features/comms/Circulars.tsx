@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { shrinkImage } from '@/lib/shrink-image'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Paperclip, Send } from 'lucide-react'
 import { api, type List, type Section } from '@/lib/api'
@@ -212,7 +213,7 @@ export default function Circulars() {
                     setUploading(true); setFileError('')
                     try {
                       const fd = new FormData()
-                      fd.append('file', f)
+                      fd.append('file', await shrinkImage(f))
                       fd.append('purpose', 'circular')
                       const res = await fetch('/api/v1/files', {
                         method: 'POST', body: fd, credentials: 'same-origin',
