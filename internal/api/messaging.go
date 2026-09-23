@@ -1341,6 +1341,36 @@ func (s *Server) queueWith(ctx context.Context, tx pgx.Tx, inst uuid.UUID,
 		return SendResult{}, ErrNoRecipient
 	}
 
+	/* THE SCHOOL'S NAME, ON EVERY MESSAGE THAT ASKS FOR IT.
+
+	   renderTemplate leaves an unsupplied placeholder standing, by design.
+	   Four built-in templates end with {{school_name}} -- the absence alert,
+	   the fee reminder, the PTM reminder, the circular -- and none of the
+	   four rule finders supplied it, so the flagship absence alert reached
+	   a parent as "...was marked absent on 19 Aug at {{school_name}}." On
+	   WhatsApp it was worse than cosmetic: the sender refuses a mapped
+	   parameter with no value, the dispatcher reads that as a failure, and
+	   after five retries the row is 'failed'. Every WhatsApp absence, fee,
+	   PTM and circular for a school with templates mapped was failing at
+	   dispatch, showing up as "some parents got it".
+
+	   Defaulted here, once, at the one funnel every send passes through --
+	   rather than in each finder -- so the next rule written cannot forget
+	   it either. A caller that set it keeps its own. Platform sends have no
+	   school. */
+	if inst != uuid.Nil {
+		if _, set := req.Vars["school_name"]; !set {
+			var school string
+			if err := tx.QueryRow(ctx, `SELECT name FROM institutions WHERE id = $1`, inst).
+				Scan(&school); err == nil && school != "" {
+				if req.Vars == nil {
+					req.Vars = map[string]any{}
+				}
+				req.Vars["school_name"] = school
+			}
+		}
+	}
+
 	// The DLT template id is deliberately not read here. It belongs to the
 	// template, which the school may edit between queueing and sending, and
 	// the id that matters to the regulator is the one in force at the moment
