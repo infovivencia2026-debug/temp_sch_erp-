@@ -40,10 +40,13 @@ import { type ComponentType, type LazyExoticComponent } from 'react'
  * wraps. See `docs/BENTO_UI_CONTRACT.md`.
  */
 export const BENTO_COMPONENTS: Record<string, LazyExoticComponent<ComponentType>> = {
-  /* The smoke test, and for now the only entry: proof that the switch reaches
-     a screen end to end and that every other key falls through. A later
-     worker replaces this with the real thing. */
-  'faculty.home.my_work': screen(() => import('./MyWork')),
+  /* ONE BOARD PER ROLE, ON ITS LANDING SCREEN.
+
+     faculty.home.my_work carried a second board -- the original smoke test
+     -- so a teacher who opened My work from the dock met a bento grid on a
+     screen that is not their home, beside the classic screens around it.
+     The owner's rule: bento is the Home, and only the Home. The classic My
+     work screen (registry.ts) is what that key opens now. */
 
   /* The two money-and-oversight roles. Keyed by the catalogue key the classic
      screen is registered under in registry.ts — `institution_admin.home.dashboard`,

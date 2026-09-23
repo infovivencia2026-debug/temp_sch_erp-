@@ -241,8 +241,16 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
          already does for a classic screen falling through this same branch. */
       key={key}
       className={cn(
-        'screen-fade',
-        'bento-ground flex flex-col bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
+        'screen-fade flex flex-col',
+        /* THE BENTO GROUND IS THE BOARD'S, NOT EVERY SCREEN'S.
+
+           Under Focus a classic screen fell through this wrapper and was
+           painted on the bento ground -- the aurora wash behind a fee table,
+           a page that belonged to neither layout. The ground and its fixed
+           backdrop now go only where a board renders; a classic screen keeps
+           the app's own ground, and the dock's clearance above it is that
+           same ground, so no band appears. */
+        Screen && 'bento-ground bg-[var(--bento-bg)] bg-cover bg-center bg-no-repeat bg-fixed',
         Screen ? 'min-h-full lg:h-full lg:overflow-hidden' : 'min-h-full',
       )}
       /* The workspace this screen belongs to, for stylesheets that dress one
