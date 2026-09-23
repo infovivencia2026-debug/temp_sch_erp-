@@ -1039,13 +1039,31 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
-		_, err := tx.Exec(r.Context(), `
+		tag, err := tx.Exec(r.Context(), `
 			UPDATE parent_teacher_messages
 			   SET read_at = now()
 			 WHERE student_id = $1 AND parent_user_id = $2 AND teacher_user_id = $3
 			   AND sender_user_id <> $4 AND read_at IS NULL`,
 			sid, parentID, teacherID, id.UserID)
-		return err
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		/* The other side's tick turns blue now, not on their next poll. This
+		   is the parent's way of reading -- opening the thread -- and it went
+		   unannounced, so a teacher watched "delivered" for half a minute
+		   after the parent had plainly read it. */
+		other := parentID
+		if id.UserID == parentID {
+			other = teacherID
+		}
+		s.publishLive(r.Context(), tx, live.Event{
+			Institution: id.InstitutionID, Users: []uuid.UUID{other}, Type: "read",
+			Scope: "parent", From: id.UserID,
+			Keys: map[string]string{
+				"student": sid.String(), "parent": parentID.String(), "teacher": teacherID.String(),
+			},
+		})
+		return nil
 	}); err != nil {
 		httpx.Internal(w, r, err)
 		return
