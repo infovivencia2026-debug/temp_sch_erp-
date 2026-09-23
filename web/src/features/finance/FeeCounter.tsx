@@ -1,7 +1,7 @@
 import { Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Printer, Banknote } from 'lucide-react'
+import { Printer, Banknote, Check } from 'lucide-react'
 import { api, type Page, type Student } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
@@ -90,6 +90,12 @@ export default function FeeCounter() {
   const [payerRel, setPayerRel] = useState('')
   const [chequeDate, setChequeDate] = useState('')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
+  /* The last collection, kept on the card after the receipt is closed. The
+     toast is gone in two seconds and the receipt is a modal the clerk shuts;
+     what remained was an empty form that looked exactly like before the
+     money was taken. This stays until the next student or the next payment,
+     and the row it made in the history below is lit to match. */
+  const [done, setDone] = useState<{ receipt_no: string; amount_paise: number; receipt: Receipt } | null>(null)
 
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
@@ -140,12 +146,15 @@ export default function FeeCounter() {
     onSuccess: async (res) => {
       const r = await api.get<Receipt>(`/api/v1/fees/receipts/${res.payment_id}`)
       setReceipt(r)
+      setDone({ receipt_no: res.receipt_no, amount_paise: r.amount_paise, receipt: r })
       // Named, not "Saved": the cashier reads this number back across the
       // counter, and an unconfirmed payment is the one that gets taken twice.
       toast.ok(`Receipt ${res.receipt_no} issued`)
       setAmount(''); setReference(''); setBank(''); setChequeDate(''); setSelected(new Set())
       setPayer(''); setPayerRel('')
-      qc.invalidateQueries({ queryKey: ['fee-ledger', studentId] })
+      // Refetched now, not merely marked stale: the history below has to show
+      // this payment before the clerk's eye gets there, without a reload.
+      await qc.invalidateQueries({ queryKey: ['fee-ledger', studentId], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['finance-dashboard'] })
     },
   })
@@ -222,7 +231,7 @@ export default function FeeCounter() {
                   <Td>{s.class_name ? `${s.class_name}-${s.section_name}` : '-'}</Td>
                   <Td>
                     <Button size="sm" variant={s.id === studentId ? 'ink' : 'outline'}
-                      onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount('') }}>
+                      onClick={() => { setStudentId(s.id); setSelected(new Set()); setAmount(''); setDone(null) }}>
                       {s.id === studentId ? 'Selected' : 'Select'}
                     </Button>
                   </Td>
@@ -384,6 +393,33 @@ export default function FeeCounter() {
 
               <Card>
                 <CardHeader title="Collect payment" description="Issues a numbered receipt" />
+                {done && (
+                  <div
+                    role="status"
+                    className="mx-5 mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-success/40 bg-success/10 px-4 py-3"
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-success text-white">
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px] font-semibold text-foreground">
+                        Collected {formatPaise(done.amount_paise)}
+                      </div>
+                      <div className="text-[12.5px] text-muted-foreground">
+                        Receipt <span className="font-mono">{done.receipt_no}</span> issued. It is in the account history below.
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => setReceipt(done.receipt)}>
+                        <Printer className="h-4 w-4" />
+                        Receipt
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDone(null)} aria-label="Dismiss">
+                        Collect another
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <form
                   className="space-y-3 p-5"
                   onSubmit={(e) => { e.preventDefault(); collect.mutate() }}
@@ -508,7 +544,10 @@ export default function FeeCounter() {
               <Table head={['Date', 'Particulars', 'Reference', 'Debit', 'Credit', 'Status']}
                 empty={!l.entries.length}>
                 {l.entries.map((e, i) => (
-                  <tr key={`${e.reference}-${i}`}>
+                  <tr
+                    key={`${e.reference}-${i}`}
+                    className={cn(done && e.reference === done.receipt_no && 'bg-success/10 font-medium')}
+                  >
                     <Td className="text-muted-foreground">{formatDate(e.date)}</Td>
                     <Td>{e.description}</Td>
                     <Td className="font-mono text-[12px]">{e.reference}</Td>
