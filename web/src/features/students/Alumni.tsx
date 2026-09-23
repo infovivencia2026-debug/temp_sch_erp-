@@ -325,7 +325,7 @@ function NewEvent({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader title="Plan an event" />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Title" required>
             <Input value={title} onChange={setTitle} placeholder="Silver Jubilee Meet" />
@@ -409,7 +409,7 @@ function NewContribution({
         title="Record a gift"
         description="Kept out of the fee ledger on purpose: a donation posted there reads as school income against a student account."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Alumnus" required>
             <Select
@@ -509,7 +509,7 @@ function EditProfile({ alumni, onSaved }: { alumni: Alumnus[]; onSaved: () => vo
         title="Update a record"
         description="Contactable is consent. Unticking it drops them out of every mailing the office runs."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Alumnus" required wide>
             <Select

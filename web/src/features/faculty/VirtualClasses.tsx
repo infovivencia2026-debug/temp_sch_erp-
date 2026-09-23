@@ -233,7 +233,7 @@ function Schedule({ onDone }: { onDone: () => void }) {
         title="Schedule a live class"
         description="Paste a meeting link now to make it joinable, or add one later."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Class" required>
             <Select

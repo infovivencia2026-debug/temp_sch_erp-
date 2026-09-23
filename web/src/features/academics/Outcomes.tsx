@@ -325,7 +325,7 @@ function Mapping({
         title="Mapping"
         description="Strength is the 1–2–3 an accreditation form uses. Leave one blank to unmap it."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Course outcome" required>
             <Select

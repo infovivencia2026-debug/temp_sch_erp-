@@ -132,7 +132,7 @@ export default function LMSUpload() {
             title="Share something"
             description="It appears for the people it is addressed to as soon as it is shared. Pictures and videos show full screen, like a status."
           />
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 pt-4">
             {/* WHO. Three widths of audience as three buttons, because the
                 choice is what the rest of the form depends on and a dropdown
                 hides the option most teachers did not know they had. */}

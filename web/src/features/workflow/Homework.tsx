@@ -966,7 +966,7 @@ function FilterBar({
         title="Find"
         description="Every box is optional. Leave them all blank for everything."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Kind">
             <Select

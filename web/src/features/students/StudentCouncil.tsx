@@ -277,7 +277,7 @@ function NewPosition({ onSaved }: { onSaved: () => void }) {
         title="Define a post"
         description="Four house captains are one post with four seats, not four posts."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Title" required>
             <Input value={title} onChange={setTitle} placeholder="Head Girl" />
@@ -362,7 +362,7 @@ function SeatMember({
         title="Seat a member"
         description="A post with every seat taken refuses another, rather than quietly overfilling."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Post" required>
             <Select

@@ -685,7 +685,7 @@ function DraftReview({ draftID, mayWrite, onPublished }: {
             />
           }
         />
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 pt-4">
           <WeekGrid
             entries={dd.entries
               .filter((e) => e.section_id === chosen)

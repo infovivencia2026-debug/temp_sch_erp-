@@ -48,7 +48,7 @@ export default function Recharge({ credit, name }: { credit: CreditBalance; name
           title={`${name} recharge requested`}
           action={<Badge tone="info">Waiting</Badge>}
         />
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 pt-4">
           <p className="text-[13px] text-muted-foreground">
             {open.messages.toLocaleString('en-IN')} messages requested. You will see the
             balance change here as soon as it is granted, nothing else is needed from you,
@@ -71,7 +71,7 @@ export default function Recharge({ credit, name }: { credit: CreditBalance; name
         title={`Recharge ${name}`}
         action={credit.empty ? <Badge tone="danger">Empty</Badge> : <Badge tone="warning">Low</Badge>}
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <p className="text-[13px] text-muted-foreground">
           {credit.empty ? (
             <>

@@ -207,7 +207,7 @@ export default function BoardLOC() {
                   title="Start a List of Candidates"
                   description="Candidates are read from the board roll you already registered. Nothing is duplicated here."
                 />
-                <div className="px-5 pb-5">
+                <div className="px-5 pb-5 pt-4">
                   <NewForm form={form} setForm={setForm} create={create} mayFile={mayFile} />
                 </div>
               </Card>
@@ -256,7 +256,7 @@ export default function BoardLOC() {
 
                 <Card>
                   <CardHeader title="Start another list" />
-                  <div className="px-5 pb-5">
+                  <div className="px-5 pb-5 pt-4">
                     <NewForm form={form} setForm={setForm} create={create} mayFile={mayFile} />
                   </div>
                 </Card>

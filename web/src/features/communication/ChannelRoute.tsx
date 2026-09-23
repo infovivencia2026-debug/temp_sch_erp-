@@ -63,7 +63,7 @@ export default function ChannelRoute({
           title={`How ${name} is sent`}
           action={<Badge tone={onOwn ? 'info' : 'neutral'}>{onOwn ? 'Own account' : 'WISEN'}</Badge>}
         />
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 pt-4">
           {mayChoose ? (
             <div className="flex flex-wrap gap-2">
               <Button

@@ -177,7 +177,7 @@ function Compose({ onDone }: { onDone: () => void }) {
         title="New test"
         description="Created as a draft; it cannot be published until it has questions."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Class" required>
             <Select

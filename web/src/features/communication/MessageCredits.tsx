@@ -59,7 +59,7 @@ export function ChannelMeter({ credit }: { credit: CreditBalance }) {
         }
       />
 
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         {/* The state of the channel in one sentence, because the number alone
             does not say what will happen next. */}
         <p className="text-[13px] text-muted-foreground">

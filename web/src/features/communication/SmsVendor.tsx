@@ -65,7 +65,7 @@ export default function SmsVendor() {
           )
         }
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         {presets.isLoading ? null : (
           <div className="mt-4 flex flex-wrap gap-2">
             {(presets.data?.items ?? []).map((p) => (

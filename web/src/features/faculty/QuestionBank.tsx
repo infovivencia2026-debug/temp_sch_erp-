@@ -298,7 +298,7 @@ function Compose({ onDone }: { onDone: () => void }) {
         title="Add a question"
         description="Tag it now, a question nobody can find is a question nobody reuses."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Subject" required>
             <Select
@@ -514,7 +514,7 @@ function GenerateFromLesson({ onDone }: { onDone: () => void }) {
         title="Generate from a lesson (PDF)"
         description="Upload a lesson or exercise PDF and the assistant drafts questions you can review."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Subject" required>
             <Select

@@ -285,7 +285,7 @@ function NewEntry() {
         title="Add to the calendar"
         description="A working day pulls a Sunday back into the count, which is what a school does after a bandh."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Name" required>
             <Input value={name} onChange={setName} placeholder="Diwali" />
@@ -389,7 +389,7 @@ function Terms() {
         title="Terms"
         description="The spans the year is divided into. A report card, a fee instalment and a co-scholastic grade each belong to one."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         {rows.length > 0 && (
           <ul className="mb-4 divide-y rounded-lg border">
             {rows.map((t) => (

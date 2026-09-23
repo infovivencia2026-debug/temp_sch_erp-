@@ -1190,9 +1190,18 @@ export function Button({
            in a unit that does. `min-h` rather than `h` so that a label which
            does wrap grows the box instead of spilling out of it, and `min-w`
            so a single-icon button is not a 44px-tall sliver. */
+        /* ROOM EITHER SIDE OF THE WORDS.
+
+           10px of padding on a 13px label puts "Use our own account" hard
+           against the edge of its own pill: the button reads as a box that
+           happens to contain text rather than a label with a shape around it.
+           12 and 16 are the least that look deliberate at these sizes, and
+           they are what the coarse-pointer floor was already raising them to
+           on a phone -- so this is the desktop catching up with the handset
+           rather than a new measurement. */
         size === 'sm'
-          ? 'h-8 px-2.5 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
-          : 'h-9 px-3.5 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]',
+          ? 'h-8 px-3 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
+          : 'h-9 px-4 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'

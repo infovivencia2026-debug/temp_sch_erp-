@@ -169,7 +169,7 @@ export default function Payroll() {
                 'it should be a decision, not an accident.'
               }
             />
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-5 pt-4">
               <label className="flex items-start gap-2 text-[14px]">
                 <input
                   type="checkbox"

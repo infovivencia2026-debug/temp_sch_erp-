@@ -264,7 +264,7 @@ function Handle({ incident, onDone }: { incident: Incident; onDone: () => void }
         title={`${incident.student_name} · ${formatDate(incident.occurred_on)}`}
         description="Closing an incident needs an action recorded: a closed row with nothing written against it answers nothing later."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Severity">
             <Select

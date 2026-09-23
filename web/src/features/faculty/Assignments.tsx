@@ -178,7 +178,7 @@ function Compose({ onDone }: { onDone: () => void }) {
   return (
     <Card>
       <CardHeader title="Set work" description="It appears for the class straight away." />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         <FormGrid>
           <Field label="Class">
             <Select

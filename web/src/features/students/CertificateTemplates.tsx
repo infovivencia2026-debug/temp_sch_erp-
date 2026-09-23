@@ -215,7 +215,7 @@ export default function CertificateTemplates() {
               ) : undefined
             }
           />
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 pt-4">
             <FormGrid>
               <Field label="Code" required hint="Short and permanent · TC, BONAFIDE, CONDUCT.">
                 <Input
@@ -362,7 +362,7 @@ function Preview({ templateID }: { templateID: string }) {
         title={`Preview · ${p.template}`}
         description="Filled in with the first child on the roll. Shown as text: a template is arbitrary markup typed by a clerk."
       />
-      <div className="px-5 pb-5">
+      <div className="px-5 pb-5 pt-4">
         {p.empty ? (
           <EmptyState
             title="Nothing written yet"
