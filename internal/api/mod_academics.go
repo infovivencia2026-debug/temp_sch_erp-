@@ -674,14 +674,48 @@ func (s *Server) generateReportCards(w http.ResponseWriter, r *http.Request) {
 		tag, err := tx.Exec(r.Context(), `
 			WITH totals AS (
 			  SELECT e.student_id, e.id AS enrollment_id, e.academic_year_id,
-			         SUM(COALESCE(m.marks_obtained,0))            AS total,
-			         SUM(es.max_marks)                            AS max_total,
-			         -- Attendance is printed on the card and is what parents
-			         -- check first, so it is computed here rather than left blank.
+			         /* AN ABSENT CHILD IS NOT A ZERO, AND MODERATION COUNTS.
+
+			            This summed COALESCE(marks_obtained,0) over every paper and
+			            every paper's max_marks, so a child absent for Hindi with a
+			            doctor's note scored 0/100 on it: two grade bands lost and
+			            a rank below classmates outscored on every paper sat. Every
+			            rollup in the product leaves an absent row out entirely
+			            (class360.go says so in words); this was the one place that
+			            did not, and it is the document the family keeps.
+
+			            grace_marks is the department's moderation (exam_approvals).
+			            00147 states the premise -- "every reporting query adds it
+			            to" -- and the analytics do. The card did not, so a school
+			            that formally decided a child passed printed that she failed.
+
+			            A paper with NO marks row still counts against the child:
+			            that is an unentered paper, which the readiness screen
+			            names before Generate, and is a different fact from a
+			            recorded absence. */
+			         SUM(COALESCE(m.marks_obtained,0) + COALESCE(m.grace_marks,0))
+			             FILTER (WHERE NOT COALESCE(m.is_absent,false))      AS total,
+			         SUM(es.max_marks)
+			             FILTER (WHERE NOT COALESCE(m.is_absent,false))      AS max_total,
+			         /* Attendance, for THIS year and the daily register only.
+
+			            It was every student_attendance row the child ever had: a
+			            Class 10 card printed a five-year average that a good term
+			            could no longer move. Period-wise rows (period_id set) are
+			            up to eight per day and double-count the day beside the
+			            daily row -- admin_rollups guards them out and says why.
+			            'holiday' and 'leave' are valid statuses a teacher may
+			            write instead of leaving the day blank; a section whose
+			            teacher marked twelve holidays lost six points against the
+			            section next door whose teacher did not. */
 			         COALESCE((SELECT round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))
 			                                / NULLIF(count(*),0))
 			                     FROM student_attendance sa
-			                    WHERE sa.student_id = e.student_id), 0) AS attendance
+			                     JOIN academic_years ay ON ay.id = e.academic_year_id
+			                    WHERE sa.student_id = e.student_id
+			                      AND sa.period_id IS NULL
+			                      AND sa.status NOT IN ('holiday','leave')
+			                      AND sa.on_date BETWEEN ay.starts_on AND ay.ends_on), 0) AS attendance
 			    FROM enrollments e
 			    -- Only the papers this child's class actually sat.
 			    --
@@ -1069,13 +1103,16 @@ func (s *Server) listReportCards(w http.ResponseWriter, r *http.Request) {
 		         SELECT json_agg(json_build_object(
 		                  'subject',        sub.name,
 		                  'marks_obtained', m.marks_obtained,
+		                  -- Moderation, shown and counted: percent and grade are
+		                  -- on the moderated figure, as every rollup already is.
+		                  'grace_marks',    COALESCE(m.grace_marks, 0),
 		                  'max_marks',      es.max_marks,
-		                  'percent',        round(100.0 * m.marks_obtained
+		                  'percent',        round(100.0 * (m.marks_obtained + COALESCE(m.grace_marks,0))
 		                                            / NULLIF(es.max_marks,0), 2),
 		                  'is_absent',      COALESCE(m.is_absent, false),
 		                  'grade', (SELECT gb.grade FROM grade_bands gb
 		                             WHERE gb.grading_scale_id = ex.grading_scale_id
-		                               AND round(100.0 * m.marks_obtained
+		                               AND round(100.0 * (m.marks_obtained + COALESCE(m.grace_marks,0))
 		                                          / NULLIF(es.max_marks,0), 2)
 		                                   BETWEEN gb.min_percent AND gb.max_percent
 		                             LIMIT 1))
@@ -1296,10 +1333,18 @@ func (s *Server) issueCertificate(w http.ResponseWriter, r *http.Request) {
 			         'class', c.name, 'section', sec.name,
 			         'admission_date', st.admission_date,
 			         'apaar_id', st.apaar_id,
-			         'attendance_percent', COALESCE((
-			             SELECT round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))
-			                          / NULLIF(count(*),0))
-			               FROM student_attendance sa WHERE sa.student_id = st.id), 0),
+			         -- This year's daily register, not every row the child ever had
+		         -- and not the period-wise rows beside it. Same rule as the
+		         -- report card; this is a signed document.
+		         'attendance_percent', COALESCE((
+		             SELECT round(100.0 * count(*) FILTER (WHERE sa.status IN ('present','late'))
+		                          / NULLIF(count(*),0))
+		               FROM student_attendance sa
+		               JOIN academic_years ay ON ay.is_current
+		              WHERE sa.student_id = st.id
+		                AND sa.period_id IS NULL
+		                AND sa.status NOT IN ('holiday','leave')
+		                AND sa.on_date BETWEEN ay.starts_on AND ay.ends_on), 0),
 			         'dues_paise', COALESCE((
 			             SELECT sum(i.net_paise - i.paid_paise) FROM invoices i
 			              WHERE i.student_id = st.id AND i.status IN ('unpaid','partial','overdue')), 0),

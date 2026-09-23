@@ -786,7 +786,19 @@ func (s *Server) gatherReportCard(r *http.Request, tx pgx.Tx, cardID uuid.UUID) 
 	   Tied to the card's year and term now, which is what a card is: exams
 	   from other years cannot appear at all, and neither can the next term's. */
 	rows, err := tx.Query(r.Context(), `
-		SELECT sub.name, es.max_marks, m.marks_obtained, m.grade
+		-- Moderated: the printed card must agree with the card total, which
+		-- now counts grace_marks the way every rollup does.
+		SELECT sub.name, es.max_marks,
+		       CASE WHEN m.marks_obtained IS NULL THEN NULL
+		            ELSE m.marks_obtained + COALESCE(m.grace_marks, 0) END,
+		       -- Derived, for the reason portal_family.go gives: the stored
+		       -- grade predates moderation.
+		       COALESCE((SELECT gb.grade FROM grade_bands gb
+		                  WHERE gb.grading_scale_id = ex.grading_scale_id
+		                    AND round(100.0 * (m.marks_obtained + COALESCE(m.grace_marks,0))
+		                              / NULLIF(es.max_marks,0), 2)
+		                        BETWEEN gb.min_percent AND gb.max_percent
+		                  LIMIT 1), m.grade)
 		  FROM report_cards rc
 		  JOIN enrollments e     ON e.id = rc.enrollment_id
 		  JOIN class_subjects cs ON cs.class_id = e.class_id

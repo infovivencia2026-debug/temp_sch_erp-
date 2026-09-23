@@ -317,8 +317,25 @@ func (s *Server) getFamilyResults(w http.ResponseWriter, r *http.Request) {
 		   publishing the exam, or the head releasing this child's card for
 		   that exam. A mark behind neither stays in the building. */
 		rows, err = tx.Query(r.Context(), `
-			SELECT ex.name, sub.name, m.marks_obtained, es.max_marks,
-			       m.grade, COALESCE(m.is_absent, false)
+			-- The moderated figure. grace_marks is the department's adjustment
+			-- and every rollup counts it; the family saw the raw mark and a
+			-- child the school had passed was shown as failed.
+			SELECT ex.name, sub.name,
+			       CASE WHEN m.marks_obtained IS NULL THEN NULL
+			            ELSE m.marks_obtained + COALESCE(m.grace_marks, 0) END,
+			       es.max_marks,
+			       -- The grade is derived here, not read back: moderateMarks
+			       -- writes grace_marks and leaves the stored grade as it was
+			       -- at entry, so the letter beside a moderated number would be
+			       -- the old one. The stored grade stands in only where the
+			       -- scale has no band for the figure.
+			       COALESCE((SELECT gb.grade FROM grade_bands gb
+			                  WHERE gb.grading_scale_id = ex.grading_scale_id
+			                    AND round(100.0 * (m.marks_obtained + COALESCE(m.grace_marks,0))
+			                              / NULLIF(es.max_marks,0), 2)
+			                        BETWEEN gb.min_percent AND gb.max_percent
+			                  LIMIT 1), m.grade),
+			       COALESCE(m.is_absent, false)
 			  FROM marks m
 			  JOIN exam_subjects  es ON es.id = m.exam_subject_id
 			  JOIN exams          ex ON ex.id = es.exam_id
