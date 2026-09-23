@@ -842,9 +842,12 @@ export function AssistantTab() {
                      it, which is true until the day a painted region sits
                      between them. */
                   className={cn(
-                    'whitespace-pre-wrap rounded-[14px] px-4 py-3 text-[14.5px] leading-relaxed',
-                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.12)] text-foreground',
-                    turn.role === 'bot' && 'text-foreground',
+                    /* No box around the words: the separator line is the
+                       whole division, the owner said. A question is told from
+                       an answer by weight and ink alone. */
+                    'whitespace-pre-wrap px-1 py-2 text-[14.5px] leading-relaxed',
+                    turn.role === 'user' && 'font-medium text-foreground',
+                    turn.role === 'bot' && 'text-foreground/90',
                     turn.role === 'error' &&
                       'bg-destructive text-destructive-foreground',
                   )}
