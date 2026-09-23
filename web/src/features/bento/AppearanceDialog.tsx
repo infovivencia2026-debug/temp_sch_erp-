@@ -30,7 +30,7 @@ import {
 } from './ColourDialog'
 import { cn } from '@/lib/utils'
 import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
-import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
+import { featurePath, useActiveRole, useCatalog, usable, allRolesOn, setAllRoles } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
 import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
 import { useFullScreen } from '@/lib/fullscreen'
@@ -556,9 +556,21 @@ function WorkspaceRows() {
   const catalog = useCatalog()
   const active = useActiveRole()
   const roles = catalog.roles ?? []
+  // The head looking at the whole school: see the sidebar's "View every
+  // role". The switch lives here too, because in Focus the sidebar is gone
+  // and this window is where a workspace is changed.
+  const head = roles.some((r) => r.key === 'institution_admin')
   if (roles.length === 0) return null
   return (
     <Rows>
+      {head && (
+        <SwitchRow
+          label="View every role"
+          helper="Every desk in the school as a workspace to step into: the fee counter, the library, transport. Off shows only your own."
+          on={allRolesOn()}
+          onToggle={() => setAllRoles(!allRolesOn())}
+        />
+      )}
       {roles.map((r) => {
         const here = r.key === active?.key
         /* Its own first section and feature, not a fixed path: a workspace

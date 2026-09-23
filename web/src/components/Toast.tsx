@@ -79,14 +79,23 @@ export function ToastHost({ children }: { children: ReactNode }) {
       {children}
       {/* aria-live so the confirmation reaches a screen reader too; a visual
           flash is not feedback for everyone. */}
-      <div
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center gap-2 p-4 sm:items-end"
-      >
-        {items.map((t) => (
+      {/* A confirmation lands in the middle of the screen, on glass, and is
+          gone in two seconds: the eye is on the button that was just pressed,
+          not the bottom corner. Errors keep the corner and stay until read. */}
+      <div aria-live="polite" className="pointer-events-none fixed inset-0 z-[70] grid place-items-center p-4">
+        {items.filter((t) => t.kind === 'ok').map((t) => (
           <ToastRow key={t.id} t={t} onDismiss={() => dismiss(t.id)} />
         ))}
       </div>
+      <div
+        aria-live="assertive"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center gap-2 p-4 sm:items-end"
+      >
+        {items.filter((t) => t.kind === 'error').map((t) => (
+          <ToastRow key={t.id} t={t} onDismiss={() => dismiss(t.id)} />
+        ))}
+      </div>
+      <style>{glassCSS}</style>
     </Ctx.Provider>
   )
 }
@@ -96,7 +105,7 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
     // Errors stay. A confirmation has done its job in four seconds; an error
     // that vanishes before it is read will simply happen again.
     if (t.kind === 'error') return
-    const id = setTimeout(onDismiss, 4000)
+    const id = setTimeout(onDismiss, 2200)
     return () => clearTimeout(id)
   }, [t.kind, onDismiss])
 
@@ -106,10 +115,9 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
       className={cn(
         /* Comes up off the bottom edge the host is pinned to, rather than
            being there on the next paint. See .toast-in in index.css. */
-        'toast-in',
-        'pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-md border px-3 py-2.5',
-        'bg-card text-[14px] shadow-pop',
-        t.kind === 'error' ? 'border-destructive/30' : 'border-success/30',
+        t.kind === 'error'
+          ? 'toast-in pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-md border border-destructive/30 bg-card px-3 py-2.5 text-[14px] shadow-pop'
+          : 'toast-glass pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border px-6 py-4 text-[15px] font-medium shadow-2xl',
       )}
     >
       <span
@@ -149,3 +157,21 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
     </div>
   )
 }
+
+/* The glass the confirmation sits on. backdrop-filter where the browser has
+   it; a plain card where it does not (the old phones this runs on), so the
+   words never sit on a see-through nothing. */
+const glassCSS = `
+.toast-glass { background: rgba(255,255,255,0.62); border-color: rgba(255,255,255,0.55); color: #111b21;
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  animation: toast-pop 180ms cubic-bezier(.2,.9,.3,1.2); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .toast-glass { background: rgba(20,24,28,0.55); border-color: rgba(255,255,255,0.12); color: #e9edef; }
+}
+:root[data-theme="dark"] .toast-glass { background: rgba(20,24,28,0.55); border-color: rgba(255,255,255,0.12); color: #e9edef; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .toast-glass { background: hsl(var(--card)); color: hsl(var(--foreground)); }
+}
+@keyframes toast-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .toast-glass { animation: none; } }
+`
