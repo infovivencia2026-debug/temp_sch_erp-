@@ -311,8 +311,15 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 		   came out. What decides it is three facts nobody could see: whether
 		   the account carries an address, whether it carries a mobile, and what
 		   the school has switched on. */
+		/* NOT *instID. A platform account -- the seller admin -- has no
+		   institution, and dereferencing the nil here was a panic on /forgot
+		   for exactly the account with no other way in. */
+		instLog := "platform"
+		if instID != nil {
+			instLog = instID.String()
+		}
 		slog.Info("password reset: choosing a channel",
-			"institution", *instID, "asked", channel,
+			"institution", instLog, "asked", channel,
 			"has_email", mail != "", "has_mobile", mobile != "",
 			"enabled_email", enabled["email"], "enabled_sms", enabled["sms"],
 			"enabled_whatsapp", enabled["whatsapp"], "picked", ch)
@@ -329,7 +336,27 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if instID != nil && to != "" {
+		/* WHICH ROW THE LINK IS QUEUED UNDER.
+
+		   message_log.institution_id is NOT NULL and a foreign key, and a
+		   platform account belongs to no school -- so its reset was never
+		   queued at all (this block was gated on instID != nil) and the page
+		   said "could not send". The row is a delivery record and nothing
+		   else: the dispatcher sends every password_reset row through the
+		   seller's own providers whatever school it names. So a platform
+		   account's link is queued under the oldest school on the
+		   installation, the same anchor create-admin uses when none is
+		   named. */
+		owner = uuid.Nil
+		if instID != nil {
+			owner = *instID
+		} else if to != "" {
+			if err := tx.QueryRow(r.Context(),
+				`SELECT id FROM institutions ORDER BY created_at LIMIT 1`).Scan(&owner); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
+		}
+		if owner != uuid.Nil && to != "" {
 			// Short on a phone, where every character is billed and a long
 			// message arrives as several.
 			body := "Open this link within fifteen minutes to choose a new password:\n" +
@@ -342,11 +369,10 @@ func (p *PasswordReset) Forgot(w http.ResponseWriter, r *http.Request) {
 				INSERT INTO message_log (institution_id, channel, template_code,
 				                         recipient, user_id, subject, body, status)
 				VALUES ($1,$6,'password_reset',$2,$3,$4,$5,'queued')`,
-				*instID, to, userID, "Reset your password", body, ch); err != nil {
+				owner, to, userID, "Reset your password", body, ch); err != nil {
 				return err
 			}
 			queued = true
-			owner = *instID
 			channel = ch
 			sentTo = maskContact(to)
 		}

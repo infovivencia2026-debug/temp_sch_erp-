@@ -128,11 +128,20 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 		return err
 	}
 	rec := record{level: r.Level.String(), message: r.Message, at: r.Time, attrs: map[string]any{}}
+	/* An error attr is stored as its sentence. json.Marshal of an error
+	   value is "{}" -- the first evening of this table was a column of
+	   empty braces where the reason should have been. */
+	plain := func(v any) any {
+		if e, ok := v.(error); ok {
+			return e.Error()
+		}
+		return v
+	}
 	for _, a := range h.attrs {
-		rec.attrs[a.Key] = a.Value.Any()
+		rec.attrs[a.Key] = plain(a.Value.Any())
 	}
 	r.Attrs(func(a slog.Attr) bool {
-		rec.attrs[a.Key] = a.Value.Any()
+		rec.attrs[a.Key] = plain(a.Value.Any())
 		return true
 	})
 	/* The tenant comes from the request the record was emitted under, when
