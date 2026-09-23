@@ -831,7 +831,15 @@ export function AssistantTab() {
             <AssistantOrb state={state} size={44} />
           </div>
 
-          <div ref={logRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
+          {/* ONE CENTRED COLUMN, NOT TWO SIDES. The owner asked for the user's
+             and the bot's turns down the middle, told apart by colour rather
+             than by which edge they hug: a question is a soft wash of the
+             accent with the accent's ink, an answer is the card colour with a
+             hairline. The column is capped so a line never runs the full
+             width of a 520px pane, and centred so both sides read as one
+             conversation rather than a volley. */}
+          <div ref={logRef} className="flex-1 overflow-y-auto px-3 py-3">
+           <div className="mx-auto w-full max-w-[600px] space-y-2.5">
             {turns.length === 0 && !draft.trim() && (
               /* An empty panel says one quiet thing and waits. The four canned
                  starter questions that used to sit here were removed at the
@@ -854,7 +862,7 @@ export function AssistantTab() {
               </div>
             )}
             {turns.map((turn, i) => (
-              <div key={i} className={cn('max-w-[86%]', turn.role === 'user' && 'ml-auto')}>
+              <div key={i} className="w-full">
                 <div
                   /* EVERY BUBBLE STATES BOTH HALVES OF ITS PAIR.
 
@@ -874,9 +882,9 @@ export function AssistantTab() {
                      it, which is true until the day a painted region sits
                      between them. */
                   className={cn(
-                    'whitespace-pre-wrap rounded-[12px] px-3.5 py-2.5 text-[14.5px] leading-relaxed',
-                    turn.role === 'user' && 'bg-primary text-primary-foreground',
-                    turn.role === 'bot' && 'bg-accent text-accent-foreground',
+                    'whitespace-pre-wrap rounded-[14px] px-4 py-3 text-[14.5px] leading-relaxed',
+                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.12)] text-foreground',
+                    turn.role === 'bot' && 'border bg-card text-card-foreground',
                     turn.role === 'error' &&
                       'bg-destructive text-destructive-foreground',
                   )}
@@ -1071,6 +1079,7 @@ export function AssistantTab() {
                 </div>
               </div>
             )}
+           </div>
           </div>
 
           {/* Said above the box, where the answer to "is it hearing me?" has to
