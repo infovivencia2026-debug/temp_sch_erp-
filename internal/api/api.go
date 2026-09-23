@@ -1590,6 +1590,9 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/count", s.adminInboxCount)
 			r.Get("/thread", s.adminInboxThread)
 			r.Get("/staff-thread", s.adminInboxStaffThread)
+			// The two the desk could only leave for; see admin_inbox.go.
+			r.Get("/concern", s.adminInboxConcern)
+			r.Get("/circular", s.adminInboxCircular)
 			r.With(httpx.RequirePermission(rbac.MessagesSend)).Post("/reply", s.adminInboxReplyParent)
 		})
 

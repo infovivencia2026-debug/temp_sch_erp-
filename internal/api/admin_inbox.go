@@ -812,3 +812,156 @@ func parseRecent(raw []byte) []recentMsg {
 	}
 	return out
 }
+
+/*
+The two channels the desk could only leave for.
+
+	A concern and a circular were links: pressing one took the principal off
+	the desk, onto another screen, with the filters and the place in the list
+	gone. Both are readable in themselves -- a concern is a complaint and the
+	answers it has had, a circular is what was said and who has acknowledged
+	it -- so both open where every other channel opens, and the screens they
+	used to jump to remain for the work that belongs on them: triage, closing,
+	writing a new circular.
+*/
+
+type inboxNote struct {
+	ID       string `json:"id"`
+	Author   string `json:"author"`
+	Body     string `json:"body"`
+	At       string `json:"at"`
+	ToFamily bool   `json:"to_family"`
+	Kind     string `json:"kind"`
+}
+
+// adminInboxConcern is one concern and everything said about it since.
+func (s *Server) adminInboxConcern(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	tid, err := uuid.Parse(r.URL.Query().Get("id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "id must be the uuid of a concern")
+		return
+	}
+	var subject, body, status, category, raisedBy, child string
+	var assigned *string
+	var raisedAt time.Time
+	notes := []inboxNote{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `
+			SELECT COALESCE(t.subject,''), COALESCE(t.body,''), t.status, COALESCE(t.category,''),
+			       COALESCE(ru.full_name,''), au.full_name, t.created_at,
+			       COALESCE(concat_ws(' ', st.first_name, st.last_name), '')
+			  FROM support_tickets t
+			  LEFT JOIN users ru ON ru.id = t.raised_by
+			  LEFT JOIN users au ON au.id = t.assigned_to
+			  LEFT JOIN students st ON st.id = t.student_id
+			 WHERE t.id = $1`, tid).Scan(&subject, &body, &status, &category,
+			&raisedBy, &assigned, &raisedAt, &child); err != nil {
+			return err
+		}
+		rows, qerr := tx.Query(r.Context(), `
+			SELECT g.id::text, COALESCE(u.full_name,''), g.body, g.created_at,
+			       g.visible_to_parent, COALESCE(g.kind,'note')
+			  FROM grievance_updates g
+			  LEFT JOIN users u ON u.id = g.author_id
+			 WHERE g.ticket_id = $1
+			 ORDER BY g.created_at`, tid)
+		if qerr != nil {
+			return qerr
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var n inboxNote
+			var at time.Time
+			if err := rows.Scan(&n.ID, &n.Author, &n.Body, &at, &n.ToFamily, &n.Kind); err != nil {
+				return err
+			}
+			n.At = at.Format(time.RFC3339)
+			notes = append(notes, n)
+		}
+		return rows.Err()
+	})
+	if err == pgx.ErrNoRows {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"subject": subject, "body": body, "status": status, "category": category,
+		"raised_by": raisedBy, "raised_at": raisedAt.Format(time.RFC3339),
+		"assigned_to": assigned, "child": child, "notes": notes,
+	})
+}
+
+// adminInboxCircular is what a circular said, and who has acknowledged it.
+func (s *Server) adminInboxCircular(w http.ResponseWriter, r *http.Request) {
+	id := httpx.IdentityFrom(r.Context())
+	aid, err := uuid.Parse(r.URL.Query().Get("id"))
+	if err != nil {
+		httpx.BadRequest(w, r, "id must be the uuid of a circular")
+		return
+	}
+	var title, body, kind, audience, author string
+	var publishedAt time.Time
+	var requiresAck bool
+	var acked, asked int
+	pending := []string{}
+	err = s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
+		if err := tx.QueryRow(r.Context(), `
+			SELECT a.title, COALESCE(a.body,''), COALESCE(a.kind,''),
+			       COALESCE(a.audience_role,''), COALESCE(cu.full_name,''),
+			       COALESCE(a.publish_at, a.created_at), a.requires_ack,
+			       (SELECT count(*)::int FROM announcement_acks k
+			         WHERE k.announcement_id = a.id AND k.acked_at IS NOT NULL),
+			       (SELECT count(*)::int FROM announcement_acks k WHERE k.announcement_id = a.id)
+			  FROM announcements a
+			  LEFT JOIN users cu ON cu.id = a.created_by
+			 WHERE a.id = $1`, aid).Scan(&title, &body, &kind, &audience, &author,
+			&publishedAt, &requiresAck, &acked, &asked); err != nil {
+			return err
+		}
+		if !requiresAck {
+			return nil
+		}
+		// Who has not answered yet: the list the office rings round.
+		rows, qerr := tx.Query(r.Context(), `
+			SELECT COALESCE(u.full_name, concat_ws(' ', st.first_name, st.last_name), '')
+			  FROM announcement_acks k
+			  LEFT JOIN users u ON u.id = k.user_id
+			  LEFT JOIN students st ON st.id = k.student_id
+			 WHERE k.announcement_id = $1 AND k.acked_at IS NULL
+			 ORDER BY 1
+			 LIMIT 100`, aid)
+		if qerr != nil {
+			return qerr
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var who string
+			if err := rows.Scan(&who); err != nil {
+				return err
+			}
+			if who != "" {
+				pending = append(pending, who)
+			}
+		}
+		return rows.Err()
+	})
+	if err == pgx.ErrNoRows {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"title": title, "body": body, "kind": kind, "audience": audience,
+		"author": author, "published_at": publishedAt.Format(time.RFC3339),
+		"requires_ack": requiresAck, "acked": acked, "asked": asked,
+		"pending": pending,
+	})
+}

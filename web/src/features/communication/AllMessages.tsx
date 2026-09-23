@@ -86,6 +86,8 @@ export default function AllMessages() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Item | null>(null)
   const [openStaff, setOpenStaff] = useState<Item | null>(null)
+  const [openConcern, setOpenConcern] = useState<Item | null>(null)
+  const [openCircular, setOpenCircular] = useState<Item | null>(null)
   /* Smaller questions of a big desk: what came in this week, what is one
      class saying, what has one teacher been dealing with. The tiles keep
      counting the whole school either way, so a filter cannot make the school
@@ -257,11 +259,6 @@ export default function AllMessages() {
               </span>
             </h2>
             {items.map((it) => {
-              const href =
-                it.channel === 'concern' && toGrievances ? `${toGrievances}?id=${it.key}`
-                : it.channel === 'staff' && toStaff ? `${toStaff}?with=${it.key.split('|')[0]}`
-                : it.channel === 'circular' && toCirculars ? toCirculars
-                : undefined
               return (
                 <MessageCard
                   key={it.channel + it.key}
@@ -271,9 +268,13 @@ export default function AllMessages() {
                       ? () => setOpen(it)
                       : it.channel === 'staff'
                         ? () => setOpenStaff(it)
-                        : undefined
+                        : it.channel === 'concern'
+                          ? () => setOpenConcern(it)
+                          : () => setOpenCircular(it)
                   }
-                  href={it.channel === 'concern' || it.channel === 'circular' ? href : undefined}
+                  /* Every channel opens on the desk now. The screens that act
+                     on these -- the grievance desk, circulars -- are offered
+                     inside the pane rather than instead of it. */
                 />
               )
             })}
@@ -281,7 +282,13 @@ export default function AllMessages() {
         )}
 
         {open && <ParentThread item={open} onClose={() => setOpen(null)} />}
-        {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} />}
+        {openStaff && <StaffThread item={openStaff} onClose={() => setOpenStaff(null)} deskHref={toStaff} />}
+        {openConcern && (
+          <ConcernPane item={openConcern} onClose={() => setOpenConcern(null)} deskHref={toGrievances} />
+        )}
+        {openCircular && (
+          <CircularPane item={openCircular} onClose={() => setOpenCircular(null)} deskHref={toCirculars} />
+        )}
         </div>
       </PageBody>
     </>
@@ -376,7 +383,15 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
 /* A conversation between two colleagues, read from the desk. Read-only:
    the principal is not a party to it. To say something, they write to
    either person from Messages, in their own name. Live the same way. */
-function StaffThread({ item, onClose }: { item: Item; onClose: () => void }) {
+function StaffThread({
+  item,
+  onClose,
+  deskHref,
+}: {
+  item: Item
+  onClose: () => void
+  deskHref?: string
+}) {
   const [a, b] = item.key.split('|')
   const thread = useQuery({
     queryKey: ['admin-inbox-staff-thread', item.key],
@@ -386,7 +401,18 @@ function StaffThread({ item, onClose }: { item: Item; onClose: () => void }) {
   })
   const [left] = item.title.split(' ↔ ')
   return (
-    <ThreadPane title={item.title} subtitle="Between two colleagues, read from the desk" onClose={onClose}>
+    <ThreadPane
+      title={item.title}
+      subtitle="Between two colleagues, read from the desk"
+      onClose={onClose}
+      actions={
+        deskHref && (
+          <Link to={`${deskHref}?with=${a}`} className="text-[13px] font-semibold text-primary">
+            Open in Messages
+          </Link>
+        )
+      }
+    >
       <ChatThread
         messages={(thread.data?.items ?? []).map((m) => ({
           id: m.id,
@@ -557,6 +583,172 @@ function when(iso: string): string {
 /* Where a conversation opens: beside the list on a desk, over everything on a
    phone. The two-pane web chat is what a person at a desk expects; a sheet
    that hides the list is what a thumb expects. */
+/* A CONCERN, READ WHERE IT WAS FOUND.
+ *
+ * What the family raised, and everything said about it since -- each note
+ * marked with whether the family was shown it, because "we answered" and "we
+ * wrote ourselves a note" are different facts and the desk is exactly where
+ * they get confused. Acting on it -- triage, assignment, closing -- is still
+ * the grievance desk's job, offered here as a link rather than rebuilt. */
+function ConcernPane({
+  item,
+  onClose,
+  deskHref,
+}: {
+  item: Item
+  onClose: () => void
+  deskHref?: string
+}) {
+  const q = useQuery({
+    queryKey: ['admin-inbox-concern', item.key],
+    queryFn: () =>
+      api.get<{
+        subject: string
+        body: string
+        status: string
+        category: string
+        raised_by: string
+        raised_at: string
+        assigned_to?: string | null
+        child: string
+        notes: { id: string; author: string; body: string; at: string; to_family: boolean; kind: string }[]
+      }>(`/api/v1/admin/inbox/concern?id=${item.key}`),
+  })
+  const d = q.data
+  return (
+    <ThreadPane
+      title={d?.subject || item.title}
+      subtitle={[d?.child, d?.category, d?.status?.replace(/_/g, ' ')].filter(Boolean).join(' · ')}
+      onClose={onClose}
+      actions={
+        deskHref && (
+          <Link to={`${deskHref}?id=${item.key}`} className="text-[13px] font-semibold text-primary">
+            Open the grievance desk
+          </Link>
+        )
+      }
+    >
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
+        {q.isLoading ? (
+          <SkeletonTable columns={1} />
+        ) : q.error ? (
+          <ErrorState error={q.error} />
+        ) : (
+          <>
+            <div className="rounded-xl border bg-card px-4 py-3">
+              <div className="text-[12px] text-muted-foreground">
+                {d?.raised_by} · {d?.raised_at ? when(d.raised_at) : ''}
+              </div>
+              <p className="mt-1 whitespace-pre-wrap text-[14.5px]">{d?.body}</p>
+            </div>
+            {(d?.notes ?? []).map((n) => (
+              <div
+                key={n.id}
+                className={cn(
+                  'rounded-xl border px-4 py-3',
+                  n.to_family ? 'border-primary/40 bg-primary/5' : 'bg-muted/40',
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">{n.author || 'The school'}</span>
+                  <span>{when(n.at)}</span>
+                  <span className={n.to_family ? 'font-semibold text-primary' : ''}>
+                    {n.to_family ? 'shown to the family' : 'internal note'}
+                  </span>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-[14.5px]">{n.body}</p>
+              </div>
+            ))}
+            {d && d.notes.length === 0 && (
+              <p className="text-[13px] text-muted-foreground">
+                Nobody has written anything about this yet.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </ThreadPane>
+  )
+}
+
+/* A CIRCULAR, AND WHO HAS NOT ANSWERED IT.
+ *
+ * One-way by nature, so there is nothing to reply to -- what the desk wants
+ * is what was said and, where an acknowledgement was asked for, the list of
+ * families still to give one. That list is the reason this is on the desk at
+ * all. */
+function CircularPane({
+  item,
+  onClose,
+  deskHref,
+}: {
+  item: Item
+  onClose: () => void
+  deskHref?: string
+}) {
+  const q = useQuery({
+    queryKey: ['admin-inbox-circular', item.key],
+    queryFn: () =>
+      api.get<{
+        title: string
+        body: string
+        kind: string
+        audience: string
+        author: string
+        published_at: string
+        requires_ack: boolean
+        acked: number
+        asked: number
+        pending: string[]
+      }>(`/api/v1/admin/inbox/circular?id=${item.key}`),
+  })
+  const d = q.data
+  return (
+    <ThreadPane
+      title={d?.title || item.title}
+      subtitle={[d?.kind, d?.audience, d?.author].filter(Boolean).join(' · ')}
+      onClose={onClose}
+      actions={
+        deskHref && (
+          <Link to={deskHref} className="text-[13px] font-semibold text-primary">
+            Open circulars
+          </Link>
+        )
+      }
+    >
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
+        {q.isLoading ? (
+          <SkeletonTable columns={1} />
+        ) : q.error ? (
+          <ErrorState error={q.error} />
+        ) : (
+          <>
+            <div className="rounded-xl border bg-card px-4 py-3">
+              <div className="text-[12px] text-muted-foreground">
+                {d?.published_at ? when(d.published_at) : ''}
+              </div>
+              <p className="mt-1 whitespace-pre-wrap text-[14.5px]">{d?.body}</p>
+            </div>
+            {d?.requires_ack && (
+              <div className="rounded-xl border bg-muted/40 px-4 py-3">
+                <div className="text-[13px] font-semibold">
+                  {d.acked} of {d.asked} have acknowledged
+                </div>
+                {d.pending.length > 0 && (
+                  <>
+                    <p className="mt-1 text-[12px] text-muted-foreground">Still to answer</p>
+                    <p className="mt-0.5 text-[13px]">{d.pending.join(', ')}</p>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </ThreadPane>
+  )
+}
+
 function ThreadPane({
   title,
   subtitle,
