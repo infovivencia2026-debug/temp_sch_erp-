@@ -1879,8 +1879,12 @@
   --motion-quick: 110ms;   /* hovers, colour changes, small state flips */
   --motion: 220ms;         /* panels, menus, dialogs, anything that travels */
   --motion-slow: 320ms;    /* a sheet or drawer crossing most of the screen */
-  --motion-enter: 140ms;   /* the arrival of something that was not there */
-  --motion-route: 180ms;   /* a feature screen settling in on navigation */
+  /* The two arrivals were cut with the rest and cut too far: at 140 and 180
+     a screen did not arrive so much as flick on, and the owner said so.
+     These two are the only durations the eye reads as "a new page"; the
+     press, the hover and the travelling panels above stay where they are. */
+  --motion-enter: 200ms;   /* the arrival of something that was not there */
+  --motion-route: 260ms;   /* a feature screen settling in on navigation */
 
   /* THE PRESS AND THE RELEASE ARE NOT THE SAME EVENT, AND THEY WERE TIMED AS
      IF THEY WERE.
