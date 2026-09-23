@@ -38,11 +38,27 @@ const Ctx = createContext<ToastApi>({ ok: () => {}, error: () => {} })
 
 export const useToast = () => useContext(Ctx)
 
+/* THE SAME BAR, REACHABLE FROM OUTSIDE REACT.
+
+   The API client confirms a save that no screen confirmed (lib/save-feedback
+   .ts), and it is not a component. The host registers itself here; the
+   timestamp of the last confirmation lets that fallback stay silent when the
+   screen has already said something better than "Saved". */
+let bus: ToastApi | null = null
+let lastOkAt = 0
+export function toastBus(): ToastApi | null {
+  return bus
+}
+export function lastConfirmationAt(): number {
+  return lastOkAt
+}
+
 export function ToastHost({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Toast[]>([])
 
   const push = useCallback((kind: Kind, message: string, undo?: () => void) => {
     const id = Date.now() + Math.random()
+    if (kind === 'ok') lastOkAt = Date.now()
     setItems((prev) => [...prev.slice(-2), { id, kind, message, undo }])
   }, [])
 
@@ -50,6 +66,11 @@ export function ToastHost({ children }: { children: ReactNode }) {
     ok: useCallback((m: string, u?: () => void) => push('ok', m, u), [push]),
     error: useCallback((m: string) => push('error', m), [push]),
   }
+  useEffect(() => {
+    bus = api
+    return () => { bus = null }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api.ok, api.error])
 
   const dismiss = (id: number) => setItems((prev) => prev.filter((t) => t.id !== id))
 

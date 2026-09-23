@@ -6,6 +6,7 @@
 // the server guarantees is always {error:{code,message,request_id}}.
 
 import { takeOffline } from './outbox'
+import { noteWrite } from './save-feedback'
 
 export class ApiError extends Error {
   constructor(
@@ -102,6 +103,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(0, 'offline', 'No connection. This screen needs the network to load.')
   }
+
+  // The server took the write. If the screen says nothing about it within a
+  // beat, a plain "Saved" is said for it; see lib/save-feedback.ts.
+  if (res.ok && idem) noteWrite(method, path)
 
   if (res.status === 204) return undefined as T
 
