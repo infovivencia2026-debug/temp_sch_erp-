@@ -63,12 +63,10 @@ function importedModules(files: string[]): Set<string> {
 /* Unreachable as of the day this test landed. Sorted, repo-relative, no
    extension. Shrink it; never grow it. */
 const KNOWN = new Set([
-  '+   "features/admissions/Dashboard",',
-  '+   "features/hr/Dashboard",',
-  '+   "features/principal/Dashboard",',
   'features/academics/ExamMonitoring',
   'features/academics/Outcomes',
   'features/admissions/CampaignSequences',
+  'features/admissions/Dashboard',
   'features/analytics/Today',
   'features/bento/BentoMenuBar',
   'features/communication/AbsenceAlerts',
@@ -84,12 +82,14 @@ const KNOWN = new Set([
   'features/faculty/MontessoriTracking',
   'features/faculty/PortfolioBuilder',
   'features/faculty/VirtualClasses',
+  'features/hr/Dashboard',
   'features/learning/CreditBank',
   'features/operations/FeeFiling',
   'features/operations/MDMRegister',
   'features/operations/MDMUtilisation',
   'features/operations/Workspace',
   'features/portal/Forum',
+  'features/principal/Dashboard',
   'features/setup/PeriodUpload',
   'features/students/Alumni',
   'features/students/CertificateTemplates',
