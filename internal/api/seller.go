@@ -159,7 +159,39 @@ func (s *Server) listPlans(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, http.StatusOK, map[string]any{"items": items})
+	/* The vocabulary a plan is written in, sent beside the plans.
+
+	   The editor needs three things the plans themselves do not carry: every
+	   module a school CAN buy (a plan lists only the ones it includes, so a
+	   screen built from plans alone could never offer the rest), a readable
+	   name for each, and the starting points. Serving them from
+	   entitlement.All means the picker cannot drift from the gate -- a module
+	   added there appears here without anybody remembering to add it. */
+	mods := make([]moduleChoice, 0, len(entitlement.All))
+	for _, m := range entitlement.All {
+		/* moduleLabels lives in buy.go, where the public price list already
+		   renders the same eleven names for a head teacher. One map, so the
+		   vendor's editor and the page a school buys from cannot describe the
+		   same module two different ways. Absent a label the key is shown, so
+		   a module added to entitlement.All appears unlabelled rather than
+		   missing -- the failure that gets noticed and fixed. */
+		label := moduleLabels[m]
+		if label == "" {
+			label = m
+		}
+		mods = append(mods, moduleChoice{Key: m, Label: label})
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"items":   items,
+		"modules": mods,
+		"presets": entitlement.Presets,
+	})
+}
+
+// moduleChoice is one tickable module in the plan editor.
+type moduleChoice struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
 }
 
 // --- provisioning ------------------------------------------------------------

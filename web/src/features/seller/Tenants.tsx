@@ -6,7 +6,7 @@ import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
   Table, Td, Badge, Button, ConfirmButton, Field, FormGrid, FormNotice,
-  Input, Select, SkeletonTable, ErrorState, EmptyState, useSort,
+  Input, Select, SkeletonTable, ErrorState, EmptyState, useSort, Checkbox,
 } from '@/components/ui'
 import { cn, formatDate, formatPaise } from '@/lib/utils'
 
@@ -44,9 +44,16 @@ interface Plan {
   name: string
   price_paise: number
   max_students?: number
+  max_campuses?: number
   modules: string[]
   schools: number
 }
+/** One tickable module, named by the server so the picker cannot offer a
+    module the entitlement gate has never heard of. */
+interface ModuleChoice { key: string; label: string }
+/** A starting point for a new plan — see internal/entitlement/presets.go. */
+interface Preset { key: string; name: string; blurb: string; modules: string[] }
+interface PlanList extends List<Plan> { modules?: ModuleChoice[]; presets?: Preset[] }
 interface Handover {
   school: string
   admin_name: string
@@ -150,7 +157,7 @@ export default function Tenants() {
   })
   const plans = useQuery({
     queryKey: ['seller-plans'],
-    queryFn: () => api.get<List<Plan>>('/api/v1/seller/plans'),
+    queryFn: () => api.get<PlanList>('/api/v1/seller/plans'),
   })
 
   const resetAdmin = useMutation({
@@ -372,25 +379,11 @@ export default function Tenants() {
         )}
 
         {view === 'plans' && (
-        <Card>
-          <CardHeader
-            title="Plans"
-            description="What a school can be sold: the student cap, the modules included, and the price."
+          <PlansBoard
+            plans={plans.data?.items ?? []}
+            modules={plans.data?.modules ?? []}
+            presets={plans.data?.presets ?? []}
           />
-          <Table head={['Plan', 'Price', 'Student cap', 'Modules', 'Schools on it']}>
-            {(plans.data?.items ?? []).map((p) => (
-              <tr key={p.code}>
-                <Td className="font-medium">{p.name}</Td>
-                <Td className="tabular-nums">{formatPaise(p.price_paise)}/yr</Td>
-                <Td className="tabular-nums">{p.max_students ?? 'Unlimited'}</Td>
-                <Td className="text-muted-foreground">
-                  {p.modules.length === 0 ? 'Every module' : p.modules.join(', ')}
-                </Td>
-                <Td className="tabular-nums">{p.schools}</Td>
-              </tr>
-            ))}
-          </Table>
-        </Card>
         )}
       </PageBody>
     </>
@@ -855,6 +848,242 @@ function LedgerBoard({ rows, plans }: { rows: Tenant[]; plans: Plan[] }) {
           </tr>
         ))}
       </Table>
+    </Card>
+  )
+}
+
+/* THE PRICE LIST, AND THE FORM THAT WRITES IT.
+
+   Plans have been editable over the API since plans_write.go was built —
+   POST, PUT and a retire that refuses while schools are still on it. This
+   screen showed them in a read-only table, so the one workspace that exists
+   to be changed could only be changed by an engineer with psql. That is the
+   whole gap this fills.
+
+   A plan is eleven yes/no decisions plus a price and two caps, and the
+   eleven are not independent: Hostel without Students is a boarding register
+   with nobody in it. So the form opens from a preset rather than blank —
+   three shapes that match how Indian schools actually buy — and the vendor
+   changes what they like from there. The presets are starting points, not
+   products: nothing stores which one was used, and what is saved is an
+   ordinary plan.
+
+   The module list comes from the server rather than being written here,
+   because a picker that drifts from entitlement.All would offer a tier that
+   switches nothing on. */
+function PlansBoard({
+  plans, modules, presets,
+}: { plans: Plan[]; modules: ModuleChoice[]; presets: Preset[] }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<Plan | 'new' | null>(null)
+
+  const retire = useMutation({
+    mutationFn: (code: string) => api.del(`/api/v1/seller/plans/${code}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['seller-plans'] }),
+  })
+
+  const label = (key: string) => modules.find((m) => m.key === key)?.label ?? key
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Plans"
+          description="What a school can be sold: the student cap, the modules included, and the price."
+          action={
+            <Button size="sm" onClick={() => setEditing(editing === 'new' ? null : 'new')}>
+              {editing === 'new' ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {editing === 'new' ? 'Cancel' : 'New plan'}
+            </Button>
+          }
+        />
+        <Table head={['Plan', 'Price', 'Student cap', 'Modules', 'Schools on it', '']}>
+          {plans.map((p) => (
+            <tr key={p.code}>
+              <Td className="font-medium">
+                {p.name}
+                <span className="block font-mono text-[11.5px] text-muted-foreground">{p.code}</span>
+              </Td>
+              <Td className="tabular-nums">{formatPaise(p.price_paise)}/yr</Td>
+              <Td className="tabular-nums">{p.max_students ?? 'Unlimited'}</Td>
+              <Td className="text-muted-foreground">
+                {/* An empty list means every module, including ones added
+                    after this plan was written. Saying "Every module" rather
+                    than showing eleven names is both shorter and more
+                    accurate — the set is open-ended. */}
+                {p.modules.length === 0
+                  ? 'Every module'
+                  : p.modules.map(label).join(', ')}
+              </Td>
+              <Td className="tabular-nums">{p.schools}</Td>
+              <Td>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setEditing(p)}>Edit</Button>
+                  {/* Retiring is refused by the server while anybody is on
+                      the plan, so the button says what it will do rather
+                      than pretending the row can always go. */}
+                  <ConfirmButton
+                    confirmLabel="Retire"
+                    question={p.schools > 0
+                      ? `${p.schools} school${p.schools === 1 ? ' is' : 's are'} on this plan — the server will refuse.`
+                      : 'It stops being offered on new sales. Schools already signed are untouched.'}
+                    onConfirm={() => retire.mutate(p.code)}
+                    tone="danger"
+                  >
+                    Retire
+                  </ConfirmButton>
+                </div>
+              </Td>
+            </tr>
+          ))}
+        </Table>
+        <FormNotice error={retire.error} />
+      </Card>
+
+      {editing && (
+        <PlanForm
+          plan={editing === 'new' ? null : editing}
+          modules={modules}
+          presets={presets}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </>
+  )
+}
+
+function PlanForm({
+  plan, modules, presets, onClose,
+}: { plan: Plan | null; modules: ModuleChoice[]; presets: Preset[]; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [code, setCode] = useState(plan?.code ?? '')
+  const [name, setName] = useState(plan?.name ?? '')
+  const [rupees, setRupees] = useState(plan ? String(plan.price_paise / 100) : '')
+  const [cap, setCap] = useState(plan?.max_students != null ? String(plan.max_students) : '')
+  const [campuses, setCampuses] = useState(plan?.max_campuses != null ? String(plan.max_campuses) : '')
+  /* An existing plan with no modules means "everything". Ticking all eleven
+     when the form opens would look the same and save something different:
+     the stored empty array keeps up with modules added later, and eleven
+     ticks freezes the plan to today's list. So that state is its own switch. */
+  const [everything, setEverything] = useState(plan != null && plan.modules.length === 0)
+  const [picked, setPicked] = useState<string[]>(plan?.modules ?? [])
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body = {
+        name: name.trim(),
+        price_paise: Math.round(Number(rupees || 0) * 100),
+        max_students: cap.trim() === '' ? null : Number(cap),
+        max_campuses: campuses.trim() === '' ? null : Number(campuses),
+        modules: everything ? [] : picked,
+      }
+      return plan
+        ? api.put(`/api/v1/seller/plans/${plan.code}`, body)
+        : api.post('/api/v1/seller/plans', { ...body, code: code.trim() })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['seller-plans'] })
+      onClose()
+    },
+  })
+
+  const toggle = (key: string) =>
+    setPicked((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]))
+
+  return (
+    <Card>
+      <CardHeader
+        title={plan ? `Edit ${plan.name}` : 'New plan'}
+        description={plan
+          ? 'A school’s agreed price is fixed at signing, so this reaches the next sale only.'
+          : undefined}
+        action={<Button size="sm" variant="ghost" onClick={onClose}><X className="h-3.5 w-3.5" /></Button>}
+      />
+      <form
+        className="px-5 py-5"
+        onSubmit={(e) => { e.preventDefault(); save.mutate() }}
+      >
+        {/* Only on a new plan. Picking a preset over a plan somebody is
+            already selling would silently rewrite its module list, and the
+            row above gives no hint that it had. */}
+        {!plan && presets.length > 0 && (
+          <div className="mb-5">
+            <p className="text-[13px] font-medium">Start from</p>
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+              A starting point, not a product — change anything before you save.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {presets.map((ps) => (
+                <button
+                  key={ps.key}
+                  type="button"
+                  onClick={() => { setPicked(ps.modules); setEverything(false); if (!name.trim()) setName(ps.name) }}
+                  className="rounded-lg border p-3 text-left transition-colors hover:bg-[hsl(var(--surface-hover))]"
+                >
+                  <span className="block text-[13.5px] font-medium">{ps.name}</span>
+                  <span className="mt-1 block text-[12px] text-muted-foreground">{ps.blurb}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <FormGrid>
+          {!plan && (
+            <Field label="Code" hint="Lowercase letters, digits and underscores. It cannot be changed later.">
+              <Input value={code} onChange={setCode} placeholder="academic_2027" />
+            </Field>
+          )}
+          <Field label="Name" hint="What a school sees on its invoice.">
+            <Input value={name} onChange={setName} placeholder="Full academics" />
+          </Field>
+          <Field label="Price a year (₹)">
+            <Input value={rupees} onChange={setRupees} placeholder="90000" />
+          </Field>
+          <Field label="Student cap" hint="Blank means no cap.">
+            <Input value={cap} onChange={setCap} placeholder="1200" />
+          </Field>
+          <Field label="Campus cap" hint="Blank means no cap.">
+            <Input value={campuses} onChange={setCampuses} placeholder="3" />
+          </Field>
+        </FormGrid>
+
+        <div className="mt-5">
+          <p className="text-[13px] font-medium">Modules included</p>
+          <div className="mt-2">
+            <Checkbox
+              checked={everything}
+              onChange={setEverything}
+              label="Every module"
+              hint="Including any added later. Ticking the eleven below instead freezes the plan to today’s list."
+            />
+          </div>
+          {!everything && (
+            <div className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              {modules.map((m) => (
+                <Checkbox
+                  key={m.key}
+                  checked={picked.includes(m.key)}
+                  onChange={() => toggle(m.key)}
+                  label={m.label}
+                />
+              ))}
+            </div>
+          )}
+          {!everything && picked.length === 0 && (
+            <p className="mt-2 text-[12.5px] text-warning">
+              Nothing is ticked. A plan with no modules sells a school a sign-in and nothing behind it.
+            </p>
+          )}
+        </div>
+
+        <FormNotice error={save.error} />
+        <div className="mt-4">
+          <Button type="submit" disabled={save.isPending || !name.trim() || (!plan && !code.trim())}>
+            {save.isPending ? 'Saving…' : plan ? 'Save changes' : 'Create plan'}
+          </Button>
+        </div>
+      </form>
     </Card>
   )
 }
