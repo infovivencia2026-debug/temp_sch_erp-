@@ -118,12 +118,19 @@ func (s *Server) amendMessage(w http.ResponseWriter, r *http.Request, unsend boo
 			return errChatTooOld
 		}
 		if unsend {
+			/* ONLY deleted_at.
+
+			   This blanked the body and the attachments too, and both tables
+			   carry a check constraint saying a message must have one or the
+			   other -- so every withdrawal violated it and came back as
+			   "something went wrong". The row keeps what it said; deleted_at
+			   is the tombstone, and every read already returns an empty body
+			   and no attachments once it is set. That is the better record in
+			   any case: a message withdrawn in front of a parent is still a
+			   thing the school said, and a school's record should be able to
+			   show that it was said and then taken back. */
 			_, err := tx.Exec(r.Context(),
-				/* An empty list, not NULL: the column is NOT NULL with a default
-				   of '[]', so setting it to NULL failed the constraint and every
-				   withdrawal came back as "something went wrong". */
-				`UPDATE `+table+` SET body = '', attachments = '[]'::jsonb, deleted_at = now()
-				  WHERE id = $1`, mid)
+				`UPDATE `+table+` SET deleted_at = now() WHERE id = $1`, mid)
 			return err
 		}
 		_, err := tx.Exec(r.Context(),

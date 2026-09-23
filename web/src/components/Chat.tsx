@@ -234,8 +234,16 @@ export function ChatThread({
   useEffect(() => {
     setOutgoing((cur) => {
       if (cur.length === 0) return cur
-      const landed = new Set(messages.filter((m) => m.mine).map((m) => m.body))
-      const kept = cur.filter((m) => m.pending || m.failed || !landed.has(m.body))
+      /* A message is "landed" only if the server's copy is at least as new as
+         the stand-in. Matching on the words alone retired the second "hi" the
+         instant it was drawn, because the first one was already in the thread
+         -- so the message disappeared and came back when the refetch arrived. */
+      const kept = cur.filter((m) => {
+        if (m.pending || m.failed) return true
+        return !messages.some(
+          (x) => x.mine && x.body === m.body && x.at >= m.at.slice(0, x.at.length),
+        )
+      })
       return kept.length === cur.length ? cur : kept
     })
   }, [messages])
@@ -723,7 +731,10 @@ export function ChatThread({
                   {editing ? 'Editing your message' : `Replying to ${replyTo?.sender ?? 'this message'}`}
                 </div>
                 <div className="truncate text-muted-foreground">
-                  {(editing ?? replyTo)?.body || 'Attachment'}
+                  {(() => {
+                    const t = editing ?? replyTo
+                    return t ? t.body || describe(t) : ''
+                  })()}
                 </div>
               </div>
               <button
@@ -1011,6 +1022,15 @@ function VoiceNote({ a }: { a: Attachment }) {
       </button>
     </div>
   )
+}
+
+/** What a message with no words is, in words. */
+function describe(m: ChatMessage): string {
+  const a = (m.attachments ?? [])[0]
+  if (!a) return 'Message'
+  if (isAudio(a)) return 'Voice note'
+  if (isImage(a)) return 'Photo'
+  return a.name
 }
 
 /** Seconds as 0:07 / 1:23. */
@@ -1344,7 +1364,7 @@ function MessageActions({
           )}
         >
           <p className="line-clamp-6 whitespace-pre-wrap break-words">
-            {m.deleted ? 'This message was withdrawn.' : m.body || 'Attachment'}
+            {m.deleted ? 'This message was withdrawn.' : m.body || describe(m)}
           </p>
         </div>
       </div>
@@ -1357,7 +1377,10 @@ function MessageActions({
         {onReply && (
           <MenuItem icon={<Reply className="h-[19px] w-[19px]" />} label="Reply" onClick={() => { onClose(); onReply() }} />
         )}
-        <MenuItem icon={<Copy className="h-[19px] w-[19px]" />} label={copied ? 'Copied' : 'Copy'} onClick={() => void copy()} />
+        {/* Nothing to copy from a voice note or a photograph. */}
+        {!!m.body && (
+          <MenuItem icon={<Copy className="h-[19px] w-[19px]" />} label={copied ? 'Copied' : 'Copy'} onClick={() => void copy()} />
+        )}
         {onDelete && (
           <MenuItem
             icon={<Trash2 className="h-[19px] w-[19px]" />}
