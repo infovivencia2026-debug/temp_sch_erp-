@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDown, Check, CheckCheck, Clock, Download, FileText, Image as ImageIcon,
-  Mic, MoreVertical, Paperclip, Pencil, Reply, Search, Send, Square, Trash2, X,
+  Mic, Paperclip, Pencil, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Loading } from '@/components/ui'
@@ -342,6 +342,49 @@ export function ChatThread({
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [editing, setEditing] = useState<ChatMessage | null>(null)
 
+  /* PRESS AND HOLD A MESSAGE.
+   *
+   * The actions hid behind a control that appeared on hover, which is a thing
+   * a finger cannot do: on a phone -- where this product mostly is -- reply,
+   * edit and unsend were unreachable unless you happened to find the faint
+   * dot beside the bubble. Holding a message is the gesture every messaging
+   * app has taught people, and a right-click is the same gesture on a desk.
+   *
+   * 450ms, and any movement cancels it: a press that turns into a scroll is a
+   * scroll, and opening a menu under a thumb that is already moving is how
+   * you send a message you meant to read. */
+  const [acting, setActing] = useState<ChatMessage | null>(null)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdFrom = useRef<{ x: number; y: number } | null>(null)
+
+  const cancelHold = useCallback(() => {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = null
+    holdFrom.current = null
+  }, [])
+
+  const holdHandlers = (m: ChatMessage) =>
+    m.deleted || m.pending || m.failed
+      ? {}
+      : {
+          onPointerDown: (e: React.PointerEvent) => {
+            if (e.pointerType === 'mouse') return // the right-click does this
+            holdFrom.current = { x: e.clientX, y: e.clientY }
+            holdTimer.current = setTimeout(() => setActing(m), 450)
+          },
+          onPointerMove: (e: React.PointerEvent) => {
+            const p = holdFrom.current
+            if (!p) return
+            if (Math.abs(e.clientX - p.x) > 8 || Math.abs(e.clientY - p.y) > 8) cancelHold()
+          },
+          onPointerUp: cancelHold,
+          onPointerCancel: cancelHold,
+          onContextMenu: (e: React.MouseEvent) => {
+            e.preventDefault()
+            setActing(m)
+          },
+        }
+
   // The other party is typing — a live hint that expires by itself.
   const otherTyping = useTyping(live)
 
@@ -440,18 +483,11 @@ export function ChatThread({
                 <div className={cn('group flex items-end gap-1', last ? 'mb-2' : 'mb-[3px]', m.mine ? 'justify-end' : 'justify-start')}>
                   {/* Answer this one. Left of your own bubble, right of theirs,
                       so the control never sits where the text begins. */}
-                  {!m.deleted && !m.pending && !m.failed && canSend && m.mine && (
-                    <BubbleActions
-                      m={m}
-                      onReply={() => setReplyTo(m)}
-                      onEdit={onEdit ? () => { setEditing(m); setDraft(m.body) } : undefined}
-                      onUnsend={onUnsend ? () => void onUnsend(m.id) : undefined}
-                    />
-                  )}
                   <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', m.mine ? 'items-end' : 'items-start')}>
                   <div
+                    {...holdHandlers(m)}
                     className={cn(
-                      'chat-bubble relative px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
+                      'chat-bubble relative select-none px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
                       m.mine ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
@@ -505,9 +541,6 @@ export function ChatThread({
                       </p>
                     )}
                   </div>
-                  {!m.deleted && !m.pending && !m.failed && canSend && !m.mine && (
-                    <BubbleActions m={m} onReply={() => setReplyTo(m)} />
-                  )}
                 </div>
               </div>
             )
@@ -546,6 +579,16 @@ export function ChatThread({
             </span>
           )}
         </button>
+      )}
+
+      {acting && canSend && (
+        <MessageActions
+          m={acting}
+          onClose={() => setActing(null)}
+          onReply={() => setReplyTo(acting)}
+          onEdit={onEdit && acting.mine ? () => { setEditing(acting); setDraft(acting.body) } : undefined}
+          onUnsend={onUnsend && acting.mine ? () => void onUnsend(acting.id) : undefined}
+        />
       )}
 
       {canSend ? (
@@ -899,66 +942,61 @@ const chatCSS = `
    -- change or withdraw it. A menu rather than three buttons on every bubble,
    because a thread of two hundred messages with six hundred controls in it is
    not a conversation. */
-function BubbleActions({
+/* WHAT A HELD MESSAGE OFFERS.
+
+   A sheet at the foot of the screen rather than a menu pinned to the bubble:
+   the bubble may be anywhere, including under the thumb that just pressed it,
+   and a list at the bottom edge is where a phone puts choices. The scrim
+   takes a tap to dismiss, Escape does the same, and the quoted line at the
+   top says which message this is about -- a held message and its menu appear
+   together, and by then the finger has covered the text. */
+function MessageActions({
   m,
+  onClose,
   onReply,
   onEdit,
   onUnsend,
 }: {
   m: ChatMessage
+  onClose: () => void
   onReply: () => void
   onEdit?: () => void
   onUnsend?: () => void
 }) {
-  const [open, setOpen] = useState(false)
-  const mine = m.mine && (onEdit || onUnsend)
-  if (!mine) {
-    return (
-      <button
-        type="button"
-        onClick={onReply}
-        title="Reply"
-        aria-label="Reply to this message"
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-black/5 focus:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-60"
-      >
-        <Reply className="h-4 w-4" />
-      </button>
-    )
-  }
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onClose])
+
   return (
-    <div className="relative shrink-0">
+    <div className="fixed inset-0 z-[120] flex items-end justify-center" role="dialog" aria-modal="true">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="More"
-        className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-black/5 focus:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-60"
+        aria-label="Close"
+        className="absolute inset-0 cursor-default bg-black/40"
+        onClick={onClose}
+      />
+      <div
+        className="relative mb-0 w-full max-w-[420px] rounded-t-2xl bg-card pb-[max(12px,env(safe-area-inset-bottom))] pt-2 shadow-2xl"
       >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <>
-          {/* A click anywhere else closes it; no library, no portal. */}
-          <button
-            type="button"
-            aria-hidden
-            tabIndex={-1}
-            className="fixed inset-0 z-20 cursor-default"
-            onClick={() => setOpen(false)}
+        <div aria-hidden className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
+        <p className="truncate px-5 pb-2 text-[12.5px] text-muted-foreground">
+          {m.body || 'Attachment'}
+        </p>
+        <MenuItem icon={<Reply className="h-[18px] w-[18px]" />} label="Reply" onClick={() => { onClose(); onReply() }} />
+        {onEdit && (
+          <MenuItem icon={<Pencil className="h-[18px] w-[18px]" />} label="Edit" onClick={() => { onClose(); onEdit() }} />
+        )}
+        {onUnsend && (
+          <MenuItem
+            icon={<Trash2 className="h-[18px] w-[18px]" />}
+            label="Unsend"
+            danger
+            onClick={() => { onClose(); onUnsend() }}
           />
-          <div className="absolute bottom-8 right-0 z-30 w-40 overflow-hidden rounded-lg border bg-card py-1 text-[13px] shadow-lg">
-            <MenuItem icon={<Reply className="h-4 w-4" />} label="Reply" onClick={() => { setOpen(false); onReply() }} />
-            {onEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => { setOpen(false); onEdit() }} />}
-            {onUnsend && (
-              <MenuItem
-                icon={<Trash2 className="h-4 w-4" />}
-                label="Unsend"
-                danger
-                onClick={() => { setOpen(false); onUnsend() }}
-              />
-            )}
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -979,7 +1017,7 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-accent',
+        'flex w-full items-center gap-3 px-5 py-3 text-left text-[14.5px] hover:bg-accent',
         danger && 'text-destructive',
       )}
     >
