@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDown, Check, CheckCheck, Clock, Download, FileText, Image as ImageIcon,
-  Mic, Paperclip, Pencil, Reply, Search, Send, Square, Trash2, X,
+  Copy, Mic, Paperclip, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Loading } from '@/components/ui'
@@ -353,7 +353,7 @@ export function ChatThread({
    * 450ms, and any movement cancels it: a press that turns into a scroll is a
    * scroll, and opening a menu under a thumb that is already moving is how
    * you send a message you meant to read. */
-  const [acting, setActing] = useState<ChatMessage | null>(null)
+  const [acting, setActing] = useState<{ m: ChatMessage; rect: DOMRect } | null>(null)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holdFrom = useRef<{ x: number; y: number } | null>(null)
 
@@ -363,14 +363,28 @@ export function ChatThread({
     holdFrom.current = null
   }, [])
 
+  /* The hold is confirmed the way a phone confirms one: a tick of haptic and a
+     small pop, at the moment the menu appears rather than when the finger
+     lands, so a press that became a scroll makes no sound. */
+  const confirmHold = useCallback((m: ChatMessage, el: HTMLElement) => {
+    setActing({ m, rect: el.getBoundingClientRect() })
+    try {
+      navigator.vibrate?.(12)
+    } catch {
+      /* iOS has no vibrate; the pop below is what it gets. */
+    }
+    popSound()
+  }, [])
+
   const holdHandlers = (m: ChatMessage) =>
-    m.deleted || m.pending || m.failed
+    m.pending || m.failed
       ? {}
       : {
-          onPointerDown: (e: React.PointerEvent) => {
+          onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
             if (e.pointerType === 'mouse') return // the right-click does this
+            const el = e.currentTarget
             holdFrom.current = { x: e.clientX, y: e.clientY }
-            holdTimer.current = setTimeout(() => setActing(m), 450)
+            holdTimer.current = setTimeout(() => confirmHold(m, el), 500)
           },
           onPointerMove: (e: React.PointerEvent) => {
             const p = holdFrom.current
@@ -379,9 +393,9 @@ export function ChatThread({
           },
           onPointerUp: cancelHold,
           onPointerCancel: cancelHold,
-          onContextMenu: (e: React.MouseEvent) => {
+          onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => {
             e.preventDefault()
-            setActing(m)
+            confirmHold(m, e.currentTarget)
           },
         }
 
@@ -581,13 +595,14 @@ export function ChatThread({
         </button>
       )}
 
-      {acting && canSend && (
+      {acting && (
         <MessageActions
-          m={acting}
+          m={acting.m}
+          rect={acting.rect}
+          mine={acting.m.mine}
           onClose={() => setActing(null)}
-          onReply={() => setReplyTo(acting)}
-          onEdit={onEdit && acting.mine ? () => { setEditing(acting); setDraft(acting.body) } : undefined}
-          onUnsend={onUnsend && acting.mine ? () => void onUnsend(acting.id) : undefined}
+          onReply={canSend ? () => setReplyTo(acting.m) : undefined}
+          onDelete={onUnsend && acting.m.mine && !acting.m.deleted ? () => void onUnsend(acting.m.id) : undefined}
         />
       )}
 
@@ -936,64 +951,156 @@ const chatCSS = `
 .chat-composer { resize: none; background-color: #ffffff; color: #111b21; }
 .chat-composer::placeholder { color: #8696a0; }
 .chat-daypill { background-color: #ffffff; color: #54656f; box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); }
+
+/* A HELD MESSAGE, AND THE ROOM GOING QUIET AROUND IT.
+
+   The scrim blurs the thread rather than merely darkening it, so the message
+   that was held is the only thing in focus; the copy of it is lifted with a
+   shadow and a fraction of scale, which is what makes it read as the same
+   bubble rising rather than a second one appearing. The menu is the dark
+   translucent surface a phone uses for this, whatever theme the rest of the
+   app is in: it is a system object, not part of the page. */
+.chat-scrim {
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: chat-scrim-in 140ms ease-out both;
+}
+@keyframes chat-scrim-in { from { opacity: 0 } to { opacity: 1 } }
+.chat-lift {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  animation: chat-lift-in 160ms cubic-bezier(.2,.8,.3,1) both;
+  transform-origin: center;
+}
+@keyframes chat-lift-in {
+  from { transform: scale(.97); }
+  to   { transform: scale(1.02); }
+}
+.chat-menu {
+  background: rgba(35, 35, 38, 0.95);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4);
+  animation: chat-menu-in 150ms cubic-bezier(.2,.8,.3,1) both;
+}
+@keyframes chat-menu-in {
+  from { opacity: 0; transform: scale(.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.chat-menu__row {
+  height: 44px;
+  color: #f2f2f7;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+}
+.chat-menu__row:last-child { border-bottom: 0; }
+.chat-menu__row:active { background: rgba(255, 255, 255, 0.1); }
+.chat-menu__row--danger { color: #ff453a; }
 `
 
-/* What you can do to one message: answer it, and -- if it is yours and recent
-   -- change or withdraw it. A menu rather than three buttons on every bubble,
-   because a thread of two hundred messages with six hundred controls in it is
-   not a conversation. */
-/* WHAT A HELD MESSAGE OFFERS.
-
-   A sheet at the foot of the screen rather than a menu pinned to the bubble:
-   the bubble may be anywhere, including under the thumb that just pressed it,
-   and a list at the bottom edge is where a phone puts choices. The scrim
-   takes a tap to dismiss, Escape does the same, and the quoted line at the
-   top says which message this is about -- a held message and its menu appear
-   together, and by then the finger has covered the text. */
+/* THE PRESSED MESSAGE, LIFTED OUT OF THE THREAD.
+ *
+ * A menu pinned beside a bubble is unreadable on a phone: the bubble may be
+ * anywhere, the thumb is already on it, and the rest of the conversation goes
+ * on competing for the eye. So the whole thread is blurred and darkened, the
+ * message that was held is redrawn in exactly the place it occupied -- so it
+ * appears to rise out of the page rather than to be replaced by a copy -- and
+ * the actions sit under it.
+ *
+ * Three of them, and no more: answer it, take its words, or take it back.
+ * Delete is the author's own recent message only, which is what the server
+ * will allow; on anybody else's it is simply not offered rather than offered
+ * and refused.
+ *
+ * Above or below the bubble, whichever has room. A message near the foot of
+ * the screen gets its menu above it, which is the arrangement a phone uses
+ * and the one that keeps a thumb from covering the choices it is making. */
 function MessageActions({
   m,
+  rect,
+  mine,
   onClose,
   onReply,
-  onEdit,
-  onUnsend,
+  onDelete,
 }: {
   m: ChatMessage
+  rect: DOMRect
+  mine: boolean
   onClose: () => void
-  onReply: () => void
-  onEdit?: () => void
-  onUnsend?: () => void
+  onReply?: () => void
+  onDelete?: () => void
 }) {
+  const [copied, setCopied] = useState(false)
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [onClose])
 
+  const vh = typeof window === 'undefined' ? 800 : window.innerHeight
+  const menuH = 44 * [onReply, true, onDelete].filter(Boolean).length + 16
+  // Below the bubble if it fits, otherwise above it.
+  const below = rect.bottom + 8 + menuH < vh - 16
+  const top = below ? rect.bottom + 8 : Math.max(12, rect.top - 8 - menuH)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(m.body || '')
+      setCopied(true)
+      setTimeout(onClose, 450)
+    } catch {
+      // No clipboard permission: closing silently is better than an error
+      // about a thing the person can do by selecting the text.
+      onClose()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[130]" role="dialog" aria-modal="true">
+      {/* The thread, still there and plainly out of focus. */}
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 cursor-default bg-black/40"
         onClick={onClose}
+        className="chat-scrim absolute inset-0 cursor-default"
       />
+
+      {/* The held message, where it was. */}
       <div
-        className="relative mb-0 w-full max-w-[420px] rounded-t-2xl bg-card pb-[max(12px,env(safe-area-inset-bottom))] pt-2 shadow-2xl"
+        className="pointer-events-none absolute"
+        style={{
+          top: rect.top,
+          left: mine ? undefined : rect.left,
+          right: mine ? Math.max(8, window.innerWidth - rect.right) : undefined,
+          width: rect.width,
+        }}
       >
-        <div aria-hidden className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
-        <p className="truncate px-5 pb-2 text-[12.5px] text-muted-foreground">
-          {m.body || 'Attachment'}
-        </p>
-        <MenuItem icon={<Reply className="h-[18px] w-[18px]" />} label="Reply" onClick={() => { onClose(); onReply() }} />
-        {onEdit && (
-          <MenuItem icon={<Pencil className="h-[18px] w-[18px]" />} label="Edit" onClick={() => { onClose(); onEdit() }} />
+        <div
+          className={cn(
+            'chat-bubble chat-lift px-[16px] py-[12px] text-[13.5px] leading-[1.45]',
+            mine ? 'chat-mine' : 'chat-theirs',
+          )}
+        >
+          <p className="line-clamp-6 whitespace-pre-wrap break-words">
+            {m.deleted ? 'This message was withdrawn.' : m.body || 'Attachment'}
+          </p>
+        </div>
+      </div>
+
+      {/* The choices. */}
+      <div
+        className="chat-menu absolute w-[220px] overflow-hidden rounded-[14px]"
+        style={{ top, left: mine ? undefined : rect.left, right: mine ? Math.max(8, window.innerWidth - rect.right) : undefined }}
+      >
+        {onReply && (
+          <MenuItem icon={<Reply className="h-[19px] w-[19px]" />} label="Reply" onClick={() => { onClose(); onReply() }} />
         )}
-        {onUnsend && (
+        <MenuItem icon={<Copy className="h-[19px] w-[19px]" />} label={copied ? 'Copied' : 'Copy'} onClick={() => void copy()} />
+        {onDelete && (
           <MenuItem
-            icon={<Trash2 className="h-[18px] w-[18px]" />}
-            label="Unsend"
+            icon={<Trash2 className="h-[19px] w-[19px]" />}
+            label="Delete"
             danger
-            onClick={() => { onClose(); onUnsend() }}
+            onClick={() => { onClose(); onDelete() }}
           />
         )}
       </div>
@@ -1017,14 +1124,42 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 px-5 py-3 text-left text-[14.5px] hover:bg-accent',
-        danger && 'text-destructive',
+        'chat-menu__row flex w-full items-center justify-between gap-3 px-4 text-left text-[15px]',
+        danger && 'chat-menu__row--danger',
       )}
     >
-      {icon}
       {label}
+      {icon}
     </button>
   )
+}
+
+/* The small pop a phone makes when a press is taken.
+ *
+ * Synthesised rather than shipped: a file would be another request, another
+ * thing to cache and another thing to get wrong on a browser that will not
+ * autoplay it. A short sine falling from 880Hz with an exponential tail is
+ * the click; it is quiet, it is 40ms, and if the browser has no audio context
+ * it simply does not happen. */
+function popSound() {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctx) return
+    const ctx = new Ctx()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.04)
+    gain.gain.setValueAtTime(0.06, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05)
+    osc.connect(gain).connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.06)
+    osc.onended = () => void ctx.close()
+  } catch {
+    /* No audio, no sound. The haptic and the menu are the feedback. */
+  }
 }
 
 /* A VOICE NOTE.
