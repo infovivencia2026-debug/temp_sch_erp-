@@ -124,6 +124,11 @@ export default function PortalFees() {
      one term of three scans a code for one term. */
   const inst = useSession().institution
   const upiVpa = inst?.upi_vpa ?? ''
+  /* The test button exists only where the server says so. In production it
+     is gone whether or not the school has set a UPI address: a family whose
+     school has not must see "pay at the office", not a button that would
+     clear their dues for free. */
+  const simulated = !upiVpa && !!inst?.simulated_pay
   const upiPayee = inst?.upi_payee_name || inst?.name || ''
   const [upiInvoice, setUpiInvoice] = useState<string | null>(null)
 
@@ -249,7 +254,7 @@ export default function PortalFees() {
           </div>
         )}
 
-        {d.outstanding_paise > 0 && !upiVpa && (
+        {d.outstanding_paise > 0 && simulated && (
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div>
@@ -381,7 +386,7 @@ export default function PortalFees() {
                         {t('portal.fees.action_pay_upi', { amount: formatPaise(i.due_paise) })}
                       </Button>
                     )}
-                    {i.due_paise > 0 && !upiVpa && (
+                    {i.due_paise > 0 && simulated && (
                       <Button
                         size="sm"
                         disabled={pay.isPending}

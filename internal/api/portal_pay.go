@@ -53,6 +53,18 @@ type portalPayRequest struct {
 }
 
 func (s *Server) portalSimulatedPay(w http.ResponseWriter, r *http.Request) {
+	/* NOT IN PRODUCTION. The header comment's "why it is still safe to
+	   expose" held for a test box and not for a live school: the rows it
+	   writes are real receipts against real invoices, the collection totals
+	   count them, and nothing filters the SIMULATED- stamp back out. A
+	   school without a UPI address configured was showing families a button
+	   that settled their dues for free. 404 rather than 403, matching every
+	   other portal refusal, so a probing client learns nothing. The session
+	   carries simulated_pay=false so the screen never draws the button. */
+	if s.Production {
+		httpx.NotFound(w, r)
+		return
+	}
 	id := httpx.IdentityFrom(r.Context())
 	student, ok := s.whichChild(w, r)
 	if !ok {

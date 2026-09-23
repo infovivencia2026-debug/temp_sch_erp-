@@ -74,6 +74,11 @@ type institution struct {
 	// name here so callers never have to.
 	UPIVPA       string `json:"upi_vpa,omitempty"`
 	UPIPayeeName string `json:"upi_payee_name,omitempty"`
+	/* Whether the portal may offer the no-money test payment. False in
+	   production, where the endpoint answers 404, so the screen must not
+	   draw a button that would fail -- and must never draw one that would
+	   succeed. See portal_pay.go. */
+	SimulatedPay bool `json:"simulated_pay"`
 }
 
 // subscriptionState is the commercial half of "who am I", alongside the
@@ -237,6 +242,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			if err == nil {
+				inst.SimulatedPay = !s.Production
 				resp.Institution = &inst
 			}
 		}

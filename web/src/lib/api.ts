@@ -225,6 +225,9 @@ export interface SessionResponse {
     // no screen offers a UPI code. The payee name is already defaulted to the
     // school's name by the server.
     upi_vpa?: string; upi_payee_name?: string
+    /** The no-money test payment is offered only where the server allows
+        it -- never in production, where the endpoint is 404. */
+    simulated_pay?: boolean
   }
   permissions: string[]
   modules?: { module: string; enabled: boolean }[]

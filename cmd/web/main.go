@@ -116,6 +116,7 @@ func run() error {
 		Storage:      store,
 		FileStoreDir: cfg.FileStoreDir,
 		BaseURL:      cfg.BaseURL,
+		Production:   cfg.IsProduction(),
 	}
 	// Sign-in attempts are written to login_events and raise the
 	// principal's alerts; the auth package only describes them.

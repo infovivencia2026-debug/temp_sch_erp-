@@ -47,6 +47,18 @@ type Server struct {
 	// test sets it to walk a limiter through its window.
 	Clock      ratelimit.Clock
 	limitsOnce sync.Once
+
+	/* Production is APP_ENV=production, and it exists for one gate.
+
+	   The parent portal's "pay" button is a simulation -- it records a
+	   payment through the real fees.Collect with no money moving, so the
+	   family's side of the fee flow could be exercised before a gateway
+	   existed. That was safe on a test box. Mounted unconditionally it was
+	   also live for every school: a parent whose school had not yet set a
+	   UPI address was shown a button that cleared real dues with a real
+	   receipt, and the principal's "Collected" tile counted it. Nothing
+	   downstream reads the SIMULATED- stamp. See portal_pay.go. */
+	Production bool
 }
 
 // Routes returns the /api/v1 subtree.
