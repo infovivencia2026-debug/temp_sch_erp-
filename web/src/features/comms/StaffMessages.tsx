@@ -201,17 +201,28 @@ export default function StaffMessages() {
      screen, which is what the tick is supposed to mean. */
   const seenStaff = () => {
     if (openWith) void api.post(`/api/v1/chat/staff-thread/read?with=${openWith}`, {})
-      .then(() => qc.invalidateQueries({ queryKey: ['staff-threads'] }))
+      .then(() => {
+        qc.invalidateQueries({ queryKey: ['staff-threads'] })
+        qc.invalidateQueries({ queryKey: ['notifications'] })
+      })
       .catch(() => {})
   }
   const seenParent = () => {
-    const teacher = openParent?.teacher_user_id
-    if (!openChild || !openWith) return
+    /* The teacher on the thread. The list omits it on a teacher's own inbox
+       -- there is one teacher in it and it is them -- so it was being left off
+       the call, which needs all three ids and answered 400. Nothing was
+       marked, and the tab kept its unread count over a conversation that had
+       plainly been read. */
+    const teacher = openParent?.teacher_user_id ?? me
+    if (!openChild || !openWith || !teacher) return
     void api.post(
       `/api/v1/chat/parent-thread/read?student_id=${openChild}&parent_user_id=${openWith}` +
-      (teacher ? `&teacher_user_id=${teacher}` : ''),
+      `&teacher_user_id=${teacher}`,
       {},
-    ).then(() => qc.invalidateQueries({ queryKey: ['parent-threads'] })).catch(() => {})
+    ).then(() => {
+      qc.invalidateQueries({ queryKey: ['parent-threads'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    }).catch(() => {})
   }
 
   const editMessage = (channel: 'staff' | 'parent') => async (id: string, body: string) => {
@@ -283,8 +294,14 @@ export default function StaffMessages() {
   /* The badges count both lists whole, never the filtered view: a tab that
      says "0 unread" because a name was typed in the box is a tab lying about
      the school. */
-  const staffUnread = all.reduce((n, t) => n + t.unread, 0)
-  const parentUnread = (parentThreads.data?.items ?? []).reduce((n, t) => n + t.unread, 0)
+  /* A conversation being read does not count as waiting. The server catches
+     up a moment later; until it does, the tab must not claim there are two
+     unread messages in the thread somebody is looking at. */
+  const staffUnread = all.reduce((n, t) => n + (t.user_id === openWith ? 0 : t.unread), 0)
+  const parentUnread = (parentThreads.data?.items ?? []).reduce(
+    (n, t) => n + (t.student_id === openChild && t.parent_user_id === openWith ? 0 : t.unread),
+    0,
+  )
   const unreadTotal = staffUnread + parentUnread
 
   return (
