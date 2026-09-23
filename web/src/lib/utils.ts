@@ -7,9 +7,17 @@ export function cn(...inputs: ClassValue[]) {
 
 // Paise, not rupees: money is stored as bigint paise throughout the schema
 // (invoices.net_paise, payments.amount_paise) so no total is ever a float.
+/* Paise are shown when there are paise.
+
+   Every amount was rounded to the rupee, so a balance of Rs 1.38 read as
+   Rs 1 on the ledger while the counter asked for 1.38 -- two figures for
+   one fact. A whole-rupee amount still reads as a whole rupee; anything
+   else carries its two decimals. */
 export function formatPaise(paise: number, locale = 'en-IN') {
+  const whole = Math.round(paise) % 100 === 0
   return new Intl.NumberFormat(locale, {
-    style: 'currency', currency: 'INR', maximumFractionDigits: 0,
+    style: 'currency', currency: 'INR',
+    minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2,
   }).format(paise / 100)
 }
 
