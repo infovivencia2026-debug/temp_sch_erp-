@@ -1,7 +1,7 @@
 import { LoaderBlock } from '@/components/Loader'
 import { Component, Suspense, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useCatalog, usable } from '@/lib/catalog'
+import { useCatalogIfAny, usable } from '@/lib/catalog'
 import { useLayout } from '@/lib/layout'
 import '../portal/parent.css'
 import { bentoComponentFor } from './bento-registry'
@@ -46,9 +46,10 @@ import { OfflineBanner } from '@/components/OfflineBanner'
     section which actually opens. Anything else — /account, an unknown role, a
     section this account does not hold — resolves to nothing and therefore
     falls through to classic. */
-function useRouteFeatureKey(override?: string): string | undefined {
-  const catalog = useCatalog()
+export function useRouteFeatureKey(override?: string): string | undefined {
+  const catalog = useCatalogIfAny()
   const { pathname } = useLocation()
+  if (!catalog) return undefined
 
   /* A pane names its own path. The browser's location describes one pane of a
      split — the focused one — so resolving from it would give all four panes

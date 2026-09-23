@@ -17,7 +17,10 @@ import { join, resolve, relative, normalize, dirname } from 'node:path'
  * rather than work waiting for a door -- portal/Alerts against the wired
  * Notifications, ops2/Hostel against WardenDay, and so on.
  *
- * The thirty-two left are not duplicates. Each one is the ONLY caller of at
+ * The thirty-two left are not duplicates. (Three classic dashboards joined
+ * them on 2026-09-23 when the boards became the Home on both layouts --
+ * principal, admissions, HR -- superseded, not yet deleted: each may still
+ * be the only caller of an endpoint the board does not read.) Each one is the ONLY caller of at
  * least one endpoint the server actually serves, so deleting it would strand
  * a working API with nothing to reach it. Whether each gets a catalogue key
  * or goes is a product decision a test cannot make, so this freezes them.
@@ -60,6 +63,9 @@ function importedModules(files: string[]): Set<string> {
 /* Unreachable as of the day this test landed. Sorted, repo-relative, no
    extension. Shrink it; never grow it. */
 const KNOWN = new Set([
+  '+   "features/admissions/Dashboard",',
+  '+   "features/hr/Dashboard",',
+  '+   "features/principal/Dashboard",',
   'features/academics/ExamMonitoring',
   'features/academics/Outcomes',
   'features/admissions/CampaignSequences',

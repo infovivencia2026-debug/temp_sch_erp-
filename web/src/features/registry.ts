@@ -49,6 +49,7 @@ import { examControllerKeys } from './exams/exam-controller-keys'
 import { itAdminKeys } from './super_admin/it-admin-keys'
 import { operationsKeys } from './operations/operations-keys'
 import { driverKeys } from './operations/driver-keys'
+import { classicHomeKeys } from './bento/classic-home-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -174,12 +175,10 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
 
-  'institution_admin.home.dashboard': screen(() => import('./principal/Dashboard')),
   'institution_admin.academics.attendance_audit': screen(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.standard.attendance_overview': screen(() => import('./principal/AttendanceMonitoring')),
   'institution_admin.directory_workload.faculty_directory': screen(() => import('./hod/Department')),
   'institution_admin.directory_workload.teacher_workload_timetable_overview': screen(() => import('./hod/Department')),
-  'faculty.home.todays_classes': screen(() => import('./faculty/TodaysClasses')),
   'faculty.home.my_work': screen(() => import('./faculty/MyWork')),
   'faculty.home.my_calendar': screen(() => import('./faculty/MyCalendar')),
 
@@ -238,8 +237,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
    * same desk, and none of the admissions decisions, which are not this
    * person's to make. */
   'front_office.my_profile.my_pay': screen(() => import('./me/MyPay')),
-  'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
-  'student.home.my_day': screen(() => import('./portal/Portal')),
   'student.attendance.attendance': screen(() => import('./portal/Portal')),
   'student.timetable.timetable': screen(() => import('./shared/Timetable')),
   /* One Dashboard, where there were four entries.
@@ -250,7 +247,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
      entry for something that is not a screen — the notifications already
      arrive, on the bell and on the phone, and a page about them tells somebody
      what is already happening to them. */
-  'parent.home.dashboard': screen(() => import('./portal/Portal')),
   'parent.attendance.attendance': screen(() => import('./portal/Portal')),
   'admissions.reports.admission_reports': screen(() => import('./admissions/Pipeline')),
   'institution_admin.admissions.admissions_pipeline': screen(() => import('./admissions/Pipeline')),
@@ -563,7 +559,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'hr.hiring_training.staff_hiring': screen(() => import('./hr/Recruitment')),
   'hr.hiring_training.staff_performance_reviews': screen(() => import('./hr/Appraisal')),
   'hr.hiring_training.staff_training_development': screen(() => import('./hr/Training')),
-  'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   'hr.attendance.staff_register': screen(() => import('./hr/StaffAttendance')),
   'hr.attendance.staff_duty_roster': screen(() => import('./hr/Rostering')),
   'hr.attendance.staff_working_hours': screen(() => import('./hr/WorkPatterns')),
@@ -617,6 +612,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...teachingKeys,
   ...boardKeys,
   ...messagingKeys,
+  // Last on purpose: one Home per role on both layouts. See bento/classic-home-keys.ts.
+  ...classicHomeKeys,
 }
 
 export function componentFor(key: string) {

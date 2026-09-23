@@ -9,7 +9,8 @@ import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
-import { useLayout as useLayoutMode } from '@/lib/layout'
+import { useRouteFeatureKey } from '@/features/bento/BentoOutlet'
+import { bentoComponentFor } from '@/features/bento/bento-registry'
 import { cn } from '@/lib/utils'
 
 /* The panel every role opens the product to read.
@@ -112,12 +113,14 @@ export default function NeedsAttention({ name }: { name?: string }) {
    * Order is the order they were added, so the row does not reshuffle itself
    * under somebody who is reaching for the third tile. */
   const dashKeys = useShortcuts()
-  /* On a bento home the shortcuts are tiles on the board itself
-     (features/bento/FeatureCells), so the strip here would show every one
-     of them twice. It stays for the classic home, which has no board. */
-  const { layout: layoutMode } = useLayoutMode()
+  /* Where the Home is a board -- on either layout now -- the shortcuts are
+     tiles on the board itself (features/bento/FeatureCells), so the strip
+     here would show every one of them twice. It stays for a role whose Home
+     has no board. */
+  const routeKey = useRouteFeatureKey()
+  const boardHome = !!routeKey && !!bentoComponentFor(routeKey)
   const shortcuts = useMemo(() => {
-    if (!dashKeys.length || layoutMode === 'bento') return []
+    if (!dashKeys.length || boardHome) return []
     const byKey = new Map<string, { key: string; name: string; href: string }>()
     for (const role of catalog.roles) {
       for (const section of role.sections) {
@@ -132,7 +135,7 @@ export default function NeedsAttention({ name }: { name?: string }) {
       }
     }
     return dashKeys.map((k) => byKey.get(k)).filter((x): x is NonNullable<typeof x> => !!x)
-  }, [dashKeys, catalog, layoutMode])
+  }, [dashKeys, catalog, boardHome])
   const [nudged, setNudged] = useState('')
   const nudge = useMutation({
     mutationFn: () =>
