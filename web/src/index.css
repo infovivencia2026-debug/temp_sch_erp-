@@ -1011,9 +1011,15 @@
     box-shadow: var(--field-inset);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  @media (hover: hover) {
-    .field:hover { border-color: hsl(var(--muted-foreground) / 0.4); }
-  }
+  /* A BOX DOES NOT ANSWER THE POINTER.
+
+     Every input and search box darkened its border as the cursor crossed it.
+     A button does that because it can be pressed and the wash says so; a text
+     box cannot be pressed, it is typed into, and the only state worth drawing
+     is the one that says where the typing will go. On a screen of a dozen
+     fields the effect was a border lighting up under the pointer on the way
+     to somewhere else, which reads as the page reacting to nothing. Focus
+     still marks the box, as it always did. */
   .field:focus {
     outline: none;
     border-color: hsl(var(--primary));
