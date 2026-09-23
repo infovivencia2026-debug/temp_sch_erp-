@@ -97,6 +97,50 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 		status = "all"
 	}
 	search := "%" + strings.ToLower(strings.TrimSpace(q.Get("q"))) + "%"
+	/* Narrowing the list without narrowing the score.
+
+	   A desk with four hundred conversations on it needs to ask smaller
+	   questions: what came in this week, what is Grade 6-B saying, what has
+	   this one teacher been dealing with. These filter the LIST; the tiles go
+	   on counting the whole school, exactly as pressing a channel tile does,
+	   so a filter can never make the school look quieter than it is.
+
+	   Applied here rather than inside each of the five queries: the channels
+	   hold different columns for the same idea, and one predicate over the
+	   rows they all produce cannot drift out of step with itself. */
+	fromDate := strings.TrimSpace(q.Get("from"))
+	toDate := strings.TrimSpace(q.Get("to"))
+	klass := strings.ToLower(strings.TrimSpace(q.Get("class")))
+	who := strings.ToLower(strings.TrimSpace(q.Get("person")))
+
+	within := func(it inboxItem) bool {
+		// last_at is RFC3339; a date compares by its first ten characters.
+		day := it.LastAt
+		if len(day) > 10 {
+			day = day[:10]
+		}
+		if fromDate != "" && day < fromDate {
+			return false
+		}
+		if toDate != "" && day > toDate {
+			return false
+		}
+		if klass != "" {
+			if it.ChildClass == nil || strings.ToLower(*it.ChildClass) != klass {
+				return false
+			}
+		}
+		if who != "" {
+			hay := strings.ToLower(strings.Join([]string{
+				it.Title, it.From, derefStr(it.TeacherName), derefStr(it.ParentName),
+				derefStr(it.Handler), derefStr(it.ChildName),
+			}, " "))
+			if !strings.Contains(hay, who) {
+				return false
+			}
+		}
+		return true
+	}
 
 	items := []inboxItem{}
 	var counts inboxCounts
@@ -129,7 +173,7 @@ func (s *Server) adminInbox(w http.ResponseWriter, r *http.Request) {
 				counts.Circulars++
 			}
 		}
-		if channel == "" || channel == it.Channel {
+		if (channel == "" || channel == it.Channel) && within(it) {
 			items = append(items, it)
 		}
 	}
@@ -602,11 +646,14 @@ func (s *Server) adminInboxReplyParent(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-/* adminInboxStaffThread reads one conversation between two colleagues, for
-   the desk. Read-only: the principal is not a party to it and cannot write
-   into it -- the reply goes through Messages, in their own name, on their
-   own thread with either person. Under the same read-everything permission
-   the inbox itself needs. */
+/*
+adminInboxStaffThread reads one conversation between two colleagues, for
+
+	the desk. Read-only: the principal is not a party to it and cannot write
+	into it -- the reply goes through Messages, in their own name, on their
+	own thread with either person. Under the same read-everything permission
+	the inbox itself needs.
+*/
 func (s *Server) adminInboxStaffThread(w http.ResponseWriter, r *http.Request) {
 	id := httpx.IdentityFrom(r.Context())
 	q := r.URL.Query()
@@ -661,6 +708,15 @@ func (s *Server) adminInboxStaffThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+// derefStr is "" for a nil pointer, so a filter can join optional names into
+// one haystack without a branch per field.
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // recentMsg is one line of a thread as the desk card shows it.
