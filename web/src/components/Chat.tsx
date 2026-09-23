@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
 import { shrinkImage } from '@/lib/shrink-image'
+import { PersonAvatar } from '@/components/ChatScreen'
 import { Loading } from '@/components/ui'
 import { sendTyping, useTyping, type TypingTarget } from '@/lib/live-stream'
 
@@ -89,7 +90,19 @@ export function ChatThread({
   onSeen,
   onEdit,
   onUnsend,
+  peerName,
+  peerPhoto,
 }: {
+  /* The other side's face, shown beside their messages.
+
+     A list with faces and a conversation without is half an app: the teacher
+     scrolling a thread wants to see whose child this is about, and the parent
+     wants the teacher they are writing to. Drawn once per run, so a paragraph
+     broken into four messages does not repeat it four times, and left as a
+     gap of the same width on the messages that follow so the column stays
+     straight. */
+  peerName?: string
+  peerPhoto?: string | null
   /** Fetch the page above the oldest message on screen. */
   onLoadOlder?: () => void
   hasMore?: boolean
@@ -568,7 +581,12 @@ export function ChatThread({
                     </span>
                   </div>
                 )}
-                <div className={cn('group flex items-end gap-1', last ? 'mb-[7px]' : 'mb-[2px]', right ? 'justify-end' : 'justify-start')}>
+                <div className={cn('group flex items-end gap-2', last ? 'mb-[7px]' : 'mb-[2px]', right ? 'justify-end' : 'justify-start')}>
+                  {peerName && !right && (
+                    last
+                      ? <PersonAvatar name={peerName} photoId={peerPhoto} size={28} className="mb-[18px]" />
+                      : <span aria-hidden className="w-7 shrink-0" />
+                  )}
                   {/* Answer this one. Left of your own bubble, right of theirs,
                       so the control never sits where the text begins. */}
                   <div className={cn('flex max-w-[85%] flex-col sm:max-w-[72%]', right ? 'items-end' : 'items-start')}>

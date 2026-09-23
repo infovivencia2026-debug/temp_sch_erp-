@@ -339,6 +339,8 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
           read_at: m.read_at,
           attachments: m.attachments,
         }))}
+        peerName={item.child_name ?? item.parent_name}
+        peerPhoto={item.child_photo}
         showSender
         loading={thread.isLoading}
         empty="Nothing said yet."

@@ -472,6 +472,8 @@ export default function StaffMessages() {
                   edited: m.edited,
                   deleted: m.deleted,
                 }))}
+                peerName={openParent?.student_name ?? openParent?.parent_name}
+                peerPhoto={openParent?.student_photo}
                 hasMore={!!(parentMessages.data as { has_more?: boolean } | undefined)?.has_more || olderParent.length > 0}
                 loadingOlder={loadingOlder}
                 onLoadOlder={() => void loadOlder('parent')}
@@ -579,6 +581,8 @@ export default function StaffMessages() {
                 edited: m.edited,
                 deleted: m.deleted,
               }))}
+              peerName={open?.full_name}
+              peerPhoto={open?.photo}
               hasMore={!!(messages.data as { has_more?: boolean } | undefined)?.has_more || olderStaff.length > 0}
               loadingOlder={loadingOlder}
               onLoadOlder={() => void loadOlder('staff')}

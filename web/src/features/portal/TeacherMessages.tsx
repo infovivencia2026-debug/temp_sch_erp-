@@ -227,6 +227,8 @@ export default function TeacherMessages() {
             loading={thread.isLoading}
             empty={t('portal.teacher_messages.empty_thread_body')}
             canSend={teacher !== ''}
+            peerName={chosenTeacher?.full_name}
+            peerPhoto={chosenTeacher?.photo}
             onSend={(m) => send.mutate(m)}
             sending={send.isPending}
             /* A parent can take back what they have just written, for the
