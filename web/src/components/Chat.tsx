@@ -567,7 +567,7 @@ export function ChatThread({
                   <div
                     {...holdHandlers(m)}
                     className={cn(
-                      'chat-bubble chat-settle relative select-none px-[16px] py-[12px] text-[15.5px] leading-[1.42]',
+                      'chat-bubble chat-settle relative px-[16px] py-[12px] [@media(pointer:coarse)]:select-none text-[15.5px] leading-[1.42]',
                       m.mine ? 'chat-mine' : 'chat-theirs',
                       !first && 'chat-run',
                       m.failed && 'ring-1 ring-destructive',
@@ -667,7 +667,11 @@ export function ChatThread({
           rect={acting.rect}
           mine={acting.m.mine}
           onClose={() => setActing(null)}
-          onReply={canSend && !acting.m.id.startsWith('pending-') ? () => setReplyTo(acting.m) : undefined}
+          onReply={
+            canSend && !acting.m.id.startsWith('pending-') && !acting.m.deleted
+              ? () => setReplyTo(acting.m)
+              : undefined
+          }
           onDelete={
             onUnsend && acting.m.mine && !acting.m.deleted && !acting.m.id.startsWith('pending-')
               ? () => deleteMessage(acting.m.id)
@@ -923,7 +927,25 @@ function VoiceNote({ a }: { a: Attachment }) {
         ref={audio}
         src={a.url}
         preload="metadata"
-        onLoadedMetadata={(e) => setLen(e.currentTarget.duration || 0)}
+        onLoadedMetadata={(e) => {
+          /* A MediaRecorder webm has no duration in its header, so the
+             browser reports Infinity until it is made to look: seeking far
+             past the end settles it, and the position is put back. This is
+             why a recorded note used to read "00:00" next to a bar that
+             plainly had something in it. */
+          const el = e.currentTarget
+          if (el.duration === Infinity || Number.isNaN(el.duration)) {
+            const settle = () => {
+              el.removeEventListener('timeupdate', settle)
+              setLen(el.duration || 0)
+              el.currentTime = 0
+            }
+            el.addEventListener('timeupdate', settle)
+            el.currentTime = 1e101
+            return
+          }
+          setLen(el.duration || 0)
+        }}
         onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -1148,7 +1170,13 @@ const chatCSS = `
    survive the next render. */
 .chat-composer { resize: none; background-color: #ffffff; color: #111b21; }
 .chat-composer::placeholder { color: #8696a0; }
-.chat-daypill { background-color: #ffffff; color: #54656f; box-shadow: 0 1px 0.5px rgba(11,20,26,0.13); }
+.chat-daypill {
+  background-color: #eef2f7;
+  color: #8a93a2;
+  box-shadow: none;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
 
 /* A HELD MESSAGE, AND THE ROOM GOING QUIET AROUND IT.
 
@@ -1389,6 +1417,7 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
   const [seconds, setSeconds] = useState(0)
   const rec = useRef<MediaRecorder | null>(null)
   const chunks = useRef<BlobPart[]>([])
+  const dropped = useRef(false)
 
   const supported =
     typeof window !== 'undefined' &&
@@ -1417,6 +1446,10 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
       mr.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
+        if (dropped.current) {
+          dropped.current = false
+          return
+        }
         const blob = new Blob(chunks.current, { type: mr.mimeType || 'audio/webm' })
         if (blob.size > 0) {
           const ext = (mr.mimeType || 'audio/webm').includes('mp4') ? 'm4a' : 'webm'
@@ -1433,7 +1466,8 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
     }
   }
 
-  function stop() {
+  function stop(discard = false) {
+    dropped.current = discard
     rec.current?.stop()
     rec.current = null
     setRecording(false)
@@ -1441,16 +1475,30 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
 
   if (recording) {
     return (
-      <button
-        type="button"
-        onClick={stop}
-        title="Stop and attach"
-        aria-label="Stop recording and attach"
-        className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-destructive px-3 text-[12.5px] font-semibold text-white"
-      >
-        <Square className="h-3.5 w-3.5" />
-        {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}
-      </button>
+      <span className="inline-flex shrink-0 items-center gap-1">
+        {/* Thrown away, not sent. A note started by accident had no way out
+            but to record it and then remove the attachment. */}
+        <button
+          type="button"
+          onClick={() => stop(true)}
+          title="Cancel recording"
+          aria-label="Cancel recording"
+          className="grid h-10 w-10 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => stop()}
+          title="Stop and attach"
+          aria-label="Stop recording and attach"
+          className="inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive px-3 text-[12.5px] font-semibold text-white"
+        >
+          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}
+          <Square className="h-3.5 w-3.5" />
+        </button>
+      </span>
     )
   }
   return (
