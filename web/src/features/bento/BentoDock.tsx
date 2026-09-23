@@ -11,6 +11,7 @@ import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
 import { onOpenLauncher } from './launcher-open'
 import { buzz } from '@/lib/haptics'
 import { BentoSettings } from './BentoSettings'
+import { RoleSwitch } from './RoleSwitch'
 import { useAppearance } from '@/lib/appearance'
 import { useBoard } from '@/lib/widgets'
 import { usePhone } from '@/lib/viewport'
@@ -714,6 +715,14 @@ export function BentoDock() {
             <Notifications />
           </span>
         )}
+        {/* Which desk. Focus hides the sidebar, and the sidebar held the
+            only way to change workspace or view every role; the dock offers
+            the same menu. Renders nothing for an account with one workspace
+            and no right to see the rest. */}
+        <span className={phone ? 'dock-tab' : 'shrink-0'}>
+          <RoleSwitch className={cn(item, tab)} style={phone ? undefined : btnStyle} phone={phone} />
+          {tabLabel('Role')}
+        </span>
         {/* THE GEAR IS A TAB LIKE THE OTHERS, OR IT IS A LOOSE CIRCLE.
 
            On the phone bar it was the one item with no word under it and no
