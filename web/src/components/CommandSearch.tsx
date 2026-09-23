@@ -83,6 +83,10 @@ export function CommandSearch() {
                a screen's name the way they say it, run together. */
             compact: `${f.name} ${section.name} ${aliasText(f.slug)}`.toLowerCase().replace(/[\s_\-·]+/g, ''),
             aliases: aliasText(f.slug).toLowerCase(),
+            /* The haystack as words, for the typo pass below. Built once
+               here rather than per keystroke: 414 features times every
+               letter typed is the kind of work that makes a palette lag. */
+            tokens: `${f.name} ${section.name} ${aliasText(f.slug)}`.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 2),
           })),
         ),
       ),
@@ -149,8 +153,20 @@ export function CommandSearch() {
   const hits = useMemo(() => {
     const needle = q.trim().toLowerCase()
     if (!needle) {
-      // With no query, offer what actually works rather than an arbitrary slice.
-      return index.filter((i) => i.live).slice(0, 8)
+      /* WHERE YOU WERE, THEN WHAT WORKS.
+
+         An empty palette offered the first eight live features in catalogue
+         order, which is the same eight for everybody and rarely the eight
+         anybody wants. The screens a person opened from here recently are
+         the best guess of where they are going next -- a clerk in fee
+         season lives in three screens -- so those come first, then the
+         catalogue's own order fills the rest. Kept in this browser only;
+         it is a convenience, not a record. */
+      const recent = readRecent()
+        .map((k) => index.find((i) => i.key === k))
+        .filter((i): i is (typeof index)[number] => !!i && i.live)
+      const seen = new Set(recent.map((i) => i.key))
+      return [...recent, ...index.filter((i) => i.live && !seen.has(i.key))].slice(0, 8)
     }
     /* Every word has to land somewhere, in any order.
 
@@ -166,7 +182,19 @@ export function CommandSearch() {
         const n = i.name.toLowerCase()
         // Every word must land, or this is not a hit at all.
         const compactNeedle = needle.replace(/[\s_\-·]+/g, '')
-        if (!words.every((w) => i.haystack.includes(w)) && !i.compact.includes(compactNeedle)) {
+        /* A TYPO IS NOT A DIFFERENT QUESTION.
+
+           "attendence", "recipt", "timetabel" found nothing, and nothing
+           looks like the feature is missing. A word of four letters or
+           more that lands nowhere exactly is allowed to land within one
+           edit -- a letter swapped, dropped, added or transposed -- of any
+           word in the haystack. One edit, not two: "fees" must not reach
+           "fines". Exact hits still rank above fuzzy ones by the score
+           below, because the prefix and substring tests are on the name
+           as typed. */
+        const lands = (w: string) =>
+          i.haystack.includes(w) || (w.length >= 4 && i.tokens.some((t) => within1(w, t)))
+        if (!words.every(lands) && !i.compact.includes(compactNeedle)) {
           return { i, score: -1 }
         }
         /* Ranked by where the match landed, best first. A name match beats a
@@ -246,6 +274,7 @@ export function CommandSearch() {
   }
 
   const go = (h: (typeof hits)[number]) => {
+    rememberRecent(h.key)
     navigate(featurePath(h.roleKey, h.sectionSlug, h.slug))
     setOpen(false)
   }
@@ -409,4 +438,53 @@ export function CommandSearch() {
     </>,
     document.body,
   )
+}
+
+
+/* The last eight screens opened from the palette, newest first. Read and
+   written inside try/catch: storage can be absent or throwing in a private
+   window, and a palette must open either way. */
+const RECENT_KEY = 'erp.search.recent'
+function readRecent(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]')
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+function rememberRecent(key: string) {
+  try {
+    const next = [key, ...readRecent().filter((k) => k !== key)].slice(0, 8)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+  } catch {
+    /* a convenience, not a record */
+  }
+}
+
+/* Damerau-Levenshtein distance <= 1, without building the matrix: two
+   strings are within one edit when they are equal, or differ by one
+   substitution, one insertion/deletion, or one adjacent transposition.
+   Cheap enough to run against every token of every feature per keystroke. */
+export function within1(a: string, b: string): boolean {
+  if (a === b) return true
+  const la = a.length, lb = b.length
+  if (Math.abs(la - lb) > 1) return false
+  if (la === lb) {
+    let diff = -1
+    for (let i = 0; i < la; i++) {
+      if (a[i] !== b[i]) {
+        if (diff !== -1) {
+          // A second difference is fine only as the other half of a swap.
+          return i === diff + 1 && a[i] === b[diff] && a[diff] === b[i] && a.slice(i + 1) === b.slice(i + 1)
+        }
+        diff = i
+      }
+    }
+    return true
+  }
+  const [s, l] = la < lb ? [a, b] : [b, a]
+  let i = 0
+  while (i < s.length && s[i] === l[i]) i++
+  return s.slice(i) === l.slice(i + 1)
 }
