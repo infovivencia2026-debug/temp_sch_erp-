@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ArrowDown, Check, CheckCheck, Clock, Download, FileText, Image as ImageIcon,
+  ArrowDown, Check, CheckCheck, Clock, Download, FileText,
   Copy, Mic, Paperclip, Reply, Search, Send, Square, Trash2, X,
 } from 'lucide-react'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -118,6 +118,9 @@ export function ChatThread({
   const [files, setFiles] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  /* What is on its way up, drawn from the device so a picture is on screen
+     the moment it is chosen. */
+  const [pending, setPending] = useState<{ key: string; name: string; preview: string | null }[]>([])
   const scroller = useRef<HTMLDivElement | null>(null)
   const fileInput = useRef<HTMLInputElement | null>(null)
   const box = useRef<HTMLTextAreaElement | null>(null)
@@ -231,6 +234,44 @@ export function ChatThread({
     el.style.height = Math.min(el.scrollHeight, 140) + 'px'
   }, [draft])
 
+  /* A PHONE PHOTOGRAPH IS NOT A DOCUMENT.
+
+     A modern handset takes a 4MB picture, and on a school's connection that
+     is most of a minute of "Uploading…" for something that will be looked at
+     in a bubble 280px wide. Anything over 1600px on its long edge is drawn
+     into a canvas at 1600 and re-encoded as JPEG at 0.82 -- typically 4MB to
+     under 400KB, indistinguishable at the size it is read.
+
+     Only photographs: a PDF, a document, a voice note and an image already
+     small enough go up untouched, because re-encoding those either destroys
+     them or gains nothing. If anything about the canvas fails, the original
+     is sent, which is the behaviour this had before. */
+  const shrinkImage = async (f: File): Promise<File> => {
+    if (!f.type.startsWith('image/') || f.type === 'image/gif' || f.size < 600_000) return f
+    try {
+      const bitmap = await createImageBitmap(f)
+      const max = 1600
+      const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height))
+      if (scale === 1 && f.size < 1_500_000) return f
+      const w = Math.round(bitmap.width * scale)
+      const h = Math.round(bitmap.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return f
+      ctx.drawImage(bitmap, 0, 0, w, h)
+      bitmap.close?.()
+      const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.82))
+      if (!blob || blob.size >= f.size) return f
+      return new File([blob], f.name.replace(/\.(png|webp|heic|heif|jpeg|jpg)$/i, '') + '.jpg', {
+        type: 'image/jpeg',
+      })
+    } catch {
+      return f
+    }
+  }
+
   const upload = async (list: FileList | File | null) => {
     if (!list) return
     if (list instanceof File) {
@@ -242,8 +283,19 @@ export function ChatThread({
     setUploadError(null)
     const picked = Array.from(list).slice(0, 10 - files.length)
     setUploading((n) => n + picked.length)
-    for (const f of picked) {
+    // Something to look at while it goes: the picture itself, from the
+    // device, rather than the word "Uploading" and a number.
+    setPending((cur) => [
+      ...cur,
+      ...picked.map((f) => ({
+        key: `${f.name}-${f.size}-${Math.random()}`,
+        name: f.name,
+        preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+      })),
+    ])
+    for (const raw of picked) {
       try {
+        const f = await shrinkImage(raw)
         const fd = new FormData()
         fd.append('file', f, f.name)
         const res = await fetch('/api/v1/files', { method: 'POST', credentials: 'same-origin', body: fd })
@@ -263,6 +315,11 @@ export function ChatThread({
         setUploadError(e instanceof Error ? e.message : 'That file could not be uploaded.')
       } finally {
         setUploading((n) => n - 1)
+        setPending((cur) => {
+          const [gone, ...rest] = cur
+          if (gone?.preview) URL.revokeObjectURL(gone.preview)
+          return rest
+        })
       }
     }
     if (fileInput.current) fileInput.current.value = ''
@@ -643,8 +700,12 @@ export function ChatThread({
           {(files.length > 0 || uploading > 0) && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {files.map((f) => (
-                <span key={f.file_id} className="inline-flex max-w-full items-center gap-1 rounded-md border bg-background px-2 py-1 text-[12.5px]">
-                  {isImage(f) ? <ImageIcon className="h-3.5 w-3.5 shrink-0" /> : <FileText className="h-3.5 w-3.5 shrink-0" />}
+                <span key={f.file_id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-background py-1 pl-1 pr-2 text-[12.5px]">
+                  {isImage(f) ? (
+                    <img src={f.url} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                  ) : (
+                    <FileText className="ml-1 h-3.5 w-3.5 shrink-0" />
+                  )}
                   <span className="truncate">{f.name}</span>
                   <span className="text-muted-foreground">{sizeOf(f.size_bytes)}</span>
                   <button
@@ -657,11 +718,20 @@ export function ChatThread({
                   </button>
                 </span>
               ))}
-              {uploading > 0 && (
-                <span className="inline-flex items-center rounded-md border border-dashed px-2 py-1 text-[12.5px] text-muted-foreground">
-                  Uploading {uploading}…
+              {pending.map((p) => (
+                <span
+                  key={p.key}
+                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed py-1 pl-1 pr-2 text-[12.5px] text-muted-foreground"
+                >
+                  {p.preview ? (
+                    <img src={p.preview} alt="" className="h-8 w-8 shrink-0 animate-pulse rounded object-cover" />
+                  ) : (
+                    <FileText className="ml-1 h-3.5 w-3.5 shrink-0 animate-pulse" />
+                  )}
+                  <span className="truncate">{p.name}</span>
+                  <span>sending…</span>
                 </span>
-              )}
+              ))}
             </div>
           )}
           {uploadError && <p className="mb-1.5 text-[12.5px] text-destructive">{uploadError}</p>}
