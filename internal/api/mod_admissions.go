@@ -1062,7 +1062,7 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					INSERT INTO invoices (institution_id, campus_id, student_id,
 					                      academic_year_id, invoice_no, instalment_no,
 					                      issued_on, due_on, gross_paise, discount_paise,
-					                      status)
+					                      status, covers_year)
 					/* WHEN IT IS DUE.
 
 					   This was CURRENT_DATE: every bill fell due the day it was
@@ -1082,9 +1082,12 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 					                     AND fc.pay_by IS NOT NULL
 					                   ORDER BY fc.created_at DESC LIMIT 1),
 					                 CURRENT_DATE),
-					        0,0,'unpaid')
+					        0,0,'unpaid',
+					        -- Says it carries the whole year, so the term run
+					        -- cannot bill the same family again (00338).
+					        $7::bool)
 					RETURNING id::text`,
-					instID, campusID, studentID, yearID, invoiceNo, appID).Scan(&invoiceID); err != nil {
+					instID, campusID, studentID, yearID, invoiceNo, appID, wholeYear).Scan(&invoiceID); err != nil {
 					return err
 				}
 
@@ -1120,7 +1123,14 @@ func (s *Server) enrolApplicant(w http.ResponseWriter, r *http.Request) {
 							 WHERE invoice_id = $1::uuid`, invoiceID).Scan(&gross); err != nil {
 							return err
 						}
-						waiver = int64(float64(gross) * *cPercent / 100)
+						/* Integer, half-up, in basis points: this was the one
+						   float multiplication on money in the fee path, and it
+						   truncated, so the same 12.5% concession came out one
+						   paisa different here from a term invoice raised with
+						   round() -- two calculators disagreeing, which
+						   fines.go forbids in words. */
+						bp := int64(*cPercent*100 + 0.5)
+						waiver = (gross*bp + 5000) / 10000
 					}
 					waiverWhy = strings.ReplaceAll(cKind, "_", " ")
 					if cReason != "" {

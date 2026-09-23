@@ -1008,7 +1008,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			       SELECT 1 FROM invoices i
 			        WHERE i.student_id = e.student_id
 			          AND i.academic_year_id = $1
-			          AND i.instalment_no = $3
+			          -- A whole-year admission invoice covers every
+			          -- instalment: a family that paid the year up front was
+			          -- being billed term by term on top of it.
+			          AND (i.instalment_no = $3 OR i.covers_year)
 			          AND i.status <> 'cancelled')`,
 			yearID, classID, req.InstalmentNo, nullString(req.StudentID))
 		if err != nil {
@@ -1060,13 +1063,33 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 				SELECT $1, $2, l.fee_head_id, fh.name, l.amount_paise,
 				       LEAST(
 				         l.amount_paise,
+				         /* PER HEAD, AND A PERCENT NEVER LOSES TO A FLAT RUPEE FIGURE.
+
+				            This took COALESCE(max(amount), max(percent...)) over every
+				            matching row. Two things went wrong with it. A flat amount
+				            with no head -- "₹5,000 off, sibling" -- matched every line,
+				            so a three-line invoice gave ₹12,000 against a ₹5,000
+				            promise, and the bus fare line again after that. And the
+				            COALESCE preferred any flat row over any percent row, so a
+				            stale ₹200 'other' concession beside a 100% RTE waiver
+				            billed the RTE child ₹39,800.
+
+				            Now: a flat amount applies to the head it names, a percent
+				            to every line it matches, the larger wins, and a flat
+				            amount that names NO head is applied once to the invoice
+				            after the lines exist (applyFlatConcession). full_payment
+				            is the admission invoice's own and never a term's. */
 				         COALESCE((
-				           SELECT COALESCE(max(fc.amount_paise),
-				                           max(round(l.amount_paise * fc.percent / 100.0))::bigint)
+				           SELECT GREATEST(
+				                    COALESCE(max(fc.amount_paise)
+				                               FILTER (WHERE fc.fee_head_id = l.fee_head_id), 0),
+				                    COALESCE(max(round(l.amount_paise * fc.percent / 100.0))::bigint
+				                               FILTER (WHERE fc.percent IS NOT NULL), 0))
 				             FROM fee_concessions fc
 				            WHERE fc.student_id = $3
 				              AND fc.academic_year_id = $4
 				              AND fc.approved_at IS NOT NULL
+				              AND fc.kind <> 'full_payment'
 				              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = l.fee_head_id)
 				         ), 0)
 				       )
@@ -1083,6 +1106,10 @@ func (s *Server) generateInvoices(w http.ResponseWriter, r *http.Request) {
 			   the child walked. These are the lines the structure cannot
 			   carry because they differ child by child. */
 			if err := addComponentLines(r.Context(), tx, instID, invoiceID, sid, yearID, instalments); err != nil {
+				return err
+			}
+			// The blanket flat concession, once, now that every line is in.
+			if err := applyFlatConcession(r.Context(), tx, invoiceID, sid, yearID); err != nil {
 				return err
 			}
 

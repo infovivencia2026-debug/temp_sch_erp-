@@ -124,13 +124,22 @@ func addComponentLines(ctx context.Context, tx pgx.Tx, inst, invoiceID, student,
 		SELECT $1, $2, c.fee_head_id, c.description, c.amount_paise * $5,
 		       LEAST(
 		         c.amount_paise * $5,
+		         -- Same rule as the structure lines (fees.go): a flat amount
+		         -- applies to the head it names, a percent to every line, the
+		         -- larger wins, and a head-less flat amount is applied once to
+		         -- the invoice by applyFlatConcession -- not to the bus fare
+		         -- on top of the tuition it already came off.
 		         COALESCE((
-		           SELECT COALESCE(max(fc.amount_paise),
-		                           max(round(c.amount_paise * $5 * fc.percent / 100.0))::bigint)
+		           SELECT GREATEST(
+		                    COALESCE(max(fc.amount_paise)
+		                               FILTER (WHERE fc.fee_head_id = c.fee_head_id), 0),
+		                    COALESCE(max(round(c.amount_paise * $5 * fc.percent / 100.0))::bigint
+		                               FILTER (WHERE fc.percent IS NOT NULL), 0))
 		             FROM fee_concessions fc
 		            WHERE fc.student_id = $3
 		              AND fc.academic_year_id = $4
 		              AND fc.approved_at IS NOT NULL
+		              AND fc.kind <> 'full_payment'
 		              AND (fc.fee_head_id IS NULL OR fc.fee_head_id = c.fee_head_id)
 		         ), 0)
 		       )
@@ -145,4 +154,44 @@ func addComponentLines(ctx context.Context, tx pgx.Tx, inst, invoiceID, student,
 		return fmt.Errorf("create component lines: %w", err)
 	}
 	return nil
+}
+
+
+/* applyFlatConcession puts a head-less flat concession on the invoice once.
+
+   "₹5,000 off, no particular head" was promised against the bill, and
+   concessions_grant says so: absent a head, the concession applies to the
+   whole bill. Matched per line it was applied per line. So it lands here,
+   after every line exists, on the line with the most left to discount --
+   the same home mod_admissions gives an admission waiver, and for the same
+   reason: spreading it would change what each head collected, and the heads
+   are what the accounts are cut by. Capped at what that line can carry.
+
+   Once per INVOICE, which is the reading the grant screen states. A school
+   that means "once per year" splits the figure across its instalments when
+   it grants it; that is a decision the office makes, not one this guesses. */
+func applyFlatConcession(ctx context.Context, tx pgx.Tx, invoiceID, student, year uuid.UUID) error {
+	var flat int64
+	if err := tx.QueryRow(ctx, `
+		SELECT COALESCE(max(fc.amount_paise), 0)
+		  FROM fee_concessions fc
+		 WHERE fc.student_id = $1
+		   AND fc.academic_year_id = $2
+		   AND fc.approved_at IS NOT NULL
+		   AND fc.fee_head_id IS NULL
+		   AND fc.amount_paise IS NOT NULL
+		   AND fc.kind <> 'full_payment'`, student, year).Scan(&flat); err != nil {
+		return err
+	}
+	if flat <= 0 {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `
+		UPDATE invoice_lines l
+		   SET discount_paise = LEAST(l.amount_paise, l.discount_paise + $2)
+		 WHERE l.id = (SELECT id FROM invoice_lines
+		                WHERE invoice_id = $1
+		                ORDER BY (amount_paise - discount_paise) DESC, amount_paise DESC
+		                LIMIT 1)`, invoiceID, flat)
+	return err
 }

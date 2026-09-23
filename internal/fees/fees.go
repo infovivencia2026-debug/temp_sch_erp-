@@ -112,28 +112,86 @@ func NextNumberOn(ctx context.Context, tx pgx.Tx, instID uuid.UUID, kind string,
 	out := Number{Seq: next}
 	if resetYearly {
 		out.FY = FinancialYear(on)
-		/* Reset only on a genuine rollover.
+		/* EACH YEAR COUNTS FOR ITSELF.
 
-		   A NULL current_fy is a counter that predates this column, and its
-		   next_value is mid-series with receipts already printed against it.
-		   Resetting that to 1 would reissue numbers a parent is holding, which
-		   is the one thing a gapless series must never do. So NULL adopts the
-		   year at the current count, and the first real reset happens at the
-		   next 1 April. */
-		if currentFY != nil && *currentFY != "" && *currentFY != out.FY {
-			out.Seq = 1
+		   This reset next_value to 1 whenever the document's year differed
+		   from current_fy -- in either direction. Collect passes the payment
+		   date on purpose, so a receipt written up on 2 April for cash taken
+		   on 31 March belongs to the closing year. That back-date rewound the
+		   one counter to the old year; the next counter receipt saw a
+		   mismatch again, reset to 1 for the new year, and collided with the
+		   new year's 00001. Every collection then failed until somebody
+		   hand-edited numbering_schemes.
+
+		   numbering_fy_counters (00338) is a row per year. The scheme row
+		   above is still locked first, so cashiers serialise on one row as
+		   they always did and the per-year row is reached in a fixed order.
+
+		   A year not yet seen starts where its evidence says: at the scheme's
+		   own count when it is the year the scheme is counting within (or the
+		   scheme predates current_fy -- a NULL there is a mid-series counter
+		   with receipts already printed, which must never restart), else
+		   after the last receipt recorded against that year, else at 1. */
+		seed := int64(1)
+		if currentFY == nil || *currentFY == "" || *currentFY == out.FY {
+			seed = next
+		} else if kind == "receipt" {
+			var last *int64
+			if err := tx.QueryRow(ctx, `
+				SELECT max(receipt_seq) FROM payments
+				 WHERE institution_id = $1 AND receipt_fy = $2`, instID, out.FY).
+				Scan(&last); err != nil {
+				return Number{}, fmt.Errorf("seed receipt series %s: %w", out.FY, err)
+			}
+			if last != nil {
+				seed = *last + 1
+			}
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO numbering_fy_counters (institution_id, kind, fy, next_value)
+			VALUES ($1,$2,$3,$4)
+			ON CONFLICT (institution_id, kind, fy) DO NOTHING`,
+			instID, kind, out.FY, seed); err != nil {
+			return Number{}, fmt.Errorf("ensure fy counter %s/%s: %w", kind, out.FY, err)
+		}
+		if err := tx.QueryRow(ctx, `
+			SELECT next_value FROM numbering_fy_counters
+			 WHERE institution_id = $1 AND kind = $2 AND fy = $3
+			 FOR UPDATE`, instID, kind, out.FY).Scan(&out.Seq); err != nil {
+			return Number{}, fmt.Errorf("lock fy counter %s/%s: %w", kind, out.FY, err)
 		}
 	}
 
 	out.Text = renderNumber(format, prefix, out.FY, out.Seq, padding, suffix)
 
-	if _, err := tx.Exec(ctx, `
-		UPDATE numbering_schemes
-		   SET next_value = $3 + 1, current_fy = NULLIF($4,''),
-		       last_number = $5, last_issued_at = now(), updated_at = now()
-		 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL`,
-		instID, kind, out.Seq, out.FY, out.Text); err != nil {
-		return Number{}, fmt.Errorf("advance numbering scheme %s: %w", kind, err)
+	if resetYearly {
+		if _, err := tx.Exec(ctx, `
+			UPDATE numbering_fy_counters SET next_value = $4 + 1
+			 WHERE institution_id = $1 AND kind = $2 AND fy = $3`,
+			instID, kind, out.FY, out.Seq); err != nil {
+			return Number{}, fmt.Errorf("advance fy counter %s/%s: %w", kind, out.FY, err)
+		}
+	}
+
+	/* The scheme row mirrors the LATEST year's position, for anything that
+	   still reads it, and is never rewound: a back-dated receipt advances
+	   last year's counter and leaves current_fy and next_value alone. The
+	   string comparison is safe because the year renders as "2026-27". */
+	if !resetYearly || currentFY == nil || *currentFY == "" || *currentFY <= out.FY {
+		if _, err := tx.Exec(ctx, `
+			UPDATE numbering_schemes
+			   SET next_value = $3 + 1, current_fy = NULLIF($4,''),
+			       last_number = $5, last_issued_at = now(), updated_at = now()
+			 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL`,
+			instID, kind, out.Seq, out.FY, out.Text); err != nil {
+			return Number{}, fmt.Errorf("advance numbering scheme %s: %w", kind, err)
+		}
+	} else if _, err := tx.Exec(ctx, `
+			UPDATE numbering_schemes
+			   SET last_number = $3, last_issued_at = now(), updated_at = now()
+			 WHERE institution_id = $1 AND kind = $2 AND campus_id IS NULL`,
+		instID, kind, out.Text); err != nil {
+		return Number{}, fmt.Errorf("stamp numbering scheme %s: %w", kind, err)
 	}
 	return out, nil
 }
