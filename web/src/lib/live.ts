@@ -81,6 +81,20 @@ function checkForNewBuild() {
     })
 }
 
+/* The families, by position in the revision. 'home', 'metric', 'attention'
+   and 'portal' ride along with every part: the boards, the bento stat cells,
+   the attention strip and the parent's overview all summarise whatever moved. */
+const COMMON = ['home', 'metric', 'attention', 'portal', 'dashboard', 'student-profile', 'student-record']
+const LIVE_WORDS: string[][] = [
+  [...COMMON, 'attendance', 'absen', 'register'],
+  [...COMMON, 'mark', 'exam', 'result', 'academics', 'grade'],
+  [...COMMON, 'invoice', 'ledger', 'fee', 'finance', 'collection', 'defaulter', 'payment', 'receipt'],
+  ['notification', 'attention', 'inbox', 'alert'],
+  [...COMMON, 'homework', 'lesson', 'academics', 'workflow'],
+  [...COMMON, 'report', 'exam', 'result', 'academics'],
+  [...COMMON, 'concession', 'ledger', 'fee', 'finance'],
+]
+
 export function useLiveUpdates() {
   const qc = useQueryClient()
   /* The push half. The poll below is the fallback that also keeps the
@@ -108,14 +122,32 @@ export function useLiveUpdates() {
           return
         }
         if (r.rev !== seen.current) {
+          const before = seen.current
           seen.current = r.rev
-          /* Everything, rather than guessing which screens care.
-
-             The revision says something moved, not what — and a list of which
-             query keys each kind of change touches is a list that goes stale
-             the first time somebody adds a screen and forgets. Invalidating
-             refetches only what is mounted, so the breadth costs nothing. */
-          qc.invalidateQueries()
+          /* ONLY WHAT MOVED. The revision is seven timestamps joined by '|',
+             in the order live.go lists them: attendance, marks, invoices,
+             notifications, homework, report cards, concessions. Each part
+             that changed invalidates the queries whose key names something
+             in its family -- matched by word rather than by an exact list, so
+             a screen keyed 'fee-ledger' is caught without anybody remembering
+             to register it. Everything used to be invalidated: on a screen
+             with a board, a bell and an attention strip that was a dozen
+             refetches for an attendance tick, each one a billed request. A
+             part this code does not recognise still invalidates everything. */
+          const was = (before ?? '').split('|')
+          const now = r.rev.split('|')
+          const words = new Set<string>()
+          now.forEach((v, i) => {
+            if (v === was[i]) return
+            for (const w of LIVE_WORDS[i] ?? ['']) words.add(w)
+          })
+          if (words.has('')) qc.invalidateQueries()
+          else {
+            qc.invalidateQueries({
+              predicate: (q) =>
+                q.queryKey.some((k) => typeof k === 'string' && [...words].some((w) => k.includes(w))),
+            })
+          }
         }
       } catch {
         /* A failed poll is not worth a message. The next one is thirty seconds

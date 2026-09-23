@@ -1,5 +1,5 @@
 import { ApiError } from '@/lib/api'
-import { Suspense, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { BrowserRouter, Routes, Route, Navigate, useParams, Link, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -10,7 +10,9 @@ import {
 import { SessionProvider, useSession } from '@/lib/session'
 import ApplyForm from '@/features/public/ApplyForm'
 import AccountPage from '@/features/shared/Profile'
-import SettingsPage from '@/features/bento/SettingsPage'
+/* Lazy like every feature screen: Settings pulls the whole settings window
+   module behind it, which nobody needs until they open Settings. */
+const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'

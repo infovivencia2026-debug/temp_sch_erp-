@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { ensureCatalogue, readStoredLocale } from '@/lib/i18n'
 import './index.css'
 import './features/bento/bento-theme.css'
 // Stamps html[data-personality] and writes the personalities stylesheet.
@@ -145,8 +146,12 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+/* The stored language's catalogue before the first paint, so a Telugu
+   household never sees English flash first. English resolves at once. */
+void ensureCatalogue(readStoredLocale()).finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

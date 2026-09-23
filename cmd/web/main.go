@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/school-erp/erp/internal/api"
 	"github.com/school-erp/erp/internal/live"
@@ -164,6 +165,13 @@ func run() error {
 
 	r := chi.NewRouter()
 	r.Use(httpx.RequestID, httpx.RealIP, httpx.Recoverer, httpx.SecurityHeaders)
+	/* COMPRESSED ON THE WAY OUT. The edge (Pages Functions) compresses what it
+	   serves to the browser, but the leg from Cloud Run to the edge carried
+	   every JSON list uncompressed -- a 400-row ledger is 300KB of text that
+	   gzips to 30. Level 5 is the knee of the curve. chi compresses only its
+	   list of text types, so the APK download and the event stream are left
+	   alone. */
+	r.Use(middleware.Compress(5))
 	/* The logger is outermost on purpose: it has to time authentication, which
 	   is where the time actually went. It still logs user_id -- see the slot in
 	   httpx.WithIdentity. */

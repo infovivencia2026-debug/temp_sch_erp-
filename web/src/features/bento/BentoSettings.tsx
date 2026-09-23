@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import { useAppearanceRequest } from '@/lib/appearance-request'
 import { usePhone } from '@/lib/viewport'
 import { useT } from '@/lib/i18n'
-import { AppearanceDialog } from './AppearanceDialog'
+/* LOADED WHEN FIRST OPENED. The settings window is seventy kilobytes of
+   source plus the colour wheel and the rows behind it, and it sat in the
+   main bundle for every visitor of every role, most of whom never open it.
+   The button is here; the window arrives on the first press. */
+const AppearanceDialog = lazy(() =>
+  import('./AppearanceDialog').then((m) => ({ default: m.AppearanceDialog })),
+)
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH } from './ColourDialog'
 import './dock-menus.css'
@@ -68,6 +74,8 @@ export function BentoSettings({
   const phone = usePhone()
   const btn = useRef<HTMLButtonElement>(null)
   const [showAppearance, setShowAppearance] = useState(false)
+  const [everOpened, setEverOpened] = useState(false)
+  useEffect(() => { if (showAppearance) setEverOpened(true) }, [showAppearance])
   const [appearanceTab, setAppearanceTab] = useState<'appearance' | 'dock' | 'dashboard'>('appearance')
 
   /* The cog opens Settings, and nothing before it.
@@ -175,12 +183,14 @@ export function BentoSettings({
       {/* Not mounted on a phone at all. The route renders the same sections
           from the same components, and a dialog that can never open is a
           dialog whose history machinery could still fire. */}
-      {!phone && (
+      {!phone && everOpened && (
+      <Suspense fallback={null}>
       <AppearanceDialog
         open={showAppearance}
         onClose={() => setShowAppearance(false)}
         initialTab={appearanceTab}
       />
+      </Suspense>
       )}
     </div>
   )

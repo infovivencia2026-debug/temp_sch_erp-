@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import en, { type Messages } from '@/locales/en'
-import te from '@/locales/te'
 
 /* The interface-language runtime: a catalogue lookup, a context and a hook.
 
@@ -65,20 +64,30 @@ export const LOCALES: Record<string, LocaleInfo> = {
    preference resolves to nothing. Values are Partial so a translation in
    progress falls back key by key instead of shipping blanks.
 
-   Statically imported rather than lazily fetched: the catalogue is a few
-   kilobytes, and a language that arrives one frame after the page has
-   rendered means every screen visibly flips language on load. */
+   English is static: it is the fallback for every key and the first paint
+   needs it. Every other catalogue is FETCHED ON DEMAND, and only ever before
+   the language switches to it -- main.tsx awaits the stored language's
+   catalogue before the first render, and setLocale awaits the new one
+   before changing state -- so a language never arrives a frame late and
+   flips the screen. Telugu was 140KB of source in the main bundle for
+   every visitor, nine in ten of whom never chose it. */
 export const CATALOGUES: Record<string, Partial<Messages>> = {
   en,
-  // Partial on purpose, and it is the reason this can be registered before the
-  // translation is exhaustive: an absent key falls through to English by the
-  // chain above, so an unfinished catalogue ships a mixed screen and never a
-  // blank one. Registering it here is the third of three widenings that only
-  // work together -- the others are localeChoices in internal/api/i18n.go and
-  // the locale CHECK in migrations/00092_locale_te.sql. Widen the database
-  // alone and a parent who picks Telugu gets a page of raw message keys,
-  // including on the selector they would need to change it back.
-  te,
+}
+const LOADERS: Record<string, () => Promise<{ default: Partial<Messages> }>> = {
+  te: () => import('@/locales/te'),
+}
+
+/** Resolves once `tag`'s catalogue is registered; immediately for English or
+    an unknown tag. A failed fetch leaves the fallback in place. */
+export async function ensureCatalogue(tag: string): Promise<void> {
+  if (CATALOGUES[tag] || !LOADERS[tag]) return
+  try {
+    const m = await LOADERS[tag]()
+    CATALOGUES[tag] = m.default
+  } catch {
+    /* offline on first switch: English stays, the next attempt retries */
+  }
 }
 
 export const DEFAULT_LOCALE = 'en'
@@ -187,7 +196,7 @@ export function applyContrast(on: boolean) {
   else root.removeAttribute('data-contrast')
 }
 
-function readStoredLocale(): string {
+export function readStoredLocale(): string {
   try {
     const raw = localStorage.getItem(LOCALE_STORAGE_KEY)
     if (raw && isKnownLocale(raw)) return raw
@@ -259,8 +268,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLocale = useCallback((tag: string) => {
     const next = isKnownLocale(tag) ? tag : DEFAULT_LOCALE
-    storeLocale(next)
-    setLocaleState(next)
+    // The catalogue first, the switch after: nothing renders in the new
+    // language until every string for it is here.
+    void ensureCatalogue(next).then(() => {
+      storeLocale(next)
+      setLocaleState(next)
+    })
   }, [])
 
   const value = useMemo<I18nValue>(
