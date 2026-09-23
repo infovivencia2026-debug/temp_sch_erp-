@@ -647,10 +647,14 @@ export function StatCell({
   span,
   to,
   cue,
+  picker,
 }: {
   label: string
   value: string | number
   note?: string
+  /** A small control on the note's line, right-aligned: the period dropdown
+      on a metric cell. Absent on every other stat, which draws as before. */
+  picker?: ReactNode
   shape?: ReactNode
   /** The process behind the figure, drawn faintly behind the whole cell.
       Passed straight through to `Cell`; a stat cell that omits it renders
@@ -733,9 +737,16 @@ export function StatCell({
         </p>
       </div>
       {shape && <div className="bento-shape mt-3">{shape}</div>}
-      {note && (
-        /* The subtext, quiet: small, muted, a sentence under the figure. */
-        <p className="bento-note mt-2 text-[12px] leading-snug text-[var(--bento-muted)]">{note}</p>
+      {(note || picker) && (
+        /* The sentence under the figure keeps its line; the picker, when there
+           is one, sits at its right end so the period the figure covers and
+           the control that changes it are read together. */
+        <div className="mt-2 flex items-end justify-between gap-2">
+          {note ? (
+            <p className="bento-note min-w-0 text-[12px] leading-snug text-[var(--bento-muted)]">{note}</p>
+          ) : <span />}
+          {picker}
+        </div>
       )}
       {to && cue && <Cue to={to} label={cue} />}
     </Cell>

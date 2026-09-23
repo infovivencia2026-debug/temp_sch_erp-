@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatPaise } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { ChevronDown } from 'lucide-react'
 import { useLayout, periodOf, type Period } from '@/lib/widgets'
 import { StatCell } from './bento-kit'
 import { Widget, useWidgetLayer } from './WidgetLayer'
@@ -125,7 +126,46 @@ function delta(unit: MetricValue['unit'], v: number, prev?: number): string | un
   return `${pct > 0 ? '+' : ''}${pct}%`
 }
 
-function MetricCard({ metricKey, period, span }: { metricKey: string; period: Period; span: Parameters<typeof StatCell>[0]['span'] }) {
+/* THE PERIOD IS ON THE CELL.
+
+   It was reachable only through the hold menu, which nobody finds by
+   looking. A metric that can be read over more than one window now carries
+   a small dropdown on the note's line -- "Month ▾" -- and one that cannot
+   (an as-of headcount, say) carries nothing: the control appears only where
+   the choice exists. Native <select> under a drawn pill, as SettingsRows
+   does, so a phone gets its own wheel; pointer events stop at the pill so the
+   widget's hold-to-menu never starts from a tap on it. */
+function PeriodPicker({ value, options, onPick }: { value: Period; options: Period[]; onPick: (p: Period) => void }) {
+  const t = useT()
+  const name = (p: Period) => t(PERIOD_LABEL_KEY[p] as never)
+  return (
+    <span
+      className="relative inline-flex shrink-0 items-center gap-0.5 rounded-full border border-current/20
+                 bg-current/[0.06] px-2 py-0.5 text-[11px] font-medium leading-none text-[var(--bento-ink)]"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {name(value)}
+      <ChevronDown className="size-3 opacity-70" aria-hidden="true" />
+      <select
+        aria-label={t('bento.widgets.period')}
+        value={value}
+        onChange={(e) => onPick(e.target.value as Period)}
+        className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+      >
+        {options.map((o) => <option key={o} value={o}>{name(o)}</option>)}
+      </select>
+    </span>
+  )
+}
+
+function MetricCard({ metricKey, period, span, periods, onPeriod }: {
+  metricKey: string
+  period: Period
+  span: Parameters<typeof StatCell>[0]['span']
+  periods?: Period[]
+  onPeriod?: (p: Period) => void
+}) {
   const t = useT()
   const q = useQuery({
     queryKey: ['metric', metricKey, period],
@@ -141,6 +181,9 @@ function MetricCard({ metricKey, period, span }: { metricKey: string; period: Pe
       value={d ? formatValue(d.unit, d.value) : '…'}
       badge={d ? delta(d.unit, d.value, d.previous) : undefined}
       note={d?.as_of ? `as of ${periodLabel.toLowerCase()}` : periodLabel}
+      picker={periods && periods.length > 1 && onPeriod
+        ? <PeriodPicker value={period} options={periods} onPick={onPeriod} />
+        : undefined}
     />
   )
 }
@@ -148,7 +191,7 @@ function MetricCard({ metricKey, period, span }: { metricKey: string; period: Pe
 /** Every metric cell the layout holds for this board. */
 export function MetricCells() {
   const layer = useWidgetLayer()
-  const { layout } = useLayout(layer?.dashboard ?? 'default')
+  const { layout, setPeriod } = useLayout(layer?.dashboard ?? 'default')
   const ids = layout.placed.map((p) => p.id).filter((id) => id.startsWith(METRIC_PREFIX))
   const catalogue = useMetricCatalogue()
   if (!layer || ids.length === 0) return null
@@ -166,7 +209,15 @@ export function MetricCells() {
         const period = periodOf(layout, id)
         return (
           <Widget key={id} id={id} label={m?.label ?? key} size="small" index={1000 + i} periodic>
-            {(span) => <MetricCard metricKey={key} period={period} span={span} />}
+            {(span) => (
+              <MetricCard
+                metricKey={key}
+                period={period}
+                span={span}
+                periods={m?.periods}
+                onPeriod={(p) => setPeriod(id, p)}
+              />
+            )}
           </Widget>
         )
       })}
