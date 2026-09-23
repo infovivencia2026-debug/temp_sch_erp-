@@ -103,6 +103,10 @@ export default function StaffMessages() {
     setParams(next, { replace: !id })
   }
   const [find, setFind] = useState('')
+  /* Unread only. A school has a hundred colleagues and four conversations
+     that want answering; scrolling the address book to find them is the
+     wrong way round. */
+  const [unreadOnly, setUnreadOnly] = useState(false)
   const me = useSession().user?.id
 
   /* Which register is open. In the URL for the same reason `with` is: a
@@ -254,17 +258,32 @@ export default function StaffMessages() {
 
   const all = threads.data?.items ?? []
   const needle = find.trim().toLowerCase()
-  const people = needle
-    ? all.filter(
-        (t) =>
-          t.full_name.toLowerCase().includes(needle) ||
-          (t.designation ?? '').toLowerCase().includes(needle),
-      )
-    : all
+  const people = all
+    .filter(
+      (t) =>
+        !needle ||
+        t.full_name.toLowerCase().includes(needle) ||
+        (t.designation ?? '').toLowerCase().includes(needle),
+    )
+    .filter((t) => !unreadOnly || t.unread > 0)
   const open = all.find((t) => t.user_id === openWith)
-  const parents = parentThreads.data?.items ?? []
+  /* The parents list takes the same two filters as the colleagues list:
+     the name box is the one already on screen, and unread-only answers the
+     question a teacher actually opens this with. */
+  const parents = (parentThreads.data?.items ?? [])
+    .filter(
+      (t) =>
+        !needle ||
+        t.parent_name.toLowerCase().includes(needle) ||
+        t.student_name.toLowerCase().includes(needle) ||
+        (t.class_name ?? '').toLowerCase().includes(needle),
+    )
+    .filter((t) => !unreadOnly || t.unread > 0)
+  /* The badges count both lists whole, never the filtered view: a tab that
+     says "0 unread" because a name was typed in the box is a tab lying about
+     the school. */
   const staffUnread = all.reduce((n, t) => n + t.unread, 0)
-  const parentUnread = parents.reduce((n, t) => n + t.unread, 0)
+  const parentUnread = (parentThreads.data?.items ?? []).reduce((n, t) => n + t.unread, 0)
   const unreadTotal = staffUnread + parentUnread
 
   return (
@@ -317,6 +336,18 @@ export default function StaffMessages() {
                     : undefined
                 }
               />
+              <div className="space-y-2 px-4 pb-3">
+                <Input value={find} onChange={setFind} placeholder="Find a parent, child or class" />
+                <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={unreadOnly}
+                    onChange={(e) => setUnreadOnly(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
+                </label>
+              </div>
               <ul className="max-h-[28rem] divide-y overflow-auto">
                 {parents.map((t) => (
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
@@ -441,8 +472,17 @@ export default function StaffMessages() {
         <div className="grid gap-4">
           <Card className="min-w-0">
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
-            <div className="px-4 pb-3">
+            <div className="space-y-2 px-4 pb-3">
               <Input value={find} onChange={setFind} placeholder="Find a name" />
+              <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={unreadOnly}
+                  onChange={(e) => setUnreadOnly(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Unread only{staffUnread > 0 ? ` (${staffUnread})` : ''}
+              </label>
             </div>
             <ul className="max-h-[28rem] divide-y overflow-auto">
               {people.map((t) => (
