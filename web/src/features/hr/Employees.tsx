@@ -556,7 +556,7 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
       if (input.current) input.current.value = ''
     }
   }
-  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={36} />
+  const face = <StudentAvatar name={e.full_name} photoFileId={e.photo_file_id} seed={e.id} size={56} />
   if (!editable) return face
   return (
     <span className="relative inline-block shrink-0">
@@ -577,8 +577,8 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
         onClick={() => input.current?.click()}
       >
         {face}
-        <span className="absolute -bottom-0.5 -right-0.5 grid h-4 w-4 place-items-center rounded-full border bg-background text-muted-foreground group-hover:text-primary">
-          <Camera className="h-2.5 w-2.5" />
+        <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border bg-background text-muted-foreground group-hover:text-primary">
+          <Camera className="h-3 w-3" />
         </span>
       </button>
       {err && <span className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap rounded bg-destructive px-1.5 py-0.5 text-[11px] text-white">{err}</span>}
