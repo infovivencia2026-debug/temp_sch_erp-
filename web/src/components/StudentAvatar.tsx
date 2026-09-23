@@ -77,7 +77,11 @@ export default function StudentAvatar({
     >
       {show ? (
         <img
-          src={`/api/v1/files/${photoFileId}`}
+          /* inline=1, or the endpoint answers with Content-Disposition:
+             attachment -- which is the right default for an uploaded file and
+             the wrong one for a face in a list, where it means the browser is
+             told to save a photograph nobody asked to save. */
+          src={`/api/v1/files/${photoFileId}?inline=1`}
           alt=""
           className="h-full w-full object-cover"
           /* A photograph whose file has been removed leaves a broken-image

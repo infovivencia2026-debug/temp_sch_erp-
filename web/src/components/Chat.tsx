@@ -768,7 +768,7 @@ export function ChatThread({
               {files.map((f) => (
                 <span key={f.file_id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-background py-1 pl-1 pr-2 text-[12.5px]">
                   {isImage(f) ? (
-                    <img src={f.url} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                    <img src={viewUrl(f)} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
                   ) : (
                     <FileText className="ml-1 h-3.5 w-3.5 shrink-0" />
                   )}
@@ -976,7 +976,7 @@ function VoiceNote({ a }: { a: Attachment }) {
     <div className="chat-voice flex items-center gap-3">
       <audio
         ref={audio}
-        src={a.url}
+        src={viewUrl(a)}
         preload="metadata"
         onLoadedMetadata={(e) => {
           /* A MediaRecorder webm has no duration in its header, so the
@@ -1077,7 +1077,7 @@ function AttachmentView({ a, lifted }: { a: Attachment; lifted?: boolean }) {
           title={lifted ? a.name : `View ${a.name}`}
         >
           <img
-            src={a.url}
+            src={viewUrl(a)}
             alt={a.name}
             loading="lazy"
             className="max-h-64 max-w-full rounded-md"
@@ -1143,10 +1143,26 @@ function ImageViewer({ a, onClose }: { a: Attachment; onClose: () => void }) {
         aria-label="Close"
         className="flex min-h-0 flex-1 cursor-default items-center justify-center p-3"
       >
-        <img src={a.url} alt={a.name} className="max-h-full max-w-full object-contain" />
+        <img src={viewUrl(a)} alt={a.name} className="max-h-full max-w-full object-contain" />
       </button>
     </div>
   )
+}
+
+/* THE URL TO LOOK AT, AS OPPOSED TO THE ONE TO SAVE.
+ *
+ * /api/v1/files/{id} answers with Content-Disposition: attachment, because
+ * that is the safe default for a file somebody uploaded -- it is served to be
+ * downloaded, not run. `?inline=1` is the endpoint's own opt-in for the types
+ * it will show, and it is what every other picture in this product already
+ * asks for: the school logo, an avatar, a document preview. The chat did not,
+ * so its photographs were files the browser was told to save rather than
+ * images to draw, and nothing appeared.
+ *
+ * The plain url stays on the download link, which is the one place the
+ * attachment disposition is the point. */
+function viewUrl(a: Attachment): string {
+  return a.url.includes('?') ? `${a.url}&inline=1` : `${a.url}?inline=1`
 }
 
 function isImage(a: Attachment) {

@@ -42,6 +42,11 @@ interface Message {
   mine: boolean
   read_at?: string
   attachments?: Attachment[]
+  reply_to_id?: string
+  reply_body?: string
+  reply_sender?: string
+  edited?: boolean
+  deleted?: boolean
 }
 
 export default function TeacherMessages() {
@@ -211,6 +216,11 @@ export default function TeacherMessages() {
               at: m.sent_at,
               mine: m.mine,
               read_at: m.read_at,
+              reply_to_id: m.reply_to_id,
+              reply_body: m.reply_body,
+              reply_sender: m.reply_sender,
+              edited: m.edited,
+              deleted: m.deleted,
               /* The teacher needs no label -- the screen is named after them.
                  Anybody else from the school answering in this thread is
                  named with their role, so a reply from the head reads as the

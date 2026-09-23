@@ -748,7 +748,7 @@ export default function ReportCards() {
                 <div className="flex h-[16mm] w-[50mm] items-end justify-center rounded border bg-white p-1">
                   {signature.data?.file_id ? (
                     <img
-                      src={`/api/v1/files/${signature.data.file_id}`}
+                      src={`/api/v1/files/${signature.data.file_id}?inline=1`}
                       alt="My signature"
                       className="max-h-full max-w-full object-contain"
                     />

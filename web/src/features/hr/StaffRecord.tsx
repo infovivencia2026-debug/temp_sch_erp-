@@ -435,7 +435,7 @@ export default function StaffRecord({ employeeID, onClose }: {
         <div className="flex min-w-0 items-center gap-3">
           <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted/30">
             {d?.photo_file_id && (
-              <img src={`/api/v1/files/${d.photo_file_id}`} alt=""
+              <img src={`/api/v1/files/${d.photo_file_id}?inline=1`} alt=""
                 className="h-full w-full object-cover" />
             )}
           </div>
@@ -655,7 +655,7 @@ export default function StaffRecord({ employeeID, onClose }: {
                 <div className="flex flex-wrap items-start gap-4 p-5">
                   <div className="h-[34mm] w-[28mm] shrink-0 overflow-hidden rounded border bg-muted/30">
                     {d.photo_file_id && (
-                      <img src={`/api/v1/files/${d.photo_file_id}`}
+                      <img src={`/api/v1/files/${d.photo_file_id}?inline=1`}
                         alt={`Photograph of ${d.full_name}`}
                         className="h-full w-full object-cover" />
                     )}

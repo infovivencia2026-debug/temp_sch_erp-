@@ -977,7 +977,8 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 			SELECT DISTINCT ON (m.student_id, m.teacher_user_id)
 			       m.student_id::text, concat_ws(' ', st.first_name, st.last_name),
 			       m.teacher_user_id::text, u.full_name,
-			       m.body, to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
+			       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
+			       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
 			       (SELECT count(*)::int FROM parent_teacher_messages un
 			         WHERE un.student_id = m.student_id
 			           AND un.teacher_user_id = m.teacher_user_id
@@ -1029,7 +1030,15 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items, err := collect(s, r, `
-		SELECT m.id::text, m.body,
+		SELECT m.id::text,
+		       /* WITHDRAWN IS WITHDRAWN ON BOTH SIDES.
+
+		          The school's screens blanked a deleted message and this one
+		          did not, so a teacher took back what they had said and the
+		          parent went on reading it -- which is worse than not being
+		          able to delete at all, because the teacher believes it is
+		          gone. The tombstone and the flags travel with every read. */
+		       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
 		       m.sender_user_id = $4,
 		       /* Whose side wrote it. The parent's screen names a third sender
@@ -1042,7 +1051,13 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		                             JOIN roles r ON r.id = ur.role_id
 		                            WHERE ur.user_id = m.sender_user_id AND r.key <> 'parent'
 		                            ORDER BY r.name LIMIT 1), 'school') END,
-		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'), m.attachments
+		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'),
+		       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
+		       m.reply_to_id::text,
+		       (SELECT left(q.body, 120) FROM parent_teacher_messages q WHERE q.id = m.reply_to_id),
+		       (SELECT qu.full_name FROM parent_teacher_messages q
+		          JOIN users qu ON qu.id = q.sender_user_id WHERE q.id = m.reply_to_id),
+		       m.edited_at IS NOT NULL, m.deleted_at IS NOT NULL
 		  FROM parent_teacher_messages m
 		  JOIN users u ON u.id = m.sender_user_id
 		 WHERE m.student_id = $1 AND m.parent_user_id = $2 AND m.teacher_user_id = $3
@@ -1051,7 +1066,8 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		func(rows pgx.Rows) (portalMessageRow, error) {
 			var v portalMessageRow
 			var raw []byte
-			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.SenderSide, &v.ReadAt, &raw)
+			err := rows.Scan(&v.ID, &v.Body, &v.SentAt, &v.Sender, &v.Mine, &v.SenderSide,
+				&v.ReadAt, &raw, &v.ReplyToID, &v.ReplyBody, &v.ReplySender, &v.Edited, &v.Deleted)
 			v.Attachments = scanAttachments(raw)
 			return v, err
 		})

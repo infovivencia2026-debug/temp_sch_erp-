@@ -239,7 +239,7 @@ function ProfileCard({ onOpen }: { onOpen: (id: string) => void }) {
                        bg-muted text-[24px] font-semibold transition-opacity active:opacity-80"
           >
             {avatar
-              ? <img src={`/api/v1/files/${avatar}`} alt="" className="size-full object-cover" />
+              ? <img src={`/api/v1/files/${avatar}?inline=1`} alt="" className="size-full object-cover" />
               : initials}
           </button>
           {/* The camera sits on the picture rather than beside it, so the

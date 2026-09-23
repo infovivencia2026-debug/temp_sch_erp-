@@ -143,7 +143,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
               />
               {frontArt && !front && (
                 <img
-                  src={`/api/v1/files/${frontArt}`}
+                  src={`/api/v1/files/${frontArt}?inline=1`}
                   alt="Current front"
                   className="mt-2 max-h-28 rounded border object-contain"
                 />
@@ -159,7 +159,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
               />
               {backArt && !back && (
                 <img
-                  src={`/api/v1/files/${backArt}`}
+                  src={`/api/v1/files/${backArt}?inline=1`}
                   alt="Current back"
                   className="mt-2 max-h-28 rounded border object-contain"
                 />

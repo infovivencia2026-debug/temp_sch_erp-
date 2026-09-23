@@ -224,7 +224,7 @@ export default function StudentEditDialog({ student, onClose, onSaved }: {
             <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border bg-muted/30">
               {student.photo_file_id && (
                 <img
-                  src={`/api/v1/files/${student.photo_file_id}`}
+                  src={`/api/v1/files/${student.photo_file_id}?inline=1`}
                   alt=""
                   className="h-full w-full object-cover"
                 />
