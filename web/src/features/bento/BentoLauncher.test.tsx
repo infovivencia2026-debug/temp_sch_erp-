@@ -282,16 +282,24 @@ describe('BentoLauncher pins', () => {
     expect(band('pinned')).toBeNull()
   })
 
-  it('a long press on a phone pins without opening the feature', async () => {
+  it('a long press on a phone opens the menu -- pin and add to home -- without opening the feature', async () => {
     vi.useFakeTimers()
     try {
       await render()
-      const tile = host.querySelector<HTMLButtonElement>('[data-key="child.marks"] button.lch-app')!
+      const cell = host.querySelector<HTMLElement>('[data-key="child.marks"]')!
+      const tile = cell.querySelector<HTMLButtonElement>('button.lch-app')!
       await act(async () => { tile.dispatchEvent(touch('touchstart', 40, 300)) })
       await act(async () => { vi.advanceTimersByTime(500) })
       await act(async () => { tile.dispatchEvent(touch('touchend', 40, 300)) })
       await act(async () => { tile.click() })
       expect(navigate).not.toHaveBeenCalled()
+      /* Nothing is pinned by the hold itself: the hold used to toggle the
+         pin outright, which made the second choice -- the home board --
+         unreachable on a phone, where the "…" is hidden on purpose. */
+      expect(localStorage.getItem(PINS_KEY)).toBeNull()
+      const items = [...cell.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      expect(items.map((b) => b.textContent)).toEqual(['bento.launcher.pin', 'Add to home'])
+      await act(async () => { items[0].click() })
       expect(JSON.parse(localStorage.getItem(PINS_KEY)!)).toEqual(['child.marks'])
       expect(host.querySelector('[role="status"]')!.textContent).toBe('bento.launcher.pinned_note[Marks & Grades]')
     } finally {

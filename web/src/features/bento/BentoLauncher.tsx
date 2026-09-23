@@ -19,6 +19,7 @@ import { useRecents } from '@/lib/recents'
 import { FeatureGlyph } from '@/components/FeatureGlyph'
 import { usePins, togglePin } from '@/lib/pins'
 import { useShortcuts, toggleDashboard } from '@/lib/shortcuts'
+import { usePhone } from '@/lib/viewport'
 import { buzz } from '@/lib/haptics'
 import { useReduceMotion } from './bento-kit'
 import './launcher.css'
@@ -258,8 +259,8 @@ export function BentoLauncher({
   const [cursor, setCursor] = useState(0)
   /* The slot whose "…" menu is open, if any. */
   const [menuFor, setMenuFor] = useState<string | null>(null)
-  /* What a screen reader is told when a pin is made by long-press, which
-     has no visible menu to confirm it. */
+  /* What a screen reader is told after a pin or a home shortcut is made
+     from the menu. */
   const [note, setNote] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -296,9 +297,19 @@ export function BentoLauncher({
 
   /* Both filtered through the catalogue, so a feature this account has since
      lost access to simply disappears rather than 404ing on tap. */
+  /* FOUR ON A PHONE, SEVEN AT A DESK.
+
+     The recents band drew every key the store held -- eight -- above the
+     workspaces. On a phone that is two full rows of tiles before the first
+     workspace heading, on a sheet a thumb scrolls; the band exists to save a
+     scroll, not to be one. Four is one row on a phone and seven is one row
+     at a desk, so the band is always a single row of "where you were" and
+     the catalogue starts where the eye already is. The store keeps eight
+     either way; this is what the sheet shows of it. */
+  const phone = usePhone()
   const recents = useMemo(
-    () => recentKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r),
-    [recentKeys, byKey],
+    () => recentKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r).slice(0, phone ? 4 : 7),
+    [recentKeys, byKey, phone],
   )
   const pinned = useMemo(
     () => pinKeys.map((k) => byKey.get(k)).filter((r): r is Row => !!r),
@@ -367,8 +378,8 @@ export function BentoLauncher({
       buzz('select')
       setNote(
         now
-          ? `${r.name} is on your dashboard`
-          : `${r.name} is off your dashboard`,
+          ? `${r.name} is on your home`
+          : `${r.name} is off your home`,
       )
       setMenuFor(null)
     },
@@ -854,7 +865,18 @@ function Tile({
     hold.current = window.setTimeout(() => {
       hold.current = null
       held.current = true
-      onPin(r)
+      /* THE HOLD OPENS THE MENU, IT DOES NOT PIN.
+
+         A long-press used to toggle the pin outright -- one gesture, one
+         outcome, with no visible menu to say which. That made the second
+         thing a person can do from here, put the feature on their home
+         board, unreachable on a phone: the "…" that offers it is hidden
+         where the pointer is a finger, on purpose, and there was nothing
+         else. So the hold now opens the same two-item menu the "…" and a
+         right-click open on a desk: Pin, and Add to home. Same menu, same
+         order, every input. */
+      buzz('select')
+      setMenuFor(slot.id)
     }, HOLD_MS)
   }
   const onTouchMove = (e: React.TouchEvent) => {
@@ -885,8 +907,16 @@ function Tile({
         aria-current={here ? 'page' : undefined}
         aria-label={pinned ? `${r.name} · ${t('bento.launcher.pinned')}` : undefined}
         className="lch-app"
-        onClick={() => {
-          if (held.current) { held.current = false; return }
+        onClick={(e) => {
+          if (held.current) {
+            /* The click after a hold is swallowed -- and STOPPED. It used
+               to be swallowed here and then bubble to the sheet body, whose
+               own click closes any open menu; so the menu the hold had
+               just opened was gone before the finger left the glass. */
+            held.current = false
+            e.stopPropagation()
+            return
+          }
           go(r)
         }}
         onMouseEnter={() => setCursor(index)}
@@ -966,7 +996,7 @@ function Tile({
             onClick={() => onDashboard(r)}
           >
             <LayoutGrid aria-hidden="true" />
-            {dashKeys.includes(r.key) ? 'Remove from dashboard' : 'Add to dashboard'}
+            {dashKeys.includes(r.key) ? 'Remove from home' : 'Add to home'}
           </button>
         </div>
       )}
