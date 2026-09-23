@@ -178,12 +178,32 @@ func actAsBoardMember(db *database.DB, next http.Handler, w http.ResponseWriter,
 	   suspended message) to someone who already oversees the school. */
 	var member bool
 	var status string
+	var perms []string
 	err := db.AsPlatform(r.Context(), func(tx pgx.Tx) error {
+		/* And the grants held THERE, read in the same round trip.
+
+		   The session's permission set is the home school's -- session.go
+		   scopes it -- so entering another school with it unchanged would
+		   carry a principal's powers into a school where the same person is
+		   only a board member. That is the escalation the SECURITY INVARIANT
+		   above promises does not exist. What applies inside the target is
+		   what the target granted: its user_roles and user_permissions rows
+		   for this user, and nothing from home. */
 		return tx.QueryRow(r.Context(), `
 			SELECT EXISTS(SELECT 1 FROM user_roles
 			               WHERE user_id = $1 AND institution_id = $2),
-			       COALESCE((SELECT status FROM institutions WHERE id = $2), '')`,
-			id.UserID, want).Scan(&member, &status)
+			       COALESCE((SELECT status FROM institutions WHERE id = $2), ''),
+			       COALESCE((SELECT array_agg(DISTINCT k) FROM (
+			                   SELECT rp.permission_key AS k
+			                     FROM user_roles ur
+			                     JOIN role_permissions rp ON rp.role_id = ur.role_id
+			                    WHERE ur.user_id = $1 AND ur.institution_id = $2
+			                   UNION
+			                   SELECT up.permission_key
+			                     FROM user_permissions up
+			                    WHERE up.user_id = $1 AND up.institution_id = $2
+			                 ) merged), '{}')`,
+			id.UserID, want).Scan(&member, &status, &perms)
 	})
 	if err != nil {
 		httpx.Internal(w, r, err)
@@ -206,6 +226,15 @@ func actAsBoardMember(db *database.DB, next http.Handler, w http.ResponseWriter,
 	// middleware holds this pointer and must record the school actually entered.
 	// PlatformAdmin stays false — RLS is NOT bypassed for the data reads.
 	id.InstitutionID = want
+	/* A NEW map, never a write into the old one. session.go hands every
+	   request its own Identity copy but the permissions map underneath is
+	   shared read-only with the cache -- mutating it would leak the target
+	   school's grants into the caller's next request at home. */
+	scoped := make(map[string]struct{}, len(perms))
+	for _, p := range perms {
+		scoped[p] = struct{}{}
+	}
+	id.Permissions = scoped
 	next.ServeHTTP(w, r)
 }
 

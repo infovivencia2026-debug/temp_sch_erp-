@@ -348,11 +348,27 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 		row := tx.QueryRow(ctx, `
 			SELECT s.id, s.user_id, s.institution_id, s.last_seen_at, u.full_name,
 			       u.must_change_password, s.via, s.idle_seconds, s.reauth_at, s.created_at,
+			       /* THE SCHOOL THIS SESSION IS IN, AND NO OTHER.
+
+			          These gathered every grant the user holds anywhere. One
+			          person can hold roles at several schools -- a trustee who is
+			          institution_admin at School A and board_member at B -- and
+			          the union meant B was entered with A's full permission set,
+			          because acting.go moves the session's institution and RLS
+			          scopes the ROWS to B while Identity.Can still answers from
+			          this array. rbac.go strips students, attendance and the
+			          staff list from board_member for exactly the DPDP reason
+			          the union then defeated.
+
+			          IS NOT DISTINCT FROM, because platform staff belong to no
+			          school and their rows carry NULL on both sides. The acting
+			          switch re-resolves for the target school itself. */
 			       COALESCE((SELECT array_agg(DISTINCT k) FROM (
 			                   SELECT rp.permission_key AS k
 			                     FROM user_roles ur
 			                     JOIN role_permissions rp ON rp.role_id = ur.role_id
 			                    WHERE ur.user_id = s.user_id
+			                      AND ur.institution_id IS NOT DISTINCT FROM s.institution_id
 			                   UNION
 			                   -- Per-account grants, on top of the role-based keys and
 			                   -- never in place of them: see migrations/00307 and the
@@ -360,11 +376,13 @@ func (s *Store) loadSession(ctx context.Context, tokenHash []byte) (*sessionReco
 			                   SELECT up.permission_key AS k
 			                     FROM user_permissions up
 			                    WHERE up.user_id = s.user_id
+			                      AND up.institution_id IS NOT DISTINCT FROM s.institution_id
 			                 ) merged), '{}'),
 			       COALESCE((SELECT array_agg(DISTINCT ro.key)
 			                   FROM user_roles ur
 			                   JOIN roles ro ON ro.id = ur.role_id
-			                  WHERE ur.user_id = s.user_id), '{}')
+			                  WHERE ur.user_id = s.user_id
+			                    AND ur.institution_id IS NOT DISTINCT FROM s.institution_id), '{}')
 			  FROM sessions s
 			  JOIN users u ON u.id = s.user_id
 			 WHERE s.token_hash = $1
