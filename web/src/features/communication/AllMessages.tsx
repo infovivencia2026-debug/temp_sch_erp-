@@ -564,8 +564,8 @@ function ThreadPane({
   actions,
   children,
 }: {
-  title: ReactNode
-  subtitle?: ReactNode
+  title: string
+  subtitle?: string
   onClose: () => void
   actions?: ReactNode
   children: ReactNode
