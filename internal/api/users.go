@@ -298,6 +298,28 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		out.Roles = assigned
+
+		/* EVERY STAFF LOGIN HAS A STAFF RECORD, FROM THE MOMENT IT EXISTS.
+
+		   This screen made an account and nothing else. Staff 360, payroll,
+		   documents and ID cards all read the employee record, so a teacher
+		   made here could sign in and be messaged and be found by none of
+		   them. The record is made in the same transaction, from the same
+		   name and contact, with the next staff code; the same helper Add
+		   staff uses, so the two doors lead to the same room. Families and
+		   pupils are not staff and get no record. */
+		if hasStaffRole(req.RoleKeys) {
+			campus, err := ensureCampus(r, tx, id.InstitutionID)
+			if err != nil {
+				return err
+			}
+			first, last := splitFullName(req.FullName)
+			if _, _, _, err := appointEmployee(r.Context(), tx, id.InstitutionID, campus, employeeRequest{
+				FirstName: first, LastName: last, Email: req.Email, Phone: req.Phone,
+			}); err != nil {
+				return err
+			}
+		}
 		/* A generated password goes to the person as well as the screen. When
 		   the password is their own number there is nothing to send. */
 		if temp != "" && !known {
@@ -1406,4 +1428,25 @@ func (s *Server) listFeatureCatalog(w http.ResponseWriter, r *http.Request) {
 		out = append(out, *it)
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+// hasStaffRole reports whether any of the keys is a staff role: anything
+// that is not a pupil's or a family's.
+func hasStaffRole(keys []string) bool {
+	for _, k := range keys {
+		if k != "student" && k != "parent" {
+			return true
+		}
+	}
+	return false
+}
+
+// splitFullName gives the first word and the rest, which is how the
+// employee record stores a name.
+func splitFullName(name string) (string, string) {
+	parts := strings.Fields(name)
+	if len(parts) == 0 {
+		return name, ""
+	}
+	return parts[0], strings.Join(parts[1:], " ")
 }
