@@ -1023,6 +1023,15 @@ body.apps .lede { margin: 0; font-size: 16px; color: var(--secondary); line-heig
     background: #ffffff;
     color: #111827;
   }
+  /* The error box was drawn for a white card: red ink on a 6% red wash. Over
+     the glass and the pink of the mesh that is red on pink, which cannot be
+     read. Here it gets a solid dark plate and white ink, and the danger colour
+     is kept only for the edge, so it still reads as a warning. */
+  .auth-split .card .error {
+    background: rgba(20, 12, 38, 0.82);
+    border-color: color-mix(in srgb, var(--danger) 70%, #fff);
+    color: #fff;
+  }
 }
 
 /* Where the browser cannot frost (older Android WebView / WebKit), the card

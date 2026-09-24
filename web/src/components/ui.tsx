@@ -1436,6 +1436,11 @@ export function Select({
   const [open, setOpen] = useOpenState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
+  /* Whether anything has been typed since the menu opened. Until then the
+     box keeps showing the chosen label: it used to swap to an empty query the
+     moment it was clicked, with the choice greyed out as placeholder text,
+     which read as the selection having been lost. */
+  const [typed, setTyped] = useState(false)
   const [custom, setCustom] = useState<{ value: string; label: string }[]>([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -1459,7 +1464,7 @@ export function Select({
   useEffect(() => {
     if (!open) return
     const away = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) { setOpen(false); setQuery('') }
+      if (box.current && !box.current.contains(e.target as Node)) { setOpen(false); setQuery(''); setTyped(false) }
     }
     document.addEventListener('mousedown', away)
     return () => document.removeEventListener('mousedown', away)
@@ -1568,7 +1573,7 @@ export function Select({
    * person to open the form would have set it again. */
   const shownLabel = selected?.label ?? (freeText && value ? value : '')
 
-  const choose = (v: string) => { onChange(v); setOpen(false); setQuery('') }
+  const choose = (v: string) => { onChange(v); setOpen(false); setQuery(''); setTyped(false) }
 
   const add = () => {
     const label = query.trim()
@@ -1590,9 +1595,9 @@ export function Select({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
-        value={open ? query : shownLabel}
+        value={open && typed ? query : shownLabel}
         placeholder={shownLabel || placeholder || 'Type to search'}
-        onFocus={() => { setOpen(true); setActive(0) }}
+        onFocus={(e) => { setOpen(true); setActive(0); setTyped(false); e.currentTarget.select() }}
         /* Clicking it again reopens it.
          *
          * Choosing an option closes the menu and leaves the input focused, so
@@ -1604,7 +1609,19 @@ export function Select({
          * The query is cleared on choose, so reopening shows the whole list
          * rather than the list narrowed by what was picked last time. */
         onClick={() => { setOpen(true); setActive(0) }}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0) }}
+        onChange={(e) => {
+          /* The first keystroke lands on top of the shown label (selected on
+             focus, so it is normally replaced outright); whatever of the label
+             survives is not part of the query. */
+          const raw = e.target.value
+          let next = raw
+          if (!typed && shownLabel) {
+            if (raw.startsWith(shownLabel)) next = raw.slice(shownLabel.length)
+            else if (raw.endsWith(shownLabel)) next = raw.slice(0, raw.length - shownLabel.length)
+            else if (raw.length < shownLabel.length && shownLabel.startsWith(raw)) next = ''
+          }
+          setTyped(true); setQuery(next); setOpen(true); setActive(0)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((i) => Math.min(i + 1, rows - 1)) }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
@@ -1613,7 +1630,7 @@ export function Select({
             if (canAdd && active === shown.length) add()
             else if (canUseTyped && active === shown.length) choose(query.trim())
             else if (shown[active]) choose(shown[active].value)
-          } else if (e.key === 'Escape') { setOpen(false); setQuery('') }
+          } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setTyped(false) }
         }}
       />
       <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">

@@ -121,7 +121,7 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 		       concat_ws(' ', st.first_name, st.last_name),
 		       COALESCE(c.name, '') || COALESCE('-' || sec.name, ''),
 		       m.parent_user_id::text, pu.full_name,
-		       m.body, to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
+		       m.body, to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       m.teacher_user_id::text, tu.full_name,
 		       st.photo_file_id::text,
 		       (SELECT count(*)::int FROM parent_teacher_messages un
@@ -215,7 +215,7 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 	items, err := collect(s, r, `
 		SELECT m.id::text,
 		       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
-		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
+		       to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name,
 		       m.sender_user_id = $4,
 		       CASE WHEN m.sender_user_id = m.parent_user_id THEN 'parent'
 		            WHEN m.sender_user_id = m.teacher_user_id THEN 'teacher'
@@ -223,7 +223,7 @@ func (s *Server) listTeacherParentMessages(w http.ResponseWriter, r *http.Reques
 		                             JOIN roles r ON r.id = ur.role_id
 		                            WHERE ur.user_id = m.sender_user_id AND r.key <> 'parent'
 		                            ORDER BY r.name LIMIT 1), 'school') END,
-		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'),
+		       to_char(m.read_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
 		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI:SS.US'),
 		       m.reply_to_id::text,

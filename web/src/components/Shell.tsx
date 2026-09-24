@@ -1082,14 +1082,20 @@ export function Shell({
               onClick={cycleDensity}
               title={`Row height: ${density}`}
               aria-label={`Row height: ${density}. Click to change.`}
-              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              /* Not on a phone. Row height and the layout switch are set once
+                 and both live in Settings too; here they cost 190px of a
+                 358px header, which pushed Sign out off the right edge and
+                 left the school's name no room at all. */
+              className="hidden h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground sm:grid"
             >
               <Rows3 className="h-4 w-4" />
             </button>
             {/* Classic | Bento, beside the theme control. Added, not moved:
                 every control that was here is still here, in the same order,
                 with the same classes. */}
-            <LayoutSwitch />
+            <div className="hidden sm:block">
+              <LayoutSwitch />
+            </div>
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"

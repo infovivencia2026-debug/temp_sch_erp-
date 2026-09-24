@@ -2659,11 +2659,14 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
             says which rule applies. A field the server refuses without and the
             form does not mark is a field somebody leaves blank and is told
             about after pressing Save. */}
-        <FormField label="Phone" required
+        {/* Neither carries the star: one of the two is enough, and two stars
+            said both were needed while the form accepted either. The line
+            under Save names the rule when it is what is holding Save back. */}
+        <FormField label="Phone"
           hint="A phone number or an email, every alert the school sends goes to one of them">
           <Input value={f.phone} onChange={set('phone')} />
         </FormField>
-        <FormField label="Email" required hint="Or a phone number above">
+        <FormField label="Email" hint="Or a phone number above">
           <Input value={f.email} onChange={set('email')} />
         </FormField>
         <FormField label="Occupation">
@@ -2706,6 +2709,11 @@ function GuardianForm({ guardian, saving, error, onSave, onCancel }: {
           {saving ? 'Saving…' : guardian ? 'Save changes' : 'Add them'}
         </Button>
         <Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+        {!reachable && (
+          <span className="text-[12px] text-muted-foreground" role="status">
+            Add a phone number or an email to save
+          </span>
+        )}
       </div>
     </>
   )

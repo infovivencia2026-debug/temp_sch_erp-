@@ -89,7 +89,11 @@ export function ToastHost({ children }: { children: ReactNode }) {
       </div>
       <div
         aria-live="assertive"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center gap-2 p-4 sm:items-end"
+        /* Above the Bento dock and the phone's home indicator, not on them.
+           Pinned to bottom-0 an error sat across Home and Search in the dock
+           until it was dismissed. The dock reserve is what `main` already
+           leaves for the dock (Shell), safe-area inset included. */
+        className="pointer-events-none fixed inset-x-0 bottom-[var(--dock-reserve,0px)] z-[70] flex flex-col items-center gap-2 p-4 sm:items-end"
       >
         {items.filter((t) => t.kind === 'error').map((t) => (
           <ToastRow key={t.id} t={t} onDismiss={() => dismiss(t.id)} />

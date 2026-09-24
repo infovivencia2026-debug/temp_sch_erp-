@@ -264,12 +264,16 @@ export function CommandSearch() {
            header takes the same shape, where a rounded search is unremarkable
            — one component, one radius, rather than a prop threaded through to
            make the same button two shapes in two places. */
-        className="hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:flex"
+        /* On a phone, the icon alone in a 36px round: the word and the
+           shortcut come back from sm up. Hidden outright below sm, as it
+           was, the palette had no way in at all there — Ctrl+K was the only
+           other door and a phone has no Ctrl. */
+        className="flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:h-auto sm:w-auto sm:px-3 sm:py-1.5"
         aria-label="Search features"
       >
         <Search className="h-3.5 w-3.5" />
-        <span>Search</span>
-        <kbd className="shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px]">{shortcutLabel('K')}</kbd>
+        <span className="hidden sm:inline">Search</span>
+        <kbd className="hidden shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px] sm:inline">{shortcutLabel('K')}</kbd>
       </button>
     )
   }

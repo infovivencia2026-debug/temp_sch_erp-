@@ -89,7 +89,7 @@ func (s *Server) listStaffThreads(w http.ResponseWriter, r *http.Request) {
 		       (SELECT left(m.body, 90) FROM staff_messages m
 		         WHERE (m.party_a = least($1, u.id) AND m.party_b = greatest($1, u.id))
 		         ORDER BY m.sent_at DESC LIMIT 1),
-		       (SELECT to_char(m.sent_at, 'YYYY-MM-DD"T"HH24:MI') FROM staff_messages m
+		       (SELECT to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z' FROM staff_messages m
 		         WHERE (m.party_a = least($1, u.id) AND m.party_b = greatest($1, u.id))
 		         ORDER BY m.sent_at DESC LIMIT 1)
 		  /* Everybody on the staff, not everybody on the payroll.
@@ -167,7 +167,7 @@ func (s *Server) listStaffMessages(w http.ResponseWriter, r *http.Request) {
 		rows, qerr := tx.Query(r.Context(), `
 			SELECT m.id::text,
 			       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
-			       to_char(m.sent_at, 'YYYY-MM-DD"T"HH24:MI'),
+			       to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       m.sender_user_id = $1, u.full_name,
 			       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
 			       to_char(m.sent_at, 'YYYY-MM-DD"T"HH24:MI:SS.US'),
@@ -176,7 +176,7 @@ func (s *Server) listStaffMessages(w http.ResponseWriter, r *http.Request) {
 			       (SELECT qu.full_name FROM staff_messages q JOIN users qu ON qu.id = q.sender_user_id
 			         WHERE q.id = m.reply_to_id),
 			       m.edited_at IS NOT NULL, m.deleted_at IS NOT NULL,
-			       to_char(m.read_at, 'YYYY-MM-DD"T"HH24:MI')
+			       to_char(m.read_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z'
 			  FROM staff_messages m
 			  JOIN users u ON u.id = m.sender_user_id
 			 WHERE m.party_a = least($1, $2::uuid) AND m.party_b = greatest($1, $2::uuid)

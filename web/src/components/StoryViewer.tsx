@@ -117,6 +117,14 @@ export default function StoryViewer({
 
   /* The clock. A picture and a card run on a timer; a video reports its own
      time. Paused holds whichever it is. */
+  /* Paused and goNext are read through refs so the clock effect depends on the
+     item alone. When it depended on `paused` too, every hold-to-pause tore the
+     effect down and rebuilt it: progress snapped to zero and the six seconds
+     started over, so a hold never actually resumed. */
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
+  const goNextRef = useRef(goNext)
+  goNextRef.current = goNext
   useEffect(() => {
     if (!item) return
     setProgress(0)
@@ -126,20 +134,19 @@ export default function StoryViewer({
     let last = performance.now()
     let elapsed = 0
     const tick = (now: number) => {
-      if (!paused) elapsed += now - last
+      if (!pausedRef.current) elapsed += now - last
       last = now
       const p = Math.min(1, elapsed / total)
       setProgress(p)
       if (p >= 1) {
-        goNext()
+        goNextRef.current()
         return
       }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-    // goNext changes identity with g/i, which is exactly when this restarts.
-  }, [item, paused, goNext])
+  }, [item])
 
   useEffect(() => {
     const v = video.current
@@ -249,7 +256,12 @@ export default function StoryViewer({
               <a
                 className="story__open"
                 href={item.href ?? item.src}
-                target="_blank"
+                /* A file is served as an attachment, so a new tab for it is a
+                   blank tab left behind the download; the same bug Chat had.
+                   Ask for the save directly, under the title the sender gave
+                   it. Links and PDFs still open in a tab of their own. */
+                target={item.media === 'file' ? undefined : '_blank'}
+                download={item.media === 'file' ? item.title : undefined}
                 rel="noreferrer noopener"
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}

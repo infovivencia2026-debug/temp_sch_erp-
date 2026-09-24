@@ -311,6 +311,13 @@ export function useLiveStream() {
           qc.invalidateQueries({ queryKey: ['attention'] })
           // Announce it unless it is our own echo or the thread is on screen.
           if (ev.from && ev.from !== me) announce(ev, me)
+          /* The message IS the end of the typing. Left to expire on its own,
+             "typing…" sat under the words that had just arrived for up to
+             five seconds, which read as a second message on its way. */
+          {
+            const key = keyFromEvent(ev)
+            if (key && typing.delete(key)) emit()
+          }
           break
         case 'read':
           /* The other side has seen it: the sender's thread refetches so the

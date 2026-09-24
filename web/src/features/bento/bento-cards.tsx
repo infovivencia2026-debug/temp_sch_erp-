@@ -1275,7 +1275,7 @@ export function Compare({ rows, srLabel, formatValue }: {
     >
       {rows.map((r) => (
         <Fragment key={r.label}>
-          <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+          <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] opacity-80">
             {r.label}
           </span>
           <span className="h-[9px] overflow-hidden rounded-r-[3px]" style={{ background: TRACK }}>
@@ -1316,7 +1316,7 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
   return (
     <div className="flex h-full flex-col justify-center gap-1.5" role="img" aria-label={srLabel}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+        <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] opacity-80">
           {partLabel}
         </span>
         <b className="text-[9px] font-bold tabular-nums">{fmt(p)}</b>
@@ -1328,7 +1328,7 @@ export function PartOf({ part, whole, partLabel, wholeLabel, gapLabel, formatVal
           empty, and the one number a principal came for is the one nobody
           printed. */}
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[8px] font-medium uppercase tracking-[0.06em] opacity-70">
+        <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] opacity-80">
           {gap > 0 ? gapLabel : wholeLabel}
         </span>
         <b className="text-[9px] font-bold tabular-nums opacity-80">
@@ -1365,7 +1365,7 @@ export function Facts({ items, srLabel }: {
         <div key={f.label}
              className="flex flex-1 items-center justify-between gap-2 border-t pt-1"
              style={{ borderColor: TRACK }}>
-          <dt className="truncate text-[8.5px] font-medium uppercase tracking-[0.07em] opacity-75">
+          <dt className="truncate text-[10px] font-medium uppercase tracking-[0.07em] opacity-80">
             {f.label}
           </dt>
           <dd className="shrink-0 text-[11px] font-bold tabular-nums">{f.value}</dd>
