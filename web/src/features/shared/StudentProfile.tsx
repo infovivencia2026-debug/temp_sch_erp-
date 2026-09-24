@@ -2556,11 +2556,7 @@ function QuickTile({ label, value, note, tone, swatch }: {
   return (
     <div className={cn('min-w-[10rem] flex-1 rounded-xl border bg-background px-4 py-3', ring)}>
       <p className="eyebrow flex items-center gap-1.5 text-muted-foreground">
-        {swatch && (
-          <span className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ background: swatch }} />
-        )}
-        {label}
+        <span style={swatch ? { color: swatch } : undefined}>{label}</span>
       </p>
       <p className="mt-0.5 text-[18px] font-semibold tabular-nums">{value}</p>
       {note && <p className="text-[12px] text-muted-foreground">{note}</p>}

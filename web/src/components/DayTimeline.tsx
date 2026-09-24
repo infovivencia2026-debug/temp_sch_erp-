@@ -125,7 +125,6 @@ export default function DayTimeline({
           </div>
           {live && (
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" />
               {live.name} now
             </span>
           )}

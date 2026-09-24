@@ -1056,50 +1056,41 @@ const TONES = {
 } as const
 
 /**
- * A status: a coloured dot and a word.
+ * A status: a word on a light tint of its colour.
  *
- * This used to be a filled lozenge, and a table of them read as a colour chart
- * — the eye went to the brightest cell rather than to the row that mattered.
- * The dot carries the state, the label carries the meaning, and the row stays
- * scannable. `solid` is available for the rare case that has to survive being
- * glanced at across a counter.
+ * It was a coloured dot before the word, and the dot read as a bullet point
+ * -- "• 1-3" in an ageing table looked like a list item, not a state -- so
+ * it is gone from the whole product. The tint is quiet enough that a column
+ * of them does not become a colour chart, and the word still carries the
+ * meaning. `solid` is kept for callers that asked for it; it draws the same.
  */
 export function Badge({
   children,
   tone = 'neutral',
-  solid,
+  solid: _solid,
   className,
 }: {
   children: ReactNode
   tone?: keyof typeof TONES
   solid?: boolean
   /* Spacing, almost always: a badge set straight after a sentence has nothing
-     between it and the last character, so the dot lands against the word. The
-     caller says how much room it wants rather than every badge in the product
-     carrying a margin it may not need. */
+     between it and the last character. The caller says how much room it wants
+     rather than every badge in the product carrying a margin it may not need. */
   className?: string
 }) {
-  if (solid) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center rounded-sm px-1.5 py-0.5 text-[12px] font-medium',
-          tone === 'success' && 'bg-success/12 text-success',
-          tone === 'danger' && 'bg-destructive/12 text-destructive',
-          tone === 'warning' && 'bg-warning/15 text-warning',
-          tone === 'primary' && 'bg-primary/12 text-primary',
-          tone === 'info' && 'bg-info/12 text-info',
-          tone === 'neutral' && 'bg-muted text-secondary-foreground',
-          className,
-        )}
-      >
-        {children}
-      </span>
-    )
-  }
   return (
-    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[13px]', className)}>
-      <span className={cn('status-dot', TONES[tone])} />
+    <span
+      className={cn(
+        'inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
+        tone === 'success' && 'bg-success/12 text-success',
+        tone === 'danger' && 'bg-destructive/12 text-destructive',
+        tone === 'warning' && 'bg-warning/15 text-warning',
+        tone === 'primary' && 'bg-primary/12 text-primary',
+        tone === 'info' && 'bg-info/12 text-info',
+        tone === 'neutral' && 'bg-muted text-secondary-foreground',
+        className,
+      )}
+    >
       {children}
     </span>
   )

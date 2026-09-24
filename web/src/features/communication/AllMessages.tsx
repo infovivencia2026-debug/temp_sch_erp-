@@ -506,7 +506,6 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
               <span>{when(it.last_at)}</span>
               {it.pending ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-px text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
                   {it.channel === 'circular' && it.asked != null
                     ? `${it.acked}/${it.asked} acknowledged`
                     : it.channel === 'staff_parent'
