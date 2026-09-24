@@ -73,23 +73,128 @@ function whereTheyAre(s: Roll): string {
   return [cls, roll].filter(Boolean).join(' · ')
 }
 
-/* One line per child, and the admission number is the last field.
+/* A ROLL OF SIX HUNDRED, PICKED FROM ON A PHONE.
 
-   The picker is a datalist, and a browser filters a datalist on the option's
-   value — not on a separate label, and not consistently between browsers. So
-   the value carries the whole line: type a name and the list narrows, which is
-   the only way somebody who is looking at a face is going to find the row. The
-   number is read back off the end. */
-const SEP = ' · adm '
+   This was an <input list="...">, and a datalist is a suggestion rather than a
+   choice: nothing shows until you type, and on iOS Safari -- which is what a
+   head of section is holding when they do this -- it very often does not
+   appear at all. So the roll was served, correct, and unselectable: the box
+   took text and matched nothing, and there was no way to tell whether the
+   fault was the typing or the screen. The same conclusion was reached for the
+   district field in setup/panels.tsx, for the same reason.
 
-function labelFor(s: Roll): string {
-  const where = whereTheyAre(s)
-  return `${s.full_name}${where ? ` · ${where}` : ''}${SEP}${s.admission_no}`
-}
+   A list drawn by the page instead. It filters on name, class and admission
+   number, shows the first eight matches, and closes on a choice. The typed
+   text still counts: an admission number entered in full matches without
+   opening anything, which is what somebody working from a printed list does. */
+function RollPicker({
+  label,
+  roll,
+  loading,
+  chosen,
+  typed,
+  onPick,
+}: {
+  label: string
+  roll: Roll[]
+  loading: boolean
+  chosen?: Roll
+  typed: string
+  onPick: (admissionNo: string) => void
+}) {
+  const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
 
-function admissionOfLabel(v: string): string {
-  const at = v.lastIndexOf(SEP)
-  return at < 0 ? v.trim() : v.slice(at + SEP.length).trim()
+  const q = text.trim().toLowerCase()
+  const matches = useMemo(() => {
+    if (!q) return roll.slice(0, 8)
+    return roll
+      .filter(
+        (s) =>
+          s.full_name.toLowerCase().includes(q) ||
+          s.admission_no.toLowerCase().includes(q) ||
+          whereTheyAre(s).toLowerCase().includes(q),
+      )
+      .slice(0, 8)
+  }, [roll, q])
+
+  if (chosen) {
+    return (
+      <span className="flex items-center gap-2">
+        <span className="text-[13px] font-medium">{chosen.full_name}</span>
+        <button
+          type="button"
+          className="text-[12px] text-muted-foreground underline"
+          onClick={() => {
+            onPick('')
+            setText('')
+            setOpen(true)
+          }}
+        >
+          change
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <span className="relative block w-full sm:w-64">
+      <Input
+        srLabel={label}
+        value={text || typed}
+        onChange={(v) => {
+          setText(v)
+          setOpen(true)
+          // A full admission number typed or pasted needs no list.
+          const hit = roll.find((s) => s.admission_no.toLowerCase() === v.trim().toLowerCase())
+          if (hit) {
+            onPick(hit.admission_no)
+            setOpen(false)
+          }
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder={loading ? 'Loading the roll…' : 'Name, class or admission number'}
+      />
+      {open && !loading && (
+        <>
+          {/* A press anywhere else closes it. */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-auto rounded-md border bg-card py-1 shadow-lg">
+            {matches.length === 0 ? (
+              <li className="px-3 py-2 text-[13px] text-muted-foreground">
+                {roll.length === 0 ? 'The roll has not loaded.' : 'Nobody matches that.'}
+              </li>
+            ) : (
+              matches.map((s) => (
+                <li key={s.admission_no}>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left hover:bg-accent"
+                    onClick={() => {
+                      onPick(s.admission_no)
+                      setText('')
+                      setOpen(false)
+                    }}
+                  >
+                    <span className="block text-[13.5px] font-medium">{s.full_name}</span>
+                    <span className="block text-[12px] text-muted-foreground">
+                      {whereTheyAre(s)} · {s.admission_no}
+                    </span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </>
+      )}
+    </span>
+  )
 }
 
 export default function StudentPhotos() {
@@ -198,8 +303,8 @@ export default function StudentPhotos() {
     setResult(null)
   }
 
-  function point(file: File, typed: string) {
-    const adm = admissionOfLabel(typed)
+  function point(file: File, admissionNo: string) {
+    const adm = admissionNo.trim()
     setReady((old) => old.map((x) => (x.file === file ? { ...x, admissionNo: adm } : x)))
   }
 
@@ -278,13 +383,6 @@ export default function StudentPhotos() {
             />
           ) : (
             <>
-              {/* One list for the whole table. Six hundred rows each carrying
-                  their own copy of the roll is a page that will not scroll. */}
-              <datalist id="photo-roll">
-                {(roll.data ?? []).map((s) => (
-                  <option key={s.admission_no} value={labelFor(s)} />
-                ))}
-              </datalist>
               <Table head={['', 'File', 'Goes to', 'Class · roll', '']}>
                 {ready.map((r) => {
                   const child = childFor(r.admissionNo)
@@ -307,13 +405,13 @@ export default function StudentPhotos() {
                         {r.done ? (
                           <span className="text-[13px] font-medium">{child?.full_name}</span>
                         ) : (
-                          <Input
-                            srLabel={`Child for ${r.file.name}`}
-                            list="photo-roll"
-                            className="w-full sm:w-64"
-                            value={child ? labelFor(child) : r.admissionNo}
-                            onChange={(v) => point(r.file, v)}
-                            placeholder={roll.isLoading ? 'Loading the roll…' : 'Type a name or admission number'}
+                          <RollPicker
+                            label={`Child for ${r.file.name}`}
+                            roll={roll.data ?? []}
+                            loading={roll.isLoading}
+                            chosen={child}
+                            typed={r.admissionNo}
+                            onPick={(adm) => point(r.file, adm)}
                           />
                         )}
                       </Td>
