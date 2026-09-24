@@ -412,7 +412,7 @@ export function SegmentBar({
           const i = usable.indexOf(s)
           return (
             <li key={`${s.label}-${i}`} className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: category(i) }} />
+              <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: category(i) }} />
               <span className="truncate" style={{ color: VIZ_QUIET }}>{s.label}</span>
               <span className="ml-auto pl-1 font-semibold">{fmt(s.value)}</span>
             </li>
@@ -420,7 +420,7 @@ export function SegmentBar({
         })}
         {folded.length > 0 && (
           <li className="flex min-w-0 items-center gap-1.5 whitespace-nowrap" style={{ color: VIZ_QUIET }}>
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: VIZ_LINE }} />
+            <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: VIZ_LINE }} />
             <span>+{folded.length} more</span>
             <span className="ml-auto pl-1 font-semibold" style={{ color: 'currentColor' }}>
               {fmt(folded.reduce((a, s) => a + s.value, 0))}
@@ -849,7 +849,7 @@ export function Quadrant({
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[length:var(--viz-label,11px)] leading-tight tabular-nums" aria-hidden="true">
           {shown.map((p, i) => (
             <li key={`${p.label}-${i}`} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: mark('purple') }} />
+              <span className="h-[3px] w-3 shrink-0 rounded-sm" style={{ background: mark('purple') }} />
               <span className="font-semibold">{p.label}</span>
               <span style={{ color: VIZ_QUIET }}>{xLabel} {p.x} · {yLabel} {p.y}</span>
             </li>

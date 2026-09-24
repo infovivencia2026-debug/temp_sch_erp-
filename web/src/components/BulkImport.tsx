@@ -1178,7 +1178,7 @@ function History({
           {/* The limits, said before rather than discovered after. Somebody
               deleting an upload usually believes it will put the school back
               exactly as it was, and on two counts it will not. */}
-          <ul className="mt-1.5 list-disc pl-4 text-[12.5px] text-muted-foreground">
+          <ul className="mt-1.5 space-y-1 text-[12.5px] text-muted-foreground">
             <li>
               Records this upload only <span className="italic">changed</span> keep
               their new values. The old ones are not restored.

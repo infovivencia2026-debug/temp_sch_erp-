@@ -1642,7 +1642,7 @@ function VoiceButton({ onRecorded, disabled }: { onRecorded: (f: File) => void; 
           aria-label="Stop recording and attach"
           className="inline-flex h-10 items-center gap-1.5 rounded-full bg-destructive px-3 text-[12.5px] font-semibold text-white"
         >
-          <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          <span className="h-2 w-2 animate-pulse rounded-[2px] bg-white" />
           {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}
           <Square className="h-3.5 w-3.5" />
         </button>

@@ -845,7 +845,7 @@ function CountCell({
       span={span}
       title={title}
       sub={sub}
-      glyph="•"
+      glyph="₹"
       value={n}
       change={roomy ? `${note}. ${t('bento.finance.no_share')}` : note}
       to={href}

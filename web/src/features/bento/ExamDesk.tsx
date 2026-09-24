@@ -144,7 +144,7 @@ function ShortCell({ span, papers, to }: { span: CellSpan; papers: Paper[]; to?:
     <PersonaCard
       span={span}
       title="Marks missing"
-      glyph="•"
+      glyph="?"
       value={missing}
       change={rows.length === 0 ? 'Nothing outstanding' : 'By paper, most short first'}
       to={to}

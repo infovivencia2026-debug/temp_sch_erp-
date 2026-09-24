@@ -142,7 +142,7 @@ function MonthGrid({ days, ym }: { days: AttendanceDay[]; ym: string }) {
                   reason, an approved leave — carries a mark, or the tooltip
                   is a secret only the curious find. */}
               {(d?.label || d?.on_leave) && (
-                <span className="absolute right-0.5 top-0.5 h-1 w-1 rounded-full bg-current opacity-70" />
+                <span className="absolute bottom-0.5 left-1/2 h-[2px] w-2.5 -translate-x-1/2 rounded-sm bg-current opacity-70" />
               )}
             </div>
           )
@@ -251,7 +251,7 @@ function AttendanceHistory({ days, emptyLabel }: { days: AttendanceDay[]; emptyL
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1 w-1 rounded-full bg-current opacity-70" /> event or reason (listed below the calendar)
+          <span className="h-[2px] w-2.5 rounded-sm bg-current opacity-70" /> event or reason (listed below the calendar)
         </span>
       </div>
     </>

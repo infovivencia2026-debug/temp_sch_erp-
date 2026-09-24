@@ -478,7 +478,7 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
         {it.child_name ? (
           <div className="rounded-md border bg-muted/40 px-2.5 py-1 text-[12.5px]">
             Student: <strong className="text-foreground">{it.child_name}</strong>
-            {it.child_class && <> • {it.child_class}</>}
+            {it.child_class && <> · {it.child_class}</>}
             {it.admission_no && <span className="text-muted-foreground/80"> ({it.admission_no})</span>}
           </div>
         ) : it.about ? (
