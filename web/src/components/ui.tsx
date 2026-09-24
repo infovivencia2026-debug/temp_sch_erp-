@@ -4,7 +4,7 @@ import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
-  type ReactElement, type ReactNode,
+  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -1107,12 +1107,17 @@ export function Button({
   size = 'md',
   tone,
   className,
+  ariaHasPopup,
+  ariaExpanded,
 }: {
   pending?: boolean
   children: ReactNode
   onClick?: () => void
   disabled?: boolean
   variant?: 'primary' | 'secondary' | 'ghost' | 'ink' | 'outline'
+  /** For a button that opens a menu: what it opens, and whether it is open. */
+  ariaHasPopup?: 'menu' | 'listbox' | 'dialog'
+  ariaExpanded?: boolean
   type?: 'button' | 'submit'
   /* The tooltip, and the accessible name that has to go with it.
 
@@ -1140,6 +1145,8 @@ export function Button({
       aria-busy={pending || undefined}
       title={title}
       aria-label={title}
+      aria-haspopup={ariaHasPopup}
+      aria-expanded={ariaExpanded}
       /* `btn` and the level are what index.css reads to put the button on
          the elevation ladder: a key at level 1, sunk on press, flat when
          ghost. The classes below paint colour only. */
@@ -2103,14 +2110,109 @@ export function EmptyState({
  * streams the file straight to disk, which matters when a whole-school
  * attendance export is tens of thousands of rows.
  */
+/* EXPORT ASKS WHICH FILE.
+
+   One click used to fetch a CSV and nothing else, though the server has
+   offered CSV, TSV and a real Excel workbook for a while (export.go,
+   exportFormats). Now the button opens a short menu with CSV first and
+   marked as the usual choice, so the person who only ever wanted a CSV is
+   one extra tap away and the person who kept re-saving it as .xlsx by hand
+   gets the workbook.
+
+   Each choice is still a plain link with `download`: the browser follows
+   it, carries the session cookie and streams the file straight to disk,
+   which is the one way that works on the oldest browser a school owns.
+   CSV is sent with no format parameter, exactly as the old button did. */
+const EXPORT_FORMATS: { key: 'csv' | 'xlsx' | 'tsv'; name: string; about: string }[] = [
+  { key: 'csv', name: 'CSV', about: 'Opens in Excel and Sheets. The usual choice.' },
+  { key: 'xlsx', name: 'Excel workbook', about: 'A real .xlsx, ready to open' },
+  { key: 'tsv', name: 'TSV', about: 'Tab-separated, for other tools' },
+]
+
 export function ExportButton({ report, label }: { report: string; label?: string }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement | null>(null)
+  const trigger = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    /* Focus lands on the first choice, so Enter downloads the CSV: the
+       default is the default from the keyboard too. */
+    box.current?.querySelector<HTMLAnchorElement>('a')?.focus()
+    const onDoc = (e: MouseEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      trigger.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const href = (f: string) => `/api/v1/export/${report}${f === 'csv' ? '' : `?format=${f}`}`
+
+  /* Up and down walk the list; the list is short enough that they wrap. */
+  const walk = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const items = Array.from(box.current?.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]') ?? [])
+    if (items.length === 0) return
+    const i = items.findIndex((a) => a === document.activeElement)
+    const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
+    items[next].focus()
+  }
+
   return (
-    <a href={`/api/v1/export/${report}`} download>
-      <Button variant="outline" size="sm">
-        <Download className="h-3.5 w-3.5" />
-        {label ?? 'Export CSV'}
-      </Button>
-    </a>
+    <div ref={box} className="relative inline-block">
+      <div ref={trigger} className="inline-block">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          ariaHasPopup="menu"
+          ariaExpanded={open}
+        >
+          <Download className="h-3.5 w-3.5" />
+          {label ?? 'Export'}
+          <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+        </Button>
+      </div>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Download as"
+          onKeyDown={walk}
+          className="absolute right-0 z-40 mt-1 w-64 overflow-hidden rounded-lg border bg-card py-1 shadow-pop"
+        >
+          {EXPORT_FORMATS.map((f) => (
+            <a
+              key={f.key}
+              role="menuitem"
+              href={href(f.key)}
+              download
+              onClick={() => setOpen(false)}
+              className="block px-3 py-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+            >
+              <span className="flex items-center gap-2 text-[13.5px] font-medium">
+                {f.name}
+                {f.key === 'csv' && (
+                  <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                    default
+                  </span>
+                )}
+              </span>
+              <span className="block text-[12px] text-muted-foreground">{f.about}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
