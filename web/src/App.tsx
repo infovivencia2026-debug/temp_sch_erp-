@@ -129,48 +129,38 @@ function RoleIndex() {
   return <Navigate to={featurePath(role.key, first.section.slug, first.feature.slug)} replace />
 }
 
-/* WHAT /faculty USED TO DO ON AN ACCOUNT THAT DOES NOT HOLD FACULTY.
+/* AN ADDRESS THAT NAMES SOMEBODY ELSE'S WORKSPACE.
 
-   Nothing visible. useActiveRole ended `?? catalog.roles[0]`, so the unheld
-   name resolved to the account's own first workspace and RoleIndex redirected
-   into it -- Institution Admin's dashboard, under a URL that had said
-   /faculty. The reader had no way to tell they had been moved, which is the
-   whole defect: not that the URL failed, but that it succeeded as somebody
-   else's.
+   Every catalogue URL begins with a role -- /faculty/..., /parent/... -- so an
+   address outlives the account that made it. Signing in as a parent on a phone
+   that last held a staff session, following a link copied from a colleague, or
+   losing a role from your account all produce the same thing: a path naming a
+   workspace this account does not hold.
 
-   Said here rather than redirecting to "/" on purpose. A silent bounce to the
-   account's own workspace is the same lie in a different shape; a person who
-   followed a link that named a workspace needs to be told the link named a
-   workspace they do not hold, otherwise they retry it and blame the product.
+   THIS USED TO STOP AND SAY SO, and the reasoning was decent: silently landing
+   somebody on a different workspace than the one the URL named is a lie, and
+   the version before that did exactly that without telling anybody.
 
-   First load is unaffected: "/" carries no :roleKey, Home still picks the
-   account's first workspace, and the Shell still draws its sidebar from
-   useActiveRole, which keeps its fallback for exactly that reason. */
+   But a refusal is not the only honest answer, and on a phone it was the worst
+   one available -- a wall, at the moment of signing in, in front of somebody
+   who had done nothing wrong and had nowhere to press. A person opening this
+   product wants their own work; an address left over from another session is
+   not a request they made. So it takes them to their own dashboard, which is
+   what "/" has always meant, and their own workspaces are the only ones the
+   navigation offers from there.
+
+   An account holding no grants at all is a different sentence and keeps its
+   own: telling somebody their workspace "is not theirs" when they have none
+   reads as a mistake on their part rather than a missing grant on the
+   school's. */
 function UnheldWorkspace() {
-  /* An account with no grants at all is a different sentence, and it was
-     already written: telling somebody their workspace "is not theirs" when
-     they have none reads as a mistake on their part rather than a missing
-     grant on the school's. */
   const catalog = useCatalog()
   if (catalog.roles.length === 0) {
     return <EmptyState title="No workspace" body="Your account holds no feature grants yet." />
   }
-  return (
-    <>
-      <PageHead eyebrow="Not found" title="No such workspace" />
-      <PageBody>
-        <EmptyState
-          title="That workspace is not yours"
-          body={
-            'The address names a workspace your account does not hold. It may ' +
-            'have been copied from somebody with a different role, or the role ' +
-            'may have been taken off your account. Your own workspaces are in ' +
-            'the switcher at the top of the sidebar.'
-          }
-        />
-      </PageBody>
-    </>
-  )
+  // replace, not push: Back must not return to an address that sends them
+  // straight here again.
+  return <Navigate to="/" replace />
 }
 
 function FeatureRoute() {
