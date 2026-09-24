@@ -75,6 +75,9 @@ type loginPage struct {
 	CSRFToken string
 	Error     string
 	Next      string
+	// Identifier is what was typed, put back in the field after a refusal so
+	// the person corrects the password rather than typing both again.
+	Identifier string
 	// MFAStep renders the six-digit code form instead of the password one:
 	// the password checked out and the account carries a second factor.
 	MFAStep bool
@@ -193,9 +196,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		h.record(r.Context(), r, LoginEvent{Outcome: "locked", Identifier: identifier})
 		h.render(w, r, http.StatusTooManyRequests, loginPage{
 			CSRFToken: h.issueCSRF(w),
-			Error: fmt.Sprintf("Too many failed attempts. Try again in %d minute(s).",
+			Error: fmt.Sprintf("Too many attempts. Wait %d minute(s), then try again.",
 				int(wait.Minutes())+1),
-			Next: next,
+			Next:       next,
+			Identifier: identifier,
 		})
 		return
 	}
@@ -214,41 +218,39 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			outcome = "ambiguous"
 		}
 		h.record(r.Context(), r, LoginEvent{Outcome: outcome, Identifier: identifier, Locked: locked})
-		/* THREE DIFFERENT FACTS, SAID AS THREE.
+		/* WHAT A STRANGER IS TOLD, AND WHAT A PERSON IS TOLD.
 
-		   This was one message — "Incorrect username or password" — chosen so
-		   the form could not be used to enumerate accounts. That is a real
-		   concern and the reason it stood for a long time. It also cost a full
-		   day of this school's time: a parent's number was registered at two
-		   institutions, every sign-in was refused for THAT reason, and the
-		   screen said the password was wrong. The office reissued the password
-		   four times, each one correct, each one rejected, and concluded the
-		   accounts were not being created at all.
+		   "No such account" and "wrong password" are one sentence, on purpose:
+		   said as two, the form answers which numbers and addresses hold an
+		   account here, to anyone who cares to type them. That was once split
+		   into three messages after a real incident -- a parent registered at
+		   two schools was refused every time and told the password was wrong.
+		   The cause of that incident is gone: authenticate now lets the
+		   password choose between accounts that share a number, so the only
+		   ambiguity left is a genuine tie, which is reported after the
+		   password has already matched.
 
-		   Enumeration is a modest risk here and it is already available: the
-		   forgot-password form answers per address, and a school's roll is not
-		   a secret from the people holding it. Being unable to tell a wrong
-		   password from an unusable account is a daily, certain cost. So the
-		   three cases are now three sentences, and only the one that is
-		   actually about the password mentions the password. */
-		msg := "That password is not right. Try again, or use Forgotten your password."
+		   The two messages that name a fact -- paused school, genuine tie --
+		   are reachable only past a correct password, so they tell nothing to
+		   somebody who has not got one. */
+		msg := "That username, email or phone and password do not match. " +
+			"Check both, or use Forgotten your password. " +
+			"New here? The school office issues logins."
 		switch {
-		case errors.Is(err, errNoAccount):
-			msg = "No account here uses that username, email or phone. " +
-				"Check it with the school office."
 		case errors.Is(err, errSchoolPaused):
 			msg = "Your password is right, but this school's access is paused at the " +
 				"moment. Nothing has been lost. Ask the school office, or whoever " +
-				"runs EDU CLOUD for the school, to switch it back on."
+				"runs WISEN for the school, to switch it back on."
 		case errors.Is(err, errAmbiguousIdentifier):
-			msg = "That number or address is registered at more than one school, " +
-				"so we cannot tell which account you mean. Sign in with your email " +
-				"address instead, or ask the office for a username."
+			msg = "That number or address, with that password, opens accounts at " +
+				"more than one school, so we cannot tell which you mean. Sign in " +
+				"with your email address or username instead."
 		}
 		h.render(w, r, http.StatusUnauthorized, loginPage{
-			CSRFToken: h.issueCSRF(w),
-			Error:     msg,
-			Next:      next,
+			CSRFToken:  h.issueCSRF(w),
+			Error:      msg,
+			Next:       next,
+			Identifier: identifier,
 		})
 		return
 	}
@@ -406,6 +408,7 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 
 	now := time.Now()
 	var matched []candidate
+	verified := false
 	for _, c := range candidates {
 		/* The day code is tried first, and only for a teaching account at a
 		   school that switched it on. First because it is cheap and the hash
@@ -423,10 +426,16 @@ func (h *Handler) authenticate(ctx context.Context, identifier, password string)
 			// nothing to sign in as.
 			continue
 		}
+		verified = true
 		if err := h.hasher.Verify(*c.hash, password); err == nil {
 			c.matchedBy = "password"
 			matched = append(matched, c)
 		}
+	}
+	if !verified {
+		// Every candidate was an invited account with no password yet. Spend
+		// the hash anyway: a refusal that comes back fast would say so.
+		_ = h.hasher.Verify(dummyHash, password)
 	}
 
 	switch len(matched) {

@@ -115,3 +115,41 @@ copy that gets missed is always the one somebody actually lands on.
   })
 })()
 </script>{{end}}
+
+{{/* loginjs: two small courtesies for the sign-in form, both nothing without
+     JavaScript. Caps Lock is named while the password is being typed -- the
+     commonest reason a right password is refused, and invisible in a masked
+     field. And the button goes quiet the moment it is pressed, so a slow
+     connection does not collect a second click and a second attempt against
+     the throttle. */}}
+{{define "loginjs"}}<script>
+(function () {
+  var pw = document.getElementById('password')
+  var hint = document.getElementById('caps-hint')
+  if (pw && hint) {
+    var show = function (e) {
+      var on = e.getModifierState && e.getModifierState('CapsLock')
+      hint.hidden = !on
+    }
+    pw.addEventListener('keydown', show)
+    pw.addEventListener('keyup', show)
+    pw.addEventListener('blur', function () { hint.hidden = true })
+  }
+  var form = document.getElementById('login-form')
+  var btn = document.getElementById('login-submit')
+  if (form && btn) {
+    form.addEventListener('submit', function () {
+      if (btn.disabled) return
+      btn.disabled = true
+      btn.setAttribute('aria-busy', 'true')
+      btn.textContent = btn.getAttribute('data-pending-label') || btn.textContent
+    })
+    // Back button to a cached page: the button must be live again.
+    window.addEventListener('pageshow', function () {
+      btn.disabled = false
+      btn.removeAttribute('aria-busy')
+      btn.textContent = 'Sign in'
+    })
+  }
+})()
+</script>{{end}}
