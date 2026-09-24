@@ -971,6 +971,8 @@ func (s *Server) Routes() http.Handler {
 				r.Use(httpx.RequirePermission(rbac.EmployeesRead))
 				r.Get("/dashboard", s.getHRDashboard)
 				r.Get("/employees", s.listEmployees)
+				// Logins with a staff role but no record; see role_backoffice.go.
+				r.Get("/employees/unlinked", s.listUnlinkedStaffLogins)
 				/* One member of staff, and what they actually do here.
 
 				   section_subject_teachers has been written from one direction

@@ -425,6 +425,7 @@ export default function Employees() {
               </div>
             }
           />
+          <UnlinkedLogins canWrite={can('hr.employees.write')} />
           {exportOverview.error && (
             <div className="px-5 pt-4">
               <FormNotice error={exportOverview.error} />
@@ -582,5 +583,68 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
       </button>
       {err && <span className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap rounded bg-destructive px-1.5 py-0.5 text-[11px] text-white">{err}</span>}
     </span>
+  )
+}
+
+/* Logins that have no staff record.
+
+   "Issue a login" on Logins & access makes an account and nothing else, so a
+   teacher made that way could sign in and be messaged and never appear
+   here, which lists employees. They are named at the top of the directory
+   with one button that makes the record from what the login already knows
+   (name, email, phone) and links the two; the code is minted by the server. */
+function UnlinkedLogins({ canWrite }: { canWrite: boolean }) {
+  const qc = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['employees', 'unlinked'],
+    queryFn: () => api.get<List<{ user_id: string; full_name: string; email?: string; phone?: string; roles: string[]; status: string }>>('/api/v1/hr/employees/unlinked'),
+  })
+  const [busy, setBusy] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const rows = data?.items ?? []
+  if (!rows.length) return null
+  const create = async (u: (typeof rows)[number]) => {
+    setBusy(u.user_id)
+    setErr(null)
+    const parts = u.full_name.trim().split(/\s+/)
+    try {
+      await api.post('/api/v1/setup/employees', {
+        first_name: parts[0] ?? u.full_name,
+        last_name: parts.slice(1).join(' '),
+        email: u.email ?? '',
+        phone: u.phone ?? '',
+      })
+      qc.invalidateQueries({ queryKey: ['employees'] })
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not create the record.')
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="border-b bg-amber-50/60 px-5 py-3 dark:bg-amber-900/10">
+      <p className="text-[13.5px] font-medium">
+        {rows.length} login{rows.length === 1 ? ' has' : 's have'} a staff role but no staff record
+      </p>
+      <p className="text-[12.5px] text-muted-foreground">
+        Made from Logins &amp; access. They can sign in but are not in this directory until a record exists.
+      </p>
+      <ul className="mt-2 space-y-1.5">
+        {rows.map((u) => (
+          <li key={u.user_id} className="flex flex-wrap items-center justify-between gap-2 text-[13.5px]">
+            <span>
+              <span className="font-medium">{u.full_name}</span>
+              <span className="text-muted-foreground"> · {u.roles.join(', ') || 'staff'} · {u.email ?? u.phone ?? '-'}</span>
+            </span>
+            {canWrite && (
+              <Button size="sm" variant="secondary" disabled={busy === u.user_id} onClick={() => void create(u)}>
+                {busy === u.user_id ? 'Creating…' : 'Create staff record'}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {err && <p className="mt-2 text-[12.5px] text-destructive">{err}</p>}
+    </div>
   )
 }

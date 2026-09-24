@@ -1372,8 +1372,11 @@ func (s *Server) createEmployee(w http.ResponseWriter, r *http.Request) {
 }
 
 func (req employeeRequest) validate() error {
-	if req.EmployeeCode == "" || req.FirstName == "" {
-		return errors.New("employee_code and first_name are required")
+	// The code is optional: a login given a staff record from the directory
+	// has none yet, and appointEmployee mints the next one in the school's
+	// sequence. The name is not optional.
+	if req.FirstName == "" {
+		return errors.New("first_name is required")
 	}
 	/* EITHER CONTACT WILL DO, BECAUSE SIGN-IN ALREADY TAKES EITHER.
 	 *
@@ -1473,6 +1476,13 @@ func appointEmployee(ctx context.Context, tx pgx.Tx, instID, campus uuid.UUID,
 		}
 	}
 
+	if strings.TrimSpace(req.EmployeeCode) == "" {
+		if err := tx.QueryRow(ctx, `
+			SELECT 'EMP' || lpad(GREATEST(COALESCE(max(staff_number), 999) + 1, 1000)::text, 4, '0')
+			  FROM employees WHERE institution_id = $1`, instID).Scan(&req.EmployeeCode); err != nil {
+			return "", "", false, err
+		}
+	}
 	err = tx.QueryRow(ctx, `
 		INSERT INTO employees (institution_id, campus_id, user_id, employee_code,
 		                       first_name, last_name, email, phone,

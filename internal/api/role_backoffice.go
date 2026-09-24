@@ -893,3 +893,37 @@ func (s *Server) listEmployeeDocuments(w http.ResponseWriter, r *http.Request) {
 		})
 	respond(w, r, items, err)
 }
+
+/* listUnlinkedStaffLogins answers GET /hr/employees/unlinked: accounts at this
+   school that hold a staff role but have no employee record. "Issue a login"
+   on Logins & access makes a users row and nothing else, so a teacher made
+   that way could sign in, be messaged and be paid nothing -- and never
+   appeared in Staff 360, which lists employees. The directory names them
+   and offers to make the record. */
+func (s *Server) listUnlinkedStaffLogins(w http.ResponseWriter, r *http.Request) {
+	type row struct {
+		UserID   string   `json:"user_id"`
+		FullName string   `json:"full_name"`
+		Email    *string  `json:"email,omitempty"`
+		Phone    *string  `json:"phone,omitempty"`
+		Roles    []string `json:"roles"`
+		Status   string   `json:"status"`
+	}
+	items, err := collect(s, r, `
+		SELECT u.id::text, u.full_name, u.email::text, u.phone,
+		       COALESCE(array_agg(ro.name ORDER BY ro.name) FILTER (WHERE ro.name IS NOT NULL), '{}'),
+		       u.status
+		  FROM users u
+		  JOIN user_roles ur ON ur.user_id = u.id
+		  JOIN roles ro ON ro.id = ur.role_id AND ro.key NOT IN ('student', 'parent')
+		 WHERE u.status IN ('active', 'invited')
+		   AND NOT EXISTS (SELECT 1 FROM employees e WHERE e.user_id = u.id)
+		 GROUP BY u.id
+		 ORDER BY u.full_name
+		 LIMIT 200`, nil,
+		func(rows pgx.Rows) (row, error) {
+			var v row
+			return v, rows.Scan(&v.UserID, &v.FullName, &v.Email, &v.Phone, &v.Roles, &v.Status)
+		})
+	respond(w, r, items, err)
+}
