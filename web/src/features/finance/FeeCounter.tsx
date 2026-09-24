@@ -100,7 +100,7 @@ export default function FeeCounter() {
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
     queryKey: ['fee-search', needle],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&status=all&limit=15`),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
