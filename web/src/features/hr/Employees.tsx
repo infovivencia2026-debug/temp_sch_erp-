@@ -8,7 +8,7 @@ import { api, type List } from '@/lib/api'
 import { useEmployeeRoster } from '@/lib/rosters'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
-  Button, SkeletonTable, ErrorState, FormNotice, tabClass } from '@/components/ui'
+  Button, SkeletonTable, ErrorState, FormNotice, tabClass, Badge } from '@/components/ui'
 import { ImportButton, ExportButton } from '@/components/DataPortActions'
 import CardViewer from '@/components/CardViewer'
 import IDCards from './IDCards'
@@ -73,6 +73,10 @@ interface Employee {
   joined_on?: string
   status: string
   employment_type?: string
+  /* A login with a staff role and no employee record yet: listed in the
+     directory like everyone else, with the one action that fixes it. */
+  unlinked?: boolean
+  user_id?: string
 }
 
 interface Doc {
@@ -164,7 +168,30 @@ export default function Employees() {
     queryFn: () => api.get<List<Doc>>(`/api/v1/hr/documents?expiring=${expiringOnly}`),
   })
 
-  const all = staff.data?.items ?? []
+  /* Logins with a staff role and no record are rows of the directory too,
+     not a separate strip: the person looking for Kalyan looks in the table.
+     Made from Logins & access, which creates the account and nothing else. */
+  const unlinked = useQuery({
+    queryKey: ['employees', 'unlinked'],
+    queryFn: () =>
+      api.get<List<{ user_id: string; full_name: string; email?: string; phone?: string; roles: string[]; status: string }>>(
+        '/api/v1/hr/employees/unlinked',
+      ),
+  })
+  const all: Employee[] = [
+    ...(staff.data?.items ?? []),
+    ...(unlinked.data?.items ?? []).map((u) => ({
+      id: `login:${u.user_id}`,
+      user_id: u.user_id,
+      employee_code: '',
+      full_name: u.full_name,
+      designation: u.roles.join(', ') || undefined,
+      email: u.email,
+      phone: u.phone,
+      status: u.status,
+      unlinked: true,
+    })),
+  ]
   const rows = search.trim()
     ? all.filter((e) =>
         `${e.full_name} ${e.employee_code} ${e.designation ?? ''}`
@@ -425,7 +452,6 @@ export default function Employees() {
               </div>
             }
           />
-          <UnlinkedLogins canWrite={can('hr.employees.write')} />
           {exportOverview.error && (
             <div className="px-5 pt-4">
               <FormNotice error={exportOverview.error} />
@@ -441,7 +467,9 @@ export default function Employees() {
               empty={!rows.length}
               emptyLabel={search ? 'Nobody matches that.' : 'No employees on file.'}
             >
-              {rows.map((e) => (
+              {rows.map((e) => e.unlinked ? (
+                <UnlinkedRow key={e.id} e={e} canWrite={can('hr.employees.write')} />
+              ) : (
                 <tr key={e.id}>
                   <Td className="font-mono text-[12px]">{e.employee_code}</Td>
                   <Td className="font-medium">
@@ -586,65 +614,72 @@ function StaffPhoto({ e, editable }: { e: Employee; editable: boolean }) {
   )
 }
 
-/* Logins that have no staff record.
+/* A login with a staff role and no employee record, as a directory row.
 
    "Issue a login" on Logins & access makes an account and nothing else, so a
    teacher made that way could sign in and be messaged and never appear
-   here, which lists employees. They are named at the top of the directory
-   with one button that makes the record from what the login already knows
-   (name, email, phone) and links the two; the code is minted by the server. */
-function UnlinkedLogins({ canWrite }: { canWrite: boolean }) {
+   here. The row says so in place of a code and designation, and one button
+   makes the record from what the login already knows (name, email, phone)
+   and links the two; the staff code is minted by the server. */
+function UnlinkedRow({ e, canWrite }: { e: Employee; canWrite: boolean }) {
   const qc = useQueryClient()
-  const { data } = useQuery({
-    queryKey: ['employees', 'unlinked'],
-    queryFn: () => api.get<List<{ user_id: string; full_name: string; email?: string; phone?: string; roles: string[]; status: string }>>('/api/v1/hr/employees/unlinked'),
-  })
-  const [busy, setBusy] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const rows = data?.items ?? []
-  if (!rows.length) return null
-  const create = async (u: (typeof rows)[number]) => {
-    setBusy(u.user_id)
+  const create = async () => {
+    setBusy(true)
     setErr(null)
-    const parts = u.full_name.trim().split(/\s+/)
+    const parts = e.full_name.trim().split(/\s+/)
     try {
       await api.post('/api/v1/setup/employees', {
-        first_name: parts[0] ?? u.full_name,
+        first_name: parts[0] ?? e.full_name,
         last_name: parts.slice(1).join(' '),
-        email: u.email ?? '',
-        phone: u.phone ?? '',
+        email: e.email ?? '',
+        phone: e.phone ?? '',
       })
       qc.invalidateQueries({ queryKey: ['employees'] })
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not create the record.')
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : 'Could not create the record.')
     } finally {
-      setBusy(null)
+      setBusy(false)
     }
   }
   return (
-    <div className="border-b bg-amber-50/60 px-5 py-3 dark:bg-amber-900/10">
-      <p className="text-[13.5px] font-medium">
-        {rows.length} login{rows.length === 1 ? ' has' : 's have'} a staff role but no staff record
-      </p>
-      <p className="text-[12.5px] text-muted-foreground">
-        Made from Logins &amp; access. They can sign in but are not in this directory until a record exists.
-      </p>
-      <ul className="mt-2 space-y-1.5">
-        {rows.map((u) => (
-          <li key={u.user_id} className="flex flex-wrap items-center justify-between gap-2 text-[13.5px]">
-            <span>
-              <span className="font-medium">{u.full_name}</span>
-              <span className="text-muted-foreground"> · {u.roles.join(', ') || 'staff'} · {u.email ?? u.phone ?? '-'}</span>
-            </span>
-            {canWrite && (
-              <Button size="sm" variant="secondary" disabled={busy === u.user_id} onClick={() => void create(u)}>
-                {busy === u.user_id ? 'Creating…' : 'Create staff record'}
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {err && <p className="mt-2 text-[12.5px] text-destructive">{err}</p>}
-    </div>
+    <tr className="bg-amber-50/50 dark:bg-amber-900/10">
+      <Td className="font-mono text-[12px] text-muted-foreground">—</Td>
+      <Td className="font-medium">
+        <span className="flex items-center gap-2.5">
+          <StudentAvatar name={e.full_name} seed={e.id} size={62} className="!rounded-[10px]" />
+          <span>
+            {e.full_name}
+            <span className="block text-[12px] font-normal text-muted-foreground">Login only, no staff record yet</span>
+          </span>
+        </span>
+      </Td>
+      <Td className="text-muted-foreground">{e.designation ?? '-'}</Td>
+      <Td className="text-muted-foreground">-</Td>
+      <Td className="text-[13px]">
+        {e.phone && (
+          <a href={`tel:${e.phone}`} className="flex items-center gap-1 text-primary">
+            <Phone className="h-3 w-3" />{e.phone}
+          </a>
+        )}
+        {e.email && (
+          <a href={`mailto:${e.email}`} className="flex items-center gap-1 text-muted-foreground">
+            <Mail className="h-3 w-3" />email
+          </a>
+        )}
+        {!e.phone && !e.email && '-'}
+      </Td>
+      <Td className="text-muted-foreground">-</Td>
+      <Td><Badge tone="warning">no record</Badge></Td>
+      <Td className="whitespace-nowrap">
+        {canWrite && (
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void create()}>
+            {busy ? 'Creating…' : 'Create staff record'}
+          </Button>
+        )}
+        {err && <span className="ml-2 text-[12px] text-destructive">{err}</span>}
+      </Td>
+    </tr>
   )
 }
