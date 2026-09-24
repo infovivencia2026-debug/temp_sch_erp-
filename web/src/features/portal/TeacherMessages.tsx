@@ -204,7 +204,14 @@ export default function TeacherMessages() {
                 ? t('portal.teacher_messages.thread_teaches', { subject: chosenTeacher.subject })
                 : undefined
           }
-          onBack={() => setTeacher('')}
+          onBack={() => {
+            setTeacher('')
+            /* Opening the thread marked it read on the server; the badge on
+               the list is from before that. Without this it stayed until the
+               30-second poll, so a parent came back to a count they had just
+               read. */
+            qc.invalidateQueries({ queryKey: ['portal-teachers', studentId] })
+          }}
         >
           <ChatThread
             live={studentId && teacher && me

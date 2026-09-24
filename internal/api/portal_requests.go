@@ -978,7 +978,7 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 			       m.student_id::text, concat_ws(' ', st.first_name, st.last_name),
 			       m.teacher_user_id::text, u.full_name,
 			       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
-			       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'),
+			       to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 			       (SELECT count(*)::int FROM parent_teacher_messages un
 			         WHERE un.student_id = m.student_id
 			           AND un.teacher_user_id = m.teacher_user_id
@@ -1039,7 +1039,7 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		          able to delete at all, because the teacher believes it is
 		          gone. The tombstone and the flags travel with every read. */
 		       CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END,
-		       to_char(m.sent_at,'YYYY-MM-DD"T"HH24:MI'), u.full_name,
+		       to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z', u.full_name,
 		       m.sender_user_id = $4,
 		       /* Whose side wrote it. The parent's screen names a third sender
 		          -- the principal answering from the All messages desk -- by
@@ -1051,7 +1051,7 @@ func (s *Server) listPortalMessages(w http.ResponseWriter, r *http.Request) {
 		                             JOIN roles r ON r.id = ur.role_id
 		                            WHERE ur.user_id = m.sender_user_id AND r.key <> 'parent'
 		                            ORDER BY r.name LIMIT 1), 'school') END,
-		       to_char(m.read_at,'YYYY-MM-DD"T"HH24:MI'),
+		       to_char(m.read_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END,
 		       m.reply_to_id::text,
 		       (SELECT left(q.body, 120) FROM parent_teacher_messages q WHERE q.id = m.reply_to_id),

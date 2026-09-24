@@ -282,7 +282,11 @@ function ResourceRow({ r, seen, onOpen }: { r: Resource; seen: boolean; onOpen: 
             ) : href ? (
               <a
                 href={href}
-                target="_blank"
+                /* A file downloads; opening it in a new tab left a blank tab
+                   behind the save, which on a phone read as nothing having
+                   happened. Links still get a tab of their own. */
+                target={media === 'file' ? undefined : '_blank'}
+                download={media === 'file' ? r.title : undefined}
                 rel="noreferrer noopener"
                 onClick={onOpen}
                 className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-primary"

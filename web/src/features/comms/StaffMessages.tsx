@@ -7,7 +7,7 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
   Loading, ErrorState, tabClass, TAB_BAR } from '@/components/ui'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { useSession } from '@/lib/session'
 
 /* One member of staff writing to another.
@@ -388,7 +388,7 @@ export default function StaffMessages() {
                         </span>
                         {t.last_at && (
                           <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                            {t.last_at.slice(0, 10)}
+                            {formatDate(t.last_at)}
                           </span>
                         )}
                         {t.unread > 0 && <Badge tone="primary">{t.unread}</Badge>}
@@ -438,7 +438,12 @@ export default function StaffMessages() {
                   ? `Parent of ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
                   : undefined
               }
-              onBack={() => setBox('parents')}
+              onBack={() => {
+                setBox('parents')
+                /* Opening the thread marked it read on the server; refresh
+                   the list so its badge does not outlive the reading. */
+                qc.invalidateQueries({ queryKey: ['parent-threads'] })
+              }}
             >
               {/* READING SOMEBODY ELSE'S CONVERSATION IS NOT JOINING IT.
                   A principal opens a parent's thread to see what was said;
@@ -537,7 +542,7 @@ export default function StaffMessages() {
                           not what anybody is looking for in a list. */}
                       {t.last_at && (
                         <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                          {t.last_at.slice(0, 10)}
+                          {formatDate(t.last_at)}
                         </span>
                       )}
                       {t.unread > 0 && <Badge tone="primary">{t.unread}</Badge>}
@@ -563,7 +568,10 @@ export default function StaffMessages() {
             title={open?.full_name ?? 'Conversation'}
             subtitle={open?.designation ?? undefined}
             photoId={open?.photo}
-            onBack={() => setOpenWith('')}
+            onBack={() => {
+              setOpenWith('')
+              qc.invalidateQueries({ queryKey: ['staff-threads'] })
+            }}
           >
             <ChatThread
               live={openWith ? { scope: 'staff', peer: openWith } : undefined}

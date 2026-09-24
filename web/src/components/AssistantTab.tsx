@@ -352,6 +352,17 @@ export function AssistantTab() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [turns, state])
 
+  /* Follow the print-out only for a reader who is already at the bottom.
+     Pinning on every character dragged somebody who had scrolled up to
+     re-read an earlier answer straight back down, once per letter, for as
+     long as the answer took to type. 80px is about two lines: close enough
+     to count as "reading the newest". */
+  const followPrint = () => {
+    const el = logRef.current
+    if (!el) return
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (gap < 80) el.scrollTop = el.scrollHeight
+  }
 
   /* The answer PRINTS itself, a few characters at a time, rather than landing
      whole. A block of text appearing at once reads as a page that was already
@@ -421,9 +432,10 @@ export function AssistantTab() {
   }, [turns])
 
   // Keep the log pinned to the bottom as the answer prints, not only when a
-  // whole turn arrives.
+  // whole turn arrives -- but only for somebody who was at the bottom.
   useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+    followPrint()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [printedLen])
 
   useEffect(() => {

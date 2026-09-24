@@ -538,14 +538,14 @@ function MessageCard({ it, onOpen, href }: { it: Item; onOpen?: () => void; href
                     <div className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
                       {m.sender} · {when(m.at)}
                     </div>
-                    <span className="whitespace-pre-wrap">{m.body}</span>
+                    <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.body}</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="rounded-r-lg rounded-bl-lg border border-l-[3px] border-l-indigo-500 bg-muted/40 px-4 py-3 text-[14px] leading-relaxed">
-              <span className="whitespace-pre-wrap">{it.last_body}</span>
+              <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{it.last_body}</span>
             </div>
           )}
         </div>

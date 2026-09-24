@@ -169,6 +169,21 @@ export function ChatThread({
     else if (grew > 0) setBehind((n) => n + grew)
   }, [messages.length, loading, atBottom, toBottom])
 
+  /* Pictures arrive after the text. The first scroll to the bottom ran
+     before any image had a height, so on open the last messages sat below
+     the fold by exactly the pictures' heights, and since the reader counted
+     as "at the bottom" nothing corrected it. Watch the rows themselves grow
+     and, for a reader at the bottom, keep them there. */
+  useEffect(() => {
+    const el = scroller.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      if (atBottom) toBottom(false)
+    })
+    for (const child of Array.from(el.children)) ro.observe(child)
+    return () => ro.disconnect()
+  }, [messages.length, loading, atBottom, toBottom])
+
   const onScroll = () => {
     const el = scroller.current
     if (!el) return
@@ -240,8 +255,9 @@ export function ChatThread({
          -- so the message disappeared and came back when the refetch arrived. */
       const kept = cur.filter((m) => {
         if (m.pending || m.failed) return true
+        const since = Math.floor(Date.parse(m.at) / 60_000) * 60_000
         return !messages.some(
-          (x) => x.mine && x.body === m.body && x.at >= m.at.slice(0, x.at.length),
+          (x) => x.mine && x.body === m.body && Date.parse(x.at) >= since,
         )
       })
       return kept.length === cur.length ? cur : kept
@@ -399,7 +415,10 @@ export function ChatThread({
     const stand: ChatMessage = {
       id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       body,
-      at: new Date().toISOString().slice(0, 16),
+      /* A full UTC stamp, like the server's. Cut to the minute with no zone
+         it was read back as LOCAL time, so a message sent at 9 pm showed
+         3:30 pm until the server's copy replaced it. */
+      at: new Date().toISOString(),
       mine: true,
       attachments: files,
       reply_to_id: replyTo?.id,
@@ -412,6 +431,10 @@ export function ChatThread({
     setFiles([])
     setReplyTo(null)
     void deliver(stand, payload)
+    /* Your own words always land in view. Without this, sending while
+       scrolled up put the message off-screen and the pill counted it as
+       "1 new", as if somebody else had said it. */
+    toBottom()
   }
 
   const retry = (m: ChatMessage) => {
@@ -498,6 +521,14 @@ export function ChatThread({
 
   // The other party is typing — a live hint that expires by itself.
   const otherTyping = useTyping(live)
+  /* The typing row is appended inside the scroller, below the last message.
+     For a reader sitting at the bottom that put it just past the fold,
+     behind the composer, where nobody saw it; and since they were still "at
+     the bottom" nothing brought it up. Follow it the way a message is
+     followed: only when they were already there. */
+  useEffect(() => {
+    if (otherTyping && atBottom) toBottom(false)
+  }, [otherTyping, atBottom, toBottom])
 
   let lastDay = ''
   return (
@@ -574,7 +605,7 @@ export function ChatThread({
           </div>
         ) : (
           shown.map((m, i) => {
-            const day = m.at.slice(0, 10)
+            const day = dayKeyOf(m.at)
             const sep = day !== lastDay
             lastDay = day
             /* Runs. Messages from one side, close together, sit as a group:
@@ -584,7 +615,7 @@ export function ChatThread({
             const next = shown[i + 1]
             const sameAs = (o?: ChatMessage) =>
               !!o && o.mine === m.mine && (o.sender ?? '') === (m.sender ?? '') &&
-              o.at.slice(0, 10) === day && Math.abs(+new Date(o.at) - +new Date(m.at)) < 5 * 60_000
+              dayKeyOf(o.at) === day && Math.abs(+new Date(o.at) - +new Date(m.at)) < 5 * 60_000
             const first = sep || !sameAs(prev)
             const last = !sameAs(next)
             /* Which side of the paper. Yours, unless the screen says otherwise:
@@ -1179,6 +1210,16 @@ function timeOf(iso: string) {
   const d = new Date(iso.length <= 16 ? iso + ':00' : iso)
   if (isNaN(d.getTime())) return iso.slice(11, 16)
   return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+}
+
+/* The day a message belongs to, in the reader's own zone. Slicing the first
+   ten characters of the stamp took the UTC date, so a message sent at half
+   past midnight showed under Yesterday with a time from today. Parsed the
+   same way timeOf parses it, so the pill and the time always agree. */
+function dayKeyOf(iso: string) {
+  const d = new Date(iso.length <= 16 ? iso + ':00' : iso)
+  if (isNaN(d.getTime())) return iso.slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function dayLabel(day: string) {

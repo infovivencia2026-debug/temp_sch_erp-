@@ -161,7 +161,7 @@ export default function LMSUpload() {
 
             {audience === 'class' && (
               <FormGrid>
-                <Field label="Subject" hint="Leave blank to share with a whole class instead">
+                <Field label="Subject" hint="Pick a subject, or leave this blank and pick a class below">
                   <Select
                     value={classSubjectID}
                     onChange={setClassSubjectID}
@@ -313,6 +313,16 @@ export default function LMSUpload() {
                 {audience === 'students' ? `Share with ${chosen.size || 'the'} student${chosen.size === 1 ? '' : 's'}`
                   : audience === 'school' ? 'Share with the school' : 'Add to the class library'}
               </Button>
+              {/* The button was disabled with nothing saying why: both boxes
+                  above may be left blank one at a time, and the hints said
+                  so, but never that one of them had to be filled. */}
+              {!addressed && (
+                <p className="mt-2 text-[12px] text-muted-foreground" role="status">
+                  {audience === 'class'
+                    ? 'Choose a subject or a class to share it with.'
+                    : 'Tick at least one student.'}
+                </p>
+              )}
             </div>
           </div>
         </Card>
