@@ -717,35 +717,48 @@ function CircularPane({
         )
       }
     >
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
-        {q.isLoading ? (
-          <SkeletonTable columns={1} />
-        ) : q.error ? (
-          <ErrorState error={q.error} />
-        ) : (
-          <>
-            <div className="rounded-xl border bg-card px-4 py-3">
-              <div className="text-[12px] text-muted-foreground">
-                {d?.published_at ? when(d.published_at) : ''}
-              </div>
-              <p className="mt-1 whitespace-pre-wrap text-[14.5px]">{d?.body}</p>
-            </div>
-            {d?.requires_ack && (
-              <div className="rounded-xl border bg-muted/40 px-4 py-3">
-                <div className="text-[13px] font-semibold">
+      {/* THE NOTICE, DRAWN AS THE CHAT IT IS. The pane beside the list showed
+          a card with a paragraph in it, while every other channel on the desk
+          opened as a conversation. A circular is the school speaking to the
+          families, so it sits on the paper as one bubble from the school's
+          side, under the same header, with the acknowledgement count where a
+          composer would be -- there is nothing to type back into a notice. */}
+      {q.error ? (
+        <div className="px-4 py-4"><ErrorState error={q.error} /></div>
+      ) : (
+        <ChatThread
+          messages={
+            d
+              ? [{
+                  id: item.key,
+                  body: d.body || 'This notice has no further detail.',
+                  at: d.published_at,
+                  mine: true,
+                  sender: d.author,
+                }]
+              : []
+          }
+          loading={q.isLoading}
+          empty="Nothing published yet."
+          canSend={false}
+          onSend={() => {}}
+          height="min-h-0"
+          cannotSendNote={
+            d?.requires_ack ? (
+              <div>
+                <span className="font-semibold text-foreground">
                   {d.acked} of {d.asked} have acknowledged
-                </div>
+                </span>
                 {d.pending.length > 0 && (
-                  <>
-                    <p className="mt-1 text-[12px] text-muted-foreground">Still to answer</p>
-                    <p className="mt-0.5 text-[13px]">{d.pending.join(', ')}</p>
-                  </>
+                  <span className="block mt-0.5">Still to answer: {d.pending.join(', ')}</span>
                 )}
               </div>
-            )}
-          </>
-        )}
-      </div>
+            ) : (
+              `Sent to ${d?.audience || 'the school'}. A notice takes no replies; families write to the class teacher.`
+            )
+          }
+        />
+      )}
     </ThreadPane>
   )
 }
