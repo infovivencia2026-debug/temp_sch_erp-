@@ -342,12 +342,6 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
     },
   })
 
-  const count = thread.data?.items.length ?? 0
-  useEffect(() => {
-    const el = list.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [count, item.key])
-
   return (
     <ThreadPane
       title={`${item.parent_name ?? 'Parent'} ↔ ${item.teacher_name ?? 'Teacher'}`}
