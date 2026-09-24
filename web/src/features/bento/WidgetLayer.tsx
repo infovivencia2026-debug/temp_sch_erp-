@@ -939,8 +939,14 @@ export function WidgetLayer({
     /* A screen is a shortcut first: the key on the list is what FeatureCells
        draws, and the launcher's "Remove from home" reads the same list. The
        layout entry beside it carries the size that was chosen. */
-    if (id.startsWith(FEATURE_PREFIX)) addToDashboard(id.slice(FEATURE_PREFIX.length))
-    add(id, d.w, d.h, visible)
+    if (id.startsWith(FEATURE_PREFIX)) {
+      /* A screen joins a shortcut cell (four to a cell, FeatureCells), which
+         declares itself at its own size; a layout entry under the screen's
+         own id would be a card nothing draws. */
+      addToDashboard(id.slice(FEATURE_PREFIX.length))
+    } else {
+      add(id, d.w, d.h, visible)
+    }
     buzz('tap')
     /* iCloud keeps the picker open so several can be added in a row; it
        closes itself only when there is nothing left to pick. */
