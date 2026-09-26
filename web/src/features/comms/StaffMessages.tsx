@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
 import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
+import { PickerMenu } from '@/components/PickerMenu'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
@@ -122,11 +123,14 @@ export default function StaffMessages() {
     setParams(next, { replace: true })
   }
   const openChild = params.get('child') ?? ''
-  const setOpenChild = (studentID: string, parentID: string) => {
+  const openTeacher = params.get('teacher') ?? ''
+  const setOpenChild = (studentID: string, parentID: string, teacherID?: string) => {
     const next = new URLSearchParams(params)
     next.set('box', 'parents')
     next.set('child', studentID)
     next.set('with', parentID)
+    if (teacherID) next.set('teacher', teacherID)
+    else next.delete('teacher')
     setParams(next)
   }
 
@@ -134,9 +138,17 @@ export default function StaffMessages() {
     queryKey: ['parent-threads'],
     queryFn: () => api.get<List<ParentThread>>('/api/v1/teaching/parent-messages'),
   })
-  const openParent = (parentThreads.data?.items ?? []).find(
+  /* ONE FAMILY, ONE ROW. A head reading the school's threads sees the same
+     parent once per teacher they have written to -- three rows for one
+     mother -- and picking a row did not say which of them opened. The list
+     groups by child and parent; the row opens the most recent thread, and
+     the pane offers the other teachers when there are any. */
+  const familyThreads = (parentThreads.data?.items ?? []).filter(
     (t) => t.student_id === openChild && t.parent_user_id === openWith,
   )
+  const openParent =
+    familyThreads.find((t) => openTeacher && t.teacher_user_id === openTeacher) ??
+    [...familyThreads].sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''))[0]
   const parentMessages = useQuery({
     /* The teacher is part of the identity of a thread.
 
@@ -301,7 +313,32 @@ export default function StaffMessages() {
   /* The parents list takes the same two filters as the colleagues list:
      the name box is the one already on screen, and unread-only answers the
      question a teacher actually opens this with. */
-  const parents = (parentThreads.data?.items ?? [])
+  /* Unread is the reader's, not the school's. A head saw "1" on a thread
+     between a parent and a teacher they are not, and nothing they did could
+     clear it -- the teacher had not read it. Their own threads count; the
+     rest are the All messages desk's business. */
+  const mineUnread = (t: ParentThread) => (!t.teacher_user_id || t.teacher_user_id === me ? t.unread : 0)
+  const grouped = (() => {
+    const byFamily = new Map<string, ParentThread & { teachers: ParentThread[] }>()
+    for (const t of parentThreads.data?.items ?? []) {
+      const k = `${t.student_id}:${t.parent_user_id}`
+      const cur = byFamily.get(k)
+      if (!cur) {
+        byFamily.set(k, { ...t, unread: mineUnread(t), teachers: [t] })
+      } else {
+        cur.teachers.push(t)
+        cur.unread += mineUnread(t)
+        if ((t.last_at ?? '') > (cur.last_at ?? '')) {
+          cur.last_at = t.last_at
+          cur.last_message = t.last_message
+          cur.teacher_user_id = t.teacher_user_id
+          cur.teacher_name = t.teacher_name
+        }
+      }
+    }
+    return [...byFamily.values()].sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''))
+  })()
+  const parents = grouped
     .filter(
       (t) =>
         !needle ||
@@ -317,7 +354,7 @@ export default function StaffMessages() {
      up a moment later; until it does, the tab must not claim there are two
      unread messages in the thread somebody is looking at. */
   const staffUnread = all.reduce((n, t) => n + (t.user_id === openWith ? 0 : t.unread), 0)
-  const parentUnread = (parentThreads.data?.items ?? []).reduce(
+  const parentUnread = grouped.reduce(
     (n, t) => n + (t.student_id === openChild && t.parent_user_id === openWith ? 0 : t.unread),
     0,
   )
@@ -389,7 +426,7 @@ export default function StaffMessages() {
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
                     <button
                       type="button"
-                      onClick={() => setOpenChild(t.student_id, t.parent_user_id)}
+                      onClick={() => setOpenChild(t.student_id, t.parent_user_id, t.teacher_user_id)}
                       className={cn(
                         'w-full px-4 py-2.5 text-left transition-colors',
                         t.student_id === openChild && t.parent_user_id === openWith
@@ -425,7 +462,9 @@ export default function StaffMessages() {
                             people's threads. Without it a head sees a list of
                             parents and cannot tell who at the school each one
                             was talking to, which is most of the question. */}
-                        {t.teacher_name ? ` → ${t.teacher_name}` : ''}
+                        {t.teachers.length > 1
+                          ? ` → ${t.teachers.map((x) => x.teacher_name).filter(Boolean).join(', ')}`
+                          : t.teacher_name ? ` → ${t.teacher_name}` : ''}
                       </span>
                       <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">
                         {t.last_message ?? ''}
@@ -453,8 +492,22 @@ export default function StaffMessages() {
               photoId={openParent?.student_photo}
               subtitle={
                 openParent
-                  ? `Parent of ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}`
+                  ? `Parent of ${openParent.student_name}${openParent.class_name ? ` · ${openParent.class_name}` : ''}${openParent.teacher_name && openParent.teacher_user_id !== me ? ` · with ${openParent.teacher_name}` : ''}`
                   : undefined
+              }
+              actions={
+                familyThreads.length > 1 && openParent?.teacher_user_id ? (
+                  <PickerMenu
+                    value={openParent.teacher_user_id}
+                    options={familyThreads.map((t) => ({
+                      value: t.teacher_user_id ?? '',
+                      label: t.teacher_user_id === me ? 'With me' : `With ${t.teacher_name ?? 'teacher'}`,
+                    }))}
+                    onChange={(v) => setOpenChild(openChild, openWith, v)}
+                    ariaLabel="Which teacher's conversation"
+                    className="text-[13px]"
+                  />
+                ) : undefined
               }
               onBack={() => {
                 setBox('parents')
