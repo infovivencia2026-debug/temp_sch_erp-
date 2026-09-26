@@ -227,7 +227,7 @@ export default function AllMessages() {
         <div
           className={cn(
             'space-y-4',
-            (open || openStaff) && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
+            (open || openStaff || openConcern || openCircular) && 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-4 lg:space-y-0',
           )}
         >
         {inbox.isLoading ? (

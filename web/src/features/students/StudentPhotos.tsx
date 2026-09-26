@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Upload, X } from 'lucide-react'
 import { api } from '@/lib/api'
@@ -104,6 +105,46 @@ function RollPicker({
 }) {
   const [text, setText] = useState('')
   const [open, setOpen] = useState(false)
+  /* THE LIST IS DRAWN IN THE BODY, NOT IN THE TABLE.
+
+     Absolute under the field, it was clipped by the table's own scrolling
+     box -- one option's top edge showing, the rest cut, the screenshot from
+     the import desk. Placed against the field's box in viewport coordinates,
+     above it when the room below is short, and capped to the room it has. */
+  const anchor = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxH: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return }
+    const place = () => {
+      const el = anchor.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const vv = window.visualViewport
+      const vTop = vv ? vv.offsetTop : 0
+      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+      const below = vBottom - r.bottom
+      const above = r.top - vTop
+      const wantsAbove = below < 220 && above > below
+      const maxH = Math.max(96, Math.min(256, (wantsAbove ? above : below) - 12))
+      const width = Math.max(r.width, 260)
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
+      setPos(wantsAbove
+        ? { left, width, bottom: window.innerHeight - r.top + 4, maxH }
+        : { left, width, top: r.bottom + 4, maxH })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', place)
+    vv?.addEventListener('scroll', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+      vv?.removeEventListener('resize', place)
+      vv?.removeEventListener('scroll', place)
+    }
+  }, [open])
 
   const q = text.trim().toLowerCase()
   const matches = useMemo(() => {
@@ -138,7 +179,7 @@ function RollPicker({
   }
 
   return (
-    <span className="relative block w-full sm:w-64">
+    <span ref={anchor} className="relative block w-full sm:w-64">
       <Input
         srLabel={label}
         value={text || typed}
@@ -155,17 +196,21 @@ function RollPicker({
         onFocus={() => setOpen(true)}
         placeholder={loading ? 'Loading the roll…' : 'Name, class or admission number'}
       />
-      {open && !loading && (
+      {open && !loading && pos && createPortal(
         <>
           {/* A press anywhere else closes it. */}
           <button
             type="button"
             aria-hidden
             tabIndex={-1}
-            className="fixed inset-0 z-20 cursor-default"
+            className="fixed inset-0 z-[199] cursor-default"
             onClick={() => setOpen(false)}
           />
-          <ul className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-auto rounded-md border bg-card py-1 shadow-lg">
+          <ul
+            role="listbox"
+            style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxH }}
+            className="fixed z-[200] overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
+          >
             {matches.length === 0 ? (
               <li className="px-3 py-2 text-[13px] text-muted-foreground">
                 {roll.length === 0 ? 'The roll has not loaded.' : 'Nobody matches that.'}
@@ -175,7 +220,7 @@ function RollPicker({
                 <li key={s.admission_no}>
                   <button
                     type="button"
-                    className="block w-full px-3 py-2 text-left hover:bg-accent"
+                    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-accent"
                     onClick={() => {
                       onPick(s.admission_no)
                       setText('')
@@ -191,7 +236,8 @@ function RollPicker({
               ))
             )}
           </ul>
-        </>
+        </>,
+        document.body,
       )}
     </span>
   )
