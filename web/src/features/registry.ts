@@ -48,7 +48,6 @@ import { examControllerKeys } from './exams/exam-controller-keys'
 import { itAdminKeys } from './super_admin/it-admin-keys'
 import { operationsKeys } from './operations/operations-keys'
 import { driverKeys } from './operations/driver-keys'
-import { classicHomeKeys } from './bento/classic-home-keys'
 
 /**
  * Maps a catalog feature key to the component that implements it.
@@ -162,6 +161,15 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   // this one opened on a table of schools with the business's four numbers
   // squeezed above it as a header.
   'seller_admin.home.dashboard': screen(() => import('./seller/SellerDashboard')),
+  /* The sidebar layout's own Homes. The Bento layout serves these roles
+     their boards through bento-registry.ts; the sidebar layout draws no
+     bento, so it keeps the classic dashboards. */
+  'institution_admin.home.dashboard': screen(() => import('./principal/Dashboard')),
+  'faculty.home.todays_classes': screen(() => import('./faculty/TodaysClasses')),
+  'admissions.home.dashboard': screen(() => import('./admissions/Dashboard')),
+  'student.home.my_day': screen(() => import('./portal/Portal')),
+  'parent.home.dashboard': screen(() => import('./portal/Portal')),
+  'hr.home.dashboard': screen(() => import('./hr/Dashboard')),
   // The seller's own mail server and SMS channel, which carry every school's
   // password-reset links. The school's Email Server screen, told who it is for.
   'seller_admin.delivery.password_reset_delivery': screen(() => import('./seller/EduCloudChannels')),
@@ -611,8 +619,6 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   ...teachingKeys,
   ...boardKeys,
   ...messagingKeys,
-  // Last on purpose: one Home per role on both layouts. See bento/classic-home-keys.ts.
-  ...classicHomeKeys,
 }
 
 export function componentFor(key: string) {

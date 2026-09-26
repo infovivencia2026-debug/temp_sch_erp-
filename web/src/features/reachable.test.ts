@@ -17,10 +17,10 @@ import { join, resolve, relative, normalize, dirname } from 'node:path'
  * rather than work waiting for a door -- portal/Alerts against the wired
  * Notifications, ops2/Hostel against WardenDay, and so on.
  *
- * The thirty-two left are not duplicates. (Three classic dashboards joined
- * them on 2026-09-23 when the boards became the Home on both layouts --
- * principal, admissions, HR -- superseded, not yet deleted: each may still
- * be the only caller of an endpoint the board does not read.) Each one is the ONLY caller of at
+ * The twenty-nine left are not duplicates. (The principal, admissions and
+ * HR classic dashboards were here from 2026-09-23 to 2026-09-26, while the
+ * boards were the Home on both layouts; they are the sidebar layout's Homes
+ * again.) Each one is the ONLY caller of at
  * least one endpoint the server actually serves, so deleting it would strand
  * a working API with nothing to reach it. Whether each gets a catalogue key
  * or goes is a product decision a test cannot make, so this freezes them.
@@ -66,7 +66,6 @@ const KNOWN = new Set([
   'features/academics/ExamMonitoring',
   'features/academics/Outcomes',
   'features/admissions/CampaignSequences',
-  'features/admissions/Dashboard',
   'features/analytics/Today',
   'features/bento/BentoMenuBar',
   'features/communication/AbsenceAlerts',
@@ -82,13 +81,11 @@ const KNOWN = new Set([
   'features/faculty/MontessoriTracking',
   'features/faculty/PortfolioBuilder',
   'features/faculty/VirtualClasses',
-  'features/hr/Dashboard',
   'features/learning/CreditBank',
   'features/operations/FeeFiling',
   'features/operations/MDMRegister',
   'features/operations/MDMUtilisation',
   'features/operations/Workspace',
-  'features/principal/Dashboard',
   'features/setup/PeriodUpload',
   'features/students/Alumni',
   'features/students/CertificateTemplates',

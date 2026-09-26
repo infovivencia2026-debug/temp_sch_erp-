@@ -413,13 +413,17 @@ function RoutedScreen() {
   const [shown, setShown] = useState(location)
   useLayoutEffect(() => {
     if (shown.key === location.key) return
-    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+    type VT = { ready?: Promise<unknown>; finished?: Promise<unknown>; updateCallbackDone?: Promise<unknown> }
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => VT | undefined }
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!doc.startViewTransition || still) {
       setShown(location)
       return
     }
-    doc.startViewTransition(() => flushSync(() => setShown(location)))
+    const vt = doc.startViewTransition(() => flushSync(() => setShown(location)))
+    // A transition overtaken by the next navigation rejects "Transition was
+    // skipped"; the swap still happened, so the rejection is not an error.
+    for (const pr of [vt?.ready, vt?.finished, vt?.updateCallbackDone]) pr?.catch(() => {})
     // shown is the thing being replaced; reading it fresh would re-run this
     // on its own update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -451,8 +455,11 @@ export function AppRoutes({ location }: { location?: string }) {
           matcher whatever order they are declared in. Declared beside /account
           because it is the same kind of route -- outside the catalogue,
           reachable by every signed-in person whatever their role. */}
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/settings/:section" element={<SettingsPage />} />
+      {/* Suspense of its own: SettingsPage is lazy and no boundary sits above
+          the route table, so the first visit suspended during RoutedScreen's
+          flushSync and React threw #426, blanking the app (phone dock cog). */}
+      <Route path="/settings" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
+      <Route path="/settings/:section" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
       <Route path="/" element={<Home />} />
       {/* Role-agnostic links, for anything that is written down
           before anybody knows who will read it — a notification,

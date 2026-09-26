@@ -3139,7 +3139,13 @@ body[data-scroll-lock] {
   position: relative;
   display: inline-block;
   flex: none;
-  border-radius: 50%;
+  /* NO FIXED SHAPE. The outline drifts between irregular, organic forms
+     like an amoeba (fluid-amoeba below), slow and never repeating in step
+     with the breathing, so it reads as alive rather than as a button. Every
+     corner is a share of the orb's own size, so the 44px orb in the corner
+     and the 160px one in the panel move the same way. Under reduced motion it
+     holds one irregular form. */
+  border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%;
   overflow: hidden;
   isolation: isolate;
   background:
@@ -3154,7 +3160,16 @@ body[data-scroll-lock] {
     0 0 calc(var(--orb-size) * 0.03) rgba(181, 201, 205, 0.18);
   filter: saturate(1.05);
   transition: filter 300ms ease, transform 300ms ease;
-  animation: fluid-breathe 8s ease-in-out infinite alternate;
+  animation: fluid-breathe 8s ease-in-out infinite alternate,
+             fluid-amoeba 13s ease-in-out infinite;
+}
+@keyframes fluid-amoeba {
+  0%   { border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%; }
+  20%  { border-radius: 44% 56% 62% 38% / 55% 41% 59% 45%; }
+  40%  { border-radius: 63% 37% 41% 59% / 38% 62% 44% 56%; }
+  60%  { border-radius: 39% 61% 55% 45% / 60% 48% 52% 40%; }
+  80%  { border-radius: 52% 48% 36% 64% / 43% 57% 63% 37%; }
+  100% { border-radius: 58% 42% 47% 53% / 46% 55% 45% 54%; }
 }
 /* The subtle ball: the same circle, the colour turned well down. */
 .fluid-orb[data-subtle] {
@@ -3221,7 +3236,7 @@ body[data-scroll-lock] {
 .fluid-orb__glass {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: inherit;
   pointer-events: none;
   background: radial-gradient(circle at 48% 44%,
     rgba(255, 255, 255, 0) 54%, rgba(225, 241, 239, 0.18) 70%,
@@ -3474,4 +3489,72 @@ html.theme-anim *::after {
   .flex.gap-y-1\.5 > * { margin-top: 0.1875rem; margin-bottom: 0.1875rem; }
   .flex.gap-y-2 > * { margin-top: 0.25rem; margin-bottom: 0.25rem; }
   .flex.gap-y-3 > * { margin-top: 0.375rem; margin-bottom: 0.375rem; }
+}
+
+/* THE SIDEBAR LAYOUT DRAWS NO BENTO (lib/classic-skin.ts).
+
+   A persona board served on the classic layout is drawn with classic cards,
+   but the drawings inside a cell -- a gauge, a bar, a row of facts -- read
+   the board's tokens. Here every one of them points at the classic theme, so
+   those drawings take the sidebar layout's ink, card and accent colours and
+   follow its light and dark modes. The six domain grounds collapse onto the
+   classic primary, success, warning and danger colours. */
+.classic-skin {
+    --bento-ink: hsl(var(--foreground));
+    --bento-muted: hsl(var(--muted-foreground));
+    --bento-bg: hsl(var(--background));
+    --bento-card: hsl(var(--card));
+    --bento-card-base: hsl(var(--card));
+    --bento-card-accent: hsl(var(--card));
+    --bento-line: hsl(var(--border));
+    --bento-radius: var(--radius-card);
+    --bento-gap: 1rem;
+    --bento-fig: 26px;
+    --bento-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    --bento-mint: hsl(var(--success));
+    --bento-mint-tint: hsl(var(--success) / 0.12);
+    --bento-pink-tint: hsl(var(--primary-soft));
+    --bento-purple-tint: hsl(var(--primary-soft));
+    --bento-orange-tint: hsl(var(--warning) / 0.12);
+    --bento-anchor-ink: hsl(var(--foreground));
+    --bento-anchor-from: hsl(var(--card));
+    --bento-anchor-to: hsl(var(--card));
+    --bento-dark-ink: hsl(var(--card));
+    --bento-dark-bg: hsl(var(--foreground));
+    --dom-academics: hsl(var(--primary));
+    --dom-academics-soft: hsl(var(--primary-soft));
+    --dom-academics-text: hsl(var(--foreground));
+    --dom-admissions: hsl(var(--primary));
+    --dom-admissions-soft: hsl(var(--primary-soft));
+    --dom-admissions-text: hsl(var(--foreground));
+    --dom-attendance: hsl(var(--primary));
+    --dom-attendance-soft: hsl(var(--primary-soft));
+    --dom-attendance-text: hsl(var(--foreground));
+    --dom-communication: hsl(var(--primary));
+    --dom-communication-soft: hsl(var(--primary-soft));
+    --dom-communication-text: hsl(var(--foreground));
+    --dom-critical: hsl(var(--destructive));
+    --dom-critical-soft: hsl(var(--destructive) / 0.12);
+    --dom-critical-text: hsl(var(--foreground));
+    --dom-finance: hsl(var(--primary));
+    --dom-finance-soft: hsl(var(--primary-soft));
+    --dom-finance-text: hsl(var(--foreground));
+    --dom-operations: hsl(var(--primary));
+    --dom-operations-soft: hsl(var(--primary-soft));
+    --dom-operations-text: hsl(var(--foreground));
+    --dom-reports: hsl(var(--primary));
+    --dom-reports-soft: hsl(var(--primary-soft));
+    --dom-reports-text: hsl(var(--foreground));
+    --dom-staff: hsl(var(--primary));
+    --dom-staff-soft: hsl(var(--primary-soft));
+    --dom-staff-text: hsl(var(--foreground));
+    --dom-students: hsl(var(--primary));
+    --dom-students-soft: hsl(var(--primary-soft));
+    --dom-students-text: hsl(var(--foreground));
+    --dom-success: hsl(var(--success));
+    --dom-success-soft: hsl(var(--success) / 0.12);
+    --dom-success-text: hsl(var(--foreground));
+    --dom-warning: hsl(var(--warning));
+    --dom-warning-soft: hsl(var(--warning) / 0.12);
+    --dom-warning-text: hsl(var(--foreground));
 }

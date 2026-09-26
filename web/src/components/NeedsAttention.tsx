@@ -9,8 +9,7 @@ import { api } from '@/lib/api'
 import { useActiveRole, useCatalog } from '@/lib/catalog'
 import { useCan } from '@/lib/session'
 import { useShortcuts, removeFromDashboard } from '@/lib/shortcuts'
-import { useRouteFeatureKey } from '@/features/bento/BentoOutlet'
-import { bentoComponentFor } from '@/features/bento/bento-registry'
+import { useLayout as useLayoutMode } from '@/lib/layout'
 import { cn } from '@/lib/utils'
 
 /* The panel every role opens the product to read.
@@ -113,12 +112,12 @@ export default function NeedsAttention({ name }: { name?: string }) {
    * Order is the order they were added, so the row does not reshuffle itself
    * under somebody who is reaching for the third tile. */
   const dashKeys = useShortcuts()
-  /* Where the Home is a board -- on either layout now -- the shortcuts are
-     tiles on the board itself (features/bento/FeatureCells), so the strip
-     here would show every one of them twice. It stays for a role whose Home
-     has no board. */
-  const routeKey = useRouteFeatureKey()
-  const boardHome = !!routeKey && !!bentoComponentFor(routeKey)
+  /* On the Bento layout the shortcuts are tiles on the board itself
+     (features/bento/FeatureCells), so the strip here would show every one of
+     them twice. The sidebar layout draws no board (lib/classic-skin.ts), so
+     there the strip is where the shortcuts live. */
+  const { layout: layoutMode } = useLayoutMode()
+  const boardHome = layoutMode === 'bento'
   const shortcuts = useMemo(() => {
     if (!dashKeys.length || boardHome) return []
     const byKey = new Map<string, { key: string; name: string; href: string }>()

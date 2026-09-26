@@ -22,6 +22,7 @@ import { QuickMenu, type QuickTier } from './bento-cards'
 import { usePhone } from '@/lib/viewport'
 import { COL, ROW, spanFor, clampSpan, clampRows, useReduceMotion, type CellSpan } from './bento-kit'
 import { WidgetSizeContext } from '@/lib/widget-size'
+import { useClassicSkin } from '@/lib/classic-skin'
 import { WheelCanvas, INK_HERE_FROM_PAGE } from './ColourDialog'
 import { ArrangeSheet } from './ArrangeSheet'
 import type { Hsl } from '@/lib/paint'
@@ -1465,7 +1466,26 @@ const EDGE_WAIT = 600
 
 /* One widget: the cell that was already written, plus what the layer needs to
    place it. */
-export function Widget({
+export function Widget(props: Parameters<typeof ArrangedWidget>[0]) {
+  const classic = useClassicSkin()
+  return classic ? <ClassicWidget {...props} /> : <ArrangedWidget {...props} />
+}
+
+/** A widget on the sidebar layout: nothing to arrange, so it is its cell at
+    its declared size, and an optional widget (one a person adds on the
+    board) is not shown. The size context is still provided, because the
+    cell's own drawing decides how much to show from it. */
+function ClassicWidget({ size, optional, children }: Parameters<typeof ArrangedWidget>[0]) {
+  if (optional) return null
+  const { w, h } = DIMS[size]
+  return (
+    <WidgetSizeContext.Provider value={{ w, h }}>
+      {children(spanFor(clampSpan(w), clampRows(h)))}
+    </WidgetSizeContext.Provider>
+  )
+}
+
+function ArrangedWidget({
   id,
   label,
   size: declaredSize,

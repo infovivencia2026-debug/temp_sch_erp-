@@ -729,9 +729,9 @@ export function AssistantTab() {
              24px wherever the bar is not pinned to the edge, which is every
              width above 767. */
           `fixed right-6 z-40 grid size-16 place-items-center rounded-full
-           border bg-card shadow-xl
-           transition-[transform,box-shadow,background-color]
-           hover:-translate-y-0.5 hover:bg-accent hover:shadow-2xl
+           bg-transparent [filter:drop-shadow(0_6px_14px_rgba(15,23,42,0.18))]
+           transition-[transform,filter]
+           hover:-translate-y-0.5 hover:[filter:drop-shadow(0_10px_20px_rgba(15,23,42,0.24))]
            focus-visible:-translate-y-0.5 focus-visible:outline-none
            focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0`,
           open && 'opacity-0 pointer-events-none',

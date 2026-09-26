@@ -7,6 +7,8 @@ import { useWidgetSize } from '@/lib/widget-size'
 import { BentoBone, Cell, useBoardHeight, type CellSpan } from './bento-kit'
 import { CardShell, CornerMark, Nil } from './bento-cards'
 import { WidgetLayer } from './WidgetLayer'
+import { useClassicSkin } from '@/lib/classic-skin'
+import { Card, PageBody, PageHead } from '@/components/ui'
 
 /* THE PERSONA KIT — what the student, parent and faculty boards need that
    `bento-kit.tsx` and `bento-cards.tsx` do not already give them.
@@ -88,6 +90,43 @@ export function PersonaPage({
       children: wrapped around the cells it would land inside the grid and be
       laid out as a card, and wrapped around the whole page it would sit above
       the title. Only this component can put it between the two. */
+  dashboard?: string
+  children: ReactNode
+}) {
+  const classic = useClassicSkin()
+  if (classic) {
+    return <ClassicPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions}>{children}</ClassicPersonaPage>
+  }
+  return <BoardPersonaPage eyebrow={eyebrow} title={title} description={description} actions={actions} dashboard={dashboard}>{children}</BoardPersonaPage>
+}
+
+/** The sidebar layout's drawing of a persona board: the classic page head and
+    a plain grid of classic cards. No arranger, no board height, no pager. */
+function ClassicPersonaPage({ eyebrow, title, description, actions, children }: {
+  eyebrow: string; title: string; description?: string; actions?: ReactNode; children: ReactNode
+}) {
+  return (
+    <>
+      <PageHead eyebrow={eyebrow} title={title} description={description} actions={actions} />
+      <PageBody>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+      </PageBody>
+    </>
+  )
+}
+
+function BoardPersonaPage({
+  eyebrow,
+  title,
+  description,
+  actions,
+  dashboard,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  description?: string
+  actions?: ReactNode
   dashboard?: string
   children: ReactNode
 }) {
@@ -247,6 +286,76 @@ export function PersonaCard({
    * Pass a query's pending-with-no-data, never `isFetching`: a cell that is
    * quietly refreshing a number it already has must keep showing that number.
    */
+  loading?: boolean
+  children?: ReactNode
+}) {
+  const classic = useClassicSkin()
+  if (classic) {
+    return <ClassicPersonaCard title={title} who={who} glyph={glyph} value={value} change={change} to={to} cueLabel={cueLabel} loading={loading}>{children}</ClassicPersonaCard>
+  }
+  return <BoardPersonaCard span={span} ground={ground} title={title} who={who} glyph={glyph} value={value} change={change} to={to} cueLabel={cueLabel} loading={loading}>{children}</BoardPersonaCard>
+}
+
+/** A persona cell drawn as a classic card: title, whose, the figure, the
+    change line and the cell's own detail. The coloured ground is a bento
+    idea and is not drawn here. The whole card is still the link. */
+function ClassicPersonaCard({ title, who, glyph, value, change, to, cueLabel, loading, children }: {
+  title: string; who?: string; glyph?: ReactNode; value: ReactNode; change?: ReactNode
+  to?: string; cueLabel: string; loading?: boolean; children?: ReactNode
+}) {
+  const here = useLocation().pathname
+  const body = (
+    <Card className="h-full">
+      <div className="flex h-full flex-col gap-2 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
+            {who && <p className="truncate text-[13px] text-muted-foreground">{who}</p>}
+          </div>
+          {glyph && <span className="shrink-0 text-muted-foreground" aria-hidden="true">{glyph}</span>}
+        </div>
+        <div className="text-[26px] font-semibold leading-tight tabular-nums">
+          {loading ? <span className="inline-block h-7 w-24 animate-pulse rounded bg-muted" /> : value}
+        </div>
+        {!loading && change && <div className="text-[13px] text-muted-foreground">{change}</div>}
+        {!loading && children && <div className="min-h-0 flex-1 text-[14px]">{children}</div>}
+      </div>
+    </Card>
+  )
+  return to ? (
+    <Link
+      to={to}
+      aria-label={cueLabel}
+      onClick={() => openTab(to, cueLabel, here)}
+      className="block h-full rounded-[var(--radius-card)] outline-none transition-colors hover:[&>.card]:border-[hsl(var(--border-strong))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]"
+    >
+      {body}
+    </Link>
+  ) : body
+}
+
+function BoardPersonaCard({
+  span = 'one',
+  ground,
+  title,
+  who,
+  glyph,
+  value,
+  change,
+  to,
+  cueLabel,
+  loading,
+  children,
+}: {
+  span?: CellSpan
+  ground?: string
+  title: string
+  who?: string
+  glyph?: ReactNode
+  value: ReactNode
+  change?: ReactNode
+  to?: string
+  cueLabel: string
   loading?: boolean
   children?: ReactNode
 }) {
