@@ -195,9 +195,21 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
                 hint="One row per student per day, with the mark. Back-filling a term's registers from a sheet rather than a screen."
               />
             )}
+            {/* THE DAY, EVERY SECTION. The one file a school actually asks
+                for: this date, every section this person can see, every
+                child on the rolls, marked or "not marked". Served by the
+                register's own endpoint under the register's own scope, so a
+                class teacher gets their sections and the office the school. */}
+            <Button
+              variant="outline"
+              onClick={() => window.location.assign(`/api/v1/attendance/day.csv?on_date=${onDate}`)}
+              title={`Every section for ${onDate}, as a spreadsheet`}
+            >
+              Export day (all sections)
+            </Button>
             {/* The whole register the school's scope allows, not just the
                 section on screen — what an inspector asks for by date. */}
-            <ExportButton name="attendance" />
+            <ExportButton name="attendance" label="Export 90 days" />
           </div>
         }
       />

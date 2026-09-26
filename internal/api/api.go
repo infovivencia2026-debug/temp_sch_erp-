@@ -429,6 +429,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.AttendanceReadAll)).
 				Post("/nudge", s.nudgeRegister)
 			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/", s.listAttendance)
+			// One date, every section in the caller's reach, as a file.
+			r.With(httpx.RequirePermission(rbac.AttendanceRead)).Get("/day.csv", s.exportAttendanceDay)
 			r.With(httpx.RequirePermission(rbac.AttendanceWrite)).Post("/", s.markAttendance)
 			// The office's morning follow-up on the day's absentees. Reading the
 			// list and logging a call are the same job, so all three gate on the
