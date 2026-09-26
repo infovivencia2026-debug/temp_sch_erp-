@@ -1,0 +1,9 @@
+# Only used by scripts/d1/migrate.sh to address the D1 database with wrangler.
+# database_id is filled in by the script after `wrangler d1 create`.
+name = "school-erp-d1"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "school-erp"
+database_id = "REPLACE_AFTER_CREATE"

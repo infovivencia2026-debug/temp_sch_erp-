@@ -1,0 +1,21 @@
+{
+  "name": "school-erp-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:control:local": "wrangler d1 execute CONTROL --local --file=db/control.sql",
+    "db:control:remote": "wrangler d1 execute CONTROL --remote --yes --file=db/control.sql"
+  },
+  "dependencies": {
+    "bcryptjs": "^3",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4",
+    "typescript": "^5",
+    "wrangler": "^4"
+  }
+}

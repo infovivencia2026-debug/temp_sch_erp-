@@ -1,0 +1,53 @@
+// The school ERP backend on Cloudflare Workers. See worker/README.md.
+//
+// One CONTROL database holds the platform: schools, plans, subscriptions,
+// platform staff and the sign-in index. Every school has its own D1 database,
+// created by scripts/provision-school.sh, which also adds a binding below
+// named TENANT_<slug>. The Worker looks the binding up by the school's slug
+// on every request (src/tenant.ts).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "school-erp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+  "vars": {
+    // Session lifetime and idle limit, seconds. Same defaults as the Go server.
+    "SESSION_TTL_SECONDS": "2592000",
+    "SESSION_IDLE_SECONDS": "86400",
+    "COOKIE_SECURE": "true"
+  },
+  // Secrets, set with `wrangler secret put <NAME>`:
+  //   PASSWORD_PEPPER   the same value the Go server uses, or no stored hash verifies
+  //   CF_ACCOUNT_ID, CF_API_TOKEN   only needed by scripts/provision-school.sh
+  // Files. FILES is the live bucket the Go server uses (read here); uploads
+  // and deletes go to FILES_WRITE until switchover, so the test site can
+  // never change a real file. At switchover FILES_WRITE becomes school-erp.
+  "r2_buckets": [
+    { "binding": "FILES", "bucket_name": "school-erp" },
+    { "binding": "FILES_WRITE", "bucket_name": "school-erp-d1-uploads" }
+  ],
+  // Background work: messages, reminders, exports. One queue, many job
+  // types (src/services/jobs.ts); failures after retries land in the DLQ.
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "school-erp-jobs" }],
+    "consumers": [{ "queue": "school-erp-jobs", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "school-erp-jobs-dlq" }]
+  },
+  // Live updates (src/services/live.ts): one LiveHub per school holds its
+  // open Server-Sent Events streams and fans hints to them.
+  "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
+  // One tick a minute; the schedule itself (per school, in the school's
+  // timezone) is src/services/cron.ts, replacing Cloud Scheduler -> /api/v1/cron.
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [
+    { "binding": "CONTROL", "database_name": "school-erp-control", "database_id": "477538e2-da45-49d5-8176-79f20d7539f1" }
+    ,{ "binding": "TENANT_DEMO", "database_name": "school-erp-demo", "database_id": "73088586-9c8b-4a10-a130-8690782a1ddf" }
+    ,{ "binding": "TENANT_DEMO_SCHOOL", "database_name": "school-erp-demo-school", "database_id": "097509b3-8425-464f-832b-bfe38a8273ed" }
+    ,{ "binding": "TENANT_YAJUR", "database_name": "school-erp-yajur-202609261728", "database_id": "6ff7d5b9-01c8-48d8-94da-c52b4933ef1f" }
+    ,{ "binding": "TENANT_JSM", "database_name": "school-erp-jsm-202609261728", "database_id": "8485aae2-4795-408e-984a-93926d5133b0" }
+    // TENANT_<slug> bindings are appended here by scripts/provision-school.sh
+  ]
+}
