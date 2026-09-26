@@ -1661,7 +1661,7 @@ export function Select({
              content is a sub-pixel wider than the box, which it routinely is once
              a border and padding are counted. The list only ever scrolls
              vertically. */
-          className="fixed z-50 max-h-64 overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 shadow-lg"
+          className="fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 shadow-lg"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (
