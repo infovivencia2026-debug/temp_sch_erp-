@@ -579,7 +579,7 @@ export function ChatThread({
       <div
         ref={scroller}
         onScroll={onScroll}
-        className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5', height)}
+        className={cn('chat-paper flex-1 overflow-auto px-3 py-3 sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', height)}
       >
         {hasMore && !loading && !needle && (
           <div className="mb-2 flex justify-center">

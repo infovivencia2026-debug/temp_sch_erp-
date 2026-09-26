@@ -366,7 +366,7 @@ export default function StaffMessages() {
                   Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
                 </label>
               </div>
-              <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)]">
+              <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {parents.map((t) => (
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
                     <button
@@ -519,7 +519,7 @@ export default function StaffMessages() {
                 Unread only{staffUnread > 0 ? ` (${staffUnread})` : ''}
               </label>
             </div>
-            <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)]">
+            <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {people.map((t) => (
                 <li key={t.user_id}>
                   <button
