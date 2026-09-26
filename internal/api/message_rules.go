@@ -337,6 +337,9 @@ func (s *Server) feeReminderSubjects(ctx context.Context, tx pgx.Tx, inst uuid.U
 				"chase_no":     attempt + 1,
 				// Paise to rupees at the edge, never in the ledger.
 				"amount_due": fmt.Sprintf("₹%.2f", float64(paise)/100),
+				// Plain digits for a DLT SMS that says "Rs."; see findOverdue.
+				"amount_rs": fmt.Sprintf("%.2f", float64(paise)/100),
+				"fee_name":  "school",
 			},
 		})
 	}
@@ -406,6 +409,12 @@ func (s *Server) absenceAlertSubjects(ctx context.Context, tx pgx.Tx, inst uuid.
 		       (CURRENT_DATE - sa.on_date) AS days_ago,
 		       count(*) AS periods,
 		       concat_ws(' ', st.first_name, st.last_name),
+		       COALESCE((SELECT concat_ws(' ', c.name, sec.name)
+		                   FROM enrollments en
+		                   JOIN classes c ON c.id = en.class_id
+		                   LEFT JOIN sections sec ON sec.id = en.section_id
+		                  WHERE en.student_id = sa.student_id AND en.status = 'active'
+		                  ORDER BY en.enrolled_on DESC LIMIT 1), '') AS class_name,
 		       EXISTS (SELECT 1
 		                 FROM leave_requests lr
 		                WHERE lr.institution_id = $1
@@ -430,9 +439,9 @@ func (s *Server) absenceAlertSubjects(ctx context.Context, tx pgx.Tx, inst uuid.
 		var student uuid.UUID
 		var on time.Time
 		var daysAgo, periods int
-		var name string
+		var name, class string
 		var explained bool
-		if err := rows.Scan(&student, &on, &daysAgo, &periods, &name, &explained); err != nil {
+		if err := rows.Scan(&student, &on, &daysAgo, &periods, &name, &class, &explained); err != nil {
 			return nil, err
 		}
 		if explained && p.SkipExplained {
@@ -451,6 +460,8 @@ func (s *Server) absenceAlertSubjects(ctx context.Context, tx pgx.Tx, inst uuid.
 				"student_name":   name,
 				"on_date":        on.Format("02 Jan 2006"),
 				"periods_absent": periods,
+				// See findAbsences: a DLT template names the class.
+				"class_name": class,
 			},
 		})
 	}

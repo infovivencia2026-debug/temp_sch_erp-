@@ -39,6 +39,8 @@ export default function SmsVendor() {
   const [preset, setPreset] = useState<SmsPreset | null>(null)
   const [endpoint, setEndpoint] = useState(String(cfg.endpoint ?? ''))
   const [sender, setSender] = useState(String(cfg.sender_id ?? ''))
+  const [entity, setEntity] = useState(String(cfg.dlt_entity_id ?? ''))
+  const [entityName, setEntityName] = useState(String(cfg.dlt_entity_name ?? ''))
   const [key, setKey] = useState('')
   const [extra, setExtra] = useState('')
   const [testTo, setTestTo] = useState('')
@@ -91,7 +93,13 @@ export default function SmsVendor() {
             <Input value={endpoint} onChange={setEndpoint} placeholder="https://…" />
           </Field>
           <Field label="Sender header" hint="The six characters the operator approved for this school.">
-            <Input value={sender} onChange={setSender} placeholder="VIGNAN" />
+            <Input value={sender} onChange={setSender} placeholder="YAJURS" />
+          </Field>
+          <Field label="DLT entity id (PE ID)" hint="The 19-digit Principal Entity id from the DLT portal. Public, not a secret.">
+            <Input value={entity} onChange={setEntity} placeholder="1701172544496584296" />
+          </Field>
+          <Field label="Entity name" hint="The society or trust registered on DLT, as the portal spells it.">
+            <Input value={entityName} onChange={setEntityName} placeholder="MEGHAA EDUCATIONAL SOCIETY" />
           </Field>
           <Field
             label={current?.has_secret ? 'API key (stored, type to replace)' : 'API key'}
@@ -117,6 +125,8 @@ export default function SmsVendor() {
                   method: chosen?.method ?? String(cfg.method ?? 'GET'),
                   encoding: chosen?.encoding ?? String(cfg.encoding ?? 'form'),
                   sender_id: sender.trim(),
+                  dlt_entity_id: entity.trim(),
+                  dlt_entity_name: entityName.trim(),
                   params,
                 },
                 /* Omitted rather than sent empty when nothing was typed: an

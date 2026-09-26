@@ -461,7 +461,20 @@ type gatewaySettings struct {
 	   Empty still means Authorization, so every channel configured before this
 	   behaves exactly as it did. */
 	AuthHeaderName string            `json:"auth_header_name,omitempty"`
-	Params         map[string]string `json:"params"`
+	/* THE DLT IDENTITY, stored with the channel it belongs to.
+
+	   Under TRAI's DLT regime every commercial SMS in India is scrubbed by
+	   the operator against a Principal Entity (the school's society, with a
+	   19-digit id), a registered header (the six-character sender) and an
+	   approved template. The header and the template were already here; the
+	   entity was in nobody's notebook. It is substituted as {entity} for the
+	   vendors that carry it per message (Gupshup's principalEntityId) and is
+	   shown on the screen for the ones that hold it on the account (MSG91),
+	   so that the person binding the aggregator on the DLT portal has the
+	   number in front of them. Public identifiers, not secrets. */
+	DLTEntityID   string            `json:"dlt_entity_id,omitempty"`
+	DLTEntityName string            `json:"dlt_entity_name,omitempty"`
+	Params        map[string]string `json:"params"`
 	// form | json. How Params is carried.
 	Encoding string `json:"encoding"`
 }
@@ -500,7 +513,7 @@ func (p gatewayProvider) Send(ctx context.Context, m OutboundMessage) (string, e
 	}
 	sub := strings.NewReplacer(
 		"{to}", m.To, "{text}", m.Body, "{sender}", p.cfg.SenderID,
-		"{key}", p.apiKey, "{dlt}", m.DLTTemplateID)
+		"{key}", p.apiKey, "{dlt}", m.DLTTemplateID, "{entity}", p.cfg.DLTEntityID)
 
 	fields := map[string]string{}
 	for k, v := range p.cfg.Params {
@@ -2577,9 +2590,17 @@ func (s *Server) findAbsences(ctx context.Context, tx pgx.Tx, inst uuid.UUID) ([
 	rows, err := tx.Query(ctx, `
 		SELECT sa.id, sa.student_id, sa.on_date,
 		       (CURRENT_DATE - sa.on_date) AS days_ago,
-		       concat_ws(' ', st.first_name, st.last_name)
+		       concat_ws(' ', st.first_name, st.last_name),
+		       COALESCE(cls.label, '')
 		  FROM student_attendance sa
 		  JOIN students st ON st.id = sa.student_id
+		  LEFT JOIN LATERAL (
+		       SELECT concat_ws(' ', c.name, sec.name) AS label
+		         FROM enrollments en
+		         JOIN classes c ON c.id = en.class_id
+		         LEFT JOIN sections sec ON sec.id = en.section_id
+		        WHERE en.student_id = sa.student_id AND en.status = 'active'
+		        ORDER BY en.enrolled_on DESC LIMIT 1) cls ON true
 		 WHERE sa.institution_id = $1 AND sa.status = 'absent'
 		   AND sa.on_date > CURRENT_DATE - 14
 		 ORDER BY sa.on_date DESC
@@ -2594,8 +2615,8 @@ func (s *Server) findAbsences(ctx context.Context, tx pgx.Tx, inst uuid.UUID) ([
 		var id, student uuid.UUID
 		var on time.Time
 		var daysAgo int
-		var name string
-		if err := rows.Scan(&id, &student, &on, &daysAgo, &name); err != nil {
+		var name, class string
+		if err := rows.Scan(&id, &student, &on, &daysAgo, &name, &class); err != nil {
 			return nil, err
 		}
 		sid := student
@@ -2607,6 +2628,10 @@ func (s *Server) findAbsences(ctx context.Context, tx pgx.Tx, inst uuid.UUID) ([
 			Vars: map[string]any{
 				"student_name": name,
 				"on_date":      on.Format("02 Jan 2006"),
+				// The class, because a DLT-approved absence template names it
+				// ("Your child X of Class 4 B is absent") and an unfilled
+				// placeholder is a message the operator rejects.
+				"class_name": class,
 			},
 		})
 	}
@@ -2651,6 +2676,10 @@ func (s *Server) findOverdueInvoices(ctx context.Context, tx pgx.Tx, inst uuid.U
 			Facts:         map[string]any{"days_overdue": days, "amount_due_paise": paise},
 			Vars: map[string]any{
 				"student_name": name,
+				// Plain digits for SMS: the rupee sign forces the whole message
+				// into 70-character Unicode segments, and the DLT text says "Rs."
+				"amount_rs": fmt.Sprintf("%.2f", float64(paise)/100),
+				"fee_name":  "school",
 				"invoice_no":   no,
 				"due_on":       due.Format("02 Jan 2006"),
 				// Paise to rupees at the edge, never in the ledger.

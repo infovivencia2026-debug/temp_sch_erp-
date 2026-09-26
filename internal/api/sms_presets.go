@@ -45,7 +45,7 @@ func smsPresets() []smsPreset {
 		{
 			ID:       "msg91",
 			Label:    "MSG91",
-			Note:     "Uses the authkey as the API key. Sender is your six-character header, and the DLT template id is required for transactional traffic.",
+			Note:     "Uses the authkey as the API key. Sender is your six-character header, and the DLT template id is required for transactional traffic. The DLT entity (PE) id is bound on the MSG91 account itself, not sent per message: add MSG91 as a telemarketer on the DLT portal and register the header and templates there.",
 			Endpoint: "https://api.msg91.com/api/sendhttp.php",
 			Method:   "GET",
 			Encoding: "form",
@@ -58,7 +58,7 @@ func smsPresets() []smsPreset {
 				"country":   "91",
 				"DLT_TE_ID": "{dlt}",
 			},
-			Needs: []string{"authkey", "sender header", "DLT template id"},
+			Needs: []string{"authkey", "sender header", "DLT entity id", "DLT template id"},
 		},
 		{
 			ID:       "gupshup",
@@ -78,6 +78,7 @@ func smsPresets() []smsPreset {
 				"format":        "text",
 				"mask":          "{sender}",
 				"dltTemplateId": "{dlt}",
+				"principalEntityId": "{entity}",
 				"userid":        "",
 			},
 			Needs: []string{"user id", "password", "approved mask", "DLT template id"},
