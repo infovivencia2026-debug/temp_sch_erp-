@@ -103,7 +103,10 @@ function RollPicker({
   typed: string
   onPick: (admissionNo: string) => void
 }) {
-  const [text, setText] = useState('')
+  /* The box holds what was typed, starting from the number read off the
+     filename. It showed `text || typed`, so clearing the box brought the
+     filename's number straight back and nobody could type a name over it. */
+  const [text, setText] = useState(typed)
   const [open, setOpen] = useState(false)
   /* THE LIST IS DRAWN IN THE BODY, NOT IN THE TABLE.
 
@@ -182,7 +185,7 @@ function RollPicker({
     <span ref={anchor} className="relative block w-full sm:w-64">
       <Input
         srLabel={label}
-        value={text || typed}
+        value={text}
         onChange={(v) => {
           setText(v)
           setOpen(true)
