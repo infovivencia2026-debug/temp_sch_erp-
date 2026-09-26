@@ -225,6 +225,24 @@ export default function StaffMessages() {
     }).catch(() => {})
   }
 
+  /* READ ON OPEN, ON THE DESK.
+
+     The thread component reports "seen" only when it finds a message from
+     the other side to anchor on, and on a head's view of a teacher's
+     thread -- or a thread that is all one's own words -- it found none, so
+     the read was never sent and the badge outlived the reading (the server
+     log showed the thread fetched and no mark-read after it). On this
+     screen the conversation is beside the list, on screen the moment it is
+     open; open is read. */
+  useEffect(() => {
+    if (box === 'parents' && openChild && openWith && parentMessages.data) seenParent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [box, openChild, openWith, parentMessages.data])
+  useEffect(() => {
+    if (box === 'staff' && openWith && messages.data) seenStaff()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [box, openWith, messages.data])
+
   const editMessage = (channel: 'staff' | 'parent') => async (id: string, body: string) => {
     await api.put(`/api/v1/chat/messages/${id}?channel=${channel}`, { body })
     qc.invalidateQueries({ queryKey: [channel === 'staff' ? 'staff-messages' : 'parent-messages'] })
@@ -268,7 +286,8 @@ export default function StaffMessages() {
   if (threads.isLoading) return <Loading />
   if (threads.error) return <ErrorState error={threads.error} />
 
-  const all = threads.data?.items ?? []
+  const parentIds = new Set((parentThreads.data?.items ?? []).map((t) => t.parent_user_id))
+  const all = (threads.data?.items ?? []).filter((t) => !parentIds.has(t.user_id))
   const needle = find.trim().toLowerCase()
   const people = all
     .filter(
