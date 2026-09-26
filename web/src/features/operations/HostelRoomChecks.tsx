@@ -271,11 +271,24 @@ export default function HostelRoomChecks() {
                   {lines.map((l, i) => (
                     <tr key={i}>
                       <Td>
-                        <Input
+                        {/* A LIST, NOT A HINT.
+
+                            This was an input with a datalist behind it, which
+                            shows nothing until you type and on iOS Safari
+                            often shows nothing at all -- so the twelve
+                            fittings every room has were served and invisible,
+                            and everybody typed. Typed is how one cot becomes
+                            "Cot", "cot", "Coat" and "Bed", and a recovery
+                            grouped by item then reads as four things.
+
+                            A real dropdown, with allowCustom so a school with
+                            something not on the list can still write it. */}
+                        <Select
                           value={l.item}
                           onChange={(v) => setLine(i, { item: v })}
-                          list="hostel-fittings"
-                          placeholder="Ceiling fan"
+                          allowCustom
+                          placeholder="Choose or type an item"
+                          options={DEFAULT_LIST.map((x) => ({ value: x, label: x }))}
                         />
                       </Td>
                       <Td>
@@ -324,11 +337,6 @@ export default function HostelRoomChecks() {
                     </tr>
                   ))}
                 </Table>
-                <datalist id="hostel-fittings">
-                  {DEFAULT_LIST.map((x) => (
-                    <option key={x} value={x} />
-                  ))}
-                </datalist>
                 <Button size="sm" variant="secondary" onClick={() => setLines([...lines, blankLine()])}>
                   Add a line
                 </Button>
