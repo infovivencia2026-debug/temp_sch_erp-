@@ -60,6 +60,45 @@ clearPersistedQueriesOnSignOut()
    origin, and dev runs on http. Failure is not reported anywhere: the app
    works without it, just not offline, and there is nothing a person reading a
    console message could do. */
+/* THE ESCAPE HATCH: /?fresh
+
+   "I don't see the change" is the sentence every deploy ends with when a
+   worker, a shell cache and a tab that has been open since Tuesday sit
+   between the person and the build that is live on the server. Opening the
+   app once with ?fresh on the address removes every service worker, empties
+   every cache this origin holds, and reloads the page clean from the network.
+   Nothing else is touched: the sign-in cookie stays, the offline outbox
+   stays. It is the reset the support desk would otherwise talk somebody
+   through one browser menu at a time. */
+if (typeof location !== 'undefined' && /[?&]fresh(=|&|$)/.test(location.search)) {
+  ;(async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((r) => r.unregister()))
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+    } catch {
+      /* whatever could not be cleared, the reload below still bypasses */
+    }
+    const clean = new URL(location.href)
+    clean.searchParams.delete('fresh')
+    location.replace(clean.pathname + (clean.search || '') + clean.hash)
+  })()
+}
+
+/* Which build this tab is running, readable from the console or the
+   element inspector (html[data-build]) when "is it the new one?" has to be
+   answered without guessing. The entry chunk's own hashed name is the build. */
+try {
+  document.documentElement.dataset.build = new URL(import.meta.url).pathname.split('/').pop() ?? ''
+} catch {
+  /* not a module URL in some old embedder; no stamp, no harm */
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     /* THE FIRST VISIT USED TO BOOT THE APPLICATION TWICE.
