@@ -32,7 +32,6 @@ import { cn } from '@/lib/utils'
 import { Rows, Row, NavRow, SegmentRow, SelectRow, DropdownRow, SliderRow, SwitchRow, SwitchSelectRow } from './SettingsRows'
 import { featurePath, useActiveRole, useCatalog, usable, allRolesOn } from '@/lib/catalog'
 import { useSkin, SKINS, type Skin } from '@/lib/skin'
-import { usePersonality, PERSONALITIES, type Personality } from '@/lib/personality'
 import { useFullScreen } from '@/lib/fullscreen'
 // Aliased: '@/lib/widgets' exports a useLayout of its own, about where the
 // dashboard cards sit. This one is the frame -- sidebar or focus.
@@ -912,7 +911,6 @@ export function SettingsPane({
 }) {
   const { appearance, set } = useAppearance()
   const { skin, setSkin } = useSkin()
-  const { personality, setPersonality } = usePersonality()
   const { layout: frame, setLayout: setFrame } = useFrameLayout()
   const { locale, setLocale } = useI18n()
   const sections = useSettingsLinks()
@@ -1007,13 +1005,10 @@ export function SettingsPane({
             name={(v) => t(`bento.settings.contrast.${v}`)}
             helper="Higher makes text darker and rules heavier."
           />
-          <Axis<Personality>
-            label={t('bento.settings.personality')}
-            value={personality}
-            options={PERSONALITIES}
-            onPick={setPersonality}
-            name={(v) => t(`bento.settings.personality.${v}`)}
-          />
+          {/* Personality was a row here and is withdrawn: a second colour
+              system on top of the palette confused more people than it
+              pleased. A choice made before today is still read and honoured
+              (lib/personality); only the control is gone. */}
           <Choice<Skin>
             label={t('bento.settings.frame')}
             value={skin}
