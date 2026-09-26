@@ -393,7 +393,9 @@ export default function Notifications() {
                                     </>
                                   )}
                                   {!n.read_at && (
-                                    <span className="ml-auto size-1.5 shrink-0 rounded-full bg-primary" aria-label="Unread" />
+                                    <span className="ml-auto shrink-0 rounded-md bg-primary/12 px-1.5 py-px text-[11px] font-semibold text-primary">
+                                      New
+                                    </span>
                                   )}
                                 </span>
                               </span>
