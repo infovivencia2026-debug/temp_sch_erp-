@@ -1,6 +1,7 @@
 import type { Router, Ctx } from '../../router'
 import { badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
+import { isoZ } from '../comms/common'
 import { inList, institutionId, parseJSON, resolveScope } from '../admin/common'
 import { publish } from '../../services/live'
 
@@ -125,7 +126,7 @@ export function registerChat(r: Router): void {
              (SELECT count(*) FROM staff_messages m WHERE m.sender_user_id = u.id AND (m.party_a = ?1 OR m.party_b = ?1)
                 AND (m.party_a = u.id OR m.party_b = u.id) AND m.read_at IS NULL) AS unread,
              (SELECT substr(m.body, 1, 90) FROM staff_messages m WHERE m.party_a = min(?1, u.id) AND m.party_b = max(?1, u.id) ORDER BY m.sent_at DESC LIMIT 1) AS last_message,
-             (SELECT m.sent_at FROM staff_messages m WHERE m.party_a = min(?1, u.id) AND m.party_b = max(?1, u.id) ORDER BY m.sent_at DESC LIMIT 1) AS last_at
+             (SELECT ${isoZ('m.sent_at')} FROM staff_messages m WHERE m.party_a = min(?1, u.id) AND m.party_b = max(?1, u.id) ORDER BY m.sent_at DESC LIMIT 1) AS last_at
         FROM users u
         LEFT JOIN employees e ON e.user_id = u.id
         LEFT JOIN designations d ON d.id = e.designation_id
@@ -144,22 +145,22 @@ export function registerChat(r: Router): void {
     const before = (c.url.searchParams.get('before') ?? '').trim()
     const me = c.id.userId
     const rows = await c.db.prepare(`
-      SELECT m.id, CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END AS body, m.sent_at,
+      SELECT m.id, CASE WHEN m.deleted_at IS NULL THEN m.body ELSE '' END AS body, m.sent_at, ${isoZ('m.sent_at')} AS sent_z,
              m.sender_user_id = ?1 AS mine, u.full_name AS sender_name,
              CASE WHEN m.deleted_at IS NULL THEN m.attachments ELSE NULL END AS attachments,
              m.reply_to_id,
              (SELECT substr(q.body, 1, 120) FROM staff_messages q WHERE q.id = m.reply_to_id) AS reply_body,
              (SELECT qu.full_name FROM staff_messages q JOIN users qu ON qu.id = q.sender_user_id WHERE q.id = m.reply_to_id) AS reply_sender,
-             m.edited_at IS NOT NULL AS edited, m.deleted_at IS NOT NULL AS deleted, m.read_at
+             m.edited_at IS NOT NULL AS edited, m.deleted_at IS NOT NULL AS deleted, ${isoZ('m.read_at')} AS read_at
         FROM staff_messages m JOIN users u ON u.id = m.sender_user_id
        WHERE m.party_a = ?2 AND m.party_b = ?3 AND (?4 = '' OR m.sent_at < ?4)
        ORDER BY m.sent_at DESC LIMIT ?5`).bind(me, least(me, other), greatest(me, other), before, pageSize + 1)
-      .all<{ id: string; body: string; sent_at: string; mine: number; sender_name: string; attachments: string | null; reply_to_id: string | null; reply_body: string | null; reply_sender: string | null; edited: number; deleted: number; read_at: string | null }>()
+      .all<{ id: string; body: string; sent_at: string; sent_z: string; mine: number; sender_name: string; attachments: string | null; reply_to_id: string | null; reply_body: string | null; reply_sender: string | null; edited: number; deleted: number; read_at: string | null }>()
     let items = rows.results
     const more = items.length > pageSize
     if (more) items = items.slice(0, pageSize)
     items.reverse()
-    const out = items.map((v) => ({ id: v.id, body: v.body, sent_at: v.sent_at, mine: !!v.mine, sender_name: v.sender_name,
+    const out = items.map((v) => ({ id: v.id, body: v.body, sent_at: v.sent_z, mine: !!v.mine, sender_name: v.sender_name,
       attachments: scanAttachments(v.attachments), cursor: v.sent_at, reply_to_id: v.reply_to_id ?? undefined,
       reply_body: v.reply_body ?? undefined, reply_sender: v.reply_sender ?? undefined, edited: !!v.edited, deleted: !!v.deleted, read_at: v.read_at ?? undefined }))
     return ok({ items: out, has_more: more, cursor: out.length ? out[0].cursor : '' })
