@@ -124,11 +124,19 @@ func (s *Server) listTeacherParentThreads(w http.ResponseWriter, r *http.Request
 		       m.body, to_char(m.sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS')||'Z',
 		       m.teacher_user_id::text, tu.full_name,
 		       st.photo_file_id::text,
+		       /* Unread means the FAMILY'S words nobody at the school has read.
+		          Counted as "not sent by me and unread", a head reading a
+		          teacher's thread also counted the teacher's own messages the
+		          parent had not opened yet -- a number no reading of theirs
+		          could ever bring down, so the badge never cleared. The
+		          teacher's side is the parent's to read; only the parent's
+		          side is the school's. */
 		       (SELECT count(*)::int FROM parent_teacher_messages un
 		         WHERE un.student_id = m.student_id
 		           AND un.parent_user_id = m.parent_user_id
 		           AND un.teacher_user_id = m.teacher_user_id
-		           AND un.sender_user_id <> $1 AND un.read_at IS NULL)
+		           AND un.sender_user_id = un.parent_user_id
+		           AND un.read_at IS NULL)
 		  FROM parent_teacher_messages m
 		  JOIN users pu ON pu.id = m.parent_user_id
 		  LEFT JOIN users tu ON tu.id = m.teacher_user_id
