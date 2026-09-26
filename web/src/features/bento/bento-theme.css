@@ -2982,7 +2982,19 @@ html:not(.dark)[data-layout='bento'] {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  [data-layout='bento'] .bento-board[data-pager]::-webkit-scrollbar {
+  /* Between a phone and a desk the board has two tracks; nothing in it may
+   claim more, whatever class it arrived with (see COL in bento-kit.tsx). */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  [data-layout='bento'] .bento-board:not([data-pager]) > .bento-widget,
+  [data-layout='bento'] .bento-board:not([data-pager]) > .bento-cell {
+    grid-column-end: span 2;
+  }
+  [data-layout='bento'] .bento-board:not([data-pager]) > :is(.bento-widget, .bento-cell):not([class*='col-span-']) {
+    grid-column-end: span 1;
+  }
+}
+
+[data-layout='bento'] .bento-board[data-pager]::-webkit-scrollbar {
     display: none;
   }
 

@@ -138,12 +138,21 @@ export const MAX_ROWS = 3
 
 /* Literal class names, one per span, because Tailwind only emits a class it
    can read in the source. */
+/* A SPAN NEVER EXCEEDS THE GRID IT IS IN.
+
+   The board is two columns from 640px and five from 1024px, but a Wide card
+   asked for `sm:col-span-4` at every width above 640 -- so between a phone
+   and a desk it demanded four tracks of a two-track grid. The grid answered
+   with implicit columns: two extra zero-width tracks, and the cards after it
+   spilled into them as thin strips down the right edge, which is the
+   screenshot from a half-width browser window. Two is the ceiling until the
+   five-column board exists. */
 export const COL: Record<number, string> = {
   1: '',
   2: 'sm:col-span-2',
-  3: 'sm:col-span-3',
-  4: 'sm:col-span-4',
-  5: 'sm:col-span-5',
+  3: 'sm:col-span-2 lg:col-span-3',
+  4: 'sm:col-span-2 lg:col-span-4',
+  5: 'sm:col-span-2 lg:col-span-5',
 }
 
 export const ROW: Record<number, string> = {
