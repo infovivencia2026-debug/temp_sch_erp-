@@ -61,7 +61,7 @@ export function PickerMenu<T extends string>({
   const [active, setActive] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<
-    { left: number; width: number; top?: number; bottom?: number } | null>(null)
+    { left: number; width: number; top?: number; bottom?: number; maxH?: number } | null>(null)
 
   const current = options.find((o) => o.value === value)
 
@@ -74,24 +74,35 @@ export function PickerMenu<T extends string>({
       const el = wrap.current
       if (!el) return
       const r = el.getBoundingClientRect()
-      const below = window.innerHeight - r.bottom
-      const above = r.top
+      // Against the visual viewport, so the on-screen keyboard counts as
+      // the bottom of the screen (see the combobox in ui.tsx).
+      const vv = window.visualViewport
+      const vTop = vv ? vv.offsetTop : 0
+      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+      const below = vBottom - r.bottom
+      const above = r.top - vTop
       const wantsAbove = below < 240 && above > below
+      const maxH = Math.max(96, Math.min(320, (wantsAbove ? above : below) - 12))
       const width = Math.max(r.width, 190)
       // Keep the menu on screen when it is wider than the trigger.
       const left = align === 'end'
         ? Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8))
         : Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
       setPos(wantsAbove
-        ? { left, width, bottom: window.innerHeight - r.top + 6 }
-        : { left, width, top: r.bottom + 6 })
+        ? { left, width, bottom: window.innerHeight - r.top + 6, maxH }
+        : { left, width, top: r.bottom + 6, maxH })
     }
     place()
     window.addEventListener('scroll', place, true)
     window.addEventListener('resize', place)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', place)
+    vv?.addEventListener('scroll', place)
     return () => {
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
+      vv?.removeEventListener('resize', place)
+      vv?.removeEventListener('scroll', place)
     }
   }, [open, align])
 
@@ -159,7 +170,7 @@ export function PickerMenu<T extends string>({
         <ul
           role="listbox"
           aria-label={ariaLabel}
-          style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width }}
+          style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH }}
           onMouseDown={(e) => e.stopPropagation()}
           className={cn(
             'fixed z-[200] max-h-[min(20rem,60vh)] overflow-y-auto overflow-x-hidden',

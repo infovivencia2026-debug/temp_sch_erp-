@@ -716,7 +716,11 @@ export function Shell({
           })}
 
           <div className="mt-auto" />
-          <BentoSettings placement="rail" />
+          {/* Focus's own settings belong to Focus. In the Sidebar layout the
+              appearance controls are reached from the header, and a second
+              gear at the foot of the rail read as a piece of the other layout
+              left behind. */}
+          {layout === 'bento' && <BentoSettings placement="rail" />}
         </div>
 
         {/* --- the panel: the selected workspace, and nothing else ---------

@@ -1420,7 +1420,7 @@ export function Checkbox({
 /* Menu rows measure 30px tall, which is a comfortable mouse target and half
    of what a thumb needs. Only the touch case is widened, so the dense list a
    mouse user reads at a glance stays dense. */
-const COARSE_ROW = '[@media(pointer:coarse)]:py-3 [@media(pointer:coarse)]:text-[15px]'
+const COARSE_ROW = '[@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[15px]'
 
 export function Select({
   value,
@@ -1484,7 +1484,7 @@ export function Select({
      is only knowable at the moment the menu opens — and has to be re-read if
      anything scrolls underneath it while it is open. */
   const [box_, setBox_] = useState<
-    { left: number; width: number; top?: number; bottom?: number } | null>(null)
+    { left: number; width: number; top?: number; bottom?: number; maxH?: number } | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -1498,8 +1498,19 @@ export function Select({
       /* Above the trigger when there is no room below it. A menu opening off
          the bottom of the window is the same fault as one clipped by a table:
          the options exist and cannot be reached. */
-      const below = window.innerHeight - r.bottom
-      const wantsAbove = below < 220 && r.top > below
+      /* THE KEYBOARD IS PART OF THE SCREEN. window.innerHeight does not
+         shrink for the on-screen keyboard on iOS or in a WebView, so a list
+         placed "below the field" was placed under the keyboard, with one
+         option's top edge peeping out above it -- the screenshot. The visual
+         viewport is what is actually visible; measure against that, and cap
+         the list's height to the room it really has. */
+      const vv = window.visualViewport
+      const vTop = vv ? vv.offsetTop : 0
+      const vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+      const below = vBottom - r.bottom
+      const above = r.top - vTop
+      const wantsAbove = below < 220 && above > below
+      const maxH = Math.max(96, Math.min(256, (wantsAbove ? above : below) - 12))
       /* Opening upwards is anchored by its BOTTOM edge, not its top.
 
          Guessing the menu's height and subtracting it — which is what the top
@@ -1510,16 +1521,21 @@ export function Select({
          the trigger is correct for a menu of any height. */
       setBox_(
         wantsAbove
-          ? { left: r.left, bottom: window.innerHeight - r.top + 4, width: r.width }
-          : { left: r.left, top: r.bottom + 4, width: r.width },
+          ? { left: r.left, bottom: window.innerHeight - r.top + 4, width: r.width, maxH }
+          : { left: r.left, top: r.bottom + 4, width: r.width, maxH },
       )
     }
     place()
     window.addEventListener('scroll', place, true)
     window.addEventListener('resize', place)
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', place)
+    vv?.addEventListener('scroll', place)
     return () => {
       window.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
+      vv?.removeEventListener('resize', place)
+      vv?.removeEventListener('scroll', place)
     }
   }, [open])
 
@@ -1655,6 +1671,7 @@ export function Select({
             top: box_.top,
             bottom: box_.bottom,
             width: box_.width,
+            maxHeight: box_.maxH,
           }}
           role="listbox"
           /* overflow-y only. `overflow-auto` shows a horizontal scrollbar too --
@@ -1662,12 +1679,12 @@ export function Select({
              content is a sub-pixel wider than the box, which it routinely is once
              a border and padding are counted. The list only ever scrolls
              vertically. */
-          className="fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 shadow-lg"
+          className="fixed z-[200] max-h-64 overflow-y-auto overflow-x-hidden rounded-xl border bg-popover p-1.5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.18)]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {placeholder && !q && (
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => choose('')}
-              className={cn('block w-full rounded px-2 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-accent', COARSE_ROW)}>
+              className={cn('flex min-h-[36px] w-full items-center rounded-lg px-3 text-left text-[14px] text-muted-foreground hover:bg-accent', COARSE_ROW)}>
               {placeholder}
             </button>
           )}
@@ -1679,13 +1696,16 @@ export function Select({
               onMouseEnter={() => setActive(i)}
               onClick={() => choose(o.value)}
               className={cn(
-                'block w-full break-words rounded px-2 py-1.5 text-left text-[13px]',
+                'flex min-h-[36px] w-full items-center justify-between gap-3 break-words rounded-lg px-3 py-1.5 text-left text-[14px]',
                 COARSE_ROW,
                 i === active ? 'bg-accent' : 'hover:bg-accent',
-                o.value === value && 'font-medium',
+                o.value === value && 'font-semibold',
               )}
+              aria-selected={o.value === value}
+              role="option"
             >
-              {o.label}
+              <span className="min-w-0">{o.label}</span>
+              {o.value === value && <Check className="h-4 w-4 shrink-0 opacity-80" aria-hidden="true" />}
             </button>
           ))}
           {canAdd && (
@@ -1696,7 +1716,7 @@ export function Select({
               onClick={add}
               disabled={busy}
               className={cn(
-                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                'flex min-h-[36px] w-full items-center rounded-lg px-3 py-1.5 text-left text-[14px]',
                 COARSE_ROW,
                 active === shown.length ? 'bg-accent' : 'hover:bg-accent',
               )}
@@ -1711,7 +1731,7 @@ export function Select({
               onMouseEnter={() => setActive(shown.length)}
               onClick={() => choose(query.trim())}
               className={cn(
-                'block w-full rounded px-2 py-1.5 text-left text-[13px]',
+                'flex min-h-[36px] w-full items-center rounded-lg px-3 py-1.5 text-left text-[14px]',
                 COARSE_ROW,
                 active === shown.length ? 'bg-accent' : 'hover:bg-accent',
               )}
