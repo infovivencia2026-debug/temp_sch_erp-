@@ -302,24 +302,13 @@ export default function StaffMessages() {
     (n, t) => n + (t.student_id === openChild && t.parent_user_id === openWith ? 0 : t.unread),
     0,
   )
-  const unreadTotal = staffUnread + parentUnread
 
-  return (
-    <>
-      <PageHead
-        eyebrow="Communication"
-        title="Messages"
-        description="Colleagues, and the parents who have written to you. For something the whole school needs, write a circular instead."
-        actions={
-          unreadTotal > 0 && <Badge tone="primary">{unreadTotal} unread</Badge>
-        }
-      />
-      <PageBody>
-        {/* Two registers, one question.
-            A teacher opening Messages is asking who has written to me, and
-            answering that in two separate places is how one of them goes
-            unread for a week. */}
-        <div className={cn(TAB_BAR, 'justify-center')}>
+  /* THE TABS SIT ON THE LIST. Colleagues | Parents at the top of the list
+     column, the way the design draws it, so the choice and the list it
+     changes are one object -- not a bar floating over the page that scrolls
+     away the moment the list is longer than the screen. */
+  const tabs = (
+    <div className={cn(TAB_BAR, 'px-3 pt-2')}>
           {([
             ['staff', 'Colleagues', staffUnread],
             ['parents', 'Parents', parentUnread],
@@ -339,11 +328,21 @@ export default function StaffMessages() {
               {unread > 0 && <Badge tone="primary">{unread}</Badge>}
             </button>
           ))}
-        </div>
+    </div>
+  )
 
+  return (
+    <>
+      <PageHead
+        eyebrow="Communication"
+        title="Messages"
+        description="Colleagues, and the parents who have written to you. For something the whole school needs, write a circular instead."
+      />
+      <PageBody>
         {box === 'parents' ? (
           <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-            <Card className="min-w-0">
+            <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
+              {tabs}
               {/* "Parents", matching the tab above it. The two said different
                   words for the same list, which reads as two different lists. */}
               <CardHeader
@@ -366,7 +365,7 @@ export default function StaffMessages() {
                   Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
                 </label>
               </div>
-              <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {parents.map((t) => (
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
                     <button
@@ -505,7 +504,8 @@ export default function StaffMessages() {
           </div>
         ) : (
         <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
-          <Card className="min-w-0">
+          <Card className="min-w-0 lg:flex lg:h-[calc(100dvh-8.5rem)] lg:flex-col">
+            {tabs}
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
             <div className="space-y-2 px-4 pb-3 pt-3">
               <Input value={find} onChange={setFind} placeholder="Find a name" />
@@ -519,7 +519,7 @@ export default function StaffMessages() {
                 Unread only{staffUnread > 0 ? ` (${staffUnread})` : ''}
               </label>
             </div>
-            <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="max-h-[28rem] divide-y overflow-auto lg:min-h-0 lg:max-h-none lg:flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {people.map((t) => (
                 <li key={t.user_id}>
                   <button

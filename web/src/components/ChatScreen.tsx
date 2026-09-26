@@ -206,13 +206,13 @@ export function ConversationPane({
   }
   if (!open) {
     return (
-      <div className="card hidden min-h-[60vh] items-center justify-center px-6 text-center text-[14px] text-muted-foreground lg:flex lg:sticky lg:top-4">
+      <div className="card hidden items-center justify-center px-6 text-center text-[14px] text-muted-foreground lg:flex lg:h-[calc(100dvh-8.5rem)] lg:sticky lg:top-4">
         {empty}
       </div>
     )
   }
   return (
-    <div className="card flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4">
+    <div className="card flex min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4 lg:h-[calc(100dvh-8.5rem)] lg:max-h-none">
       <div className="flex shrink-0 items-center gap-3 border-b px-4 py-3">
         {typeof title === 'string' && <PersonAvatar name={title} photoId={photoId} size={40} />}
         <div className="min-w-0 flex-1">
