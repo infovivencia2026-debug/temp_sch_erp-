@@ -1248,7 +1248,11 @@ const chatCSS = `
    The dotted paper is fixed, not scrolled: a pattern that slides under the
    bubbles as the thread scrolls reads as movement in the corner of the eye. */
 .chat-paper {
-  background-color: #ffffff;
+  background-color: #efeae2;
+  background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px);
+  background-size: 14px 14px;
+  background-attachment: local;
+  background-repeat: repeat;
 }
 /* Two bubbles, and they are shapes rather than boxes.
 
@@ -1259,11 +1263,11 @@ const chatCSS = `
    sender's own words carried in the product's blue, and the time set outside
    the bubble underneath it, where it never has to be written around. */
 .chat-theirs {
-  background-color: #f3f5f9;
-  color: #333a4d;
-  border-radius: 24px;
-  border-top-left-radius: 6px;
-  box-shadow: none;
+  background-color: #ffffff;
+  color: #111b21;
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  box-shadow: 0 1px 0.5px rgba(11,20,26,0.13);
 }
 .chat-mine {
   /* NOT THE BRAND COLOUR.
@@ -1273,28 +1277,28 @@ const chatCSS = `
      said. A conversation's own blue, fixed, the way every messaging app fixes
      it: the brand belongs to the chrome around the thread, not to the words
      inside it. */
-  background-color: #4d7afe;
-  color: #ffffff;
-  border-radius: 24px;
-  border-bottom-right-radius: 6px;
+  background-color: #d9fdd3;
+  color: #111b21;
+  border-radius: 12px;
+  border-top-right-radius: 4px;
+  box-shadow: 0 1px 0.5px rgba(11,20,26,0.13);
 }
 /* A run of bubbles from the same person: only the first points at them, the
    rest are plain, so a paragraph broken into four messages reads as one. */
-.chat-theirs.chat-run, .chat-mine.chat-run { border-radius: 24px; }
-.chat-bubble a { color: inherit; text-decoration: underline; word-break: break-all; }
-.chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.88); }
-.chat-theirs .text-muted-foreground { color: #9aa5b6; }
+.chat-theirs.chat-run, .chat-mine.chat-run { border-radius: 12px; }
+.chat-bubble a { color: #027eb5; text-decoration: underline; word-break: break-all; }
+.chat-mine .text-muted-foreground, .chat-theirs .text-muted-foreground { color: #667781; }
 /* Under the bubble, small and grey. */
-.chat-meta { font-size: 11px; color: #8b92a5; padding: 0 4px; }
+.chat-meta { font-size: 11px; color: #667781; padding: 0 4px; }
 /* A quote and a file row are painted by the bubble they sit in. Left as
    dark-on-light they were unreadable inside the blue one -- a blue name on a
    blue ground -- and that is the whole reason a bubble has a colour. */
 .chat-theirs .chat-quote { border-color: hsl(var(--primary)); background: rgba(16, 24, 40, 0.04); border-radius: 10px; }
 .chat-theirs .chat-quote__who { color: hsl(var(--primary)); }
 .chat-theirs .chat-quote__body { color: #9aa5b6; }
-.chat-mine .chat-quote { border-color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.16); border-radius: 10px; }
-.chat-mine .chat-quote__who { color: #ffffff; }
-.chat-mine .chat-quote__body { color: rgba(255,255,255,0.82); }
+.chat-mine .chat-quote { border-color: #06cf9c; background: rgba(11,20,26,0.05); border-radius: 10px; }
+.chat-mine .chat-quote__who { color: #06886a; }
+.chat-mine .chat-quote__body { color: #667781; }
 /* The browser draws its own audio controls and will not be told otherwise, so
    the player sits on a light panel in both bubbles rather than fighting the
    colour behind it. */
@@ -1302,26 +1306,26 @@ const chatCSS = `
    do: a white button on blue, a blue button on white, and the bar behind the
    played part dimmed rather than recoloured. */
 .chat-voice__bar { width: 2.5px; border-radius: 2px; flex: 0 0 auto; }
-.chat-mine .chat-voice__bar { background: rgba(255,255,255,0.45); }
-.chat-mine .chat-voice__bar.is-played { background: #ffffff; }
+.chat-mine .chat-voice__bar { background: #9fd9b9; }
+.chat-mine .chat-voice__bar.is-played { background: #1fa855; }
 .chat-theirs .chat-voice__bar { background: #b6becd; }
 .chat-theirs .chat-voice__bar.is-played { background: #505c74; }
-.chat-mine .chat-voice__play { background: #ffffff; color: #4d7afe; }
-.chat-theirs .chat-voice__play { background: #4d7afe; color: #ffffff; }
-.chat-mine .chat-voice__time { color: rgba(255,255,255,0.85); }
+.chat-mine .chat-voice__play { background: #00a884; color: #ffffff; }
+.chat-theirs .chat-voice__play { background: #00a884; color: #ffffff; }
+.chat-mine .chat-voice__time { color: #667781; }
 /* The stamp on a voice note sits below the bar, not floated into it. */
 .chat-theirs .chat-voice__time { color: #9aa5b6; }
 .chat-theirs .chat-file { background: rgba(16, 24, 40, 0.04); }
 .chat-theirs .chat-file:hover { background: rgba(16, 24, 40, 0.07); }
-.chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }
-.chat-mine .chat-file:hover { background: rgba(255,255,255,0.24); }
-.chat-mine .chat-file .text-muted-foreground { color: rgba(255,255,255,0.8); }
+.chat-mine .chat-file { background: rgba(11,20,26,0.05); color: #111b21; }
+.chat-mine .chat-file:hover { background: rgba(11,20,26,0.09); }
+.chat-mine .chat-file .text-muted-foreground { color: #667781; }
 .chat-daypill {
-  background-color: #eef2f7;
-  color: #9aa5b6;
-  border-radius: 12px;
-  padding: 4px 14px;
-  box-shadow: none;
+  background-color: #ffffff;
+  color: #54656f;
+  border-radius: 8px;
+  padding: 5px 12px;
+  box-shadow: 0 1px 0.5px rgba(11,20,26,0.13);
 }
 /* Typing, drawn as the other person's bubble with three breathing dots. */
 .chat-dot {
@@ -1342,15 +1346,8 @@ const chatCSS = `
 /* The composer is one line that grows with the text and nothing a person can
    drag: a hand-resized box is a layout nobody asked for and it does not
    survive the next render. */
-.chat-composer { resize: none; background-color: #f4f6fa; color: #2e3549; }
-.chat-composer::placeholder { color: #9ba3b8; }
-.chat-daypill {
-  background: transparent;
-  color: #8b92a5;
-  box-shadow: none;
-  font-size: 12px;
-  padding: 0;
-}
+.chat-composer { resize: none; background-color: #ffffff; color: #111b21; }
+.chat-composer::placeholder { color: #8696a0; }
 
 /* A HELD MESSAGE, AND THE ROOM GOING QUIET AROUND IT.
 

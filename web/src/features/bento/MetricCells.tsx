@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { formatPaise } from '@/lib/utils'
@@ -139,22 +140,21 @@ function PeriodPicker({ value, options, onPick }: { value: Period; options: Peri
   const t = useT()
   const name = (p: Period) => t(PERIOD_LABEL_KEY[p] as never)
   return (
-    <span
-      className="relative inline-flex shrink-0 items-center gap-0.5 rounded-full border border-current/20
-                 bg-current/[0.06] px-2 py-0.5 text-[11px] font-medium leading-none text-[var(--bento-ink)]"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {name(value)}
-      <ChevronDown className="size-3 opacity-70" aria-hidden="true" />
-      <select
-        aria-label={t('bento.widgets.period')}
+    <span onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+      <PickerMenu
         value={value}
-        onChange={(e) => onPick(e.target.value as Period)}
-        className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+        options={options.map((o) => ({ value: o, label: name(o) }))}
+        onChange={onPick}
+        ariaLabel={t('bento.widgets.period')}
       >
-        {options.map((o) => <option key={o} value={o}>{name(o)}</option>)}
-      </select>
+        <span
+          className="relative inline-flex shrink-0 items-center gap-0.5 rounded-full border border-current/20
+                     bg-current/[0.06] px-2 py-0.5 text-[11px] font-medium leading-none text-[var(--bento-ink)]"
+        >
+          {name(value)}
+          <ChevronDown className="size-3 opacity-70" aria-hidden="true" />
+        </span>
+      </PickerMenu>
     </span>
   )
 }

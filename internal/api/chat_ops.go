@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/rbac"
 	"github.com/school-erp/erp/internal/live"
 )
 
@@ -163,17 +164,26 @@ func (s *Server) markParentThreadRead(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, r, "student_id, parent_user_id and teacher_user_id must be uuids")
 		return
 	}
-	// Only a party to the thread may mark it read, and each marks the other
-	// side's messages: a caller who is neither changes nothing.
-	if id.UserID != pid && id.UserID != tid {
+	/* A party marks the other side's messages. The head or the principal,
+	   reading a teacher's thread under the read-all grant, marks the
+	   PARENT'S messages: the school has now seen what the family wrote, and
+	   an unread count that survives the principal reading it is a count
+	   that stops meaning anything. The teacher's own words are never marked
+	   by a third reader -- the parent's tick must mean the parent read them. */
+	party := id.UserID == pid || id.UserID == tid
+	if !party && !id.Can(rbac.MessagesReadAll) {
 		httpx.Forbidden(w, r, "a party to this conversation")
 		return
+	}
+	notFrom := id.UserID
+	if !party {
+		notFrom = tid
 	}
 	err := s.DB.InTenant(r.Context(), tenantScope(id), func(tx pgx.Tx) error {
 		tag, uerr := tx.Exec(r.Context(), `
 			UPDATE parent_teacher_messages SET read_at = now()
 			 WHERE student_id = $1 AND parent_user_id = $2 AND teacher_user_id = $3
-			   AND sender_user_id <> $4 AND read_at IS NULL`, sid, pid, tid, id.UserID)
+			   AND sender_user_id <> $4 AND read_at IS NULL`, sid, pid, tid, notFrom)
 		if uerr != nil || tag.RowsAffected() == 0 {
 			return uerr
 		}

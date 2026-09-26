@@ -2150,7 +2150,7 @@ html[style*='--shadow-scale'] {
    thing on screen still wearing the old theme. */
 [data-layout='bento'] .ring-ring,
 [data-layout='bento'] .focus-visible\:ring-ring:focus-visible {
-  --tw-ring-color: var(--bento-mint);
+  --tw-ring-color: color-mix(in srgb, var(--bento-ink) 35%, transparent);
 }
 
 /* ---- status marks -------------------------------------------------------

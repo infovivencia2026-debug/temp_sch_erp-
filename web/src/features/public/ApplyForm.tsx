@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
@@ -217,12 +218,14 @@ function FieldInput({
       return <textarea {...common} rows={3} />
     case 'select':
       return (
-        <select {...common}>
-          <option value="">Choose…</option>
-          {field.options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+        <PickerMenu
+          value={value}
+          options={[{ value: '', label: 'Choose…' }, ...field.options.map((o) => ({ value: o.value, label: o.label }))]}
+          onChange={(v) => onChange(v)}
+          ariaLabel={field.label}
+          align="start"
+          className="w-full justify-between"
+        />
       )
     case 'checkbox':
       return (

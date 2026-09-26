@@ -1097,6 +1097,24 @@
 
   .page-shell { max-width: 1600px; margin-inline: auto; }
 
+  /* A CARD'S BODY IS NEVER FLUSH WITH ITS EDGE.
+
+     Dozens of screens set a form, a grid of fields, a notice or a button
+     straight under <Card>, with no padded box between, and the labels sat on
+     the card's left border -- "Applies from" touching the line, "Issue the
+     letter" hugging the corner. The header above them was padded; the body
+     was not. Rather than find every screen, the card pads any such child
+     itself. A child that already carries its own padding (p-*) is left
+     alone, so the padded screens do not double up. */
+  .card > :is(.form-grid, form, fieldset):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' py-']) {
+    padding: 1.25rem;
+  }
+  .card > :is(.form-grid, form, fieldset) + :is(.form-grid, form, fieldset) { padding-top: 0; }
+  .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']) {
+    margin-inline: 1.25rem;
+  }
+  .card > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: 1.25rem; }
+
   /* Content settles in once, on mount. Short and small: a long slide is
      theatre, and an operator opening the same screen forty times a day will
      notice it forty times. */

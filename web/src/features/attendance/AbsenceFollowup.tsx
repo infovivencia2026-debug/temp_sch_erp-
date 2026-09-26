@@ -4,8 +4,7 @@ import { Check, CheckCircle2, Phone } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Select, Input,
-  Field, SkeletonTable, ErrorState, EmptyState, FormNotice,
-} from '@/components/ui'
+  Field, SkeletonTable, ErrorState, EmptyState, FormNotice, Badge } from '@/components/ui'
 
 /* Absentee follow-up.
  *
@@ -42,6 +41,8 @@ interface Absentee {
      primary. Only those with a number are here, so there is nothing to draw a
      dead "no number" row for. */
   contacts?: Contact[]
+  /** What the register says: absent, late or half_day. */
+  mark?: string
   call_status: CallStatus
   parent_response?: string
 }
@@ -397,6 +398,17 @@ function AbsenteeRow({
           <span className="ml-2 font-mono text-[12px] text-muted-foreground">
             {student.admission_no}
           </span>
+          {/* Absent, late or half day -- said before anybody dials, because
+              "why is he not in school" is the wrong question for a child who
+              walked in at ten. */}
+          {student.mark && (
+            <Badge
+              tone={student.mark === 'absent' ? 'danger' : 'warning'}
+              className="ml-2 align-middle"
+            >
+              {student.mark === 'half_day' ? 'Half day' : student.mark === 'late' ? 'Came late' : 'Absent'}
+            </Badge>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {student.contacts && student.contacts.length > 0 ? (

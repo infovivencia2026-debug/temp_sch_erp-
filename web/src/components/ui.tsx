@@ -1,4 +1,5 @@
 import { LoaderBlock, TriLoader } from '@/components/Loader'
+import { PickerMenu } from '@/components/PickerMenu'
 import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, SkeletonForm, useDelayed } from './Skeleton'
 import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
@@ -1902,7 +1903,9 @@ export function Field({
 
 /** Two-column form grid that collapses to one on a phone. */
 export function FormGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-5 sm:grid-cols-2">{children}</div>
+  // `form-grid` so a grid set straight under a card gets the card's own
+  // padding (index.css); a screen that wraps it in a padded box is unchanged.
+  return <div className="form-grid grid gap-5 sm:grid-cols-2">{children}</div>
 }
 
 /** Inline result of a save: the server's own words, not a generic toast. */
@@ -2277,35 +2280,31 @@ export function RangePicker({
        * It reads as broken rather than as loading, and clicking it harder does
        * not help. Disabled and labelled while the list is empty: same size,
        * same place, and it says what it is waiting for. */}
-      {options.length === 0 ? (
-        <select disabled className="field w-auto cursor-default pr-8" aria-label="Date range">
-          <option>Loading date ranges…</option>
-        </select>
-      ) : (
-      <select
-        value={value.period}
-        onChange={(e) => {
-          const period = e.target.value
+      {/* The product's own menu, not the OS picker. Grouped presets read as
+          "This month", "Last quarter"; the group name is kept as a quiet
+          prefix so the list still scans by kind. */}
+      <PickerMenu
+        value={options.length === 0 ? '' : value.period}
+        options={
+          options.length === 0
+            ? [{ value: '', label: 'Loading date ranges…', disabled: true }]
+            : groups.flatMap((g) =>
+                options.filter((o) => o.group === g).map((o) => ({
+                  value: o.value,
+                  label: groups.length > 1 ? `${g} · ${o.label}` : o.label,
+                })),
+              )
+        }
+        onChange={(period) => {
           setCustom(period === 'custom')
           // A custom range is not applied until both ends are given, so the
           // numbers do not flicker through a nonsensical window on the way.
           if (period !== 'custom') onChange({ period })
         }}
-        className="field w-auto cursor-pointer pr-8"
-      >
-        {groups.map((g) => (
-          <optgroup key={g} label={g}>
-            {options
-              .filter((o) => o.group === g)
-              .map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-          </optgroup>
-        ))}
-      </select>
-      )}
+        ariaLabel="Date range"
+        align="start"
+        className="field w-auto cursor-pointer"
+      />
 
       {custom && (
         <>

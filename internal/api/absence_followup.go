@@ -47,6 +47,10 @@ type absenteeStudent struct {
 	StudentID   string `json:"student_id"`
 	Name        string `json:"name"`
 	AdmissionNo string `json:"admission_no"`
+	// Mark is what the register says: absent, late or half_day. The office
+	// rings an absentee; a child who came in late is a different call, and
+	// the row has to say which before anybody dials.
+	Mark string `json:"mark"`
 	// Contacts is every guardian who has a number on file, father first, then
 	// mother, then whoever is marked primary. Only guardians with a number
 	// appear, so the office never sees a dead "no number" row — and a number
@@ -122,7 +126,7 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		       du.full_name, d.done_at,
 		       sa.student_id::text,
 		       concat_ws(' ', st.first_name, st.middle_name, st.last_name),
-		       st.admission_no,
+		       st.admission_no, sa.status,
 		       COALESCE((
 		         SELECT json_agg(json_build_object(
 		                  'name', g.full_name, 'phone', g.phone, 'relation', g.relation)
@@ -153,13 +157,17 @@ func (s *Server) listAbsentees(w http.ResponseWriter, r *http.Request) {
 		   AND sa.status IS NOT NULL
 		   AND sa.status <> 'present'
 		   AND sa.status <> 'holiday'
+		   /* On leave is not an absence to chase: the family told the school
+		      first, or applied and was approved. Ringing them again asks a
+		      question they have already answered. */
+		   AND sa.status <> 'leave'
 		   AND `+scopePred+`
 		 ORDER BY sec.name, st.admission_no`, args,
 		func(rows pgx.Rows) (row, error) {
 			var v row
 			return v, rows.Scan(&v.sectionID, &v.sectionName, &v.className,
 				&v.doneBy, &v.doneAt,
-				&v.student.StudentID, &v.student.Name, &v.student.AdmissionNo,
+				&v.student.StudentID, &v.student.Name, &v.student.AdmissionNo, &v.student.Mark,
 				&v.contactsJSON,
 				&v.student.CallStatus, &v.student.ParentResponse,
 				&v.student.CalledBy, &v.student.CalledAt)

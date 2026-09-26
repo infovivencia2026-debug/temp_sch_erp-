@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { cn } from '@/lib/utils'
+import { usePhone } from '@/lib/viewport'
 
 /* A conversation that takes the whole screen.
 
@@ -97,9 +98,17 @@ export function ChatScreen({
   children: ReactNode
 }) {
   const back = useOverlayHistory(open, onBack)
+  /* THE SCREEN IS THE PHONE'S. On a desk the conversation is a panel on the
+     right, the way a mail client and the All messages desk lay it out: the
+     list stays on the left and the next row can be opened without closing
+     this one. The phone keeps the whole screen, where a panel would be a
+     strip. */
+  const phone = usePhone()
 
   useEffect(() => {
-    if (!open) return
+    // The page behind a side panel still scrolls; only the phone's full
+    // screen locks it.
+    if (!open || !phone) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
@@ -110,14 +119,19 @@ export function ChatScreen({
       document.body.style.overflow = prev
       window.removeEventListener('keydown', onKey)
     }
-  }, [open, back])
+  }, [open, back, phone])
 
   if (!open) return null
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex flex-col bg-background"
+      className={cn(
+        'fixed z-[120] flex flex-col bg-background',
+        phone
+          ? 'inset-0'
+          : 'inset-y-0 right-0 w-[min(600px,100vw)] border-l shadow-[-12px_0_32px_-16px_rgba(11,20,26,0.35)]',
+      )}
       role="dialog"
-      aria-modal="true"
+      aria-modal={phone ? 'true' : undefined}
       // The bottom inset belongs to the composer, which is the thing actually
       // sitting on the edge; applying it here too left a white band under it.
       //

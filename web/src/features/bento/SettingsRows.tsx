@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { INK, EDGE, WASH, RING, TRACK, SLIDER, SEAM, SURFACE } from './ColourDialog'
@@ -135,21 +136,19 @@ export function SelectRow<T extends string>({
   /** Lets a typeface row show its value set in the face itself. */
   valueStyle?: React.CSSProperties
 }) {
+  /* Every settings dropdown is the product's own menu now -- the one the
+     typeface row had. The OS picker was a different, heavier control on
+     every platform and the one thing on the screen that never matched. */
   return (
-    <Row as="label" label={label} helper={helper} className="relative cursor-pointer">
-      <span className="pointer-events-none absolute right-[16px] top-[10px] flex min-h-[24px] items-center gap-1">
-        <span className={VALUE} style={valueStyle}>{name(value)}</span>
-        <ChevronRight className="size-4 rotate-90 opacity-60" aria-hidden="true" />
-      </span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onPick(e.target.value as T)}
-        className={cn('absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0', RING)}
-      >
-        {options.map((o) => <option key={o} value={o}>{name(o)}</option>)}
-      </select>
-    </Row>
+    <DropdownRow
+      label={label}
+      value={value}
+      options={options}
+      name={name}
+      onPick={onPick}
+      helper={helper}
+      valueStyle={valueStyle}
+    />
   )
 }
 
@@ -388,20 +387,17 @@ export function SwitchSelectRow<T extends string>({
         {helper && <span className={HELPER}>{helper}</span>}
       </span>
       {on && (
-        <span className={cn('relative inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5', RING)} data-size-select="">
-          <span className={cn(VALUE, 'text-[13px]')}>{name(value)}</span>
-          <ChevronRight className="size-4 rotate-90 opacity-60" aria-hidden="true" />
-          <select
-            aria-label={selectLabel}
-            value={value}
-            onChange={(e) => onPick(e.target.value as T)}
-            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
-          >
-            {options.map((o) => (
-              <option key={o} value={o} disabled={disabled?.(o)}>{name(o)}</option>
-            ))}
-          </select>
-        </span>
+        <PickerMenu
+          value={value}
+          options={options.map((o) => ({ value: o, label: name(o), disabled: disabled?.(o) }))}
+          onChange={onPick}
+          ariaLabel={selectLabel}
+        >
+          <span className={cn('relative inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5', RING)} data-size-select="">
+            <span className={cn(VALUE, 'text-[13px]')}>{name(value)}</span>
+            <ChevronRight className="size-4 rotate-90 opacity-60" aria-hidden="true" />
+          </span>
+        </PickerMenu>
       )}
       <button
         type="button"
