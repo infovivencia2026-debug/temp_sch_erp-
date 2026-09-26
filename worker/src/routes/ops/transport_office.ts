@@ -61,7 +61,7 @@ export function registerTransportOffice(r: Router): void {
       if (da !== undefined && db !== undefined && da !== db) return da - db
       return 0
     })
-    return ok(items.slice(0, 200))
+    return ok({ items: items.slice(0, 200) })
   })
 
   r.post('/ops/transport/staff', WRITE, async (c) => {
@@ -110,14 +110,14 @@ export function registerTransportOffice(r: Router): void {
        WHERE ${LIVE('ta')}
        ORDER BY rt.name, ps.sequence, st.first_name
        LIMIT 600`).bind(today()).all<Record<string, unknown>>()
-    return ok(rows.results.map((x) => {
+    return ok({ items: rows.results.map((x) => {
       const out: Record<string, unknown> = { id: x.id, student_id: x.student_id, full_name: x.full_name, admission_no: x.admission_no }
       for (const k of ['class_name', 'route', 'route_id', 'pickup_stop', 'drop_stop'] as const) if (nul(x[k]) !== null) out[k] = x[k]
       const pt = nul(x.pickup_time)
       if (pt) out.pickup_time = pt.length <= 8 ? pt.slice(0, 5) : pt.slice(11, 16)
       if (x.fare_paise !== null && x.fare_paise !== undefined) out.fare_paise = Number(x.fare_paise)
       return out
-    }))
+    }) })
   })
 
   r.post('/ops/transport/allocations', WRITE, async (c) => {
@@ -169,7 +169,7 @@ export function registerTransportOffice(r: Router): void {
        WHERE ${LIVE('ta')} AND (? IS NULL OR ta.route_id = ?)
        ORDER BY ps.sequence, st.first_name
        LIMIT 400`).bind(onDate, leg, today(), routeId, routeId).all<Record<string, unknown>>()
-    return ok(rows.results.map((x) => {
+    return ok({ items: rows.results.map((x) => {
       const out: Record<string, unknown> = {
         student_id: x.student_id, full_name: x.full_name, admission_no: x.admission_no,
       }
@@ -181,7 +181,7 @@ export function registerTransportOffice(r: Router): void {
       out.source = x.source
       out.still_aboard = x.boarded_at !== null && x.alighted_at === null && x.status === 'boarded'
       return out
-    }))
+    }) })
   })
 
   r.post('/ops/transport/attendance', WRITE, async (c) => {
@@ -231,7 +231,7 @@ export function registerTransportOffice(r: Router): void {
        WHERE vl.on_date BETWEEN ? AND ? AND (? IS NULL OR vl.vehicle_id = ?)
        ORDER BY vl.on_date DESC, v.registration_no
        LIMIT 300`).bind(rng.from, rng.to, vehicleId, vehicleId).all<Record<string, unknown>>()
-    return ok(rows.results.map((x) => {
+    return ok({ items: rows.results.map((x) => {
       const out: Record<string, unknown> = { id: x.id, vehicle: x.vehicle, vehicle_id: x.vehicle_id, kind: x.kind, on_date: x.on_date }
       if (x.odometer_km !== null) out.odometer_km = Number(x.odometer_km)
       const litres = x.litres === null ? null : Number(x.litres)
@@ -243,7 +243,7 @@ export function registerTransportOffice(r: Router): void {
       const run = x.run_km === null || x.run_km === undefined ? null : Number(x.run_km)
       if (run !== null && run > 0 && litres !== null && litres > 0) out.km_per_litre = Math.round((run / litres) * 100) / 100
       return out
-    }))
+    }) })
   })
 
   r.post('/ops/transport/logs', WRITE, async (c) => {
@@ -291,7 +291,7 @@ export function registerTransportOffice(r: Router): void {
        WHERE tc.on_date >= ?
        ORDER BY tc.on_date DESC, tc.leg, v.registration_no
        LIMIT 200`).bind(addDays(today(), -14)).all<Record<string, unknown>>()
-    return ok(rows.results.map((x) => {
+    return ok({ items: rows.results.map((x) => {
       const breath = x.breathalyser === null ? null : Number(x.breathalyser)
       const failed: string[] = []
       if (!bool(x.brakes_ok)) failed.push('brakes')
@@ -311,7 +311,7 @@ export function registerTransportOffice(r: Router): void {
       if (nul(x.remarks) !== null) out.remarks = x.remarks
       if (nul(x.checked_by) !== null) out.checked_by = x.checked_by
       return out
-    }))
+    }) })
   })
 
   r.post('/ops/transport/checks', WRITE, async (c) => {
@@ -360,7 +360,7 @@ export function registerTransportOffice(r: Router): void {
        WHERE i.on_date BETWEEN ? AND ?
        ORDER BY (i.resolved_at IS NULL) DESC, i.reported_at DESC
        LIMIT 200`).bind(today(), rng.from, rng.to).all<Record<string, unknown>>()
-    return ok(rows.results.map((x) => {
+    return ok({ items: rows.results.map((x) => {
       const out: Record<string, unknown> = { id: x.id }
       if (nul(x.vehicle) !== null) out.vehicle = x.vehicle
       if (nul(x.route) !== null) out.route = x.route
@@ -377,7 +377,7 @@ export function registerTransportOffice(r: Router): void {
       if (nul(x.resolution) !== null) out.resolution = x.resolution
       out.children_affected = Number(x.children_affected ?? 0)
       return out
-    }))
+    }) })
   })
 
   r.post('/ops/transport/incidents', WRITE, async (c) => {

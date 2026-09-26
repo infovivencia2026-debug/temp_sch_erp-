@@ -225,7 +225,7 @@ export function registerDigitalLibrary(r: Router): void {
       args.push(search, search)
     }
     const rows = await c.db.prepare(`${sel.sql} WHERE ${where} ORDER BY h.kind, h.title LIMIT ${ROW_LIMIT}`).bind(...args).all<HoldingRow>()
-    return ok(rows.results.map(shapeHolding))
+    return ok({ items: rows.results.map(shapeHolding) })
   })
 
   /* GET /usage: opens per month and per holding, from digital_holding_opens. */
@@ -523,10 +523,10 @@ export function registerDigitalLibrary(r: Router): void {
         (SELECT COUNT(*) FROM digital_holdings h WHERE h.provider_id = p.id) AS holdings
         FROM digital_library_providers p ORDER BY p.name`)
       .all<{ id: string; kind: string; name: string; base_url: string | null; has_credentials: number; status: string; notes: string | null; holdings: number }>()
-    return ok(rows.results.map((p) => ({
+    return ok({ items: rows.results.map((p) => ({
       id: p.id, kind: p.kind, name: p.name, ...(p.base_url !== null ? { base_url: p.base_url } : {}),
       has_credentials: bool(p.has_credentials), status: p.status, ...(p.notes !== null ? { notes: p.notes } : {}), holdings: p.holdings,
-    })))
+    })) })
   })
 
   /* POST /providers: records a subscription; never a password, never a status. */

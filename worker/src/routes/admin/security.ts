@@ -294,7 +294,7 @@ export function registerAdminSecurity(r: Router): void {
       const v = sessionView(s, u.full_name)
       out.push({ ...v, device: v.device ?? '', via: s.via, roles: u.roles ? u.roles.split('\u001f') : [], flags })
     }
-    return ok(out)
+    return ok({ items: out })
   })
 
   r.get('/admin/sessions', 'admin.audit.read', async (c) => {
@@ -305,7 +305,7 @@ export function registerAdminSecurity(r: Router): void {
     const rows = await c.env.CONTROL.prepare(`SELECT * FROM sessions WHERE institution_id = ? AND (NOT ? OR (revoked_at IS NULL AND expires_at > ?)) AND (? IS NULL OR user_id = ?) ORDER BY last_seen_at DESC LIMIT 200`)
       .bind(inst, onlyActive ? 1 : 0, now(), user || null, user || null).all<SessionRow>()
     const nm = await names(c, rows.results.map((s) => s.user_id))
-    return ok(rows.results.filter((s) => nm.has(s.user_id)).map((s) => sessionView(s, nm.get(s.user_id)!)))
+    return ok({ items: rows.results.filter((s) => nm.has(s.user_id)).map((s) => sessionView(s, nm.get(s.user_id)!)) })
   })
 
   r.del('/admin/sessions', 'access.sessions.revoke', async (c) => {

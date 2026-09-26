@@ -198,7 +198,7 @@ export function registerPlatformConfig(r: Router): void {
     if (parent !== '' && !isUUID(parent)) throw badRequest('parent_id must be a uuid')
     const rows = await c.db.prepare(`SELECT l.id, l.parent_id, l.level, l.code, l.name, l.active, (SELECT count(*) FROM location_codes c WHERE c.parent_id = l.id) AS children
         FROM location_codes l WHERE (? IS NULL AND l.parent_id IS NULL) OR l.parent_id = ? ORDER BY l.code`).bind(parent || null, parent || null).all<Record<string, unknown>>()
-    return ok(rows.results.map((v) => ({ id: v.id, parent_id: und(v.parent_id as string | null), level: v.level, code: v.code, name: v.name, active: !!v.active, children: v.children })))
+    return ok({ items: rows.results.map((v) => ({ id: v.id, parent_id: und(v.parent_id as string | null), level: v.level, code: v.code, name: v.name, active: !!v.active, children: v.children })) })
   })
   r.post('/admin/platform/locations', vendor, async (c) => {
     const req = await readJSON<{ id?: string; parent_id?: string; level?: string; code?: string; name?: string; active?: boolean }>(c.req)
@@ -569,7 +569,7 @@ export function registerPlatformConfig(r: Router): void {
       } catch { /* skip */ }
     }
     items.sort((a, b) => { const x = (a.last_good_at as string | undefined) ?? '', y = (b.last_good_at as string | undefined) ?? ''; return x < y ? -1 : x > y ? 1 : String(a.school) < String(b.school) ? -1 : 1 })
-    return ok(items)
+    return ok({ items })
   })
 
   // support tickets
@@ -588,7 +588,7 @@ export function registerPlatformConfig(r: Router): void {
     }
     const pr = (p: unknown) => ({ urgent: 0, high: 1, normal: 2 } as Record<string, number>)[String(p)] ?? 3
     items.sort((a, b) => pr(a.priority) - pr(b.priority) || (String(a.created_at) < String(b.created_at) ? -1 : 1))
-    return ok(items)
+    return ok({ items })
   })
   r.post('/admin/platform/seller/tickets/{id}', vendor, async (c) => {
     platformOnly(c)
@@ -610,7 +610,7 @@ export function registerPlatformConfig(r: Router): void {
   r.get('/admin/platform/support/tickets', read, async (c) => {
     institutionId(c)
     const rows = await c.db.prepare(`${TICKET_SQL} ORDER BY t.created_at DESC LIMIT 200`).all<Record<string, unknown>>()
-    return ok(rows.results.map((t) => ticketView(t)))
+    return ok({ items: rows.results.map((t) => ticketView(t)) })
   })
   r.post('/admin/platform/support/tickets', settings, async (c) => {
     const inst = institutionId(c)

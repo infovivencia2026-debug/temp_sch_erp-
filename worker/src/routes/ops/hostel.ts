@@ -42,10 +42,10 @@ export function registerHostel(r: Router): void {
              hb.gender
         FROM hostel_rooms hr JOIN hostel_blocks hb ON hb.id = hr.block_id
        ORDER BY hb.name, hr.room_no`).all<{ room_id: string; block: string; room_no: string; floor: number | null; beds: number; occupied: number; gender: string | null }>()
-    return ok(rows.results.map((v) => ({
+    return ok({ items: rows.results.map((v) => ({
       room_id: v.room_id, block: v.block, room_no: v.room_no, floor: v.floor ?? undefined,
       beds: v.beds, occupied: v.occupied, free: v.beds - v.occupied, gender: v.gender ?? undefined,
-    })))
+    })) })
   })
 
   r.get('/ops/hostel/rooms/{id}/boarders', HOSTEL_READ, async (c) => {
@@ -60,7 +60,7 @@ export function registerHostel(r: Router): void {
         FROM hostel_allocations ha JOIN students st ON st.id = ha.student_id
        WHERE ha.room_id = ? AND ha.vacated_on IS NULL
        ORDER BY ha.bed_no`).bind(c.params.id).all<{ allocation_id: string; student_id: string; name: string; admission_no: string; bed_no: number; allocated_on: string; class_name: string }>()
-    return ok(rows.results.map((v) => ({ ...v, class_name: v.class_name || undefined })))
+    return ok({ items: rows.results.map((v) => ({ ...v, class_name: v.class_name || undefined })) })
   })
 
   r.post('/ops/hostel/allocate', HOSTEL_WRITE, async (c) => {
@@ -116,7 +116,7 @@ export function registerHostel(r: Router): void {
        ORDER BY (o.status = 'out' AND o.expected_in < ?) DESC, (o.status = 'out') DESC, o.expected_out DESC
        LIMIT 200`).bind(...args, at).all<Record<string, string | null>>()
     const nowMs = Date.parse(at)
-    return ok(rows.results.map((v) => {
+    return ok({ items: rows.results.map((v) => {
       const inMs = Date.parse(v.expected_in ?? '')
       const late = Number.isNaN(inMs) ? 0 : Math.max(0, Math.floor((nowMs - inMs) / 60_000))
       return {
@@ -129,7 +129,7 @@ export function registerHostel(r: Router): void {
         overdue: v.status === 'out' && !Number.isNaN(inMs) && inMs < nowMs,
         overdue_minutes: late,
       }
-    }))
+    }) })
   })
 
   r.post('/ops/hostel/outpasses', 'auth', async (c) => {
@@ -218,7 +218,7 @@ export function registerHostel(r: Router): void {
        ORDER BY CASE hc.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END, hc.created_at
        LIMIT 200`).bind(status, status).all<Record<string, string | null>>()
     const nowMs = Date.now()
-    return ok(rows.results.map((v) => {
+    return ok({ items: rows.results.map((v) => {
       const cMs = Date.parse(v.created_at ?? '')
       return {
         id: v.id, student_name: v.student_name ?? undefined, room: v.room ?? undefined, category: v.category,
@@ -226,7 +226,7 @@ export function registerHostel(r: Router): void {
         resolution: v.resolution ?? undefined, created_at: (v.created_at ?? '').slice(0, 10),
         open_days: Number.isNaN(cMs) ? 0 : Math.max(0, Math.floor((nowMs - cMs) / 86_400_000)),
       }
-    }))
+    }) })
   })
 
   r.post('/ops/hostel/complaints', 'auth', async (c) => {

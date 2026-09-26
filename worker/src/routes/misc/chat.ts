@@ -228,7 +228,7 @@ export function registerChat(r: Router): void {
       seen.add(k)
       out.push({ user_id: v.user_id, full_name: v.full_name, subject: v.subject ?? undefined, relation: v.relation })
     }
-    return ok(out)
+    return ok({ items: out })
   })
 
   r.get('/staff-remarks', 'auth', async (c) => {

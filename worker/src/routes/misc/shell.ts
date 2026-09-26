@@ -385,11 +385,11 @@ async function storeCatalogue(c: Ctx): Promise<Response> {
     list.push({ label: parts.join(' / '), price: Number(v.price ?? 0), in_stock: on > 0, stock: on })
     byProduct.set(String(v.product_id), list)
   }
-  return ok(prods.results.map((p) => {
+  return ok({ items: prods.results.map((p) => {
     const key = typeof p.image_key === 'string' ? p.image_key.trim() : ''
     return { code: p.code, name: p.name, category: p.category, description: p.description, price: Number(p.sale_price_paise ?? 0),
       image_url: key ? '/api/v1/files/' + key + '?inline=1' : '', variants: byProduct.get(String(p.id)) ?? [] }
-  }))
+  }) })
 }
 
 export function registerShell(r: Router): void {
