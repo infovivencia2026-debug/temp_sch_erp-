@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { cn } from '@/lib/utils'
 import { usePhone } from '@/lib/viewport'
@@ -166,5 +166,71 @@ export function ChatScreen({
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </div>,
     document.body,
+  )
+}
+
+/* THE CONVERSATION BESIDE THE LIST, ON A DESK.
+
+   The web layout every mail and chat client uses: the list of conversations
+   stays on the left, the open one fills the right, and the next row can be
+   opened without closing this one. On a phone it is ChatScreen -- the whole
+   screen with a Back arrow -- because a pane would be a strip. The caller
+   lays the two columns out; this is only the right-hand one, and when
+   nothing is open it says so quietly rather than leaving a hole. */
+export function ConversationPane({
+  open,
+  title,
+  subtitle,
+  photoId,
+  onBack,
+  actions,
+  children,
+  empty = 'Pick a conversation from the list.',
+}: {
+  open: boolean
+  title: ReactNode
+  subtitle?: ReactNode
+  photoId?: string | null
+  onBack: () => void
+  actions?: ReactNode
+  children: ReactNode
+  empty?: ReactNode
+}) {
+  const phone = usePhone()
+  if (phone) {
+    return (
+      <ChatScreen open={open} title={title} subtitle={subtitle} photoId={photoId} onBack={onBack} actions={actions}>
+        {children}
+      </ChatScreen>
+    )
+  }
+  if (!open) {
+    return (
+      <div className="card hidden min-h-[60vh] items-center justify-center px-6 text-center text-[14px] text-muted-foreground lg:flex lg:sticky lg:top-4">
+        {empty}
+      </div>
+    )
+  }
+  return (
+    <div className="card flex max-h-[82vh] min-h-[60vh] flex-col overflow-hidden lg:sticky lg:top-4">
+      <div className="flex shrink-0 items-center gap-3 border-b px-4 py-3">
+        {typeof title === 'string' && <PersonAvatar name={title} photoId={photoId} size={40} />}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[16px] font-semibold leading-tight">{title}</div>
+          {subtitle && <div className="truncate text-[12.5px] text-muted-foreground">{subtitle}</div>}
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Close conversation"
+          title="Close"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </div>
   )
 }

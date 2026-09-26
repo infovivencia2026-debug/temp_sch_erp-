@@ -673,11 +673,9 @@ export function ChatThread({
                         {m.body && <p className="whitespace-pre-wrap break-words">{linkify(m.body)}</p>}
                       </>
                     )}
-                    </div>
-                    {/* Below the bubble, as the design draws it: the bubble
-                        keeps its shape whatever is in it, and nothing has to be
-                        written around a clock. */}
-                    <p className="chat-meta mt-[5px] flex items-center gap-[4px] leading-none">
+                    {/* The time in the bubble's own corner, as every chat app
+                        draws it: a one-word message and its time share a line. */}
+                    <p className="chat-meta mt-[4px] flex items-center justify-end gap-[4px] leading-none">
                       {m.edited && !m.deleted && <span className="italic">edited</span>}
                       <span>{timeOf(m.at)}</span>
                       {m.mine &&
@@ -691,6 +689,7 @@ export function ChatThread({
                           <Check className="h-[15px] w-[15px]" aria-label="Sent" />
                         ))}
                     </p>
+                    </div>
                     {m.failed && (
                       <p className="mt-1 flex gap-3 text-[12px] font-semibold">
                         <button type="button" className="text-primary" onClick={() => retry(m)}>Retry</button>
@@ -1357,6 +1356,39 @@ const chatCSS = `
    bubble rising rather than a second one appearing. The menu is the dark
    translucent surface a phone uses for this, whatever theme the rest of the
    app is in: it is a system object, not part of the page. */
+/* ON A DESK: the web look the school asked for. The paper is white, theirs
+   is a soft grey shape, yours is blue with white words, and the time sits in
+   the corner of each. The phone keeps the paper and the green. */
+@media (min-width: 768px) {
+  .chat-paper { background-color: #ffffff; background-image: none; }
+  .chat-theirs {
+    background-color: #f3f5f9; color: #333a4d;
+    border-radius: 18px; border-top-left-radius: 6px; box-shadow: none;
+  }
+  .chat-mine {
+    background-color: #2f6bff; color: #ffffff;
+    border-radius: 18px; border-bottom-right-radius: 6px; box-shadow: none;
+  }
+  .chat-theirs.chat-run, .chat-mine.chat-run { border-radius: 18px; }
+  .chat-mine .chat-meta, .chat-mine .text-muted-foreground, .chat-mine a { color: rgba(255,255,255,0.88); }
+  .chat-mine .chat-meta svg { color: #ffffff; }
+  .chat-theirs .chat-meta, .chat-theirs .text-muted-foreground { color: #8b92a5; }
+  .chat-mine .chat-quote { border-color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.16); }
+  .chat-mine .chat-quote__who { color: #ffffff; }
+  .chat-mine .chat-quote__body { color: rgba(255,255,255,0.82); }
+  .chat-mine .chat-file { background: rgba(255,255,255,0.16); color: #ffffff; }
+  .chat-mine .chat-file .text-muted-foreground { color: rgba(255,255,255,0.8); }
+  .chat-mine .chat-voice__bar { background: rgba(255,255,255,0.45); }
+  .chat-mine .chat-voice__bar.is-played { background: #ffffff; }
+  .chat-mine .chat-voice__play { background: #ffffff; color: #2f6bff; }
+  .chat-mine .chat-voice__time { color: rgba(255,255,255,0.85); }
+  .chat-daypill { background-color: #eef2f7; color: #6b7280; box-shadow: none; border-radius: 12px; padding: 4px 14px; }
+  .chat-bar { background-color: #ffffff; border-top: 1px solid rgba(11,20,26,0.08); }
+  .chat-composer { background-color: #f4f6fa; }
+  .chat-send { background-color: #2f6bff; }
+  .chat-send:hover:not(:disabled) { background-color: #245ae6; }
+}
+
 .chat-scrim {
   background: rgba(0, 0, 0, 0.42);
   -webkit-backdrop-filter: blur(6px);

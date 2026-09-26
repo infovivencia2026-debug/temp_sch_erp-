@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChatThread, type Attachment } from '@/components/Chat'
-import { ChatScreen, PersonAvatar } from '@/components/ChatScreen'
+import { ConversationPane, PersonAvatar } from '@/components/ChatScreen'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
@@ -342,7 +342,7 @@ export default function StaffMessages() {
         </div>
 
         {box === 'parents' ? (
-          <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
             <Card className="min-w-0">
               {/* "Parents", matching the tab above it. The two said different
                   words for the same list, which reads as two different lists. */}
@@ -366,7 +366,7 @@ export default function StaffMessages() {
                   Unread only{parentUnread > 0 ? ` (${parentUnread})` : ''}
                 </label>
               </div>
-              <ul className="max-h-[28rem] divide-y overflow-auto">
+              <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)]">
                 {parents.map((t) => (
                   <li key={`${t.student_id}-${t.parent_user_id}`}>
                     <button
@@ -429,7 +429,7 @@ export default function StaffMessages() {
             {/* The conversation takes the whole screen, the way a phone does
                 it: the list is one screen, the chat is the next, and Back
                 returns to the list exactly as it was. See ChatScreen. */}
-            <ChatScreen
+            <ConversationPane
               open={!!openChild && !!openWith}
               title={openParent ? openParent.parent_name : 'Conversation'}
               photoId={openParent?.student_photo}
@@ -501,10 +501,10 @@ export default function StaffMessages() {
                 placeholder={`Reply to ${openParent?.parent_name ?? 'them'}`}
                 height="min-h-0"
               />
-            </ChatScreen>
+            </ConversationPane>
           </div>
         ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
           <Card className="min-w-0">
             <CardHeader title="Staff" description={`${all.length} colleagues`} />
             <div className="space-y-2 px-4 pb-3 pt-3">
@@ -519,7 +519,7 @@ export default function StaffMessages() {
                 Unread only{staffUnread > 0 ? ` (${staffUnread})` : ''}
               </label>
             </div>
-            <ul className="max-h-[28rem] divide-y overflow-auto">
+            <ul className="max-h-[28rem] divide-y overflow-auto lg:max-h-[calc(82vh-9rem)]">
               {people.map((t) => (
                 <li key={t.user_id}>
                   <button
@@ -563,7 +563,7 @@ export default function StaffMessages() {
             </ul>
           </Card>
 
-          <ChatScreen
+          <ConversationPane
             open={!!openWith}
             title={open?.full_name ?? 'Conversation'}
             subtitle={open?.designation ?? undefined}
@@ -605,7 +605,7 @@ export default function StaffMessages() {
               placeholder={`Write to ${open?.full_name ?? 'them'}`}
               height="min-h-0"
             />
-          </ChatScreen>
+          </ConversationPane>
         </div>
         )}
       </PageBody>
