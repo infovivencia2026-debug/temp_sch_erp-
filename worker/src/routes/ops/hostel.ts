@@ -96,7 +96,7 @@ export function registerHostel(r: Router): void {
     const args: unknown[] = [status, status]
     let mine = 'TRUE'
     if (!scope.all) {
-      if (scope.studentIds.length === 0) return ok([])
+      if (scope.studentIds.length === 0) return ok({ items: [] })
       mine = `o.student_id IN (SELECT value FROM json_each(?))`
       args.push(JSON.stringify(scope.studentIds))
     }
@@ -270,10 +270,10 @@ export function registerHostel(r: Router): void {
         FROM mess_menus WHERE on_date BETWEEN ? AND ?
        ORDER BY on_date, CASE meal WHEN 'breakfast' THEN 0 WHEN 'lunch' THEN 1 WHEN 'snacks' THEN 2 ELSE 3 END`)
       .bind(rng.from, rng.to).all<{ id: string; on_date: string; meal: string; items: string; served_count: number | null; notes: string | null }>()
-    return ok(rows.results.map((v) => ({
+    return ok({ items: rows.results.map((v) => ({
       id: v.id, on_date: v.on_date, meal: v.meal, items: v.items,
       served_count: v.served_count ?? undefined, notes: v.notes ?? undefined,
-    })))
+    })) })
   })
 
   const MEALS = ['breakfast', 'lunch', 'snacks', 'dinner']

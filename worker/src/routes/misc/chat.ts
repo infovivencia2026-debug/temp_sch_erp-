@@ -132,8 +132,8 @@ export function registerChat(r: Router): void {
        WHERE u.id <> ?1 AND (e.id IS NULL OR e.status = 'active') AND ${STAFF_ROLE_SQL}
        ORDER BY 5 DESC, (last_at IS NULL), last_at DESC, u.full_name`).bind(me)
       .all<{ user_id: string; full_name: string; designation: string | null; photo: string | null; unread: number; last_message: string | null; last_at: string | null }>()
-    return ok(rows.results.map((v) => ({ user_id: v.user_id, full_name: v.full_name, designation: v.designation ?? undefined, photo: v.photo ?? undefined,
-      unread: v.unread, last_message: v.last_message ?? undefined, last_at: v.last_at ?? undefined })))
+    return ok({ items: rows.results.map((v) => ({ user_id: v.user_id, full_name: v.full_name, designation: v.designation ?? undefined, photo: v.photo ?? undefined,
+      unread: v.unread, last_message: v.last_message ?? undefined, last_at: v.last_at ?? undefined })) })
   })
 
   r.get('/staff-messages', 'auth', async (c) => {
@@ -203,7 +203,7 @@ export function registerChat(r: Router): void {
     if (broad(c)) {
       const rows = await c.db.prepare(`SELECT u.id AS user_id, u.full_name FROM employees e JOIN users u ON u.id = e.user_id
           WHERE e.status = 'active' AND u.id <> ? ORDER BY u.full_name`).bind(c.id.userId).all<{ user_id: string; full_name: string }>()
-      return ok(rows.results.map((v) => ({ user_id: v.user_id, full_name: v.full_name, relation: 'staff' })))
+      return ok({ items: rows.results.map((v) => ({ user_id: v.user_id, full_name: v.full_name, relation: 'staff' })) })
     }
     if (sc.studentIds.length === 0) throw forbidden('missing permission: the list of teachers you may write about')
     const q = inList(sc.studentIds)
@@ -243,9 +243,9 @@ export function registerChat(r: Router): void {
        WHERE (?2 IS NULL OR sr.subject_user_id = ?2) AND ${where}
        ORDER BY sr.observed_on DESC, sr.created_at DESC LIMIT 200`).bind(c.id.userId, subject)
       .all<{ id: string; subject_user_id: string; subject_name: string; author_name: string; author_role: string; kind: string; body: string; observed_on: string; recorded_at: string; student_name: string | null; mine: number }>()
-    return ok(rows.results.map((v) => ({ id: v.id, subject_user_id: v.subject_user_id, subject_name: v.subject_name, author_name: v.author_name,
+    return ok({ items: rows.results.map((v) => ({ id: v.id, subject_user_id: v.subject_user_id, subject_name: v.subject_name, author_name: v.author_name,
       author_role: v.author_role, kind: v.kind, body: v.body, observed_on: v.observed_on, recorded_at: v.recorded_at,
-      student_name: v.student_name ?? undefined, mine: !!v.mine })))
+      student_name: v.student_name ?? undefined, mine: !!v.mine })) })
   })
 
   r.post('/staff-remarks', 'auth', async (c) => {

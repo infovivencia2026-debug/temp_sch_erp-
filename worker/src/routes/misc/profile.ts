@@ -271,7 +271,7 @@ export function registerProfile(r: Router): void {
     const rows = await c.env.CONTROL.prepare(`SELECT id, COALESCE(user_agent,'') AS ua, COALESCE(ip,'') AS ip, created_at, last_seen_at
         FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ? ORDER BY last_seen_at DESC`)
       .bind(c.id.userId, now()).all<{ id: string; ua: string; ip: string; created_at: string; last_seen_at: string }>()
-    return ok(rows.results.map((s) => ({ id: s.id, device: deviceLabel(s.ua), ip: s.ip || undefined, created_at: s.created_at, last_seen_at: s.last_seen_at, current: s.id === c.id.sessionId })))
+    return ok({ items: rows.results.map((s) => ({ id: s.id, device: deviceLabel(s.ua), ip: s.ip || undefined, created_at: s.created_at, last_seen_at: s.last_seen_at, current: s.id === c.id.sessionId })) })
   })
 
   r.post('/profile/sessions/sign-out-others', 'auth', async (c) => {
