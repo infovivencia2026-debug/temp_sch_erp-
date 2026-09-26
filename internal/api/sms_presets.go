@@ -42,6 +42,31 @@ type smsPreset struct {
 
 func smsPresets() []smsPreset {
 	return []smsPreset{
+		/* Fast2SMS, on its "DLT manual" route: the one route of theirs that
+		   takes the rendered text, the DLT template id and the entity id per
+		   message, which is exactly what this gateway has to give. Their
+		   plain "dlt" route wants a message id registered in their panel and
+		   the variables separately, and cannot carry a body. The key goes as
+		   the authorization parameter; a header works too. */
+		{
+			ID:       "fast2sms",
+			Label:    "Fast2SMS",
+			Note:     "Uses the API key from Dev API as the API key. Sender is your six-character DLT header; the template id and the entity id ride with every message on the DLT manual route, so both must be approved on the DLT portal and added under Fast2SMS → DLT.",
+			Endpoint: "https://www.fast2sms.com/dev/bulkV2",
+			Method:   "POST",
+			Encoding: "form",
+			Params: map[string]string{
+				"authorization": "{key}",
+				"route":         "dlt_manual",
+				"sender_id":     "{sender}",
+				"message":       "{text}",
+				"template_id":   "{dlt}",
+				"entity_id":     "{entity}",
+				"numbers":       "{to}",
+				"flash":         "0",
+			},
+			Needs: []string{"API key", "sender header", "DLT entity id", "DLT template id"},
+		},
 		{
 			ID:       "msg91",
 			Label:    "MSG91",
