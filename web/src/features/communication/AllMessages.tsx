@@ -8,8 +8,7 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   PageHead, PageBody, Card, CardHeader, Button, Stat, Select, Input, Field,
-  SkeletonTable, ErrorState, EmptyState,
-} from '@/components/ui'
+  SkeletonTable, ErrorState, EmptyState, Badge } from '@/components/ui'
 import { useFeatureHref } from '../bento/bento-kit'
 import { usePhone } from '@/lib/viewport'
 import { useOpenState } from '@/lib/motion'
@@ -716,47 +715,65 @@ function CircularPane({
         )
       }
     >
-      {/* THE NOTICE, DRAWN AS THE CHAT IT IS. The pane beside the list showed
-          a card with a paragraph in it, while every other channel on the desk
-          opened as a conversation. A circular is the school speaking to the
-          families, so it sits on the paper as one bubble from the school's
-          side, under the same header, with the acknowledgement count where a
-          composer would be -- there is nothing to type back into a notice. */}
+      {/* A CIRCULAR IS A NOTICE, NOT A CONVERSATION.
+
+          It was drawn as a chat bubble and read as one -- a message with no
+          reply box, sitting on chat paper, with its facts pushed to the
+          bottom bar. A circular is the school's letter to a set of people:
+          who sent it, to whom, when, and what it says, then how many of them
+          have signed it. Laid out like the paper it replaces, beside the
+          list, in the same pane every other channel opens in. */}
       {q.error ? (
         <div className="px-4 py-4"><ErrorState error={q.error} /></div>
       ) : (
-        <ChatThread
-          messages={
-            d
-              ? [{
-                  id: item.key,
-                  body: d.body || 'This notice has no further detail.',
-                  at: d.published_at,
-                  mine: true,
-                  sender: d.author,
-                }]
-              : []
-          }
-          loading={q.isLoading}
-          empty="Nothing published yet."
-          canSend={false}
-          onSend={() => {}}
-          height="min-h-0"
-          cannotSendNote={
-            d?.requires_ack ? (
-              <div>
-                <span className="font-semibold text-foreground">
-                  {d.acked} of {d.asked} have acknowledged
-                </span>
-                {d.pending.length > 0 && (
-                  <span className="block mt-0.5">Still to answer: {d.pending.join(', ')}</span>
-                )}
+        <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
+          {q.isLoading || !d ? (
+            <SkeletonTable columns={1} />
+          ) : (
+            <article className="mx-auto max-w-[60ch] rounded-xl border bg-card shadow-[var(--elev-1)]">
+              <header className="border-b px-5 py-4">
+                <p className="eyebrow">{d.kind || 'Circular'}</p>
+                <h3 className="mt-1 text-[17px] font-semibold leading-snug">{d.title}</h3>
+                <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
+                  <dt className="text-muted-foreground">From</dt>
+                  <dd className="font-medium">{d.author || 'School office'}</dd>
+                  <dt className="text-muted-foreground">To</dt>
+                  <dd className="font-medium">{d.audience || 'The school'}</dd>
+                  <dt className="text-muted-foreground">Sent</dt>
+                  <dd>{d.published_at ? when(d.published_at) : ''}</dd>
+                </dl>
+              </header>
+              <div className="px-5 py-4">
+                <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">
+                  {d.body || 'This circular has no further detail.'}
+                </p>
               </div>
-            ) : (
-              `Sent to ${d?.audience || 'the school'}. A notice takes no replies; families write to the class teacher.`
-            )
-          }
-        />
+              <footer className="border-t bg-muted/30 px-5 py-3 text-[13px]">
+                {d.requires_ack ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold">
+                        {d.acked} of {d.asked} have acknowledged
+                      </span>
+                      <Badge tone={d.acked >= d.asked ? 'success' : 'warning'}>
+                        {d.acked >= d.asked ? 'All signed' : `${d.asked - d.acked} waiting`}
+                      </Badge>
+                    </div>
+                    {d.pending.length > 0 && (
+                      <p className="mt-1.5 text-muted-foreground">
+                        Still to answer: {d.pending.join(', ')}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Sent to {d.audience || 'the school'}. No acknowledgement was asked for.
+                  </span>
+                )}
+              </footer>
+            </article>
+          )}
+        </div>
       )}
     </ThreadPane>
   )
