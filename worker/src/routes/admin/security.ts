@@ -215,7 +215,7 @@ export function registerAdminSecurity(r: Router): void {
   r.get('/admin/audit/summary', 'admin.audit.read', async (c) => {
     const rows = await c.db.prepare(`SELECT entity_type, count(*) AS count, max(created_at) AS last_at FROM audit_log WHERE created_at >= datetime('now', '-90 days') AND (institution_id IS NOT NULL OR ?) GROUP BY entity_type ORDER BY 2 DESC`)
       .bind(c.id.platformAdmin ? 1 : 0).all<{ entity_type: string; count: number; last_at: string }>()
-    return ok(rows.results)
+    return ok({ items: rows.results })
   })
   r.get('/admin/audit/events', 'admin.audit.read', async (c) => {
     const q = c.url.searchParams
@@ -258,7 +258,7 @@ export function registerAdminSecurity(r: Router): void {
     const rows = await c.env.CONTROL.prepare(`SELECT * FROM sessions WHERE institution_id = ? AND (? OR (revoked_at IS NULL AND expires_at > ?)) ORDER BY last_seen_at DESC LIMIT 500`)
       .bind(inst, all ? 1 : 0, now()).all<SessionRow>()
     const userIds = [...new Set(rows.results.map((s) => s.user_id))]
-    if (userIds.length === 0) return ok([])
+    if (userIds.length === 0) return ok({ items: [] })
     const uq = inList(userIds), mq = inList(MONEY_KEYS)
     const users = await c.db.prepare(`SELECT u.id, u.full_name, u.email, u.phone, u.username,
         EXISTS (SELECT 1 FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = u.id AND rp.permission_key IN ${mq.sql}) AS money,
@@ -365,7 +365,7 @@ export function registerAdminSecurity(r: Router): void {
       out.push({ id: e.id, at: e.at, outcome: e.outcome, identifier: e.identifier || undefined, user_id: uid ?? undefined, full_name: name, via: 'password', ip: e.ip ?? undefined, device: deviceLabel(e.user_agent ?? ''), session_id: undefined })
       if (out.length >= limit) break
     }
-    return ok(out)
+    return ok({ items: out })
   })
 
   // interactions.go -------------------------------------------------------------
@@ -376,7 +376,7 @@ export function registerAdminSecurity(r: Router): void {
              WHEN EXISTS (SELECT 1 FROM students st WHERE st.user_id = u.id) THEN 'student' ELSE 'staff' END AS side
         FROM users u WHERE u.status = 'active' AND (? = '' OR u.full_name LIKE ? ESCAPE '\\') ORDER BY u.full_name LIMIT 30`).bind(search, like(search))
       .all<{ id: string; full_name: string; side: string }>()
-    return ok(rows.results)
+    return ok({ items: rows.results })
   })
 
   r.get('/admin/interactions', 'admin.audit.read', async (c) => {
@@ -429,8 +429,8 @@ export function registerAdminSecurity(r: Router): void {
          AND (?5 = '' OR src.summary LIKE ?6 ESCAPE '\\' OR src.from_name LIKE ?6 ESCAPE '\\' OR src.to_name LIKE ?6 ESCAPE '\\' OR src.student_name LIKE ?6 ESCAPE '\\')
        ORDER BY src.at DESC LIMIT ?7`).bind(String(days), a, b, kind, search, like(search), limit)
       .all<{ at: string; kind: string; from_id: string | null; from_name: string; to_id: string | null; to_name: string; student_name: string | null; summary: string; files: number; link: string; ref: string }>()
-    return ok(rows.results.map((v) => ({ at: v.at, kind: v.kind, from_id: v.from_id ?? undefined, from_name: v.from_name, to_id: v.to_id ?? undefined, to_name: v.to_name,
-      student_name: v.student_name ?? undefined, summary: v.summary, files: v.files, link: v.link || undefined, ref_id: v.ref })))
+    return ok({ items: rows.results.map((v) => ({ at: v.at, kind: v.kind, from_id: v.from_id ?? undefined, from_name: v.from_name, to_id: v.to_id ?? undefined, to_name: v.to_name,
+      student_name: v.student_name ?? undefined, summary: v.summary, files: v.files, link: v.link || undefined, ref_id: v.ref })) })
   })
 
   // session policies ---------------------------------------------------------------
@@ -448,11 +448,11 @@ export function registerAdminSecurity(r: Router): void {
     const rows = await c.db.prepare(`SELECT ro.key, ro.name, sp.absolute_hours, sp.idle_minutes, sp.max_devices FROM roles ro
         LEFT JOIN session_policies sp ON sp.role_key = ro.key AND sp.institution_id = ro.institution_id WHERE ro.institution_id IS NOT NULL ORDER BY ro.is_system DESC, ro.name`)
       .all<{ key: string; name: string; absolute_hours: number | null; idle_minutes: number | null; max_devices: number | null }>()
-    return ok(rows.results.map((v) => {
+    return ok({ items: rows.results.map((v) => {
       const [h, i, d] = DEFAULTS(v.key)
       const over = v.absolute_hours !== null
       return { role_key: v.key, role_name: v.name, absolute_hours: over ? v.absolute_hours : h, idle_minutes: over ? v.idle_minutes : i, max_devices: over ? v.max_devices : d, overridden: over }
-    }))
+    }) })
   })
   r.put('/admin/session-policies/{role}', 'access.roles.write', async (c) => {
     const role = c.params.role

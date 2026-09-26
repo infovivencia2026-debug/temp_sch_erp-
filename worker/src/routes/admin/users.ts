@@ -332,13 +332,13 @@ export function registerAdminUsers(r: Router): void {
              (SELECT count(*) FROM user_roles ur WHERE ur.role_id = ro.id) AS users, ro.institution_id
         FROM roles ro ORDER BY ro.is_system DESC, ro.name`).bind(...q.args)
       .all<{ id: string; key: string; name: string; is_system: number; is_default: number; customised: number; permissions: number; capabilities: number; users: number; institution_id: string | null }>()
-    return ok(rows.results.map((v) => ({ id: v.id, key: v.key, name: v.name, is_system: !!v.is_system, is_default: !!v.is_default, customised: !!v.customised,
-      institution: v.institution_id ? c.id.institution?.name : undefined, permissions: v.permissions, capabilities: v.capabilities, users: v.users })))
+    return ok({ items: rows.results.map((v) => ({ id: v.id, key: v.key, name: v.name, is_system: !!v.is_system, is_default: !!v.is_default, customised: !!v.customised,
+      institution: v.institution_id ? c.id.institution?.name : undefined, permissions: v.permissions, capabilities: v.capabilities, users: v.users })) })
   })
 
   r.get('/admin/modules', 'institution.read', async (c) => {
     const rows = await c.db.prepare(`SELECT module, enabled FROM module_settings ORDER BY module`).all<{ module: string; enabled: number }>()
-    return ok(rows.results.map((m) => ({ module: m.module, enabled: !!m.enabled })))
+    return ok({ items: rows.results.map((m) => ({ module: m.module, enabled: !!m.enabled })) })
   })
   r.put('/admin/modules', 'institution.settings.write', async (c) => {
     const req = await readJSON<{ module?: string; enabled?: boolean }>(c.req)
@@ -611,7 +611,7 @@ export function registerAdminUsers(r: Router): void {
       const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10)
       out.push({ day: d, ok: okM.get(d) ?? 0, failed: failM.get(d) ?? 0, screens: scrM.get(d) ?? 0 })
     }
-    return ok(out)
+    return ok({ items: out })
   })
 
   // roles ----------------------------------------------------------------------
@@ -662,7 +662,7 @@ export function registerAdminUsers(r: Router): void {
     if (!isUUID(c.params.id)) throw badRequest('invalid role id')
     const rows = await c.db.prepare(`SELECT p.key, p.module, p.description FROM role_permissions rp JOIN permissions p ON p.key = rp.permission_key WHERE rp.role_id = ? ORDER BY p.module, p.key`)
       .bind(c.params.id).all<{ key: string; module: string; description: string }>()
-    return ok(rows.results)
+    return ok({ items: rows.results })
   })
 
   r.get('/admin/roles/{id}/grid', 'access.roles.read', async (c) => {
