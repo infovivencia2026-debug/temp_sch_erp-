@@ -352,7 +352,7 @@ export function tokensFor(r: Roles): Record<string, string> {
   hsl(['--muted-foreground'], r.muted)
   hsl(['--border', '--input'], r.line)
   hsl(['--border-strong'], r.lineStrong)
-  hsl(['--primary', '--ring'], r.primary)
+  hsl(['--primary'], r.primary) // never --ring: focus stays neutral
   hsl(['--primary-hover'], r.primaryHover)
   hsl(['--primary-soft'], r.primarySoft)
   hsl(['--primary-foreground', '--destructive-foreground'], r.primaryContrast)

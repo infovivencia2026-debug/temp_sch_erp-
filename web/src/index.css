@@ -1044,7 +1044,7 @@
      still marks the box, as it always did. */
   .field:focus {
     outline: none;
-    border-color: hsl(var(--primary));
+    border-color: hsl(var(--ring));
     box-shadow: var(--field-inset), var(--ring-halo);
   }
   /* The same recess for an input that is not a .field -- the launcher's

@@ -21,7 +21,6 @@ import { contrast, hslTriplet, mix } from './personality'
 
 const KEYS = [
   '--primary',
-  '--ring',
   '--primary-hover',
   '--primary-soft',
   '--primary-foreground',
@@ -71,7 +70,9 @@ export function applyBrand(primary?: string | null, accent?: string | null) {
     const fg = contrast(hex, '#ffffff') >= contrast(hex, '#111111') ? '#ffffff' : '#111111'
 
     root.style.setProperty('--primary', hslTriplet(hex))
-    root.style.setProperty('--ring', hslTriplet(hex))
+    /* NOT --ring. A school whose colour is red had every focused box
+       outlined in red, which is what an error looks like. The focus ring
+       stays the product's neutral blue whatever the brand is. */
     root.style.setProperty('--primary-hover', hslTriplet(hover))
     root.style.setProperty('--primary-soft', hslTriplet(soft))
     root.style.setProperty('--primary-foreground', hslTriplet(fg))
