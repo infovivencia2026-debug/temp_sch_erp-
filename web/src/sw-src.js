@@ -49,7 +49,7 @@ const PRECACHE = __PRECACHE__
    enough for a slow-but-working connection to answer a real read; short
    enough that a dead one does not hold a fee balance hostage. */
 const API_TIMEOUT_MS = 3500
-const NAV_TIMEOUT_MS = 4000
+const NAV_TIMEOUT_MS = 8000 // was 4000: a slow link fell back to the cached shell, an old build, on every load
 
 /* Caps, so the caches cannot grow without bound on a phone. DATA is trimmed
    oldest-first by insertion order when it passes the limit; entries older

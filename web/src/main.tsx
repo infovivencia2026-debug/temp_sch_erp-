@@ -99,6 +99,58 @@ try {
   /* not a module URL in some old embedder; no stamp, no harm */
 }
 
+/* "IS THIS THE NEW ONE?" -- ANSWERED ON THE SCREEN, NOT IN A CONSOLE.
+
+   A tab can outlive several deploys: the worker holds the shell, the network
+   fallback serves the old index on a slow connection, and the person is told
+   a fix is live while looking at a build from yesterday. Every few minutes,
+   and whenever the tab is looked at again, the page asks the server which
+   entry it is serving now and compares it with its own. If they differ, a
+   thin bar at the top says a new version is ready, and one tap reloads
+   clean through /?fresh. Nothing is done without the tap: a reload under a
+   half-filled form is worse than an old build for another minute. */
+;(() => {
+  if (typeof document === 'undefined' || typeof fetch !== 'function') return
+  const mine = (() => {
+    try { return new URL(import.meta.url).pathname.split('/').pop() ?? '' } catch { return '' }
+  })()
+  if (!mine) return
+  let shown = false
+  const show = (theirs: string) => {
+    if (shown) return
+    shown = true
+    const bar = document.createElement('div')
+    bar.setAttribute('role', 'status')
+    bar.style.cssText =
+      'position:fixed;left:0;right:0;top:0;z-index:2147483000;display:flex;gap:12px;align-items:center;' +
+      'justify-content:center;padding:10px 16px;background:#111b21;color:#fff;font:600 14px/1.3 system-ui,sans-serif;' +
+      'box-shadow:0 2px 12px rgba(0,0,0,.25)'
+    bar.innerHTML =
+      '<span>A new version of WISEN is ready.</span>' +
+      '<button type="button" style="border:0;border-radius:999px;padding:6px 14px;background:#00a884;color:#fff;font:inherit;cursor:pointer">Update now</button>' +
+      '<button type="button" aria-label="Later" style="border:0;background:transparent;color:#cfd8dc;font:inherit;cursor:pointer;padding:6px">Later</button>'
+    const [update, later] = Array.from(bar.querySelectorAll('button'))
+    update.addEventListener('click', () => { location.href = '/?fresh' })
+    later.addEventListener('click', () => { bar.remove() })
+    bar.dataset.newBuild = theirs
+    document.body.appendChild(bar)
+  }
+  const check = async () => {
+    try {
+      const res = await fetch('/index.html?probe=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' })
+      if (!res.ok) return
+      const html = await res.text()
+      const m = html.match(/assets\/(index-[A-Za-z0-9_-]+\.js)/)
+      if (m && m[1] !== mine) show(m[1])
+    } catch {
+      /* offline or the probe failed: nothing to say */
+    }
+  }
+  window.setTimeout(check, 15_000)
+  window.setInterval(check, 5 * 60_000)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void check() })
+})()
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     /* THE FIRST VISIT USED TO BOOT THE APPLICATION TWICE.
