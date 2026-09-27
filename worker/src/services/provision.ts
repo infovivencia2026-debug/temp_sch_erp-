@@ -123,7 +123,7 @@ export function tenantMigrationsSql(): string {
   const q = (v: string) => `'${v.replace(/'/g, "''")}'`
   return `CREATE TABLE IF NOT EXISTS _migrations (scope TEXT NOT NULL, version INTEGER NOT NULL, name TEXT NOT NULL, checksum TEXT NOT NULL,
   applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), PRIMARY KEY (scope, version));\n` +
-    TENANT_MIGRATIONS.map((m) => `INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', ${m.version}, ${q(m.name)}, ${q(m.checksum)});`).join('\n')
+    TENANT_MIGRATIONS.map((m) => `INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', ${m.version}, ${q(m.name)}, ${q(m.checksum)});\n`).join('')
 }
 
 // --- plan modules (mirrors entitlement.ApplyPlan, as tenants.ts does) --------
@@ -288,15 +288,14 @@ export async function runProvision(d: ProvisionDeps, id: string): Promise<Provis
 
     // 2. The schema, chunk by chunk from where the last attempt stopped.
     stage = 'applying_schema'
-    const chunks = schemaChunks(d.schemaSql)
+    // The schema, then the record of every tenant migration it contains (so
+    // scripts/migrate.mjs never re-applies one here); all re-runnable chunks.
+    const chunks = schemaChunks(d.schemaSql + '\n' + tenantMigrationsSql() + '\n')
     await setStage(d, id, stage, { schema_total: chunks.length })
     for (let i = Math.min(p.schema_done, chunks.length); i < chunks.length; i++) {
       await d.cf.exec(dbId, chunks[i])
       await setStage(d, id, stage, { schema_done: i + 1 })
     }
-    // Every tenant migration is in tenant.sql already: record them all, so
-    // scripts/migrate.mjs never re-applies one here (re-runnable).
-    await d.cf.exec(dbId, tenantMigrationsSql())
 
     // 3. The school's own rows.
     stage = 'seeding'

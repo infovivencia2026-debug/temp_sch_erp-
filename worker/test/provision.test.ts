@@ -119,7 +119,7 @@ test('schema chunks are re-runnable and under the size limit', () => {
   const db = new DatabaseSync(':memory:')
   for (const c of chunks) db.exec(c)
   for (const c of chunks) db.exec(c) // twice: a retry of any chunk is harmless
-  assert.equal((one(db, `SELECT count(*) n FROM sqlite_master WHERE type='table'`)!.n), 469)
+  assert.equal((one(db, `SELECT count(*) n FROM sqlite_master WHERE type='table'`)!.n), 470) // 469 + _migrations
 })
 
 test('happy path: queued to ready, school usable', async () => {

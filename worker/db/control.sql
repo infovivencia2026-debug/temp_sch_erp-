@@ -3,7 +3,7 @@
 -- A fresh CONTROL database.
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE _migrations (
+CREATE TABLE IF NOT EXISTS _migrations (
   scope TEXT NOT NULL,
   version INTEGER NOT NULL,
   name TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE _migrations (
   PRIMARY KEY (scope, version)
 );
 
-CREATE TABLE institutions (
+CREATE TABLE IF NOT EXISTS institutions (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   short_name TEXT NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE institutions (
   updated_at TEXT NOT NULL
 , country TEXT NOT NULL DEFAULT 'in', accent_color TEXT, tagline TEXT, login_headline TEXT, login_message TEXT, support_email TEXT, support_phone TEXT, custom_domain TEXT, app_id TEXT);
 
-CREATE TABLE plans (
+CREATE TABLE IF NOT EXISTS plans (
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   price_paise INTEGER NOT NULL DEFAULT 0,
@@ -44,7 +44,7 @@ CREATE TABLE plans (
   retired_at TEXT
 );
 
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   institution_id TEXT PRIMARY KEY REFERENCES institutions(id) ON DELETE CASCADE,
   plan_code TEXT NOT NULL REFERENCES plans(code),
   status TEXT NOT NULL DEFAULT 'trial',
@@ -58,7 +58,7 @@ CREATE TABLE subscriptions (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE platform_users (
+CREATE TABLE IF NOT EXISTS platform_users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE COLLATE NOCASE,
   username TEXT UNIQUE COLLATE NOCASE,
@@ -70,7 +70,7 @@ CREATE TABLE platform_users (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE login_index (
+CREATE TABLE IF NOT EXISTS login_index (
   kind TEXT NOT NULL CHECK (kind IN ('email','phone','username')),
   value TEXT NOT NULL COLLATE NOCASE,
   institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,  -- NULL = platform user
@@ -78,9 +78,9 @@ CREATE TABLE login_index (
   created_at TEXT NOT NULL,
   PRIMARY KEY (kind, value, institution_id, user_id)
 );
-CREATE INDEX login_index_value ON login_index(value);
+CREATE INDEX IF NOT EXISTS login_index_value ON login_index(value);
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   token_hash TEXT NOT NULL UNIQUE,          -- hex sha256 of the cookie value
   institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
@@ -94,9 +94,9 @@ CREATE TABLE sessions (
   revoked_at TEXT,
   ended_reason TEXT
 );
-CREATE INDEX sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 
-CREATE TABLE login_events (
+CREATE TABLE IF NOT EXISTS login_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL,
   identifier TEXT,
@@ -107,21 +107,21 @@ CREATE TABLE login_events (
   user_agent TEXT
 );
 
-CREATE TABLE login_throttle (
+CREATE TABLE IF NOT EXISTS login_throttle (
   key TEXT PRIMARY KEY,
   failures INTEGER NOT NULL DEFAULT 0,
   window_started_at TEXT NOT NULL,
   locked_until TEXT
 );
 
-CREATE TABLE platform_user_roles (
+CREATE TABLE IF NOT EXISTS platform_user_roles (
   user_id TEXT NOT NULL REFERENCES platform_users(id) ON DELETE CASCADE,
   role_key TEXT NOT NULL,   -- 'super_admin' | 'seller_admin' | 'support_admin'
   created_at TEXT NOT NULL,
   PRIMARY KEY (user_id, role_key)
 );
 
-CREATE TABLE purchase_enquiries (
+CREATE TABLE IF NOT EXISTS purchase_enquiries (
   id TEXT PRIMARY KEY, school_name TEXT NOT NULL, contact_name TEXT NOT NULL,
   email TEXT COLLATE NOCASE, phone TEXT, district TEXT, state TEXT, board TEXT, students INTEGER,
   plan_code TEXT REFERENCES plans(code) ON DELETE SET NULL, message TEXT,
@@ -133,37 +133,37 @@ CREATE TABLE purchase_enquiries (
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
   CHECK (email IS NOT NULL OR phone IS NOT NULL)
 );
-CREATE INDEX purchase_enquiries_open ON purchase_enquiries(created_at DESC) WHERE status IN ('new','contacted','demo_booked');
+CREATE INDEX IF NOT EXISTS purchase_enquiries_open ON purchase_enquiries(created_at DESC) WHERE status IN ('new','contacted','demo_booked');
 
-CREATE TABLE purchase_enquiry_notes (
+CREATE TABLE IF NOT EXISTS purchase_enquiry_notes (
   id TEXT PRIMARY KEY, enquiry_id TEXT NOT NULL REFERENCES purchase_enquiries(id) ON DELETE CASCADE,
   kind TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('note','stage','call','email','meeting')),
   body TEXT NOT NULL, author_id TEXT REFERENCES platform_users(id) ON DELETE SET NULL, created_at TEXT NOT NULL
 );
 
-CREATE TABLE platform_events (
+CREATE TABLE IF NOT EXISTS platform_events (
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 1,
   institution_id TEXT REFERENCES institutions(id) ON DELETE SET NULL,
   subject TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '',
   actor_id TEXT REFERENCES platform_users(id) ON DELETE SET NULL, at TEXT NOT NULL
 );
-CREATE INDEX platform_events_at ON platform_events(at);
+CREATE INDEX IF NOT EXISTS platform_events_at ON platform_events(at);
 
-CREATE TABLE platform_costs (
+CREATE TABLE IF NOT EXISTS platform_costs (
   id INTEGER PRIMARY KEY CHECK (id = 1), infra_paise INTEGER NOT NULL DEFAULT 0,
   storage_paise_per_gb INTEGER NOT NULL DEFAULT 0, sms_paise INTEGER NOT NULL DEFAULT 0,
   email_paise INTEGER NOT NULL DEFAULT 0, whatsapp_paise INTEGER NOT NULL DEFAULT 0,
   notes TEXT NOT NULL DEFAULT '', updated_by TEXT REFERENCES platform_users(id) ON DELETE SET NULL, updated_at TEXT NOT NULL
 );
 
-CREATE TABLE platform_broadcasts (
+CREATE TABLE IF NOT EXISTS platform_broadcasts (
   id TEXT PRIMARY KEY, severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info','warning','critical')),
   title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', starts_at TEXT NOT NULL, ends_at TEXT,
   created_by TEXT REFERENCES platform_users(id) ON DELETE SET NULL, created_at TEXT NOT NULL, retired_at TEXT,
   CHECK (ends_at IS NULL OR ends_at > starts_at)
 );
 
-CREATE TABLE password_resets (
+CREATE TABLE IF NOT EXISTS password_resets (
   id TEXT PRIMARY KEY,
   institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL,
@@ -173,10 +173,10 @@ CREATE TABLE password_resets (
   requested_ip TEXT,
   created_at TEXT NOT NULL
 );
-CREATE INDEX password_resets_user ON password_resets(user_id, created_at);
-CREATE INDEX password_resets_expiry ON password_resets(expires_at) WHERE used_at IS NULL;
+CREATE INDEX IF NOT EXISTS password_resets_user ON password_resets(user_id, created_at);
+CREATE INDEX IF NOT EXISTS password_resets_expiry ON password_resets(expires_at) WHERE used_at IS NULL;
 
-CREATE TABLE signup_orders (
+CREATE TABLE IF NOT EXISTS signup_orders (
   id TEXT PRIMARY KEY,
   school_name TEXT NOT NULL,
   contact_name TEXT NOT NULL,
@@ -195,9 +195,9 @@ CREATE TABLE signup_orders (
   billing_period TEXT NOT NULL DEFAULT 'yearly',
   created_at TEXT NOT NULL, paid_at TEXT, updated_at TEXT NOT NULL
 );
-CREATE INDEX signup_orders_status ON signup_orders(status);
+CREATE INDEX IF NOT EXISTS signup_orders_status ON signup_orders(status);
 
-CREATE TABLE jobs (
+CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
   queue TEXT NOT NULL DEFAULT 'default',
@@ -210,16 +210,16 @@ CREATE TABLE jobs (
   updated_at TEXT NOT NULL,
   finished_at TEXT
 );
-CREATE INDEX jobs_queue_state ON jobs(queue, state);
-CREATE INDEX jobs_created ON jobs(created_at);
+CREATE INDEX IF NOT EXISTS jobs_queue_state ON jobs(queue, state);
+CREATE INDEX IF NOT EXISTS jobs_created ON jobs(created_at);
 
-CREATE TABLE cron_runs (
+CREATE TABLE IF NOT EXISTS cron_runs (
   name TEXT PRIMARY KEY,
   last_run_at TEXT NOT NULL
 );
-CREATE UNIQUE INDEX institutions_custom_domain ON institutions (custom_domain COLLATE NOCASE) WHERE custom_domain IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS institutions_custom_domain ON institutions (custom_domain COLLATE NOCASE) WHERE custom_domain IS NOT NULL;
 
-CREATE TABLE school_groups (
+CREATE TABLE IF NOT EXISTS school_groups (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE COLLATE NOCASE,
   created_by TEXT REFERENCES platform_users(id) ON DELETE SET NULL,
@@ -227,23 +227,23 @@ CREATE TABLE school_groups (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE school_group_members (
+CREATE TABLE IF NOT EXISTS school_group_members (
   institution_id TEXT PRIMARY KEY REFERENCES institutions(id) ON DELETE CASCADE,
   group_id TEXT NOT NULL REFERENCES school_groups(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL
 );
-CREATE INDEX school_group_members_group ON school_group_members(group_id);
+CREATE INDEX IF NOT EXISTS school_group_members_group ON school_group_members(group_id);
 
-CREATE TABLE school_group_admins (
+CREATE TABLE IF NOT EXISTS school_group_admins (
   group_id TEXT NOT NULL REFERENCES school_groups(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL,
   home_institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL,
   PRIMARY KEY (group_id, user_id)
 );
-CREATE INDEX school_group_admins_user ON school_group_admins(user_id);
+CREATE INDEX IF NOT EXISTS school_group_admins_user ON school_group_admins(user_id);
 
-CREATE TABLE board_memberships (
+CREATE TABLE IF NOT EXISTS board_memberships (
   user_id TEXT NOT NULL,
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   home_institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
@@ -251,9 +251,9 @@ CREATE TABLE board_memberships (
   created_at TEXT NOT NULL,
   PRIMARY KEY (user_id, institution_id)
 );
-CREATE UNIQUE INDEX institutions_app_id ON institutions (app_id) WHERE app_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS institutions_app_id ON institutions (app_id) WHERE app_id IS NOT NULL;
 
-CREATE TABLE school_errors (
+CREATE TABLE IF NOT EXISTS school_errors (
   institution_id TEXT NOT NULL,
   hour TEXT NOT NULL,                 -- 'YYYY-MM-DDTHH'
   count INTEGER NOT NULL DEFAULT 0,
@@ -262,13 +262,13 @@ CREATE TABLE school_errors (
   PRIMARY KEY (institution_id, hour)
 );
 
-CREATE TABLE school_health (
+CREATE TABLE IF NOT EXISTS school_health (
   institution_id TEXT PRIMARY KEY REFERENCES institutions(id) ON DELETE CASCADE,
   data TEXT NOT NULL,
   computed_at TEXT NOT NULL
 );
 
-CREATE TABLE usage_alerts (
+CREATE TABLE IF NOT EXISTS usage_alerts (
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   metric TEXT NOT NULL,
   level INTEGER NOT NULL,
@@ -281,10 +281,10 @@ CREATE TABLE usage_alerts (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (institution_id, metric)
 );
-CREATE INDEX sessions_institution ON sessions(institution_id, last_seen_at);
-CREATE INDEX jobs_institution ON jobs(institution_id, state);
+CREATE INDEX IF NOT EXISTS sessions_institution ON sessions(institution_id, last_seen_at);
+CREATE INDEX IF NOT EXISTS jobs_institution ON jobs(institution_id, state);
 
-CREATE TABLE school_feature_overrides (
+CREATE TABLE IF NOT EXISTS school_feature_overrides (
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   feature_id TEXT NOT NULL,
   enabled INTEGER NOT NULL,
@@ -294,9 +294,9 @@ CREATE TABLE school_feature_overrides (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (institution_id, feature_id)
 );
-CREATE INDEX school_feature_overrides_feature ON school_feature_overrides(feature_id);
+CREATE INDEX IF NOT EXISTS school_feature_overrides_feature ON school_feature_overrides(feature_id);
 
-CREATE TABLE platform_broadcast_targets (
+CREATE TABLE IF NOT EXISTS platform_broadcast_targets (
   broadcast_id TEXT PRIMARY KEY REFERENCES platform_broadcasts(id) ON DELETE CASCADE,
   target_kind TEXT NOT NULL DEFAULT 'all' CHECK (target_kind IN ('all','group','plan','schools')),
   target_ids TEXT NOT NULL DEFAULT '[]',
@@ -304,7 +304,7 @@ CREATE TABLE platform_broadcast_targets (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE platform_broadcast_reads (
+CREATE TABLE IF NOT EXISTS platform_broadcast_reads (
   broadcast_id TEXT NOT NULL REFERENCES platform_broadcasts(id) ON DELETE CASCADE,
   institution_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -312,9 +312,9 @@ CREATE TABLE platform_broadcast_reads (
   dismissed_at TEXT,
   PRIMARY KEY (broadcast_id, institution_id, user_id)
 );
-CREATE INDEX platform_broadcast_reads_school ON platform_broadcast_reads(broadcast_id, institution_id);
+CREATE INDEX IF NOT EXISTS platform_broadcast_reads_school ON platform_broadcast_reads(broadcast_id, institution_id);
 
-CREATE TABLE provisioning (
+CREATE TABLE IF NOT EXISTS provisioning (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE COLLATE NOCASE,
   country TEXT NOT NULL DEFAULT 'in',
@@ -353,9 +353,9 @@ CREATE TABLE provisioning (
   updated_at TEXT NOT NULL,
   finished_at TEXT
 );
-CREATE INDEX provisioning_created ON provisioning(created_at);
+CREATE INDEX IF NOT EXISTS provisioning_created ON provisioning(created_at);
 
-CREATE TABLE backups (
+CREATE TABLE IF NOT EXISTS backups (
   id TEXT PRIMARY KEY,
   institution_id TEXT,
   scope TEXT NOT NULL DEFAULT 'school',        -- school | control
@@ -373,10 +373,10 @@ CREATE TABLE backups (
   finished_at TEXT,
   pruned_at TEXT
 );
-CREATE INDEX backups_school ON backups (institution_id, started_at);
-CREATE INDEX backups_key ON backups (object_key);
+CREATE INDEX IF NOT EXISTS backups_school ON backups (institution_id, started_at);
+CREATE INDEX IF NOT EXISTS backups_key ON backups (object_key);
 
-CREATE TABLE restores (
+CREATE TABLE IF NOT EXISTS restores (
   id TEXT PRIMARY KEY,
   institution_id TEXT NOT NULL,
   d1_database_id TEXT NOT NULL,
@@ -392,9 +392,9 @@ CREATE TABLE restores (
   actor_name TEXT,
   created_at TEXT NOT NULL
 );
-CREATE INDEX restores_school ON restores (institution_id, created_at);
+CREATE INDEX IF NOT EXISTS restores_school ON restores (institution_id, created_at);
 
-CREATE TABLE school_exports (
+CREATE TABLE IF NOT EXISTS school_exports (
   id TEXT PRIMARY KEY,
   institution_id TEXT NOT NULL,
   purpose TEXT NOT NULL DEFAULT 'request',     -- request | offboarding
@@ -412,9 +412,9 @@ CREATE TABLE school_exports (
   finished_at TEXT,
   expires_at TEXT
 );
-CREATE INDEX school_exports_school ON school_exports (institution_id, created_at);
+CREATE INDEX IF NOT EXISTS school_exports_school ON school_exports (institution_id, created_at);
 
-CREATE TABLE school_lifecycle (
+CREATE TABLE IF NOT EXISTS school_lifecycle (
   institution_id TEXT PRIMARY KEY,
   state TEXT NOT NULL DEFAULT 'active',
   read_only_days INTEGER NOT NULL DEFAULT 30,
@@ -431,7 +431,7 @@ CREATE TABLE school_lifecycle (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE school_lifecycle_events (
+CREATE TABLE IF NOT EXISTS school_lifecycle_events (
   id TEXT PRIMARY KEY,
   institution_id TEXT NOT NULL,
   step TEXT NOT NULL,
@@ -440,9 +440,9 @@ CREATE TABLE school_lifecycle_events (
   actor_name TEXT,
   at TEXT NOT NULL
 );
-CREATE INDEX school_lifecycle_events_school ON school_lifecycle_events (institution_id, at);
+CREATE INDEX IF NOT EXISTS school_lifecycle_events_school ON school_lifecycle_events (institution_id, at);
 
-CREATE TABLE seller_audit (
+CREATE TABLE IF NOT EXISTS seller_audit (
   id TEXT PRIMARY KEY,
   at TEXT NOT NULL,
   actor_id TEXT NOT NULL,
@@ -461,15 +461,15 @@ CREATE TABLE seller_audit (
   status INTEGER,
   ip TEXT
 );
-CREATE INDEX seller_audit_at ON seller_audit (at);
-CREATE INDEX seller_audit_school ON seller_audit (institution_id, at);
-CREATE INDEX seller_audit_actor ON seller_audit (actor_id, at);
-CREATE TRIGGER seller_audit_no_update BEFORE UPDATE ON seller_audit
+CREATE INDEX IF NOT EXISTS seller_audit_at ON seller_audit (at);
+CREATE INDEX IF NOT EXISTS seller_audit_school ON seller_audit (institution_id, at);
+CREATE INDEX IF NOT EXISTS seller_audit_actor ON seller_audit (actor_id, at);
+CREATE TRIGGER IF NOT EXISTS seller_audit_no_update BEFORE UPDATE ON seller_audit
 BEGIN SELECT RAISE(ABORT, 'seller_audit is append-only'); END;
-CREATE TRIGGER seller_audit_no_delete BEFORE DELETE ON seller_audit
+CREATE TRIGGER IF NOT EXISTS seller_audit_no_delete BEFORE DELETE ON seller_audit
 BEGIN SELECT RAISE(ABORT, 'seller_audit is append-only'); END;
 
-CREATE TABLE billing_settings (
+CREATE TABLE IF NOT EXISTS billing_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   seller_name TEXT NOT NULL DEFAULT '',
   seller_address TEXT NOT NULL DEFAULT '',
@@ -486,7 +486,7 @@ CREATE TABLE billing_settings (
   updated_at TEXT NOT NULL
 );
 
-CREATE TABLE billing_invoices (
+CREATE TABLE IF NOT EXISTS billing_invoices (
   id TEXT PRIMARY KEY,
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   number TEXT NOT NULL UNIQUE,
@@ -513,10 +513,10 @@ CREATE TABLE billing_invoices (
   updated_at TEXT NOT NULL,
   UNIQUE (fy, seq)
 );
-CREATE INDEX billing_invoices_school ON billing_invoices(institution_id, issued_on);
-CREATE INDEX billing_invoices_open ON billing_invoices(due_on) WHERE status IN ('issued','partial');
+CREATE INDEX IF NOT EXISTS billing_invoices_school ON billing_invoices(institution_id, issued_on);
+CREATE INDEX IF NOT EXISTS billing_invoices_open ON billing_invoices(due_on) WHERE status IN ('issued','partial');
 
-CREATE TABLE billing_payments (
+CREATE TABLE IF NOT EXISTS billing_payments (
   id TEXT PRIMARY KEY,
   invoice_id TEXT NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
@@ -528,9 +528,9 @@ CREATE TABLE billing_payments (
   recorded_by TEXT,
   created_at TEXT NOT NULL
 );
-CREATE INDEX billing_payments_invoice ON billing_payments(invoice_id);
+CREATE INDEX IF NOT EXISTS billing_payments_invoice ON billing_payments(invoice_id);
 
-CREATE TABLE billing_gateway_orders (
+CREATE TABLE IF NOT EXISTS billing_gateway_orders (
   order_ref TEXT PRIMARY KEY,
   invoice_id TEXT NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
@@ -543,7 +543,7 @@ CREATE TABLE billing_gateway_orders (
   paid_at TEXT
 );
 
-CREATE TABLE billing_reminders (
+CREATE TABLE IF NOT EXISTS billing_reminders (
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   renews_on TEXT NOT NULL,
   days_before INTEGER NOT NULL,
@@ -552,13 +552,13 @@ CREATE TABLE billing_reminders (
   PRIMARY KEY (institution_id, renews_on, days_before)
 );
 
-CREATE TABLE billing_status_log (
+CREATE TABLE IF NOT EXISTS billing_status_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   from_status TEXT, to_status TEXT NOT NULL, reason TEXT NOT NULL, at TEXT NOT NULL
 );
 
-CREATE TABLE onboarding_progress (
+CREATE TABLE IF NOT EXISTS onboarding_progress (
   institution_id TEXT PRIMARY KEY REFERENCES institutions(id) ON DELETE CASCADE,
   admin_signed_in_at TEXT,
   profile_complete_at TEXT,

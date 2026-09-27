@@ -168,7 +168,12 @@ export function dump(db, { header = '', since = '' } = {}) {
   const objs = db.prepare(`SELECT type, name, tbl_name, sql FROM sqlite_master
     WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY rowid`).all()
   let out = header + 'PRAGMA foreign_keys = ON;\n'
-  for (const o of objs) out += (o.type === 'table' ? '\n' : '') + o.sql.trim().replace(/;\s*$/, '') + ';\n'
+  for (const o of objs) {
+    // IF NOT EXISTS: the file can be loaded twice (a retried provisioning chunk, a re-run --file).
+    const sql = o.sql.trim().replace(/;\s*$/, '').replace(/^CREATE\s+(UNIQUE\s+)?(TABLE|INDEX|VIEW|TRIGGER)\s+(?!IF\s+NOT\s+EXISTS)/i,
+      (_m, u, kind) => `CREATE ${u ? 'UNIQUE ' : ''}${kind.toUpperCase()} IF NOT EXISTS `)
+    out += (o.type === 'table' ? '\n' : '') + sql + ';\n'
+  }
   const tables = objs.filter((o) => o.type === 'table').map((o) => o.name)
   let data = ''
   for (const t of tables) {

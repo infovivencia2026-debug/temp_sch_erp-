@@ -3,7 +3,7 @@
 -- A fresh school database; provisioning (src/services/provision.ts) loads it.
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE _migrations (
+CREATE TABLE IF NOT EXISTS _migrations (
   scope TEXT NOT NULL,
   version INTEGER NOT NULL,
   name TEXT NOT NULL,
@@ -12,13 +12,13 @@ CREATE TABLE _migrations (
   PRIMARY KEY (scope, version)
 );
 
-CREATE TABLE "cron_runs" (
+CREATE TABLE IF NOT EXISTS "cron_runs" (
   "name" TEXT NOT NULL,
   "last_run_at" TEXT NOT NULL,
   PRIMARY KEY ("name")
 );
 
-CREATE TABLE "franchises" (
+CREATE TABLE IF NOT EXISTS "franchises" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "code" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE "franchises" (
   UNIQUE ("code")
 );
 
-CREATE TABLE "institutions" (
+CREATE TABLE IF NOT EXISTS "institutions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "name" TEXT NOT NULL,
   "short_name" TEXT NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE "institutions" (
   UNIQUE ("slug")
 );
 
-CREATE TABLE "location_codes" (
+CREATE TABLE IF NOT EXISTS "location_codes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "parent_id" TEXT,
   "level" TEXT NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE "location_codes" (
   FOREIGN KEY ("parent_id") REFERENCES "location_codes" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "login_throttle" (
+CREATE TABLE IF NOT EXISTS "login_throttle" (
   "identifier" TEXT NOT NULL,
   "failures" INTEGER NOT NULL DEFAULT 0,
   "locked_until" TEXT,
@@ -88,14 +88,14 @@ CREATE TABLE "login_throttle" (
   PRIMARY KEY ("identifier")
 );
 
-CREATE TABLE "permissions" (
+CREATE TABLE IF NOT EXISTS "permissions" (
   "key" TEXT NOT NULL,
   "module" TEXT NOT NULL,
   "description" TEXT NOT NULL,
   PRIMARY KEY ("key")
 );
 
-CREATE TABLE "plans" (
+CREATE TABLE IF NOT EXISTS "plans" (
   "code" TEXT NOT NULL,
   "name" TEXT NOT NULL,
   "price_paise" INTEGER NOT NULL DEFAULT 0,
@@ -110,13 +110,13 @@ CREATE TABLE "plans" (
   PRIMARY KEY ("code")
 );
 
-CREATE TABLE "rate_limit_hits" (
+CREATE TABLE IF NOT EXISTS "rate_limit_hits" (
   "scope" TEXT NOT NULL,
   "subject" TEXT NOT NULL,
   "hit_at" TEXT NOT NULL
 );
 
-CREATE TABLE "sqaa_frameworks" (
+CREATE TABLE IF NOT EXISTS "sqaa_frameworks" (
   "code" TEXT NOT NULL,
   "name" TEXT NOT NULL,
   "authority" TEXT NOT NULL,
@@ -127,7 +127,7 @@ CREATE TABLE "sqaa_frameworks" (
   PRIMARY KEY ("code")
 );
 
-CREATE TABLE "academic_calendar_models" (
+CREATE TABLE IF NOT EXISTS "academic_calendar_models" (
   "institution_id" TEXT NOT NULL,
   "school_year_start_month" INTEGER NOT NULL DEFAULT 6,
   "school_year_end_month" INTEGER NOT NULL DEFAULT 4,
@@ -142,7 +142,7 @@ CREATE TABLE "academic_calendar_models" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "app_events" (
+CREATE TABLE IF NOT EXISTS "app_events" (
   "id" INTEGER NOT NULL,
   "institution_id" TEXT,
   "user_id" TEXT,
@@ -156,7 +156,7 @@ CREATE TABLE "app_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "auth_policies" (
+CREATE TABLE IF NOT EXISTS "auth_policies" (
   "institution_id" TEXT NOT NULL,
   "mfa_required_roles" TEXT NOT NULL DEFAULT '{}',
   "mfa_grace_days" INTEGER NOT NULL DEFAULT 7,
@@ -175,7 +175,7 @@ CREATE TABLE "auth_policies" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "backup_policies" (
+CREATE TABLE IF NOT EXISTS "backup_policies" (
   "institution_id" TEXT NOT NULL,
   "enabled" INTEGER NOT NULL DEFAULT 1,
   "frequency" TEXT NOT NULL DEFAULT 'daily',
@@ -188,7 +188,7 @@ CREATE TABLE "backup_policies" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "backup_runs" (
+CREATE TABLE IF NOT EXISTS "backup_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL DEFAULT 'scheduled',
@@ -204,7 +204,7 @@ CREATE TABLE "backup_runs" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "campuses" (
+CREATE TABLE IF NOT EXISTS "campuses" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -228,7 +228,7 @@ CREATE TABLE "campuses" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "certificate_types" (
+CREATE TABLE IF NOT EXISTS "certificate_types" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -249,7 +249,7 @@ CREATE TABLE "certificate_types" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "clearance_departments" (
+CREATE TABLE IF NOT EXISTS "clearance_departments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -260,7 +260,7 @@ CREATE TABLE "clearance_departments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "co_scholastic_areas" (
+CREATE TABLE IF NOT EXISTS "co_scholastic_areas" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE "co_scholastic_areas" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "crm_field_mappings" (
+CREATE TABLE IF NOT EXISTS "crm_field_mappings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "local_field" TEXT NOT NULL,
@@ -283,7 +283,7 @@ CREATE TABLE "crm_field_mappings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "custom_options" (
+CREATE TABLE IF NOT EXISTS "custom_options" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
@@ -297,7 +297,7 @@ CREATE TABLE "custom_options" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "designations" (
+CREATE TABLE IF NOT EXISTS "designations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -307,7 +307,7 @@ CREATE TABLE "designations" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "digital_library_providers" (
+CREATE TABLE IF NOT EXISTS "digital_library_providers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
@@ -322,7 +322,7 @@ CREATE TABLE "digital_library_providers" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "franchise_members" (
+CREATE TABLE IF NOT EXISTS "franchise_members" (
   "institution_id" TEXT NOT NULL,
   "franchise_id" TEXT NOT NULL,
   "agreement_no" TEXT,
@@ -338,7 +338,7 @@ CREATE TABLE "franchise_members" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "grading_scales" (
+CREATE TABLE IF NOT EXISTS "grading_scales" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -348,7 +348,7 @@ CREATE TABLE "grading_scales" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "health_camps" (
+CREATE TABLE IF NOT EXISTS "health_camps" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -364,7 +364,7 @@ CREATE TABLE "health_camps" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hpc_competencies" (
+CREATE TABLE IF NOT EXISTS "hpc_competencies" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "domain" TEXT NOT NULL,
@@ -380,7 +380,7 @@ CREATE TABLE "hpc_competencies" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "instructional_norms" (
+CREATE TABLE IF NOT EXISTS "instructional_norms" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "stage_code" TEXT NOT NULL,
@@ -396,7 +396,7 @@ CREATE TABLE "instructional_norms" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "integrations" (
+CREATE TABLE IF NOT EXISTS "integrations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "provider" TEXT NOT NULL,
@@ -411,7 +411,7 @@ CREATE TABLE "integrations" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "leave_policy" (
+CREATE TABLE IF NOT EXISTS "leave_policy" (
   "institution_id" TEXT NOT NULL,
   "half_day_fraction" TEXT NOT NULL DEFAULT 0.50,
   "shift_starts_at" TEXT NOT NULL DEFAULT '09:00:00',
@@ -428,7 +428,7 @@ CREATE TABLE "leave_policy" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "leave_types" (
+CREATE TABLE IF NOT EXISTS "leave_types" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -442,7 +442,7 @@ CREATE TABLE "leave_types" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "ledger_accounts" (
+CREATE TABLE IF NOT EXISTS "ledger_accounts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -462,7 +462,7 @@ CREATE TABLE "ledger_accounts" (
   FOREIGN KEY ("parent_id") REFERENCES "ledger_accounts" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "loc_subject_groups" (
+CREATE TABLE IF NOT EXISTS "loc_subject_groups" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "board" TEXT NOT NULL,
@@ -477,7 +477,7 @@ CREATE TABLE "loc_subject_groups" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "mdm_norms" (
+CREATE TABLE IF NOT EXISTS "mdm_norms" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "stage" TEXT NOT NULL,
@@ -491,7 +491,7 @@ CREATE TABLE "mdm_norms" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "mess_menus" (
+CREATE TABLE IF NOT EXISTS "mess_menus" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "on_date" TEXT NOT NULL,
@@ -504,7 +504,7 @@ CREATE TABLE "mess_menus" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "message_credits" (
+CREATE TABLE IF NOT EXISTS "message_credits" (
   "institution_id" TEXT NOT NULL,
   "channel" TEXT NOT NULL,
   "balance" INTEGER NOT NULL DEFAULT 0,
@@ -514,7 +514,7 @@ CREATE TABLE "message_credits" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "message_routing" (
+CREATE TABLE IF NOT EXISTS "message_routing" (
   "institution_id" TEXT NOT NULL,
   "channel" TEXT NOT NULL,
   "route" TEXT NOT NULL,
@@ -523,7 +523,7 @@ CREATE TABLE "message_routing" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "message_templates" (
+CREATE TABLE IF NOT EXISTS "message_templates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -540,7 +540,7 @@ CREATE TABLE "message_templates" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "message_trigger_rules" (
+CREATE TABLE IF NOT EXISTS "message_trigger_rules" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -567,7 +567,7 @@ CREATE TABLE "message_trigger_rules" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "module_settings" (
+CREATE TABLE IF NOT EXISTS "module_settings" (
   "institution_id" TEXT NOT NULL,
   "module" TEXT NOT NULL,
   "enabled" INTEGER NOT NULL DEFAULT 0,
@@ -576,7 +576,7 @@ CREATE TABLE "module_settings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "montessori_materials" (
+CREATE TABLE IF NOT EXISTS "montessori_materials" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "area" TEXT NOT NULL,
@@ -591,7 +591,7 @@ CREATE TABLE "montessori_materials" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "numbering_fy_counters" (
+CREATE TABLE IF NOT EXISTS "numbering_fy_counters" (
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
   "fy" TEXT NOT NULL,
@@ -600,7 +600,7 @@ CREATE TABLE "numbering_fy_counters" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "payroll_settings" (
+CREATE TABLE IF NOT EXISTS "payroll_settings" (
   "institution_id" TEXT NOT NULL,
   "pf_enabled" INTEGER NOT NULL DEFAULT 1,
   "pf_employee_percent" TEXT NOT NULL DEFAULT 12.00,
@@ -630,7 +630,7 @@ CREATE TABLE "payroll_settings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "programme_outcomes" (
+CREATE TABLE IF NOT EXISTS "programme_outcomes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -642,7 +642,7 @@ CREATE TABLE "programme_outcomes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "prospectus_stock" (
+CREATE TABLE IF NOT EXISTS "prospectus_stock" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL DEFAULT 'prospectus',
@@ -654,7 +654,7 @@ CREATE TABLE "prospectus_stock" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "pt_slabs" (
+CREATE TABLE IF NOT EXISTS "pt_slabs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "state" TEXT NOT NULL,
@@ -666,7 +666,7 @@ CREATE TABLE "pt_slabs" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "purchase_approval_thresholds" (
+CREATE TABLE IF NOT EXISTS "purchase_approval_thresholds" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "label" TEXT NOT NULL,
@@ -679,7 +679,7 @@ CREATE TABLE "purchase_approval_thresholds" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "report_digest_settings" (
+CREATE TABLE IF NOT EXISTS "report_digest_settings" (
   "institution_id" TEXT NOT NULL,
   "config" TEXT NOT NULL DEFAULT '{}',
   "daily_enabled" INTEGER NOT NULL DEFAULT 1,
@@ -691,7 +691,7 @@ CREATE TABLE "report_digest_settings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "roles" (
+CREATE TABLE IF NOT EXISTS "roles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "key" TEXT NOT NULL,
@@ -704,7 +704,7 @@ CREATE TABLE "roles" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "salary_components" (
+CREATE TABLE IF NOT EXISTS "salary_components" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -719,7 +719,7 @@ CREATE TABLE "salary_components" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "session_policies" (
+CREATE TABLE IF NOT EXISTS "session_policies" (
   "institution_id" TEXT NOT NULL,
   "role_key" TEXT NOT NULL,
   "absolute_hours" INTEGER NOT NULL,
@@ -730,7 +730,7 @@ CREATE TABLE "session_policies" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sqaa_standards" (
+CREATE TABLE IF NOT EXISTS "sqaa_standards" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "framework_code" TEXT NOT NULL,
   "parent_id" TEXT,
@@ -745,7 +745,7 @@ CREATE TABLE "sqaa_standards" (
   FOREIGN KEY ("parent_id") REFERENCES "sqaa_standards" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "subscriptions" (
+CREATE TABLE IF NOT EXISTS "subscriptions" (
   "institution_id" TEXT NOT NULL,
   "plan_code" TEXT NOT NULL,
   "status" TEXT NOT NULL DEFAULT 'trial',
@@ -762,7 +762,7 @@ CREATE TABLE "subscriptions" (
   FOREIGN KEY ("plan_code") REFERENCES "plans" ("code") ON DELETE RESTRICT
 );
 
-CREATE TABLE "tally_voucher_type_mappings" (
+CREATE TABLE IF NOT EXISTS "tally_voucher_type_mappings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "voucher_type" TEXT NOT NULL,
@@ -772,7 +772,7 @@ CREATE TABLE "tally_voucher_type_mappings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vendors" (
+CREATE TABLE IF NOT EXISTS "vendors" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -795,7 +795,7 @@ CREATE TABLE "vendors" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "work_patterns" (
+CREATE TABLE IF NOT EXISTS "work_patterns" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -817,7 +817,7 @@ CREATE TABLE "work_patterns" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_events" (
+CREATE TABLE IF NOT EXISTS "admission_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -832,7 +832,7 @@ CREATE TABLE "admission_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "bank_accounts" (
+CREATE TABLE IF NOT EXISTS "bank_accounts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "ledger_account_id" TEXT,
@@ -852,7 +852,7 @@ CREATE TABLE "bank_accounts" (
   FOREIGN KEY ("ledger_account_id", "institution_id") REFERENCES "ledger_accounts" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "bell_schedules" (
+CREATE TABLE IF NOT EXISTS "bell_schedules" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -865,7 +865,7 @@ CREATE TABLE "bell_schedules" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "biometric_devices" (
+CREATE TABLE IF NOT EXISTS "biometric_devices" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -883,7 +883,7 @@ CREATE TABLE "biometric_devices" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "board_configurations" (
+CREATE TABLE IF NOT EXISTS "board_configurations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "board" TEXT NOT NULL,
@@ -903,7 +903,7 @@ CREATE TABLE "board_configurations" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "board_disclosures" (
+CREATE TABLE IF NOT EXISTS "board_disclosures" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -922,7 +922,7 @@ CREATE TABLE "board_disclosures" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "branding_profiles" (
+CREATE TABLE IF NOT EXISTS "branding_profiles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -951,7 +951,7 @@ CREATE TABLE "branding_profiles" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "duty_shifts" (
+CREATE TABLE IF NOT EXISTS "duty_shifts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -973,7 +973,7 @@ CREATE TABLE "duty_shifts" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "exam_halls" (
+CREATE TABLE IF NOT EXISTS "exam_halls" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -988,7 +988,7 @@ CREATE TABLE "exam_halls" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_heads" (
+CREATE TABLE IF NOT EXISTS "fee_heads" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1009,7 +1009,7 @@ CREATE TABLE "fee_heads" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fixed_assets" (
+CREATE TABLE IF NOT EXISTS "fixed_assets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "tag_no" TEXT NOT NULL,
@@ -1038,7 +1038,7 @@ CREATE TABLE "fixed_assets" (
   FOREIGN KEY ("vendor_id", "institution_id") REFERENCES "vendors" ("id", "institution_id") ON DELETE SET NULL
 );
 
-CREATE TABLE "grade_bands" (
+CREATE TABLE IF NOT EXISTS "grade_bands" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "grading_scale_id" TEXT NOT NULL,
@@ -1052,7 +1052,7 @@ CREATE TABLE "grade_bands" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "grant_in_aid_heads" (
+CREATE TABLE IF NOT EXISTS "grant_in_aid_heads" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -1070,7 +1070,7 @@ CREATE TABLE "grant_in_aid_heads" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "houses" (
+CREATE TABLE IF NOT EXISTS "houses" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1083,7 +1083,7 @@ CREATE TABLE "houses" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "inventory_items" (
+CREATE TABLE IF NOT EXISTS "inventory_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1100,7 +1100,7 @@ CREATE TABLE "inventory_items" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "leave_policy_rules" (
+CREATE TABLE IF NOT EXISTS "leave_policy_rules" (
   "leave_type_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "accrual" TEXT NOT NULL DEFAULT 'annual',
@@ -1119,7 +1119,7 @@ CREATE TABLE "leave_policy_rules" (
   FOREIGN KEY ("leave_type_id") REFERENCES "leave_types" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "library_titles" (
+CREATE TABLE IF NOT EXISTS "library_titles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1137,7 +1137,7 @@ CREATE TABLE "library_titles" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "loc_subject_options" (
+CREATE TABLE IF NOT EXISTS "loc_subject_options" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "group_id" TEXT NOT NULL,
@@ -1150,7 +1150,7 @@ CREATE TABLE "loc_subject_options" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "numbering_schemes" (
+CREATE TABLE IF NOT EXISTS "numbering_schemes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1171,7 +1171,7 @@ CREATE TABLE "numbering_schemes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "pos_terminals" (
+CREATE TABLE IF NOT EXISTS "pos_terminals" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1188,7 +1188,7 @@ CREATE TABLE "pos_terminals" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "role_permissions" (
+CREATE TABLE IF NOT EXISTS "role_permissions" (
   "role_id" TEXT NOT NULL,
   "permission_key" TEXT NOT NULL,
   PRIMARY KEY ("role_id", "permission_key"),
@@ -1196,7 +1196,7 @@ CREATE TABLE "role_permissions" (
   FOREIGN KEY ("role_id") REFERENCES "roles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "subjects" (
+CREATE TABLE IF NOT EXISTS "subjects" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1210,7 +1210,7 @@ CREATE TABLE "subjects" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_event_slots" (
+CREATE TABLE IF NOT EXISTS "admission_event_slots" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
@@ -1222,7 +1222,7 @@ CREATE TABLE "admission_event_slots" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "classes" (
+CREATE TABLE IF NOT EXISTS "classes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1238,7 +1238,7 @@ CREATE TABLE "classes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "collections_settings" (
+CREATE TABLE IF NOT EXISTS "collections_settings" (
   "institution_id" TEXT NOT NULL,
   "canteen_fee_head_id" TEXT,
   "store_fee_head_id" TEXT,
@@ -1254,7 +1254,7 @@ CREATE TABLE "collections_settings" (
   FOREIGN KEY ("store_fee_head_id") REFERENCES "fee_heads" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "library_copies" (
+CREATE TABLE IF NOT EXISTS "library_copies" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "title_id" TEXT NOT NULL,
@@ -1268,7 +1268,7 @@ CREATE TABLE "library_copies" (
   FOREIGN KEY ("title_id") REFERENCES "library_titles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "periods" (
+CREATE TABLE IF NOT EXISTS "periods" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1284,7 +1284,7 @@ CREATE TABLE "periods" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "class_subjects" (
+CREATE TABLE IF NOT EXISTS "class_subjects" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_id" TEXT NOT NULL,
@@ -1300,7 +1300,7 @@ CREATE TABLE "class_subjects" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "class_language_options" (
+CREATE TABLE IF NOT EXISTS "class_language_options" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_id" TEXT NOT NULL,
@@ -1317,7 +1317,7 @@ CREATE TABLE "class_language_options" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "course_outcomes" (
+CREATE TABLE IF NOT EXISTS "course_outcomes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_subject_id" TEXT NOT NULL,
@@ -1333,7 +1333,7 @@ CREATE TABLE "course_outcomes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "co_po_map" (
+CREATE TABLE IF NOT EXISTS "co_po_map" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "course_outcome_id" TEXT NOT NULL,
@@ -1346,7 +1346,7 @@ CREATE TABLE "co_po_map" (
   FOREIGN KEY ("programme_outcome_id") REFERENCES "programme_outcomes" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "email" TEXT COLLATE NOCASE,
@@ -1374,7 +1374,7 @@ CREATE TABLE "users" (
   FOREIGN KEY ("signature_file_id") REFERENCES "files" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "academic_years" (
+CREATE TABLE IF NOT EXISTS "academic_years" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1393,7 +1393,7 @@ CREATE TABLE "academic_years" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_campaigns" (
+CREATE TABLE IF NOT EXISTS "admission_campaigns" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -1408,7 +1408,7 @@ CREATE TABLE "admission_campaigns" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "api_keys" (
+CREATE TABLE IF NOT EXISTS "api_keys" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -1428,7 +1428,7 @@ CREATE TABLE "api_keys" (
   FOREIGN KEY ("revoked_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "audit_log" (
+CREATE TABLE IF NOT EXISTS "audit_log" (
   "id" INTEGER NOT NULL,
   "institution_id" TEXT,
   "campus_id" TEXT,
@@ -1447,7 +1447,7 @@ CREATE TABLE "audit_log" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "bank_reconciliations" (
+CREATE TABLE IF NOT EXISTS "bank_reconciliations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "bank_account_id" TEXT NOT NULL,
@@ -1480,7 +1480,7 @@ CREATE TABLE "bank_reconciliations" (
   FOREIGN KEY ("reopened_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "bank_statement_imports" (
+CREATE TABLE IF NOT EXISTS "bank_statement_imports" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "bank_account_id" TEXT NOT NULL,
@@ -1500,7 +1500,7 @@ CREATE TABLE "bank_statement_imports" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "budgets" (
+CREATE TABLE IF NOT EXISTS "budgets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "fy_start_year" INTEGER NOT NULL,
@@ -1517,7 +1517,7 @@ CREATE TABLE "budgets" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "child_info_portal_connectors" (
+CREATE TABLE IF NOT EXISTS "child_info_portal_connectors" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "state_code" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -1538,7 +1538,7 @@ CREATE TABLE "child_info_portal_connectors" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "child_info_resolutions" (
+CREATE TABLE IF NOT EXISTS "child_info_resolutions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
@@ -1555,7 +1555,7 @@ CREATE TABLE "child_info_resolutions" (
   FOREIGN KEY ("resolved_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "club_events" (
+CREATE TABLE IF NOT EXISTS "club_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1579,7 +1579,7 @@ CREATE TABLE "club_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "contractor_bills" (
+CREATE TABLE IF NOT EXISTS "contractor_bills" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vendor" TEXT NOT NULL,
@@ -1601,7 +1601,7 @@ CREATE TABLE "contractor_bills" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "courier_log" (
+CREATE TABLE IF NOT EXISTS "courier_log" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "direction" TEXT NOT NULL DEFAULT 'in',
@@ -1621,7 +1621,7 @@ CREATE TABLE "courier_log" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "crm_api_credentials" (
+CREATE TABLE IF NOT EXISTS "crm_api_credentials" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "provider" TEXT NOT NULL,
@@ -1635,7 +1635,7 @@ CREATE TABLE "crm_api_credentials" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "crm_connector_settings" (
+CREATE TABLE IF NOT EXISTS "crm_connector_settings" (
   "institution_id" TEXT NOT NULL,
   "provider" TEXT,
   "direction" TEXT NOT NULL DEFAULT 'push',
@@ -1650,7 +1650,7 @@ CREATE TABLE "crm_connector_settings" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "crm_sync_runs" (
+CREATE TABLE IF NOT EXISTS "crm_sync_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "provider" TEXT NOT NULL,
@@ -1673,7 +1673,7 @@ CREATE TABLE "crm_sync_runs" (
   FOREIGN KEY ("run_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "departments" (
+CREATE TABLE IF NOT EXISTS "departments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1688,7 +1688,7 @@ CREATE TABLE "departments" (
   FOREIGN KEY ("work_pattern_id") REFERENCES "work_patterns" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "device_staff_sessions" (
+CREATE TABLE IF NOT EXISTS "device_staff_sessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
@@ -1705,7 +1705,7 @@ CREATE TABLE "device_staff_sessions" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "education_loan_lenders" (
+CREATE TABLE IF NOT EXISTS "education_loan_lenders" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -1725,7 +1725,7 @@ CREATE TABLE "education_loan_lenders" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "email_changes" (
+CREATE TABLE IF NOT EXISTS "email_changes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "user_id" TEXT NOT NULL,
   "new_email" TEXT COLLATE NOCASE NOT NULL,
@@ -1738,7 +1738,7 @@ CREATE TABLE "email_changes" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "files" (
+CREATE TABLE IF NOT EXISTS "files" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1760,7 +1760,7 @@ CREATE TABLE "files" (
   FOREIGN KEY ("uploaded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "government_aid_schemes" (
+CREATE TABLE IF NOT EXISTS "government_aid_schemes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
@@ -1781,7 +1781,7 @@ CREATE TABLE "government_aid_schemes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "grant_sanctions" (
+CREATE TABLE IF NOT EXISTS "grant_sanctions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "head_id" TEXT NOT NULL,
@@ -1805,7 +1805,7 @@ CREATE TABLE "grant_sanctions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "grant_utilisation_certificates" (
+CREATE TABLE IF NOT EXISTS "grant_utilisation_certificates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "certificate_no" TEXT NOT NULL,
@@ -1835,7 +1835,7 @@ CREATE TABLE "grant_utilisation_certificates" (
   FOREIGN KEY ("prepared_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "grievance_sla_policies" (
+CREATE TABLE IF NOT EXISTS "grievance_sla_policies" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "category" TEXT NOT NULL,
@@ -1852,7 +1852,7 @@ CREATE TABLE "grievance_sla_policies" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hostel_blocks" (
+CREATE TABLE IF NOT EXISTS "hostel_blocks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -1865,7 +1865,7 @@ CREATE TABLE "hostel_blocks" (
   FOREIGN KEY ("warden_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "idempotency_keys" (
+CREATE TABLE IF NOT EXISTS "idempotency_keys" (
   "institution_id" TEXT NOT NULL,
   "key" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
@@ -1881,7 +1881,7 @@ CREATE TABLE "idempotency_keys" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "import_runs" (
+CREATE TABLE IF NOT EXISTS "import_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "entity" TEXT NOT NULL,
@@ -1901,7 +1901,7 @@ CREATE TABLE "import_runs" (
   FOREIGN KEY ("undone_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "journal_entries" (
+CREATE TABLE IF NOT EXISTS "journal_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "voucher_no" TEXT NOT NULL,
@@ -1920,7 +1920,7 @@ CREATE TABLE "journal_entries" (
   FOREIGN KEY ("posted_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "ledger_settings" (
+CREATE TABLE IF NOT EXISTS "ledger_settings" (
   "institution_id" TEXT NOT NULL,
   "cash_account_id" TEXT,
   "bank_account_id" TEXT,
@@ -1950,7 +1950,7 @@ CREATE TABLE "ledger_settings" (
   FOREIGN KEY ("surplus_account_id", "institution_id") REFERENCES "ledger_accounts" ("id", "institution_id") ON DELETE SET NULL
 );
 
-CREATE TABLE "library_stock_audits" (
+CREATE TABLE IF NOT EXISTS "library_stock_audits" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1965,7 +1965,7 @@ CREATE TABLE "library_stock_audits" (
   FOREIGN KEY ("opened_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "login_events" (
+CREATE TABLE IF NOT EXISTS "login_events" (
   "id" INTEGER NOT NULL,
   "institution_id" TEXT,
   "user_id" TEXT,
@@ -1981,7 +1981,7 @@ CREATE TABLE "login_events" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "mdm_foodgrain_receipts" (
+CREATE TABLE IF NOT EXISTS "mdm_foodgrain_receipts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -1999,7 +1999,7 @@ CREATE TABLE "mdm_foodgrain_receipts" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "mdm_monthly_returns" (
+CREATE TABLE IF NOT EXISTS "mdm_monthly_returns" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2026,7 +2026,7 @@ CREATE TABLE "mdm_monthly_returns" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "mdm_registers" (
+CREATE TABLE IF NOT EXISTS "mdm_registers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2053,7 +2053,7 @@ CREATE TABLE "mdm_registers" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "message_credit_requests" (
+CREATE TABLE IF NOT EXISTS "message_credit_requests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "channel" TEXT NOT NULL,
@@ -2072,7 +2072,7 @@ CREATE TABLE "message_credit_requests" (
   FOREIGN KEY ("requested_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "messaging_allowed_recipients" (
+CREATE TABLE IF NOT EXISTS "messaging_allowed_recipients" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
@@ -2086,7 +2086,7 @@ CREATE TABLE "messaging_allowed_recipients" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "messaging_recipient_policy" (
+CREATE TABLE IF NOT EXISTS "messaging_recipient_policy" (
   "institution_id" TEXT NOT NULL,
   "mode" TEXT NOT NULL DEFAULT 'everyone',
   "note" TEXT,
@@ -2098,7 +2098,7 @@ CREATE TABLE "messaging_recipient_policy" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "parent_forum_reports" (
+CREATE TABLE IF NOT EXISTS "parent_forum_reports" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "content_kind" TEXT NOT NULL,
@@ -2115,7 +2115,7 @@ CREATE TABLE "parent_forum_reports" (
   FOREIGN KEY ("reported_by") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "parent_forum_settings" (
+CREATE TABLE IF NOT EXISTS "parent_forum_settings" (
   "institution_id" TEXT NOT NULL,
   "premoderate" INTEGER NOT NULL DEFAULT 0,
   "daily_thread_limit" INTEGER NOT NULL DEFAULT 5,
@@ -2127,7 +2127,7 @@ CREATE TABLE "parent_forum_settings" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "password_resets" (
+CREATE TABLE IF NOT EXISTS "password_resets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "user_id" TEXT NOT NULL,
   "token_hash" TEXT NOT NULL,
@@ -2140,7 +2140,7 @@ CREATE TABLE "password_resets" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "payment_gateway_credentials" (
+CREATE TABLE IF NOT EXISTS "payment_gateway_credentials" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "provider" TEXT NOT NULL,
@@ -2157,7 +2157,7 @@ CREATE TABLE "payment_gateway_credentials" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "payout_batches" (
+CREATE TABLE IF NOT EXISTS "payout_batches" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "bank_account_id" TEXT NOT NULL,
@@ -2187,7 +2187,7 @@ CREATE TABLE "payout_batches" (
   FOREIGN KEY ("rejected_by") REFERENCES "users" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "payroll_runs" (
+CREATE TABLE IF NOT EXISTS "payroll_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "period_month" INTEGER NOT NULL,
@@ -2208,7 +2208,7 @@ CREATE TABLE "payroll_runs" (
   FOREIGN KEY ("run_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "person_groups" (
+CREATE TABLE IF NOT EXISTS "person_groups" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL,
@@ -2223,7 +2223,7 @@ CREATE TABLE "person_groups" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "petty_cash_counts" (
+CREATE TABLE IF NOT EXISTS "petty_cash_counts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "counted_on" TEXT NOT NULL DEFAULT (date('now')),
@@ -2238,7 +2238,7 @@ CREATE TABLE "petty_cash_counts" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "platform_broadcasts" (
+CREATE TABLE IF NOT EXISTS "platform_broadcasts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "severity" TEXT NOT NULL DEFAULT 'info',
   "title" TEXT NOT NULL,
@@ -2252,7 +2252,7 @@ CREATE TABLE "platform_broadcasts" (
   FOREIGN KEY ("created_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "platform_costs" (
+CREATE TABLE IF NOT EXISTS "platform_costs" (
   "id" INTEGER NOT NULL DEFAULT 1,
   "infra_paise" INTEGER NOT NULL DEFAULT 0,
   "storage_paise_per_gb" INTEGER NOT NULL DEFAULT 0,
@@ -2266,7 +2266,7 @@ CREATE TABLE "platform_costs" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "platform_events" (
+CREATE TABLE IF NOT EXISTS "platform_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "kind" TEXT NOT NULL,
   "ok" INTEGER NOT NULL,
@@ -2280,7 +2280,7 @@ CREATE TABLE "platform_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "pos_till_sessions" (
+CREATE TABLE IF NOT EXISTS "pos_till_sessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2307,7 +2307,7 @@ CREATE TABLE "pos_till_sessions" (
   FOREIGN KEY ("terminal_id", "institution_id") REFERENCES "pos_terminals" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "purchase_enquiries" (
+CREATE TABLE IF NOT EXISTS "purchase_enquiries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "school_name" TEXT NOT NULL,
   "contact_name" TEXT NOT NULL,
@@ -2334,7 +2334,7 @@ CREATE TABLE "purchase_enquiries" (
   FOREIGN KEY ("provisioned_institution_id") REFERENCES "institutions" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "push_tokens" (
+CREATE TABLE IF NOT EXISTS "push_tokens" (
   "token" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -2346,7 +2346,7 @@ CREATE TABLE "push_tokens" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "report_card_templates" (
+CREATE TABLE IF NOT EXISTS "report_card_templates" (
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL DEFAULT 'School report card',
   "template_html" TEXT NOT NULL,
@@ -2357,7 +2357,7 @@ CREATE TABLE "report_card_templates" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "report_definitions" (
+CREATE TABLE IF NOT EXISTS "report_definitions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -2377,7 +2377,7 @@ CREATE TABLE "report_definitions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sessions" (
+CREATE TABLE IF NOT EXISTS "sessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "user_id" TEXT NOT NULL,
@@ -2398,7 +2398,7 @@ CREATE TABLE "sessions" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "signup_orders" (
+CREATE TABLE IF NOT EXISTS "signup_orders" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "school_name" TEXT NOT NULL,
   "contact_name" TEXT NOT NULL,
@@ -2430,7 +2430,7 @@ CREATE TABLE "signup_orders" (
   FOREIGN KEY ("plan_code") REFERENCES "plans" ("code") ON DELETE RESTRICT
 );
 
-CREATE TABLE "staff_attendance" (
+CREATE TABLE IF NOT EXISTS "staff_attendance" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2452,7 +2452,7 @@ CREATE TABLE "staff_attendance" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_messages" (
+CREATE TABLE IF NOT EXISTS "staff_messages" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "party_a" TEXT NOT NULL,
@@ -2472,7 +2472,7 @@ CREATE TABLE "staff_messages" (
   FOREIGN KEY ("sender_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "store_products" (
+CREATE TABLE IF NOT EXISTS "store_products" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2496,7 +2496,7 @@ CREATE TABLE "store_products" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_content_moderation" (
+CREATE TABLE IF NOT EXISTS "student_content_moderation" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "content_kind" TEXT NOT NULL,
@@ -2510,7 +2510,7 @@ CREATE TABLE "student_content_moderation" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "tally_connector_settings" (
+CREATE TABLE IF NOT EXISTS "tally_connector_settings" (
   "institution_id" TEXT NOT NULL,
   "company_name" TEXT,
   "default_fy_start_year" INTEGER,
@@ -2523,7 +2523,7 @@ CREATE TABLE "tally_connector_settings" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "tally_export_runs" (
+CREATE TABLE IF NOT EXISTS "tally_export_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "from_date" TEXT NOT NULL,
@@ -2544,7 +2544,7 @@ CREATE TABLE "tally_export_runs" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "tally_gateway_credentials" (
+CREATE TABLE IF NOT EXISTS "tally_gateway_credentials" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "gateway_url" TEXT,
@@ -2557,7 +2557,7 @@ CREATE TABLE "tally_gateway_credentials" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "tally_ledger_mappings" (
+CREATE TABLE IF NOT EXISTS "tally_ledger_mappings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "ledger_account_id" TEXT NOT NULL,
@@ -2572,7 +2572,7 @@ CREATE TABLE "tally_ledger_mappings" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "teacher_load_rules" (
+CREATE TABLE IF NOT EXISTS "teacher_load_rules" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "teacher_user_id" TEXT NOT NULL,
@@ -2586,7 +2586,7 @@ CREATE TABLE "teacher_load_rules" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "teacher_subjects" (
+CREATE TABLE IF NOT EXISTS "teacher_subjects" (
   "institution_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "subject_id" TEXT NOT NULL,
@@ -2597,7 +2597,7 @@ CREATE TABLE "teacher_subjects" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "teacher_unavailability" (
+CREATE TABLE IF NOT EXISTS "teacher_unavailability" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "teacher_user_id" TEXT NOT NULL,
@@ -2611,7 +2611,7 @@ CREATE TABLE "teacher_unavailability" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_tracking_policy" (
+CREATE TABLE IF NOT EXISTS "transport_tracking_policy" (
   "institution_id" TEXT NOT NULL,
   "default_geofence_m" INTEGER NOT NULL DEFAULT 120,
   "speed_limit_kmph" INTEGER NOT NULL DEFAULT 50,
@@ -2631,7 +2631,7 @@ CREATE TABLE "transport_tracking_policy" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "user_display_preferences" (
+CREATE TABLE IF NOT EXISTS "user_display_preferences" (
   "user_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "theme" TEXT NOT NULL DEFAULT 'system',
@@ -2646,7 +2646,7 @@ CREATE TABLE "user_display_preferences" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "user_permissions" (
+CREATE TABLE IF NOT EXISTS "user_permissions" (
   "user_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "permission_key" TEXT NOT NULL,
@@ -2658,7 +2658,7 @@ CREATE TABLE "user_permissions" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "user_roles" (
+CREATE TABLE IF NOT EXISTS "user_roles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "user_id" TEXT NOT NULL,
@@ -2673,7 +2673,7 @@ CREATE TABLE "user_roles" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "virtual_class_providers" (
+CREATE TABLE IF NOT EXISTS "virtual_class_providers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "provider" TEXT NOT NULL,
@@ -2687,7 +2687,7 @@ CREATE TABLE "virtual_class_providers" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "virtual_meeting_platform_providers" (
+CREATE TABLE IF NOT EXISTS "virtual_meeting_platform_providers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT,
   "provider" TEXT NOT NULL,
@@ -2705,7 +2705,7 @@ CREATE TABLE "virtual_meeting_platform_providers" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "visitor_blocklist" (
+CREATE TABLE IF NOT EXISTS "visitor_blocklist" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "full_name" TEXT NOT NULL,
@@ -2721,7 +2721,7 @@ CREATE TABLE "visitor_blocklist" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "accounting_years" (
+CREATE TABLE IF NOT EXISTS "accounting_years" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "fy_start_year" INTEGER NOT NULL,
@@ -2738,7 +2738,7 @@ CREATE TABLE "accounting_years" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_campaign_steps" (
+CREATE TABLE IF NOT EXISTS "admission_campaign_steps" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campaign_id" TEXT NOT NULL,
@@ -2755,7 +2755,7 @@ CREATE TABLE "admission_campaign_steps" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_sessions" (
+CREATE TABLE IF NOT EXISTS "admission_sessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -2771,7 +2771,7 @@ CREATE TABLE "admission_sessions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "alumni_events" (
+CREATE TABLE IF NOT EXISTS "alumni_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -2789,7 +2789,7 @@ CREATE TABLE "alumni_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "announcements" (
+CREATE TABLE IF NOT EXISTS "announcements" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -2811,7 +2811,7 @@ CREATE TABLE "announcements" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "appraisal_cycles" (
+CREATE TABLE IF NOT EXISTS "appraisal_cycles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -2832,7 +2832,7 @@ CREATE TABLE "appraisal_cycles" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "bank_statement_lines" (
+CREATE TABLE IF NOT EXISTS "bank_statement_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "bank_account_id" TEXT NOT NULL,
@@ -2864,7 +2864,7 @@ CREATE TABLE "bank_statement_lines" (
   FOREIGN KEY ("reconciliation_id", "institution_id") REFERENCES "bank_reconciliations" ("id", "institution_id") ON DELETE SET NULL
 );
 
-CREATE TABLE "board_result_imports" (
+CREATE TABLE IF NOT EXISTS "board_result_imports" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -2887,7 +2887,7 @@ CREATE TABLE "board_result_imports" (
   FOREIGN KEY ("published_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "budget_lines" (
+CREATE TABLE IF NOT EXISTS "budget_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "budget_id" TEXT NOT NULL,
@@ -2903,7 +2903,7 @@ CREATE TABLE "budget_lines" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "child_info_imports" (
+CREATE TABLE IF NOT EXISTS "child_info_imports" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -2923,7 +2923,7 @@ CREATE TABLE "child_info_imports" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "child_info_sync_runs" (
+CREATE TABLE IF NOT EXISTS "child_info_sync_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "connector_id" TEXT NOT NULL,
   "institution_id" TEXT,
@@ -2940,7 +2940,7 @@ CREATE TABLE "child_info_sync_runs" (
   FOREIGN KEY ("started_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "council_positions" (
+CREATE TABLE IF NOT EXISTS "council_positions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -2956,7 +2956,7 @@ CREATE TABLE "council_positions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "crm_sync_run_items" (
+CREATE TABLE IF NOT EXISTS "crm_sync_run_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "run_id" TEXT NOT NULL,
@@ -2969,7 +2969,7 @@ CREATE TABLE "crm_sync_run_items" (
   FOREIGN KEY ("run_id", "institution_id") REFERENCES "crm_sync_runs" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "depreciation_charges" (
+CREATE TABLE IF NOT EXISTS "depreciation_charges" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "asset_id" TEXT NOT NULL,
@@ -2986,7 +2986,7 @@ CREATE TABLE "depreciation_charges" (
   FOREIGN KEY ("journal_entry_id") REFERENCES "journal_entries" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "digital_holdings" (
+CREATE TABLE IF NOT EXISTS "digital_holdings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3017,7 +3017,7 @@ CREATE TABLE "digital_holdings" (
   FOREIGN KEY ("provider_id") REFERENCES "digital_library_providers" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "employees" (
+CREATE TABLE IF NOT EXISTS "employees" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -3066,7 +3066,7 @@ CREATE TABLE "employees" (
   FOREIGN KEY ("work_pattern_id") REFERENCES "work_patterns" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "evaluation_cycles" (
+CREATE TABLE IF NOT EXISTS "evaluation_cycles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3092,7 +3092,7 @@ CREATE TABLE "evaluation_cycles" (
   FOREIGN KEY ("released_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "fee_structures" (
+CREATE TABLE IF NOT EXISTS "fee_structures" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -3109,7 +3109,7 @@ CREATE TABLE "fee_structures" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "grant_expenditures" (
+CREATE TABLE IF NOT EXISTS "grant_expenditures" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "sanction_id" TEXT NOT NULL,
@@ -3130,7 +3130,7 @@ CREATE TABLE "grant_expenditures" (
   FOREIGN KEY ("sanction_id", "institution_id") REFERENCES "grant_sanctions" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "grant_receipts" (
+CREATE TABLE IF NOT EXISTS "grant_receipts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "sanction_id" TEXT NOT NULL,
@@ -3152,7 +3152,7 @@ CREATE TABLE "grant_receipts" (
   FOREIGN KEY ("sanction_id", "institution_id") REFERENCES "grant_sanctions" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "grant_utilisation_certificate_lines" (
+CREATE TABLE IF NOT EXISTS "grant_utilisation_certificate_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "certificate_id" TEXT NOT NULL,
@@ -3170,7 +3170,7 @@ CREATE TABLE "grant_utilisation_certificate_lines" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "guardians" (
+CREATE TABLE IF NOT EXISTS "guardians" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "full_name" TEXT NOT NULL,
@@ -3189,7 +3189,7 @@ CREATE TABLE "guardians" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "holidays" (
+CREATE TABLE IF NOT EXISTS "holidays" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3206,7 +3206,7 @@ CREATE TABLE "holidays" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hostel_rooms" (
+CREATE TABLE IF NOT EXISTS "hostel_rooms" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "block_id" TEXT NOT NULL,
@@ -3219,7 +3219,7 @@ CREATE TABLE "hostel_rooms" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "import_run_rows" (
+CREATE TABLE IF NOT EXISTS "import_run_rows" (
   "id" INTEGER NOT NULL,
   "run_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -3231,7 +3231,7 @@ CREATE TABLE "import_run_rows" (
   FOREIGN KEY ("run_id") REFERENCES "import_runs" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "job_vacancies" (
+CREATE TABLE IF NOT EXISTS "job_vacancies" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3269,7 +3269,7 @@ CREATE TABLE "job_vacancies" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "journal_lines" (
+CREATE TABLE IF NOT EXISTS "journal_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "entry_id" TEXT NOT NULL,
@@ -3284,7 +3284,7 @@ CREATE TABLE "journal_lines" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "library_audit_scans" (
+CREATE TABLE IF NOT EXISTS "library_audit_scans" (
   "audit_id" TEXT NOT NULL,
   "copy_id" TEXT NOT NULL,
   "scanned_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -3296,7 +3296,7 @@ CREATE TABLE "library_audit_scans" (
   FOREIGN KEY ("scanned_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "loc_submissions" (
+CREATE TABLE IF NOT EXISTS "loc_submissions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -3323,7 +3323,7 @@ CREATE TABLE "loc_submissions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "mdm_register_amendments" (
+CREATE TABLE IF NOT EXISTS "mdm_register_amendments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "register_id" TEXT NOT NULL,
@@ -3339,7 +3339,7 @@ CREATE TABLE "mdm_register_amendments" (
   FOREIGN KEY ("register_id") REFERENCES "mdm_registers" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "period_closes" (
+CREATE TABLE IF NOT EXISTS "period_closes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3358,7 +3358,7 @@ CREATE TABLE "period_closes" (
   FOREIGN KEY ("via_year") REFERENCES "academic_years" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "petty_cash_topups" (
+CREATE TABLE IF NOT EXISTS "petty_cash_topups" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "topup_date" TEXT NOT NULL DEFAULT (date('now')),
@@ -3376,7 +3376,7 @@ CREATE TABLE "petty_cash_topups" (
   FOREIGN KEY ("journal_entry_id") REFERENCES "journal_entries" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "petty_cash_vouchers" (
+CREATE TABLE IF NOT EXISTS "petty_cash_vouchers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "voucher_no" TEXT NOT NULL,
@@ -3404,7 +3404,7 @@ CREATE TABLE "petty_cash_vouchers" (
   FOREIGN KEY ("paid_from_account_id", "institution_id") REFERENCES "ledger_accounts" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "purchase_enquiry_notes" (
+CREATE TABLE IF NOT EXISTS "purchase_enquiry_notes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "enquiry_id" TEXT NOT NULL,
   "kind" TEXT NOT NULL DEFAULT 'note',
@@ -3416,7 +3416,7 @@ CREATE TABLE "purchase_enquiry_notes" (
   FOREIGN KEY ("enquiry_id") REFERENCES "purchase_enquiries" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "purchase_requisitions" (
+CREATE TABLE IF NOT EXISTS "purchase_requisitions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3445,7 +3445,7 @@ CREATE TABLE "purchase_requisitions" (
   FOREIGN KEY ("requested_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "reimbursement_claims" (
+CREATE TABLE IF NOT EXISTS "reimbursement_claims" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "scheme_id" TEXT NOT NULL,
@@ -3475,7 +3475,7 @@ CREATE TABLE "reimbursement_claims" (
   FOREIGN KEY ("scheme_id") REFERENCES "government_aid_schemes" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "reimbursement_rates" (
+CREATE TABLE IF NOT EXISTS "reimbursement_rates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "scheme_id" TEXT NOT NULL,
@@ -3495,7 +3495,7 @@ CREATE TABLE "reimbursement_rates" (
   FOREIGN KEY ("scheme_id") REFERENCES "government_aid_schemes" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "report_runs" (
+CREATE TABLE IF NOT EXISTS "report_runs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "report_id" TEXT NOT NULL,
@@ -3511,7 +3511,7 @@ CREATE TABLE "report_runs" (
   FOREIGN KEY ("report_id") REFERENCES "report_definitions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "report_shares" (
+CREATE TABLE IF NOT EXISTS "report_shares" (
   "report_id" TEXT NOT NULL,
   "role_key" TEXT NOT NULL,
   "shared_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -3521,7 +3521,7 @@ CREATE TABLE "report_shares" (
   FOREIGN KEY ("shared_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "rollover_log" (
+CREATE TABLE IF NOT EXISTS "rollover_log" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "source_year_id" TEXT NOT NULL,
@@ -3538,7 +3538,7 @@ CREATE TABLE "rollover_log" (
   FOREIGN KEY ("target_year_id") REFERENCES "academic_years" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "scholarship_disbursement_imports" (
+CREATE TABLE IF NOT EXISTS "scholarship_disbursement_imports" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "scheme_id" TEXT NOT NULL,
@@ -3562,7 +3562,7 @@ CREATE TABLE "scholarship_disbursement_imports" (
   FOREIGN KEY ("scheme_id") REFERENCES "government_aid_schemes" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sections" (
+CREATE TABLE IF NOT EXISTS "sections" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -3585,7 +3585,7 @@ CREATE TABLE "sections" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "session_screens" (
+CREATE TABLE IF NOT EXISTS "session_screens" (
   "session_id" TEXT NOT NULL,
   "institution_id" TEXT,
   "user_id" TEXT NOT NULL,
@@ -3599,7 +3599,7 @@ CREATE TABLE "session_screens" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sqaa_assessments" (
+CREATE TABLE IF NOT EXISTS "sqaa_assessments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -3625,7 +3625,7 @@ CREATE TABLE "sqaa_assessments" (
   FOREIGN KEY ("submitted_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "store_product_variants" (
+CREATE TABLE IF NOT EXISTS "store_product_variants" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "product_id" TEXT NOT NULL,
@@ -3643,7 +3643,7 @@ CREATE TABLE "store_product_variants" (
   FOREIGN KEY ("product_id", "institution_id") REFERENCES "store_products" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "students" (
+CREATE TABLE IF NOT EXISTS "students" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -3703,7 +3703,7 @@ CREATE TABLE "students" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "tally_export_run_vouchers" (
+CREATE TABLE IF NOT EXISTS "tally_export_run_vouchers" (
   "institution_id" TEXT NOT NULL,
   "run_id" TEXT NOT NULL,
   "journal_entry_id" TEXT NOT NULL,
@@ -3713,7 +3713,7 @@ CREATE TABLE "tally_export_run_vouchers" (
   FOREIGN KEY ("run_id", "institution_id") REFERENCES "tally_export_runs" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "terms" (
+CREATE TABLE IF NOT EXISTS "terms" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -3726,7 +3726,7 @@ CREATE TABLE "terms" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "textbook_indents" (
+CREATE TABLE IF NOT EXISTS "textbook_indents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -3749,7 +3749,7 @@ CREATE TABLE "textbook_indents" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "timetable_drafts" (
+CREATE TABLE IF NOT EXISTS "timetable_drafts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3778,7 +3778,7 @@ CREATE TABLE "timetable_drafts" (
   FOREIGN KEY ("published_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "training_programmes" (
+CREATE TABLE IF NOT EXISTS "training_programmes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3806,7 +3806,7 @@ CREATE TABLE "training_programmes" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "training_requirements" (
+CREATE TABLE IF NOT EXISTS "training_requirements" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT,
@@ -3823,7 +3823,7 @@ CREATE TABLE "training_requirements" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "user_working_years" (
+CREATE TABLE IF NOT EXISTS "user_working_years" (
   "user_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -3834,7 +3834,7 @@ CREATE TABLE "user_working_years" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vendor_bills" (
+CREATE TABLE IF NOT EXISTS "vendor_bills" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vendor_id" TEXT NOT NULL,
@@ -3864,7 +3864,7 @@ CREATE TABLE "vendor_bills" (
   FOREIGN KEY ("vendor_id", "institution_id") REFERENCES "vendors" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "working_days_adjustments" (
+CREATE TABLE IF NOT EXISTS "working_days_adjustments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -3882,7 +3882,7 @@ CREATE TABLE "working_days_adjustments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "working_days_returns" (
+CREATE TABLE IF NOT EXISTS "working_days_returns" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -3904,7 +3904,7 @@ CREATE TABLE "working_days_returns" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "abc_credit_entries" (
+CREATE TABLE IF NOT EXISTS "abc_credit_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -3926,7 +3926,7 @@ CREATE TABLE "abc_credit_entries" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "absence_followup_section_done" (
+CREATE TABLE IF NOT EXISTS "absence_followup_section_done" (
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
   "on_date" TEXT NOT NULL,
@@ -3936,7 +3936,7 @@ CREATE TABLE "absence_followup_section_done" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "activities" (
+CREATE TABLE IF NOT EXISTS "activities" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3956,7 +3956,7 @@ CREATE TABLE "activities" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_forms" (
+CREATE TABLE IF NOT EXISTS "admission_forms" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -3977,7 +3977,7 @@ CREATE TABLE "admission_forms" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "alumni_profiles" (
+CREATE TABLE IF NOT EXISTS "alumni_profiles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4015,7 +4015,7 @@ CREATE TABLE "alumni_profiles" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "announcement_acks" (
+CREATE TABLE IF NOT EXISTS "announcement_acks" (
   "announcement_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -4029,7 +4029,7 @@ CREATE TABLE "announcement_acks" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "announcement_sections" (
+CREATE TABLE IF NOT EXISTS "announcement_sections" (
   "announcement_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -4039,7 +4039,7 @@ CREATE TABLE "announcement_sections" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "announcement_students" (
+CREATE TABLE IF NOT EXISTS "announcement_students" (
   "announcement_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -4049,7 +4049,7 @@ CREATE TABLE "announcement_students" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "appointments" (
+CREATE TABLE IF NOT EXISTS "appointments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "with_employee_id" TEXT,
@@ -4071,7 +4071,7 @@ CREATE TABLE "appointments" (
   FOREIGN KEY ("with_employee_id") REFERENCES "employees" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "appraisal_kpis" (
+CREATE TABLE IF NOT EXISTS "appraisal_kpis" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -4090,7 +4090,7 @@ CREATE TABLE "appraisal_kpis" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "appraisals" (
+CREATE TABLE IF NOT EXISTS "appraisals" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -4131,7 +4131,7 @@ CREATE TABLE "appraisals" (
   FOREIGN KEY ("reviewer_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "attendance_capture_batches" (
+CREATE TABLE IF NOT EXISTS "attendance_capture_batches" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -4149,7 +4149,7 @@ CREATE TABLE "attendance_capture_batches" (
   FOREIGN KEY ("submitted_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "background_verifications" (
+CREATE TABLE IF NOT EXISTS "background_verifications" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -4172,7 +4172,7 @@ CREATE TABLE "background_verifications" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "biometric_punches" (
+CREATE TABLE IF NOT EXISTS "biometric_punches" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "device_id" TEXT NOT NULL,
@@ -4189,7 +4189,7 @@ CREATE TABLE "biometric_punches" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "board_registrations" (
+CREATE TABLE IF NOT EXISTS "board_registrations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4234,7 +4234,7 @@ CREATE TABLE "board_registrations" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "cafeteria_purchases" (
+CREATE TABLE IF NOT EXISTS "cafeteria_purchases" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -4253,7 +4253,7 @@ CREATE TABLE "cafeteria_purchases" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "call_log" (
+CREATE TABLE IF NOT EXISTS "call_log" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "direction" TEXT NOT NULL DEFAULT 'in',
@@ -4273,7 +4273,7 @@ CREATE TABLE "call_log" (
   FOREIGN KEY ("taken_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "campus_entry_passes" (
+CREATE TABLE IF NOT EXISTS "campus_entry_passes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "user_id" TEXT,
@@ -4288,7 +4288,7 @@ CREATE TABLE "campus_entry_passes" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "cce_formative_entries" (
+CREATE TABLE IF NOT EXISTS "cce_formative_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4313,7 +4313,7 @@ CREATE TABLE "cce_formative_entries" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "child_info_rows" (
+CREATE TABLE IF NOT EXISTS "child_info_rows" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "import_id" TEXT NOT NULL,
@@ -4335,7 +4335,7 @@ CREATE TABLE "child_info_rows" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "club_event_tickets" (
+CREATE TABLE IF NOT EXISTS "club_event_tickets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
@@ -4353,7 +4353,7 @@ CREATE TABLE "club_event_tickets" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "co_scholastic_grades" (
+CREATE TABLE IF NOT EXISTS "co_scholastic_grades" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4371,7 +4371,7 @@ CREATE TABLE "co_scholastic_grades" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "council_members" (
+CREATE TABLE IF NOT EXISTS "council_members" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "position_id" TEXT NOT NULL,
@@ -4392,7 +4392,7 @@ CREATE TABLE "council_members" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "counselor_threads" (
+CREATE TABLE IF NOT EXISTS "counselor_threads" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -4414,7 +4414,7 @@ CREATE TABLE "counselor_threads" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "digital_holding_opens" (
+CREATE TABLE IF NOT EXISTS "digital_holding_opens" (
   "id" INTEGER NOT NULL,
   "institution_id" TEXT NOT NULL,
   "holding_id" TEXT NOT NULL,
@@ -4426,7 +4426,7 @@ CREATE TABLE "digital_holding_opens" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "digital_holding_visibility" (
+CREATE TABLE IF NOT EXISTS "digital_holding_visibility" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "holding_id" TEXT NOT NULL,
   "class_id" TEXT,
@@ -4436,7 +4436,7 @@ CREATE TABLE "digital_holding_visibility" (
   FOREIGN KEY ("holding_id") REFERENCES "digital_holdings" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "discipline_records" (
+CREATE TABLE IF NOT EXISTS "discipline_records" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4466,7 +4466,7 @@ CREATE TABLE "discipline_records" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "duty_assignments" (
+CREATE TABLE IF NOT EXISTS "duty_assignments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -4491,7 +4491,7 @@ CREATE TABLE "duty_assignments" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "education_loan_applications" (
+CREATE TABLE IF NOT EXISTS "education_loan_applications" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4520,7 +4520,7 @@ CREATE TABLE "education_loan_applications" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "emergency_pickup_authorisations" (
+CREATE TABLE IF NOT EXISTS "emergency_pickup_authorisations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4544,7 +4544,7 @@ CREATE TABLE "emergency_pickup_authorisations" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "employee_documents" (
+CREATE TABLE IF NOT EXISTS "employee_documents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -4558,7 +4558,7 @@ CREATE TABLE "employee_documents" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "employee_tax_elections" (
+CREATE TABLE IF NOT EXISTS "employee_tax_elections" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -4571,7 +4571,7 @@ CREATE TABLE "employee_tax_elections" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "employee_year_history" (
+CREATE TABLE IF NOT EXISTS "employee_year_history" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -4590,7 +4590,7 @@ CREATE TABLE "employee_year_history" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "enquiries" (
+CREATE TABLE IF NOT EXISTS "enquiries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -4633,7 +4633,7 @@ CREATE TABLE "enquiries" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "enrollments" (
+CREATE TABLE IF NOT EXISTS "enrollments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4656,7 +4656,7 @@ CREATE TABLE "enrollments" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "evaluation_questions" (
+CREATE TABLE IF NOT EXISTS "evaluation_questions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -4671,7 +4671,7 @@ CREATE TABLE "evaluation_questions" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "evaluation_reviewees" (
+CREATE TABLE IF NOT EXISTS "evaluation_reviewees" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -4685,7 +4685,7 @@ CREATE TABLE "evaluation_reviewees" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "exams" (
+CREATE TABLE IF NOT EXISTS "exams" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -4713,7 +4713,7 @@ CREATE TABLE "exams" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "fee_fine_rules" (
+CREATE TABLE IF NOT EXISTS "fee_fine_rules" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -4739,7 +4739,7 @@ CREATE TABLE "fee_fine_rules" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_structure_items" (
+CREATE TABLE IF NOT EXISTS "fee_structure_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "fee_structure_id" TEXT NOT NULL,
@@ -4754,7 +4754,7 @@ CREATE TABLE "fee_structure_items" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_structure_versions" (
+CREATE TABLE IF NOT EXISTS "fee_structure_versions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "fee_structure_id" TEXT NOT NULL,
@@ -4779,7 +4779,7 @@ CREATE TABLE "fee_structure_versions" (
   FOREIGN KEY ("supersedes_id") REFERENCES "fee_structure_versions" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "hall_of_fame_entries" (
+CREATE TABLE IF NOT EXISTS "hall_of_fame_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -4799,7 +4799,7 @@ CREATE TABLE "hall_of_fame_entries" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "health_camp_attendance" (
+CREATE TABLE IF NOT EXISTS "health_camp_attendance" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "camp_id" TEXT NOT NULL,
@@ -4818,7 +4818,7 @@ CREATE TABLE "health_camp_attendance" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "health_checkups" (
+CREATE TABLE IF NOT EXISTS "health_checkups" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4848,7 +4848,7 @@ CREATE TABLE "health_checkups" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "homework" (
+CREATE TABLE IF NOT EXISTS "homework" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -4871,7 +4871,7 @@ CREATE TABLE "homework" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hostel_allocations" (
+CREATE TABLE IF NOT EXISTS "hostel_allocations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "room_id" TEXT NOT NULL,
@@ -4885,7 +4885,7 @@ CREATE TABLE "hostel_allocations" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hostel_complaints" (
+CREATE TABLE IF NOT EXISTS "hostel_complaints" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT,
@@ -4908,7 +4908,7 @@ CREATE TABLE "hostel_complaints" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "hostel_laundry" (
+CREATE TABLE IF NOT EXISTS "hostel_laundry" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4931,7 +4931,7 @@ CREATE TABLE "hostel_laundry" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hostel_outpasses" (
+CREATE TABLE IF NOT EXISTS "hostel_outpasses" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4963,7 +4963,7 @@ CREATE TABLE "hostel_outpasses" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "hpc_observations" (
+CREATE TABLE IF NOT EXISTS "hpc_observations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -4986,7 +4986,7 @@ CREATE TABLE "hpc_observations" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "infirmary_visits" (
+CREATE TABLE IF NOT EXISTS "infirmary_visits" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -5011,7 +5011,7 @@ CREATE TABLE "infirmary_visits" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "inventory_movements" (
+CREATE TABLE IF NOT EXISTS "inventory_movements" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "item_id" TEXT NOT NULL,
@@ -5031,7 +5031,7 @@ CREATE TABLE "inventory_movements" (
   FOREIGN KEY ("item_id") REFERENCES "inventory_items" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "investment_declarations" (
+CREATE TABLE IF NOT EXISTS "investment_declarations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5051,7 +5051,7 @@ CREATE TABLE "investment_declarations" (
   FOREIGN KEY ("proof_file_id") REFERENCES "files" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "issued_certificates" (
+CREATE TABLE IF NOT EXISTS "issued_certificates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "certificate_type_id" TEXT NOT NULL,
@@ -5080,7 +5080,7 @@ CREATE TABLE "issued_certificates" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "job_candidates" (
+CREATE TABLE IF NOT EXISTS "job_candidates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vacancy_id" TEXT NOT NULL,
@@ -5115,7 +5115,7 @@ CREATE TABLE "job_candidates" (
   FOREIGN KEY ("vacancy_id") REFERENCES "job_vacancies" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "leave_balances" (
+CREATE TABLE IF NOT EXISTS "leave_balances" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "leave_type_id" TEXT NOT NULL,
@@ -5131,7 +5131,7 @@ CREATE TABLE "leave_balances" (
   FOREIGN KEY ("leave_type_id") REFERENCES "leave_types" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "leave_requests" (
+CREATE TABLE IF NOT EXISTS "leave_requests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "leave_type_id" TEXT,
@@ -5160,7 +5160,7 @@ CREATE TABLE "leave_requests" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "lesson_plans" (
+CREATE TABLE IF NOT EXISTS "lesson_plans" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -5190,7 +5190,7 @@ CREATE TABLE "lesson_plans" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "library_loans" (
+CREATE TABLE IF NOT EXISTS "library_loans" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "copy_id" TEXT NOT NULL,
@@ -5211,7 +5211,7 @@ CREATE TABLE "library_loans" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "library_reservations" (
+CREATE TABLE IF NOT EXISTS "library_reservations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "title_id" TEXT NOT NULL,
@@ -5233,7 +5233,7 @@ CREATE TABLE "library_reservations" (
   FOREIGN KEY ("title_id") REFERENCES "library_titles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "lost_found_items" (
+CREATE TABLE IF NOT EXISTS "lost_found_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -5267,7 +5267,7 @@ CREATE TABLE "lost_found_items" (
   FOREIGN KEY ("resolved_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "mdm_register_lines" (
+CREATE TABLE IF NOT EXISTS "mdm_register_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "register_id" TEXT NOT NULL,
@@ -5280,7 +5280,7 @@ CREATE TABLE "mdm_register_lines" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "medical_fitness_certificates" (
+CREATE TABLE IF NOT EXISTS "medical_fitness_certificates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5301,7 +5301,7 @@ CREATE TABLE "medical_fitness_certificates" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "message_log" (
+CREATE TABLE IF NOT EXISTS "message_log" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "channel" TEXT NOT NULL,
@@ -5331,7 +5331,7 @@ CREATE TABLE "message_log" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "montessori_progress" (
+CREATE TABLE IF NOT EXISTS "montessori_progress" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -5348,7 +5348,7 @@ CREATE TABLE "montessori_progress" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "night_study_attendance" (
+CREATE TABLE IF NOT EXISTS "night_study_attendance" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -5366,7 +5366,7 @@ CREATE TABLE "night_study_attendance" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "notifications" (
+CREATE TABLE IF NOT EXISTS "notifications" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
@@ -5387,7 +5387,7 @@ CREATE TABLE "notifications" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "online_tests" (
+CREATE TABLE IF NOT EXISTS "online_tests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -5412,7 +5412,7 @@ CREATE TABLE "online_tests" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "parent_teacher_messages" (
+CREATE TABLE IF NOT EXISTS "parent_teacher_messages" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -5434,7 +5434,7 @@ CREATE TABLE "parent_teacher_messages" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "payments" (
+CREATE TABLE IF NOT EXISTS "payments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -5468,7 +5468,7 @@ CREATE TABLE "payments" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "payout_items" (
+CREATE TABLE IF NOT EXISTS "payout_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "batch_id" TEXT NOT NULL,
@@ -5496,7 +5496,7 @@ CREATE TABLE "payout_items" (
   FOREIGN KEY ("vendor_id") REFERENCES "vendors" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "payslips" (
+CREATE TABLE IF NOT EXISTS "payslips" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "payroll_run_id" TEXT NOT NULL,
@@ -5515,7 +5515,7 @@ CREATE TABLE "payslips" (
   FOREIGN KEY ("payroll_run_id") REFERENCES "payroll_runs" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "person_group_members" (
+CREATE TABLE IF NOT EXISTS "person_group_members" (
   "group_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT,
@@ -5529,7 +5529,7 @@ CREATE TABLE "person_group_members" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "ptm_notes" (
+CREATE TABLE IF NOT EXISTS "ptm_notes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -5555,7 +5555,7 @@ CREATE TABLE "ptm_notes" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "ptm_slots" (
+CREATE TABLE IF NOT EXISTS "ptm_slots" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -5580,7 +5580,7 @@ CREATE TABLE "ptm_slots" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "purchase_orders" (
+CREATE TABLE IF NOT EXISTS "purchase_orders" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -5609,7 +5609,7 @@ CREATE TABLE "purchase_orders" (
   FOREIGN KEY ("vendor_id", "institution_id") REFERENCES "vendors" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "purchase_requisition_lines" (
+CREATE TABLE IF NOT EXISTS "purchase_requisition_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "requisition_id" TEXT NOT NULL,
@@ -5625,7 +5625,7 @@ CREATE TABLE "purchase_requisition_lines" (
   FOREIGN KEY ("requisition_id", "institution_id") REFERENCES "purchase_requisitions" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "reimbursement_receipts" (
+CREATE TABLE IF NOT EXISTS "reimbursement_receipts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "claim_id" TEXT NOT NULL,
@@ -5646,7 +5646,7 @@ CREATE TABLE "reimbursement_receipts" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "room_inventory_checks" (
+CREATE TABLE IF NOT EXISTS "room_inventory_checks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "room_id" TEXT NOT NULL,
@@ -5664,7 +5664,7 @@ CREATE TABLE "room_inventory_checks" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "salary_structures" (
+CREATE TABLE IF NOT EXISTS "salary_structures" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5677,7 +5677,7 @@ CREATE TABLE "salary_structures" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "school_events" (
+CREATE TABLE IF NOT EXISTS "school_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -5699,7 +5699,7 @@ CREATE TABLE "school_events" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "section_subject_teachers" (
+CREATE TABLE IF NOT EXISTS "section_subject_teachers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -5714,7 +5714,7 @@ CREATE TABLE "section_subject_teachers" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "service_book_entries" (
+CREATE TABLE IF NOT EXISTS "service_book_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5743,7 +5743,7 @@ CREATE TABLE "service_book_entries" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sqaa_assessment_entries" (
+CREATE TABLE IF NOT EXISTS "sqaa_assessment_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "assessment_id" TEXT NOT NULL,
@@ -5765,7 +5765,7 @@ CREATE TABLE "sqaa_assessment_entries" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_celebration_greetings" (
+CREATE TABLE IF NOT EXISTS "staff_celebration_greetings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5780,7 +5780,7 @@ CREATE TABLE "staff_celebration_greetings" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_exits" (
+CREATE TABLE IF NOT EXISTS "staff_exits" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5813,7 +5813,7 @@ CREATE TABLE "staff_exits" (
   FOREIGN KEY ("interviewed_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "staff_grievances" (
+CREATE TABLE IF NOT EXISTS "staff_grievances" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "reference_no" TEXT NOT NULL,
@@ -5838,7 +5838,7 @@ CREATE TABLE "staff_grievances" (
   FOREIGN KEY ("raised_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "staff_loans" (
+CREATE TABLE IF NOT EXISTS "staff_loans" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5858,7 +5858,7 @@ CREATE TABLE "staff_loans" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_onboarding" (
+CREATE TABLE IF NOT EXISTS "staff_onboarding" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5886,7 +5886,7 @@ CREATE TABLE "staff_onboarding" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "staff_qualifications" (
+CREATE TABLE IF NOT EXISTS "staff_qualifications" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5912,7 +5912,7 @@ CREATE TABLE "staff_qualifications" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "staff_recognitions" (
+CREATE TABLE IF NOT EXISTS "staff_recognitions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -5933,7 +5933,7 @@ CREATE TABLE "staff_recognitions" (
   FOREIGN KEY ("nominated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "staff_remarks" (
+CREATE TABLE IF NOT EXISTS "staff_remarks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "subject_user_id" TEXT NOT NULL,
@@ -5951,7 +5951,7 @@ CREATE TABLE "staff_remarks" (
   FOREIGN KEY ("subject_user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_training_records" (
+CREATE TABLE IF NOT EXISTS "staff_training_records" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "programme_id" TEXT NOT NULL,
@@ -5975,7 +5975,7 @@ CREATE TABLE "staff_training_records" (
   FOREIGN KEY ("programme_id") REFERENCES "training_programmes" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "staff_transfers" (
+CREATE TABLE IF NOT EXISTS "staff_transfers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -6002,7 +6002,7 @@ CREATE TABLE "staff_transfers" (
   FOREIGN KEY ("to_campus_id") REFERENCES "campuses" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_absence_followup" (
+CREATE TABLE IF NOT EXISTS "student_absence_followup" (
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
   "on_date" TEXT NOT NULL,
@@ -6014,7 +6014,7 @@ CREATE TABLE "student_absence_followup" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_achievements" (
+CREATE TABLE IF NOT EXISTS "student_achievements" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6044,7 +6044,7 @@ CREATE TABLE "student_achievements" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_activity_days" (
+CREATE TABLE IF NOT EXISTS "student_activity_days" (
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
   "day" TEXT NOT NULL,
@@ -6053,7 +6053,7 @@ CREATE TABLE "student_activity_days" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_bank_accounts" (
+CREATE TABLE IF NOT EXISTS "student_bank_accounts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6084,7 +6084,7 @@ CREATE TABLE "student_bank_accounts" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_diary_notes" (
+CREATE TABLE IF NOT EXISTS "student_diary_notes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6103,7 +6103,7 @@ CREATE TABLE "student_diary_notes" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_documents" (
+CREATE TABLE IF NOT EXISTS "student_documents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6120,7 +6120,7 @@ CREATE TABLE "student_documents" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_fee_components" (
+CREATE TABLE IF NOT EXISTS "student_fee_components" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6141,7 +6141,7 @@ CREATE TABLE "student_fee_components" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_fee_optins" (
+CREATE TABLE IF NOT EXISTS "student_fee_optins" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6158,7 +6158,7 @@ CREATE TABLE "student_fee_optins" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_guardians" (
+CREATE TABLE IF NOT EXISTS "student_guardians" (
   "student_id" TEXT NOT NULL,
   "guardian_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
@@ -6172,7 +6172,7 @@ CREATE TABLE "student_guardians" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_health" (
+CREATE TABLE IF NOT EXISTS "student_health" (
   "student_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "allergies" TEXT,
@@ -6187,7 +6187,7 @@ CREATE TABLE "student_health" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_language_elections" (
+CREATE TABLE IF NOT EXISTS "student_language_elections" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6208,7 +6208,7 @@ CREATE TABLE "student_language_elections" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_lockers" (
+CREATE TABLE IF NOT EXISTS "student_lockers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -6225,7 +6225,7 @@ CREATE TABLE "student_lockers" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_portfolio_items" (
+CREATE TABLE IF NOT EXISTS "student_portfolio_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6246,7 +6246,7 @@ CREATE TABLE "student_portfolio_items" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_remarks" (
+CREATE TABLE IF NOT EXISTS "student_remarks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6269,7 +6269,7 @@ CREATE TABLE "student_remarks" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "student_support_plans" (
+CREATE TABLE IF NOT EXISTS "student_support_plans" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6288,7 +6288,7 @@ CREATE TABLE "student_support_plans" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_wall_posts" (
+CREATE TABLE IF NOT EXISTS "student_wall_posts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -6312,7 +6312,7 @@ CREATE TABLE "student_wall_posts" (
   FOREIGN KEY ("subject_student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_year_history" (
+CREATE TABLE IF NOT EXISTS "student_year_history" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6333,7 +6333,7 @@ CREATE TABLE "student_year_history" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "study_groups" (
+CREATE TABLE IF NOT EXISTS "study_groups" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -6353,7 +6353,7 @@ CREATE TABLE "study_groups" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "study_materials" (
+CREATE TABLE IF NOT EXISTS "study_materials" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_subject_id" TEXT,
@@ -6376,7 +6376,7 @@ CREATE TABLE "study_materials" (
   FOREIGN KEY ("uploaded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "support_tickets" (
+CREATE TABLE IF NOT EXISTS "support_tickets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "raised_by" TEXT NOT NULL,
@@ -6413,7 +6413,7 @@ CREATE TABLE "support_tickets" (
   FOREIGN KEY ("subject_employee_id") REFERENCES "employees" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "syllabus_units" (
+CREATE TABLE IF NOT EXISTS "syllabus_units" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_subject_id" TEXT NOT NULL,
@@ -6431,7 +6431,7 @@ CREATE TABLE "syllabus_units" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "timetable_draft_entries" (
+CREATE TABLE IF NOT EXISTS "timetable_draft_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "draft_id" TEXT NOT NULL,
@@ -6450,7 +6450,7 @@ CREATE TABLE "timetable_draft_entries" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "timetable_draft_issues" (
+CREATE TABLE IF NOT EXISTS "timetable_draft_issues" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "draft_id" TEXT NOT NULL,
@@ -6470,7 +6470,7 @@ CREATE TABLE "timetable_draft_issues" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "timetable_entries" (
+CREATE TABLE IF NOT EXISTS "timetable_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "academic_year_id" TEXT NOT NULL,
@@ -6490,7 +6490,7 @@ CREATE TABLE "timetable_entries" (
   FOREIGN KEY ("teacher_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "transport_staff" (
+CREATE TABLE IF NOT EXISTS "transport_staff" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "employee_id" TEXT NOT NULL,
@@ -6512,7 +6512,7 @@ CREATE TABLE "transport_staff" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_watch_prefs" (
+CREATE TABLE IF NOT EXISTS "transport_watch_prefs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
@@ -6527,7 +6527,7 @@ CREATE TABLE "transport_watch_prefs" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "university_shortlist_entries" (
+CREATE TABLE IF NOT EXISTS "university_shortlist_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -6548,7 +6548,7 @@ CREATE TABLE "university_shortlist_entries" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicles" (
+CREATE TABLE IF NOT EXISTS "vehicles" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -6573,7 +6573,7 @@ CREATE TABLE "vehicles" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vendor_payments" (
+CREATE TABLE IF NOT EXISTS "vendor_payments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "bill_id" TEXT NOT NULL,
@@ -6596,7 +6596,7 @@ CREATE TABLE "vendor_payments" (
   FOREIGN KEY ("paid_from_account_id", "institution_id") REFERENCES "ledger_accounts" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "virtual_class_sessions" (
+CREATE TABLE IF NOT EXISTS "virtual_class_sessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -6623,7 +6623,7 @@ CREATE TABLE "virtual_class_sessions" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "visitors" (
+CREATE TABLE IF NOT EXISTS "visitors" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -6653,7 +6653,7 @@ CREATE TABLE "visitors" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "wallet_accounts" (
+CREATE TABLE IF NOT EXISTS "wallet_accounts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -6670,7 +6670,7 @@ CREATE TABLE "wallet_accounts" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "working_days_return_lines" (
+CREATE TABLE IF NOT EXISTS "working_days_return_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "return_id" TEXT NOT NULL,
@@ -6690,7 +6690,7 @@ CREATE TABLE "working_days_return_lines" (
   FOREIGN KEY ("return_id") REFERENCES "working_days_returns" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "achievement_media" (
+CREATE TABLE IF NOT EXISTS "achievement_media" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "achievement_id" TEXT NOT NULL,
@@ -6707,7 +6707,7 @@ CREATE TABLE "achievement_media" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_campaign_enrolments" (
+CREATE TABLE IF NOT EXISTS "admission_campaign_enrolments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campaign_id" TEXT NOT NULL,
@@ -6724,7 +6724,7 @@ CREATE TABLE "admission_campaign_enrolments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_event_bookings" (
+CREATE TABLE IF NOT EXISTS "admission_event_bookings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "slot_id" TEXT NOT NULL,
@@ -6740,7 +6740,7 @@ CREATE TABLE "admission_event_bookings" (
   FOREIGN KEY ("slot_id") REFERENCES "admission_event_slots" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_form_versions" (
+CREATE TABLE IF NOT EXISTS "admission_form_versions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "form_id" TEXT NOT NULL,
@@ -6757,7 +6757,7 @@ CREATE TABLE "admission_form_versions" (
   FOREIGN KEY ("published_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "alumni_contributions" (
+CREATE TABLE IF NOT EXISTS "alumni_contributions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "alumni_profile_id" TEXT NOT NULL,
@@ -6777,7 +6777,7 @@ CREATE TABLE "alumni_contributions" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "alumni_event_rsvps" (
+CREATE TABLE IF NOT EXISTS "alumni_event_rsvps" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
@@ -6793,7 +6793,7 @@ CREATE TABLE "alumni_event_rsvps" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "alumni_job_posts" (
+CREATE TABLE IF NOT EXISTS "alumni_job_posts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "posted_by" TEXT NOT NULL,
@@ -6818,7 +6818,7 @@ CREATE TABLE "alumni_job_posts" (
   FOREIGN KEY ("posted_by") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "appraisal_ratings" (
+CREATE TABLE IF NOT EXISTS "appraisal_ratings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "appraisal_id" TEXT NOT NULL,
@@ -6837,7 +6837,7 @@ CREATE TABLE "appraisal_ratings" (
   FOREIGN KEY ("kpi_id") REFERENCES "appraisal_kpis" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "attendance_capture_conflicts" (
+CREATE TABLE IF NOT EXISTS "attendance_capture_conflicts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "batch_id" TEXT NOT NULL,
@@ -6860,7 +6860,7 @@ CREATE TABLE "attendance_capture_conflicts" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "board_registration_amendments" (
+CREATE TABLE IF NOT EXISTS "board_registration_amendments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "registration_id" TEXT NOT NULL,
@@ -6882,7 +6882,7 @@ CREATE TABLE "board_registration_amendments" (
   FOREIGN KEY ("requested_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "board_result_rows" (
+CREATE TABLE IF NOT EXISTS "board_result_rows" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "import_id" TEXT NOT NULL,
@@ -6909,7 +6909,7 @@ CREATE TABLE "board_result_rows" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "cafeteria_purchase_items" (
+CREATE TABLE IF NOT EXISTS "cafeteria_purchase_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "purchase_id" TEXT NOT NULL,
@@ -6926,7 +6926,7 @@ CREATE TABLE "cafeteria_purchase_items" (
   FOREIGN KEY ("purchase_id") REFERENCES "cafeteria_purchases" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "child_info_differences" (
+CREATE TABLE IF NOT EXISTS "child_info_differences" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "import_id" TEXT NOT NULL,
@@ -6951,7 +6951,7 @@ CREATE TABLE "child_info_differences" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "class_diary_entries" (
+CREATE TABLE IF NOT EXISTS "class_diary_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -6974,7 +6974,7 @@ CREATE TABLE "class_diary_entries" (
   FOREIGN KEY ("written_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "council_duties" (
+CREATE TABLE IF NOT EXISTS "council_duties" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "member_id" TEXT NOT NULL,
@@ -6990,7 +6990,7 @@ CREATE TABLE "council_duties" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "counselor_access_events" (
+CREATE TABLE IF NOT EXISTS "counselor_access_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "thread_id" TEXT NOT NULL,
@@ -7006,7 +7006,7 @@ CREATE TABLE "counselor_access_events" (
   FOREIGN KEY ("thread_id") REFERENCES "counselor_threads" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "counselor_messages" (
+CREATE TABLE IF NOT EXISTS "counselor_messages" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "thread_id" TEXT NOT NULL,
@@ -7020,7 +7020,7 @@ CREATE TABLE "counselor_messages" (
   FOREIGN KEY ("thread_id") REFERENCES "counselor_threads" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "counselor_thread_participants" (
+CREATE TABLE IF NOT EXISTS "counselor_thread_participants" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "thread_id" TEXT NOT NULL,
@@ -7040,7 +7040,7 @@ CREATE TABLE "counselor_thread_participants" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "crm_lead_links" (
+CREATE TABLE IF NOT EXISTS "crm_lead_links" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "provider" TEXT NOT NULL,
@@ -7059,7 +7059,7 @@ CREATE TABLE "crm_lead_links" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "driver_notices" (
+CREATE TABLE IF NOT EXISTS "driver_notices" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT NOT NULL,
@@ -7076,7 +7076,7 @@ CREATE TABLE "driver_notices" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "education_loan_documents" (
+CREATE TABLE IF NOT EXISTS "education_loan_documents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "application_id" TEXT NOT NULL,
@@ -7100,7 +7100,7 @@ CREATE TABLE "education_loan_documents" (
   FOREIGN KEY ("updated_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "education_loan_events" (
+CREATE TABLE IF NOT EXISTS "education_loan_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "application_id" TEXT NOT NULL,
@@ -7116,7 +7116,7 @@ CREATE TABLE "education_loan_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "evaluation_invitations" (
+CREATE TABLE IF NOT EXISTS "evaluation_invitations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -7135,7 +7135,7 @@ CREATE TABLE "evaluation_invitations" (
   FOREIGN KEY ("reviewee_id", "institution_id") REFERENCES "evaluation_reviewees" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "evaluation_responses" (
+CREATE TABLE IF NOT EXISTS "evaluation_responses" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "cycle_id" TEXT NOT NULL,
@@ -7149,7 +7149,7 @@ CREATE TABLE "evaluation_responses" (
   FOREIGN KEY ("reviewee_id", "institution_id") REFERENCES "evaluation_reviewees" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "event_media" (
+CREATE TABLE IF NOT EXISTS "event_media" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
@@ -7167,7 +7167,7 @@ CREATE TABLE "event_media" (
   FOREIGN KEY ("uploaded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "event_seat_passes" (
+CREATE TABLE IF NOT EXISTS "event_seat_passes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "event_id" TEXT NOT NULL,
@@ -7190,7 +7190,7 @@ CREATE TABLE "event_seat_passes" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "exam_seats" (
+CREATE TABLE IF NOT EXISTS "exam_seats" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exam_id" TEXT NOT NULL,
@@ -7207,7 +7207,7 @@ CREATE TABLE "exam_seats" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "exam_subjects" (
+CREATE TABLE IF NOT EXISTS "exam_subjects" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exam_id" TEXT NOT NULL,
@@ -7224,7 +7224,7 @@ CREATE TABLE "exam_subjects" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "exit_clearances" (
+CREATE TABLE IF NOT EXISTS "exit_clearances" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exit_id" TEXT NOT NULL,
@@ -7242,7 +7242,7 @@ CREATE TABLE "exit_clearances" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_regulatory_filings" (
+CREATE TABLE IF NOT EXISTS "fee_regulatory_filings" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -7273,7 +7273,7 @@ CREATE TABLE "fee_regulatory_filings" (
   FOREIGN KEY ("prepared_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "fee_structure_version_items" (
+CREATE TABLE IF NOT EXISTS "fee_structure_version_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "version_id" TEXT NOT NULL,
@@ -7287,7 +7287,7 @@ CREATE TABLE "fee_structure_version_items" (
   FOREIGN KEY ("version_id") REFERENCES "fee_structure_versions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "goods_receipts" (
+CREATE TABLE IF NOT EXISTS "goods_receipts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "purchase_order_id" TEXT NOT NULL,
@@ -7304,7 +7304,7 @@ CREATE TABLE "goods_receipts" (
   FOREIGN KEY ("received_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "grievance_updates" (
+CREATE TABLE IF NOT EXISTS "grievance_updates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "ticket_id" TEXT NOT NULL,
@@ -7320,7 +7320,7 @@ CREATE TABLE "grievance_updates" (
   FOREIGN KEY ("ticket_id") REFERENCES "support_tickets" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "homework_attachments" (
+CREATE TABLE IF NOT EXISTS "homework_attachments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "homework_id" TEXT NOT NULL,
@@ -7331,7 +7331,7 @@ CREATE TABLE "homework_attachments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "homework_forum_threads" (
+CREATE TABLE IF NOT EXISTS "homework_forum_threads" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -7357,7 +7357,7 @@ CREATE TABLE "homework_forum_threads" (
   FOREIGN KEY ("section_id") REFERENCES "sections" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "homework_submissions" (
+CREATE TABLE IF NOT EXISTS "homework_submissions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "homework_id" TEXT NOT NULL,
@@ -7381,7 +7381,7 @@ CREATE TABLE "homework_submissions" (
   FOREIGN KEY ("submitted_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "hostel_visits" (
+CREATE TABLE IF NOT EXISTS "hostel_visits" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "visitor_id" TEXT NOT NULL,
@@ -7402,7 +7402,7 @@ CREATE TABLE "hostel_visits" (
   FOREIGN KEY ("visitor_id") REFERENCES "visitors" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "impersonation_grants" (
+CREATE TABLE IF NOT EXISTS "impersonation_grants" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "operator_user_id" TEXT NOT NULL,
@@ -7422,7 +7422,7 @@ CREATE TABLE "impersonation_grants" (
   FOREIGN KEY ("ticket_id") REFERENCES "support_tickets" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "invoices" (
+CREATE TABLE IF NOT EXISTS "invoices" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -7453,7 +7453,7 @@ CREATE TABLE "invoices" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "job_candidate_events" (
+CREATE TABLE IF NOT EXISTS "job_candidate_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "candidate_id" TEXT NOT NULL,
@@ -7468,7 +7468,7 @@ CREATE TABLE "job_candidate_events" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "job_interviews" (
+CREATE TABLE IF NOT EXISTS "job_interviews" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "candidate_id" TEXT NOT NULL,
@@ -7494,7 +7494,7 @@ CREATE TABLE "job_interviews" (
   FOREIGN KEY ("subject_id") REFERENCES "subjects" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "job_offers" (
+CREATE TABLE IF NOT EXISTS "job_offers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "candidate_id" TEXT NOT NULL,
@@ -7521,7 +7521,7 @@ CREATE TABLE "job_offers" (
   FOREIGN KEY ("offer_file_id") REFERENCES "files" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "lesson_plan_units" (
+CREATE TABLE IF NOT EXISTS "lesson_plan_units" (
   "lesson_plan_id" TEXT NOT NULL,
   "syllabus_unit_id" TEXT NOT NULL,
   PRIMARY KEY ("lesson_plan_id", "syllabus_unit_id"),
@@ -7529,7 +7529,7 @@ CREATE TABLE "lesson_plan_units" (
   FOREIGN KEY ("syllabus_unit_id") REFERENCES "syllabus_units" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "loan_deductions" (
+CREATE TABLE IF NOT EXISTS "loan_deductions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "loan_id" TEXT NOT NULL,
@@ -7544,7 +7544,7 @@ CREATE TABLE "loan_deductions" (
   FOREIGN KEY ("payroll_run_id") REFERENCES "payroll_runs" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "loc_candidates" (
+CREATE TABLE IF NOT EXISTS "loc_candidates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "submission_id" TEXT NOT NULL,
@@ -7577,7 +7577,7 @@ CREATE TABLE "loc_candidates" (
   FOREIGN KEY ("submission_id") REFERENCES "loc_submissions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "loc_validation_issues" (
+CREATE TABLE IF NOT EXISTS "loc_validation_issues" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "submission_id" TEXT NOT NULL,
@@ -7597,7 +7597,7 @@ CREATE TABLE "loc_validation_issues" (
   FOREIGN KEY ("submission_id") REFERENCES "loc_submissions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "locker_access_events" (
+CREATE TABLE IF NOT EXISTS "locker_access_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "locker_id" TEXT NOT NULL,
@@ -7613,7 +7613,7 @@ CREATE TABLE "locker_access_events" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "lost_found_claims" (
+CREATE TABLE IF NOT EXISTS "lost_found_claims" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "item_id" TEXT NOT NULL,
@@ -7633,7 +7633,7 @@ CREATE TABLE "lost_found_claims" (
   FOREIGN KEY ("item_id") REFERENCES "lost_found_items" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "medication_administrations" (
+CREATE TABLE IF NOT EXISTS "medication_administrations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -7663,7 +7663,7 @@ CREATE TABLE "medication_administrations" (
   FOREIGN KEY ("visit_id") REFERENCES "infirmary_visits" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "message_attachments" (
+CREATE TABLE IF NOT EXISTS "message_attachments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "message_log_id" TEXT NOT NULL,
@@ -7675,7 +7675,7 @@ CREATE TABLE "message_attachments" (
   FOREIGN KEY ("message_log_id") REFERENCES "message_log" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "message_credit_entries" (
+CREATE TABLE IF NOT EXISTS "message_credit_entries" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "channel" TEXT NOT NULL,
@@ -7691,7 +7691,7 @@ CREATE TABLE "message_credit_entries" (
   FOREIGN KEY ("message_id") REFERENCES "message_log" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "online_test_attempts" (
+CREATE TABLE IF NOT EXISTS "online_test_attempts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "test_id" TEXT NOT NULL,
@@ -7716,7 +7716,7 @@ CREATE TABLE "online_test_attempts" (
   FOREIGN KEY ("test_id") REFERENCES "online_tests" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "parent_forum_threads" (
+CREATE TABLE IF NOT EXISTS "parent_forum_threads" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "section_id" TEXT NOT NULL,
@@ -7752,7 +7752,7 @@ CREATE TABLE "parent_forum_threads" (
   FOREIGN KEY ("via_student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "prospectus_sales" (
+CREATE TABLE IF NOT EXISTS "prospectus_sales" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -7775,7 +7775,7 @@ CREATE TABLE "prospectus_sales" (
   FOREIGN KEY ("sold_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "purchase_invoice_matches" (
+CREATE TABLE IF NOT EXISTS "purchase_invoice_matches" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "purchase_order_id" TEXT NOT NULL,
@@ -7798,7 +7798,7 @@ CREATE TABLE "purchase_invoice_matches" (
   FOREIGN KEY ("vendor_bill_id", "institution_id") REFERENCES "vendor_bills" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "purchase_order_lines" (
+CREATE TABLE IF NOT EXISTS "purchase_order_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "purchase_order_id" TEXT NOT NULL,
@@ -7819,7 +7819,7 @@ CREATE TABLE "purchase_order_lines" (
   FOREIGN KEY ("purchase_order_id", "institution_id") REFERENCES "purchase_orders" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "question_bank_questions" (
+CREATE TABLE IF NOT EXISTS "question_bank_questions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "class_subject_id" TEXT NOT NULL,
@@ -7841,7 +7841,7 @@ CREATE TABLE "question_bank_questions" (
   FOREIGN KEY ("syllabus_unit_id") REFERENCES "syllabus_units" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "refunds" (
+CREATE TABLE IF NOT EXISTS "refunds" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -7867,7 +7867,7 @@ CREATE TABLE "refunds" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "report_cards" (
+CREATE TABLE IF NOT EXISTS "report_cards" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -7916,7 +7916,7 @@ CREATE TABLE "report_cards" (
   FOREIGN KEY ("term_id") REFERENCES "terms" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "room_inventory_items" (
+CREATE TABLE IF NOT EXISTS "room_inventory_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "check_id" TEXT NOT NULL,
@@ -7931,7 +7931,7 @@ CREATE TABLE "room_inventory_items" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "routes" (
+CREATE TABLE IF NOT EXISTS "routes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -7947,7 +7947,7 @@ CREATE TABLE "routes" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "salary_structure_items" (
+CREATE TABLE IF NOT EXISTS "salary_structure_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "salary_structure_id" TEXT NOT NULL,
@@ -7960,7 +7960,7 @@ CREATE TABLE "salary_structure_items" (
   FOREIGN KEY ("salary_structure_id") REFERENCES "salary_structures" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "scholarship_awards" (
+CREATE TABLE IF NOT EXISTS "scholarship_awards" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "scheme_id" TEXT NOT NULL,
@@ -7994,7 +7994,7 @@ CREATE TABLE "scholarship_awards" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "sqaa_action_items" (
+CREATE TABLE IF NOT EXISTS "sqaa_action_items" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "assessment_id" TEXT NOT NULL,
@@ -8021,7 +8021,7 @@ CREATE TABLE "sqaa_action_items" (
   FOREIGN KEY ("owner_employee_id") REFERENCES "employees" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "sqaa_evidence" (
+CREATE TABLE IF NOT EXISTS "sqaa_evidence" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "entry_id" TEXT NOT NULL,
@@ -8037,7 +8037,7 @@ CREATE TABLE "sqaa_evidence" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_attendance" (
+CREATE TABLE IF NOT EXISTS "student_attendance" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -8065,7 +8065,7 @@ CREATE TABLE "student_attendance" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_portfolio_curations" (
+CREATE TABLE IF NOT EXISTS "student_portfolio_curations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -8087,7 +8087,7 @@ CREATE TABLE "student_portfolio_curations" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_support_goals" (
+CREATE TABLE IF NOT EXISTS "student_support_goals" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "plan_id" TEXT NOT NULL,
@@ -8110,7 +8110,7 @@ CREATE TABLE "student_support_goals" (
   FOREIGN KEY ("plan_id") REFERENCES "student_support_plans" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "study_group_members" (
+CREATE TABLE IF NOT EXISTS "study_group_members" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "group_id" TEXT NOT NULL,
@@ -8124,7 +8124,7 @@ CREATE TABLE "study_group_members" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "study_material_targets" (
+CREATE TABLE IF NOT EXISTS "study_material_targets" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "material_id" TEXT NOT NULL,
@@ -8137,7 +8137,7 @@ CREATE TABLE "study_material_targets" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "study_material_views" (
+CREATE TABLE IF NOT EXISTS "study_material_views" (
   "institution_id" TEXT NOT NULL,
   "material_id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
@@ -8150,7 +8150,7 @@ CREATE TABLE "study_material_views" (
   FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "substitution_requests" (
+CREATE TABLE IF NOT EXISTS "substitution_requests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "requested_by" TEXT NOT NULL,
@@ -8175,7 +8175,7 @@ CREATE TABLE "substitution_requests" (
   FOREIGN KEY ("suggested_user_id") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "vehicle_logs" (
+CREATE TABLE IF NOT EXISTS "vehicle_logs" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT NOT NULL,
@@ -8196,7 +8196,7 @@ CREATE TABLE "vehicle_logs" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicle_tracker_pair_codes" (
+CREATE TABLE IF NOT EXISTS "vehicle_tracker_pair_codes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT,
@@ -8211,7 +8211,7 @@ CREATE TABLE "vehicle_tracker_pair_codes" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "virtual_class_hand_raises" (
+CREATE TABLE IF NOT EXISTS "virtual_class_hand_raises" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "session_id" TEXT NOT NULL,
@@ -8230,7 +8230,7 @@ CREATE TABLE "virtual_class_hand_raises" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "virtual_meeting_requests" (
+CREATE TABLE IF NOT EXISTS "virtual_meeting_requests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "session_id" TEXT NOT NULL,
@@ -8248,7 +8248,7 @@ CREATE TABLE "virtual_meeting_requests" (
   FOREIGN KEY ("session_id", "institution_id") REFERENCES "virtual_class_sessions" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_campaign_sends" (
+CREATE TABLE IF NOT EXISTS "admission_campaign_sends" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "enrolment_id" TEXT NOT NULL,
@@ -8265,7 +8265,7 @@ CREATE TABLE "admission_campaign_sends" (
   FOREIGN KEY ("step_id") REFERENCES "admission_campaign_steps" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_form_sections" (
+CREATE TABLE IF NOT EXISTS "admission_form_sections" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "version_id" TEXT NOT NULL,
@@ -8277,7 +8277,7 @@ CREATE TABLE "admission_form_sections" (
   FOREIGN KEY ("version_id") REFERENCES "admission_form_versions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "alumni_job_interests" (
+CREATE TABLE IF NOT EXISTS "alumni_job_interests" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "post_id" TEXT NOT NULL,
@@ -8291,7 +8291,7 @@ CREATE TABLE "alumni_job_interests" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "applications" (
+CREATE TABLE IF NOT EXISTS "applications" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT NOT NULL,
@@ -8364,7 +8364,7 @@ CREATE TABLE "applications" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "attendance_corrections" (
+CREATE TABLE IF NOT EXISTS "attendance_corrections" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "attendance_id" TEXT NOT NULL,
@@ -8383,7 +8383,7 @@ CREATE TABLE "attendance_corrections" (
   FOREIGN KEY ("requested_by") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "evaluation_answers" (
+CREATE TABLE IF NOT EXISTS "evaluation_answers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "response_id" TEXT NOT NULL,
@@ -8396,7 +8396,7 @@ CREATE TABLE "evaluation_answers" (
   FOREIGN KEY ("response_id", "institution_id") REFERENCES "evaluation_responses" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_fine_charges" (
+CREATE TABLE IF NOT EXISTS "fee_fine_charges" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "invoice_id" TEXT NOT NULL,
@@ -8424,7 +8424,7 @@ CREATE TABLE "fee_fine_charges" (
   FOREIGN KEY ("invoice_id") REFERENCES "invoices" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_regulatory_filing_documents" (
+CREATE TABLE IF NOT EXISTS "fee_regulatory_filing_documents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "filing_id" TEXT NOT NULL,
@@ -8441,7 +8441,7 @@ CREATE TABLE "fee_regulatory_filing_documents" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "fee_regulatory_filing_lines" (
+CREATE TABLE IF NOT EXISTS "fee_regulatory_filing_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "filing_id" TEXT NOT NULL,
@@ -8458,7 +8458,7 @@ CREATE TABLE "fee_regulatory_filing_lines" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "goods_receipt_lines" (
+CREATE TABLE IF NOT EXISTS "goods_receipt_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "goods_receipt_id" TEXT NOT NULL,
@@ -8475,7 +8475,7 @@ CREATE TABLE "goods_receipt_lines" (
   FOREIGN KEY ("purchase_order_line_id", "institution_id") REFERENCES "purchase_order_lines" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "homework_forum_posts" (
+CREATE TABLE IF NOT EXISTS "homework_forum_posts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "thread_id" TEXT NOT NULL,
@@ -8497,7 +8497,7 @@ CREATE TABLE "homework_forum_posts" (
   FOREIGN KEY ("thread_id") REFERENCES "homework_forum_threads" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "invoice_carry_forwards" (
+CREATE TABLE IF NOT EXISTS "invoice_carry_forwards" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "from_invoice_id" TEXT NOT NULL,
@@ -8512,7 +8512,7 @@ CREATE TABLE "invoice_carry_forwards" (
   FOREIGN KEY ("to_invoice_id") REFERENCES "invoices" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "invoice_lines" (
+CREATE TABLE IF NOT EXISTS "invoice_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "invoice_id" TEXT NOT NULL,
@@ -8526,7 +8526,7 @@ CREATE TABLE "invoice_lines" (
   FOREIGN KEY ("invoice_id") REFERENCES "invoices" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "mark_moderations" (
+CREATE TABLE IF NOT EXISTS "mark_moderations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exam_subject_id" TEXT NOT NULL,
@@ -8540,7 +8540,7 @@ CREATE TABLE "mark_moderations" (
   FOREIGN KEY ("moderated_by") REFERENCES "users" ("id") ON DELETE NO ACTION
 );
 
-CREATE TABLE "marks" (
+CREATE TABLE IF NOT EXISTS "marks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exam_subject_id" TEXT NOT NULL,
@@ -8563,7 +8563,7 @@ CREATE TABLE "marks" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "online_test_questions" (
+CREATE TABLE IF NOT EXISTS "online_test_questions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "test_id" TEXT NOT NULL,
@@ -8577,7 +8577,7 @@ CREATE TABLE "online_test_questions" (
   FOREIGN KEY ("test_id") REFERENCES "online_tests" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "outcome_assessments" (
+CREATE TABLE IF NOT EXISTS "outcome_assessments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "course_outcome_id" TEXT NOT NULL,
@@ -8590,7 +8590,7 @@ CREATE TABLE "outcome_assessments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "parent_forum_posts" (
+CREATE TABLE IF NOT EXISTS "parent_forum_posts" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "thread_id" TEXT NOT NULL,
@@ -8612,7 +8612,7 @@ CREATE TABLE "parent_forum_posts" (
   FOREIGN KEY ("thread_id") REFERENCES "parent_forum_threads" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "payment_allocations" (
+CREATE TABLE IF NOT EXISTS "payment_allocations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "payment_id" TEXT NOT NULL,
@@ -8626,7 +8626,7 @@ CREATE TABLE "payment_allocations" (
   FOREIGN KEY ("payment_id") REFERENCES "payments" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "pos_sales" (
+CREATE TABLE IF NOT EXISTS "pos_sales" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -8662,7 +8662,7 @@ CREATE TABLE "pos_sales" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "question_bank_options" (
+CREATE TABLE IF NOT EXISTS "question_bank_options" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "question_id" TEXT NOT NULL,
@@ -8674,7 +8674,7 @@ CREATE TABLE "question_bank_options" (
   FOREIGN KEY ("question_id") REFERENCES "question_bank_questions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "question_papers" (
+CREATE TABLE IF NOT EXISTS "question_papers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "exam_subject_id" TEXT NOT NULL,
@@ -8695,7 +8695,7 @@ CREATE TABLE "question_papers" (
   FOREIGN KEY ("submitted_by") REFERENCES "users" ("id") ON DELETE NO ACTION
 );
 
-CREATE TABLE "route_stops" (
+CREATE TABLE IF NOT EXISTS "route_stops" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "route_id" TEXT NOT NULL,
@@ -8714,7 +8714,7 @@ CREATE TABLE "route_stops" (
   FOREIGN KEY ("route_id") REFERENCES "routes" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "scholarship_disbursement_lines" (
+CREATE TABLE IF NOT EXISTS "scholarship_disbursement_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "import_id" TEXT NOT NULL,
@@ -8739,7 +8739,7 @@ CREATE TABLE "scholarship_disbursement_lines" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_activities" (
+CREATE TABLE IF NOT EXISTS "student_activities" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -8760,7 +8760,7 @@ CREATE TABLE "student_activities" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "student_support_goal_updates" (
+CREATE TABLE IF NOT EXISTS "student_support_goal_updates" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "goal_id" TEXT NOT NULL,
@@ -8775,7 +8775,7 @@ CREATE TABLE "student_support_goal_updates" (
   FOREIGN KEY ("recorded_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "substitutions" (
+CREATE TABLE IF NOT EXISTS "substitutions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "timetable_entry_id" TEXT NOT NULL,
@@ -8794,7 +8794,7 @@ CREATE TABLE "substitutions" (
   FOREIGN KEY ("timetable_entry_id") REFERENCES "timetable_entries" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_incidents" (
+CREATE TABLE IF NOT EXISTS "transport_incidents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT,
@@ -8818,7 +8818,7 @@ CREATE TABLE "transport_incidents" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "trip_checks" (
+CREATE TABLE IF NOT EXISTS "trip_checks" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT NOT NULL,
@@ -8845,7 +8845,7 @@ CREATE TABLE "trip_checks" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicle_trackers" (
+CREATE TABLE IF NOT EXISTS "vehicle_trackers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT,
@@ -8879,7 +8879,7 @@ CREATE TABLE "vehicle_trackers" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_assessments" (
+CREATE TABLE IF NOT EXISTS "admission_assessments" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "application_id" TEXT NOT NULL,
@@ -8898,7 +8898,7 @@ CREATE TABLE "admission_assessments" (
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "admission_form_fields" (
+CREATE TABLE IF NOT EXISTS "admission_form_fields" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "version_id" TEXT NOT NULL,
@@ -8925,7 +8925,7 @@ CREATE TABLE "admission_form_fields" (
   FOREIGN KEY ("version_id") REFERENCES "admission_form_versions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "application_documents" (
+CREATE TABLE IF NOT EXISTS "application_documents" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "application_id" TEXT NOT NULL,
@@ -8945,7 +8945,7 @@ CREATE TABLE "application_documents" (
   FOREIGN KEY ("verified_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "fee_concessions" (
+CREATE TABLE IF NOT EXISTS "fee_concessions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT,
@@ -8974,7 +8974,7 @@ CREATE TABLE "fee_concessions" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "online_test_responses" (
+CREATE TABLE IF NOT EXISTS "online_test_responses" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "attempt_id" TEXT NOT NULL,
@@ -8990,7 +8990,7 @@ CREATE TABLE "online_test_responses" (
   FOREIGN KEY ("test_question_id") REFERENCES "online_test_questions" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "pos_sale_lines" (
+CREATE TABLE IF NOT EXISTS "pos_sale_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "sale_id" TEXT NOT NULL,
@@ -9013,7 +9013,7 @@ CREATE TABLE "pos_sale_lines" (
   FOREIGN KEY ("variant_id", "institution_id") REFERENCES "store_product_variants" ("id", "institution_id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "substitution_request_periods" (
+CREATE TABLE IF NOT EXISTS "substitution_request_periods" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "request_id" TEXT NOT NULL,
@@ -9030,7 +9030,7 @@ CREATE TABLE "substitution_request_periods" (
   FOREIGN KEY ("timetable_entry_id") REFERENCES "timetable_entries" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_allocations" (
+CREATE TABLE IF NOT EXISTS "transport_allocations" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -9049,7 +9049,7 @@ CREATE TABLE "transport_allocations" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_attendance" (
+CREATE TABLE IF NOT EXISTS "transport_attendance" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "student_id" TEXT NOT NULL,
@@ -9071,7 +9071,7 @@ CREATE TABLE "transport_attendance" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicle_trips" (
+CREATE TABLE IF NOT EXISTS "vehicle_trips" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "vehicle_id" TEXT NOT NULL,
@@ -9093,7 +9093,7 @@ CREATE TABLE "vehicle_trips" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "wallet_transactions" (
+CREATE TABLE IF NOT EXISTS "wallet_transactions" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "campus_id" TEXT,
@@ -9118,7 +9118,7 @@ CREATE TABLE "wallet_transactions" (
   FOREIGN KEY ("wallet_id", "institution_id") REFERENCES "wallet_accounts" ("id", "institution_id") ON DELETE CASCADE
 );
 
-CREATE TABLE "application_form_answers" (
+CREATE TABLE IF NOT EXISTS "application_form_answers" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "application_id" TEXT NOT NULL,
@@ -9139,7 +9139,7 @@ CREATE TABLE "application_form_answers" (
   FOREIGN KEY ("version_id") REFERENCES "admission_form_versions" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "reimbursement_claim_lines" (
+CREATE TABLE IF NOT EXISTS "reimbursement_claim_lines" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "claim_id" TEXT NOT NULL,
@@ -9163,7 +9163,7 @@ CREATE TABLE "reimbursement_claim_lines" (
   FOREIGN KEY ("student_id") REFERENCES "students" ("id") ON DELETE RESTRICT
 );
 
-CREATE TABLE "transport_safety_events" (
+CREATE TABLE IF NOT EXISTS "transport_safety_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "trip_id" TEXT NOT NULL,
@@ -9186,7 +9186,7 @@ CREATE TABLE "transport_safety_events" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "transport_stop_events" (
+CREATE TABLE IF NOT EXISTS "transport_stop_events" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "trip_id" TEXT NOT NULL,
@@ -9203,7 +9203,7 @@ CREATE TABLE "transport_stop_events" (
   FOREIGN KEY ("trip_id") REFERENCES "vehicle_trips" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicle_last_position" (
+CREATE TABLE IF NOT EXISTS "vehicle_last_position" (
   "vehicle_id" TEXT NOT NULL,
   "institution_id" TEXT NOT NULL,
   "trip_id" TEXT,
@@ -9222,7 +9222,7 @@ CREATE TABLE "vehicle_last_position" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "vehicle_positions" (
+CREATE TABLE IF NOT EXISTS "vehicle_positions" (
   "id" INTEGER NOT NULL,
   "institution_id" TEXT NOT NULL,
   "trip_id" TEXT NOT NULL,
@@ -9240,7 +9240,7 @@ CREATE TABLE "vehicle_positions" (
   FOREIGN KEY ("vehicle_id") REFERENCES "vehicles" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sms_gateway_devices" (
+CREATE TABLE IF NOT EXISTS "sms_gateway_devices" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "name" TEXT NOT NULL,
@@ -9275,7 +9275,7 @@ CREATE TABLE "sms_gateway_devices" (
   FOREIGN KEY ("paired_by") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-CREATE TABLE "sms_gateway_dispatch" (
+CREATE TABLE IF NOT EXISTS "sms_gateway_dispatch" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "message_id" TEXT NOT NULL,
@@ -9295,7 +9295,7 @@ CREATE TABLE "sms_gateway_dispatch" (
   FOREIGN KEY ("message_id") REFERENCES "message_log" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "sms_gateway_pair_codes" (
+CREATE TABLE IF NOT EXISTS "sms_gateway_pair_codes" (
   "id" TEXT NOT NULL DEFAULT (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))), 2) || '-' || substr('89ab', 1 + (abs(random()) % 4), 1) || substr(lower(hex(randomblob(2))), 2) || '-' || lower(hex(randomblob(6)))),
   "institution_id" TEXT NOT NULL,
   "code_hash" BLOB NOT NULL,
@@ -9309,826 +9309,826 @@ CREATE TABLE "sms_gateway_pair_codes" (
   FOREIGN KEY ("created_by") REFERENCES "users" ("id") ON DELETE SET NULL,
   FOREIGN KEY ("institution_id") REFERENCES "institutions" ("id") ON DELETE CASCADE
 );
-CREATE INDEX "abc_credit_entries_student" ON "abc_credit_entries" ("institution_id", "student_id");
-CREATE INDEX "absence_followup_section_done_institution_id_idx" ON "absence_followup_section_done" ("institution_id");
-CREATE INDEX "academic_years_institution_id_campus_id_idx" ON "academic_years" ("institution_id", "campus_id");
-CREATE INDEX "achievement_media_gallery" ON "achievement_media" ("achievement_id", "sort_order", "created_at");
-CREATE INDEX "admission_assessments_application_id_idx" ON "admission_assessments" ("application_id");
-CREATE INDEX "admission_assessments_institution_id_scheduled_at_idx" ON "admission_assessments" ("institution_id", "scheduled_at");
-CREATE INDEX "admission_campaign_enrolments_lead" ON "admission_campaign_enrolments" ("enquiry_id");
-CREATE UNIQUE INDEX "admission_campaign_enrolments_once" ON "admission_campaign_enrolments" ("campaign_id", "enquiry_id");
-CREATE UNIQUE INDEX "admission_campaign_sends_once" ON "admission_campaign_sends" ("enrolment_id", "step_id");
-CREATE UNIQUE INDEX "admission_campaign_steps_no_idx" ON "admission_campaign_steps" ("campaign_id", "step_no");
-CREATE INDEX "admission_campaign_steps_order" ON "admission_campaign_steps" ("campaign_id", "offset_days");
-CREATE UNIQUE INDEX "admission_event_bookings_once" ON "admission_event_bookings" ("slot_id", "phone");
-CREATE INDEX "admission_event_bookings_slot" ON "admission_event_bookings" ("slot_id");
-CREATE UNIQUE INDEX "admission_event_slots_time" ON "admission_event_slots" ("event_id", "starts_at");
-CREATE INDEX "admission_form_fields_order" ON "admission_form_fields" ("version_id", "sequence");
-CREATE INDEX "admission_form_fields_section" ON "admission_form_fields" ("section_id", "sequence");
-CREATE INDEX "admission_form_sections_order" ON "admission_form_sections" ("version_id", "sequence");
-CREATE UNIQUE INDEX "admission_form_versions_no" ON "admission_form_versions" ("form_id", "version");
-CREATE UNIQUE INDEX "admission_forms_slug" ON "admission_forms" ("slug");
-CREATE INDEX "admission_sessions_institution_id_campus_id_idx" ON "admission_sessions" ("institution_id", "campus_id");
-CREATE INDEX "alumni_contributions_institution" ON "alumni_contributions" ("institution_id", "received_on");
-CREATE INDEX "alumni_contributions_profile" ON "alumni_contributions" ("alumni_profile_id", "received_on");
-CREATE INDEX "alumni_event_rsvps_institution" ON "alumni_event_rsvps" ("institution_id");
-CREATE INDEX "alumni_job_interests_student" ON "alumni_job_interests" ("institution_id", "student_id");
-CREATE INDEX "alumni_job_posts_board" ON "alumni_job_posts" ("institution_id", "status", "closes_on");
-CREATE UNIQUE INDEX "alumni_profiles_student" ON "alumni_profiles" ("institution_id", "student_id");
-CREATE INDEX "announcement_acks_institution_id_idx" ON "announcement_acks" ("institution_id");
-CREATE INDEX "announcement_sections_institution_id_idx" ON "announcement_sections" ("institution_id");
-CREATE INDEX "announcement_students_student" ON "announcement_students" ("student_id");
-CREATE INDEX "announcements_institution_id_publish_at_idx" ON "announcements" ("institution_id", "publish_at");
-CREATE INDEX "app_events_at_idx" ON "app_events" ("at");
-CREATE INDEX "app_events_institution_id_idx" ON "app_events" ("institution_id", "id");
-CREATE INDEX "application_documents_application_id_idx" ON "application_documents" ("application_id");
-CREATE INDEX "application_documents_institution_id_idx" ON "application_documents" ("institution_id");
-CREATE UNIQUE INDEX "application_form_answers_once" ON "application_form_answers" ("application_id", "field_id");
-CREATE INDEX "application_form_answers_version" ON "application_form_answers" ("version_id");
-CREATE INDEX "applications_campus_id_class_sought_idx" ON "applications" ("campus_id", "class_sought");
-CREATE INDEX "applications_institution_id_status_idx" ON "applications" ("institution_id", "status");
-CREATE INDEX "applications_quota_idx" ON "applications" ("institution_id", "quota", "status");
-CREATE INDEX "appointments_day" ON "appointments" ("institution_id", "on_date", "starts_at");
-CREATE INDEX "appraisal_kpis_by_cycle" ON "appraisal_kpis" ("institution_id", "cycle_id");
-CREATE UNIQUE INDEX "appraisal_ratings_one_per_kpi" ON "appraisal_ratings" ("appraisal_id", "kpi_id");
-CREATE INDEX "appraisals_by_employee" ON "appraisals" ("institution_id", "employee_id");
-CREATE UNIQUE INDEX "appraisals_one_per_employee_per_cycle" ON "appraisals" ("cycle_id", "employee_id");
-CREATE UNIQUE INDEX "attendance_capture_batches_ref_once" ON "attendance_capture_batches" ("institution_id", "client_batch_ref");
-CREATE INDEX "attendance_capture_batches_section" ON "attendance_capture_batches" ("institution_id", "section_id", "on_date");
-CREATE UNIQUE INDEX "attendance_capture_conflicts_once" ON "attendance_capture_conflicts" ("batch_id", "student_id");
-CREATE INDEX "attendance_corrections_institution_id_status_idx" ON "attendance_corrections" ("institution_id", "status");
-CREATE INDEX "audit_log_entity_type_entity_id_idx" ON "audit_log" ("entity_type", "entity_id");
-CREATE INDEX "audit_log_institution_id_created_at_idx" ON "audit_log" ("institution_id", "created_at");
-CREATE INDEX "audit_log_institution_id_id_idx" ON "audit_log" ("institution_id", "id");
-CREATE INDEX "backup_runs_recent" ON "backup_runs" ("institution_id", "started_at");
-CREATE UNIQUE INDEX "bank_reconciliations_one_per_period" ON "bank_reconciliations" ("institution_id", "bank_account_id", "period_start", "period_end");
-CREATE INDEX "bank_statement_imports_recent" ON "bank_statement_imports" ("institution_id", "bank_account_id", "imported_at");
-CREATE INDEX "bank_statement_lines_amount" ON "bank_statement_lines" ("institution_id", "bank_account_id", "amount_paise", "txn_date");
-CREATE UNIQUE INDEX "bank_statement_lines_once" ON "bank_statement_lines" ("institution_id", "bank_account_id", "line_hash");
-CREATE INDEX "biometric_devices_institution" ON "biometric_devices" ("institution_id");
-CREATE INDEX "biometric_punches_day" ON "biometric_punches" ("institution_id", "punched_at");
-CREATE UNIQUE INDEX "biometric_punches_once" ON "biometric_punches" ("device_id", "device_user_id", "punched_at");
-CREATE INDEX "board_registration_amendments_by_registration" ON "board_registration_amendments" ("institution_id", "registration_id", "requested_at");
-CREATE INDEX "board_registrations_roll" ON "board_registrations" ("institution_id", "academic_year_id", "stage", "status");
-CREATE INDEX "board_result_imports_recent" ON "board_result_imports" ("institution_id", "academic_year_id", "imported_at");
-CREATE INDEX "cafeteria_purchase_items_receipt" ON "cafeteria_purchase_items" ("purchase_id");
-CREATE INDEX "cafeteria_purchases_child_day" ON "cafeteria_purchases" ("student_id", "purchased_at");
-CREATE INDEX "cafeteria_purchases_day" ON "cafeteria_purchases" ("institution_id", "purchased_at");
-CREATE INDEX "call_log_day" ON "call_log" ("institution_id", "at_time");
-CREATE UNIQUE INDEX "campus_entry_passes_serial_unique" ON "campus_entry_passes" ("institution_id", "serial");
-CREATE INDEX "campuses_institution_id_idx" ON "campuses" ("institution_id");
-CREATE INDEX "cce_formative_entries_subject" ON "cce_formative_entries" ("institution_id", "class_subject_id", "cycle");
-CREATE INDEX "child_info_imports_recent" ON "child_info_imports" ("institution_id", "imported_at");
-CREATE INDEX "child_info_rows_by_child_id" ON "child_info_rows" ("institution_id", "import_id", "child_info_id");
-CREATE UNIQUE INDEX "child_info_rows_one_per_line" ON "child_info_rows" ("import_id", "line_no");
-CREATE INDEX "child_info_sync_runs_recent" ON "child_info_sync_runs" ("connector_id", "started_at");
-CREATE INDEX "class_diary_entries_section" ON "class_diary_entries" ("institution_id", "section_id", "on_date");
-CREATE UNIQUE INDEX "class_language_options_once" ON "class_language_options" ("class_subject_id", "slot");
-CREATE INDEX "class_subjects_institution_id_idx" ON "class_subjects" ("institution_id");
-CREATE INDEX "classes_bell_idx" ON "classes" ("bell_schedule_id");
-CREATE INDEX "classes_institution_id_campus_id_level_idx" ON "classes" ("institution_id", "campus_id", "level");
-CREATE UNIQUE INDEX "clearance_departments_code" ON "clearance_departments" ("institution_id", "code");
-CREATE UNIQUE INDEX "club_event_tickets_code" ON "club_event_tickets" ("institution_id", "code");
-CREATE INDEX "club_events_upcoming" ON "club_events" ("institution_id", "campus_id", "starts_at");
-CREATE INDEX "co_po_map_institution" ON "co_po_map" ("institution_id");
-CREATE INDEX "co_scholastic_grades_by_student" ON "co_scholastic_grades" ("student_id");
-CREATE UNIQUE INDEX "contractor_bills_one_per_vendor_period" ON "contractor_bills" ("institution_id", "vendor", "service", "period_year", "period_month");
-CREATE INDEX "council_duties_institution" ON "council_duties" ("institution_id");
-CREATE INDEX "council_duties_member" ON "council_duties" ("member_id", "on_date");
-CREATE INDEX "council_members_institution" ON "council_members" ("institution_id");
-CREATE INDEX "council_members_student" ON "council_members" ("student_id");
-CREATE INDEX "council_positions_institution" ON "council_positions" ("institution_id");
-CREATE INDEX "counselor_access_events_actor" ON "counselor_access_events" ("institution_id", "actor_id", "created_at");
-CREATE INDEX "counselor_access_events_thread" ON "counselor_access_events" ("thread_id", "created_at");
-CREATE INDEX "counselor_messages_inst_time_idx" ON "counselor_messages" ("institution_id", "created_at");
-CREATE INDEX "counselor_messages_thread" ON "counselor_messages" ("thread_id", "created_at");
-CREATE INDEX "counselor_threads_student" ON "counselor_threads" ("institution_id", "student_id", "created_at");
-CREATE INDEX "courier_log_day" ON "courier_log" ("institution_id", "on_date");
-CREATE INDEX "course_outcomes_institution" ON "course_outcomes" ("institution_id");
-CREATE UNIQUE INDEX "crm_field_mappings_one_per_field" ON "crm_field_mappings" ("institution_id", "local_field");
-CREATE UNIQUE INDEX "crm_lead_links_one_per_enquiry" ON "crm_lead_links" ("institution_id", "provider", "enquiry_id");
-CREATE UNIQUE INDEX "crm_lead_links_one_per_external" ON "crm_lead_links" ("institution_id", "provider", "external_id");
-CREATE INDEX "crm_sync_run_items_by_run" ON "crm_sync_run_items" ("run_id", "action");
-CREATE INDEX "crm_sync_runs_recent" ON "crm_sync_runs" ("institution_id", "started_at");
-CREATE UNIQUE INDEX "depreciation_charges_once_per_year" ON "depreciation_charges" ("asset_id", "fy_start_year");
-CREATE INDEX "device_staff_sessions_by_user" ON "device_staff_sessions" ("institution_id", "user_id", "started_at");
-CREATE INDEX "digital_holding_opens_by_holding" ON "digital_holding_opens" ("holding_id", "opened_at");
-CREATE INDEX "digital_holding_opens_by_month" ON "digital_holding_opens" ("institution_id", "opened_at");
-CREATE INDEX "discipline_records_institution_id_idx" ON "discipline_records" ("institution_id");
-CREATE INDEX "discipline_records_recent" ON "discipline_records" ("institution_id", "occurred_on");
-CREATE INDEX "discipline_records_student" ON "discipline_records" ("student_id", "occurred_on");
-CREATE INDEX "discipline_records_student_id_occurred_on_idx" ON "discipline_records" ("student_id", "occurred_on");
-CREATE INDEX "driver_notices_by_vehicle" ON "driver_notices" ("vehicle_id", "sent_at");
-CREATE INDEX "duty_assignments_by_date" ON "duty_assignments" ("institution_id", "on_date");
-CREATE INDEX "duty_assignments_by_person" ON "duty_assignments" ("institution_id", "user_id", "on_date");
-CREATE INDEX "duty_assignments_by_shift" ON "duty_assignments" ("shift_id", "on_date");
-CREATE INDEX "education_loan_applications_open" ON "education_loan_applications" ("institution_id", "status", "status_changed_on");
-CREATE INDEX "education_loan_events_by_application" ON "education_loan_events" ("application_id", "happened_at");
-CREATE INDEX "email_changes_user_idx" ON "email_changes" ("user_id", "created_at");
-CREATE INDEX "emergency_pickup_child" ON "emergency_pickup_authorisations" ("student_id", "valid_on");
-CREATE UNIQUE INDEX "emergency_pickup_code" ON "emergency_pickup_authorisations" ("institution_id", "code");
-CREATE INDEX "employee_documents_employee_id_idx" ON "employee_documents" ("employee_id");
-CREATE INDEX "employee_documents_institution_id_idx" ON "employee_documents" ("institution_id");
-CREATE UNIQUE INDEX "employee_tax_elections_one_per_year" ON "employee_tax_elections" ("employee_id", "fy_start_year");
-CREATE INDEX "employee_year_history_employee_idx" ON "employee_year_history" ("employee_id");
-CREATE INDEX "employees_institution_id_campus_id_status_idx" ON "employees" ("institution_id", "campus_id", "status");
-CREATE INDEX "employees_user_id_idx" ON "employees" ("user_id");
-CREATE INDEX "employees_work_pattern_idx" ON "employees" ("work_pattern_id");
-CREATE INDEX "enquiries_assigned" ON "enquiries" ("institution_id", "assigned_to", "status");
-CREATE INDEX "enquiries_institution_id_status_next_follow_up_idx" ON "enquiries" ("institution_id", "status", "next_follow_up");
-CREATE INDEX "enquiries_phone_idx" ON "enquiries" ("phone");
-CREATE INDEX "enquiries_source" ON "enquiries" ("institution_id", "source");
-CREATE INDEX "enrollments_institution_id_academic_year_id_idx" ON "enrollments" ("institution_id", "academic_year_id");
-CREATE INDEX "enrollments_section_id_status_idx" ON "enrollments" ("section_id", "status");
-CREATE UNIQUE INDEX "evaluation_answers_one_per_question" ON "evaluation_answers" ("response_id", "question_id");
-CREATE INDEX "evaluation_answers_question" ON "evaluation_answers" ("institution_id", "question_id");
-CREATE UNIQUE INDEX "evaluation_questions_seq_unique" ON "evaluation_questions" ("cycle_id", "seq");
-CREATE INDEX "evaluation_responses_reviewee" ON "evaluation_responses" ("reviewee_id", "relation");
-CREATE INDEX "evaluation_reviewees_cycle" ON "evaluation_reviewees" ("institution_id", "cycle_id");
-CREATE UNIQUE INDEX "evaluation_reviewees_one_per_cycle" ON "evaluation_reviewees" ("cycle_id", "employee_id");
-CREATE INDEX "event_media_album" ON "event_media" ("institution_id", "event_id", "sort_order", "created_at");
-CREATE UNIQUE INDEX "event_media_one_per_file" ON "event_media" ("event_id", "file_id");
-CREATE INDEX "event_seat_passes_child" ON "event_seat_passes" ("student_id", "issued_at");
-CREATE UNIQUE INDEX "event_seat_passes_code" ON "event_seat_passes" ("institution_id", "code");
-CREATE INDEX "exam_seats_hall" ON "exam_seats" ("exam_id", "hall_id");
-CREATE UNIQUE INDEX "exam_seats_one_per_candidate" ON "exam_seats" ("exam_id", "student_id");
-CREATE UNIQUE INDEX "exam_seats_one_per_desk" ON "exam_seats" ("exam_id", "hall_id", "row_no", "col_no");
-CREATE UNIQUE INDEX "exam_seats_ticket" ON "exam_seats" ("institution_id", "exam_id", "ticket_no");
-CREATE INDEX "exam_subjects_institution_id_idx" ON "exam_subjects" ("institution_id");
-CREATE INDEX "exams_institution_id_academic_year_id_idx" ON "exams" ("institution_id", "academic_year_id");
-CREATE UNIQUE INDEX "exit_clearances_one_per_department" ON "exit_clearances" ("exit_id", "department_id");
-CREATE INDEX "fee_concessions_institution_id_idx" ON "fee_concessions" ("institution_id");
-CREATE INDEX "fee_concessions_live_idx" ON "fee_concessions" ("institution_id", "decided_at");
-CREATE INDEX "fee_concessions_student_id_academic_year_id_idx" ON "fee_concessions" ("student_id", "academic_year_id");
-CREATE INDEX "fee_fine_charges_invoice" ON "fee_fine_charges" ("institution_id", "invoice_id", "applied_at");
-CREATE INDEX "fee_fine_rules_institution" ON "fee_fine_rules" ("institution_id", "is_active");
-CREATE INDEX "fee_regulatory_filing_documents_filing" ON "fee_regulatory_filing_documents" ("institution_id", "filing_id");
-CREATE UNIQUE INDEX "fee_regulatory_filing_documents_once" ON "fee_regulatory_filing_documents" ("filing_id", "file_id");
-CREATE INDEX "fee_regulatory_filing_lines_filing" ON "fee_regulatory_filing_lines" ("institution_id", "filing_id");
-CREATE INDEX "fee_structure_items_institution_id_idx" ON "fee_structure_items" ("institution_id");
-CREATE UNIQUE INDEX "fee_structure_version_items_line" ON "fee_structure_version_items" ("version_id", "fee_head_id", "instalment_no");
-CREATE INDEX "fee_structure_version_items_version" ON "fee_structure_version_items" ("institution_id", "version_id");
-CREATE INDEX "fee_structure_versions_lookup" ON "fee_structure_versions" ("institution_id", "fee_structure_id", "effective_from");
-CREATE UNIQUE INDEX "fee_structure_versions_no" ON "fee_structure_versions" ("fee_structure_id", "version_no");
-CREATE INDEX "fee_structures_institution_id_academic_year_id_class_id_idx" ON "fee_structures" ("institution_id", "academic_year_id", "class_id");
-CREATE INDEX "files_institution_id_owner_type_owner_id_idx" ON "files" ("institution_id", "owner_type", "owner_id");
-CREATE INDEX "fixed_assets_category" ON "fixed_assets" ("institution_id", "category");
-CREATE UNIQUE INDEX "fixed_assets_tag" ON "fixed_assets" ("institution_id", "tag_no");
-CREATE INDEX "franchise_members_franchise" ON "franchise_members" ("franchise_id");
-CREATE UNIQUE INDEX "goods_receipt_lines_one_per_line" ON "goods_receipt_lines" ("goods_receipt_id", "purchase_order_line_id");
-CREATE INDEX "goods_receipt_lines_po_line" ON "goods_receipt_lines" ("institution_id", "purchase_order_line_id");
-CREATE INDEX "goods_receipts_po" ON "goods_receipts" ("institution_id", "purchase_order_id");
-CREATE INDEX "grade_bands_grading_scale_id_idx" ON "grade_bands" ("grading_scale_id");
-CREATE INDEX "grade_bands_institution_id_idx" ON "grade_bands" ("institution_id");
-CREATE INDEX "grant_expenditures_by_sanction" ON "grant_expenditures" ("sanction_id", "spent_on");
-CREATE INDEX "grant_receipts_by_sanction" ON "grant_receipts" ("sanction_id", "received_on");
-CREATE INDEX "grant_sanctions_by_year" ON "grant_sanctions" ("institution_id", "fy_start_year", "head_id");
-CREATE UNIQUE INDEX "grant_uc_lines_one_per_sanction" ON "grant_utilisation_certificate_lines" ("certificate_id", "sanction_id");
-CREATE INDEX "grant_uc_by_year" ON "grant_utilisation_certificates" ("institution_id", "fy_start_year");
-CREATE INDEX "grievance_updates_timeline" ON "grievance_updates" ("ticket_id", "created_at");
-CREATE INDEX "guardians_institution_id_idx" ON "guardians" ("institution_id");
-CREATE INDEX "guardians_user_id_idx" ON "guardians" ("user_id");
-CREATE UNIQUE INDEX "health_camp_attendance_once" ON "health_camp_attendance" ("camp_id", "student_id");
-CREATE INDEX "health_camps_recent" ON "health_camps" ("institution_id", "on_date");
-CREATE UNIQUE INDEX "health_checkups_one_per_year" ON "health_checkups" ("institution_id", "student_id", "academic_year_id");
-CREATE INDEX "health_checkups_year" ON "health_checkups" ("institution_id", "academic_year_id", "on_date");
-CREATE INDEX "holidays_institution_id_on_date_idx" ON "holidays" ("institution_id", "on_date");
-CREATE INDEX "homework_institution_id_assigned_on_idx" ON "homework" ("institution_id", "assigned_on");
-CREATE INDEX "homework_live_idx" ON "homework" ("institution_id", "updated_at");
-CREATE INDEX "homework_section_id_due_on_idx" ON "homework" ("section_id", "due_on");
-CREATE INDEX "homework_attachments_homework_id_idx" ON "homework_attachments" ("homework_id");
-CREATE INDEX "homework_attachments_institution_id_idx" ON "homework_attachments" ("institution_id");
-CREATE INDEX "homework_forum_posts_thread" ON "homework_forum_posts" ("institution_id", "thread_id", "created_at");
-CREATE INDEX "homework_forum_threads_homework" ON "homework_forum_threads" ("institution_id", "homework_id", "created_at");
-CREATE INDEX "homework_forum_threads_section" ON "homework_forum_threads" ("institution_id", "section_id", "status", "created_at");
-CREATE INDEX "homework_submissions_institution_id_idx" ON "homework_submissions" ("institution_id");
-CREATE INDEX "homework_submissions_student_id_status_idx" ON "homework_submissions" ("student_id", "status");
-CREATE UNIQUE INDEX "hostel_laundry_token_per_day" ON "hostel_laundry" ("institution_id", "token_no", "sent_on");
-CREATE INDEX "hostel_outpasses_student" ON "hostel_outpasses" ("student_id", "created_at");
-CREATE INDEX "hostel_visits_student" ON "hostel_visits" ("student_id", "created_at");
-CREATE INDEX "hpc_observations_student" ON "hpc_observations" ("student_id", "term_id");
-CREATE INDEX "idempotency_keys_created_idx" ON "idempotency_keys" ("created_at");
-CREATE INDEX "impersonation_grants_school" ON "impersonation_grants" ("institution_id", "started_at");
-CREATE INDEX "import_run_rows_run" ON "import_run_rows" ("run_id");
-CREATE INDEX "import_runs_recent" ON "import_runs" ("institution_id", "entity", "created_at");
-CREATE INDEX "infirmary_visits_day" ON "infirmary_visits" ("institution_id", "on_date", "arrived_at");
-CREATE INDEX "infirmary_visits_student" ON "infirmary_visits" ("student_id", "arrived_at");
-CREATE INDEX "investment_declarations_employee" ON "investment_declarations" ("employee_id", "fy_start_year");
-CREATE UNIQUE INDEX "invoice_carry_forwards_once" ON "invoice_carry_forwards" ("from_invoice_id");
-CREATE INDEX "invoice_carry_forwards_to" ON "invoice_carry_forwards" ("institution_id", "to_invoice_id");
-CREATE INDEX "invoice_lines_fee_head" ON "invoice_lines" ("fee_head_id");
-CREATE INDEX "invoice_lines_institution_id_idx" ON "invoice_lines" ("institution_id");
-CREATE INDEX "invoice_lines_invoice_id_idx" ON "invoice_lines" ("invoice_id");
-CREATE INDEX "invoices_academic_year" ON "invoices" ("academic_year_id");
-CREATE INDEX "invoices_campus" ON "invoices" ("campus_id");
-CREATE INDEX "invoices_institution_id_status_due_on_idx" ON "invoices" ("institution_id", "status", "due_on");
-CREATE INDEX "invoices_live_idx" ON "invoices" ("institution_id", "updated_at");
-CREATE INDEX "invoices_student_id_academic_year_id_idx" ON "invoices" ("student_id", "academic_year_id");
-CREATE INDEX "issued_certificates_institution_id_status_idx" ON "issued_certificates" ("institution_id", "status");
-CREATE INDEX "issued_certificates_student_id_idx" ON "issued_certificates" ("student_id");
-CREATE INDEX "job_candidate_events_by_candidate" ON "job_candidate_events" ("candidate_id", "occurred_at");
-CREATE INDEX "job_candidates_by_stage" ON "job_candidates" ("institution_id", "vacancy_id", "stage");
-CREATE INDEX "job_interviews_by_candidate" ON "job_interviews" ("candidate_id", "scheduled_at");
-CREATE INDEX "job_offers_by_institution" ON "job_offers" ("institution_id", "status");
-CREATE INDEX "job_vacancies_by_status" ON "job_vacancies" ("institution_id", "status");
-CREATE INDEX "journal_entries_by_date" ON "journal_entries" ("institution_id", "entry_date");
-CREATE INDEX "journal_entries_by_year" ON "journal_entries" ("institution_id", "fy_start_year");
-CREATE INDEX "journal_lines_account" ON "journal_lines" ("institution_id", "account_id");
-CREATE INDEX "journal_lines_entry" ON "journal_lines" ("entry_id");
-CREATE INDEX "leave_balances_institution_id_idx" ON "leave_balances" ("institution_id");
-CREATE INDEX "leave_policy_rules_institution" ON "leave_policy_rules" ("institution_id");
-CREATE INDEX "leave_requests_employee_id_from_date_idx" ON "leave_requests" ("employee_id", "from_date");
-CREATE INDEX "leave_requests_institution_id_status_idx" ON "leave_requests" ("institution_id", "status");
-CREATE INDEX "leave_requests_student_id_from_date_idx" ON "leave_requests" ("student_id", "from_date");
-CREATE UNIQUE INDEX "ledger_accounts_code" ON "ledger_accounts" ("institution_id", "code");
-CREATE INDEX "ledger_accounts_parent" ON "ledger_accounts" ("institution_id", "parent_id");
-CREATE UNIQUE INDEX "lesson_plans_one_per_week" ON "lesson_plans" ("section_id", "class_subject_id", "week_of");
-CREATE INDEX "library_copies_title_id_status_idx" ON "library_copies" ("title_id", "status");
-CREATE INDEX "library_loans_student_id_idx" ON "library_loans" ("student_id");
-CREATE INDEX "library_titles_institution_id_campus_id_idx" ON "library_titles" ("institution_id", "campus_id");
-CREATE INDEX "library_titles_isbn_idx" ON "library_titles" ("isbn");
-CREATE UNIQUE INDEX "loan_deductions_one_per_period" ON "loan_deductions" ("loan_id", "period_year", "period_month");
-CREATE INDEX "loc_candidates_by_submission" ON "loc_candidates" ("institution_id", "submission_id", "serial_no");
-CREATE UNIQUE INDEX "loc_candidates_serial_unique" ON "loc_candidates" ("submission_id", "serial_no");
-CREATE INDEX "loc_subject_options_by_group" ON "loc_subject_options" ("institution_id", "group_id", "sequence");
-CREATE INDEX "loc_submissions_recent" ON "loc_submissions" ("institution_id", "academic_year_id", "created_at");
-CREATE INDEX "loc_validation_issues_by_submission" ON "loc_validation_issues" ("institution_id", "submission_id", "severity");
-CREATE INDEX "locker_access_events_locker" ON "locker_access_events" ("locker_id", "happened_at");
-CREATE INDEX "login_events_identifier_idx" ON "login_events" ("identifier", "created_at");
-CREATE INDEX "login_events_inst_idx" ON "login_events" ("institution_id", "created_at");
-CREATE INDEX "login_events_user_idx" ON "login_events" ("user_id", "created_at");
-CREATE INDEX "lost_found_claims_item" ON "lost_found_claims" ("institution_id", "item_id", "created_at");
-CREATE INDEX "lost_found_claims_mine" ON "lost_found_claims" ("institution_id", "claimant_student_id", "created_at");
-CREATE INDEX "lost_found_items_board" ON "lost_found_items" ("institution_id", "campus_id", "status", "on_date");
-CREATE UNIQUE INDEX "mark_moderations_one_per_subject" ON "mark_moderations" ("exam_subject_id");
-CREATE INDEX "marks_approved_by" ON "marks" ("approved_by");
-CREATE INDEX "marks_entered_by" ON "marks" ("entered_by");
-CREATE INDEX "marks_institution_id_exam_subject_id_idx" ON "marks" ("institution_id", "exam_subject_id");
-CREATE INDEX "marks_live_idx" ON "marks" ("institution_id", "entered_at");
-CREATE INDEX "marks_student_id_idx" ON "marks" ("student_id");
-CREATE INDEX "mdm_foodgrain_receipts_period" ON "mdm_foodgrain_receipts" ("institution_id", "lifted_on");
-CREATE UNIQUE INDEX "mdm_norms_one_per_stage_date" ON "mdm_norms" ("institution_id", "stage", "effective_from");
-CREATE INDEX "mdm_register_amendments_by_register" ON "mdm_register_amendments" ("register_id", "amended_at");
-CREATE UNIQUE INDEX "mdm_register_lines_one_per_section" ON "mdm_register_lines" ("register_id", "section_id");
-CREATE INDEX "mdm_registers_by_date" ON "mdm_registers" ("institution_id", "on_date");
-CREATE INDEX "medical_fitness_expiring" ON "medical_fitness_certificates" ("institution_id", "valid_until");
-CREATE UNIQUE INDEX "medical_fitness_one_per_examination" ON "medical_fitness_certificates" ("employee_id", "purpose", "issued_on");
-CREATE INDEX "medication_administrations_day" ON "medication_administrations" ("institution_id", "administered_at");
-CREATE INDEX "medication_administrations_student" ON "medication_administrations" ("student_id", "administered_at");
-CREATE UNIQUE INDEX "mess_menus_one_per_meal" ON "mess_menus" ("institution_id", "on_date", "meal");
-CREATE INDEX "message_attachments_message_log_id_idx" ON "message_attachments" ("message_log_id");
-CREATE INDEX "message_credit_entries_inst_idx" ON "message_credit_entries" ("institution_id", "channel", "created_at");
-CREATE INDEX "message_log_institution_id_queued_at_idx" ON "message_log" ("institution_id", "queued_at");
-CREATE INDEX "message_log_student_id_idx" ON "message_log" ("student_id");
-CREATE UNIQUE INDEX "messaging_allowed_recipients_one_per_value" ON "messaging_allowed_recipients" ("institution_id", "kind", "normalised");
-CREATE UNIQUE INDEX "montessori_progress_once_per_day" ON "montessori_progress" ("student_id", "material_id", "stage", "observed_on");
-CREATE INDEX "montessori_progress_student" ON "montessori_progress" ("institution_id", "student_id", "observed_on");
-CREATE UNIQUE INDEX "night_study_attendance_once" ON "night_study_attendance" ("institution_id", "student_id", "on_date", "session");
-CREATE INDEX "notifications_feed" ON "notifications" ("institution_id", "user_id", "created_at");
-CREATE INDEX "notifications_institution_id_idx" ON "notifications" ("institution_id");
-CREATE INDEX "notifications_user_id_read_at_created_at_idx" ON "notifications" ("user_id", "read_at", "created_at");
-CREATE UNIQUE INDEX "online_test_attempts_once" ON "online_test_attempts" ("test_id", "student_id", "attempt_no");
-CREATE INDEX "online_test_attempts_test" ON "online_test_attempts" ("institution_id", "test_id", "status");
-CREATE UNIQUE INDEX "online_test_questions_once" ON "online_test_questions" ("test_id", "question_id");
-CREATE UNIQUE INDEX "online_test_questions_order" ON "online_test_questions" ("test_id", "sequence");
-CREATE UNIQUE INDEX "online_test_responses_once" ON "online_test_responses" ("attempt_id", "test_question_id");
-CREATE INDEX "online_test_responses_question" ON "online_test_responses" ("test_question_id", "is_correct");
-CREATE INDEX "online_tests_section" ON "online_tests" ("institution_id", "section_id", "status", "opens_at");
-CREATE INDEX "outcome_assessments_institution" ON "outcome_assessments" ("institution_id");
-CREATE INDEX "parent_forum_posts_author_day" ON "parent_forum_posts" ("institution_id", "author_user_id", "posted_on");
-CREATE INDEX "parent_forum_posts_thread" ON "parent_forum_posts" ("institution_id", "thread_id", "created_at");
-CREATE INDEX "parent_forum_reports_content" ON "parent_forum_reports" ("institution_id", "content_kind", "content_id", "created_at");
-CREATE INDEX "parent_forum_threads_author_day" ON "parent_forum_threads" ("institution_id", "author_user_id", "posted_on");
-CREATE INDEX "parent_forum_threads_board" ON "parent_forum_threads" ("institution_id", "section_id", "status", "last_activity_at");
-CREATE INDEX "parent_teacher_messages_inst_time_idx" ON "parent_teacher_messages" ("institution_id", "sent_at");
-CREATE INDEX "parent_teacher_messages_thread" ON "parent_teacher_messages" ("institution_id", "student_id", "parent_user_id", "teacher_user_id", "sent_at");
-CREATE INDEX "parent_teacher_messages_thread_time_idx" ON "parent_teacher_messages" ("student_id", "parent_user_id", "teacher_user_id", "sent_at");
-CREATE INDEX "password_resets_user_idx" ON "password_resets" ("user_id", "created_at");
-CREATE INDEX "payment_allocations_institution_id_idx" ON "payment_allocations" ("institution_id");
-CREATE INDEX "payment_allocations_invoice" ON "payment_allocations" ("invoice_id");
-CREATE INDEX "payment_allocations_invoice_id_idx" ON "payment_allocations" ("invoice_id");
-CREATE INDEX "payments_campus" ON "payments" ("campus_id");
-CREATE INDEX "payments_collected_by" ON "payments" ("collected_by");
-CREATE INDEX "payments_institution_id_paid_on_status_idx" ON "payments" ("institution_id", "paid_on", "status");
-CREATE INDEX "payments_reconciled_by" ON "payments" ("reconciled_by");
-CREATE INDEX "payments_student_id_paid_on_idx" ON "payments" ("student_id", "paid_on");
-CREATE INDEX "payout_items_batch" ON "payout_items" ("batch_id");
-CREATE UNIQUE INDEX "periods_schedule_sequence" ON "periods" ("bell_schedule_id", "sequence");
-CREATE INDEX "petty_cash_counts_inst" ON "petty_cash_counts" ("institution_id", "counted_on");
-CREATE INDEX "petty_cash_topups_inst" ON "petty_cash_topups" ("institution_id", "topup_date");
-CREATE INDEX "petty_cash_by_date" ON "petty_cash_vouchers" ("institution_id", "voucher_date");
-CREATE UNIQUE INDEX "petty_cash_voucher_no" ON "petty_cash_vouchers" ("institution_id", "voucher_no");
-CREATE INDEX "platform_events_recent_idx" ON "platform_events" ("at");
-CREATE UNIQUE INDEX "pos_sale_lines_one_per_no" ON "pos_sale_lines" ("sale_id", "line_no");
-CREATE INDEX "pos_sales_by_day" ON "pos_sales" ("institution_id", "channel", "sold_on");
-CREATE INDEX "pos_sales_by_session" ON "pos_sales" ("session_id", "sold_at");
-CREATE INDEX "pos_till_sessions_by_person" ON "pos_till_sessions" ("institution_id", "opened_by", "opened_at");
-CREATE INDEX "pos_till_sessions_recent" ON "pos_till_sessions" ("institution_id", "opened_at");
-CREATE INDEX "prospectus_sales_day" ON "prospectus_sales" ("institution_id", "on_date");
-CREATE UNIQUE INDEX "prospectus_sales_receipt" ON "prospectus_sales" ("institution_id", "receipt_no");
-CREATE INDEX "pt_slabs_lookup" ON "pt_slabs" ("institution_id", "state", "from_paise");
-CREATE INDEX "ptm_notes_section" ON "ptm_notes" ("section_id", "met_on");
-CREATE UNIQUE INDEX "ptm_slots_one_per_time" ON "ptm_slots" ("institution_id", "employee_id", "on_date", "starts_at");
-CREATE INDEX "purchase_enquiries_stage" ON "purchase_enquiries" ("status", "next_follow_up");
-CREATE INDEX "purchase_enquiry_notes_enquiry" ON "purchase_enquiry_notes" ("enquiry_id", "created_at");
-CREATE UNIQUE INDEX "purchase_invoice_matches_one_per_bill" ON "purchase_invoice_matches" ("institution_id", "vendor_bill_id");
-CREATE INDEX "purchase_invoice_matches_po" ON "purchase_invoice_matches" ("institution_id", "purchase_order_id");
-CREATE UNIQUE INDEX "purchase_order_lines_no" ON "purchase_order_lines" ("purchase_order_id", "line_no");
-CREATE INDEX "purchase_order_lines_po" ON "purchase_order_lines" ("institution_id", "purchase_order_id");
-CREATE INDEX "purchase_orders_vendor" ON "purchase_orders" ("institution_id", "vendor_id");
-CREATE UNIQUE INDEX "purchase_requisition_lines_no" ON "purchase_requisition_lines" ("requisition_id", "line_no");
-CREATE INDEX "purchase_requisition_lines_req" ON "purchase_requisition_lines" ("institution_id", "requisition_id");
-CREATE INDEX "push_tokens_user_id_idx" ON "push_tokens" ("user_id");
-CREATE UNIQUE INDEX "question_bank_options_order" ON "question_bank_options" ("question_id", "sequence");
-CREATE INDEX "question_bank_questions_subject" ON "question_bank_questions" ("institution_id", "class_subject_id", "is_active");
-CREATE UNIQUE INDEX "question_papers_one_per_subject" ON "question_papers" ("exam_subject_id");
-CREATE INDEX "question_papers_queue" ON "question_papers" ("institution_id", "status", "submitted_at");
-CREATE INDEX "rate_limit_hits_scope_subject_hit_at_idx" ON "rate_limit_hits" ("scope", "subject", "hit_at");
-CREATE INDEX "refunds_institution_id_status_idx" ON "refunds" ("institution_id", "status");
-CREATE INDEX "refunds_student_id_idx" ON "refunds" ("student_id");
-CREATE INDEX "reimbursement_claim_lines_by_student" ON "reimbursement_claim_lines" ("institution_id", "student_id");
-CREATE UNIQUE INDEX "reimbursement_claim_lines_one_per_child" ON "reimbursement_claim_lines" ("claim_id", "student_id");
-CREATE UNIQUE INDEX "reimbursement_claims_one_per_period" ON "reimbursement_claims" ("institution_id", "scheme_id", "academic_year_id", "period_start", "period_end");
-CREATE UNIQUE INDEX "reimbursement_rates_one_per_band" ON "reimbursement_rates" ("institution_id", "scheme_id", "academic_year_id", "from_level", "to_level");
-CREATE INDEX "reimbursement_receipts_by_claim" ON "reimbursement_receipts" ("claim_id", "received_on");
-CREATE INDEX "report_cards_exam_idx" ON "report_cards" ("exam_id");
-CREATE INDEX "report_cards_institution_id_academic_year_id_idx" ON "report_cards" ("institution_id", "academic_year_id");
-CREATE INDEX "report_definitions_subject" ON "report_definitions" ("institution_id", "subject");
-CREATE INDEX "report_runs_recent" ON "report_runs" ("report_id", "ran_at");
-CREATE INDEX "rollover_log_institution" ON "rollover_log" ("institution_id", "target_year_id");
-CREATE INDEX "room_inventory_checks_room" ON "room_inventory_checks" ("room_id", "on_date");
-CREATE INDEX "route_stops_institution_id_idx" ON "route_stops" ("institution_id");
-CREATE INDEX "scholarship_awards_by_stage" ON "scholarship_awards" ("institution_id", "academic_year_id", "stage");
-CREATE UNIQUE INDEX "scholarship_awards_one_per_child" ON "scholarship_awards" ("institution_id", "scheme_id", "student_id", "academic_year_id");
-CREATE INDEX "scholarship_disbursement_imports_recent" ON "scholarship_disbursement_imports" ("institution_id", "scheme_id", "imported_at");
-CREATE UNIQUE INDEX "scholarship_disbursement_lines_one_per_row" ON "scholarship_disbursement_lines" ("import_id", "line_no");
-CREATE INDEX "section_subject_teachers_institution_id_idx" ON "section_subject_teachers" ("institution_id");
-CREATE INDEX "section_subject_teachers_teacher_user_id_idx" ON "section_subject_teachers" ("teacher_user_id");
-CREATE INDEX "sections_bell_idx" ON "sections" ("bell_schedule_id");
-CREATE INDEX "sections_class_teacher_id_idx" ON "sections" ("class_teacher_id");
-CREATE INDEX "sections_institution_id_academic_year_id_idx" ON "sections" ("institution_id", "academic_year_id");
-CREATE INDEX "service_book_entries_employee" ON "service_book_entries" ("employee_id", "event_date", "created_at");
-CREATE INDEX "session_screens_user_idx" ON "session_screens" ("user_id", "last_at");
-CREATE INDEX "signup_orders_created_idx" ON "signup_orders" ("created_at");
-CREATE INDEX "signup_orders_status_idx" ON "signup_orders" ("status");
-CREATE UNIQUE INDEX "sms_gateway_devices_one_per_pair_code" ON "sms_gateway_devices" ("pair_code_id");
-CREATE INDEX "sms_gateway_dispatch_by_device" ON "sms_gateway_dispatch" ("institution_id", "device_id", "completed_at");
-CREATE INDEX "sms_gateway_dispatch_claimable" ON "sms_gateway_dispatch" ("institution_id", "state", "lease_expires_at");
-CREATE UNIQUE INDEX "sms_gateway_dispatch_one_per_message" ON "sms_gateway_dispatch" ("message_id");
-CREATE UNIQUE INDEX "sms_gateway_pair_codes_by_hash" ON "sms_gateway_pair_codes" ("code_hash");
-CREATE INDEX "sqaa_action_items_by_assessment" ON "sqaa_action_items" ("institution_id", "assessment_id");
-CREATE INDEX "sqaa_assessment_entries_by_assessment" ON "sqaa_assessment_entries" ("institution_id", "assessment_id");
-CREATE UNIQUE INDEX "sqaa_assessment_entries_one_per_standard" ON "sqaa_assessment_entries" ("assessment_id", "standard_id");
-CREATE INDEX "sqaa_assessments_open" ON "sqaa_assessments" ("institution_id", "status", "due_on");
-CREATE INDEX "sqaa_evidence_by_entry" ON "sqaa_evidence" ("institution_id", "entry_id");
-CREATE INDEX "sqaa_standards_parent" ON "sqaa_standards" ("framework_code", "parent_id", "sequence");
-CREATE INDEX "staff_attendance_institution_id_on_date_idx" ON "staff_attendance" ("institution_id", "on_date");
-CREATE UNIQUE INDEX "staff_celebration_greetings_once" ON "staff_celebration_greetings" ("employee_id", "kind", "on_date");
-CREATE UNIQUE INDEX "staff_grievances_reference" ON "staff_grievances" ("institution_id", "reference_no");
-CREATE INDEX "staff_messages_inst_time_idx" ON "staff_messages" ("institution_id", "sent_at");
-CREATE INDEX "staff_messages_thread" ON "staff_messages" ("institution_id", "party_a", "party_b", "sent_at");
-CREATE INDEX "staff_messages_thread_time_idx" ON "staff_messages" ("party_a", "party_b", "sent_at");
-CREATE UNIQUE INDEX "staff_onboarding_one_per_employee" ON "staff_onboarding" ("employee_id");
-CREATE INDEX "staff_remarks_author" ON "staff_remarks" ("author_user_id", "created_at");
-CREATE INDEX "staff_remarks_institution" ON "staff_remarks" ("institution_id");
-CREATE INDEX "staff_remarks_subject" ON "staff_remarks" ("subject_user_id", "observed_on");
-CREATE INDEX "staff_training_records_by_employee" ON "staff_training_records" ("institution_id", "employee_id");
-CREATE UNIQUE INDEX "staff_training_records_one_per_person" ON "staff_training_records" ("programme_id", "employee_id");
-CREATE INDEX "staff_transfers_employee" ON "staff_transfers" ("employee_id", "effective_from");
-CREATE UNIQUE INDEX "store_product_variants_one_per_item" ON "store_product_variants" ("institution_id", "item_id");
-CREATE INDEX "student_absence_followup_institution_id_idx" ON "student_absence_followup" ("institution_id");
-CREATE INDEX "student_achievements_institution_id_idx" ON "student_achievements" ("institution_id");
-CREATE INDEX "student_achievements_student_id_idx" ON "student_achievements" ("student_id");
-CREATE INDEX "student_activity_days_institution" ON "student_activity_days" ("institution_id");
-CREATE INDEX "student_attendance_institution_id_on_date_status_idx" ON "student_attendance" ("institution_id", "on_date", "status");
-CREATE INDEX "student_attendance_live_idx" ON "student_attendance" ("institution_id", "marked_at");
-CREATE INDEX "student_attendance_section_id_on_date_idx" ON "student_attendance" ("section_id", "on_date");
-CREATE INDEX "student_content_moderation_content" ON "student_content_moderation" ("institution_id", "content_kind", "content_id", "created_at");
-CREATE INDEX "student_content_moderation_recent" ON "student_content_moderation" ("institution_id", "created_at");
-CREATE INDEX "student_diary_notes_day" ON "student_diary_notes" ("institution_id", "student_id", "on_date", "created_at");
-CREATE INDEX "student_documents_institution_id_idx" ON "student_documents" ("institution_id");
-CREATE INDEX "student_documents_student_id_idx" ON "student_documents" ("student_id");
-CREATE INDEX "student_fee_components_student" ON "student_fee_components" ("institution_id", "student_id", "academic_year_id");
-CREATE INDEX "student_fee_optins_head" ON "student_fee_optins" ("institution_id", "fee_head_id", "academic_year_id");
-CREATE INDEX "student_guardians_guardian_id_idx" ON "student_guardians" ("guardian_id");
-CREATE INDEX "student_guardians_institution_id_idx" ON "student_guardians" ("institution_id");
-CREATE INDEX "student_health_institution_id_idx" ON "student_health" ("institution_id");
-CREATE INDEX "student_language_elections_option" ON "student_language_elections" ("institution_id", "option_id", "status");
-CREATE INDEX "student_portfolio_curations_student" ON "student_portfolio_curations" ("institution_id", "student_id", "curated_at");
-CREATE INDEX "student_portfolio_items_student" ON "student_portfolio_items" ("institution_id", "student_id", "happened_on");
-CREATE INDEX "student_remarks_institution" ON "student_remarks" ("institution_id");
-CREATE INDEX "student_remarks_section" ON "student_remarks" ("section_id", "observed_on");
-CREATE INDEX "student_remarks_student" ON "student_remarks" ("student_id", "observed_on");
-CREATE UNIQUE INDEX "student_support_goal_updates_one_per_day" ON "student_support_goal_updates" ("goal_id", "on_date");
-CREATE INDEX "student_support_goal_updates_recent" ON "student_support_goal_updates" ("goal_id", "on_date");
-CREATE INDEX "student_support_goals_plan" ON "student_support_goals" ("institution_id", "plan_id", "status");
-CREATE INDEX "student_wall_posts_author_day" ON "student_wall_posts" ("institution_id", "author_student_id", "posted_on");
-CREATE INDEX "student_wall_posts_board" ON "student_wall_posts" ("institution_id", "campus_id", "status", "created_at");
-CREATE INDEX "student_wall_posts_subject" ON "student_wall_posts" ("institution_id", "subject_student_id", "created_at");
-CREATE INDEX "student_year_history_student_idx" ON "student_year_history" ("student_id");
-CREATE INDEX "students_campus" ON "students" ("campus_id");
-CREATE INDEX "students_house" ON "students" ("house_id");
-CREATE INDEX "students_institution_id_campus_id_status_idx" ON "students" ("institution_id", "campus_id", "status");
-CREATE INDEX "students_institution_id_last_name_first_name_idx" ON "students" ("institution_id", "last_name", "first_name");
-CREATE INDEX "students_photo_file" ON "students" ("photo_file_id");
-CREATE INDEX "study_groups_section" ON "study_groups" ("institution_id", "section_id", "is_open");
-CREATE INDEX "study_material_targets_student" ON "study_material_targets" ("student_id");
-CREATE INDEX "study_materials_institution_id_idx" ON "study_materials" ("institution_id");
-CREATE INDEX "study_materials_section_id_is_published_idx" ON "study_materials" ("section_id", "is_published");
-CREATE INDEX "subscriptions_status_idx" ON "subscriptions" ("status");
-CREATE INDEX "substitution_request_periods_by_date" ON "substitution_request_periods" ("institution_id", "on_date");
-CREATE UNIQUE INDEX "substitution_request_periods_one_per_slot" ON "substitution_request_periods" ("request_id", "timetable_entry_id", "on_date");
-CREATE INDEX "substitution_requests_by_teacher" ON "substitution_requests" ("requested_by", "from_date");
-CREATE INDEX "substitution_requests_pending" ON "substitution_requests" ("institution_id", "status", "from_date");
-CREATE INDEX "substitutions_institution_id_on_date_idx" ON "substitutions" ("institution_id", "on_date");
-CREATE INDEX "substitutions_substitute_user_id_on_date_idx" ON "substitutions" ("substitute_user_id", "on_date");
-CREATE INDEX "support_tickets_institution_id_status_idx" ON "support_tickets" ("institution_id", "status");
-CREATE INDEX "support_tickets_raised_by_idx" ON "support_tickets" ("raised_by");
-CREATE INDEX "syllabus_units_subject" ON "syllabus_units" ("class_subject_id", "sequence");
-CREATE INDEX "tally_export_run_vouchers_by_voucher" ON "tally_export_run_vouchers" ("institution_id", "journal_entry_id");
-CREATE INDEX "tally_export_runs_recent" ON "tally_export_runs" ("institution_id", "exported_at");
-CREATE UNIQUE INDEX "tally_ledger_mappings_one_per_account" ON "tally_ledger_mappings" ("institution_id", "ledger_account_id");
-CREATE UNIQUE INDEX "tally_voucher_type_mappings_one_per_type" ON "tally_voucher_type_mappings" ("institution_id", "voucher_type");
-CREATE UNIQUE INDEX "teacher_load_rules_one_per_teacher" ON "teacher_load_rules" ("institution_id", "teacher_user_id");
-CREATE INDEX "teacher_subjects_subject" ON "teacher_subjects" ("institution_id", "subject_id");
-CREATE INDEX "teacher_unavailability_by_teacher" ON "teacher_unavailability" ("institution_id", "teacher_user_id");
-CREATE INDEX "terms_academic_year_id_idx" ON "terms" ("academic_year_id");
-CREATE INDEX "textbook_indents_year" ON "textbook_indents" ("institution_id", "academic_year_id", "class_id");
-CREATE INDEX "timetable_draft_entries_by_draft" ON "timetable_draft_entries" ("draft_id", "section_id");
-CREATE UNIQUE INDEX "timetable_draft_section_slot" ON "timetable_draft_entries" ("draft_id", "section_id", "weekday", "period_id");
-CREATE INDEX "timetable_draft_issues_by_draft" ON "timetable_draft_issues" ("draft_id", "severity", "section_id");
-CREATE INDEX "timetable_drafts_by_year" ON "timetable_drafts" ("institution_id", "academic_year_id", "generated_at");
-CREATE INDEX "timetable_entries_institution_id_academic_year_id_idx" ON "timetable_entries" ("institution_id", "academic_year_id");
-CREATE UNIQUE INDEX "timetable_section_slot" ON "timetable_entries" ("section_id", "weekday", "period_id");
-CREATE INDEX "training_programmes_when" ON "training_programmes" ("institution_id", "starts_on");
-CREATE INDEX "transport_allocations_institution_id_idx" ON "transport_allocations" ("institution_id");
-CREATE INDEX "transport_allocations_route" ON "transport_allocations" ("route_id", "valid_to");
-CREATE INDEX "transport_allocations_route_id_idx" ON "transport_allocations" ("route_id");
-CREATE UNIQUE INDEX "transport_attendance_one_per_leg" ON "transport_attendance" ("student_id", "on_date", "leg");
-CREATE INDEX "transport_stop_events_by_stop" ON "transport_stop_events" ("institution_id", "stop_id", "occurred_at");
-CREATE UNIQUE INDEX "transport_stop_events_one_per_occurrence" ON "transport_stop_events" ("trip_id", "stop_id", "kind");
-CREATE UNIQUE INDEX "trip_checks_one_per_leg" ON "trip_checks" ("vehicle_id", "on_date", "leg");
-CREATE INDEX "university_shortlist_entries_student" ON "university_shortlist_entries" ("institution_id", "student_id", "application_deadline");
-CREATE INDEX "user_permissions_user_id_idx" ON "user_permissions" ("user_id");
-CREATE INDEX "user_roles_user_id_idx" ON "user_roles" ("user_id");
-CREATE INDEX "user_working_years_year" ON "user_working_years" ("academic_year_id");
-CREATE INDEX "vehicle_last_position_fresh" ON "vehicle_last_position" ("institution_id", "recorded_at");
-CREATE INDEX "vehicle_logs_vehicle" ON "vehicle_logs" ("vehicle_id", "on_date");
-CREATE INDEX "vehicle_positions_age" ON "vehicle_positions" ("institution_id", "recorded_at");
-CREATE UNIQUE INDEX "vehicle_positions_one_per_fix" ON "vehicle_positions" ("trip_id", "recorded_at");
-CREATE INDEX "vehicle_positions_replay" ON "vehicle_positions" ("trip_id", "recorded_at");
-CREATE UNIQUE INDEX "vehicle_tracker_pair_codes_by_hash" ON "vehicle_tracker_pair_codes" ("code_hash");
-CREATE UNIQUE INDEX "vehicle_trackers_one_per_pair_code" ON "vehicle_trackers" ("pair_code_id");
-CREATE INDEX "vehicle_trips_by_route" ON "vehicle_trips" ("institution_id", "route_id", "started_at");
-CREATE INDEX "vehicles_institution_id_campus_id_idx" ON "vehicles" ("institution_id", "campus_id");
-CREATE INDEX "vendor_bills_due" ON "vendor_bills" ("institution_id", "due_on");
-CREATE INDEX "vendor_payments_bill" ON "vendor_payments" ("bill_id");
-CREATE UNIQUE INDEX "vendor_payments_voucher" ON "vendor_payments" ("institution_id", "voucher_no");
-CREATE UNIQUE INDEX "vendors_code" ON "vendors" ("institution_id", "code");
-CREATE INDEX "virtual_class_hand_raises_queue" ON "virtual_class_hand_raises" ("institution_id", "session_id", "raised_at");
-CREATE INDEX "virtual_class_hand_raises_student" ON "virtual_class_hand_raises" ("institution_id", "student_id", "raised_at");
-CREATE UNIQUE INDEX "virtual_class_providers_one" ON "virtual_class_providers" ("institution_id", "provider");
-CREATE INDEX "virtual_class_sessions_section" ON "virtual_class_sessions" ("institution_id", "section_id", "scheduled_at");
-CREATE INDEX "virtual_meeting_requests_recent" ON "virtual_meeting_requests" ("institution_id", "requested_at");
-CREATE UNIQUE INDEX "visitors_pass_per_day" ON "visitors" ("institution_id", "pass_no", "on_date");
-CREATE INDEX "wallet_accounts_student" ON "wallet_accounts" ("student_id");
-CREATE INDEX "wallet_transactions_wallet" ON "wallet_transactions" ("wallet_id", "created_at");
-CREATE INDEX "work_patterns_institution_idx" ON "work_patterns" ("institution_id");
-CREATE INDEX "working_days_adjustments_by_year" ON "working_days_adjustments" ("institution_id", "academic_year_id", "on_date");
-CREATE INDEX "working_days_return_lines_by_return" ON "working_days_return_lines" ("institution_id", "return_id", "class_level");
-CREATE INDEX "working_days_returns_recent" ON "working_days_returns" ("institution_id", "academic_year_id", "created_at");
-CREATE UNIQUE INDEX "abc_credit_entries_once" ON abc_credit_entries (student_id, lower(trim(course_title)), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(trim(COALESCE(session_label, ''))));
-CREATE UNIQUE INDEX "academic_years_one_current" ON academic_years (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE "is_current" = 1;
-CREATE UNIQUE INDEX "achievement_media_one_per_source" ON achievement_media (achievement_id, COALESCE(file_id, '00000000-0000-0000-0000-000000000000'), COALESCE(trim(external_url), ''));
-CREATE UNIQUE INDEX "activities_name_per_school" ON activities (institution_id, lower(name));
-CREATE INDEX "admission_campaign_enrolments_live" ON admission_campaign_enrolments (institution_id, status) WHERE (status = 'active');
-CREATE INDEX "admission_campaign_sends_due" ON admission_campaign_sends (institution_id, due_at) WHERE (status = 'pending');
-CREATE UNIQUE INDEX "admission_campaigns_name" ON admission_campaigns (institution_id, lower(name));
-CREATE UNIQUE INDEX "admission_form_fields_code" ON admission_form_fields (version_id, lower(code));
-CREATE UNIQUE INDEX "admission_form_sections_title" ON admission_form_sections (version_id, lower(title));
-CREATE UNIQUE INDEX "admission_form_versions_one_draft" ON admission_form_versions (form_id) WHERE (status = 'draft');
-CREATE UNIQUE INDEX "admission_form_versions_one_live" ON admission_form_versions (form_id) WHERE (status = 'published');
-CREATE UNIQUE INDEX "admission_forms_name" ON admission_forms (institution_id, lower(name));
-CREATE UNIQUE INDEX "alumni_contributions_receipt" ON alumni_contributions (institution_id, receipt_no) WHERE (receipt_no IS NOT NULL);
-CREATE UNIQUE INDEX "alumni_events_one_per_day" ON alumni_events (institution_id, on_date, lower(title));
-CREATE UNIQUE INDEX "alumni_job_interests_one_live" ON alumni_job_interests (post_id, student_id) WHERE (withdrawn_at IS NULL);
-CREATE UNIQUE INDEX "alumni_job_posts_once" ON alumni_job_posts (institution_id, lower(trim(organisation)), lower(trim(title))) WHERE (status = 'open');
-CREATE INDEX "alumni_profiles_listed" ON alumni_profiles (institution_id, batch_year) WHERE "is_listed" = 1;
-CREATE UNIQUE INDEX "announcements_client_ref" ON announcements (institution_id, client_ref) WHERE (client_ref IS NOT NULL);
-CREATE INDEX "api_keys_institution_live" ON api_keys (institution_id, created_at DESC) WHERE (revoked_at IS NULL);
-CREATE UNIQUE INDEX "api_keys_one_live_name" ON api_keys (institution_id, lower(trim(name))) WHERE (revoked_at IS NULL);
-CREATE UNIQUE INDEX "application_documents_one_per_type" ON application_documents (application_id, lower(doc_type));
-CREATE INDEX "application_documents_outstanding" ON application_documents (institution_id, application_id) WHERE (status IN ('pending', 'received'));
-CREATE INDEX "applications_form_fee_unpaid" ON applications (institution_id, created_at DESC) WHERE ((form_fee_paise IS NOT NULL) AND (form_fee_paid_at IS NULL));
-CREATE INDEX "applications_form_version" ON applications (form_version_id) WHERE (form_version_id IS NOT NULL);
-CREATE INDEX "applications_guardian_idx" ON applications (guardian_id) WHERE (guardian_id IS NOT NULL);
-CREATE UNIQUE INDEX "applications_one_student" ON applications (student_id) WHERE (student_id IS NOT NULL);
-CREATE UNIQUE INDEX "applications_waitlist_rank" ON applications (COALESCE(admission_session_id, '00000000-0000-0000-0000-000000000000'), COALESCE(class_sought, '00000000-0000-0000-0000-000000000000'), waitlist_rank) WHERE ((waitlist_rank IS NOT NULL) AND (status = 'waitlisted'));
-CREATE UNIQUE INDEX "appointments_no_double_booking" ON appointments (with_employee_id, on_date, starts_at) WHERE ((status = 'booked') AND (with_employee_id IS NOT NULL));
-CREATE UNIQUE INDEX "appraisal_cycles_one_per_name" ON appraisal_cycles (institution_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(name));
-CREATE UNIQUE INDEX "appraisal_kpis_one_per_code" ON appraisal_kpis (cycle_id, COALESCE(designation_id, '00000000-0000-0000-0000-000000000000'), lower(code));
-CREATE INDEX "appraisals_by_reviewer" ON appraisals (institution_id, reviewer_user_id) WHERE (reviewer_user_id IS NOT NULL);
-CREATE INDEX "attendance_capture_conflicts_open" ON attendance_capture_conflicts (institution_id, on_date DESC) WHERE (resolution = 'pending');
-CREATE INDEX "audit_log_session_idx" ON audit_log (session_id, id) WHERE (session_id IS NOT NULL);
-CREATE INDEX "background_verifications_expiring" ON background_verifications (institution_id, valid_until) WHERE (status = 'clear');
-CREATE UNIQUE INDEX "background_verifications_one_open" ON background_verifications (employee_id, kind) WHERE (status IN ('requested', 'in_progress'));
-CREATE INDEX "backup_runs_last_good" ON backup_runs (institution_id, restore_point DESC) WHERE (status = 'succeeded');
-CREATE UNIQUE INDEX "bank_accounts_label_once" ON bank_accounts (institution_id, lower(trim(label)));
-CREATE UNIQUE INDEX "bank_accounts_number_once" ON bank_accounts (institution_id, upper(trim(ifsc)), upper(trim(account_number)));
-CREATE INDEX "bank_reconciliations_open" ON bank_reconciliations (institution_id, bank_account_id, period_start DESC) WHERE (status = 'open');
-CREATE UNIQUE INDEX "bank_statement_lines_one_claim_per_entry" ON bank_statement_lines (institution_id, match_kind, COALESCE(match_id, '00000000-0000-0000-0000-000000000000')) WHERE (match_kind IS NOT NULL);
-CREATE INDEX "bank_statement_lines_period" ON bank_statement_lines (reconciliation_id) WHERE (reconciliation_id IS NOT NULL);
-CREATE INDEX "bank_statement_lines_unmatched" ON bank_statement_lines (institution_id, bank_account_id, txn_date) WHERE ((match_kind IS NULL) AND (explained_as IS NULL));
-CREATE UNIQUE INDEX "bell_schedules_one_default" ON bell_schedules (campus_id) WHERE "is_default" = 1;
-CREATE INDEX "biometric_punches_unresolved" ON biometric_punches (institution_id, device_user_id) WHERE (employee_id IS NULL);
-CREATE UNIQUE INDEX "board_configurations_one_default" ON board_configurations (institution_id) WHERE "is_default" = 1;
-CREATE INDEX "board_disclosures_expiry" ON board_disclosures (valid_to) WHERE (valid_to IS NOT NULL);
-CREATE UNIQUE INDEX "board_disclosures_unique" ON board_disclosures (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), document);
-CREATE INDEX "board_registration_amendments_open" ON board_registration_amendments (institution_id, status) WHERE (status IN ('requested', 'sent'));
-CREATE UNIQUE INDEX "board_registrations_hall_ticket" ON board_registrations (institution_id, hall_ticket_no) WHERE (hall_ticket_no IS NOT NULL);
-CREATE UNIQUE INDEX "board_registrations_reg_no" ON board_registrations (institution_id, board, registration_no) WHERE (registration_no IS NOT NULL);
-CREATE UNIQUE INDEX "board_result_rows_one_per_candidate" ON board_result_rows (import_id, student_id) WHERE (student_id IS NOT NULL);
-CREATE INDEX "board_result_rows_unmatched" ON board_result_rows (institution_id, import_id) WHERE (student_id IS NULL);
-CREATE UNIQUE INDEX "branding_profiles_domain" ON branding_profiles (lower(custom_domain)) WHERE (custom_domain IS NOT NULL);
-CREATE UNIQUE INDEX "branding_profiles_unique" ON branding_profiles (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "budget_lines_one_per_account" ON budget_lines (budget_id, account_id, COALESCE(department_id, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "call_log_pending" ON call_log (institution_id, for_employee_id) WHERE ((passed_on_at IS NULL) AND (for_employee_id IS NOT NULL));
-CREATE UNIQUE INDEX "campus_entry_passes_one_live" ON campus_entry_passes (institution_id, COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000')) WHERE (revoked_at IS NULL);
-CREATE UNIQUE INDEX "campuses_udise_unique" ON campuses (udise_code) WHERE (udise_code IS NOT NULL);
-CREATE UNIQUE INDEX "cce_formative_entries_once" ON cce_formative_entries (student_id, class_subject_id, cycle, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "child_info_differences_one_per_identity" ON child_info_differences (import_id, kind, match_key, COALESCE(field, ''));
-CREATE INDEX "child_info_differences_open" ON child_info_differences (institution_id, import_id, kind) WHERE (status = 'open');
-CREATE UNIQUE INDEX "child_info_portal_connectors_one_per_state" ON child_info_portal_connectors (lower(state_code), lower(name));
-CREATE UNIQUE INDEX "child_info_resolutions_one_per_difference" ON child_info_resolutions (institution_id, kind, match_key, COALESCE(field, ''));
-CREATE INDEX "class_language_options_class" ON class_language_options (institution_id, class_id, slot) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "club_event_tickets_one_live" ON club_event_tickets (event_id, student_id) WHERE (status <> 'cancelled');
-CREATE UNIQUE INDEX "club_events_once" ON club_events (institution_id, campus_id, lower(trim(club_name)), lower(trim(title)), starts_at);
-CREATE UNIQUE INDEX "co_scholastic_areas_name" ON co_scholastic_areas (institution_id, lower(name));
-CREATE UNIQUE INDEX "co_scholastic_grades_once" ON co_scholastic_grades (student_id, area_id, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "council_positions_title" ON council_positions (academic_year_id, lower(title));
-CREATE INDEX "counselor_participants_by_user" ON counselor_thread_participants (institution_id, user_id) WHERE (removed_at IS NULL);
-CREATE UNIQUE INDEX "counselor_participants_one_live" ON counselor_thread_participants (thread_id, user_id) WHERE (removed_at IS NULL);
-CREATE INDEX "courier_log_undelivered" ON courier_log (institution_id, on_date) WHERE ((direction = 'in') AND (handed_over_at IS NULL));
-CREATE UNIQUE INDEX "course_outcomes_code" ON course_outcomes (class_subject_id, upper(code));
-CREATE UNIQUE INDEX "crm_api_credentials_one_per_scope" ON crm_api_credentials (provider, COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "crm_lead_links_conflicts" ON crm_lead_links (institution_id, conflict_at DESC) WHERE (conflict_at IS NOT NULL);
-CREATE INDEX "custom_options_by_kind" ON custom_options (institution_id, kind, sequence) WHERE "active" = 1;
-CREATE UNIQUE INDEX "custom_options_unique" ON custom_options (institution_id, kind, lower(value));
-CREATE UNIQUE INDEX "device_staff_sessions_one_live_per_device" ON device_staff_sessions (app, device_id) WHERE (ended_at IS NULL);
-CREATE UNIQUE INDEX "digital_holding_visibility_unique" ON digital_holding_visibility (holding_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), COALESCE(role_key, ''));
-CREATE INDEX "digital_holdings_browse" ON digital_holdings (institution_id, kind, access_model) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "digital_holdings_one_per_title" ON digital_holdings (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), lower(trim(title)), kind);
-CREATE UNIQUE INDEX "digital_library_providers_one_per_kind" ON digital_library_providers (institution_id, kind, lower(trim(name)));
-CREATE INDEX "discipline_records_open" ON discipline_records (institution_id, status, occurred_on DESC) WHERE (status <> 'closed');
-CREATE INDEX "driver_notices_pending" ON driver_notices (vehicle_id, sent_at) WHERE (acknowledged_at IS NULL);
-CREATE UNIQUE INDEX "duty_assignments_one_per_slot" ON duty_assignments (user_id, on_date, shift_id) WHERE (status <> 'cancelled');
-CREATE INDEX "duty_shifts_live" ON duty_shifts (institution_id, duty_kind) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "duty_shifts_one_per_code" ON duty_shifts (institution_id, lower(code));
-CREATE UNIQUE INDEX "education_loan_applications_one_live" ON education_loan_applications (institution_id, student_id, COALESCE(lender_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('enquiry', 'documents_pending', 'submitted_to_lender', 'under_review'));
-CREATE UNIQUE INDEX "education_loan_applications_one_per_ref" ON education_loan_applications (institution_id, COALESCE(lender_id, '00000000-0000-0000-0000-000000000000'), lower(trim(reference_no))) WHERE ((reference_no IS NOT NULL) AND (trim(reference_no) <> ''));
-CREATE UNIQUE INDEX "education_loan_documents_one_per_kind" ON education_loan_documents (application_id, doc_kind, lower(trim(COALESCE(label, ''))));
-CREATE UNIQUE INDEX "education_loan_lenders_one_per_branch" ON education_loan_lenders (institution_id, lower(trim(name)), lower(trim(COALESCE(branch, ''))));
-CREATE INDEX "email_changes_expiry_idx" ON email_changes (expires_at) WHERE (used_at IS NULL);
-CREATE UNIQUE INDEX "emergency_pickup_one_live" ON emergency_pickup_authorisations (institution_id, student_id, lower(full_name), valid_on) WHERE ((used_at IS NULL) AND (revoked_at IS NULL));
-CREATE INDEX "emergency_pickup_today" ON emergency_pickup_authorisations (institution_id, valid_on) WHERE ((used_at IS NULL) AND (revoked_at IS NULL));
-CREATE UNIQUE INDEX "employees_device_user_id_per_institution" ON employees (institution_id, device_user_id) WHERE (device_user_id IS NOT NULL);
-CREATE UNIQUE INDEX "employees_institution_person_code" ON employees (institution_id, person_code) WHERE (person_code IS NOT NULL);
-CREATE UNIQUE INDEX "employees_staff_number_per_institution" ON employees (institution_id, staff_number) WHERE (staff_number IS NOT NULL);
-CREATE INDEX "enquiries_lost_month" ON enquiries (institution_id, lost_month) WHERE (lost_month IS NOT NULL);
-CREATE INDEX "enquiries_lost_reason" ON enquiries (institution_id, lost_reason, class_sought) WHERE (status = 'lost');
-CREATE INDEX "enquiries_user_idx" ON enquiries (user_id) WHERE (user_id IS NOT NULL);
-CREATE UNIQUE INDEX "enrollments_one_active_per_year" ON enrollments (student_id, academic_year_id) WHERE (status = 'active');
-CREATE UNIQUE INDEX "enrollments_roll_no_unique" ON enrollments (section_id, roll_no) WHERE (roll_no IS NOT NULL);
-CREATE UNIQUE INDEX "evaluation_cycles_one_per_name" ON evaluation_cycles (institution_id, lower(trim(name)), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "evaluation_cycles_open" ON evaluation_cycles (institution_id, closes_on) WHERE (status = 'open');
-CREATE INDEX "evaluation_invitations_mine" ON evaluation_invitations (respondent_user_id, status) WHERE (respondent_user_id IS NOT NULL);
-CREATE UNIQUE INDEX "evaluation_invitations_one_per_respondent" ON evaluation_invitations (reviewee_id, relation, COALESCE(respondent_user_id, '00000000-0000-0000-0000-000000000000'), lower(trim(COALESCE(respondent_label, ''))));
-CREATE INDEX "evaluation_invitations_outstanding" ON evaluation_invitations (institution_id, cycle_id) WHERE (status = 'invited');
-CREATE UNIQUE INDEX "event_seat_passes_one_live" ON event_seat_passes (event_id, student_id) WHERE (revoked_at IS NULL);
-CREATE INDEX "exit_clearances_outstanding" ON exit_clearances (institution_id) WHERE (status <> 'cleared');
-CREATE INDEX "fee_concessions_by_application" ON fee_concessions (application_id) WHERE (application_id IS NOT NULL);
-CREATE INDEX "fee_concessions_pending" ON fee_concessions (institution_id) WHERE (status = 'pending');
-CREATE UNIQUE INDEX "fee_fine_charges_once_per_day" ON fee_fine_charges (institution_id, invoice_id, COALESCE(fee_fine_rule_id, '00000000-0000-0000-0000-000000000000'), as_of) WHERE (status = 'applied');
-CREATE UNIQUE INDEX "fee_fine_rules_one_active_per_target" ON fee_fine_rules (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), COALESCE(fee_structure_id, '00000000-0000-0000-0000-000000000000'), COALESCE(fee_head_id, '00000000-0000-0000-0000-000000000000')) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "fee_regulatory_filing_lines_one_per_head" ON fee_regulatory_filing_lines (filing_id, fee_head_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), instalment_no);
-CREATE UNIQUE INDEX "fee_regulatory_filings_no_unique" ON fee_regulatory_filings (institution_id, lower(trim(filing_no)));
-CREATE UNIQUE INDEX "fee_regulatory_filings_one_live" ON fee_regulatory_filings (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('draft', 'submitted', 'approved', 'approved_with_modification'));
-CREATE UNIQUE INDEX "fee_structure_versions_one_active" ON fee_structure_versions (institution_id, fee_structure_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status = 'active');
-CREATE UNIQUE INDEX "goods_receipts_no_unique" ON goods_receipts (institution_id, lower(trim(grn_no)));
-CREATE INDEX "government_aid_schemes_live" ON government_aid_schemes (institution_id, kind) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "government_aid_schemes_one_per_code" ON government_aid_schemes (institution_id, lower(trim(code)));
-CREATE UNIQUE INDEX "grant_expenditures_one_per_source" ON grant_expenditures (institution_id, source_kind, source_id) WHERE (source_id IS NOT NULL);
-CREATE UNIQUE INDEX "grant_in_aid_heads_one_per_code" ON grant_in_aid_heads (institution_id, lower(trim(code)));
-CREATE UNIQUE INDEX "grant_sanctions_one_per_head_year" ON grant_sanctions (institution_id, head_id, fy_start_year, lower(trim(sanction_no)));
-CREATE UNIQUE INDEX "grant_uc_one_per_no" ON grant_utilisation_certificates (institution_id, lower(trim(certificate_no)));
-CREATE UNIQUE INDEX "grievance_sla_one_per_category" ON grievance_sla_policies (institution_id, lower(category));
-CREATE INDEX "grievance_updates_parent_visible" ON grievance_updates (ticket_id, created_at DESC) WHERE "visible_to_parent" = 1;
-CREATE INDEX "guardians_user_lookup" ON guardians (user_id) WHERE (user_id IS NOT NULL);
-CREATE INDEX "hall_of_fame_entries_live" ON hall_of_fame_entries (institution_id, category, year DESC) WHERE (retired_at IS NULL);
-CREATE INDEX "health_camp_attendance_open_referrals" ON health_camp_attendance (institution_id, follow_up_on) WHERE (referred AND (follow_up_done_at IS NULL));
-CREATE UNIQUE INDEX "holidays_one_entry" ON holidays (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), on_date, kind, lower(name));
-CREATE UNIQUE INDEX "hostel_allocations_bed" ON hostel_allocations (room_id, bed_no) WHERE (vacated_on IS NULL);
-CREATE UNIQUE INDEX "hostel_allocations_student" ON hostel_allocations (student_id) WHERE (vacated_on IS NULL);
-CREATE INDEX "hostel_complaints_open" ON hostel_complaints (institution_id, created_at DESC) WHERE (status IN ('open', 'in_progress'));
-CREATE INDEX "hostel_laundry_outstanding" ON hostel_laundry (institution_id, sent_on DESC) WHERE (status = 'sent');
-CREATE INDEX "hostel_outpasses_open" ON hostel_outpasses (institution_id, expected_in) WHERE (status IN ('approved', 'out'));
-CREATE INDEX "hostel_visits_out" ON hostel_visits (institution_id, expected_back) WHERE (boarder_released AND (returned_at IS NULL));
-CREATE UNIQUE INDEX "hpc_observations_one_per_observer" ON hpc_observations (student_id, competency_id, observer_role, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'), COALESCE(observed_by, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "impersonation_grants_live" ON impersonation_grants (operator_user_id, expires_at DESC) WHERE (ended_at IS NULL);
-CREATE UNIQUE INDEX "instructional_norms_one_per_stage" ON instructional_norms (institution_id, lower(stage_code));
-CREATE UNIQUE INDEX "integrations_platform_provider_key" ON integrations (provider) WHERE (institution_id IS NULL);
-CREATE INDEX "invoices_fee_structure_version" ON invoices (fee_structure_version_id) WHERE (fee_structure_version_id IS NOT NULL);
-CREATE INDEX "job_candidates_by_employee" ON job_candidates (employee_id) WHERE (employee_id IS NOT NULL);
-CREATE UNIQUE INDEX "job_candidates_one_per_vacancy" ON job_candidates (institution_id, vacancy_id, lower(COALESCE(trim(email), '')), COALESCE(trim(phone), ''));
-CREATE INDEX "job_interviews_upcoming" ON job_interviews (institution_id, scheduled_at) WHERE (result = 'scheduled');
-CREATE UNIQUE INDEX "job_offers_one_live" ON job_offers (candidate_id) WHERE (status IN ('draft', 'sent', 'accepted'));
-CREATE UNIQUE INDEX "job_vacancies_one_per_code" ON job_vacancies (institution_id, lower(code));
-CREATE UNIQUE INDEX "journal_entries_one_per_source" ON journal_entries (institution_id, source_kind, source_id) WHERE (source_id IS NOT NULL);
-CREATE UNIQUE INDEX "ledger_accounts_sibling_name" ON ledger_accounts (institution_id, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), lower(name));
-CREATE INDEX "lesson_plans_review_queue" ON lesson_plans (institution_id, status, submitted_at) WHERE (status = 'submitted');
-CREATE UNIQUE INDEX "library_copy_active_loan" ON library_loans (copy_id) WHERE (returned_on IS NULL);
-CREATE INDEX "library_loans_institution_id_due_on_idx" ON library_loans (institution_id, due_on) WHERE (returned_on IS NULL);
-CREATE UNIQUE INDEX "library_reservations_one_per_reader" ON library_reservations (title_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), COALESCE(employee_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('waiting', 'ready'));
-CREATE INDEX "library_reservations_queue" ON library_reservations (title_id, placed_at) WHERE (status = 'waiting');
-CREATE UNIQUE INDEX "library_stock_audits_one_open" ON library_stock_audits (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE (closed_on IS NULL);
-CREATE UNIQUE INDEX "loc_candidates_one_per_registration" ON loc_candidates (submission_id, COALESCE(registration_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "loc_subject_groups_one_per_combination" ON loc_subject_groups (institution_id, lower(board), stage, COALESCE(group_code, ''));
-CREATE UNIQUE INDEX "loc_subject_options_one_per_code" ON loc_subject_options (group_id, upper(subject_code));
-CREATE UNIQUE INDEX "loc_submissions_one_draft" ON loc_submissions (institution_id, academic_year_id, lower(board), lower(exam_name), COALESCE(stage, '')) WHERE (status = 'draft');
-CREATE INDEX "location_codes_parent" ON location_codes (parent_id) WHERE "active" = 1;
-CREATE UNIQUE INDEX "location_codes_unique" ON location_codes (COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), level, code);
-CREATE UNIQUE INDEX "lost_found_claims_one_open" ON lost_found_claims (item_id, claimant_student_id) WHERE (status IN ('pending', 'approved'));
-CREATE UNIQUE INDEX "mdm_foodgrain_receipts_challan" ON mdm_foodgrain_receipts (institution_id, grain, lower(trim(COALESCE(challan_no, '')))) WHERE (NULLIF(trim(challan_no), '') IS NOT NULL);
-CREATE UNIQUE INDEX "mdm_monthly_returns_one_per_month" ON mdm_monthly_returns (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), period_month);
-CREATE UNIQUE INDEX "mdm_registers_one_per_day" ON mdm_registers (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), on_date);
-CREATE INDEX "medication_administrations_incidents" ON medication_administrations (institution_id, administered_at DESC) WHERE (refused OR (adverse_reaction IS NOT NULL));
-CREATE UNIQUE INDEX "message_credit_requests_one_open" ON message_credit_requests (institution_id, channel) WHERE (status = 'pending');
-CREATE INDEX "message_credit_requests_pending" ON message_credit_requests (requested_at) WHERE (status = 'pending');
-CREATE INDEX "message_log_by_rule" ON message_log (institution_id, source_id, status) WHERE (source_kind = 'trigger_rule');
-CREATE INDEX "message_log_due" ON message_log (institution_id, queued_at) WHERE (status = 'queued');
-CREATE UNIQUE INDEX "message_log_one_per_occurrence" ON message_log (institution_id, channel, source_kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000'), COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), COALESCE(occurrence_key, '')) WHERE (source_kind IS NOT NULL);
-CREATE INDEX "message_log_status_idx" ON message_log (status) WHERE (status IN ('queued', 'failed'));
-CREATE INDEX "message_trigger_rules_live" ON message_trigger_rules (institution_id, event) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "message_trigger_rules_one_per_name" ON message_trigger_rules (institution_id, lower(name));
-CREATE INDEX "message_trigger_rules_plans" ON message_trigger_rules (institution_id, plan_kind) WHERE (plan_kind IS NOT NULL);
-CREATE INDEX "montessori_materials_area" ON montessori_materials (institution_id, area, sequence) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "montessori_materials_unique" ON montessori_materials (institution_id, area, lower(trim(name)));
-CREATE INDEX "night_study_attendance_missing" ON night_study_attendance (institution_id, on_date) WHERE (status IN ('absent', 'late'));
-CREATE UNIQUE INDEX "notifications_one_per_source" ON notifications (user_id, kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000')) WHERE (source_kind IS NOT NULL);
-CREATE INDEX "notifications_unpushed_idx" ON notifications (created_at) WHERE (pushed_at IS NULL);
-CREATE INDEX "notifications_unread" ON notifications (user_id) WHERE (read_at IS NULL);
-CREATE INDEX "notifications_user_live_idx" ON notifications (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
-CREATE UNIQUE INDEX "numbering_schemes_institution_kind" ON numbering_schemes (institution_id, kind) WHERE (campus_id IS NULL);
-CREATE INDEX "parent_forum_posts_pending" ON parent_forum_posts (institution_id, created_at) WHERE (status = 'pending');
-CREATE UNIQUE INDEX "parent_forum_reports_one_open" ON parent_forum_reports (content_kind, content_id, reported_by) WHERE (handled_at IS NULL);
-CREATE INDEX "parent_forum_reports_queue" ON parent_forum_reports (institution_id, created_at) WHERE (handled_at IS NULL);
-CREATE INDEX "parent_forum_threads_pending" ON parent_forum_threads (institution_id, created_at) WHERE (status = 'pending');
-CREATE INDEX "parent_teacher_messages_unread" ON parent_teacher_messages (institution_id, teacher_user_id) WHERE (read_at IS NULL);
-CREATE INDEX "password_resets_expiry_idx" ON password_resets (expires_at) WHERE (used_at IS NULL);
-CREATE UNIQUE INDEX "payment_gateway_credentials_one_per_scope" ON payment_gateway_credentials (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'), provider);
-CREATE UNIQUE INDEX "payments_gateway_txn" ON payments (gateway, gateway_txn_id) WHERE (gateway_txn_id IS NOT NULL);
-CREATE INDEX "payments_pdc" ON payments (institution_id, cheque_date) WHERE ((status = 'pending') AND (mode IN ('cheque', 'dd')));
-CREATE UNIQUE INDEX "payments_receipt_no" ON payments (institution_id, receipt_no) WHERE (receipt_no IS NOT NULL);
-CREATE INDEX "payments_receipt_series" ON payments (institution_id, receipt_fy, receipt_seq) WHERE (receipt_seq IS NOT NULL);
-CREATE UNIQUE INDEX "payments_receipt_series_unique" ON payments (institution_id, COALESCE(receipt_fy, ''), receipt_seq) WHERE (receipt_seq IS NOT NULL);
-CREATE UNIQUE INDEX "payout_batches_no_once" ON payout_batches (institution_id, lower(trim(batch_no)));
-CREATE INDEX "payout_batches_pending" ON payout_batches (institution_id, value_date DESC) WHERE (status IN ('draft', 'submitted', 'approved'));
-CREATE UNIQUE INDEX "payout_items_one_live_per_source" ON payout_items (institution_id, source_kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000')) WHERE ((source_kind IS NOT NULL) AND (source_kind <> 'manual') AND (status IN ('pending', 'exported', 'paid')));
-CREATE UNIQUE INDEX "period_closes_live" ON period_closes (institution_id, kind, period_key) WHERE (reopened_at IS NULL);
-CREATE UNIQUE INDEX "person_group_members_employee" ON person_group_members (group_id, employee_id) WHERE (employee_id IS NOT NULL);
-CREATE UNIQUE INDEX "person_group_members_student" ON person_group_members (group_id, student_id) WHERE (student_id IS NOT NULL);
-CREATE UNIQUE INDEX "person_groups_institution_kind_name" ON person_groups (institution_id, kind, lower(name));
-CREATE INDEX "platform_broadcasts_live_idx" ON platform_broadcasts (starts_at DESC) WHERE (retired_at IS NULL);
-CREATE INDEX "platform_events_failures_idx" ON platform_events (at DESC) WHERE (NOT "ok" = 1);
-CREATE INDEX "pos_sale_lines_by_variant" ON pos_sale_lines (institution_id, variant_id) WHERE (variant_id IS NOT NULL);
-CREATE INDEX "pos_sales_by_student" ON pos_sales (institution_id, student_id, sold_at DESC) WHERE (student_id IS NOT NULL);
-CREATE INDEX "pos_sales_returns_of" ON pos_sales (original_sale_id) WHERE (original_sale_id IS NOT NULL);
-CREATE UNIQUE INDEX "pos_sales_series_once" ON pos_sales (institution_id, COALESCE(receipt_fy, ''), receipt_seq) WHERE (receipt_seq IS NOT NULL);
-CREATE INDEX "pos_terminals_live" ON pos_terminals (institution_id, kind) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "pos_terminals_one_per_code" ON pos_terminals (institution_id, lower(trim(code)));
-CREATE UNIQUE INDEX "pos_till_sessions_one_open" ON pos_till_sessions (terminal_id) WHERE (status = 'open');
-CREATE UNIQUE INDEX "programme_outcomes_code" ON programme_outcomes (institution_id, upper(code));
-CREATE INDEX "ptm_notes_follow_up" ON ptm_notes (institution_id, follow_up_on) WHERE ((follow_up_done = false) AND (follow_up_on IS NOT NULL));
-CREATE UNIQUE INDEX "ptm_notes_one_per_meeting" ON ptm_notes (student_id, met_on, COALESCE(recorded_by, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "ptm_slots_open_day" ON ptm_slots (institution_id, on_date, starts_at) WHERE "is_open" = 1;
-CREATE UNIQUE INDEX "purchase_approval_thresholds_band" ON purchase_approval_thresholds (institution_id, COALESCE(up_to_paise, ('-1')));
-CREATE INDEX "purchase_enquiries_open" ON purchase_enquiries (created_at DESC) WHERE (status IN ('new', 'contacted', 'demo_booked'));
-CREATE INDEX "purchase_enquiries_owner" ON purchase_enquiries (owner_user_id) WHERE (owner_user_id IS NOT NULL);
-CREATE INDEX "purchase_order_lines_outstanding" ON purchase_order_lines (institution_id, purchase_order_id) WHERE (received_qty < quantity);
-CREATE UNIQUE INDEX "purchase_orders_no_unique" ON purchase_orders (institution_id, lower(trim(po_no)));
-CREATE INDEX "purchase_orders_open" ON purchase_orders (institution_id, expected_on) WHERE (status IN ('issued', 'partly_received'));
-CREATE UNIQUE INDEX "purchase_requisitions_no_unique" ON purchase_requisitions (institution_id, lower(trim(requisition_no)));
-CREATE INDEX "purchase_requisitions_pending" ON purchase_requisitions (institution_id, submitted_at) WHERE (status = 'submitted');
-CREATE INDEX "question_bank_questions_unit" ON question_bank_questions (syllabus_unit_id) WHERE (syllabus_unit_id IS NOT NULL);
-CREATE UNIQUE INDEX "reimbursement_claims_one_per_no" ON reimbursement_claims (institution_id, scheme_id, lower(trim(claim_no)));
-CREATE INDEX "reimbursement_claims_outstanding" ON reimbursement_claims (institution_id, submitted_on) WHERE (status IN ('submitted', 'part_sanctioned', 'sanctioned'));
-CREATE UNIQUE INDEX "reimbursement_receipts_no_duplicate" ON reimbursement_receipts (institution_id, claim_id, received_on, amount_paise, lower(trim(COALESCE(reference_no, ''))));
-CREATE INDEX "report_cards_awaiting_approval" ON report_cards (institution_id, submitted_at) WHERE (status = 'submitted');
-CREATE INDEX "report_cards_live_idx" ON report_cards (institution_id, published_at DESC) WHERE "is_published" = 1;
-CREATE UNIQUE INDEX "report_cards_student_exam_key" ON report_cards (student_id, exam_id) WHERE (exam_id IS NOT NULL);
-CREATE UNIQUE INDEX "report_cards_student_year_annual" ON report_cards (student_id, academic_year_id) WHERE (term_id IS NULL);
-CREATE UNIQUE INDEX "report_cards_student_year_term_remarks_key" ON report_cards (student_id, academic_year_id, term_id) WHERE ((exam_id IS NULL) AND (term_id IS NOT NULL));
-CREATE UNIQUE INDEX "report_definitions_name_unique" ON report_definitions (institution_id, lower(trim(name)));
-CREATE UNIQUE INDEX "roles_institution_key" ON roles (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'), key);
-CREATE UNIQUE INDEX "room_inventory_checks_once" ON room_inventory_checks (institution_id, room_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), kind, on_date);
-CREATE UNIQUE INDEX "room_inventory_items_once" ON room_inventory_items (check_id, lower(item));
-CREATE UNIQUE INDEX "route_stops_one_school" ON route_stops (route_id) WHERE "is_school" = 1;
-CREATE UNIQUE INDEX "scholarship_awards_one_per_ref" ON scholarship_awards (institution_id, scheme_id, lower(trim(application_ref))) WHERE ((application_ref IS NOT NULL) AND (trim(application_ref) <> ''));
-CREATE INDEX "scholarship_disbursement_lines_exceptions" ON scholarship_disbursement_lines (institution_id, import_id) WHERE ((exception IS NOT NULL) OR (match_kind = 'unmatched'));
-CREATE INDEX "school_events_calendar" ON school_events (institution_id, on_date DESC) WHERE "is_published" = 1;
-CREATE INDEX "sessions_expires_at_idx" ON sessions (expires_at) WHERE (revoked_at IS NULL);
-CREATE INDEX "sessions_inst_live_idx" ON sessions (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
-CREATE INDEX "sessions_user_id_idx" ON sessions (user_id) WHERE (revoked_at IS NULL);
-CREATE INDEX "sms_gateway_devices_live" ON sms_gateway_devices (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
-CREATE UNIQUE INDEX "sms_gateway_devices_one_live_name" ON sms_gateway_devices (institution_id, lower(name)) WHERE (revoked_at IS NULL);
-CREATE INDEX "sms_gateway_pair_codes_live" ON sms_gateway_pair_codes (institution_id, expires_at DESC) WHERE (claimed_at IS NULL);
-CREATE INDEX "sqaa_action_items_open" ON sqaa_action_items (institution_id, status, due_on) WHERE (status IN ('open', 'in_progress'));
-CREATE UNIQUE INDEX "sqaa_assessments_one_per_cycle" ON sqaa_assessments (institution_id, framework_code, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(title));
-CREATE UNIQUE INDEX "sqaa_evidence_one_per_document" ON sqaa_evidence (entry_id, COALESCE(file_id, '00000000-0000-0000-0000-000000000000'), COALESCE(lower(external_url), ''));
-CREATE UNIQUE INDEX "sqaa_standards_unique" ON sqaa_standards (framework_code, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), code);
-CREATE UNIQUE INDEX "staff_exits_one_open_per_employee" ON staff_exits (employee_id) WHERE (status <> 'withdrawn');
-CREATE INDEX "staff_exits_pending" ON staff_exits (institution_id, notice_on DESC) WHERE (status <> 'settled');
-CREATE INDEX "staff_grievances_open" ON staff_grievances (institution_id, created_at DESC) WHERE (status NOT IN ('resolved', 'closed', 'withdrawn'));
-CREATE INDEX "staff_messages_unread" ON staff_messages (institution_id, party_b, party_a) WHERE (read_at IS NULL);
-CREATE UNIQUE INDEX "staff_qualifications_no_duplicates" ON staff_qualifications (employee_id, lower(qualification), lower(COALESCE(discipline, '')), COALESCE(year_of_passing, 0));
-CREATE UNIQUE INDEX "staff_recognitions_one_per_period" ON staff_recognitions (institution_id, award_code, period_year, period_month, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE (award_code = 'teacher_of_the_month');
-CREATE INDEX "staff_recognitions_wall" ON staff_recognitions (institution_id, awarded_on DESC) WHERE "published" = 1;
-CREATE INDEX "store_product_variants_by_product" ON store_product_variants (product_id) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "store_product_variants_one_per_option" ON store_product_variants (institution_id, product_id, COALESCE(lower(trim(size)), ''), COALESCE(lower(trim(colour)), ''));
-CREATE INDEX "store_products_live" ON store_products (institution_id, category) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "store_products_one_per_code" ON store_products (institution_id, lower(trim(code)));
-CREATE INDEX "student_achievements_published" ON student_achievements (institution_id, awarded_on DESC) WHERE "is_published" = 1;
-CREATE INDEX "student_activities_by_activity" ON student_activities (activity_id) WHERE (status = 'enrolled');
-CREATE UNIQUE INDEX "student_activities_one_live" ON student_activities (student_id, activity_id) WHERE (status = 'enrolled');
-CREATE INDEX "student_attendance_corrected_live_idx" ON student_attendance (institution_id, corrected_at DESC) WHERE (corrected_at IS NOT NULL);
-CREATE UNIQUE INDEX "student_attendance_daily" ON student_attendance (student_id, on_date) WHERE (period_id IS NULL);
-CREATE UNIQUE INDEX "student_attendance_period" ON student_attendance (student_id, on_date, period_id) WHERE (period_id IS NOT NULL);
-CREATE INDEX "student_bank_accounts_by_student" ON student_bank_accounts (institution_id, student_id) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "student_bank_accounts_no_duplicate" ON student_bank_accounts (institution_id, student_id, upper(trim(account_number)), upper(trim(ifsc)), COALESCE(guardian_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "student_bank_accounts_one_primary" ON student_bank_accounts (institution_id, student_id) WHERE "is_primary" = 1;
-CREATE INDEX "student_diary_notes_due_idx" ON student_diary_notes (remind_at) WHERE ((remind_at IS NOT NULL) AND (reminded_at IS NULL));
-CREATE UNIQUE INDEX "student_fee_components_one_live" ON student_fee_components (student_id, code) WHERE (valid_to IS NULL);
-CREATE UNIQUE INDEX "student_fee_optins_one_live" ON student_fee_optins (student_id, fee_head_id, academic_year_id) WHERE (ended_on IS NULL);
-CREATE UNIQUE INDEX "student_guardians_one_primary" ON student_guardians (student_id) WHERE "is_primary" = 1;
-CREATE UNIQUE INDEX "student_language_elections_one_live" ON student_language_elections (student_id, slot, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status <> 'withdrawn');
-CREATE UNIQUE INDEX "student_lockers_number" ON student_lockers (institution_id, campus_id, lower(trim(locker_no)));
-CREATE UNIQUE INDEX "student_lockers_one_live" ON student_lockers (institution_id, student_id) WHERE ((student_id IS NOT NULL) AND (released_on IS NULL));
-CREATE UNIQUE INDEX "student_portfolio_curations_one_per_item" ON student_portfolio_curations (COALESCE(achievement_id, '00000000-0000-0000-0000-000000000000'), COALESCE(portfolio_item_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "student_portfolio_items_no_duplicates" ON student_portfolio_items (student_id, lower(trim(title)), COALESCE(happened_on, '0001-01-01'));
-CREATE UNIQUE INDEX "student_support_plans_one_active" ON student_support_plans (student_id) WHERE (status <> 'closed');
-CREATE INDEX "student_support_plans_review" ON student_support_plans (institution_id, review_on) WHERE (status <> 'closed');
-CREATE INDEX "student_wall_posts_pending" ON student_wall_posts (institution_id, created_at) WHERE (status = 'pending');
-CREATE UNIQUE INDEX "students_apaar_id" ON students (institution_id, apaar_id) WHERE (apaar_id IS NOT NULL);
-CREATE UNIQUE INDEX "students_child_info_id" ON students (institution_id, child_info_id) WHERE (child_info_id IS NOT NULL);
-CREATE UNIQUE INDEX "students_institution_person_code" ON students (institution_id, person_code) WHERE (person_code IS NOT NULL);
-CREATE INDEX "students_rte" ON students (institution_id) WHERE "is_rte" = 1;
-CREATE UNIQUE INDEX "students_user_id_unique" ON students (user_id) WHERE (user_id IS NOT NULL);
-CREATE UNIQUE INDEX "study_group_members_one_live" ON study_group_members (group_id, student_id) WHERE (left_at IS NULL);
-CREATE INDEX "study_group_members_student" ON study_group_members (institution_id, student_id) WHERE (left_at IS NULL);
-CREATE UNIQUE INDEX "study_groups_one_open" ON study_groups (section_id, lower(trim(name))) WHERE "is_open" = 1;
-CREATE INDEX "subscriptions_renews_on" ON subscriptions (renews_on) WHERE (status IN ('trial', 'active', 'past_due'));
-CREATE UNIQUE INDEX "substitution_request_periods_one_open_ask" ON substitution_request_periods (timetable_entry_id, on_date) WHERE (status = 'pending');
-CREATE INDEX "substitutions_by_request" ON substitutions (request_id) WHERE (request_id IS NOT NULL);
-CREATE INDEX "support_tickets_school_queue" ON support_tickets (institution_id, status, resolve_due_at) WHERE (audience = 'school');
-CREATE INDEX "support_tickets_subject_employee" ON support_tickets (institution_id, subject_employee_id) WHERE (subject_employee_id IS NOT NULL);
-CREATE INDEX "support_tickets_vendor_queue" ON support_tickets (status, priority, created_at) WHERE (audience = 'vendor');
-CREATE UNIQUE INDEX "tally_gateway_credentials_one_per_scope" ON tally_gateway_credentials (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "teacher_unavailability_one_per_slot" ON teacher_unavailability (institution_id, teacher_user_id, weekday, COALESCE(period_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "terms_one_per_name" ON terms (academic_year_id, lower(name));
-CREATE UNIQUE INDEX "timetable_draft_teacher_slot" ON timetable_draft_entries (draft_id, teacher_user_id, weekday, period_id) WHERE (teacher_user_id IS NOT NULL);
-CREATE UNIQUE INDEX "timetable_teacher_slot" ON timetable_entries (teacher_user_id, weekday, period_id, academic_year_id) WHERE (teacher_user_id IS NOT NULL);
-CREATE UNIQUE INDEX "training_programmes_one_per_code" ON training_programmes (institution_id, lower(code));
-CREATE UNIQUE INDEX "training_requirements_one_per_role" ON training_requirements (institution_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), COALESCE(designation_id, '00000000-0000-0000-0000-000000000000'), COALESCE(designation_category, ''));
-CREATE UNIQUE INDEX "transport_allocations_one_current" ON transport_allocations (student_id) WHERE (valid_to IS NULL);
-CREATE INDEX "transport_attendance_open" ON transport_attendance (institution_id, on_date) WHERE ((alighted_at IS NULL) AND (status = 'boarded'));
-CREATE INDEX "transport_incidents_open" ON transport_incidents (institution_id, on_date DESC) WHERE (resolved_at IS NULL);
-CREATE UNIQUE INDEX "transport_safety_events_one_open" ON transport_safety_events (trip_id, kind, COALESCE(ended_at, '1970-01-01 05:30:00+05:30'));
-CREATE INDEX "transport_safety_events_open" ON transport_safety_events (institution_id, started_at DESC) WHERE (reviewed_at IS NULL);
-CREATE UNIQUE INDEX "transport_staff_one_per_employee" ON transport_staff (employee_id) WHERE "is_active" = 1;
-CREATE UNIQUE INDEX "transport_watch_prefs_one_per_subject" ON transport_watch_prefs (user_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "university_shortlist_entries_once" ON university_shortlist_entries (student_id, lower(trim(university)), lower(trim(COALESCE(course, ''))));
-CREATE UNIQUE INDEX "user_roles_institution_wide" ON user_roles (user_id, role_id) WHERE (campus_id IS NULL);
-CREATE UNIQUE INDEX "users_institution_email" ON users (institution_id, email) WHERE (email IS NOT NULL);
-CREATE UNIQUE INDEX "users_institution_phone" ON users (institution_id, phone) WHERE (phone IS NOT NULL);
-CREATE UNIQUE INDEX "users_institution_username" ON users (institution_id, username) WHERE (username IS NOT NULL);
-CREATE UNIQUE INDEX "users_platform_email" ON users (email) WHERE (institution_id IS NULL);
-CREATE INDEX "vehicle_tracker_pair_codes_live" ON vehicle_tracker_pair_codes (institution_id, expires_at) WHERE (claimed_at IS NULL);
-CREATE INDEX "vehicle_trackers_live" ON vehicle_trackers (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
-CREATE UNIQUE INDEX "vehicle_trackers_one_live_per_vehicle" ON vehicle_trackers (vehicle_id, COALESCE(revoked_at, '1970-01-01 05:30:00+05:30')) WHERE (vehicle_id IS NOT NULL);
-CREATE UNIQUE INDEX "vehicle_trips_one_open_per_vehicle" ON vehicle_trips (vehicle_id, COALESCE(ended_at, '1970-01-01 05:30:00+05:30'));
-CREATE INDEX "vehicle_trips_open" ON vehicle_trips (institution_id, started_at DESC) WHERE (ended_at IS NULL);
-CREATE UNIQUE INDEX "vehicles_institution_bus_code" ON vehicles (institution_id, bus_code) WHERE (bus_code IS NOT NULL);
-CREATE UNIQUE INDEX "vendor_bills_no_per_vendor" ON vendor_bills (institution_id, vendor_id, lower(trim(bill_no)));
-CREATE UNIQUE INDEX "vendors_name_unique" ON vendors (institution_id, lower(trim(name)));
-CREATE UNIQUE INDEX "virtual_class_hand_raises_one_up" ON virtual_class_hand_raises (session_id, student_id) WHERE ((lowered_at IS NULL) AND (answered_at IS NULL));
-CREATE UNIQUE INDEX "virtual_meeting_platform_providers_one_per_scope" ON virtual_meeting_platform_providers (provider, COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
-CREATE INDEX "virtual_meeting_requests_open" ON virtual_meeting_requests (institution_id, status) WHERE (status IN ('queued', 'manual'));
-CREATE INDEX "visitor_blocklist_name" ON visitor_blocklist (institution_id, lower(full_name));
-CREATE INDEX "visitors_inside" ON visitors (institution_id, in_at) WHERE (out_at IS NULL);
-CREATE INDEX "wallet_transactions_pos_sale" ON wallet_transactions (pos_sale_id) WHERE (pos_sale_id IS NOT NULL);
-CREATE UNIQUE INDEX "working_days_adjustments_one_per_day" ON working_days_adjustments (institution_id, academic_year_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), on_date, lower(reason));
-CREATE UNIQUE INDEX "working_days_return_lines_one_per_class" ON working_days_return_lines (return_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'));
-CREATE UNIQUE INDEX "working_days_returns_one_per_title" ON working_days_returns (institution_id, academic_year_id, lower(title));
+CREATE INDEX IF NOT EXISTS "abc_credit_entries_student" ON "abc_credit_entries" ("institution_id", "student_id");
+CREATE INDEX IF NOT EXISTS "absence_followup_section_done_institution_id_idx" ON "absence_followup_section_done" ("institution_id");
+CREATE INDEX IF NOT EXISTS "academic_years_institution_id_campus_id_idx" ON "academic_years" ("institution_id", "campus_id");
+CREATE INDEX IF NOT EXISTS "achievement_media_gallery" ON "achievement_media" ("achievement_id", "sort_order", "created_at");
+CREATE INDEX IF NOT EXISTS "admission_assessments_application_id_idx" ON "admission_assessments" ("application_id");
+CREATE INDEX IF NOT EXISTS "admission_assessments_institution_id_scheduled_at_idx" ON "admission_assessments" ("institution_id", "scheduled_at");
+CREATE INDEX IF NOT EXISTS "admission_campaign_enrolments_lead" ON "admission_campaign_enrolments" ("enquiry_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_campaign_enrolments_once" ON "admission_campaign_enrolments" ("campaign_id", "enquiry_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_campaign_sends_once" ON "admission_campaign_sends" ("enrolment_id", "step_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_campaign_steps_no_idx" ON "admission_campaign_steps" ("campaign_id", "step_no");
+CREATE INDEX IF NOT EXISTS "admission_campaign_steps_order" ON "admission_campaign_steps" ("campaign_id", "offset_days");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_event_bookings_once" ON "admission_event_bookings" ("slot_id", "phone");
+CREATE INDEX IF NOT EXISTS "admission_event_bookings_slot" ON "admission_event_bookings" ("slot_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_event_slots_time" ON "admission_event_slots" ("event_id", "starts_at");
+CREATE INDEX IF NOT EXISTS "admission_form_fields_order" ON "admission_form_fields" ("version_id", "sequence");
+CREATE INDEX IF NOT EXISTS "admission_form_fields_section" ON "admission_form_fields" ("section_id", "sequence");
+CREATE INDEX IF NOT EXISTS "admission_form_sections_order" ON "admission_form_sections" ("version_id", "sequence");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_form_versions_no" ON "admission_form_versions" ("form_id", "version");
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_forms_slug" ON "admission_forms" ("slug");
+CREATE INDEX IF NOT EXISTS "admission_sessions_institution_id_campus_id_idx" ON "admission_sessions" ("institution_id", "campus_id");
+CREATE INDEX IF NOT EXISTS "alumni_contributions_institution" ON "alumni_contributions" ("institution_id", "received_on");
+CREATE INDEX IF NOT EXISTS "alumni_contributions_profile" ON "alumni_contributions" ("alumni_profile_id", "received_on");
+CREATE INDEX IF NOT EXISTS "alumni_event_rsvps_institution" ON "alumni_event_rsvps" ("institution_id");
+CREATE INDEX IF NOT EXISTS "alumni_job_interests_student" ON "alumni_job_interests" ("institution_id", "student_id");
+CREATE INDEX IF NOT EXISTS "alumni_job_posts_board" ON "alumni_job_posts" ("institution_id", "status", "closes_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "alumni_profiles_student" ON "alumni_profiles" ("institution_id", "student_id");
+CREATE INDEX IF NOT EXISTS "announcement_acks_institution_id_idx" ON "announcement_acks" ("institution_id");
+CREATE INDEX IF NOT EXISTS "announcement_sections_institution_id_idx" ON "announcement_sections" ("institution_id");
+CREATE INDEX IF NOT EXISTS "announcement_students_student" ON "announcement_students" ("student_id");
+CREATE INDEX IF NOT EXISTS "announcements_institution_id_publish_at_idx" ON "announcements" ("institution_id", "publish_at");
+CREATE INDEX IF NOT EXISTS "app_events_at_idx" ON "app_events" ("at");
+CREATE INDEX IF NOT EXISTS "app_events_institution_id_idx" ON "app_events" ("institution_id", "id");
+CREATE INDEX IF NOT EXISTS "application_documents_application_id_idx" ON "application_documents" ("application_id");
+CREATE INDEX IF NOT EXISTS "application_documents_institution_id_idx" ON "application_documents" ("institution_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "application_form_answers_once" ON "application_form_answers" ("application_id", "field_id");
+CREATE INDEX IF NOT EXISTS "application_form_answers_version" ON "application_form_answers" ("version_id");
+CREATE INDEX IF NOT EXISTS "applications_campus_id_class_sought_idx" ON "applications" ("campus_id", "class_sought");
+CREATE INDEX IF NOT EXISTS "applications_institution_id_status_idx" ON "applications" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "applications_quota_idx" ON "applications" ("institution_id", "quota", "status");
+CREATE INDEX IF NOT EXISTS "appointments_day" ON "appointments" ("institution_id", "on_date", "starts_at");
+CREATE INDEX IF NOT EXISTS "appraisal_kpis_by_cycle" ON "appraisal_kpis" ("institution_id", "cycle_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "appraisal_ratings_one_per_kpi" ON "appraisal_ratings" ("appraisal_id", "kpi_id");
+CREATE INDEX IF NOT EXISTS "appraisals_by_employee" ON "appraisals" ("institution_id", "employee_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "appraisals_one_per_employee_per_cycle" ON "appraisals" ("cycle_id", "employee_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "attendance_capture_batches_ref_once" ON "attendance_capture_batches" ("institution_id", "client_batch_ref");
+CREATE INDEX IF NOT EXISTS "attendance_capture_batches_section" ON "attendance_capture_batches" ("institution_id", "section_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "attendance_capture_conflicts_once" ON "attendance_capture_conflicts" ("batch_id", "student_id");
+CREATE INDEX IF NOT EXISTS "attendance_corrections_institution_id_status_idx" ON "attendance_corrections" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "audit_log_entity_type_entity_id_idx" ON "audit_log" ("entity_type", "entity_id");
+CREATE INDEX IF NOT EXISTS "audit_log_institution_id_created_at_idx" ON "audit_log" ("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "audit_log_institution_id_id_idx" ON "audit_log" ("institution_id", "id");
+CREATE INDEX IF NOT EXISTS "backup_runs_recent" ON "backup_runs" ("institution_id", "started_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "bank_reconciliations_one_per_period" ON "bank_reconciliations" ("institution_id", "bank_account_id", "period_start", "period_end");
+CREATE INDEX IF NOT EXISTS "bank_statement_imports_recent" ON "bank_statement_imports" ("institution_id", "bank_account_id", "imported_at");
+CREATE INDEX IF NOT EXISTS "bank_statement_lines_amount" ON "bank_statement_lines" ("institution_id", "bank_account_id", "amount_paise", "txn_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "bank_statement_lines_once" ON "bank_statement_lines" ("institution_id", "bank_account_id", "line_hash");
+CREATE INDEX IF NOT EXISTS "biometric_devices_institution" ON "biometric_devices" ("institution_id");
+CREATE INDEX IF NOT EXISTS "biometric_punches_day" ON "biometric_punches" ("institution_id", "punched_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "biometric_punches_once" ON "biometric_punches" ("device_id", "device_user_id", "punched_at");
+CREATE INDEX IF NOT EXISTS "board_registration_amendments_by_registration" ON "board_registration_amendments" ("institution_id", "registration_id", "requested_at");
+CREATE INDEX IF NOT EXISTS "board_registrations_roll" ON "board_registrations" ("institution_id", "academic_year_id", "stage", "status");
+CREATE INDEX IF NOT EXISTS "board_result_imports_recent" ON "board_result_imports" ("institution_id", "academic_year_id", "imported_at");
+CREATE INDEX IF NOT EXISTS "cafeteria_purchase_items_receipt" ON "cafeteria_purchase_items" ("purchase_id");
+CREATE INDEX IF NOT EXISTS "cafeteria_purchases_child_day" ON "cafeteria_purchases" ("student_id", "purchased_at");
+CREATE INDEX IF NOT EXISTS "cafeteria_purchases_day" ON "cafeteria_purchases" ("institution_id", "purchased_at");
+CREATE INDEX IF NOT EXISTS "call_log_day" ON "call_log" ("institution_id", "at_time");
+CREATE UNIQUE INDEX IF NOT EXISTS "campus_entry_passes_serial_unique" ON "campus_entry_passes" ("institution_id", "serial");
+CREATE INDEX IF NOT EXISTS "campuses_institution_id_idx" ON "campuses" ("institution_id");
+CREATE INDEX IF NOT EXISTS "cce_formative_entries_subject" ON "cce_formative_entries" ("institution_id", "class_subject_id", "cycle");
+CREATE INDEX IF NOT EXISTS "child_info_imports_recent" ON "child_info_imports" ("institution_id", "imported_at");
+CREATE INDEX IF NOT EXISTS "child_info_rows_by_child_id" ON "child_info_rows" ("institution_id", "import_id", "child_info_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "child_info_rows_one_per_line" ON "child_info_rows" ("import_id", "line_no");
+CREATE INDEX IF NOT EXISTS "child_info_sync_runs_recent" ON "child_info_sync_runs" ("connector_id", "started_at");
+CREATE INDEX IF NOT EXISTS "class_diary_entries_section" ON "class_diary_entries" ("institution_id", "section_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "class_language_options_once" ON "class_language_options" ("class_subject_id", "slot");
+CREATE INDEX IF NOT EXISTS "class_subjects_institution_id_idx" ON "class_subjects" ("institution_id");
+CREATE INDEX IF NOT EXISTS "classes_bell_idx" ON "classes" ("bell_schedule_id");
+CREATE INDEX IF NOT EXISTS "classes_institution_id_campus_id_level_idx" ON "classes" ("institution_id", "campus_id", "level");
+CREATE UNIQUE INDEX IF NOT EXISTS "clearance_departments_code" ON "clearance_departments" ("institution_id", "code");
+CREATE UNIQUE INDEX IF NOT EXISTS "club_event_tickets_code" ON "club_event_tickets" ("institution_id", "code");
+CREATE INDEX IF NOT EXISTS "club_events_upcoming" ON "club_events" ("institution_id", "campus_id", "starts_at");
+CREATE INDEX IF NOT EXISTS "co_po_map_institution" ON "co_po_map" ("institution_id");
+CREATE INDEX IF NOT EXISTS "co_scholastic_grades_by_student" ON "co_scholastic_grades" ("student_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "contractor_bills_one_per_vendor_period" ON "contractor_bills" ("institution_id", "vendor", "service", "period_year", "period_month");
+CREATE INDEX IF NOT EXISTS "council_duties_institution" ON "council_duties" ("institution_id");
+CREATE INDEX IF NOT EXISTS "council_duties_member" ON "council_duties" ("member_id", "on_date");
+CREATE INDEX IF NOT EXISTS "council_members_institution" ON "council_members" ("institution_id");
+CREATE INDEX IF NOT EXISTS "council_members_student" ON "council_members" ("student_id");
+CREATE INDEX IF NOT EXISTS "council_positions_institution" ON "council_positions" ("institution_id");
+CREATE INDEX IF NOT EXISTS "counselor_access_events_actor" ON "counselor_access_events" ("institution_id", "actor_id", "created_at");
+CREATE INDEX IF NOT EXISTS "counselor_access_events_thread" ON "counselor_access_events" ("thread_id", "created_at");
+CREATE INDEX IF NOT EXISTS "counselor_messages_inst_time_idx" ON "counselor_messages" ("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "counselor_messages_thread" ON "counselor_messages" ("thread_id", "created_at");
+CREATE INDEX IF NOT EXISTS "counselor_threads_student" ON "counselor_threads" ("institution_id", "student_id", "created_at");
+CREATE INDEX IF NOT EXISTS "courier_log_day" ON "courier_log" ("institution_id", "on_date");
+CREATE INDEX IF NOT EXISTS "course_outcomes_institution" ON "course_outcomes" ("institution_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_field_mappings_one_per_field" ON "crm_field_mappings" ("institution_id", "local_field");
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_lead_links_one_per_enquiry" ON "crm_lead_links" ("institution_id", "provider", "enquiry_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_lead_links_one_per_external" ON "crm_lead_links" ("institution_id", "provider", "external_id");
+CREATE INDEX IF NOT EXISTS "crm_sync_run_items_by_run" ON "crm_sync_run_items" ("run_id", "action");
+CREATE INDEX IF NOT EXISTS "crm_sync_runs_recent" ON "crm_sync_runs" ("institution_id", "started_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "depreciation_charges_once_per_year" ON "depreciation_charges" ("asset_id", "fy_start_year");
+CREATE INDEX IF NOT EXISTS "device_staff_sessions_by_user" ON "device_staff_sessions" ("institution_id", "user_id", "started_at");
+CREATE INDEX IF NOT EXISTS "digital_holding_opens_by_holding" ON "digital_holding_opens" ("holding_id", "opened_at");
+CREATE INDEX IF NOT EXISTS "digital_holding_opens_by_month" ON "digital_holding_opens" ("institution_id", "opened_at");
+CREATE INDEX IF NOT EXISTS "discipline_records_institution_id_idx" ON "discipline_records" ("institution_id");
+CREATE INDEX IF NOT EXISTS "discipline_records_recent" ON "discipline_records" ("institution_id", "occurred_on");
+CREATE INDEX IF NOT EXISTS "discipline_records_student" ON "discipline_records" ("student_id", "occurred_on");
+CREATE INDEX IF NOT EXISTS "discipline_records_student_id_occurred_on_idx" ON "discipline_records" ("student_id", "occurred_on");
+CREATE INDEX IF NOT EXISTS "driver_notices_by_vehicle" ON "driver_notices" ("vehicle_id", "sent_at");
+CREATE INDEX IF NOT EXISTS "duty_assignments_by_date" ON "duty_assignments" ("institution_id", "on_date");
+CREATE INDEX IF NOT EXISTS "duty_assignments_by_person" ON "duty_assignments" ("institution_id", "user_id", "on_date");
+CREATE INDEX IF NOT EXISTS "duty_assignments_by_shift" ON "duty_assignments" ("shift_id", "on_date");
+CREATE INDEX IF NOT EXISTS "education_loan_applications_open" ON "education_loan_applications" ("institution_id", "status", "status_changed_on");
+CREATE INDEX IF NOT EXISTS "education_loan_events_by_application" ON "education_loan_events" ("application_id", "happened_at");
+CREATE INDEX IF NOT EXISTS "email_changes_user_idx" ON "email_changes" ("user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "emergency_pickup_child" ON "emergency_pickup_authorisations" ("student_id", "valid_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "emergency_pickup_code" ON "emergency_pickup_authorisations" ("institution_id", "code");
+CREATE INDEX IF NOT EXISTS "employee_documents_employee_id_idx" ON "employee_documents" ("employee_id");
+CREATE INDEX IF NOT EXISTS "employee_documents_institution_id_idx" ON "employee_documents" ("institution_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "employee_tax_elections_one_per_year" ON "employee_tax_elections" ("employee_id", "fy_start_year");
+CREATE INDEX IF NOT EXISTS "employee_year_history_employee_idx" ON "employee_year_history" ("employee_id");
+CREATE INDEX IF NOT EXISTS "employees_institution_id_campus_id_status_idx" ON "employees" ("institution_id", "campus_id", "status");
+CREATE INDEX IF NOT EXISTS "employees_user_id_idx" ON "employees" ("user_id");
+CREATE INDEX IF NOT EXISTS "employees_work_pattern_idx" ON "employees" ("work_pattern_id");
+CREATE INDEX IF NOT EXISTS "enquiries_assigned" ON "enquiries" ("institution_id", "assigned_to", "status");
+CREATE INDEX IF NOT EXISTS "enquiries_institution_id_status_next_follow_up_idx" ON "enquiries" ("institution_id", "status", "next_follow_up");
+CREATE INDEX IF NOT EXISTS "enquiries_phone_idx" ON "enquiries" ("phone");
+CREATE INDEX IF NOT EXISTS "enquiries_source" ON "enquiries" ("institution_id", "source");
+CREATE INDEX IF NOT EXISTS "enrollments_institution_id_academic_year_id_idx" ON "enrollments" ("institution_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "enrollments_section_id_status_idx" ON "enrollments" ("section_id", "status");
+CREATE UNIQUE INDEX IF NOT EXISTS "evaluation_answers_one_per_question" ON "evaluation_answers" ("response_id", "question_id");
+CREATE INDEX IF NOT EXISTS "evaluation_answers_question" ON "evaluation_answers" ("institution_id", "question_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "evaluation_questions_seq_unique" ON "evaluation_questions" ("cycle_id", "seq");
+CREATE INDEX IF NOT EXISTS "evaluation_responses_reviewee" ON "evaluation_responses" ("reviewee_id", "relation");
+CREATE INDEX IF NOT EXISTS "evaluation_reviewees_cycle" ON "evaluation_reviewees" ("institution_id", "cycle_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "evaluation_reviewees_one_per_cycle" ON "evaluation_reviewees" ("cycle_id", "employee_id");
+CREATE INDEX IF NOT EXISTS "event_media_album" ON "event_media" ("institution_id", "event_id", "sort_order", "created_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "event_media_one_per_file" ON "event_media" ("event_id", "file_id");
+CREATE INDEX IF NOT EXISTS "event_seat_passes_child" ON "event_seat_passes" ("student_id", "issued_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "event_seat_passes_code" ON "event_seat_passes" ("institution_id", "code");
+CREATE INDEX IF NOT EXISTS "exam_seats_hall" ON "exam_seats" ("exam_id", "hall_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "exam_seats_one_per_candidate" ON "exam_seats" ("exam_id", "student_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "exam_seats_one_per_desk" ON "exam_seats" ("exam_id", "hall_id", "row_no", "col_no");
+CREATE UNIQUE INDEX IF NOT EXISTS "exam_seats_ticket" ON "exam_seats" ("institution_id", "exam_id", "ticket_no");
+CREATE INDEX IF NOT EXISTS "exam_subjects_institution_id_idx" ON "exam_subjects" ("institution_id");
+CREATE INDEX IF NOT EXISTS "exams_institution_id_academic_year_id_idx" ON "exams" ("institution_id", "academic_year_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "exit_clearances_one_per_department" ON "exit_clearances" ("exit_id", "department_id");
+CREATE INDEX IF NOT EXISTS "fee_concessions_institution_id_idx" ON "fee_concessions" ("institution_id");
+CREATE INDEX IF NOT EXISTS "fee_concessions_live_idx" ON "fee_concessions" ("institution_id", "decided_at");
+CREATE INDEX IF NOT EXISTS "fee_concessions_student_id_academic_year_id_idx" ON "fee_concessions" ("student_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "fee_fine_charges_invoice" ON "fee_fine_charges" ("institution_id", "invoice_id", "applied_at");
+CREATE INDEX IF NOT EXISTS "fee_fine_rules_institution" ON "fee_fine_rules" ("institution_id", "is_active");
+CREATE INDEX IF NOT EXISTS "fee_regulatory_filing_documents_filing" ON "fee_regulatory_filing_documents" ("institution_id", "filing_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_regulatory_filing_documents_once" ON "fee_regulatory_filing_documents" ("filing_id", "file_id");
+CREATE INDEX IF NOT EXISTS "fee_regulatory_filing_lines_filing" ON "fee_regulatory_filing_lines" ("institution_id", "filing_id");
+CREATE INDEX IF NOT EXISTS "fee_structure_items_institution_id_idx" ON "fee_structure_items" ("institution_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_structure_version_items_line" ON "fee_structure_version_items" ("version_id", "fee_head_id", "instalment_no");
+CREATE INDEX IF NOT EXISTS "fee_structure_version_items_version" ON "fee_structure_version_items" ("institution_id", "version_id");
+CREATE INDEX IF NOT EXISTS "fee_structure_versions_lookup" ON "fee_structure_versions" ("institution_id", "fee_structure_id", "effective_from");
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_structure_versions_no" ON "fee_structure_versions" ("fee_structure_id", "version_no");
+CREATE INDEX IF NOT EXISTS "fee_structures_institution_id_academic_year_id_class_id_idx" ON "fee_structures" ("institution_id", "academic_year_id", "class_id");
+CREATE INDEX IF NOT EXISTS "files_institution_id_owner_type_owner_id_idx" ON "files" ("institution_id", "owner_type", "owner_id");
+CREATE INDEX IF NOT EXISTS "fixed_assets_category" ON "fixed_assets" ("institution_id", "category");
+CREATE UNIQUE INDEX IF NOT EXISTS "fixed_assets_tag" ON "fixed_assets" ("institution_id", "tag_no");
+CREATE INDEX IF NOT EXISTS "franchise_members_franchise" ON "franchise_members" ("franchise_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "goods_receipt_lines_one_per_line" ON "goods_receipt_lines" ("goods_receipt_id", "purchase_order_line_id");
+CREATE INDEX IF NOT EXISTS "goods_receipt_lines_po_line" ON "goods_receipt_lines" ("institution_id", "purchase_order_line_id");
+CREATE INDEX IF NOT EXISTS "goods_receipts_po" ON "goods_receipts" ("institution_id", "purchase_order_id");
+CREATE INDEX IF NOT EXISTS "grade_bands_grading_scale_id_idx" ON "grade_bands" ("grading_scale_id");
+CREATE INDEX IF NOT EXISTS "grade_bands_institution_id_idx" ON "grade_bands" ("institution_id");
+CREATE INDEX IF NOT EXISTS "grant_expenditures_by_sanction" ON "grant_expenditures" ("sanction_id", "spent_on");
+CREATE INDEX IF NOT EXISTS "grant_receipts_by_sanction" ON "grant_receipts" ("sanction_id", "received_on");
+CREATE INDEX IF NOT EXISTS "grant_sanctions_by_year" ON "grant_sanctions" ("institution_id", "fy_start_year", "head_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "grant_uc_lines_one_per_sanction" ON "grant_utilisation_certificate_lines" ("certificate_id", "sanction_id");
+CREATE INDEX IF NOT EXISTS "grant_uc_by_year" ON "grant_utilisation_certificates" ("institution_id", "fy_start_year");
+CREATE INDEX IF NOT EXISTS "grievance_updates_timeline" ON "grievance_updates" ("ticket_id", "created_at");
+CREATE INDEX IF NOT EXISTS "guardians_institution_id_idx" ON "guardians" ("institution_id");
+CREATE INDEX IF NOT EXISTS "guardians_user_id_idx" ON "guardians" ("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "health_camp_attendance_once" ON "health_camp_attendance" ("camp_id", "student_id");
+CREATE INDEX IF NOT EXISTS "health_camps_recent" ON "health_camps" ("institution_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "health_checkups_one_per_year" ON "health_checkups" ("institution_id", "student_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "health_checkups_year" ON "health_checkups" ("institution_id", "academic_year_id", "on_date");
+CREATE INDEX IF NOT EXISTS "holidays_institution_id_on_date_idx" ON "holidays" ("institution_id", "on_date");
+CREATE INDEX IF NOT EXISTS "homework_institution_id_assigned_on_idx" ON "homework" ("institution_id", "assigned_on");
+CREATE INDEX IF NOT EXISTS "homework_live_idx" ON "homework" ("institution_id", "updated_at");
+CREATE INDEX IF NOT EXISTS "homework_section_id_due_on_idx" ON "homework" ("section_id", "due_on");
+CREATE INDEX IF NOT EXISTS "homework_attachments_homework_id_idx" ON "homework_attachments" ("homework_id");
+CREATE INDEX IF NOT EXISTS "homework_attachments_institution_id_idx" ON "homework_attachments" ("institution_id");
+CREATE INDEX IF NOT EXISTS "homework_forum_posts_thread" ON "homework_forum_posts" ("institution_id", "thread_id", "created_at");
+CREATE INDEX IF NOT EXISTS "homework_forum_threads_homework" ON "homework_forum_threads" ("institution_id", "homework_id", "created_at");
+CREATE INDEX IF NOT EXISTS "homework_forum_threads_section" ON "homework_forum_threads" ("institution_id", "section_id", "status", "created_at");
+CREATE INDEX IF NOT EXISTS "homework_submissions_institution_id_idx" ON "homework_submissions" ("institution_id");
+CREATE INDEX IF NOT EXISTS "homework_submissions_student_id_status_idx" ON "homework_submissions" ("student_id", "status");
+CREATE UNIQUE INDEX IF NOT EXISTS "hostel_laundry_token_per_day" ON "hostel_laundry" ("institution_id", "token_no", "sent_on");
+CREATE INDEX IF NOT EXISTS "hostel_outpasses_student" ON "hostel_outpasses" ("student_id", "created_at");
+CREATE INDEX IF NOT EXISTS "hostel_visits_student" ON "hostel_visits" ("student_id", "created_at");
+CREATE INDEX IF NOT EXISTS "hpc_observations_student" ON "hpc_observations" ("student_id", "term_id");
+CREATE INDEX IF NOT EXISTS "idempotency_keys_created_idx" ON "idempotency_keys" ("created_at");
+CREATE INDEX IF NOT EXISTS "impersonation_grants_school" ON "impersonation_grants" ("institution_id", "started_at");
+CREATE INDEX IF NOT EXISTS "import_run_rows_run" ON "import_run_rows" ("run_id");
+CREATE INDEX IF NOT EXISTS "import_runs_recent" ON "import_runs" ("institution_id", "entity", "created_at");
+CREATE INDEX IF NOT EXISTS "infirmary_visits_day" ON "infirmary_visits" ("institution_id", "on_date", "arrived_at");
+CREATE INDEX IF NOT EXISTS "infirmary_visits_student" ON "infirmary_visits" ("student_id", "arrived_at");
+CREATE INDEX IF NOT EXISTS "investment_declarations_employee" ON "investment_declarations" ("employee_id", "fy_start_year");
+CREATE UNIQUE INDEX IF NOT EXISTS "invoice_carry_forwards_once" ON "invoice_carry_forwards" ("from_invoice_id");
+CREATE INDEX IF NOT EXISTS "invoice_carry_forwards_to" ON "invoice_carry_forwards" ("institution_id", "to_invoice_id");
+CREATE INDEX IF NOT EXISTS "invoice_lines_fee_head" ON "invoice_lines" ("fee_head_id");
+CREATE INDEX IF NOT EXISTS "invoice_lines_institution_id_idx" ON "invoice_lines" ("institution_id");
+CREATE INDEX IF NOT EXISTS "invoice_lines_invoice_id_idx" ON "invoice_lines" ("invoice_id");
+CREATE INDEX IF NOT EXISTS "invoices_academic_year" ON "invoices" ("academic_year_id");
+CREATE INDEX IF NOT EXISTS "invoices_campus" ON "invoices" ("campus_id");
+CREATE INDEX IF NOT EXISTS "invoices_institution_id_status_due_on_idx" ON "invoices" ("institution_id", "status", "due_on");
+CREATE INDEX IF NOT EXISTS "invoices_live_idx" ON "invoices" ("institution_id", "updated_at");
+CREATE INDEX IF NOT EXISTS "invoices_student_id_academic_year_id_idx" ON "invoices" ("student_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "issued_certificates_institution_id_status_idx" ON "issued_certificates" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "issued_certificates_student_id_idx" ON "issued_certificates" ("student_id");
+CREATE INDEX IF NOT EXISTS "job_candidate_events_by_candidate" ON "job_candidate_events" ("candidate_id", "occurred_at");
+CREATE INDEX IF NOT EXISTS "job_candidates_by_stage" ON "job_candidates" ("institution_id", "vacancy_id", "stage");
+CREATE INDEX IF NOT EXISTS "job_interviews_by_candidate" ON "job_interviews" ("candidate_id", "scheduled_at");
+CREATE INDEX IF NOT EXISTS "job_offers_by_institution" ON "job_offers" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "job_vacancies_by_status" ON "job_vacancies" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "journal_entries_by_date" ON "journal_entries" ("institution_id", "entry_date");
+CREATE INDEX IF NOT EXISTS "journal_entries_by_year" ON "journal_entries" ("institution_id", "fy_start_year");
+CREATE INDEX IF NOT EXISTS "journal_lines_account" ON "journal_lines" ("institution_id", "account_id");
+CREATE INDEX IF NOT EXISTS "journal_lines_entry" ON "journal_lines" ("entry_id");
+CREATE INDEX IF NOT EXISTS "leave_balances_institution_id_idx" ON "leave_balances" ("institution_id");
+CREATE INDEX IF NOT EXISTS "leave_policy_rules_institution" ON "leave_policy_rules" ("institution_id");
+CREATE INDEX IF NOT EXISTS "leave_requests_employee_id_from_date_idx" ON "leave_requests" ("employee_id", "from_date");
+CREATE INDEX IF NOT EXISTS "leave_requests_institution_id_status_idx" ON "leave_requests" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "leave_requests_student_id_from_date_idx" ON "leave_requests" ("student_id", "from_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "ledger_accounts_code" ON "ledger_accounts" ("institution_id", "code");
+CREATE INDEX IF NOT EXISTS "ledger_accounts_parent" ON "ledger_accounts" ("institution_id", "parent_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "lesson_plans_one_per_week" ON "lesson_plans" ("section_id", "class_subject_id", "week_of");
+CREATE INDEX IF NOT EXISTS "library_copies_title_id_status_idx" ON "library_copies" ("title_id", "status");
+CREATE INDEX IF NOT EXISTS "library_loans_student_id_idx" ON "library_loans" ("student_id");
+CREATE INDEX IF NOT EXISTS "library_titles_institution_id_campus_id_idx" ON "library_titles" ("institution_id", "campus_id");
+CREATE INDEX IF NOT EXISTS "library_titles_isbn_idx" ON "library_titles" ("isbn");
+CREATE UNIQUE INDEX IF NOT EXISTS "loan_deductions_one_per_period" ON "loan_deductions" ("loan_id", "period_year", "period_month");
+CREATE INDEX IF NOT EXISTS "loc_candidates_by_submission" ON "loc_candidates" ("institution_id", "submission_id", "serial_no");
+CREATE UNIQUE INDEX IF NOT EXISTS "loc_candidates_serial_unique" ON "loc_candidates" ("submission_id", "serial_no");
+CREATE INDEX IF NOT EXISTS "loc_subject_options_by_group" ON "loc_subject_options" ("institution_id", "group_id", "sequence");
+CREATE INDEX IF NOT EXISTS "loc_submissions_recent" ON "loc_submissions" ("institution_id", "academic_year_id", "created_at");
+CREATE INDEX IF NOT EXISTS "loc_validation_issues_by_submission" ON "loc_validation_issues" ("institution_id", "submission_id", "severity");
+CREATE INDEX IF NOT EXISTS "locker_access_events_locker" ON "locker_access_events" ("locker_id", "happened_at");
+CREATE INDEX IF NOT EXISTS "login_events_identifier_idx" ON "login_events" ("identifier", "created_at");
+CREATE INDEX IF NOT EXISTS "login_events_inst_idx" ON "login_events" ("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "login_events_user_idx" ON "login_events" ("user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "lost_found_claims_item" ON "lost_found_claims" ("institution_id", "item_id", "created_at");
+CREATE INDEX IF NOT EXISTS "lost_found_claims_mine" ON "lost_found_claims" ("institution_id", "claimant_student_id", "created_at");
+CREATE INDEX IF NOT EXISTS "lost_found_items_board" ON "lost_found_items" ("institution_id", "campus_id", "status", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "mark_moderations_one_per_subject" ON "mark_moderations" ("exam_subject_id");
+CREATE INDEX IF NOT EXISTS "marks_approved_by" ON "marks" ("approved_by");
+CREATE INDEX IF NOT EXISTS "marks_entered_by" ON "marks" ("entered_by");
+CREATE INDEX IF NOT EXISTS "marks_institution_id_exam_subject_id_idx" ON "marks" ("institution_id", "exam_subject_id");
+CREATE INDEX IF NOT EXISTS "marks_live_idx" ON "marks" ("institution_id", "entered_at");
+CREATE INDEX IF NOT EXISTS "marks_student_id_idx" ON "marks" ("student_id");
+CREATE INDEX IF NOT EXISTS "mdm_foodgrain_receipts_period" ON "mdm_foodgrain_receipts" ("institution_id", "lifted_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_norms_one_per_stage_date" ON "mdm_norms" ("institution_id", "stage", "effective_from");
+CREATE INDEX IF NOT EXISTS "mdm_register_amendments_by_register" ON "mdm_register_amendments" ("register_id", "amended_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_register_lines_one_per_section" ON "mdm_register_lines" ("register_id", "section_id");
+CREATE INDEX IF NOT EXISTS "mdm_registers_by_date" ON "mdm_registers" ("institution_id", "on_date");
+CREATE INDEX IF NOT EXISTS "medical_fitness_expiring" ON "medical_fitness_certificates" ("institution_id", "valid_until");
+CREATE UNIQUE INDEX IF NOT EXISTS "medical_fitness_one_per_examination" ON "medical_fitness_certificates" ("employee_id", "purpose", "issued_on");
+CREATE INDEX IF NOT EXISTS "medication_administrations_day" ON "medication_administrations" ("institution_id", "administered_at");
+CREATE INDEX IF NOT EXISTS "medication_administrations_student" ON "medication_administrations" ("student_id", "administered_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "mess_menus_one_per_meal" ON "mess_menus" ("institution_id", "on_date", "meal");
+CREATE INDEX IF NOT EXISTS "message_attachments_message_log_id_idx" ON "message_attachments" ("message_log_id");
+CREATE INDEX IF NOT EXISTS "message_credit_entries_inst_idx" ON "message_credit_entries" ("institution_id", "channel", "created_at");
+CREATE INDEX IF NOT EXISTS "message_log_institution_id_queued_at_idx" ON "message_log" ("institution_id", "queued_at");
+CREATE INDEX IF NOT EXISTS "message_log_student_id_idx" ON "message_log" ("student_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "messaging_allowed_recipients_one_per_value" ON "messaging_allowed_recipients" ("institution_id", "kind", "normalised");
+CREATE UNIQUE INDEX IF NOT EXISTS "montessori_progress_once_per_day" ON "montessori_progress" ("student_id", "material_id", "stage", "observed_on");
+CREATE INDEX IF NOT EXISTS "montessori_progress_student" ON "montessori_progress" ("institution_id", "student_id", "observed_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "night_study_attendance_once" ON "night_study_attendance" ("institution_id", "student_id", "on_date", "session");
+CREATE INDEX IF NOT EXISTS "notifications_feed" ON "notifications" ("institution_id", "user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "notifications_institution_id_idx" ON "notifications" ("institution_id");
+CREATE INDEX IF NOT EXISTS "notifications_user_id_read_at_created_at_idx" ON "notifications" ("user_id", "read_at", "created_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "online_test_attempts_once" ON "online_test_attempts" ("test_id", "student_id", "attempt_no");
+CREATE INDEX IF NOT EXISTS "online_test_attempts_test" ON "online_test_attempts" ("institution_id", "test_id", "status");
+CREATE UNIQUE INDEX IF NOT EXISTS "online_test_questions_once" ON "online_test_questions" ("test_id", "question_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "online_test_questions_order" ON "online_test_questions" ("test_id", "sequence");
+CREATE UNIQUE INDEX IF NOT EXISTS "online_test_responses_once" ON "online_test_responses" ("attempt_id", "test_question_id");
+CREATE INDEX IF NOT EXISTS "online_test_responses_question" ON "online_test_responses" ("test_question_id", "is_correct");
+CREATE INDEX IF NOT EXISTS "online_tests_section" ON "online_tests" ("institution_id", "section_id", "status", "opens_at");
+CREATE INDEX IF NOT EXISTS "outcome_assessments_institution" ON "outcome_assessments" ("institution_id");
+CREATE INDEX IF NOT EXISTS "parent_forum_posts_author_day" ON "parent_forum_posts" ("institution_id", "author_user_id", "posted_on");
+CREATE INDEX IF NOT EXISTS "parent_forum_posts_thread" ON "parent_forum_posts" ("institution_id", "thread_id", "created_at");
+CREATE INDEX IF NOT EXISTS "parent_forum_reports_content" ON "parent_forum_reports" ("institution_id", "content_kind", "content_id", "created_at");
+CREATE INDEX IF NOT EXISTS "parent_forum_threads_author_day" ON "parent_forum_threads" ("institution_id", "author_user_id", "posted_on");
+CREATE INDEX IF NOT EXISTS "parent_forum_threads_board" ON "parent_forum_threads" ("institution_id", "section_id", "status", "last_activity_at");
+CREATE INDEX IF NOT EXISTS "parent_teacher_messages_inst_time_idx" ON "parent_teacher_messages" ("institution_id", "sent_at");
+CREATE INDEX IF NOT EXISTS "parent_teacher_messages_thread" ON "parent_teacher_messages" ("institution_id", "student_id", "parent_user_id", "teacher_user_id", "sent_at");
+CREATE INDEX IF NOT EXISTS "parent_teacher_messages_thread_time_idx" ON "parent_teacher_messages" ("student_id", "parent_user_id", "teacher_user_id", "sent_at");
+CREATE INDEX IF NOT EXISTS "password_resets_user_idx" ON "password_resets" ("user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "payment_allocations_institution_id_idx" ON "payment_allocations" ("institution_id");
+CREATE INDEX IF NOT EXISTS "payment_allocations_invoice" ON "payment_allocations" ("invoice_id");
+CREATE INDEX IF NOT EXISTS "payment_allocations_invoice_id_idx" ON "payment_allocations" ("invoice_id");
+CREATE INDEX IF NOT EXISTS "payments_campus" ON "payments" ("campus_id");
+CREATE INDEX IF NOT EXISTS "payments_collected_by" ON "payments" ("collected_by");
+CREATE INDEX IF NOT EXISTS "payments_institution_id_paid_on_status_idx" ON "payments" ("institution_id", "paid_on", "status");
+CREATE INDEX IF NOT EXISTS "payments_reconciled_by" ON "payments" ("reconciled_by");
+CREATE INDEX IF NOT EXISTS "payments_student_id_paid_on_idx" ON "payments" ("student_id", "paid_on");
+CREATE INDEX IF NOT EXISTS "payout_items_batch" ON "payout_items" ("batch_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "periods_schedule_sequence" ON "periods" ("bell_schedule_id", "sequence");
+CREATE INDEX IF NOT EXISTS "petty_cash_counts_inst" ON "petty_cash_counts" ("institution_id", "counted_on");
+CREATE INDEX IF NOT EXISTS "petty_cash_topups_inst" ON "petty_cash_topups" ("institution_id", "topup_date");
+CREATE INDEX IF NOT EXISTS "petty_cash_by_date" ON "petty_cash_vouchers" ("institution_id", "voucher_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "petty_cash_voucher_no" ON "petty_cash_vouchers" ("institution_id", "voucher_no");
+CREATE INDEX IF NOT EXISTS "platform_events_recent_idx" ON "platform_events" ("at");
+CREATE UNIQUE INDEX IF NOT EXISTS "pos_sale_lines_one_per_no" ON "pos_sale_lines" ("sale_id", "line_no");
+CREATE INDEX IF NOT EXISTS "pos_sales_by_day" ON "pos_sales" ("institution_id", "channel", "sold_on");
+CREATE INDEX IF NOT EXISTS "pos_sales_by_session" ON "pos_sales" ("session_id", "sold_at");
+CREATE INDEX IF NOT EXISTS "pos_till_sessions_by_person" ON "pos_till_sessions" ("institution_id", "opened_by", "opened_at");
+CREATE INDEX IF NOT EXISTS "pos_till_sessions_recent" ON "pos_till_sessions" ("institution_id", "opened_at");
+CREATE INDEX IF NOT EXISTS "prospectus_sales_day" ON "prospectus_sales" ("institution_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "prospectus_sales_receipt" ON "prospectus_sales" ("institution_id", "receipt_no");
+CREATE INDEX IF NOT EXISTS "pt_slabs_lookup" ON "pt_slabs" ("institution_id", "state", "from_paise");
+CREATE INDEX IF NOT EXISTS "ptm_notes_section" ON "ptm_notes" ("section_id", "met_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "ptm_slots_one_per_time" ON "ptm_slots" ("institution_id", "employee_id", "on_date", "starts_at");
+CREATE INDEX IF NOT EXISTS "purchase_enquiries_stage" ON "purchase_enquiries" ("status", "next_follow_up");
+CREATE INDEX IF NOT EXISTS "purchase_enquiry_notes_enquiry" ON "purchase_enquiry_notes" ("enquiry_id", "created_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_invoice_matches_one_per_bill" ON "purchase_invoice_matches" ("institution_id", "vendor_bill_id");
+CREATE INDEX IF NOT EXISTS "purchase_invoice_matches_po" ON "purchase_invoice_matches" ("institution_id", "purchase_order_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_order_lines_no" ON "purchase_order_lines" ("purchase_order_id", "line_no");
+CREATE INDEX IF NOT EXISTS "purchase_order_lines_po" ON "purchase_order_lines" ("institution_id", "purchase_order_id");
+CREATE INDEX IF NOT EXISTS "purchase_orders_vendor" ON "purchase_orders" ("institution_id", "vendor_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_requisition_lines_no" ON "purchase_requisition_lines" ("requisition_id", "line_no");
+CREATE INDEX IF NOT EXISTS "purchase_requisition_lines_req" ON "purchase_requisition_lines" ("institution_id", "requisition_id");
+CREATE INDEX IF NOT EXISTS "push_tokens_user_id_idx" ON "push_tokens" ("user_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "question_bank_options_order" ON "question_bank_options" ("question_id", "sequence");
+CREATE INDEX IF NOT EXISTS "question_bank_questions_subject" ON "question_bank_questions" ("institution_id", "class_subject_id", "is_active");
+CREATE UNIQUE INDEX IF NOT EXISTS "question_papers_one_per_subject" ON "question_papers" ("exam_subject_id");
+CREATE INDEX IF NOT EXISTS "question_papers_queue" ON "question_papers" ("institution_id", "status", "submitted_at");
+CREATE INDEX IF NOT EXISTS "rate_limit_hits_scope_subject_hit_at_idx" ON "rate_limit_hits" ("scope", "subject", "hit_at");
+CREATE INDEX IF NOT EXISTS "refunds_institution_id_status_idx" ON "refunds" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "refunds_student_id_idx" ON "refunds" ("student_id");
+CREATE INDEX IF NOT EXISTS "reimbursement_claim_lines_by_student" ON "reimbursement_claim_lines" ("institution_id", "student_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "reimbursement_claim_lines_one_per_child" ON "reimbursement_claim_lines" ("claim_id", "student_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "reimbursement_claims_one_per_period" ON "reimbursement_claims" ("institution_id", "scheme_id", "academic_year_id", "period_start", "period_end");
+CREATE UNIQUE INDEX IF NOT EXISTS "reimbursement_rates_one_per_band" ON "reimbursement_rates" ("institution_id", "scheme_id", "academic_year_id", "from_level", "to_level");
+CREATE INDEX IF NOT EXISTS "reimbursement_receipts_by_claim" ON "reimbursement_receipts" ("claim_id", "received_on");
+CREATE INDEX IF NOT EXISTS "report_cards_exam_idx" ON "report_cards" ("exam_id");
+CREATE INDEX IF NOT EXISTS "report_cards_institution_id_academic_year_id_idx" ON "report_cards" ("institution_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "report_definitions_subject" ON "report_definitions" ("institution_id", "subject");
+CREATE INDEX IF NOT EXISTS "report_runs_recent" ON "report_runs" ("report_id", "ran_at");
+CREATE INDEX IF NOT EXISTS "rollover_log_institution" ON "rollover_log" ("institution_id", "target_year_id");
+CREATE INDEX IF NOT EXISTS "room_inventory_checks_room" ON "room_inventory_checks" ("room_id", "on_date");
+CREATE INDEX IF NOT EXISTS "route_stops_institution_id_idx" ON "route_stops" ("institution_id");
+CREATE INDEX IF NOT EXISTS "scholarship_awards_by_stage" ON "scholarship_awards" ("institution_id", "academic_year_id", "stage");
+CREATE UNIQUE INDEX IF NOT EXISTS "scholarship_awards_one_per_child" ON "scholarship_awards" ("institution_id", "scheme_id", "student_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "scholarship_disbursement_imports_recent" ON "scholarship_disbursement_imports" ("institution_id", "scheme_id", "imported_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "scholarship_disbursement_lines_one_per_row" ON "scholarship_disbursement_lines" ("import_id", "line_no");
+CREATE INDEX IF NOT EXISTS "section_subject_teachers_institution_id_idx" ON "section_subject_teachers" ("institution_id");
+CREATE INDEX IF NOT EXISTS "section_subject_teachers_teacher_user_id_idx" ON "section_subject_teachers" ("teacher_user_id");
+CREATE INDEX IF NOT EXISTS "sections_bell_idx" ON "sections" ("bell_schedule_id");
+CREATE INDEX IF NOT EXISTS "sections_class_teacher_id_idx" ON "sections" ("class_teacher_id");
+CREATE INDEX IF NOT EXISTS "sections_institution_id_academic_year_id_idx" ON "sections" ("institution_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "service_book_entries_employee" ON "service_book_entries" ("employee_id", "event_date", "created_at");
+CREATE INDEX IF NOT EXISTS "session_screens_user_idx" ON "session_screens" ("user_id", "last_at");
+CREATE INDEX IF NOT EXISTS "signup_orders_created_idx" ON "signup_orders" ("created_at");
+CREATE INDEX IF NOT EXISTS "signup_orders_status_idx" ON "signup_orders" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "sms_gateway_devices_one_per_pair_code" ON "sms_gateway_devices" ("pair_code_id");
+CREATE INDEX IF NOT EXISTS "sms_gateway_dispatch_by_device" ON "sms_gateway_dispatch" ("institution_id", "device_id", "completed_at");
+CREATE INDEX IF NOT EXISTS "sms_gateway_dispatch_claimable" ON "sms_gateway_dispatch" ("institution_id", "state", "lease_expires_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "sms_gateway_dispatch_one_per_message" ON "sms_gateway_dispatch" ("message_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "sms_gateway_pair_codes_by_hash" ON "sms_gateway_pair_codes" ("code_hash");
+CREATE INDEX IF NOT EXISTS "sqaa_action_items_by_assessment" ON "sqaa_action_items" ("institution_id", "assessment_id");
+CREATE INDEX IF NOT EXISTS "sqaa_assessment_entries_by_assessment" ON "sqaa_assessment_entries" ("institution_id", "assessment_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "sqaa_assessment_entries_one_per_standard" ON "sqaa_assessment_entries" ("assessment_id", "standard_id");
+CREATE INDEX IF NOT EXISTS "sqaa_assessments_open" ON "sqaa_assessments" ("institution_id", "status", "due_on");
+CREATE INDEX IF NOT EXISTS "sqaa_evidence_by_entry" ON "sqaa_evidence" ("institution_id", "entry_id");
+CREATE INDEX IF NOT EXISTS "sqaa_standards_parent" ON "sqaa_standards" ("framework_code", "parent_id", "sequence");
+CREATE INDEX IF NOT EXISTS "staff_attendance_institution_id_on_date_idx" ON "staff_attendance" ("institution_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_celebration_greetings_once" ON "staff_celebration_greetings" ("employee_id", "kind", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_grievances_reference" ON "staff_grievances" ("institution_id", "reference_no");
+CREATE INDEX IF NOT EXISTS "staff_messages_inst_time_idx" ON "staff_messages" ("institution_id", "sent_at");
+CREATE INDEX IF NOT EXISTS "staff_messages_thread" ON "staff_messages" ("institution_id", "party_a", "party_b", "sent_at");
+CREATE INDEX IF NOT EXISTS "staff_messages_thread_time_idx" ON "staff_messages" ("party_a", "party_b", "sent_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_onboarding_one_per_employee" ON "staff_onboarding" ("employee_id");
+CREATE INDEX IF NOT EXISTS "staff_remarks_author" ON "staff_remarks" ("author_user_id", "created_at");
+CREATE INDEX IF NOT EXISTS "staff_remarks_institution" ON "staff_remarks" ("institution_id");
+CREATE INDEX IF NOT EXISTS "staff_remarks_subject" ON "staff_remarks" ("subject_user_id", "observed_on");
+CREATE INDEX IF NOT EXISTS "staff_training_records_by_employee" ON "staff_training_records" ("institution_id", "employee_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_training_records_one_per_person" ON "staff_training_records" ("programme_id", "employee_id");
+CREATE INDEX IF NOT EXISTS "staff_transfers_employee" ON "staff_transfers" ("employee_id", "effective_from");
+CREATE UNIQUE INDEX IF NOT EXISTS "store_product_variants_one_per_item" ON "store_product_variants" ("institution_id", "item_id");
+CREATE INDEX IF NOT EXISTS "student_absence_followup_institution_id_idx" ON "student_absence_followup" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_achievements_institution_id_idx" ON "student_achievements" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_achievements_student_id_idx" ON "student_achievements" ("student_id");
+CREATE INDEX IF NOT EXISTS "student_activity_days_institution" ON "student_activity_days" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_attendance_institution_id_on_date_status_idx" ON "student_attendance" ("institution_id", "on_date", "status");
+CREATE INDEX IF NOT EXISTS "student_attendance_live_idx" ON "student_attendance" ("institution_id", "marked_at");
+CREATE INDEX IF NOT EXISTS "student_attendance_section_id_on_date_idx" ON "student_attendance" ("section_id", "on_date");
+CREATE INDEX IF NOT EXISTS "student_content_moderation_content" ON "student_content_moderation" ("institution_id", "content_kind", "content_id", "created_at");
+CREATE INDEX IF NOT EXISTS "student_content_moderation_recent" ON "student_content_moderation" ("institution_id", "created_at");
+CREATE INDEX IF NOT EXISTS "student_diary_notes_day" ON "student_diary_notes" ("institution_id", "student_id", "on_date", "created_at");
+CREATE INDEX IF NOT EXISTS "student_documents_institution_id_idx" ON "student_documents" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_documents_student_id_idx" ON "student_documents" ("student_id");
+CREATE INDEX IF NOT EXISTS "student_fee_components_student" ON "student_fee_components" ("institution_id", "student_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "student_fee_optins_head" ON "student_fee_optins" ("institution_id", "fee_head_id", "academic_year_id");
+CREATE INDEX IF NOT EXISTS "student_guardians_guardian_id_idx" ON "student_guardians" ("guardian_id");
+CREATE INDEX IF NOT EXISTS "student_guardians_institution_id_idx" ON "student_guardians" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_health_institution_id_idx" ON "student_health" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_language_elections_option" ON "student_language_elections" ("institution_id", "option_id", "status");
+CREATE INDEX IF NOT EXISTS "student_portfolio_curations_student" ON "student_portfolio_curations" ("institution_id", "student_id", "curated_at");
+CREATE INDEX IF NOT EXISTS "student_portfolio_items_student" ON "student_portfolio_items" ("institution_id", "student_id", "happened_on");
+CREATE INDEX IF NOT EXISTS "student_remarks_institution" ON "student_remarks" ("institution_id");
+CREATE INDEX IF NOT EXISTS "student_remarks_section" ON "student_remarks" ("section_id", "observed_on");
+CREATE INDEX IF NOT EXISTS "student_remarks_student" ON "student_remarks" ("student_id", "observed_on");
+CREATE UNIQUE INDEX IF NOT EXISTS "student_support_goal_updates_one_per_day" ON "student_support_goal_updates" ("goal_id", "on_date");
+CREATE INDEX IF NOT EXISTS "student_support_goal_updates_recent" ON "student_support_goal_updates" ("goal_id", "on_date");
+CREATE INDEX IF NOT EXISTS "student_support_goals_plan" ON "student_support_goals" ("institution_id", "plan_id", "status");
+CREATE INDEX IF NOT EXISTS "student_wall_posts_author_day" ON "student_wall_posts" ("institution_id", "author_student_id", "posted_on");
+CREATE INDEX IF NOT EXISTS "student_wall_posts_board" ON "student_wall_posts" ("institution_id", "campus_id", "status", "created_at");
+CREATE INDEX IF NOT EXISTS "student_wall_posts_subject" ON "student_wall_posts" ("institution_id", "subject_student_id", "created_at");
+CREATE INDEX IF NOT EXISTS "student_year_history_student_idx" ON "student_year_history" ("student_id");
+CREATE INDEX IF NOT EXISTS "students_campus" ON "students" ("campus_id");
+CREATE INDEX IF NOT EXISTS "students_house" ON "students" ("house_id");
+CREATE INDEX IF NOT EXISTS "students_institution_id_campus_id_status_idx" ON "students" ("institution_id", "campus_id", "status");
+CREATE INDEX IF NOT EXISTS "students_institution_id_last_name_first_name_idx" ON "students" ("institution_id", "last_name", "first_name");
+CREATE INDEX IF NOT EXISTS "students_photo_file" ON "students" ("photo_file_id");
+CREATE INDEX IF NOT EXISTS "study_groups_section" ON "study_groups" ("institution_id", "section_id", "is_open");
+CREATE INDEX IF NOT EXISTS "study_material_targets_student" ON "study_material_targets" ("student_id");
+CREATE INDEX IF NOT EXISTS "study_materials_institution_id_idx" ON "study_materials" ("institution_id");
+CREATE INDEX IF NOT EXISTS "study_materials_section_id_is_published_idx" ON "study_materials" ("section_id", "is_published");
+CREATE INDEX IF NOT EXISTS "subscriptions_status_idx" ON "subscriptions" ("status");
+CREATE INDEX IF NOT EXISTS "substitution_request_periods_by_date" ON "substitution_request_periods" ("institution_id", "on_date");
+CREATE UNIQUE INDEX IF NOT EXISTS "substitution_request_periods_one_per_slot" ON "substitution_request_periods" ("request_id", "timetable_entry_id", "on_date");
+CREATE INDEX IF NOT EXISTS "substitution_requests_by_teacher" ON "substitution_requests" ("requested_by", "from_date");
+CREATE INDEX IF NOT EXISTS "substitution_requests_pending" ON "substitution_requests" ("institution_id", "status", "from_date");
+CREATE INDEX IF NOT EXISTS "substitutions_institution_id_on_date_idx" ON "substitutions" ("institution_id", "on_date");
+CREATE INDEX IF NOT EXISTS "substitutions_substitute_user_id_on_date_idx" ON "substitutions" ("substitute_user_id", "on_date");
+CREATE INDEX IF NOT EXISTS "support_tickets_institution_id_status_idx" ON "support_tickets" ("institution_id", "status");
+CREATE INDEX IF NOT EXISTS "support_tickets_raised_by_idx" ON "support_tickets" ("raised_by");
+CREATE INDEX IF NOT EXISTS "syllabus_units_subject" ON "syllabus_units" ("class_subject_id", "sequence");
+CREATE INDEX IF NOT EXISTS "tally_export_run_vouchers_by_voucher" ON "tally_export_run_vouchers" ("institution_id", "journal_entry_id");
+CREATE INDEX IF NOT EXISTS "tally_export_runs_recent" ON "tally_export_runs" ("institution_id", "exported_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_ledger_mappings_one_per_account" ON "tally_ledger_mappings" ("institution_id", "ledger_account_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_voucher_type_mappings_one_per_type" ON "tally_voucher_type_mappings" ("institution_id", "voucher_type");
+CREATE UNIQUE INDEX IF NOT EXISTS "teacher_load_rules_one_per_teacher" ON "teacher_load_rules" ("institution_id", "teacher_user_id");
+CREATE INDEX IF NOT EXISTS "teacher_subjects_subject" ON "teacher_subjects" ("institution_id", "subject_id");
+CREATE INDEX IF NOT EXISTS "teacher_unavailability_by_teacher" ON "teacher_unavailability" ("institution_id", "teacher_user_id");
+CREATE INDEX IF NOT EXISTS "terms_academic_year_id_idx" ON "terms" ("academic_year_id");
+CREATE INDEX IF NOT EXISTS "textbook_indents_year" ON "textbook_indents" ("institution_id", "academic_year_id", "class_id");
+CREATE INDEX IF NOT EXISTS "timetable_draft_entries_by_draft" ON "timetable_draft_entries" ("draft_id", "section_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "timetable_draft_section_slot" ON "timetable_draft_entries" ("draft_id", "section_id", "weekday", "period_id");
+CREATE INDEX IF NOT EXISTS "timetable_draft_issues_by_draft" ON "timetable_draft_issues" ("draft_id", "severity", "section_id");
+CREATE INDEX IF NOT EXISTS "timetable_drafts_by_year" ON "timetable_drafts" ("institution_id", "academic_year_id", "generated_at");
+CREATE INDEX IF NOT EXISTS "timetable_entries_institution_id_academic_year_id_idx" ON "timetable_entries" ("institution_id", "academic_year_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "timetable_section_slot" ON "timetable_entries" ("section_id", "weekday", "period_id");
+CREATE INDEX IF NOT EXISTS "training_programmes_when" ON "training_programmes" ("institution_id", "starts_on");
+CREATE INDEX IF NOT EXISTS "transport_allocations_institution_id_idx" ON "transport_allocations" ("institution_id");
+CREATE INDEX IF NOT EXISTS "transport_allocations_route" ON "transport_allocations" ("route_id", "valid_to");
+CREATE INDEX IF NOT EXISTS "transport_allocations_route_id_idx" ON "transport_allocations" ("route_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_attendance_one_per_leg" ON "transport_attendance" ("student_id", "on_date", "leg");
+CREATE INDEX IF NOT EXISTS "transport_stop_events_by_stop" ON "transport_stop_events" ("institution_id", "stop_id", "occurred_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_stop_events_one_per_occurrence" ON "transport_stop_events" ("trip_id", "stop_id", "kind");
+CREATE UNIQUE INDEX IF NOT EXISTS "trip_checks_one_per_leg" ON "trip_checks" ("vehicle_id", "on_date", "leg");
+CREATE INDEX IF NOT EXISTS "university_shortlist_entries_student" ON "university_shortlist_entries" ("institution_id", "student_id", "application_deadline");
+CREATE INDEX IF NOT EXISTS "user_permissions_user_id_idx" ON "user_permissions" ("user_id");
+CREATE INDEX IF NOT EXISTS "user_roles_user_id_idx" ON "user_roles" ("user_id");
+CREATE INDEX IF NOT EXISTS "user_working_years_year" ON "user_working_years" ("academic_year_id");
+CREATE INDEX IF NOT EXISTS "vehicle_last_position_fresh" ON "vehicle_last_position" ("institution_id", "recorded_at");
+CREATE INDEX IF NOT EXISTS "vehicle_logs_vehicle" ON "vehicle_logs" ("vehicle_id", "on_date");
+CREATE INDEX IF NOT EXISTS "vehicle_positions_age" ON "vehicle_positions" ("institution_id", "recorded_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_positions_one_per_fix" ON "vehicle_positions" ("trip_id", "recorded_at");
+CREATE INDEX IF NOT EXISTS "vehicle_positions_replay" ON "vehicle_positions" ("trip_id", "recorded_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_tracker_pair_codes_by_hash" ON "vehicle_tracker_pair_codes" ("code_hash");
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_trackers_one_per_pair_code" ON "vehicle_trackers" ("pair_code_id");
+CREATE INDEX IF NOT EXISTS "vehicle_trips_by_route" ON "vehicle_trips" ("institution_id", "route_id", "started_at");
+CREATE INDEX IF NOT EXISTS "vehicles_institution_id_campus_id_idx" ON "vehicles" ("institution_id", "campus_id");
+CREATE INDEX IF NOT EXISTS "vendor_bills_due" ON "vendor_bills" ("institution_id", "due_on");
+CREATE INDEX IF NOT EXISTS "vendor_payments_bill" ON "vendor_payments" ("bill_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "vendor_payments_voucher" ON "vendor_payments" ("institution_id", "voucher_no");
+CREATE UNIQUE INDEX IF NOT EXISTS "vendors_code" ON "vendors" ("institution_id", "code");
+CREATE INDEX IF NOT EXISTS "virtual_class_hand_raises_queue" ON "virtual_class_hand_raises" ("institution_id", "session_id", "raised_at");
+CREATE INDEX IF NOT EXISTS "virtual_class_hand_raises_student" ON "virtual_class_hand_raises" ("institution_id", "student_id", "raised_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "virtual_class_providers_one" ON "virtual_class_providers" ("institution_id", "provider");
+CREATE INDEX IF NOT EXISTS "virtual_class_sessions_section" ON "virtual_class_sessions" ("institution_id", "section_id", "scheduled_at");
+CREATE INDEX IF NOT EXISTS "virtual_meeting_requests_recent" ON "virtual_meeting_requests" ("institution_id", "requested_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "visitors_pass_per_day" ON "visitors" ("institution_id", "pass_no", "on_date");
+CREATE INDEX IF NOT EXISTS "wallet_accounts_student" ON "wallet_accounts" ("student_id");
+CREATE INDEX IF NOT EXISTS "wallet_transactions_wallet" ON "wallet_transactions" ("wallet_id", "created_at");
+CREATE INDEX IF NOT EXISTS "work_patterns_institution_idx" ON "work_patterns" ("institution_id");
+CREATE INDEX IF NOT EXISTS "working_days_adjustments_by_year" ON "working_days_adjustments" ("institution_id", "academic_year_id", "on_date");
+CREATE INDEX IF NOT EXISTS "working_days_return_lines_by_return" ON "working_days_return_lines" ("institution_id", "return_id", "class_level");
+CREATE INDEX IF NOT EXISTS "working_days_returns_recent" ON "working_days_returns" ("institution_id", "academic_year_id", "created_at");
+CREATE UNIQUE INDEX IF NOT EXISTS "abc_credit_entries_once" ON abc_credit_entries (student_id, lower(trim(course_title)), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(trim(COALESCE(session_label, ''))));
+CREATE UNIQUE INDEX IF NOT EXISTS "academic_years_one_current" ON academic_years (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE "is_current" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "achievement_media_one_per_source" ON achievement_media (achievement_id, COALESCE(file_id, '00000000-0000-0000-0000-000000000000'), COALESCE(trim(external_url), ''));
+CREATE UNIQUE INDEX IF NOT EXISTS "activities_name_per_school" ON activities (institution_id, lower(name));
+CREATE INDEX IF NOT EXISTS "admission_campaign_enrolments_live" ON admission_campaign_enrolments (institution_id, status) WHERE (status = 'active');
+CREATE INDEX IF NOT EXISTS "admission_campaign_sends_due" ON admission_campaign_sends (institution_id, due_at) WHERE (status = 'pending');
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_campaigns_name" ON admission_campaigns (institution_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_form_fields_code" ON admission_form_fields (version_id, lower(code));
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_form_sections_title" ON admission_form_sections (version_id, lower(title));
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_form_versions_one_draft" ON admission_form_versions (form_id) WHERE (status = 'draft');
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_form_versions_one_live" ON admission_form_versions (form_id) WHERE (status = 'published');
+CREATE UNIQUE INDEX IF NOT EXISTS "admission_forms_name" ON admission_forms (institution_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "alumni_contributions_receipt" ON alumni_contributions (institution_id, receipt_no) WHERE (receipt_no IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "alumni_events_one_per_day" ON alumni_events (institution_id, on_date, lower(title));
+CREATE UNIQUE INDEX IF NOT EXISTS "alumni_job_interests_one_live" ON alumni_job_interests (post_id, student_id) WHERE (withdrawn_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "alumni_job_posts_once" ON alumni_job_posts (institution_id, lower(trim(organisation)), lower(trim(title))) WHERE (status = 'open');
+CREATE INDEX IF NOT EXISTS "alumni_profiles_listed" ON alumni_profiles (institution_id, batch_year) WHERE "is_listed" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "announcements_client_ref" ON announcements (institution_id, client_ref) WHERE (client_ref IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "api_keys_institution_live" ON api_keys (institution_id, created_at DESC) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "api_keys_one_live_name" ON api_keys (institution_id, lower(trim(name))) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "application_documents_one_per_type" ON application_documents (application_id, lower(doc_type));
+CREATE INDEX IF NOT EXISTS "application_documents_outstanding" ON application_documents (institution_id, application_id) WHERE (status IN ('pending', 'received'));
+CREATE INDEX IF NOT EXISTS "applications_form_fee_unpaid" ON applications (institution_id, created_at DESC) WHERE ((form_fee_paise IS NOT NULL) AND (form_fee_paid_at IS NULL));
+CREATE INDEX IF NOT EXISTS "applications_form_version" ON applications (form_version_id) WHERE (form_version_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "applications_guardian_idx" ON applications (guardian_id) WHERE (guardian_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "applications_one_student" ON applications (student_id) WHERE (student_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "applications_waitlist_rank" ON applications (COALESCE(admission_session_id, '00000000-0000-0000-0000-000000000000'), COALESCE(class_sought, '00000000-0000-0000-0000-000000000000'), waitlist_rank) WHERE ((waitlist_rank IS NOT NULL) AND (status = 'waitlisted'));
+CREATE UNIQUE INDEX IF NOT EXISTS "appointments_no_double_booking" ON appointments (with_employee_id, on_date, starts_at) WHERE ((status = 'booked') AND (with_employee_id IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "appraisal_cycles_one_per_name" ON appraisal_cycles (institution_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "appraisal_kpis_one_per_code" ON appraisal_kpis (cycle_id, COALESCE(designation_id, '00000000-0000-0000-0000-000000000000'), lower(code));
+CREATE INDEX IF NOT EXISTS "appraisals_by_reviewer" ON appraisals (institution_id, reviewer_user_id) WHERE (reviewer_user_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "attendance_capture_conflicts_open" ON attendance_capture_conflicts (institution_id, on_date DESC) WHERE (resolution = 'pending');
+CREATE INDEX IF NOT EXISTS "audit_log_session_idx" ON audit_log (session_id, id) WHERE (session_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "background_verifications_expiring" ON background_verifications (institution_id, valid_until) WHERE (status = 'clear');
+CREATE UNIQUE INDEX IF NOT EXISTS "background_verifications_one_open" ON background_verifications (employee_id, kind) WHERE (status IN ('requested', 'in_progress'));
+CREATE INDEX IF NOT EXISTS "backup_runs_last_good" ON backup_runs (institution_id, restore_point DESC) WHERE (status = 'succeeded');
+CREATE UNIQUE INDEX IF NOT EXISTS "bank_accounts_label_once" ON bank_accounts (institution_id, lower(trim(label)));
+CREATE UNIQUE INDEX IF NOT EXISTS "bank_accounts_number_once" ON bank_accounts (institution_id, upper(trim(ifsc)), upper(trim(account_number)));
+CREATE INDEX IF NOT EXISTS "bank_reconciliations_open" ON bank_reconciliations (institution_id, bank_account_id, period_start DESC) WHERE (status = 'open');
+CREATE UNIQUE INDEX IF NOT EXISTS "bank_statement_lines_one_claim_per_entry" ON bank_statement_lines (institution_id, match_kind, COALESCE(match_id, '00000000-0000-0000-0000-000000000000')) WHERE (match_kind IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "bank_statement_lines_period" ON bank_statement_lines (reconciliation_id) WHERE (reconciliation_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "bank_statement_lines_unmatched" ON bank_statement_lines (institution_id, bank_account_id, txn_date) WHERE ((match_kind IS NULL) AND (explained_as IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "bell_schedules_one_default" ON bell_schedules (campus_id) WHERE "is_default" = 1;
+CREATE INDEX IF NOT EXISTS "biometric_punches_unresolved" ON biometric_punches (institution_id, device_user_id) WHERE (employee_id IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "board_configurations_one_default" ON board_configurations (institution_id) WHERE "is_default" = 1;
+CREATE INDEX IF NOT EXISTS "board_disclosures_expiry" ON board_disclosures (valid_to) WHERE (valid_to IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "board_disclosures_unique" ON board_disclosures (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), document);
+CREATE INDEX IF NOT EXISTS "board_registration_amendments_open" ON board_registration_amendments (institution_id, status) WHERE (status IN ('requested', 'sent'));
+CREATE UNIQUE INDEX IF NOT EXISTS "board_registrations_hall_ticket" ON board_registrations (institution_id, hall_ticket_no) WHERE (hall_ticket_no IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "board_registrations_reg_no" ON board_registrations (institution_id, board, registration_no) WHERE (registration_no IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "board_result_rows_one_per_candidate" ON board_result_rows (import_id, student_id) WHERE (student_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "board_result_rows_unmatched" ON board_result_rows (institution_id, import_id) WHERE (student_id IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "branding_profiles_domain" ON branding_profiles (lower(custom_domain)) WHERE (custom_domain IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "branding_profiles_unique" ON branding_profiles (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "budget_lines_one_per_account" ON budget_lines (budget_id, account_id, COALESCE(department_id, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "call_log_pending" ON call_log (institution_id, for_employee_id) WHERE ((passed_on_at IS NULL) AND (for_employee_id IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "campus_entry_passes_one_live" ON campus_entry_passes (institution_id, COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000')) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "campuses_udise_unique" ON campuses (udise_code) WHERE (udise_code IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "cce_formative_entries_once" ON cce_formative_entries (student_id, class_subject_id, cycle, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "child_info_differences_one_per_identity" ON child_info_differences (import_id, kind, match_key, COALESCE(field, ''));
+CREATE INDEX IF NOT EXISTS "child_info_differences_open" ON child_info_differences (institution_id, import_id, kind) WHERE (status = 'open');
+CREATE UNIQUE INDEX IF NOT EXISTS "child_info_portal_connectors_one_per_state" ON child_info_portal_connectors (lower(state_code), lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "child_info_resolutions_one_per_difference" ON child_info_resolutions (institution_id, kind, match_key, COALESCE(field, ''));
+CREATE INDEX IF NOT EXISTS "class_language_options_class" ON class_language_options (institution_id, class_id, slot) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "club_event_tickets_one_live" ON club_event_tickets (event_id, student_id) WHERE (status <> 'cancelled');
+CREATE UNIQUE INDEX IF NOT EXISTS "club_events_once" ON club_events (institution_id, campus_id, lower(trim(club_name)), lower(trim(title)), starts_at);
+CREATE UNIQUE INDEX IF NOT EXISTS "co_scholastic_areas_name" ON co_scholastic_areas (institution_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "co_scholastic_grades_once" ON co_scholastic_grades (student_id, area_id, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "council_positions_title" ON council_positions (academic_year_id, lower(title));
+CREATE INDEX IF NOT EXISTS "counselor_participants_by_user" ON counselor_thread_participants (institution_id, user_id) WHERE (removed_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "counselor_participants_one_live" ON counselor_thread_participants (thread_id, user_id) WHERE (removed_at IS NULL);
+CREATE INDEX IF NOT EXISTS "courier_log_undelivered" ON courier_log (institution_id, on_date) WHERE ((direction = 'in') AND (handed_over_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "course_outcomes_code" ON course_outcomes (class_subject_id, upper(code));
+CREATE UNIQUE INDEX IF NOT EXISTS "crm_api_credentials_one_per_scope" ON crm_api_credentials (provider, COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "crm_lead_links_conflicts" ON crm_lead_links (institution_id, conflict_at DESC) WHERE (conflict_at IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "custom_options_by_kind" ON custom_options (institution_id, kind, sequence) WHERE "active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "custom_options_unique" ON custom_options (institution_id, kind, lower(value));
+CREATE UNIQUE INDEX IF NOT EXISTS "device_staff_sessions_one_live_per_device" ON device_staff_sessions (app, device_id) WHERE (ended_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "digital_holding_visibility_unique" ON digital_holding_visibility (holding_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), COALESCE(role_key, ''));
+CREATE INDEX IF NOT EXISTS "digital_holdings_browse" ON digital_holdings (institution_id, kind, access_model) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "digital_holdings_one_per_title" ON digital_holdings (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), lower(trim(title)), kind);
+CREATE UNIQUE INDEX IF NOT EXISTS "digital_library_providers_one_per_kind" ON digital_library_providers (institution_id, kind, lower(trim(name)));
+CREATE INDEX IF NOT EXISTS "discipline_records_open" ON discipline_records (institution_id, status, occurred_on DESC) WHERE (status <> 'closed');
+CREATE INDEX IF NOT EXISTS "driver_notices_pending" ON driver_notices (vehicle_id, sent_at) WHERE (acknowledged_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "duty_assignments_one_per_slot" ON duty_assignments (user_id, on_date, shift_id) WHERE (status <> 'cancelled');
+CREATE INDEX IF NOT EXISTS "duty_shifts_live" ON duty_shifts (institution_id, duty_kind) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "duty_shifts_one_per_code" ON duty_shifts (institution_id, lower(code));
+CREATE UNIQUE INDEX IF NOT EXISTS "education_loan_applications_one_live" ON education_loan_applications (institution_id, student_id, COALESCE(lender_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('enquiry', 'documents_pending', 'submitted_to_lender', 'under_review'));
+CREATE UNIQUE INDEX IF NOT EXISTS "education_loan_applications_one_per_ref" ON education_loan_applications (institution_id, COALESCE(lender_id, '00000000-0000-0000-0000-000000000000'), lower(trim(reference_no))) WHERE ((reference_no IS NOT NULL) AND (trim(reference_no) <> ''));
+CREATE UNIQUE INDEX IF NOT EXISTS "education_loan_documents_one_per_kind" ON education_loan_documents (application_id, doc_kind, lower(trim(COALESCE(label, ''))));
+CREATE UNIQUE INDEX IF NOT EXISTS "education_loan_lenders_one_per_branch" ON education_loan_lenders (institution_id, lower(trim(name)), lower(trim(COALESCE(branch, ''))));
+CREATE INDEX IF NOT EXISTS "email_changes_expiry_idx" ON email_changes (expires_at) WHERE (used_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "emergency_pickup_one_live" ON emergency_pickup_authorisations (institution_id, student_id, lower(full_name), valid_on) WHERE ((used_at IS NULL) AND (revoked_at IS NULL));
+CREATE INDEX IF NOT EXISTS "emergency_pickup_today" ON emergency_pickup_authorisations (institution_id, valid_on) WHERE ((used_at IS NULL) AND (revoked_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "employees_device_user_id_per_institution" ON employees (institution_id, device_user_id) WHERE (device_user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "employees_institution_person_code" ON employees (institution_id, person_code) WHERE (person_code IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "employees_staff_number_per_institution" ON employees (institution_id, staff_number) WHERE (staff_number IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "enquiries_lost_month" ON enquiries (institution_id, lost_month) WHERE (lost_month IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "enquiries_lost_reason" ON enquiries (institution_id, lost_reason, class_sought) WHERE (status = 'lost');
+CREATE INDEX IF NOT EXISTS "enquiries_user_idx" ON enquiries (user_id) WHERE (user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "enrollments_one_active_per_year" ON enrollments (student_id, academic_year_id) WHERE (status = 'active');
+CREATE UNIQUE INDEX IF NOT EXISTS "enrollments_roll_no_unique" ON enrollments (section_id, roll_no) WHERE (roll_no IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "evaluation_cycles_one_per_name" ON evaluation_cycles (institution_id, lower(trim(name)), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "evaluation_cycles_open" ON evaluation_cycles (institution_id, closes_on) WHERE (status = 'open');
+CREATE INDEX IF NOT EXISTS "evaluation_invitations_mine" ON evaluation_invitations (respondent_user_id, status) WHERE (respondent_user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "evaluation_invitations_one_per_respondent" ON evaluation_invitations (reviewee_id, relation, COALESCE(respondent_user_id, '00000000-0000-0000-0000-000000000000'), lower(trim(COALESCE(respondent_label, ''))));
+CREATE INDEX IF NOT EXISTS "evaluation_invitations_outstanding" ON evaluation_invitations (institution_id, cycle_id) WHERE (status = 'invited');
+CREATE UNIQUE INDEX IF NOT EXISTS "event_seat_passes_one_live" ON event_seat_passes (event_id, student_id) WHERE (revoked_at IS NULL);
+CREATE INDEX IF NOT EXISTS "exit_clearances_outstanding" ON exit_clearances (institution_id) WHERE (status <> 'cleared');
+CREATE INDEX IF NOT EXISTS "fee_concessions_by_application" ON fee_concessions (application_id) WHERE (application_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "fee_concessions_pending" ON fee_concessions (institution_id) WHERE (status = 'pending');
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_fine_charges_once_per_day" ON fee_fine_charges (institution_id, invoice_id, COALESCE(fee_fine_rule_id, '00000000-0000-0000-0000-000000000000'), as_of) WHERE (status = 'applied');
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_fine_rules_one_active_per_target" ON fee_fine_rules (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), COALESCE(fee_structure_id, '00000000-0000-0000-0000-000000000000'), COALESCE(fee_head_id, '00000000-0000-0000-0000-000000000000')) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_regulatory_filing_lines_one_per_head" ON fee_regulatory_filing_lines (filing_id, fee_head_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), instalment_no);
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_regulatory_filings_no_unique" ON fee_regulatory_filings (institution_id, lower(trim(filing_no)));
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_regulatory_filings_one_live" ON fee_regulatory_filings (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('draft', 'submitted', 'approved', 'approved_with_modification'));
+CREATE UNIQUE INDEX IF NOT EXISTS "fee_structure_versions_one_active" ON fee_structure_versions (institution_id, fee_structure_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status = 'active');
+CREATE UNIQUE INDEX IF NOT EXISTS "goods_receipts_no_unique" ON goods_receipts (institution_id, lower(trim(grn_no)));
+CREATE INDEX IF NOT EXISTS "government_aid_schemes_live" ON government_aid_schemes (institution_id, kind) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "government_aid_schemes_one_per_code" ON government_aid_schemes (institution_id, lower(trim(code)));
+CREATE UNIQUE INDEX IF NOT EXISTS "grant_expenditures_one_per_source" ON grant_expenditures (institution_id, source_kind, source_id) WHERE (source_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "grant_in_aid_heads_one_per_code" ON grant_in_aid_heads (institution_id, lower(trim(code)));
+CREATE UNIQUE INDEX IF NOT EXISTS "grant_sanctions_one_per_head_year" ON grant_sanctions (institution_id, head_id, fy_start_year, lower(trim(sanction_no)));
+CREATE UNIQUE INDEX IF NOT EXISTS "grant_uc_one_per_no" ON grant_utilisation_certificates (institution_id, lower(trim(certificate_no)));
+CREATE UNIQUE INDEX IF NOT EXISTS "grievance_sla_one_per_category" ON grievance_sla_policies (institution_id, lower(category));
+CREATE INDEX IF NOT EXISTS "grievance_updates_parent_visible" ON grievance_updates (ticket_id, created_at DESC) WHERE "visible_to_parent" = 1;
+CREATE INDEX IF NOT EXISTS "guardians_user_lookup" ON guardians (user_id) WHERE (user_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "hall_of_fame_entries_live" ON hall_of_fame_entries (institution_id, category, year DESC) WHERE (retired_at IS NULL);
+CREATE INDEX IF NOT EXISTS "health_camp_attendance_open_referrals" ON health_camp_attendance (institution_id, follow_up_on) WHERE (referred AND (follow_up_done_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "holidays_one_entry" ON holidays (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), on_date, kind, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "hostel_allocations_bed" ON hostel_allocations (room_id, bed_no) WHERE (vacated_on IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "hostel_allocations_student" ON hostel_allocations (student_id) WHERE (vacated_on IS NULL);
+CREATE INDEX IF NOT EXISTS "hostel_complaints_open" ON hostel_complaints (institution_id, created_at DESC) WHERE (status IN ('open', 'in_progress'));
+CREATE INDEX IF NOT EXISTS "hostel_laundry_outstanding" ON hostel_laundry (institution_id, sent_on DESC) WHERE (status = 'sent');
+CREATE INDEX IF NOT EXISTS "hostel_outpasses_open" ON hostel_outpasses (institution_id, expected_in) WHERE (status IN ('approved', 'out'));
+CREATE INDEX IF NOT EXISTS "hostel_visits_out" ON hostel_visits (institution_id, expected_back) WHERE (boarder_released AND (returned_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "hpc_observations_one_per_observer" ON hpc_observations (student_id, competency_id, observer_role, COALESCE(term_id, '00000000-0000-0000-0000-000000000000'), COALESCE(observed_by, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "impersonation_grants_live" ON impersonation_grants (operator_user_id, expires_at DESC) WHERE (ended_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "instructional_norms_one_per_stage" ON instructional_norms (institution_id, lower(stage_code));
+CREATE UNIQUE INDEX IF NOT EXISTS "integrations_platform_provider_key" ON integrations (provider) WHERE (institution_id IS NULL);
+CREATE INDEX IF NOT EXISTS "invoices_fee_structure_version" ON invoices (fee_structure_version_id) WHERE (fee_structure_version_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "job_candidates_by_employee" ON job_candidates (employee_id) WHERE (employee_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "job_candidates_one_per_vacancy" ON job_candidates (institution_id, vacancy_id, lower(COALESCE(trim(email), '')), COALESCE(trim(phone), ''));
+CREATE INDEX IF NOT EXISTS "job_interviews_upcoming" ON job_interviews (institution_id, scheduled_at) WHERE (result = 'scheduled');
+CREATE UNIQUE INDEX IF NOT EXISTS "job_offers_one_live" ON job_offers (candidate_id) WHERE (status IN ('draft', 'sent', 'accepted'));
+CREATE UNIQUE INDEX IF NOT EXISTS "job_vacancies_one_per_code" ON job_vacancies (institution_id, lower(code));
+CREATE UNIQUE INDEX IF NOT EXISTS "journal_entries_one_per_source" ON journal_entries (institution_id, source_kind, source_id) WHERE (source_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "ledger_accounts_sibling_name" ON ledger_accounts (institution_id, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), lower(name));
+CREATE INDEX IF NOT EXISTS "lesson_plans_review_queue" ON lesson_plans (institution_id, status, submitted_at) WHERE (status = 'submitted');
+CREATE UNIQUE INDEX IF NOT EXISTS "library_copy_active_loan" ON library_loans (copy_id) WHERE (returned_on IS NULL);
+CREATE INDEX IF NOT EXISTS "library_loans_institution_id_due_on_idx" ON library_loans (institution_id, due_on) WHERE (returned_on IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "library_reservations_one_per_reader" ON library_reservations (title_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), COALESCE(employee_id, '00000000-0000-0000-0000-000000000000')) WHERE (status IN ('waiting', 'ready'));
+CREATE INDEX IF NOT EXISTS "library_reservations_queue" ON library_reservations (title_id, placed_at) WHERE (status = 'waiting');
+CREATE UNIQUE INDEX IF NOT EXISTS "library_stock_audits_one_open" ON library_stock_audits (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE (closed_on IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "loc_candidates_one_per_registration" ON loc_candidates (submission_id, COALESCE(registration_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "loc_subject_groups_one_per_combination" ON loc_subject_groups (institution_id, lower(board), stage, COALESCE(group_code, ''));
+CREATE UNIQUE INDEX IF NOT EXISTS "loc_subject_options_one_per_code" ON loc_subject_options (group_id, upper(subject_code));
+CREATE UNIQUE INDEX IF NOT EXISTS "loc_submissions_one_draft" ON loc_submissions (institution_id, academic_year_id, lower(board), lower(exam_name), COALESCE(stage, '')) WHERE (status = 'draft');
+CREATE INDEX IF NOT EXISTS "location_codes_parent" ON location_codes (parent_id) WHERE "active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "location_codes_unique" ON location_codes (COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), level, code);
+CREATE UNIQUE INDEX IF NOT EXISTS "lost_found_claims_one_open" ON lost_found_claims (item_id, claimant_student_id) WHERE (status IN ('pending', 'approved'));
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_foodgrain_receipts_challan" ON mdm_foodgrain_receipts (institution_id, grain, lower(trim(COALESCE(challan_no, '')))) WHERE (NULLIF(trim(challan_no), '') IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_monthly_returns_one_per_month" ON mdm_monthly_returns (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), period_month);
+CREATE UNIQUE INDEX IF NOT EXISTS "mdm_registers_one_per_day" ON mdm_registers (institution_id, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'), on_date);
+CREATE INDEX IF NOT EXISTS "medication_administrations_incidents" ON medication_administrations (institution_id, administered_at DESC) WHERE (refused OR (adverse_reaction IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "message_credit_requests_one_open" ON message_credit_requests (institution_id, channel) WHERE (status = 'pending');
+CREATE INDEX IF NOT EXISTS "message_credit_requests_pending" ON message_credit_requests (requested_at) WHERE (status = 'pending');
+CREATE INDEX IF NOT EXISTS "message_log_by_rule" ON message_log (institution_id, source_id, status) WHERE (source_kind = 'trigger_rule');
+CREATE INDEX IF NOT EXISTS "message_log_due" ON message_log (institution_id, queued_at) WHERE (status = 'queued');
+CREATE UNIQUE INDEX IF NOT EXISTS "message_log_one_per_occurrence" ON message_log (institution_id, channel, source_kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000'), COALESCE(user_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), COALESCE(occurrence_key, '')) WHERE (source_kind IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "message_log_status_idx" ON message_log (status) WHERE (status IN ('queued', 'failed'));
+CREATE INDEX IF NOT EXISTS "message_trigger_rules_live" ON message_trigger_rules (institution_id, event) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "message_trigger_rules_one_per_name" ON message_trigger_rules (institution_id, lower(name));
+CREATE INDEX IF NOT EXISTS "message_trigger_rules_plans" ON message_trigger_rules (institution_id, plan_kind) WHERE (plan_kind IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "montessori_materials_area" ON montessori_materials (institution_id, area, sequence) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "montessori_materials_unique" ON montessori_materials (institution_id, area, lower(trim(name)));
+CREATE INDEX IF NOT EXISTS "night_study_attendance_missing" ON night_study_attendance (institution_id, on_date) WHERE (status IN ('absent', 'late'));
+CREATE UNIQUE INDEX IF NOT EXISTS "notifications_one_per_source" ON notifications (user_id, kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000'), COALESCE(student_id, '00000000-0000-0000-0000-000000000000')) WHERE (source_kind IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "notifications_unpushed_idx" ON notifications (created_at) WHERE (pushed_at IS NULL);
+CREATE INDEX IF NOT EXISTS "notifications_unread" ON notifications (user_id) WHERE (read_at IS NULL);
+CREATE INDEX IF NOT EXISTS "notifications_user_live_idx" ON notifications (user_id, created_at DESC) WHERE (dismissed_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "numbering_schemes_institution_kind" ON numbering_schemes (institution_id, kind) WHERE (campus_id IS NULL);
+CREATE INDEX IF NOT EXISTS "parent_forum_posts_pending" ON parent_forum_posts (institution_id, created_at) WHERE (status = 'pending');
+CREATE UNIQUE INDEX IF NOT EXISTS "parent_forum_reports_one_open" ON parent_forum_reports (content_kind, content_id, reported_by) WHERE (handled_at IS NULL);
+CREATE INDEX IF NOT EXISTS "parent_forum_reports_queue" ON parent_forum_reports (institution_id, created_at) WHERE (handled_at IS NULL);
+CREATE INDEX IF NOT EXISTS "parent_forum_threads_pending" ON parent_forum_threads (institution_id, created_at) WHERE (status = 'pending');
+CREATE INDEX IF NOT EXISTS "parent_teacher_messages_unread" ON parent_teacher_messages (institution_id, teacher_user_id) WHERE (read_at IS NULL);
+CREATE INDEX IF NOT EXISTS "password_resets_expiry_idx" ON password_resets (expires_at) WHERE (used_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_gateway_credentials_one_per_scope" ON payment_gateway_credentials (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'), provider);
+CREATE UNIQUE INDEX IF NOT EXISTS "payments_gateway_txn" ON payments (gateway, gateway_txn_id) WHERE (gateway_txn_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "payments_pdc" ON payments (institution_id, cheque_date) WHERE ((status = 'pending') AND (mode IN ('cheque', 'dd')));
+CREATE UNIQUE INDEX IF NOT EXISTS "payments_receipt_no" ON payments (institution_id, receipt_no) WHERE (receipt_no IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "payments_receipt_series" ON payments (institution_id, receipt_fy, receipt_seq) WHERE (receipt_seq IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "payments_receipt_series_unique" ON payments (institution_id, COALESCE(receipt_fy, ''), receipt_seq) WHERE (receipt_seq IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "payout_batches_no_once" ON payout_batches (institution_id, lower(trim(batch_no)));
+CREATE INDEX IF NOT EXISTS "payout_batches_pending" ON payout_batches (institution_id, value_date DESC) WHERE (status IN ('draft', 'submitted', 'approved'));
+CREATE UNIQUE INDEX IF NOT EXISTS "payout_items_one_live_per_source" ON payout_items (institution_id, source_kind, COALESCE(source_id, '00000000-0000-0000-0000-000000000000')) WHERE ((source_kind IS NOT NULL) AND (source_kind <> 'manual') AND (status IN ('pending', 'exported', 'paid')));
+CREATE UNIQUE INDEX IF NOT EXISTS "period_closes_live" ON period_closes (institution_id, kind, period_key) WHERE (reopened_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "person_group_members_employee" ON person_group_members (group_id, employee_id) WHERE (employee_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "person_group_members_student" ON person_group_members (group_id, student_id) WHERE (student_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "person_groups_institution_kind_name" ON person_groups (institution_id, kind, lower(name));
+CREATE INDEX IF NOT EXISTS "platform_broadcasts_live_idx" ON platform_broadcasts (starts_at DESC) WHERE (retired_at IS NULL);
+CREATE INDEX IF NOT EXISTS "platform_events_failures_idx" ON platform_events (at DESC) WHERE (NOT "ok" = 1);
+CREATE INDEX IF NOT EXISTS "pos_sale_lines_by_variant" ON pos_sale_lines (institution_id, variant_id) WHERE (variant_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "pos_sales_by_student" ON pos_sales (institution_id, student_id, sold_at DESC) WHERE (student_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "pos_sales_returns_of" ON pos_sales (original_sale_id) WHERE (original_sale_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "pos_sales_series_once" ON pos_sales (institution_id, COALESCE(receipt_fy, ''), receipt_seq) WHERE (receipt_seq IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "pos_terminals_live" ON pos_terminals (institution_id, kind) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "pos_terminals_one_per_code" ON pos_terminals (institution_id, lower(trim(code)));
+CREATE UNIQUE INDEX IF NOT EXISTS "pos_till_sessions_one_open" ON pos_till_sessions (terminal_id) WHERE (status = 'open');
+CREATE UNIQUE INDEX IF NOT EXISTS "programme_outcomes_code" ON programme_outcomes (institution_id, upper(code));
+CREATE INDEX IF NOT EXISTS "ptm_notes_follow_up" ON ptm_notes (institution_id, follow_up_on) WHERE ((follow_up_done = false) AND (follow_up_on IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "ptm_notes_one_per_meeting" ON ptm_notes (student_id, met_on, COALESCE(recorded_by, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "ptm_slots_open_day" ON ptm_slots (institution_id, on_date, starts_at) WHERE "is_open" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_approval_thresholds_band" ON purchase_approval_thresholds (institution_id, COALESCE(up_to_paise, ('-1')));
+CREATE INDEX IF NOT EXISTS "purchase_enquiries_open" ON purchase_enquiries (created_at DESC) WHERE (status IN ('new', 'contacted', 'demo_booked'));
+CREATE INDEX IF NOT EXISTS "purchase_enquiries_owner" ON purchase_enquiries (owner_user_id) WHERE (owner_user_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "purchase_order_lines_outstanding" ON purchase_order_lines (institution_id, purchase_order_id) WHERE (received_qty < quantity);
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_orders_no_unique" ON purchase_orders (institution_id, lower(trim(po_no)));
+CREATE INDEX IF NOT EXISTS "purchase_orders_open" ON purchase_orders (institution_id, expected_on) WHERE (status IN ('issued', 'partly_received'));
+CREATE UNIQUE INDEX IF NOT EXISTS "purchase_requisitions_no_unique" ON purchase_requisitions (institution_id, lower(trim(requisition_no)));
+CREATE INDEX IF NOT EXISTS "purchase_requisitions_pending" ON purchase_requisitions (institution_id, submitted_at) WHERE (status = 'submitted');
+CREATE INDEX IF NOT EXISTS "question_bank_questions_unit" ON question_bank_questions (syllabus_unit_id) WHERE (syllabus_unit_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "reimbursement_claims_one_per_no" ON reimbursement_claims (institution_id, scheme_id, lower(trim(claim_no)));
+CREATE INDEX IF NOT EXISTS "reimbursement_claims_outstanding" ON reimbursement_claims (institution_id, submitted_on) WHERE (status IN ('submitted', 'part_sanctioned', 'sanctioned'));
+CREATE UNIQUE INDEX IF NOT EXISTS "reimbursement_receipts_no_duplicate" ON reimbursement_receipts (institution_id, claim_id, received_on, amount_paise, lower(trim(COALESCE(reference_no, ''))));
+CREATE INDEX IF NOT EXISTS "report_cards_awaiting_approval" ON report_cards (institution_id, submitted_at) WHERE (status = 'submitted');
+CREATE INDEX IF NOT EXISTS "report_cards_live_idx" ON report_cards (institution_id, published_at DESC) WHERE "is_published" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "report_cards_student_exam_key" ON report_cards (student_id, exam_id) WHERE (exam_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "report_cards_student_year_annual" ON report_cards (student_id, academic_year_id) WHERE (term_id IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "report_cards_student_year_term_remarks_key" ON report_cards (student_id, academic_year_id, term_id) WHERE ((exam_id IS NULL) AND (term_id IS NOT NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "report_definitions_name_unique" ON report_definitions (institution_id, lower(trim(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS "roles_institution_key" ON roles (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'), key);
+CREATE UNIQUE INDEX IF NOT EXISTS "room_inventory_checks_once" ON room_inventory_checks (institution_id, room_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'), kind, on_date);
+CREATE UNIQUE INDEX IF NOT EXISTS "room_inventory_items_once" ON room_inventory_items (check_id, lower(item));
+CREATE UNIQUE INDEX IF NOT EXISTS "route_stops_one_school" ON route_stops (route_id) WHERE "is_school" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "scholarship_awards_one_per_ref" ON scholarship_awards (institution_id, scheme_id, lower(trim(application_ref))) WHERE ((application_ref IS NOT NULL) AND (trim(application_ref) <> ''));
+CREATE INDEX IF NOT EXISTS "scholarship_disbursement_lines_exceptions" ON scholarship_disbursement_lines (institution_id, import_id) WHERE ((exception IS NOT NULL) OR (match_kind = 'unmatched'));
+CREATE INDEX IF NOT EXISTS "school_events_calendar" ON school_events (institution_id, on_date DESC) WHERE "is_published" = 1;
+CREATE INDEX IF NOT EXISTS "sessions_expires_at_idx" ON sessions (expires_at) WHERE (revoked_at IS NULL);
+CREATE INDEX IF NOT EXISTS "sessions_inst_live_idx" ON sessions (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
+CREATE INDEX IF NOT EXISTS "sessions_user_id_idx" ON sessions (user_id) WHERE (revoked_at IS NULL);
+CREATE INDEX IF NOT EXISTS "sms_gateway_devices_live" ON sms_gateway_devices (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "sms_gateway_devices_one_live_name" ON sms_gateway_devices (institution_id, lower(name)) WHERE (revoked_at IS NULL);
+CREATE INDEX IF NOT EXISTS "sms_gateway_pair_codes_live" ON sms_gateway_pair_codes (institution_id, expires_at DESC) WHERE (claimed_at IS NULL);
+CREATE INDEX IF NOT EXISTS "sqaa_action_items_open" ON sqaa_action_items (institution_id, status, due_on) WHERE (status IN ('open', 'in_progress'));
+CREATE UNIQUE INDEX IF NOT EXISTS "sqaa_assessments_one_per_cycle" ON sqaa_assessments (institution_id, framework_code, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), lower(title));
+CREATE UNIQUE INDEX IF NOT EXISTS "sqaa_evidence_one_per_document" ON sqaa_evidence (entry_id, COALESCE(file_id, '00000000-0000-0000-0000-000000000000'), COALESCE(lower(external_url), ''));
+CREATE UNIQUE INDEX IF NOT EXISTS "sqaa_standards_unique" ON sqaa_standards (framework_code, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), code);
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_exits_one_open_per_employee" ON staff_exits (employee_id) WHERE (status <> 'withdrawn');
+CREATE INDEX IF NOT EXISTS "staff_exits_pending" ON staff_exits (institution_id, notice_on DESC) WHERE (status <> 'settled');
+CREATE INDEX IF NOT EXISTS "staff_grievances_open" ON staff_grievances (institution_id, created_at DESC) WHERE (status NOT IN ('resolved', 'closed', 'withdrawn'));
+CREATE INDEX IF NOT EXISTS "staff_messages_unread" ON staff_messages (institution_id, party_b, party_a) WHERE (read_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_qualifications_no_duplicates" ON staff_qualifications (employee_id, lower(qualification), lower(COALESCE(discipline, '')), COALESCE(year_of_passing, 0));
+CREATE UNIQUE INDEX IF NOT EXISTS "staff_recognitions_one_per_period" ON staff_recognitions (institution_id, award_code, period_year, period_month, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000')) WHERE (award_code = 'teacher_of_the_month');
+CREATE INDEX IF NOT EXISTS "staff_recognitions_wall" ON staff_recognitions (institution_id, awarded_on DESC) WHERE "published" = 1;
+CREATE INDEX IF NOT EXISTS "store_product_variants_by_product" ON store_product_variants (product_id) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "store_product_variants_one_per_option" ON store_product_variants (institution_id, product_id, COALESCE(lower(trim(size)), ''), COALESCE(lower(trim(colour)), ''));
+CREATE INDEX IF NOT EXISTS "store_products_live" ON store_products (institution_id, category) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "store_products_one_per_code" ON store_products (institution_id, lower(trim(code)));
+CREATE INDEX IF NOT EXISTS "student_achievements_published" ON student_achievements (institution_id, awarded_on DESC) WHERE "is_published" = 1;
+CREATE INDEX IF NOT EXISTS "student_activities_by_activity" ON student_activities (activity_id) WHERE (status = 'enrolled');
+CREATE UNIQUE INDEX IF NOT EXISTS "student_activities_one_live" ON student_activities (student_id, activity_id) WHERE (status = 'enrolled');
+CREATE INDEX IF NOT EXISTS "student_attendance_corrected_live_idx" ON student_attendance (institution_id, corrected_at DESC) WHERE (corrected_at IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "student_attendance_daily" ON student_attendance (student_id, on_date) WHERE (period_id IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "student_attendance_period" ON student_attendance (student_id, on_date, period_id) WHERE (period_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "student_bank_accounts_by_student" ON student_bank_accounts (institution_id, student_id) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "student_bank_accounts_no_duplicate" ON student_bank_accounts (institution_id, student_id, upper(trim(account_number)), upper(trim(ifsc)), COALESCE(guardian_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_bank_accounts_one_primary" ON student_bank_accounts (institution_id, student_id) WHERE "is_primary" = 1;
+CREATE INDEX IF NOT EXISTS "student_diary_notes_due_idx" ON student_diary_notes (remind_at) WHERE ((remind_at IS NOT NULL) AND (reminded_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_fee_components_one_live" ON student_fee_components (student_id, code) WHERE (valid_to IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "student_fee_optins_one_live" ON student_fee_optins (student_id, fee_head_id, academic_year_id) WHERE (ended_on IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "student_guardians_one_primary" ON student_guardians (student_id) WHERE "is_primary" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "student_language_elections_one_live" ON student_language_elections (student_id, slot, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000')) WHERE (status <> 'withdrawn');
+CREATE UNIQUE INDEX IF NOT EXISTS "student_lockers_number" ON student_lockers (institution_id, campus_id, lower(trim(locker_no)));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_lockers_one_live" ON student_lockers (institution_id, student_id) WHERE ((student_id IS NOT NULL) AND (released_on IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_portfolio_curations_one_per_item" ON student_portfolio_curations (COALESCE(achievement_id, '00000000-0000-0000-0000-000000000000'), COALESCE(portfolio_item_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_portfolio_items_no_duplicates" ON student_portfolio_items (student_id, lower(trim(title)), COALESCE(happened_on, '0001-01-01'));
+CREATE UNIQUE INDEX IF NOT EXISTS "student_support_plans_one_active" ON student_support_plans (student_id) WHERE (status <> 'closed');
+CREATE INDEX IF NOT EXISTS "student_support_plans_review" ON student_support_plans (institution_id, review_on) WHERE (status <> 'closed');
+CREATE INDEX IF NOT EXISTS "student_wall_posts_pending" ON student_wall_posts (institution_id, created_at) WHERE (status = 'pending');
+CREATE UNIQUE INDEX IF NOT EXISTS "students_apaar_id" ON students (institution_id, apaar_id) WHERE (apaar_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "students_child_info_id" ON students (institution_id, child_info_id) WHERE (child_info_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "students_institution_person_code" ON students (institution_id, person_code) WHERE (person_code IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "students_rte" ON students (institution_id) WHERE "is_rte" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "students_user_id_unique" ON students (user_id) WHERE (user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "study_group_members_one_live" ON study_group_members (group_id, student_id) WHERE (left_at IS NULL);
+CREATE INDEX IF NOT EXISTS "study_group_members_student" ON study_group_members (institution_id, student_id) WHERE (left_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "study_groups_one_open" ON study_groups (section_id, lower(trim(name))) WHERE "is_open" = 1;
+CREATE INDEX IF NOT EXISTS "subscriptions_renews_on" ON subscriptions (renews_on) WHERE (status IN ('trial', 'active', 'past_due'));
+CREATE UNIQUE INDEX IF NOT EXISTS "substitution_request_periods_one_open_ask" ON substitution_request_periods (timetable_entry_id, on_date) WHERE (status = 'pending');
+CREATE INDEX IF NOT EXISTS "substitutions_by_request" ON substitutions (request_id) WHERE (request_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "support_tickets_school_queue" ON support_tickets (institution_id, status, resolve_due_at) WHERE (audience = 'school');
+CREATE INDEX IF NOT EXISTS "support_tickets_subject_employee" ON support_tickets (institution_id, subject_employee_id) WHERE (subject_employee_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "support_tickets_vendor_queue" ON support_tickets (status, priority, created_at) WHERE (audience = 'vendor');
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_gateway_credentials_one_per_scope" ON tally_gateway_credentials (COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "teacher_unavailability_one_per_slot" ON teacher_unavailability (institution_id, teacher_user_id, weekday, COALESCE(period_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "terms_one_per_name" ON terms (academic_year_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS "timetable_draft_teacher_slot" ON timetable_draft_entries (draft_id, teacher_user_id, weekday, period_id) WHERE (teacher_user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "timetable_teacher_slot" ON timetable_entries (teacher_user_id, weekday, period_id, academic_year_id) WHERE (teacher_user_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "training_programmes_one_per_code" ON training_programmes (institution_id, lower(code));
+CREATE UNIQUE INDEX IF NOT EXISTS "training_requirements_one_per_role" ON training_requirements (institution_id, COALESCE(academic_year_id, '00000000-0000-0000-0000-000000000000'), COALESCE(designation_id, '00000000-0000-0000-0000-000000000000'), COALESCE(designation_category, ''));
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_allocations_one_current" ON transport_allocations (student_id) WHERE (valid_to IS NULL);
+CREATE INDEX IF NOT EXISTS "transport_attendance_open" ON transport_attendance (institution_id, on_date) WHERE ((alighted_at IS NULL) AND (status = 'boarded'));
+CREATE INDEX IF NOT EXISTS "transport_incidents_open" ON transport_incidents (institution_id, on_date DESC) WHERE (resolved_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_safety_events_one_open" ON transport_safety_events (trip_id, kind, COALESCE(ended_at, '1970-01-01 05:30:00+05:30'));
+CREATE INDEX IF NOT EXISTS "transport_safety_events_open" ON transport_safety_events (institution_id, started_at DESC) WHERE (reviewed_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_staff_one_per_employee" ON transport_staff (employee_id) WHERE "is_active" = 1;
+CREATE UNIQUE INDEX IF NOT EXISTS "transport_watch_prefs_one_per_subject" ON transport_watch_prefs (user_id, COALESCE(student_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "university_shortlist_entries_once" ON university_shortlist_entries (student_id, lower(trim(university)), lower(trim(COALESCE(course, ''))));
+CREATE UNIQUE INDEX IF NOT EXISTS "user_roles_institution_wide" ON user_roles (user_id, role_id) WHERE (campus_id IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "users_institution_email" ON users (institution_id, email) WHERE (email IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "users_institution_phone" ON users (institution_id, phone) WHERE (phone IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "users_institution_username" ON users (institution_id, username) WHERE (username IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "users_platform_email" ON users (email) WHERE (institution_id IS NULL);
+CREATE INDEX IF NOT EXISTS "vehicle_tracker_pair_codes_live" ON vehicle_tracker_pair_codes (institution_id, expires_at) WHERE (claimed_at IS NULL);
+CREATE INDEX IF NOT EXISTS "vehicle_trackers_live" ON vehicle_trackers (institution_id, last_seen_at DESC) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_trackers_one_live_per_vehicle" ON vehicle_trackers (vehicle_id, COALESCE(revoked_at, '1970-01-01 05:30:00+05:30')) WHERE (vehicle_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicle_trips_one_open_per_vehicle" ON vehicle_trips (vehicle_id, COALESCE(ended_at, '1970-01-01 05:30:00+05:30'));
+CREATE INDEX IF NOT EXISTS "vehicle_trips_open" ON vehicle_trips (institution_id, started_at DESC) WHERE (ended_at IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "vehicles_institution_bus_code" ON vehicles (institution_id, bus_code) WHERE (bus_code IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "vendor_bills_no_per_vendor" ON vendor_bills (institution_id, vendor_id, lower(trim(bill_no)));
+CREATE UNIQUE INDEX IF NOT EXISTS "vendors_name_unique" ON vendors (institution_id, lower(trim(name)));
+CREATE UNIQUE INDEX IF NOT EXISTS "virtual_class_hand_raises_one_up" ON virtual_class_hand_raises (session_id, student_id) WHERE ((lowered_at IS NULL) AND (answered_at IS NULL));
+CREATE UNIQUE INDEX IF NOT EXISTS "virtual_meeting_platform_providers_one_per_scope" ON virtual_meeting_platform_providers (provider, COALESCE(institution_id, '00000000-0000-0000-0000-000000000000'));
+CREATE INDEX IF NOT EXISTS "virtual_meeting_requests_open" ON virtual_meeting_requests (institution_id, status) WHERE (status IN ('queued', 'manual'));
+CREATE INDEX IF NOT EXISTS "visitor_blocklist_name" ON visitor_blocklist (institution_id, lower(full_name));
+CREATE INDEX IF NOT EXISTS "visitors_inside" ON visitors (institution_id, in_at) WHERE (out_at IS NULL);
+CREATE INDEX IF NOT EXISTS "wallet_transactions_pos_sale" ON wallet_transactions (pos_sale_id) WHERE (pos_sale_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "working_days_adjustments_one_per_day" ON working_days_adjustments (institution_id, academic_year_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'), on_date, lower(reason));
+CREATE UNIQUE INDEX IF NOT EXISTS "working_days_return_lines_one_per_class" ON working_days_return_lines (return_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'));
+CREATE UNIQUE INDEX IF NOT EXISTS "working_days_returns_one_per_title" ON working_days_returns (institution_id, academic_year_id, lower(title));
 
 -- Rows the migrations insert (settings singletons) and the migrations applied.
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 1, 'baseline', '9a4a44c3446aaf329c71f4b3c6e711c51dbc8fed1e50cef32cf0a3f0ce120f87');
