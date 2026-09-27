@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Phone, Mail, Printer, Camera } from 'lucide-react'
+import { Phone, Mail, Printer, Camera, MoreHorizontal } from 'lucide-react'
 import StudentAvatar from '@/components/StudentAvatar'
 import { SearchBox } from '@/components/rows'
 import { api, type List } from '@/lib/api'
@@ -497,7 +497,7 @@ export default function Employees() {
                     {e.joined_on ? formatDate(e.joined_on) : '-'}
                   </Td>
                   <Td><StatusPill status={e.status} /></Td>
-                  <Td>
+                  <Td className="whitespace-nowrap">
                     {/* THE RECORD, which the directory did not have.
 
                         Everything past a name and a department lived on
@@ -505,40 +505,41 @@ export default function Employees() {
                         teacher of, their qualifications — so "what does she
                         teach and can she take another class" meant opening
                         three pages and remembering. */}
-                    <Button size="sm" variant="secondary"
-                      onClick={() => setOpenStaff(e.id)}>
-                      Open
-                    </Button>
-                    {/* The per-row "print this ID card" button was removed to
-                        unclutter a row that had four actions and overflowed: the
-                        IDs tab prints one card or the whole school from one
-                        place, so nothing is lost. */}
-                    {can('hr.employees.write') && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={issuing === e.id}
-                        onClick={() => issue.mutate({ e })}
-                      >
-                        {issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Sign-in details'}
+                    {/* One button and a "more" menu. Open, sign-in details and
+                        handset PIN side by side ran past the card's right edge
+                        at 1440 (the PIN button was cut to "H…"); the record is
+                        what the row is for, the other two are occasional. The
+                        per-row "print this ID card" button went the same way
+                        earlier: the IDs tab prints one card or the whole
+                        school. */}
+                    <span className="inline-flex items-center gap-1">
+                      <Button size="sm" variant="secondary"
+                        onClick={() => setOpenStaff(e.id)}>
+                        Open
                       </Button>
-                    )}
-                    {/* Only where a PIN can actually be used: it needs an
-                        account to sign in as (issue the login first) and a
-                        10-digit mobile the app matches on. Offered once the
-                        person has both, so a driver is not sent to a button
-                        that returns "issue their login first". */}
-                    {can('hr.employees.write') && e.status !== 'invited' && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={pinning === e.id}
-                        title="A 6-digit PIN for the bus tracker and other handset apps"
-                        onClick={() => issuePin.mutate(e)}
-                      >
-                        {pinning === e.id ? 'PIN…' : 'Handset PIN'}
-                      </Button>
-                    )}
+                      {can('hr.employees.write') && (
+                        <RowMenu
+                          label={`More for ${e.full_name}`}
+                          items={[
+                            {
+                              label: issuing === e.id ? 'Issuing…' : e.status === 'invited' ? 'Issue login' : 'Sign-in details',
+                              disabled: issuing === e.id,
+                              onSelect: () => issue.mutate({ e }),
+                            },
+                            /* Only where a PIN can actually be used: it needs an
+                               account to sign in as (issue the login first), so
+                               a driver is not sent to an item that returns
+                               "issue their login first". */
+                            ...(e.status !== 'invited' ? [{
+                              label: pinning === e.id ? 'PIN…' : 'Handset PIN',
+                              hint: 'A 6-digit PIN for the bus tracker and other handset apps',
+                              disabled: pinning === e.id,
+                              onSelect: () => issuePin.mutate(e),
+                            }] : []),
+                          ]}
+                        />
+                      )}
+                    </span>
                   </Td>
                 </tr>
               ))}
@@ -659,7 +660,7 @@ function UnlinkedRow({ e, canWrite }: { e: Employee; canWrite: boolean }) {
           on one line stretched the column across the page and pushed Contact
           under the table's edge. Capped and allowed to wrap. */}
       <Td className="text-muted-foreground">
-        <span className="block min-w-[12rem] max-w-[20rem] whitespace-normal">{e.designation ?? '-'}</span>
+        <span className="block max-w-[14rem] whitespace-normal">{e.designation ?? '-'}</span>
       </Td>
       <Td className="text-muted-foreground">-</Td>
       <Td className="text-[13px]">
@@ -686,5 +687,82 @@ function UnlinkedRow({ e, canWrite }: { e: Employee; canWrite: boolean }) {
         {err && <span className="ml-2 text-[12px] text-destructive">{err}</span>}
       </Td>
     </tr>
+  )
+}
+
+/* A row's occasional actions behind a "more" button.
+
+   The popover is position: fixed from the trigger's rectangle, not absolute
+   inside the cell: the table scrolls sideways in its frame, and an absolute
+   menu there is clipped by the frame's overflow. It closes on scroll or
+   resize rather than chasing the trigger. Keyboard as ExportButton: focus
+   lands on the first item, arrows walk, Escape returns to the trigger. */
+interface RowMenuItem { label: string; hint?: string; disabled?: boolean; onSelect: () => void }
+
+function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null)
+  const trigger = useRef<HTMLSpanElement | null>(null)
+  const box = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!at) return
+    box.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+    const close = () => setAt(null)
+    const onDoc = (ev: MouseEvent) => {
+      const t = ev.target as Node
+      if (!box.current?.contains(t) && !trigger.current?.contains(t)) close()
+    }
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return
+      close()
+      trigger.current?.querySelector('button')?.focus()
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [at])
+  if (!items.length) return null
+  const toggle = () => {
+    if (at) { setAt(null); return }
+    const r = trigger.current?.getBoundingClientRect()
+    if (r) setAt({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) })
+  }
+  const walk = (ev: React.KeyboardEvent<HTMLDivElement>) => {
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return
+    ev.preventDefault()
+    const list = Array.from(box.current?.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)') ?? [])
+    if (!list.length) return
+    const i = list.findIndex((b) => b === document.activeElement)
+    list[ev.key === 'ArrowDown' ? (i + 1) % list.length : (i - 1 + list.length) % list.length].focus()
+  }
+  return (
+    <>
+      <span ref={trigger} className="inline-block">
+        <Button size="sm" variant="ghost" title={label} ariaHasPopup="menu" ariaExpanded={!!at} onClick={toggle}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">{label}</span>
+        </Button>
+      </span>
+      {at && (
+        <div ref={box} role="menu" aria-label={label} onKeyDown={walk}
+          style={{ top: at.top, right: at.right }}
+          className="fixed z-50 w-60 overflow-hidden rounded-lg border bg-card py-1 shadow-pop">
+          {items.map((it) => (
+            <button key={it.label} type="button" role="menuitem" disabled={it.disabled}
+              onClick={() => { setAt(null); it.onSelect() }}
+              className="block w-full px-3 py-2 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:opacity-50">
+              <span className="block text-[13.5px] font-medium">{it.label}</span>
+              {it.hint && <span className="block whitespace-normal text-[12px] text-muted-foreground">{it.hint}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   )
 }

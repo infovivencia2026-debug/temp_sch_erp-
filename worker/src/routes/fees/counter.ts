@@ -9,6 +9,7 @@ import {
 } from './common'
 import { nextNumber } from './numbering'
 import { school } from '../school'
+import { qrDataURL } from '../../services/qrpng'
 
 /* Port of the fee counter: fees.go (ledger, collect, receipt, cheques, PDC,
    defaulters), wallet.go and upi_qr.go, with internal/fees.Collect,
@@ -189,9 +190,10 @@ export function registerCounter(r: Router): void {
     const ref = (q.get('ref') ?? '').trim() || note
     const pay = { vpa: row.vpa, payee: row.payee, amount, note, mc: row.mc, ref }
     const intent = upiIntent(pay)
-    // The PNG the Go server drew (fees.UPIQRPNG) needs a QR encoder the
-    // worker does not carry; the intent and per-app links are complete.
-    const body = { vpa: row.vpa, payee_name: row.payee, amount_paise: amount, ...(note ? { note } : {}), intent, apps: upiAppLinks(intent), image: '' }
+    const sizeRaw = (q.get('size') ?? '').trim()
+    const size = /^[+-]?\d+$/.test(sizeRaw) ? Number(sizeRaw) : 440
+    const image = await qrDataURL(intent, size) // fees.UPIQRPNG
+    const body = { vpa: row.vpa, payee_name: row.payee, amount_paise: amount, ...(note ? { note } : {}), intent, apps: upiAppLinks(intent), image }
     const res = ok(body)
     res.headers.set('cache-control', 'private, max-age=86400')
     return res

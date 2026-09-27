@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } from '../../http'
 import { now } from '../../http'
 import { hashPassword, verifyPassword } from '../../auth/password'
+import { qrDataURL } from '../../services/qrpng'
 
 
 /* Port of internal/api/profile.go, mfa.go (the person's own routes),
@@ -234,10 +235,8 @@ export function registerProfile(r: Router): void {
     const cookieVal = (await sign(c.env.PASSWORD_PEPPER, 'mfa-setup', c.id.userId)) + '.' + secret
     const secure = c.env.COOKIE_SECURE !== 'false' ? '; Secure' : ''
     const headers = { 'set-cookie': `${MFA_COOKIE}=${cookieVal}; Path=/api/v1/profile/mfa; Max-Age=600; HttpOnly; SameSite=Lax${secure}` }
-    /* The QR PNG was drawn server-side (fees.UPIQRPNG). No PNG encoder on the
-       Worker: the client already receives the otpauth URI and the secret, and
-       can draw the code itself; image is omitted rather than faked. */
-    return new Response(JSON.stringify({ secret, uri }), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } })
+    const image = await qrDataURL(uri, 360) // fees.UPIQRPNG, as Go draws it
+    return new Response(JSON.stringify({ secret, uri, image }), { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } })
   })
 
   r.post('/profile/mfa/enable', 'auth', async (c) => {
