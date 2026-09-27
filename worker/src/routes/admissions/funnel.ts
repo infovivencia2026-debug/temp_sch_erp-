@@ -2,6 +2,7 @@ import type { Router } from '../../router'
 import { HttpError, badRequest, bool, created, now, ok, readJSON, uuid } from '../../http'
 import { fullName, isUUIDish, isUniqueViolation, isYMD, istDate, nz, oneOfStr, placeholders, js, resolveRange, str, todayIST } from './util'
 import { school } from '../school'
+import { loadApplicantFacts, notifyApplicant, notifyApplicationStage } from './workflow'
 
 /* Port of the /admissions group's own handlers: the KPIs and the two lists in
    role_backoffice.go, and the funnel in admissions_funnel.go (sources, leads,
@@ -236,8 +237,10 @@ export function registerAdmissionsFunnel(r: Router) {
       await c.db.batch(next.results.map((a) => c.db.prepare(`UPDATE applications SET status = 'offered', waitlist_rank = NULL, decided_by = ?, decided_at = ?, updated_at = ? WHERE id = ?`)
         .bind(c.id.userId, t, t, a.id)))
     }
-    // The offer email (notifyApplicationStage) is a side effect the worker does not send: emailed is 0.
-    return ok({ promoted: next.results.map((a) => a.name), count: next.results.length, emailed: 0 })
+    // Go: a promotion off the waiting list is an offer, so the family is told.
+    let emailed = 0
+    for (const a of next.results) if ((await notifyApplicationStage(c, a.id, 'offered')).sent) emailed++
+    return ok({ promoted: next.results.map((a) => a.name), count: next.results.length, emailed })
   })
 
   r.post('/admissions/rte/import', WRITE, async (c) => {
@@ -281,22 +284,34 @@ export function registerAdmissionsFunnel(r: Router) {
       throw badRequest('say what is being waited on, the fee, a concession decision, a document. Whoever picks this up will not have been in the room')
     }
     const notSent: { id: string; name?: string; reason: string }[] = []
+    let messaged = 0, sent = 0
     const t = now()
     for (const appID of ids) {
-      const f = await c.db.prepare(`SELECT ${fullName('first_name', 'last_name')} AS name FROM applications WHERE id = ?`).bind(appID).first<{ name: string }>()
+      const f = await loadApplicantFacts(c, appID)
       if (!f) { notSent.push({ id: appID, reason: 'no such application' }); continue }
       if (status !== '') {
         await c.db.prepare(`UPDATE applications SET status = ?, updated_at = ?,
-            hold_reason = CASE WHEN ? = 'on_hold' THEN NULLIF(?,'') ELSE NULL END,
+            hold_reason = CASE WHEN ? = 'on_hold' THEN NULLIF(TRIM(?),'') ELSE NULL END,
             held_at = CASE WHEN ? = 'on_hold' THEN ? ELSE NULL END,
             held_by = CASE WHEN ? = 'on_hold' THEN ? ELSE NULL END WHERE id = ?`)
           .bind(status, t, status, hold, status, t, status, c.id.userId, appID).run()
       }
-      /* The send (notifyApplicant, email) is a side effect the worker does not perform, and the
-         Go handler records a remark only where a message actually went: nothing is recorded. */
-      notSent.push({ id: appID, name: f.name, reason: 'email sending is not available in the worker' })
+      // No occurrence key: two messages typed at one family on one day are two messages.
+      const r = await notifyApplicant(c, appID, 'admissions.office_message', f, { message }, '')
+      if (!r.ok) {
+        notSent.push({ id: appID, name: f.student_name || undefined, reason: r.noEmail ? 'no email address on this application' : r.error })
+      } else {
+        sent++
+        // The remark, written only where a message actually went.
+        const res = await c.db.prepare(`UPDATE applications SET remarks = CASE WHEN remarks IS NULL THEN ? ELSE remarks || char(10) || ? END, updated_at = ? WHERE id = ?`)
+          .bind(todayIST() + ': ' + str(req.message), todayIST() + ': ' + str(req.message), t, appID).run()
+        messaged += res.meta.changes
+      }
+      if (status !== '') await notifyApplicationStage(c, appID, status)
     }
-    return ok({ messaged: 0, sent: 0, not_sent: notSent, note: 'Some applicants could not be emailed and were not recorded as told. They are listed in not_sent.' })
+    const out: Record<string, unknown> = { messaged, sent, not_sent: notSent }
+    if (notSent.length > 0) out.note = 'Some applicants could not be emailed and were not recorded as told. They are listed in not_sent.'
+    return ok(out)
   })
 
   // --- open days ------------------------------------------------------------------

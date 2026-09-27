@@ -278,8 +278,18 @@ export function registerAdmissionsWorkflow(r: Router) {
     }
     if (enquiryID !== null) stmts.push(c.db.prepare(`UPDATE enquiries SET status = 'applied', updated_at = ? WHERE id = ?`).bind(t, enquiryID))
     await c.db.batch(stmts)
-    // The acknowledgement email and the parent login are side effects the worker does not perform.
-    return created({ id: appID, application_no: appNo, status: 'submitted', acknowledged: false, note: 'The acknowledgement could not be queued: email sending is not available in the worker' })
+    // Go: notifyApplicant(admissions.application_received, stage:submitted). The parent login is not ported.
+    let acknowledged = false, ackNote = ''
+    const facts = await loadApplicantFacts(c, appID)
+    if (facts) {
+      const r = await notifyApplicant(c, appID, 'admissions.application_received', facts, null, 'stage:submitted')
+      if (r.ok) acknowledged = true
+      else if (r.noEmail) ackNote = 'No email address on the application, so no acknowledgement was sent.'
+      else ackNote = 'The acknowledgement could not be queued: ' + r.error
+    }
+    const out: Record<string, unknown> = { id: appID, application_no: appNo, status: 'submitted', acknowledged }
+    if (ackNote !== '') out.note = ackNote
+    return created(out)
   })
 
   r.post('/admissions/workflow/applications/{id}/assessment', WRITE, async (c) => {
@@ -320,7 +330,7 @@ export function registerAdmissionsWorkflow(r: Router) {
         held_by = CASE WHEN ? = 'on_hold' THEN ? ELSE NULL END WHERE id = ?`)
       .bind(decision, c.id.userId, t, nz(remarks), t, decision, remarks, decision, t, decision, c.id.userId, appID).run()
     if (res.meta.changes === 0) throw notFound()
-    const note = await notifyApplicationStage(c, appID, decision)
+    const { note } = await notifyApplicationStage(c, appID, decision)
     return ok(note ? { id: appID, status: decision, note } : { id: appID, status: decision })
   })
 
@@ -530,39 +540,53 @@ async function sendEnquiryLink(c: Ctx, enquiryId: string, studentName: string, p
   return failed.length ? failed : null
 }
 
-/* Go's notifyApplicationStage (admissions_notify.go): the stage email a family
-   has been waiting on. Never fails the decision; a problem comes back as the
-   note the office reads on the screen. */
+/* Go's applicantFacts / loadApplicantFacts / notifyApplicant (admissions_notify.go):
+   the one row every applicant message is built from, and one templated email to
+   the parent. Never throws: 'no_email' is Go's errNoApplicantEmail. */
+export type ApplicantFacts = { student_name: string; parent_name: string; email: string; application_no: string; class_sought: string; school_name: string }
+export async function loadApplicantFacts(c: Ctx, appID: string): Promise<ApplicantFacts | null> {
+  return c.db.prepare(`
+    SELECT TRIM(COALESCE(a.first_name,'') || ' ' || COALESCE(a.last_name,'')) AS student_name, COALESCE(a.parent_name,'') AS parent_name,
+           COALESCE(a.parent_email,'') AS email, COALESCE(a.application_no,'') AS application_no, COALESCE(cl.name,'') AS class_sought,
+           COALESCE(i.name,'') AS school_name
+      FROM applications a LEFT JOIN classes cl ON cl.id = a.class_sought LEFT JOIN institutions i ON i.id = a.institution_id
+     WHERE a.id = ?`).bind(appID).first<ApplicantFacts>()
+}
+export async function notifyApplicant(c: Ctx, appID: string, code: string, f: ApplicantFacts,
+  extra: Record<string, string> | null, occurrence: string): Promise<{ ok: true } | { ok: false; noEmail: boolean; error: string }> {
+  const email = f.email.trim()
+  if (email === '') return { ok: false, noEmail: true, error: 'no email address on this application' }
+  const vars: Record<string, string> = {
+    school_name: f.school_name || 'your school', parent_name: f.parent_name.trim() || 'Sir/Madam',
+    student_name: f.student_name.trim() || 'your child', application_no: f.application_no,
+    class_sought: f.class_sought || 'the class applied for', portal_url: new URL(c.req.url).origin + '/login',
+    ...(extra ?? {}),
+  }
+  try {
+    const ms = new Messenger(scopeOf(c))
+    await ms.queue({ channel: 'email', template_code: code, vars, recipient: email, source_kind: 'application', source_id: appID,
+      occurrence_key: occurrence === '' ? null : occurrence })
+    await ms.kick()
+  } catch (e) {
+    return { ok: false, noEmail: false, error: e instanceof Error ? e.message : String(e) }
+  }
+  return { ok: true }
+}
+
+/* Go's notifyApplicationStage: the stage email a family has been waiting on.
+   Never fails the change; a problem comes back as the note the office reads. */
 const applicationStageTemplate: Record<string, string> = {
   under_review: 'admissions.under_review', documents_pending: 'admissions.documents_pending',
   test_scheduled: 'admissions.test_scheduled', interviewed: 'admissions.interviewed', offered: 'admissions.offered',
   accepted: 'admissions.accepted', rejected: 'admissions.rejected', waitlisted: 'admissions.waitlisted',
 }
-async function notifyApplicationStage(c: Ctx, appID: string, status: string): Promise<string> {
+export async function notifyApplicationStage(c: Ctx, appID: string, status: string): Promise<{ sent: boolean; note: string }> {
   const code = applicationStageTemplate[status]
-  if (!code) return ''
-  const f = await c.db.prepare(`
-    SELECT TRIM(COALESCE(a.first_name,'') || ' ' || COALESCE(a.last_name,'')) AS student_name, COALESCE(a.parent_name,'') AS parent_name,
-           COALESCE(a.parent_email,'') AS email, COALESCE(a.application_no,'') AS application_no, COALESCE(cl.name,'') AS class_sought,
-           COALESCE(i.name,'') AS school_name
-      FROM applications a LEFT JOIN classes cl ON cl.id = a.class_sought LEFT JOIN institutions i ON i.id = a.institution_id
-     WHERE a.id = ?`).bind(appID).first<{ student_name: string; parent_name: string; email: string; application_no: string; class_sought: string; school_name: string }>()
-    .catch(() => null)
-  if (!f) return 'The change is saved. The family could not be emailed about it.'
-  const email = f.email.trim()
-  if (email === '') return 'The change is saved. There is no email address on this application, so nothing was sent - tell them by telephone.'
-  const vars = {
-    school_name: f.school_name || 'your school', parent_name: f.parent_name.trim() || 'Sir/Madam',
-    student_name: f.student_name.trim() || 'your child', application_no: f.application_no,
-    class_sought: f.class_sought || 'the class applied for', portal_url: new URL(c.req.url).origin + '/login',
-  }
-  try {
-    const ms = new Messenger(scopeOf(c))
-    await ms.queue({ channel: 'email', template_code: code, vars, recipient: email, source_kind: 'application', source_id: appID,
-      occurrence_key: 'stage:' + status })
-    await ms.kick()
-  } catch (e) {
-    return 'The change is saved, but the email could not be queued: ' + (e instanceof Error ? e.message : String(e))
-  }
-  return ''
+  if (!code) return { sent: false, note: '' }
+  const f = await loadApplicantFacts(c, appID).catch(() => null)
+  if (!f) return { sent: false, note: 'The change is saved. The family could not be emailed about it.' }
+  const r = await notifyApplicant(c, appID, code, f, null, 'stage:' + status)
+  if (r.ok) return { sent: true, note: '' }
+  if (r.noEmail) return { sent: false, note: 'The change is saved. There is no email address on this application, so nothing was sent - tell them by telephone.' }
+  return { sent: false, note: 'The change is saved, but the email could not be queued: ' + r.error }
 }
