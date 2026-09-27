@@ -306,9 +306,14 @@ export default function PortalFees() {
                         {i.instalment_no
                           ? t('portal.fees.instalment_no', { number: i.instalment_no })
                           : i.invoice_no}
-                        <span className="ml-2 font-mono text-[12px] font-normal text-muted-foreground">
-                          {i.invoice_no}
-                        </span>
+                        {/* The number beside the instalment's name; without an
+                            instalment the number is the name, and printing it
+                            twice read "INV-ADM0001INV-ADM0001". */}
+                        {!!i.instalment_no && (
+                          <span className="ml-2 font-mono text-[12px] font-normal text-muted-foreground">
+                            {i.invoice_no}
+                          </span>
+                        )}
                       </p>
                       <p
                         className={cn(

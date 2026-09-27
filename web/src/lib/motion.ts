@@ -22,7 +22,8 @@ import { flushSync } from 'react-dom'
    A setter called during render or an effect cannot flushSync; it falls back
    to a plain update, as do browsers without the API and people who asked for
    reduced motion. */
-type Doc = Document & { startViewTransition?: (cb: () => void) => unknown }
+type VT = { ready?: Promise<unknown>; finished?: Promise<unknown>; updateCallbackDone?: Promise<unknown> }
+type Doc = Document & { startViewTransition?: (cb: () => void) => VT | undefined }
 
 export function transitioned(commit: () => void) {
   const doc = document as Doc
@@ -30,13 +31,17 @@ export function transitioned(commit: () => void) {
     commit()
     return
   }
-  doc.startViewTransition(() => {
+  const vt = doc.startViewTransition(() => {
     try {
       flushSync(commit)
     } catch {
       commit()
     }
   })
+  // Overtaken by the next transition (a menu closing as a route changes),
+  // these reject "Transition was skipped" as unhandled page errors; the
+  // commit already ran, so the rejection is not an error.
+  for (const pr of [vt?.ready, vt?.finished, vt?.updateCallbackDone]) pr?.catch(() => {})
 }
 
 export function useOpenState<T>(initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {

@@ -179,7 +179,11 @@ export default function Notifications() {
     result: useFeatureHref('parent.academics.results_report_cards'),
   }
   const linkFor = (n: Note): string | undefined => {
-    if (n.link) return n.link
+    /* The digest rows (fee_due, attendance) carry the API-shaped link Go
+       writes, "/portal/fees" and "/portal/attendance". No screen lives there,
+       so following it fell through to the dashboard; the kind names the
+       screen instead. Every other link is a /go/ or screen path already. */
+    if (n.link && !n.link.startsWith('/portal/')) return n.link
     const k = n.kind.toLowerCase()
     if (k.startsWith('transport') || k.includes('bus')) return fallback.transport
     if (k.startsWith('fee')) return fallback.fee

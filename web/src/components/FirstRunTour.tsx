@@ -156,9 +156,9 @@ export default function FirstRunTour() {
   return (
     <>
     {coach}
-    /* .scrim, and the role moved to the card below: the dim is not an object
+    {/* .scrim, and the role moved to the card below: the dim is not an object
        and must not scale. It was the element carrying role="dialog", so the
-       arrival rule grew the whole darkened screen from 97%. */
+       arrival rule grew the whole darkened screen from 97%. */}
     <div
       className="scrim fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4"
       /* Fixed elements escape the body's notch padding; the card should

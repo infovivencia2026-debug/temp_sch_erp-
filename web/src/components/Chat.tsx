@@ -892,7 +892,10 @@ export function ChatThread({
                 setDraft(e.target.value)
                 // "I am typing to you", throttled in sendTyping; only while
                 // there is something in the box, so a cleared box goes quiet.
-                if (live && e.target.value.trim()) sendTyping(live)
+                // Not before the first message: the server (Go and Worker)
+                // only accepts a hint for a conversation that exists, and
+                // answered every keystroke of an opening line with a 400.
+                if (live && messages.length > 0 && e.target.value.trim()) sendTyping(live)
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

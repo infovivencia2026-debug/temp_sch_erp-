@@ -1219,15 +1219,18 @@ export function Shell({
   )
 }
 
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 /** The caller's resolved boundary, as words rather than a bordered chip. */
 function useScopeLine() {
   const { scope } = useCatalog()
   const bits: string[] = []
   if (scope.platform_admin) bits.push('platform')
   else if (scope.all_campuses) bits.push('all campuses')
-  else if (scope.campuses) bits.push(`${scope.campuses} campus`)
+  else if (scope.campuses) bits.push(count(scope.campuses, 'campus', 'campuses'))
   if (scope.departments) bits.push(`${scope.departments} dept`)
-  if (scope.sections) bits.push(`${scope.sections} sections`)
-  if (scope.students) bits.push(`${scope.students} students`)
+  // "1 students" under a parent's name, who has one child.
+  if (scope.sections) bits.push(count(scope.sections, 'section', 'sections'))
+  if (scope.students) bits.push(count(scope.students, 'student', 'students'))
   return bits.join(' · ')
 }

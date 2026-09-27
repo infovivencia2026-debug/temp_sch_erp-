@@ -466,8 +466,8 @@ export default function Portal() {
                 icon={CalendarCheck}
                 delta={{ value: t('portal.portal.stat_attendance_delta', { count: s.total_days }), positive: s.attendance_pct >= 75 }}
               />
-              <Stat label={t('portal.portal.stat_present')} value={t('portal.portal.stat_days', { count: s.present_days })} />
-              <Stat label={t('portal.portal.stat_absent')} value={t('portal.portal.stat_days', { count: s.absent_days })} />
+              <Stat label={t('portal.portal.stat_present')} value={t(s.present_days === 1 ? 'portal.leave_requests.days_one' : 'portal.portal.stat_days', { count: s.present_days })} />
+              <Stat label={t('portal.portal.stat_absent')} value={t(s.absent_days === 1 ? 'portal.leave_requests.days_one' : 'portal.portal.stat_days', { count: s.absent_days })} />
               {/* The attendance page is asked one question and should answer
                   that one. Homework, fees and the next exam are the
                   dashboard's business; here they are three numbers a family

@@ -1453,9 +1453,13 @@ export function Select({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const box = useRef<HTMLDivElement>(null)
+  /* GET /setup/options needs institution.read (as in Go). A parent or
+     student holds no such grant, so asking only filled the console with a
+     403 on every form carrying a school-extensible list. */
+  const mayReadOptions = useCan()('institution.read')
 
   useEffect(() => {
-    if (!kind) return
+    if (!kind || !mayReadOptions) return
     let live = true
     api
       .get<{ items: { value: string; label: string; custom?: boolean }[] }>(
@@ -1464,7 +1468,7 @@ export function Select({
       .then((r) => { if (live) setCustom((r.items ?? []).filter((o) => o.custom)) })
       .catch(() => { /* the built-in list still works */ })
     return () => { live = false }
-  }, [kind])
+  }, [kind, mayReadOptions])
 
   // Closing on an outside click rather than on blur: blur fires before the
   // click that chose an option, so a blur-closed menu is a menu you cannot

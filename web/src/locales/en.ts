@@ -692,7 +692,7 @@ export const en = {
   'portal.report_absence.reason_family': 'Parent emergency',
   'portal.report_absence.reason_other': 'Other',
   'portal.report_absence.field_day': 'Which day',
-  'portal.report_absence.field_day_hint': 'Leave blank for today.',
+  'portal.report_absence.field_day_hint': 'Leave blank for today. A day ahead is booked under Apply leave.',
   'portal.report_absence.field_detail': 'Anything else',
   'portal.report_absence.field_detail_other': 'Say what happened',
   'portal.report_absence.detail_placeholder': 'Running a temperature since last night',

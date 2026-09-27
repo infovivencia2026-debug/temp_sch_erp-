@@ -49,6 +49,15 @@ export default function CCEFormative() {
       api.get<List<FormativeRow>>(`/api/v1/teaching/cce/formative?${query.toString()}`),
   })
 
+  /* The sheet below already shows the first subject taught (the server's
+     default), and a teacher typed marks into it only to find Save disabled
+     until they re-picked the subject that was already on screen. Pin the
+     default in the picker so what is shown is what is saved. */
+  const firstSubject = subjects.data?.items?.[0]?.class_subject_id ?? ''
+  useEffect(() => {
+    if (!classSubjectID && firstSubject) setClassSubjectID(firstSubject)
+  }, [classSubjectID, firstSubject])
+
   // A fresh cycle or class is a fresh sheet; keeping edits across a change
   // would post one class's marks against another's roll.
   useEffect(() => setDraft({}), [classSubjectID, sectionID, cycle])

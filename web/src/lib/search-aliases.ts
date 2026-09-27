@@ -26,7 +26,7 @@ export const SEARCH_ALIASES: Record<string, string[]> = {
   circulars: ['notice', 'notices', 'announcement', 'announcements', 'memo',
     'bulletin', 'broadcast', 'send notice', 'publish notice', 'noticeboard'],
   messages: ['message', 'chat', 'write to staff', 'contact teacher', 'inbox'],
-  communication: ['message', 'notify', 'inform parents'],
+  communication: ['message', 'notify', 'inform parents', 'notice', 'notices', 'circular', 'circulars', 'message teacher'],
   classroom_communication: ['class message', 'message parents', 'class group'],
   direct_teacher_messaging: ['message teacher', 'chat with teacher'],
   grievances: ['complaint', 'complaints', 'escalation', 'feedback'],

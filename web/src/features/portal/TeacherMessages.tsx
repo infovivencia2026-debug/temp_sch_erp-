@@ -119,10 +119,13 @@ export default function TeacherMessages() {
       />
       <Freshness query={query} />
       <PageBody>
+        {/* Only a family with more than one child has anything to choose
+            here; with one, the card was a heading over an empty box. */}
+        {children.length > 1 && (
         <Card>
           <CardHeader title={t('portal.teacher_messages.picker_title')} />
           <div className="grid gap-5 p-4 sm:grid-cols-2">
-            {children.length > 1 && (
+            {(
               <Field label={t('portal.teacher_messages.field_child')}>
                 <Select
                   value={chosen}
@@ -137,6 +140,7 @@ export default function TeacherMessages() {
             )}
           </div>
         </Card>
+        )}
 
         {studentId === '' ? (
           <EmptyState
