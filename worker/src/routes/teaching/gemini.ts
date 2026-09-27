@@ -74,15 +74,25 @@ export function callGemini(c: Ctx, system: string, turns: GeminiTurn[], maxToken
   return geminiGenerate(c, system, turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })), maxTokens, timeoutMs)
 }
 
-/** geminiGenerate: the one HTTPS POST every caller shares. */
+/** geminiGenerate: one text answer, through geminiRequest. */
 async function geminiGenerate(c: Ctx, system: string, contents: { role: string; parts: GeminiPart[] }[], maxTokens: number, timeoutMs: number): Promise<string> {
+  const out = await geminiRequest(c, {
+    system_instruction: { parts: [{ text: system }] },
+    contents,
+    generationConfig: { maxOutputTokens: maxTokens },
+  }, timeoutMs) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+  return (out.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
+}
+
+/** geminiRequest: the one HTTPS POST every caller shares; a whole generateContent
+    payload in (tools and all), the parsed answer out. In the integration tests
+    (APP_ENV=test) a scripted fake on globalThis.__FAKE_GEMINI__ answers instead,
+    so nothing leaves the machine. */
+export async function geminiRequest(c: Ctx, payload: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
+  const fake = (globalThis as { __FAKE_GEMINI__?: (p: Record<string, unknown>) => unknown }).__FAKE_GEMINI__
+  if (fake && (c.env as unknown as Record<string, unknown>).APP_ENV === 'test') return await fake(payload)
   const signal = AbortSignal.timeout(timeoutMs)
   try {
-    const payload = {
-      system_instruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig: { maxOutputTokens: maxTokens },
-    }
     /* Two ways in. The Go server used Cloud Run's own identity against
        Vertex AI; a Worker has none. So an API key in GOOGLE_API_KEY is used
        when set, and its format picks the endpoint: an AI Studio key (AIza...)
@@ -108,8 +118,7 @@ async function geminiGenerate(c: Ctx, system: string, contents: { role: string; 
     }
     const rb = await resp.text()
     if (resp.status !== 200) throw new GeminiError(resp.status, rb)
-    const out = JSON.parse(rb) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
-    return (out.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
+    return JSON.parse(rb)
   } catch (e) {
     if (e instanceof GeminiError || e instanceof GeminiNotConfigured) throw e
     if (signal.aborted || (e as Error).name === 'TimeoutError') throw new GeminiTimeout('deadline exceeded')

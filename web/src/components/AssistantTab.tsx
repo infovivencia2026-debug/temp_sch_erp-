@@ -9,6 +9,9 @@ import { useCatalog, featurePath, usable, type CatalogResponse } from '@/lib/cat
 import { cn } from '@/lib/utils'
 import { PickerMenu } from '@/components/PickerMenu'
 import { useOpenState } from '@/lib/motion'
+import { ToolSteps } from '@/components/assistant/ToolSteps'
+import { ConfirmCard } from '@/components/assistant/ConfirmCard'
+import { ASK_EVENT, confirmCard, streamAgent, type AgentCard, type ToolStep } from '@/components/assistant/agent'
 
 /* A tiny, safe Markdown render for the bot's answers.
 
@@ -190,6 +193,10 @@ interface Turn {
      to a real, role-checked route, so no button points somewhere the reader
      cannot go, and each gets its own button. */
   links?: ScreenLink[]
+  /** The tool-calling path: which bot turn this is, what it looked up, and a prepared change. */
+  uid?: number
+  steps?: ToolStep[]
+  card?: AgentCard
 }
 
 /* Turn a screen's catalogue NAME into a route the reader may actually open.
@@ -455,6 +462,77 @@ export function AssistantTab() {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
+  /* A question handed over from the command search (Cmd-K): open and ask it.
+     Through a ref, so the listener registered once always calls today's ask. */
+  const askRef = useRef<(q: string) => void>(() => {})
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const q = (e as CustomEvent<{ question?: string }>).detail?.question?.trim()
+      if (!q) return
+      setOpen(true)
+      window.setTimeout(() => askRef.current(q), 0)
+    }
+    window.addEventListener(ASK_EVENT, onAsk)
+    return () => window.removeEventListener(ASK_EVENT, onAsk)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  /* THE WORKER'S ASSISTANT LOOKS THINGS UP. When the endpoint is this app's
+     own /api/v1/assistant/chat, questions go to /assistant/agent instead,
+     which lets the model call tools (read as this person) and prepare changes
+     for confirmation, and streams each step so the panel shows "Listing fee
+     defaulters…" while it happens rather than three dots for twenty seconds. */
+  const agentMode = ENDPOINT.startsWith('/api/v1/assistant/')
+  const nextUid = useRef(1)
+  const patchTurn = (uid: number, fn: (t: Turn) => Turn) => setTurns((ts) => ts.map((t) => (t.uid === uid ? fn(t) : t)))
+  async function askAgent(message: string) {
+    const uid = nextUid.current++
+    setTurns((t) => [...t, { role: 'bot', text: '', uid, steps: [] }])
+    let failure: string | null = null
+    await streamAgent(message, conversation.current, (e) => {
+      switch (e.t) {
+        case 'conv':
+          conversation.current = e.conversation_id
+          try { localStorage.setItem(STORAGE_KEY, e.conversation_id) } catch { /* private mode */ }
+          break
+        case 'tool':
+          patchTurn(uid, (t) => ({ ...t, steps: [...(t.steps ?? []), { id: e.id, name: e.name, label: e.label, state: 'running' }] }))
+          break
+        case 'tool_done':
+          patchTurn(uid, (t) => ({ ...t, steps: (t.steps ?? []).map((s) => (s.id === e.id ? { ...s, state: e.ok ? 'done' : 'failed', view: e.view, links: e.links, error: e.error } : s)) }))
+          break
+        case 'action':
+          patchTurn(uid, (t) => ({ ...t, card: { ...e.action, state: 'idle' } }))
+          break
+        case 'answer':
+          setState('answering')
+          patchTurn(uid, (t) => {
+            const fromText = linksFromText(catalog, e.text)
+            const links = [...(e.links ?? []), ...fromText.filter((l) => !(e.links ?? []).some((x) => x.to === l.to))]
+            return { ...t, text: e.text, links: links.slice(0, 6) }
+          })
+          break
+        case 'error':
+          failure = e.message
+          break
+      }
+    })
+    if (failure) {
+      // Keep whatever was looked up; drop an empty bubble.
+      setTurns((ts) => ts.filter((t) => t.uid !== uid || (t.steps?.length ?? 0) > 0 || t.card))
+      throw new Error(failure)
+    }
+  }
+  async function confirmAgent(uid: number, card: AgentCard) {
+    patchTurn(uid, (t) => ({ ...t, card: t.card && { ...t.card, state: 'busy' } }))
+    try {
+      const message = await confirmCard(card)
+      patchTurn(uid, (t) => ({ ...t, card: t.card && { ...t.card, state: 'done', result: message } }))
+    } catch (err) {
+      patchTurn(uid, (t) => ({ ...t, card: t.card && { ...t.card, state: 'error', result: (err as Error).message } }))
+    }
+  }
+
   async function ask(override?: string) {
     const message = (override ?? draft).trim()
     if (!message || state !== 'idle') return
@@ -504,6 +582,12 @@ export function AssistantTab() {
           }
         }
       } catch { /* the slow path is the fallback, and it is right below */ }
+
+      if (agentMode) {
+        await askAgent(message)
+        await new Promise((r) => setTimeout(r, 300))
+        return
+      }
 
       const res = await fetch(ENDPOINT, {
         method: 'POST',
@@ -670,6 +754,8 @@ export function AssistantTab() {
       setImportState(i, { state: 'error', result: (e as Error).message })
     }
   }
+
+  askRef.current = (q: string) => { void ask(q) }
 
   /* Placed after every hook, so the early return cannot change how many run. */
   if (onSettings && !open) return null
@@ -896,6 +982,9 @@ export function AssistantTab() {
                       'bg-destructive text-destructive-foreground',
                   )}
                 >
+                  {turn.steps && turn.steps.length > 0 && (
+                    <ToolSteps steps={turn.steps} onOpen={(to) => { navigate(to); setOpen(false) }} />
+                  )}
                   {turn.role === 'bot'
                     ? (i === printingIdx
                         ? <span className="md-answer">{turn.text.slice(0, printedLen)}<span className="assistant-caret" aria-hidden="true" /></span>
@@ -1001,6 +1090,15 @@ export function AssistantTab() {
                         <div className="mt-2.5 text-[12.5px] text-muted-foreground">Making the change…</div>
                       )}
                     </div>
+                  )}
+
+                  {/* A change the tool-calling assistant prepared, with its diff. */}
+                  {turn.card && turn.uid !== undefined && i !== printingIdx && (
+                    <ConfirmCard
+                      card={turn.card}
+                      onConfirm={() => void confirmAgent(turn.uid!, turn.card!)}
+                      onCancel={() => patchTurn(turn.uid!, (t) => ({ ...t, card: t.card && { ...t.card, state: 'cancelled' } }))}
+                    />
                   )}
 
                   {/* An attached spreadsheet, as a confirm card. It shows the

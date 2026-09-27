@@ -7,6 +7,7 @@ import { importSpecs } from '../setup/imports'
 import { indiaToday, resolveScope, SECTION_SET_SQL } from '../students/common'
 import { assistantFailure, assistantRateLimit, callGemini, extractApiKey, type GeminiTurn } from '../teaching/gemini'
 import { HELP_ANSWERS } from './assistant/help_answers_data'
+import { registerAgent } from './assistant/agent'
 import { ASSISTANT_ACTIONS, ASSISTANT_ACTION_CATALOGUE, ActionRefusal, dispatch, parseProposedAction, refusalText, type ProposedAction } from './assistant/actions'
 
 /* The in-app assistant, ported from internal/api/help_answers.go (the fast
@@ -18,7 +19,7 @@ import { ASSISTANT_ACTIONS, ASSISTANT_ACTION_CATALOGUE, ActionRefusal, dispatch,
 
 // --- roles ---------------------------------------------------------------------------
 /** assistantRoles: the asker's role keys from the school database. A failed lookup costs precision, not the answer. */
-async function assistantRoles(c: Ctx): Promise<string[]> {
+export async function assistantRoles(c: Ctx): Promise<string[]> {
   try {
     if (!c.id.institution) return []
     const rows = await c.db.prepare(`SELECT DISTINCT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? ORDER BY r.key`)
@@ -70,7 +71,7 @@ async function assistantAsk(c: Ctx): Promise<Response> {
 // --- the slow path (assistant_chat.go) -------------------------------------------------------
 const ASSISTANT_MAX_TOKENS = 1024
 
-const SYSTEM_PROMPT = `You are the help assistant inside a school ERP used by Indian schools.
+export const SYSTEM_PROMPT = `You are the help assistant inside a school ERP used by Indian schools.
 
 The people asking are school staff and parents: a clerk at a fee counter, a
 teacher marking a register, a principal, a parent on a phone. Answer in plain
@@ -131,7 +132,7 @@ and bulk deletions. For those, tell the person they must be done by someone with
 the right access on the proper setup screen.`
 
 /** assistantGrounding: the screens this person can open, from the catalogue the navigation is built from. */
-function assistantGrounding(roles: string[]): string {
+export function assistantGrounding(roles: string[]): string {
   let b = 'The screens this person can open, by workspace:\n'
   const seen = new Set<string>()
   for (const key of roles) {
@@ -470,4 +471,6 @@ export function registerAssistant(r: Router): void {
   r.post('/assistant/action', 'auth', assistantAction)
   r.post('/assistant/import/preview', 'auth', (c) => assistantImport(c, false))
   r.post('/assistant/import/commit', 'auth', (c) => assistantImport(c, true))
+  // Tool calling and the action registry: assistant/agent.ts.
+  registerAgent(r)
 }

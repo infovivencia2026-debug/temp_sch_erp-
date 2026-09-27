@@ -14,6 +14,8 @@ import { useSession } from '@/lib/session'
 import { FeatureGlyph } from './FeatureGlyph'
 import { hueFor } from '@/features/bento/BentoLauncher'
 import { useOpenState } from '@/lib/motion'
+import { AskAssistantRow } from './assistant/AskAssistantRow'
+import { askAssistant, looksLikeQuestion } from './assistant/agent'
 
 /* A child or a parent, found by name, admission number or mobile.
 
@@ -252,6 +254,12 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
       ?.scrollIntoView?.({ block: 'nearest' })
   }, [cursor])
 
+  /* Cmd-K hands natural-language questions to the assistant (AssistantTab
+     listens for the event): offered first for anything that reads as a
+     question, and as the fallback when nothing matches. */
+  const asksQuestion = looksLikeQuestion(q)
+  const offerAsk = asksQuestion || (q.trim().length >= 3 && hits.length === 0 && peopleHits.length === 0)
+
   if (!open) {
     return (
       <button
@@ -354,6 +362,8 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
               onKeyDown={(e) => {
                 if (e.key === 'ArrowDown') { e.preventDefault(); setCursor((c) => Math.min(c + 1, hits.length - 1)) }
                 if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)) }
+                // A question in words goes to the assistant; so does Enter on a search that found nothing.
+                if (e.key === 'Enter' && (asksQuestion || (offerAsk && !hits[cursor]))) { e.preventDefault(); askAssistant(q.trim()); close(); return }
                 if (e.key === 'Enter' && hits[cursor]) { e.preventDefault(); go(hits[cursor]) }
               }}
               placeholder="Search screens, children and parents, a name, an admission number or a mobile"
@@ -365,6 +375,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
               says so with a control, not by slicing a row in half. */}
           <ScrollBox className="max-h-[52vh]">
           <ul className="py-1">
+            {offerAsk && <AskAssistantRow q={q} active={asksQuestion || hits.length === 0} onAsked={close} />}
             {peopleHits.length > 0 && (
               <>
                 <li className="px-4 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -400,7 +411,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
                 <li className="mx-4 my-1 border-t" aria-hidden />
               </>
             )}
-            {hits.length === 0 && peopleHits.length === 0 && (
+            {hits.length === 0 && peopleHits.length === 0 && !offerAsk && (
               <li className="px-4 py-6 text-center text-[14px] text-muted-foreground">
                 Nothing matches “{q}”.
               </li>
