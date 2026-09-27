@@ -977,7 +977,7 @@ export function AssistantTab() {
                     'whitespace-pre-wrap rounded-[10px] px-3 py-2 text-[14.5px] leading-relaxed',
                     /* A subtle tint, no edge: the question sits on the
                        faintest wash of the accent, the answer on none. */
-                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.06)] font-medium text-foreground',
+                    turn.role === 'user' && 'bg-[hsl(var(--primary)/0.035)] font-medium text-foreground',
                     turn.role === 'bot' && 'text-foreground/90',
                     turn.role === 'error' &&
                       'bg-destructive text-destructive-foreground',
@@ -1042,7 +1042,7 @@ export function AssistantTab() {
                       before -> after the server computed, and once done it stays
                       as a record of what happened. */}
                   {turn.action && i !== printingIdx && (
-                    <div className="assistant-action mt-2 rounded-[11px] border bg-card/60 p-3 text-foreground">
+                    <div className="assistant-action mt-2 rounded-[11px] border p-3 text-foreground">
                       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         <Wand2 className="size-3.5 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
                         {turn.action.title}
@@ -1107,7 +1107,7 @@ export function AssistantTab() {
                       problems -- and writes nothing until Confirm is pressed,
                       which re-sends the same file to be imported. */}
                   {turn.imprt && i !== printingIdx && (
-                    <div className="assistant-action mt-2 rounded-[11px] border bg-card/60 p-3 text-foreground">
+                    <div className="assistant-action mt-2 rounded-[11px] border p-3 text-foreground">
                       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         <FileSpreadsheet className="size-3.5 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
                         Import {turn.imprt.label}
@@ -1178,7 +1178,7 @@ export function AssistantTab() {
                 looking unanswered until the reply lands. */}
             {state === 'thinking' && (
               <div className="max-w-[86%]">
-                <div className="inline-flex items-center gap-1 rounded-[12px] bg-accent px-3 py-2.5 text-accent-foreground">
+                <div className="inline-flex items-center gap-1 rounded-[12px] px-3 py-2.5 text-muted-foreground">
                   <span className="assistant-dot" />
                   <span className="assistant-dot" style={{ animationDelay: '0.15s' }} />
                   <span className="assistant-dot" style={{ animationDelay: '0.3s' }} />

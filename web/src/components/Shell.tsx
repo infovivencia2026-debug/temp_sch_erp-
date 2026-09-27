@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  Check, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Rows3, Sun,
+  Check, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Rows3,
   UserRound, X,
 } from 'lucide-react'
 import {
@@ -32,7 +32,6 @@ import { usePanes } from '@/lib/panes'
 import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
-import { useTheme } from '@/lib/theme'
 import { BentoSettings } from '@/features/bento/BentoSettings'
 import { markFor, hueFor } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
@@ -277,8 +276,6 @@ export function Shell({
   const openerRef = useRef<HTMLButtonElement>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const scopeLine = useScopeLine()
-  const { resolved, setTheme } = useTheme()
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
   // Most catalogued features have no screen yet. Hiding them by default keeps
   // a role's navigation to what actually works, with one line to reveal the
   // rest — honest without burying the six live items under forty dead ones.
@@ -403,11 +400,6 @@ export function Shell({
      choice, without ever telling the account row. It now goes through
      lib/theme, so the header, the appearance screen and the Bento dock are
      the same preference seen from three places. */
-  const toggleTheme = () => {
-    const next = resolved === 'dark' ? 'light' : 'dark'
-    setDark(next === 'dark')
-    setTheme(next)
-  }
 
   /* THERE IS NO SUCH THING AS A BENTO ROLE, AND THERE SHOULD NEVER HAVE BEEN.
 
@@ -740,14 +732,6 @@ export function Shell({
               >
                 <Rows3 className="h-4 w-4" />
               </button>
-              <button
-                onClick={toggleTheme}
-                aria-label="Toggle theme"
-                title="Light or dark"
-                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
-              >
-                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
               <Link
                 to="/account"
                 aria-label="Your account"
@@ -766,14 +750,7 @@ export function Shell({
               </a>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <BentoSettings placement="rail" />
-            {layout !== 'bento' && (
-              <span className="hidden lg:block">
-                <LayoutSwitch />
-              </span>
-            )}
-          </div>
+          <BentoSettings placement="rail" />
         </div>
 
         {/* --- the panel: the selected workspace, and nothing else ---------
@@ -1053,6 +1030,10 @@ export function Shell({
               controls for one thing on one screen reads as two different
               things until somebody presses both. */}
         </nav>
+        {/* Focus | Work, beside the rail's cog at the foot of the sidebar. */}
+        <div className="hidden shrink-0 border-t px-3 py-2 lg:flex">
+          <LayoutSwitch />
+        </div>
         </div>
       </aside>
 
@@ -1166,13 +1147,6 @@ export function Shell({
             <div className="hidden sm:block lg:hidden">
               <LayoutSwitch />
             </div>
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-              className="grid h-9 w-9 place-items-center rounded-[7px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
-            >
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
             {/* Your own account, beside the way out of it. Reachable from
                 every role rather than from a catalogue entry only faculty
                 had. */}
