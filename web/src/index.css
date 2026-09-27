@@ -411,6 +411,49 @@
   :root[data-density='spacious'],
   :root[data-density='relaxed'] { --row-py: 1.125rem; }
 
+  /* THE SPACING SCALE, IN PIXELS. See docs/design-spacing.md.
+
+     The root font is pinned to 14px, so every Tailwind step here is an eighth
+     short of the number it names: px-5 is 17.5, px-7 is 24.5, space-y-7 is
+     24.5. The page frame was written in those steps and it drifted -- the page
+     header sat 17.5px from a phone's edge while the cards under it sat 7, so
+     the title and the first card never shared an edge, and under Focus a
+     screen with a page header sat twice as far in as a board beside it.
+
+     So the frame is five tokens, in pixels, and every page header, body and
+     card reads them:
+
+       --page-gutter   the page's own inset, ON TOP of whatever the layout
+                       already pads. The content edge lands at 22px on a phone
+                       (the width chosen in "Sixteen pixels was too far the
+                       other way") and 24px from 640 up, in both layouts.
+       --page-top      above the page header.
+       --page-head-gap page header to the first block beneath it.
+       --section-gap   between the blocks of a page body.
+       --card-pad      a card's inset: header, body and first/last table cell.
+
+     Density is left where it was: it moves table rows (--row-py above) and
+     the Focus board's gutters, not the page frame. */
+  :root {
+    --page-gutter: 22px;
+    --page-top: 20px;
+    --page-head-gap: 20px;
+    --section-gap: 24px;
+    --card-pad: 16px;
+  }
+  @media (min-width: 640px) {
+    :root { --page-gutter: 24px; --card-pad: 20px; }
+  }
+  /* Focus pads its work area itself (BentoOutlet: 14 / 20 / 24px, and 21px
+     at the top), so the page adds only the difference. */
+  html[data-layout='bento'] { --page-gutter: 8px; --page-top: 0px; }
+  @media (min-width: 640px) {
+    html[data-layout='bento'] { --page-gutter: 4px; }
+  }
+  @media (min-width: 1024px) {
+    html[data-layout='bento'] { --page-gutter: 0px; }
+  }
+
   /* High contrast, opt in, as a token override and nothing else.
 
      It is an attribute on the root exactly like data-density, set by the same
@@ -955,7 +998,7 @@
   }
   .cell {
     background: hsl(var(--card));
-    padding: 20px;
+    padding: var(--card-pad);
     transition: background-color 0.15s ease;
   }
   @media (hover: hover) {
@@ -1107,7 +1150,7 @@
      itself. A child that already carries its own padding (p-*) is left
      alone, so the padded screens do not double up. */
   .card > :is(.form-grid, form, fieldset):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' py-']) {
-    padding: 1.25rem;
+    padding: var(--card-pad);
   }
   /* The ^= tests matter: a class list that STARTS with the utility has no
      leading space, so `mx-auto max-w-md` (every EmptyState line) slipped past
@@ -1116,9 +1159,9 @@
      no extra bottom margin either, which had pushed its text above centre. */
   .card > :is(.form-grid, form, fieldset) + :is(.form-grid, form, fieldset) { padding-top: 0; }
   .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
-    margin-inline: 1.25rem;
+    margin-inline: var(--card-pad);
   }
-  .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: 1.25rem; }
+  .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
 
   /* Content settles in once, on mount. Short and small: a long slide is
      theatre, and an operator opening the same screen forty times a day will

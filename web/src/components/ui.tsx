@@ -33,7 +33,7 @@ export function CardHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-4 border-b px-[var(--card-pad)] py-4">
       <div className="min-w-0">
         <h3 className="text-[15px] font-semibold tracking-[-0.01em]">{title}</h3>
         {/* Card descriptions are no longer drawn either.
@@ -86,7 +86,7 @@ export function PageHead({
     /* No bottom border. The rule under a page title is the most-repeated line
        in the product and it separates a heading from its own content -- the
        28px of space below does the same job without drawing anything. */
-    <div data-page-enter="" className={cn('px-5 pb-6 pt-5 sm:px-7', WIDTH[width])}>
+    <div data-page-enter="" className={cn('px-[var(--page-gutter)] pb-[var(--page-head-gap)] pt-[var(--page-top)]', WIDTH[width])}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           {/* The breadcrumb must not break mid-word.
@@ -162,10 +162,12 @@ export function PageBody({
   children: ReactNode
   width?: Width
 }) {
-  /* px-1.5 on a phone, not px-5. The layout that hosts this already draws a
-     gutter of its own, and the two stacked to 36px a side on a 390px screen.
-     From sm up there is width to spare and the original padding stands. */
-  return <div data-page-enter="" className={cn('space-y-7 px-2 pb-10 sm:px-7', WIDTH[width])}>{children}</div>
+  /* The gutter is a token (index.css, --page-gutter), shared with PageHead.
+     It used to be px-2 here and px-5 there, so on a phone the title sat 10px
+     further in than the cards beneath it. Under Focus the layout already draws
+     a gutter of its own and the token is only the difference, so the two do
+     not stack to 36px a side on a 390px screen. */
+  return <div data-page-enter="" className={cn('space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10', WIDTH[width])}>{children}</div>
 }
 
 /* A panel: white where content needs containing, and nothing where it does
@@ -535,7 +537,7 @@ const NARROW_WIDE = 'max-[900px]:w-max max-[900px]:min-w-full'
 
    12px a side and not zero: the vertical rules this file draws between
    columns need air on both sides, or the figures sit on the line. */
-const NARROW_PAD = 'max-[900px]:px-3'
+const NARROW_PAD = 'max-[900px]:px-[12px]'
 
 export function Table({
   head,
@@ -784,7 +786,7 @@ export function Table({
                   key={label}
                   aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                   className={cn(
-                    'whitespace-nowrap px-5 py-2.5 text-[12px] font-medium text-muted-foreground',
+                    'whitespace-nowrap px-[var(--card-pad)] py-2.5 text-[12px] font-medium text-muted-foreground',
                     NARROW_PAD,
                     right ? 'text-right' : 'text-left',
                   )}
@@ -822,7 +824,7 @@ export function Table({
             <SkeletonRows rows={loadingRows} cols={head.length} />
           ) : empty ? (
             <tr>
-              <td colSpan={head.length} className="px-5 py-12 text-center text-[14px] text-muted-foreground">
+              <td colSpan={head.length} className="px-[var(--card-pad)] py-12 text-center text-[14px] text-muted-foreground">
                 {emptyLabel}
               </td>
             </tr>
@@ -852,7 +854,7 @@ export function Table({
         {/* Full screen scrolls; the sentinel below is its Next, so a pager there
             would be two controls for one move. */}
         {(rows.length > size || (canGrow && !full)) && (
-          <div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
+          <div className="flex items-center justify-between gap-4 border-t px-[var(--card-pad)] py-2.5">
             {/* Where you are, in the rows' own terms. "Page 3 of 9" needs
                 arithmetic before it answers "have I passed the Ks yet"; the row
                 numbers answer it directly.
@@ -1040,7 +1042,7 @@ export function Td({
     <td
       colSpan={colSpan}
       data-label={label}
-      className={cn('px-5 [padding-block:var(--row-py)]', NARROW_PAD, className)}
+      className={cn('px-[var(--card-pad)] [padding-block:var(--row-py)]', NARROW_PAD, className)}
     >
       {children}
     </td>
@@ -1929,7 +1931,7 @@ export function Field({
 export function FormGrid({ children }: { children: ReactNode }) {
   // `form-grid` so a grid set straight under a card gets the card's own
   // padding (index.css); a screen that wraps it in a padded box is unchanged.
-  return <div className="form-grid grid gap-5 sm:grid-cols-2">{children}</div>
+  return <div className="form-grid grid gap-[16px] sm:grid-cols-2">{children}</div>
 }
 
 /** Inline result of a save: the server's own words, not a generic toast. */
