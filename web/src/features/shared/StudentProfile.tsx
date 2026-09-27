@@ -833,7 +833,10 @@ export default function StudentProfile() {
       disabled: !can('institution_admin.communication.messages'),
       disabledReason: 'Needs the messaging permission' },
     { label: 'Move to another section', onClick: () => setMoving(true),
-      disabled: !can('institution_admin.students.students'),
+      /* POST /students/{id}/section-change is gated on students.write (as in
+         Go). The catalogue key this named does not exist, so the move was
+         greyed out for everyone, the principal included. */
+      disabled: !can('students.write'),
       disabledReason: 'Needs the students permission' },
     /* The child's own way in. Nothing outside the demo seeder had ever given
        a student an account, so the whole student workspace was unreachable in

@@ -43,7 +43,7 @@ const CATEGORIES = [
 export default function ActivitiesSetup() {
   const qc = useQueryClient()
   const can = useCan()
-  const mayWrite = can('academics.academics.write') || can('academics.timetable.write')
+  const mayWrite = can('academics.write')
 
   const [editing, setEditing] = useState<Activity | null>(null)
   const [adding, setAdding] = useState(false)

@@ -191,7 +191,7 @@ export default function SectionGrid() {
                       value={teacher}
                       onChange={setTeacher}
                       placeholder="No teacher"
-                      options={[{ value: '', label: 'No teacher' }, ...(teachers.data?.items ?? []).filter((t) => t.user_id).map((t) => ({ value: t.user_id, label: t.full_name }))]}
+                      options={(teachers.data?.items ?? []).filter((t) => t.user_id).map((t) => ({ value: t.user_id, label: t.full_name }))}
                     />
                   </label>
                   <Button disabled={!subject || save.isPending} onClick={() => save.mutate()}>
