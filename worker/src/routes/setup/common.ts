@@ -480,3 +480,20 @@ export async function batch(c: Ctx, stmts: D1PreparedStatement[]): Promise<D1Res
 }
 
 export const changes = (r: D1Result | undefined): number => Number(r?.meta?.changes ?? 0)
+
+/** Writes a school user's email, phone and username into CONTROL's login_index,
+ *  which is where /login looks first. A user created here without it exists in
+ *  the school's database but can never sign in. Idempotent. */
+export async function indexLogin(c: Ctx, userId: string): Promise<void> {
+  const u = await c.db.prepare('SELECT institution_id, email, phone, username FROM users WHERE id = ?')
+    .bind(userId).first<{ institution_id: string; email: string | null; phone: string | null; username: string | null }>()
+  if (!u) return
+  const t = now()
+  const stmts: D1PreparedStatement[] = []
+  for (const [kind, value] of [['email', u.email], ['phone', u.phone], ['username', u.username]] as const) {
+    if (!value || value.trim() === '') continue
+    stmts.push(c.env.CONTROL.prepare('INSERT OR IGNORE INTO login_index (kind, value, institution_id, user_id, created_at) VALUES (?,?,?,?,?)')
+      .bind(kind, value, u.institution_id, userId, t))
+  }
+  if (stmts.length) await c.env.CONTROL.batch(stmts)
+}

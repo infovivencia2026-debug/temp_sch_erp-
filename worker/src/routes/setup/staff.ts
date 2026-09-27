@@ -3,7 +3,7 @@ import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
 import { can } from '../../identity'
-import { requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
+import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
 import { assignSectionTeacher } from './academics'
@@ -129,6 +129,7 @@ export function registerStaff(r: Router): void {
       }
       throw e
     }
+    if (out.userId !== '') await indexLogin(c, out.userId)
     return created({ id: out.empId, user_id: out.userId === '' ? null : out.userId, employee_code: body.employee_code, created: out.created })
   })
 
@@ -467,6 +468,7 @@ export function registerStaff(r: Router): void {
       }
     }
     const signIn = await signInAs(c, userId, 'email')
+    await indexLogin(c, userId)
     if (signIn.trim() === '') throw badRequest(errNoContact)
     const out: Record<string, unknown> = { employee_code: e.employee_code, full_name: e.full_name, sign_in_as: signIn, password: '', existing }
     if (existing) {
@@ -604,6 +606,7 @@ export function registerStaff(r: Router): void {
       const target = matches.results[0].id
       await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?`).bind(await hash(c, pw), now(), target).run()
       await revokeSessions(c, target)
+      await indexLogin(c, target)
       set++
     }
     return ok({ set, skipped, note: 'Those passwords are now the ones that work. Anybody whose password changed has been signed out of their other devices.' })
@@ -679,6 +682,7 @@ export function registerStaff(r: Router): void {
         await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?`).bind(pwHash, now(), s.user_id).run()
       }
       out.sign_in_as = await signInAs(c, s.user_id, 'username')
+      await indexLogin(c, s.user_id)
     } else {
       const username = await uniqueUsername(c, s.admission_no)
       const newId = uuid()
@@ -692,6 +696,7 @@ export function registerStaff(r: Router): void {
       ])
       try { await grantRole(c, newId, 'student') } catch (e) { throw badRequest((e as Error).message) }
       out.sign_in_as = username
+      await indexLogin(c, newId)
     }
     if (out.existing && !reset) {
       out.note = 'This child already has a login. The one whoever created it handed over. The password cannot be read back; if it has been lost, reset it, which replaces the old one.'
@@ -723,6 +728,7 @@ export function registerStaff(r: Router): void {
         issued = true
       }
       out.sign_in_as = await signInAs(c, g.user_id, 'username')
+      await indexLogin(c, g.user_id)
     } else {
       if (!email && !phone) {
         throw badRequest('this person has no email or phone on their record. Add one first, or they will have nothing to sign in with and nowhere to receive a reset')
@@ -739,6 +745,7 @@ export function registerStaff(r: Router): void {
           issued = true
         }
         out.sign_in_as = await signInAs(c, attach.id, 'username')
+        await indexLogin(c, attach.id)
       } else {
         const clash = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND ((? IS NOT NULL AND email = ?) OR (? IS NOT NULL AND phone = ?))`)
           .bind(instId(c), email, email, phone, phone).first()
@@ -752,6 +759,7 @@ export function registerStaff(r: Router): void {
         ])
         try { await grantRole(c, newId, 'parent') } catch (e) { throw badRequest((e as Error).message) }
         out.sign_in_as = username
+        await indexLogin(c, newId)
         issued = true
       }
     }
@@ -872,6 +880,7 @@ export function registerStaff(r: Router): void {
       await c.db.prepare(`UPDATE ${table} SET user_id = ? WHERE id = ?`).bind(newId, p.id).run()
       const roleKey = kind === 'students' ? 'student' : kind === 'guardians' ? 'parent' : ''
       if (roleKey) await grantRole(c, newId, roleKey)
+      await indexLogin(c, newId)
       out.created++
       out.rows.push({ name: p.name, sign_in_as: username, password, existing: false })
       await tell(kind === 'guardians', p, username, password, pwHash)
