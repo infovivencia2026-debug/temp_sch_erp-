@@ -1,7 +1,7 @@
 -- control_billing (CONTROL D1 only). Seller billing (invoices, payments,
 -- renewal reminders, automatic past_due/suspended) and the onboarding tracker.
 -- Idempotent; apply with
---   npx wrangler d1 execute school-erp-control --remote --file db/changes/control_billing.sql
+--   npm run migrate -- up (was db/changes/control_billing.sql)
 -- ---- Seller billing (Seller → Subscription ledger; school Settings → Billing) --
 -- Invoices the vendor issues to each school for its subscription, payments
 -- against them, renewal reminders and the onboarding tracker. Written by

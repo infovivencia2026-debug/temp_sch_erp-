@@ -1,6 +1,6 @@
 -- control_health (CONTROL D1 only). School health board and usage alerts
 -- (Seller → Instance Health). Idempotent; apply with
---   npx wrangler d1 execute school-erp-control --remote --file db/changes/control_health.sql
+--   npm run migrate -- up (was db/changes/control_health.sql)
 -- The board fills on the next seller:health_snapshot run (every 15 min) or
 -- from its Refresh button.
 

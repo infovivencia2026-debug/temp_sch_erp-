@@ -2,7 +2,7 @@
 -- off-boarding, and the append-only register of seller/platform actions.
 -- See src/services/background/backup.ts, src/routes/seller/lifecycle.ts and
 -- src/services/seller_audit.ts. Apply once:
---   npx wrangler d1 execute CONTROL --remote --file=db/changes/control_lifecycle.sql
+--   npm run migrate -- up (was db/changes/control_lifecycle.sql)
 
 -- One row per SQL dump written to R2 (backups/<slug>/<date>.sql.gz).
 -- institution_id NULL is the CONTROL database itself.

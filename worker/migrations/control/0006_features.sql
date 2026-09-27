@@ -1,6 +1,6 @@
 -- control_features (CONTROL D1 only). Per-school feature switches and
 -- targeted platform announcements with read tracking. Idempotent; apply with
---   npx wrangler d1 execute school-erp-control --remote --file db/changes/control_features.sql
+--   npm run migrate -- up (was db/changes/control_features.sql)
 
 -- A seller's override of one catalogue feature for one school, on top of what
 -- the plan's modules give. feature_id is '<section>.<feature>' (the catalogue

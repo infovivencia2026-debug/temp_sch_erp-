@@ -53,8 +53,9 @@ Browser ─▶ Pages (web/, React)  ─ web/functions/[[path]].ts proxies server
 | `worker/src/pages/` | Server-rendered pages (sign-in, forgot/reset, buy, signup, apps, MFA), HTML captured from the Go templates |
 | `worker/src/services/` | files (R2), messaging (SMS/email/WhatsApp/push), jobs (Queues), cron, live (Durable Object), pdf, xlsx |
 | `worker/src/gates.ts`, `idempotency.ts` | Password-change, subscription and section gates; duplicate-request protection |
-| `worker/db/control.sql` | CONTROL schema |
-| `worker/db/tenant.sql` | Per-school schema, **generated** from Postgres by `scripts/d1/pg_to_d1.py` |
+| `worker/migrations/` | Schema migrations (control, tenant); `scripts/migrate.mjs` |
+| `worker/db/control.sql` | CONTROL schema, **generated** from the migrations by `scripts/schema-sync.mjs` |
+| `worker/db/tenant.sql` | Per-school schema, **generated** from the migrations (baseline from Postgres via `scripts/d1/pg_to_d1.py`) |
 | `worker/PORTING.md` | The rules every ported route follows (read before changing routes) |
 | `scripts/d1/pg_to_d1.py` | Postgres → SQLite schema + data export (optionally one school) |
 | `scripts/d1/split_big.py` | Makes an export fit D1 (100 KB statements, self-references, re-runnable) |
@@ -151,7 +152,7 @@ Discard. No deploy is needed: until the Worker has the school's
 Run `worker/scripts/provision-school.sh --attach` then `npx wrangler deploy`
 from time to time so such schools get a native binding (faster). Needs the
 Worker secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` (Account > D1 > Edit) and
-`db/changes/control_provisioning.sql` applied to CONTROL. Tests:
+control migration `0007_provisioning` applied to CONTROL. Tests:
 `worker/scripts/test-provision.sh`.
 
 `worker/scripts/provision-school.sh <slug> "<Name>" "<Short>"` still works
@@ -159,17 +160,58 @@ for local development (`--local`): it creates the database, applies the schema,
 adds the binding and the CONTROL row, but no administrator or roles; then
 `npx wrangler deploy`.
 
-**Change the schema.** There is no migration runner yet. A change must be
-applied to CONTROL once and to **every** school database:
+**Change the schema.** Migrations live in `worker/migrations/control/` (the
+CONTROL database) and `worker/migrations/tenant/` (every school database) as
+`NNNN_name.sql`: numbered, forward-only, re-runnable where SQLite allows
+(`IF NOT EXISTS`, `INSERT OR IGNORE`; `ALTER TABLE ... ADD COLUMN` cannot be,
+the tracking table guards it). Each database records what it has applied in
+`_migrations(scope, version, name, checksum, applied_at)`; editing an applied
+file is a checksum error, so fix mistakes with a new migration.
 
 ```
-npx wrangler d1 execute CONTROL --remote --file=change.sql
-for db in $(npx wrangler d1 list --json | jq -r '.[].name' | grep '^school-erp-' | grep -v control); do
-  npx wrangler d1 execute "$db" --remote --yes --file=change.sql
-done
+cd worker
+npm run migrate -- new tenant add_widget_colour   # writes migrations/tenant/NNNN_add_widget_colour.sql
+# edit it, then:
+npm run schema:sync                               # rebuilds db/control.sql, db/tenant.sql, src/services/tenant_migrations.ts
+npm run test:migrate
+npm run migrate -- up --local                     # try it on the local D1
+npm run migrate -- status --remote                # applied / pending per database
+npm run migrate -- up --remote --dry-run
+npm run migrate -- up --remote                    # CONTROL, then every school
+git add migrations db src/services/tenant_migrations.ts && git commit
 ```
 
-Keep `worker/db/tenant.sql` in step so new schools get it.
+`up` applies CONTROL first, then the schools in slug order (from
+`CONTROL.institutions`), at most `--limit` (default 25) schools with pending
+work per run; it stops at the first failure, names the school, and resumes
+from there on the next run. `up --school <slug>` does one school and leaves
+CONTROL alone. A school with a binding in `wrangler.jsonc` goes through
+`wrangler d1 execute`; one without (created from Tenants → New school, not yet
+deployed) goes over the D1 HTTP API with `CF_ACCOUNT_ID` and `CF_API_TOKEN` in
+the environment. `--local` (the default) reaches bound databases only.
+
+`db/control.sql` and `db/tenant.sql` are **generated** (do not edit): the
+schema and seed rows after applying every migration to an empty SQLite
+database, with the migrations recorded as applied. A new school is loaded from
+`db/tenant.sql`, and provisioning then records every tenant migration
+(`src/services/tenant_migrations.ts`), so new schools always match.
+`npm run schema:check` fails if they are stale.
+
+`db/changes/00343-00346` are data-only fixes applied to every school before
+the runner existed; they are history and are not migrations. The former
+`db/changes/control_*.sql` are control migrations 0002-0009.
+
+**One-time, for databases that predate the runner** (they already have
+everything; this only writes `_migrations`, it runs no migration):
+
+```
+npm run migrate -- mark-applied --remote --scope control --through 9
+npm run migrate -- mark-applied --remote --scope tenant --through 1
+npm run migrate -- status --remote
+```
+
+`up` refuses a database that has tables but no `_migrations`, so it can never
+run a baseline over live data.
 
 **Add or change a route.** Follow `worker/PORTING.md`. Register in the domain
 module; literal paths before `{id}` paths; permission key per route.

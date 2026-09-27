@@ -3,6 +3,7 @@ import { registerJob } from './jobs'
 import { cfApiFromEnv, httpD1, type CfD1Api } from './d1http'
 import { PERMISSIONS, ROLES } from './provision_seed'
 import tenantSql from '../../db/tenant.sql'
+import { TENANT_MIGRATIONS } from './tenant_migrations'
 
 /* Creating a school from the seller console, without a shell or a deploy.
 
@@ -115,6 +116,14 @@ export function schemaChunks(sql: string): string[] {
   }
   if (cur) chunks.push(cur)
   return chunks
+}
+
+/** CREATE _migrations if absent and record every tenant migration as applied. */
+export function tenantMigrationsSql(): string {
+  const q = (v: string) => `'${v.replace(/'/g, "''")}'`
+  return `CREATE TABLE IF NOT EXISTS _migrations (scope TEXT NOT NULL, version INTEGER NOT NULL, name TEXT NOT NULL, checksum TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), PRIMARY KEY (scope, version));\n` +
+    TENANT_MIGRATIONS.map((m) => `INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', ${m.version}, ${q(m.name)}, ${q(m.checksum)});`).join('\n')
 }
 
 // --- plan modules (mirrors entitlement.ApplyPlan, as tenants.ts does) --------
@@ -285,6 +294,9 @@ export async function runProvision(d: ProvisionDeps, id: string): Promise<Provis
       await d.cf.exec(dbId, chunks[i])
       await setStage(d, id, stage, { schema_done: i + 1 })
     }
+    // Every tenant migration is in tenant.sql already: record them all, so
+    // scripts/migrate.mjs never re-applies one here (re-runnable).
+    await d.cf.exec(dbId, tenantMigrationsSql())
 
     // 3. The school's own rows.
     stage = 'seeding'

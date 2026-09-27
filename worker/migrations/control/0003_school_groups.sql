@@ -1,6 +1,6 @@
 -- control_school_groups (CONTROL D1 only). School groups, group admins and
 -- the cross-school board membership index. Idempotent; apply with
---   npx wrangler d1 execute school-erp-control --remote --file db/changes/control_school_groups.sql
+--   npm run migrate -- up (was db/changes/control_school_groups.sql)
 -- then open Seller → Board members once to backfill board_memberships.
 -- One organisation owning several schools ("Yajur Branch 1", "Yajur Branch
 -- 2"). Each school keeps its own database; the group is only a label here
