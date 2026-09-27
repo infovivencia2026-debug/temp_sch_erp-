@@ -8,6 +8,7 @@ import { bentoComponentFor } from './bento-registry'
 import { recordRecent } from '@/lib/recents'
 import { cn } from '@/lib/utils'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { SchoolHealthBanner } from '@/features/seller/SchoolHealthBanner'
 
 /* The routing seam.
    ─────────────────────────────────────────────────────────────────────────
@@ -172,6 +173,7 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
     return (
       <div key={key} className="screen-fade">
         <OfflineBanner />
+        <SchoolHealthBanner />
         {inner}
       </div>
     )
@@ -313,6 +315,7 @@ export function BentoOutlet({ children, path }: { children: ReactNode; path?: st
           fitting on one line and wrapping. */}
       <div className="flex-1 w-full pt-6 pb-6 px-[14px] sm:px-[20px] lg:px-[24px] flex flex-col">
         <OfflineBanner />
+        <SchoolHealthBanner />
         {inner}
       </div>
     </div>

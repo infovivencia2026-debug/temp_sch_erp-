@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import SchoolHealthBoard from './SchoolHealth'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
@@ -252,6 +253,7 @@ export default function InstanceHealth() {
             />
           </div>
         </Card>
+        <SchoolHealthBoard />
       </PageBody>
     </>
   )

@@ -16,6 +16,7 @@ import { handlePublic } from './routes/comms/public'
 import { handlePages } from './pages/index'
 import { groupGate, passwordGate, subscriptionGate } from './gates'
 import { idempotent } from './idempotency'
+import { recordServerError } from './services/background/health'
 
 export { LiveHub } from './services/live'
 
@@ -31,6 +32,7 @@ export default {
     const url = new URL(req.url)
     const { pathname } = url
     const m = req.method
+    let schoolId: string | undefined
 
     try {
       if (pathname === '/healthz') return new Response('ok')
@@ -69,6 +71,7 @@ export default {
       if (hit) {
         const id = await identityFrom(env, req)
         if (!id) throw unauthorized()
+        schoolId = id.institution?.id
         if (hit.route.perm !== 'auth' && !can(id, hit.route.perm)) throw forbidden()
         // Go's group-level RequirePermission, password gate and paywall; see gates.ts.
         groupGate(id, pathname)
@@ -78,12 +81,16 @@ export default {
         const ctx = { req, env, url, params: hit.params, id,
           get db() { if (!db) { if (!id.institution) throw forbidden('no school in scope'); db = tenantDb(env, id.institution) } return db } }
         // Go's Idempotent middleware sits after the gates, around the handler.
-        return await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })
+        const res = await idempotent(req, id, () => ctx.db, async (r) => { ctx.req = r; return hit.route.handler(ctx) })
+        if (res.status >= 500 && res.status !== 501) await recordServerError(env, schoolId, pathname)
+        return res
       }
       if (pathname.startsWith('/api/')) return json({ error: 'not ported to Workers yet', path: pathname }, 501)
       return new Response('Not Found', { status: 404 })
     } catch (err) {
-      return errorResponse(err)
+      const res = errorResponse(err)
+      if (res.status >= 500 && res.status !== 501) await recordServerError(env, schoolId, pathname)
+      return res
     }
   },
 

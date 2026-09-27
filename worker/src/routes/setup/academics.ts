@@ -760,8 +760,13 @@ export function registerAcademics(r: Router): void {
 
   r.get('/setup/status', 'institution.read', async (c) => {
     requireInstitution(c)
-    const inst = instId(c)
-    const v = await c.db.prepare(`SELECT (SELECT COUNT(*) FROM campuses) AS campuses, (SELECT COUNT(*) FROM academic_years) AS years,
+    return ok(await setupStatus(c.db, instId(c)))
+  })
+}
+
+/** The school's setup checklist (/setup/status); also read by the seller's school health board. */
+export async function setupStatus(db: D1Database, inst: string) {
+    const v = await db.prepare(`SELECT (SELECT COUNT(*) FROM campuses) AS campuses, (SELECT COUNT(*) FROM academic_years) AS years,
         (SELECT COUNT(*) FROM classes) AS classes, (SELECT COUNT(*) FROM sections) AS sections, (SELECT COUNT(*) FROM subjects) AS subjects,
         (SELECT COUNT(*) FROM periods) AS periods, (SELECT COUNT(*) FROM class_subjects) AS class_subjects,
         (SELECT COUNT(*) FROM (SELECT teacher_user_id FROM section_subject_teachers UNION SELECT class_teacher_id FROM sections WHERE class_teacher_id IS NOT NULL) x) AS teachers,
@@ -794,8 +799,7 @@ export function registerAcademics(r: Router): void {
     ]
     let done = 0, blocking = 0
     for (const s of steps) { if (s.done) done++; else if (s.blocking) blocking++ }
-    return ok({ steps, completed: done, total: steps.length, blocking_remaining: blocking, ready: blocking === 0 })
-  })
+    return { steps, completed: done, total: steps.length, blocking_remaining: blocking, ready: blocking === 0 }
 }
 
 /**

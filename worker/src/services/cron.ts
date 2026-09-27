@@ -46,6 +46,8 @@ export const SCHEDULES: Schedule[] = [
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
   { name: 'transport_trip_timeout', spec: '*/5 * * * *', kind: 'transport:trip_timeout', perInstitution: false, payload: () => ({}) },
   { name: 'transport_position_retention', spec: '20 3 * * *', kind: 'transport:position_retention', perInstitution: false, payload: () => ({}) },
+  { name: 'seller_health_snapshot', spec: '*/15 * * * *', kind: 'seller:health_snapshot', perInstitution: false, payload: () => ({}) },
+  { name: 'seller_usage_alerts', spec: '10 2 * * *', kind: 'seller:usage_alerts', perInstitution: false, payload: () => ({}) },
   { name: 'security_retention', spec: '40 3 * * *', kind: 'security:retention', perInstitution: false, payload: () => ({}) },
 ]
 
