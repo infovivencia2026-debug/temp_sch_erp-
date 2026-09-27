@@ -1,6 +1,7 @@
 import type { Ctx, Router } from '../../router'
 import { HttpError, badRequest, bool, conflict, created, isUUID, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { tenantDb, type Institution } from '../../tenant'
+import { auditDetail } from '../../services/seller_audit'
 import { requirePlatformAdmin } from './common'
 
 /* Port of the vendor's platform desk under /seller: message_recharge.go
@@ -162,6 +163,9 @@ export function registerSellerPlatform(r: Router): void {
        WHERE id = ? AND status = 'pending'`).bind(status, granted, response, ts, reqID))
     const res = await found.db.batch(stmts)
     if ((res[res.length - 1].meta.changes ?? 0) === 0) throw new HttpError(409, 'That request has already been dealt with.')
+    // The path names a request, not a school: tell the seller audit which school it was.
+    auditDetail(c, { action: 'seller.recharges.' + status, institution_id: found.inst.id, institution_name: found.inst.name,
+      before: { status: 'pending', channel: found.channel, messages: found.messages }, after: { status, granted, response } })
     return ok({ ok: true })
   })
 

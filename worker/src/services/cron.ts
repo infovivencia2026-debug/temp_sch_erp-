@@ -49,6 +49,8 @@ export const SCHEDULES: Schedule[] = [
   { name: 'seller_health_snapshot', spec: '*/15 * * * *', kind: 'seller:health_snapshot', perInstitution: false, payload: () => ({}) },
   { name: 'seller_usage_alerts', spec: '10 2 * * *', kind: 'seller:usage_alerts', perInstitution: false, payload: () => ({}) },
   { name: 'security_retention', spec: '40 3 * * *', kind: 'security:retention', perInstitution: false, payload: () => ({}) },
+  // Nightly SQL dumps of every school and CONTROL to R2, with retention (services/background/backup.ts).
+  { name: 'backup_nightly', spec: '30 1 * * *', kind: 'backup:fanout', perInstitution: false, payload: () => ({}) },
 ]
 
 // ---- five-field cron matching ------------------------------------------------

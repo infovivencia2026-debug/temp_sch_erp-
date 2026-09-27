@@ -1,4 +1,6 @@
 import { Router } from '../router'
+import { withSellerAudit } from '../services/seller_audit'
+import { withLifecycleGate } from './seller/lifecycle'
 import { registerMisc } from './misc'
 import { registerStudents } from './students'
 import { registerAcademics } from './academics'
@@ -25,7 +27,8 @@ import { registerScheduling } from './scheduling'
    come before {id} paths. Board exams register before exams so
    /exams/board/* is not swallowed by an /exams/{id} pattern. */
 export function buildRouter(): Router {
-  const r = new Router()
+  // Every seller/platform write is recorded; a read-only (off-boarding) school refuses writes.
+  const r = withSellerAudit(withLifecycleGate(new Router()))
   registerMisc(r)
   registerStudents(r)
   registerAcademics(r)

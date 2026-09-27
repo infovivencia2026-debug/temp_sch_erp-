@@ -1,3 +1,4 @@
+import { BackupsSchoolExport } from '../seller/BackupsSchoolExport'
 import { useState } from 'react'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
@@ -202,6 +203,7 @@ export default function BackupRestore() {
             />
           </div>
         </Card>
+        <BackupsSchoolExport />
       </PageBody>
     </>
   )

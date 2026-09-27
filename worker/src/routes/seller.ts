@@ -1,4 +1,5 @@
 import type { Router } from '../router'
+import { registerSellerLifecycle } from './seller/lifecycle'
 import { registerSellerTenants } from './seller/tenants'
 import { registerSellerPlatform } from './seller/platform'
 import { registerSchoolGroups } from './seller/groups'
@@ -21,4 +22,6 @@ export function registerSeller(r: Router): void {
   registerSellerFeatures(r)
   registerSellerAnnouncements(r)
   registerSchoolHealth(r)
+  // Backups, restores, exports, off-boarding and the seller audit register.
+  registerSellerLifecycle(r)
 }

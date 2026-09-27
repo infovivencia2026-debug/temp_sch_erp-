@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SellerAuditSchool } from '../seller/SellerAuditSchool'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
 import { useVisibleInterval } from '@/lib/visible'
@@ -152,6 +153,7 @@ export default function SessionAudit() {
             </div>
           )}
         </Card>
+        <SellerAuditSchool />
       </PageBody>
     </>
   )
