@@ -75,6 +75,33 @@ describe('built-in palettes', () => {
     }
   })
 
+  /* THE SELECTED STATE, IN THE ACCENT.
+
+     Settings marks what is chosen -- the section in the nav, the segment in a
+     switch, the palette, the channel tab -- with the accent: a tint of it on
+     the card as the ground, and the accent taken halfway to black (on a light
+     card) or white (on a dark one) as the word, the bar, the switch and the
+     slider's fill. Not toward --bento-ink: a grey ink (Solarized) gives the
+     mix nothing to push with, and a lime accent (Vivid) is 1.2:1 on paper. Both are mixes (ColourDialog's SELECTED), computed here exactly as
+     `color-mix(in srgb, ...)` computes them, so a palette whose accent would
+     leave the chosen word unreadable fails here rather than on screen. */
+  it('keep the selected word readable on the selected tint', () => {
+    const mix = (a: string, pa: number, b: string) => {
+      const x = rgb(a)
+      const y = rgb(b)
+      return '#' + x.map((v, i) => Math.round(v * pa + y[i] * (1 - pa))
+        .toString(16).padStart(2, '0')).join('')
+    }
+    for (const p of BUILT_IN_PALETTES) {
+      const t = p.tokens
+      const light = luminance(t['--bento-card']) > 0.18
+      const word = mix(t['--bento-mint'], 0.4, light ? '#000000' : '#ffffff')
+      const tint = mix(t['--bento-mint'], 0.14, t['--bento-card'])
+      expect(contrast(word, tint), `${p.name}: selected word on tint`).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(word, t['--bento-card']), `${p.name}: accent mark on card`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it('ships a default that exists', () => {
     expect(BUILT_IN_PALETTES.map((p) => p.name)).toContain(DEFAULT_PALETTE)
   })

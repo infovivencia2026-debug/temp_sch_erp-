@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { PickerMenu } from '@/components/PickerMenu'
 import { Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { INK, EDGE, WASH, RING, TRACK, SLIDER, SEAM, SURFACE } from './ColourDialog'
+import { INK, EDGE, WASH, RING, SLIDER, SEAM, SURFACE, SELECTED } from './ColourDialog'
 import { useOpenState } from '@/lib/motion'
 
 /* ONE ROW, EVERYWHERE IN SETTINGS.
@@ -95,8 +95,10 @@ export function NavRow({
   icon?: ReactNode
   value?: ReactNode
   className?: string
-  /** The section on screen, in a desktop nav: marked with a wash and no
-      chevron, because it opens nothing -- it is where you are. */
+  /** The section on screen, in a desktop nav: marked in the accent -- its
+      tint as the ground, the strong accent as the word and icon, and a 3px
+      bar on the leading edge so it is marked by shape as well as colour --
+      and no chevron, because it opens nothing: it is where you are. */
   current?: boolean
 }) {
   const inner = (
@@ -111,9 +113,11 @@ export function NavRow({
     </>
   )
   const cls = cn(
-    'flex min-h-[var(--srow-h,44px)] w-full items-center px-[16px] py-[var(--srow-py,10px)] text-left transition-colors',
-    WASH, RING, INK,
-    current && 'bg-[color-mix(in_srgb,var(--bento-ink)_8%,transparent)] font-semibold',
+    'relative flex min-h-[var(--srow-h,44px)] w-full items-center px-[16px] py-[var(--srow-py,10px)] text-left transition-colors',
+    RING,
+    current
+      ? cn(SELECTED, 'font-semibold before:absolute before:inset-y-[6px] before:left-0 before:w-[3px] before:rounded-r-full before:bg-[var(--sel-strong)]')
+      : cn(WASH, INK),
     className,
   )
   return href
@@ -238,11 +242,11 @@ export function DropdownRow<T extends string>({
                       'flex w-full items-center justify-between gap-3 rounded-lg px-3 text-left text-[14px]',
                       'min-h-[36px] [@media(pointer:coarse)]:min-h-[44px]',
                       INK, WASH, RING,
-                      on && cn('font-semibold', 'bg-[color-mix(in_srgb,var(--bento-ink)_8%,transparent)]'),
+                      on && cn('font-semibold', SELECTED),
                     )}
                   >
                     <span className="min-w-0 truncate" style={optionStyle?.(o)}>{name(o)}</span>
-                    {on && <Check className="size-4 shrink-0 opacity-80" aria-hidden="true" />}
+                    {on && <Check className="size-4 shrink-0" aria-hidden="true" />}
                   </button>
                 </li>
               )
@@ -271,6 +275,11 @@ export function SliderRow({
   helper?: ReactNode
 }) {
   const shown = format ? format(value) : (value === 1 ? 'Default' : `${Math.round(value * 100)}%`)
+  /* How far along the track the value is, for the accent fill behind the
+     thumb. The thumb is 18px and travels 18px short of the ends, so the fill
+     stops at its centre rather than at the raw percentage. */
+  const pct = max > min ? ((value - min) / (max - min)) : 0
+  const fill = `calc(9px + (100% - 18px) * ${pct})`
   return (
     <Row label={label} value={shown} helper={helper}>
       <input
@@ -294,11 +303,17 @@ export function SliderRow({
            An elliptical radius states the two axes separately: 3px across so
            the end is a semicircle on a 6px band, and half the row's height
            down so that what survives the vertical padding is 3px too. */
-        style={{ borderRadius: '3px / calc((var(--sband-h, 44px) - 6px) / 2 + 3px)' }}
+        /* THE FILL IS THE ACCENT, THE REST IS THE INK. Up to the thumb the
+           band is the strong accent, past it a mix of the ink -- lighter than
+           the old all-ink track, so the chosen amount is the thing that reads. */
+        style={{
+          borderRadius: '3px / calc((var(--sband-h, 44px) - 6px) / 2 + 3px)',
+          background: `linear-gradient(to right, var(--sel-strong) ${fill}, color-mix(in srgb, var(--bento-ink) 22%, transparent) ${fill})`,
+          backgroundClip: 'content-box',
+        }}
         className={cn(
           'mt-[2px] h-[var(--sband-h,44px)] w-full cursor-pointer appearance-none py-[calc((var(--sband-h,44px)-6px)/2)]',
-          '[background-clip:content-box]',
-          TRACK, SLIDER, RING,
+          SLIDER, RING,
         )}
       />
     </Row>
@@ -335,13 +350,13 @@ export function SwitchRow({
         aria-hidden="true"
         className={cn(
           'relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
-          on ? 'bg-[var(--bento-ink)] !border-[var(--bento-ink)]' : cn('bg-transparent', EDGE),
+          on ? 'bg-[var(--sel-strong)] !border-[var(--sel-strong)]' : cn('bg-transparent', EDGE),
         )}
       >
         <span
           className={cn(
             'absolute top-[3px] size-[16px] rounded-full transition-[left]',
-            on ? 'left-[19px] bg-[var(--bento-card)]' : 'left-[3px] bg-[var(--bento-ink)]',
+            on ? 'left-[19px] bg-[var(--sel-ground)]' : 'left-[3px] bg-[var(--bento-ink)]',
           )}
         />
       </span>
@@ -407,14 +422,14 @@ export function SwitchSelectRow<T extends string>({
         onClick={onToggle}
         className={cn(
           'relative h-[24px] w-[40px] shrink-0 rounded-full border transition-colors',
-          on ? 'bg-[var(--bento-ink)] !border-[var(--bento-ink)]' : cn('bg-transparent', EDGE),
+          on ? 'bg-[var(--sel-strong)] !border-[var(--sel-strong)]' : cn('bg-transparent', EDGE),
           RING,
         )}
       >
         <span
           className={cn(
             'absolute top-[3px] size-[16px] rounded-full transition-[left]',
-            on ? 'left-[19px] bg-[var(--bento-card)]' : 'left-[3px] bg-[var(--bento-ink)]',
+            on ? 'left-[19px] bg-[var(--sel-ground)]' : 'left-[3px] bg-[var(--bento-ink)]',
           )}
         />
       </button>
@@ -454,7 +469,9 @@ export function SegmentRow<T extends string>({
         role="group"
         aria-label={label}
         /* A track with a lifted knob: the selected segment is level 1 on a
-           recessed ground, so which one is chosen reads without a colour. */
+           recessed ground, so which one is chosen reads without a colour --
+           and it wears the accent (tint, strong word, strong outline) so it
+           also reads WITH one. */
         className="ml-auto flex shrink-0 items-center gap-0.5 rounded-full border bg-[color-mix(in_srgb,var(--bento-ink)_6%,transparent)] p-0.5 shadow-[var(--field-inset)]"
       >
         {options.map((o) => {
@@ -466,9 +483,10 @@ export function SegmentRow<T extends string>({
               aria-pressed={on}
               onClick={() => onPick(o)}
               className={cn(
-                'rounded-full px-3 py-1 text-[13px] transition-colors',
-                on ? 'bg-foreground text-background font-medium shadow-[var(--elev-1)]'
-                   : 'text-muted-foreground hover:text-foreground',
+                'rounded-full border px-3 py-1 text-[13px] transition-colors',
+                RING,
+                on ? cn(SELECTED, '!border-[var(--sel-strong)] font-semibold shadow-[var(--elev-1)]')
+                   : cn('!border-transparent', INK, WASH),
               )}
             >
               {name(o)}

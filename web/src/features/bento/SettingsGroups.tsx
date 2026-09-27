@@ -133,10 +133,13 @@ function Row({ item, value, swatch, onClick }: {
         'transition-colors active:bg-muted',
       )}
     >
+      {/* The tile wears the accent's tint and the icon the strong accent
+          (bento-theme.css, --sel-*): nine grey tiles made the landing the one
+          screen with none of the school's colour on it. */}
       <span
         aria-hidden
         className="grid size-[34px] shrink-0 place-items-center rounded-[10px]
-                   bg-muted text-foreground/75"
+                   bg-[var(--sel-tint)] text-[var(--sel-strong)]"
       >
         <Icon className="size-[17px]" />
       </span>

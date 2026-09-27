@@ -4490,3 +4490,70 @@ body:has(.bento-frost) [data-assistant-orb] {
 [data-layout='bento'] .bento-cell:has(.bento-cue) .bento-note {
   padding-right: 36px;
 }
+
+/* ---- the chosen thing, in the school's accent ----------------------------
+
+   Settings marked every selected state -- the section in the nav, the segment
+   of a two-way switch, the palette, the channel tab -- by inverting it to a
+   slab of ink. Correct, and grey on grey: nothing on the screen said whose
+   product it was. These two tokens put the accent back without giving up the
+   contrast the ink bought.
+
+   --sel-tint is the accent at 14% on the card: the ground of a chosen thing.
+   --sel-strong is the accent taken halfway to black on a light card and to
+   white on a dark one (the same clamp inkOn() uses): the word, the icon, the
+   bar beside the current section, a switch that is on, a slider's fill.
+
+   Halfway to black or white rather than toward --bento-ink, because a grey ink
+   (Solarized Light) leaves the mix nothing to push with, and a lime accent
+   (Vivid) is 1.2:1 on white paper. Measured for every built-in palette in
+   lib/paint.test.ts: the word on its tint and on the card both clear 4.5:1. */
+:root {
+  --sel-accent: var(--bento-mint, hsl(var(--primary)));
+  --sel-ground: var(--bento-card, hsl(var(--card)));
+  --sel-strong: color-mix(in srgb, var(--sel-accent) 50%,
+    hsl(from var(--sel-ground) 0 0% clamp(0%, (49 - l) * 100%, 100%)));
+  --sel-tint: color-mix(in srgb, var(--sel-accent) 14%, var(--sel-ground));
+}
+
+/* Every settings slider. The browser's own blue handle was the one colour on
+   the screen no palette could reach. The track is painted by the element (a
+   gradient that fills up to --fill in the accent), so only the thumb needs a
+   pseudo-element, and both engines get the same one: the card as the disc and
+   the accent as its ring, which reads on any track there is -- including the
+   black-to-white lightness track. `accent-color` covers whatever else the
+   engine draws natively. */
+.bento-slider {
+  accent-color: var(--sel-strong);
+}
+.bento-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--sel-ground);
+  border: 2.5px solid var(--sel-strong);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.bento-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--sel-ground);
+  border: 2.5px solid var(--sel-strong);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+}
+.bento-slider::-moz-range-track { background: transparent; }
+.bento-slider:active::-webkit-slider-thumb { transform: scale(1.15); }
+/* The ring on the input is the keyboard's mark; the thumb echoes it so the
+   focused handle is findable on a long track. */
+.bento-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--sel-tint), 0 0 0 5px var(--sel-strong); }
+.bento-slider:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--sel-tint), 0 0 0 5px var(--sel-strong); }
+@media (prefers-reduced-motion: reduce) {
+  .bento-slider::-webkit-slider-thumb { transition: none; }
+  .bento-slider:active::-webkit-slider-thumb { transform: none; }
+}

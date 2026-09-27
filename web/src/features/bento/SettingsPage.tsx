@@ -237,6 +237,16 @@ export default function SettingsPage() {
           'bg-[var(--bento-card,hsl(var(--card)))]',
           'text-[var(--bento-ink,hsl(var(--card-foreground)))]',
           EDGE,
+          /* THE PANEL ENDS ABOVE THE DOCK. On a desktop the dock floats over
+             the bottom of the page, and the panel ran on under it: the last
+             row of a section sat behind the pill (measured at 1440x900, the
+             Colour page's lightness track). The panel is now the height of
+             the viewport less its own top offset (the outlet's and this
+             wrapper's padding, 3rem on the 14px root), the dock (--dock-h;
+             the floating pill is 44px tall 24px up, 68px, where the variable
+             is not set) and a 16px gap; the section scrolls inside it and the
+             nav stays put. */
+          wide && 'h-[calc(100dvh-3rem-var(--dock-h,68px)-16px)] min-h-[420px]',
         )}
       >
         <header className={cn('border-b px-[16px] py-[12px] sm:px-[24px]', SEAM)}>
@@ -276,13 +286,13 @@ export default function SettingsPage() {
           /* THE PAGE. Nav left, the section right, both in view. Density
              properties set once here, in pixels, and read by every row. */
           <div
-            className="grid grid-cols-[240px_minmax(0,1fr)]"
+            className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)]"
             style={{ ['--srow-h' as string]: '38px', ['--srow-py' as string]: '6px', ['--sband-h' as string]: '32px' }}
           >
-            <nav aria-label="Settings sections" className={cn('border-r py-[8px]', SEAM)}>
+            <nav aria-label="Settings sections" className={cn('overflow-y-auto border-r py-[8px]', SEAM)}>
               <SettingsSectionList items={items} onOpen={open} current={tab} />
             </nav>
-            <div className="min-w-0 px-[8px] py-[8px]">
+            <div className="min-w-0 overflow-y-auto overscroll-contain px-[8px] py-[8px]">
               <h2 className={cn('px-[16px] pt-[6px] pb-[8px] text-[15px] font-semibold', INK)}>
                 {found?.label ?? items[0]?.label}
               </h2>

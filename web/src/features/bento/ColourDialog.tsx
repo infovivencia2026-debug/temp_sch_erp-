@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Crosshair, Plus, RotateCcw, X } from 'lucide-react'
+import { Check, ChevronDown, Crosshair, Plus, RotateCcw, X } from 'lucide-react'
 import {
   usePaint, usePalettes, savePalette, deletePalette, applyPalette, resetPaint,
   PICKABLE_REGIONS, CHANNELS, BUILT_IN_PALETTES, currentPalette,
@@ -81,10 +81,19 @@ export const WASH = 'hover:bg-[color-mix(in_srgb,var(--bento-ink)_10%,transparen
 export const RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bento-ink)]'
 
-/** Chosen. Inverted rather than tinted: the accent-on-its-own-tint pairing
-    this used to wear measured 1.1-4.3:1 and put a coloured word on screen,
-    which the surface no longer does. Ink on card is 21:1 in every palette. */
-export const CHOSEN = '!border-[var(--bento-ink)] bg-[var(--bento-ink)] text-[var(--bento-card)]'
+/** Chosen. It was inverted -- a slab of ink with the card as its word --
+    because the accent-on-its-own-tint pairing it wore before measured
+    1.1-4.3:1. Correct, and grey on grey: the one screen where a school picks
+    its colours was the one screen that showed none of them. It is the accent
+    again now, through two tokens built to clear the bar (bento-theme.css,
+    measured in lib/paint.test.ts): the accent's tint as the ground and the
+    accent taken halfway to black or white as the word, 4.5:1 or better in
+    every built-in palette. The border is the strong accent too, so the chosen
+    thing is also outlined, not only tinted. */
+export const CHOSEN = '!border-[var(--sel-strong)] bg-[var(--sel-tint)] text-[var(--sel-strong)]'
+
+/** The same pair without the border, for things that have none. */
+export const SELECTED = 'bg-[var(--sel-tint)] text-[var(--sel-strong)]'
 
 /** A rule between rows, not around a control.
 
@@ -143,37 +152,9 @@ export function inkOn(ground: string) {
 /** The same, as the raw declaration a `style` prop wants. */
 export const INK_HERE_FROM_PAGE = inkOn('var(--bento-bg)')
 
-/* A thumb a palette can reach, in the one place a utility class cannot go.
-
-   Every slider here — the five scales and the lightness track — was drawing
-   the browser's own blue handle, identical under all four palettes and dead
-   against the lightness gradient at both ends. `accent-color` would move it,
-   but a single-tone thumb is invisible at one end of a black-to-white track
-   whichever tone it is. So it is two: the card as the disc and the ink as its
-   ring, the pair every palette guarantees, which reads on any track there is.
-
-   A pseudo-element cannot be written as a class, and the palette work in
-   bento-theme.css is not this dialog's to edit, so it is declared here beside
-   the controls it dresses. */
-export function SliderThumbStyle() {
-  return (
-    <style>{`
-      .bento-slider::-webkit-slider-thumb {
-        -webkit-appearance: none; appearance: none;
-        width: 14px; height: 14px; border-radius: 999px;
-        background: var(--bento-card);
-        box-shadow: 0 0 0 2px var(--bento-ink);
-        cursor: pointer;
-      }
-      .bento-slider::-moz-range-thumb {
-        width: 12px; height: 12px; border-radius: 999px;
-        background: var(--bento-card);
-        border: 2px solid var(--bento-ink);
-        cursor: pointer;
-      }
-    `}</style>
-  )
-}
+/* The slider thumb is dressed in bento-theme.css (`.bento-slider`), in the
+   accent. A <style> element here once did it, and nothing ever mounted it,
+   so every slider drew the browser's own blue. */
 
 /* Exported so the dashboard arranger can offer the SAME wheel rather than a
    second one. Two colour pickers in one product is how they drift apart. */
@@ -357,6 +338,35 @@ const PRESETS: { id: 'blue' | 'mint' | 'violet' | 'amber' | 'rose'; hsl: Hsl }[]
   { id: 'amber', hsl: { h: 32, s: 88, l: 40 } },
   { id: 'rose', hsl: { h: 344, s: 76, l: 46 } },
 ]
+
+/** The named colours each channel opens on, before the wheel. A few quiet
+    grounds and a few inks: the shades people ask for by name. */
+const SWATCHES: Record<'bg' | 'text', { name: string; hsl: Hsl }[]> = {
+  bg: [
+    { name: 'Paper', hsl: { h: 0, s: 0, l: 100 } },
+    { name: 'Mist', hsl: { h: 210, s: 20, l: 96 } },
+    { name: 'Cream', hsl: { h: 42, s: 60, l: 94 } },
+    { name: 'Sage', hsl: { h: 140, s: 22, l: 92 } },
+    { name: 'Sky', hsl: { h: 205, s: 60, l: 94 } },
+    { name: 'Blush', hsl: { h: 345, s: 50, l: 95 } },
+    { name: 'Slate', hsl: { h: 215, s: 20, l: 20 } },
+    { name: 'Night', hsl: { h: 225, s: 25, l: 9 } },
+  ],
+  text: [
+    { name: 'Ink', hsl: { h: 0, s: 0, l: 9 } },
+    { name: 'Graphite', hsl: { h: 215, s: 15, l: 25 } },
+    { name: 'Navy', hsl: { h: 220, s: 60, l: 22 } },
+    { name: 'Forest', hsl: { h: 150, s: 45, l: 20 } },
+    { name: 'Plum', hsl: { h: 290, s: 40, l: 25 } },
+    { name: 'Cloud', hsl: { h: 210, s: 20, l: 88 } },
+    { name: 'White', hsl: { h: 0, s: 0, l: 100 } },
+  ],
+}
+
+/** A painted value is the swatch when all three numbers agree. */
+function same(a: Hsl | undefined, b: Hsl) {
+  return !!a && Math.round(a.h) === b.h && Math.round(a.s) === b.s && Math.round(a.l) === b.l
+}
 
 /* The colour engine, without a window of its own.
 
@@ -583,16 +593,26 @@ export function ColourPanel({
               The swatches are the palette's own ground, card, a domain tint,
               its accent and its ink. */}
           {(['light', 'dark'] as const).map((mode) => (
-            <div key={mode} className="mt-2">
-              <p className={cn('mb-1.5 text-[11px]', INK)}>
+            <div key={mode} className="mt-4">
+              <p className={cn('mb-2 text-[12px] font-medium', INK)}>
                 {t(`bento.colour.mode.${mode}`)}
               </p>
-              {/* A grid, not a wrap: eight names of different lengths wrapped into rows
-                  of two and three and one, and read as a jumble. Two equal columns
-                  put every set in the same-sized chip. */}
-              <div className="grid grid-cols-2 gap-1.5">
+              {/* PREVIEW CARDS, NOT PILLS.
+
+                  A pill with five 12px dots told you a palette's name and not
+                  what it looks like; nobody can assemble a screen from five
+                  dots. Each choice is now a small mock of the app painted in
+                  that palette's own tokens -- the page, a card on it, a line
+                  of ink and one of muted text, the accent and a domain colour
+                  as chips -- with the name under it. The chosen one wears the
+                  accent: a ring round the mock, a check in its corner, and the
+                  name on the accent's tint. The mock's outline is mixed from
+                  the ink of the palette in force, not from the palette it
+                  shows, so a dark mock on a light card is still bounded. */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {BUILT_IN_PALETTES.filter((p) => p.mode === mode).map((p) => {
                   const on = active === p.name
+                  const k = p.tokens
                   return (
                     <button
                       key={p.name}
@@ -600,31 +620,39 @@ export function ColourPanel({
                       aria-pressed={on}
                       onClick={() => { applyPersonality('classic'); applyPalette(p.name) }}
                       className={cn(
-                        'flex w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] transition-colors',
+                        'flex w-full min-w-0 flex-col gap-1.5 rounded-[12px] p-1.5 text-left transition-colors',
                         RING,
-                        on ? `${CHOSEN} font-medium` : cn(EDGE, WASH, INK),
+                        on ? SELECTED : cn(WASH, INK),
                       )}
                     >
-                      <span className="flex" aria-hidden="true">
-                        {([
-                          '--bento-bg', '--bento-card', '--dom-students',
-                          '--bento-mint', '--bento-ink',
-                        ] as const).map((k) => (
-                          <span
-                            key={k}
-                            /* The chip shows a palette's own colour, so its
-                               ring cannot be one of them — and `ring-black/20`
-                               was a literal, invisible against every dark
-                               swatch it circled (measured 1.00-1.02:1). Mixed
-                               from the ink of the palette in force, which is
-                               the card's opposite by construction. */
-                            className="size-3 rounded-full -ml-1 first:ml-0 ring-1
-                                       ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
-                            style={{ background: p.tokens[k] }}
-                          />
-                        ))}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'relative block h-[60px] w-full overflow-hidden rounded-[8px] border',
+                          on ? '!border-[var(--sel-strong)] ring-1 ring-[var(--sel-strong)]' : EDGE,
+                        )}
+                        style={{ background: k['--bento-bg'] }}
+                      >
+                        <span
+                          className="absolute inset-x-[8px] top-[8px] bottom-[-4px] rounded-t-[6px] border px-[8px] pt-[8px]"
+                          style={{ background: k['--bento-card'], borderColor: k['--bento-line'] }}
+                        >
+                          <span className="block h-[5px] w-[64%] rounded-full" style={{ background: k['--bento-ink'] }} />
+                          <span className="mt-[5px] block h-[4px] w-[42%] rounded-full" style={{ background: k['--bento-muted'] }} />
+                          <span className="mt-[7px] flex gap-[4px]">
+                            <span className="h-[9px] w-[24px] rounded-full" style={{ background: k['--bento-mint'] }} />
+                            <span className="h-[9px] w-[14px] rounded-full" style={{ background: k['--dom-students'] }} />
+                          </span>
+                        </span>
+                        {on && (
+                          <span className="absolute right-[5px] top-[5px] grid size-[18px] place-items-center rounded-full bg-[var(--sel-strong)] text-[var(--sel-ground)] shadow-sm">
+                            <Check className="size-3" strokeWidth={3} />
+                          </span>
+                        )}
                       </span>
-                      <span className="min-w-0 truncate">{p.name}</span>
+                      <span className={cn('min-w-0 truncate px-1 text-[12.5px]', on ? 'font-semibold' : 'font-medium')}>
+                        {p.name}
+                      </span>
                     </button>
                   )
                 })}
@@ -683,75 +711,112 @@ export function ColourPanel({
           </div>
 
           {channel === 'accent' && (
-            <>
-              <p className={cn('mb-3 text-[12.5px]', INK)}>
-                {t('bento.colour.accent_note')}
-              </p>
-              {/* The five named accents, as a shortcut to the wheel rather than
-                  a second mechanism beside it.
-
-                  They used to be their own preference writing a data-accent
-                  attribute, which meant two systems could each claim to own the
-                  product's accent and the last one touched won. They set the
-                  same token the wheel does now, so picking Mint and then
-                  dragging the wheel is one continuous act instead of a fight. */}
-              <div className="mb-4 flex flex-wrap gap-1.5">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => set('workarea', 'accent', p.hsl)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full border px-2.5 py-1',
-                      'text-[12.5px] transition-colors',
-                      EDGE, WASH, RING, INK,
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      /* The swatch is the accent itself, so its outline has to
-                         come from the card it sits on rather than from it. */
-                      className="size-3 rounded-full ring-1
-                                 ring-[color-mix(in_srgb,var(--bento-ink)_45%,transparent)]"
-                      style={{ background: `hsl(${p.hsl.h} ${p.hsl.s}% ${p.hsl.l}%)` }}
-                    />
-                    {t(`bento.settings.accent.${p.id}`)}
-                  </button>
-                ))}
-              </div>
-            </>
+            <p className={cn('mb-3 text-[12.5px]', INK)}>
+              {t('bento.colour.accent_note')}
+            </p>
           )}
+          {/* CURATED FIRST, THE WHEEL ON REQUEST.
 
-          <WheelCanvas value={current} onPick={(h, s) => update({ h, s })} />
-          <p className={cn('mt-2 text-center text-[12.5px]', INK)}>
-            {t('bento.colour.wheel_hint')}
-          </p>
+              The wheel was the biggest thing on the page and the thing fewest
+              people want: most arrive to pick a palette, and the rest want "a
+              warmer paper" or "a navy ink", which is one tap on a named
+              swatch. So each channel opens on a short row of named colours --
+              for the accent, the five named accents that were always here --
+              and the wheel with its lightness track sits behind "Custom
+              colour", unchanged, for anybody who wants an exact shade. Every
+              swatch writes the same token the wheel does, so picking one and
+              then fine-tuning it on the wheel is one continuous act.
 
-          <div className="mt-4">
-            <div className="flex items-baseline justify-between">
-              <label htmlFor="lightness" className={cn('text-[13px] font-medium', INK)}>
-                {t('bento.colour.lightness')}
-              </label>
-              <span className={cn('text-[13px] tabular-nums', INK)}>
-                {Math.round(current.l)}
-              </span>
-            </div>
-            <input
-              id="lightness"
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(current.l)}
-              onChange={(e) => update({ l: Number(e.target.value) })}
-              className={cn('mt-1.5 h-2 w-full cursor-pointer appearance-none rounded-full', SLIDER, RING)}
-              style={{
-                /* The track stays the colour being chosen — it is the value,
-                   not chrome. The handle is the two-tone one above, because
-                   the browser's blue was the same blue in every palette. */
-                background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 0%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 100%))`,
-              }}
-            />
+              The accent swatches still write the work area's accent, as the
+              named accents always did; the wheel writes the chosen region. */}
+          <div role="group" aria-label={t(`bento.colour.channel.${channel}`)} className="mb-4 grid grid-cols-4 gap-x-1 gap-y-2 sm:grid-cols-8">
+            {(channel === 'accent'
+              ? PRESETS.map((p) => ({ key: p.id, name: t(`bento.settings.accent.${p.id}`), hsl: p.hsl, write: () => set('workarea', 'accent', p.hsl), on: same(paint['workarea.accent'], p.hsl) }))
+              : SWATCHES[channel].map((w) => ({ key: w.name, name: w.name, hsl: w.hsl, write: () => update(w.hsl), on: same(paint[`${region}.${channel}`], w.hsl) }))
+            ).map((w) => (
+              <button
+                key={w.key}
+                type="button"
+                aria-pressed={w.on}
+                onClick={w.write}
+                className={cn(
+                  'flex min-w-0 flex-col items-center gap-1 rounded-[10px] px-1 py-1.5 text-[11.5px] transition-colors',
+                  RING,
+                  w.on ? cn(SELECTED, 'font-semibold') : cn(WASH, INK),
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  /* The swatch is the colour itself, so its outline has to
+                     come from the card it sits on rather than from it. */
+                  className={cn(
+                    'grid size-8 place-items-center rounded-full border',
+                    w.on ? '!border-[var(--sel-strong)] ring-2 ring-[var(--sel-strong)] ring-offset-2 ring-offset-[var(--sel-tint)]' : EDGE,
+                  )}
+                  style={{ background: `hsl(${w.hsl.h} ${w.hsl.s}% ${w.hsl.l}%)` }}
+                >
+                  {w.on && (
+                    <Check
+                      className="size-4"
+                      strokeWidth={3}
+                      style={{ color: w.hsl.l > 55 ? '#000' : '#fff' }}
+                    />
+                  )}
+                </span>
+                <span className="w-full truncate text-center">{w.name}</span>
+              </button>
+            ))}
           </div>
+
+          <details className={cn('group rounded-[12px] border', EDGE)}>
+            <summary
+              className={cn(
+                'flex min-h-[44px] cursor-pointer list-none items-center gap-2.5 rounded-[12px] px-3 text-[13px] font-medium',
+                '[&::-webkit-details-marker]:hidden transition-colors',
+                WASH, RING, INK,
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn('size-5 shrink-0 rounded-full border', EDGE)}
+                style={{ background: `hsl(${current.h} ${current.s}% ${current.l}%)` }}
+              />
+              <span className="flex-1">Custom colour</span>
+              <ChevronDown className="size-4 opacity-60 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+            </summary>
+            <div className="px-3 pb-4 pt-2">
+              <WheelCanvas value={current} onPick={(h, s) => update({ h, s })} />
+              <p className={cn('mt-2 text-center text-[12.5px]', INK)}>
+                {t('bento.colour.wheel_hint')}
+              </p>
+
+              <div className="mt-4">
+                <div className="flex items-baseline justify-between">
+                  <label htmlFor="lightness" className={cn('text-[13px] font-medium', INK)}>
+                    {t('bento.colour.lightness')}
+                  </label>
+                  <span className={cn('text-[13px] tabular-nums', INK)}>
+                    {Math.round(current.l)}
+                  </span>
+                </div>
+                <input
+                  id="lightness"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(current.l)}
+                  onChange={(e) => update({ l: Number(e.target.value) })}
+                  className={cn('mt-2 h-2 w-full cursor-pointer appearance-none rounded-full', SLIDER, RING)}
+                  style={{
+                    /* The track stays the colour being chosen -- it is the
+                       value, not chrome. The handle is the accent-ringed one
+                       from bento-theme.css. */
+                    background: `linear-gradient(to right, hsl(${current.h} ${current.s}% 0%), hsl(${current.h} ${current.s}% 50%), hsl(${current.h} ${current.s}% 100%))`,
+                  }}
+                />
+              </div>
+            </div>
+          </details>
         </div>
 
         {/* Preview: a wireframe of the product, painted with the same tokens
