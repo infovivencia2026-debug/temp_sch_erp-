@@ -42,7 +42,7 @@ interface PersonHit {
  * catalog is already loaded client-side, so searching it costs nothing and
  * removes the need to know which section a feature was filed under.
  */
-export function CommandSearch() {
+export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
   const catalog = useCatalog()
   const navigate = useNavigate()
   const [open, setOpen] = useOpenState(false)
@@ -268,11 +268,16 @@ export function CommandSearch() {
            shortcut come back from sm up. Hidden outright below sm, as it
            was, the palette had no way in at all there — Ctrl+K was the only
            other door and a phone has no Ctrl. */
-        className="flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:h-auto sm:w-auto sm:px-3 sm:py-1.5"
+        className={cn(
+          'flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
+          /* The Work header's one control: a field-sized target, the words
+             left and the shortcut right, the way a search box reads. */
+          wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
+        )}
         aria-label="Search features"
       >
-        <Search className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Search</span>
+        <Search className={cn('h-3.5 w-3.5', wide && 'md:h-4 md:w-4')} />
+        <span className={cn('hidden sm:inline', wide && 'md:flex-1 md:text-left')}>{wide ? 'Search screens, students, staff…' : 'Search'}</span>
         <kbd className="hidden shrink-0 whitespace-nowrap rounded border px-1 font-mono text-[10px] sm:inline">{shortcutLabel('K')}</kbd>
       </button>
     )

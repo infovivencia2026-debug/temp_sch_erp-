@@ -727,6 +727,45 @@ export function Shell({
               layout the Focus | Work switch beside it where the rail is wide
               enough: the same corner the Focus layout keeps them in, so
               switching layouts never moves the way back. */}
+          {/* The header's controls, in the Work layout: the header keeps only
+              the search. Stacked, one per row, at the rail's own size. */}
+          {layout !== 'bento' && (
+            <div className="hidden flex-col items-center gap-1 pb-2 md:flex">
+              <Notifications />
+              <button
+                onClick={cycleDensity}
+                title={`Row height: ${density}`}
+                aria-label={`Row height: ${density}. Click to change.`}
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              >
+                <Rows3 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={toggleTheme}
+                aria-label="Toggle theme"
+                title="Light or dark"
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              >
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+              <Link
+                to="/account"
+                aria-label="Your account"
+                title="Your account and password"
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              >
+                <UserRound className="h-4 w-4" />
+              </Link>
+              <a
+                href="/logout"
+                aria-label="Sign out"
+                title="Sign out"
+                className="grid size-10 place-items-center rounded-[10px] text-muted-foreground transition-colors duration-100 hover:bg-surface-hover hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+              </a>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <BentoSettings placement="rail" />
             {layout !== 'bento' && (
@@ -1075,6 +1114,11 @@ export function Shell({
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
           <p className="min-w-0 truncate text-[calc(13.5px*var(--font-scale,1))]">
+            {/* Who is signed in, first: on a shared office machine the
+                name is what stops one clerk working as another. */}
+            {session.user?.full_name && (
+              <span className="font-semibold">{session.user.full_name}<span className="font-normal text-muted-foreground"> · </span></span>
+            )}
             <span className="font-medium">{session.institution?.name ?? 'WISEN'}</span>
             {/* Which desk you are sitting at, said up here as well: the role
                 is what decides what every screen below shows. */}
@@ -1093,8 +1137,12 @@ export function Shell({
               question -- what is every number on this page about. */}
           <YearSwitch />
 
+          {/* From md up, where the rail is on screen, the header holds the
+              search alone and every other control sits at the foot of the
+              rail (see there). A phone has no rail, so it keeps them here. */}
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <CommandSearch />
+            <CommandSearch wide />
+            <div className="flex items-center gap-1 md:hidden">
             <Notifications />
             {/* Cycles compact → comfortable → spacious. One control rather
                 than three, because it is a preference set once. */}
@@ -1143,6 +1191,7 @@ export function Shell({
             >
               <LogOut className="h-4 w-4" />
             </a>
+            </div>
           </div>
         </header>
         )}
