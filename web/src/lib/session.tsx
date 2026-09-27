@@ -8,7 +8,7 @@ import { registerPushToken } from './push'
 import SetYourPassword from '@/features/shared/SetYourPassword'
 import { Landing } from '@/features/landing/Landing'
 import { claimTabs } from './tabs'
-import { applyBrand } from './brand'
+import { applyBrand, rememberSchoolMark } from './brand'
 import { setPrintLetterhead } from './print'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
 
@@ -150,6 +150,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      for a school that has set none. During render for the same reason as the
      rest: it must be on the root before the first child paints. */
   applyBrand(data.institution?.primary_color, data.institution?.accent_color)
+  if (data.institution) rememberSchoolMark(data.institution.display_name || data.institution.name, data.institution.logo_key)
   /* And the letterhead every printed document carries (lib/print.ts): the
      school's name as it brands itself, its tagline and logo, and who is
      printing. Set here for the same reason -- one place that knows the

@@ -1,21 +1,11 @@
-/* THE WORKSPACE OPENING.
+/* THE OPENING: BLACK, QUIET, THE SCHOOL'S OWN.
 
-   Shown once, on the cold load of the app, while the session request is out
-   -- the only moment nothing at all is known about who is signed in or which
-   school this is. It replaces the grey skeleton for that moment with a short
-   opening: the wordmark, a light passing through its letters, and three soft
-   aurora blobs breathing behind it. Not a streaming service's ident -- no
-   zoom, no sting, no red -- but the same idea: the product says its name
-   while the room fills in, and then gets out of the way.
-
-   SMALL, NOT LOUD. The blobs are blurred and at low alpha, the sweep is one
-   band of light 2.4s across, the whole thing fades out over 400ms the moment
-   the session answers. Every animation is off under prefers-reduced-motion,
-   where the wordmark simply sits in its gradient until the app arrives.
-
-   Painted from the theme's own tokens plus the aurora hues, so it reads on
-   both grounds and takes the school's brand colour the moment applyBrand has
-   run on a warm reload. */
+   Shown once, on the cold load of the app, while the session request is out.
+   White by default and black under the dark theme (the class index.html sets
+   before first paint), in the same composition: one soft glow in the school's colour, the school's logo on a
+   glass tile, its name in white with a single band of light passing through
+   it, and a hairline that fills while we wait. Everything is off under
+   prefers-reduced-motion; the mark simply sits there until the app arrives. */
 
 .ws-opening {
   position: fixed;
@@ -24,104 +14,113 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --ws-bg: #fff;
+  --ws-ink: 17, 17, 20;
+  background: var(--ws-bg);
+  color: rgb(var(--ws-ink));
+  padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
 }
+.ws-opening[data-dark] { --ws-bg: #000; --ws-ink: 255, 255, 255; }
 .ws-opening[data-leaving] {
   animation: ws-leave 400ms ease forwards;
   pointer-events: none;
 }
 @keyframes ws-leave { to { opacity: 0; } }
 
-/* Three blobs, one per aurora family, drifting a few pixels each way. They
-   are the "small gradient animations": each is one radial gradient on its
-   own element, blurred, at low alpha, moved by transform only. */
-.ws-opening .ws-blob {
+.ws-opening .ws-glow {
   position: absolute;
-  width: 46vmin;
-  height: 46vmin;
+  left: 50%;
+  top: 46%;
+  width: 70vmin;
+  height: 70vmin;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
-  filter: blur(40px);
-  opacity: .45;
+  background: radial-gradient(circle, hsl(var(--brand-accent, var(--primary)) / .16), transparent 62%);
+  filter: blur(30px);
+  animation: ws-breathe 4s ease-in-out infinite;
   pointer-events: none;
-  will-change: transform;
 }
-.ws-opening .ws-blob-1 { left: 22%; top: 28%; background: radial-gradient(circle, rgba(49, 108, 255, .9), transparent 62%); }
-.ws-opening .ws-blob-2 { left: 52%; top: 40%; background: radial-gradient(circle, rgba(255, 60, 158, .8), transparent 62%); }
-.ws-opening .ws-blob-3 { left: 38%; top: 56%; background: radial-gradient(circle, rgba(32, 214, 181, .8), transparent 62%); }
-/* The blobs hold their places. They drifted, each on its own timing and in its
-   own direction, which on a slow line is a minute of background wandering
-   about behind somebody waiting to work. The colour stays; the movement goes. */
-.ws-opening .ws-blob-1 { transform: translate(-2%, -2%); }
-.ws-opening .ws-blob-2 { transform: translate(2%, -2%) scale(1.04); }
-.ws-opening .ws-blob-3 { transform: translate(-1%, 2%); }
+@keyframes ws-breathe {
+  0%, 100% { opacity: .7; transform: translate(-50%, -50%) scale(.96); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+}
 
 .ws-opening .ws-mark {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 14px;
+  gap: 18px;
   text-align: center;
+  max-width: 560px;
+  animation: ws-rise 700ms cubic-bezier(.2, .7, .2, 1) both;
 }
+@keyframes ws-rise { from { opacity: 0; transform: translateY(8px); } }
 
-/* The wordmark carries a gradient of the brand colour into the aurora blues
-   and a band of white light that travels across it. background-clip on the
-   text is what lets a gradient be the ink; the band is a second, narrow
-   gradient layered over the first and moved with background-position. */
+.ws-opening .ws-logo {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(var(--ws-ink), .09), rgba(var(--ws-ink), .02));
+  box-shadow: inset 0 0 0 1px rgba(var(--ws-ink), .12), 0 20px 60px -20px hsl(var(--brand-accent, var(--primary)) / .6);
+  overflow: hidden;
+}
+.ws-opening .ws-logo img { width: 72%; height: 72%; object-fit: contain; }
+.ws-opening .ws-logo span { font-size: 28px; font-weight: 650; letter-spacing: -0.02em; color: rgb(var(--ws-ink)); }
+
 .ws-opening .ws-word {
   margin: 0;
-  font-size: clamp(30px, 7vw, 56px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  font-size: clamp(24px, 5.2vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
   color: transparent;
   background-image:
-    linear-gradient(100deg, transparent 0%, transparent 40%, rgba(255, 255, 255, .85) 50%, transparent 60%, transparent 100%),
-    linear-gradient(90deg, hsl(var(--brand-accent, var(--primary))), #3d6cff 45%, #7558ff 70%, #18bca6);
-  background-size: 220% 100%, 100% 100%;
-  background-position: 120% 0, 0 0;
+    linear-gradient(100deg, transparent 0%, transparent 42%, hsl(var(--brand-accent, var(--primary)) / .9) 50%, transparent 58%, transparent 100%),
+    linear-gradient(180deg, rgb(var(--ws-ink)), rgba(var(--ws-ink), .72));
+  background-size: 250% 100%, 100% 100%;
+  background-position: 130% 0, 0 0;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: ws-sweep 2.4s cubic-bezier(.4, 0, .2, 1) 300ms infinite;
+  animation: ws-sweep 2.8s cubic-bezier(.4, 0, .2, 1) 400ms infinite;
 }
 @keyframes ws-sweep {
-  0% { background-position: 120% 0, 0 0; }
-  60%, 100% { background-position: -120% 0, 0 0; }
-}
-.ws-opening .ws-sub {
-  margin: 0;
-  font-size: 12.5px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
+  0% { background-position: 130% 0, 0 0; }
+  60%, 100% { background-position: -130% 0, 0 0; }
 }
 
-/* The rule: a thin track with a gradient band running along it, so the
-   screen visibly does something for the half-second a slow network costs. */
 .ws-opening .ws-rule {
   position: relative;
-  width: min(240px, 60vw);
-  height: 2px;
-  border-radius: 2px;
+  width: 120px;
+  height: 1px;
+  background: rgba(var(--ws-ink), .12);
   overflow: hidden;
-  background: hsl(var(--border));
 }
 .ws-opening .ws-rule::after {
   content: '';
   position: absolute;
   inset: 0;
   width: 40%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, #3d6cff, #18bca6, transparent);
-  animation: ws-run 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(var(--ws-ink), .8), transparent);
+  animation: ws-run 1.6s ease-in-out infinite;
 }
 @keyframes ws-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 
+.ws-opening .ws-sub {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: rgba(var(--ws-ink), .5);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ws-opening .ws-blob, .ws-opening .ws-word, .ws-opening .ws-rule::after { animation: none !important; }
-  .ws-opening .ws-word { background-position: 200% 0, 0 0; }
-  .ws-opening[data-leaving] { animation: none; opacity: 0; transition: opacity 200ms; }
+  .ws-opening .ws-glow,
+  .ws-opening .ws-mark,
+  .ws-opening .ws-word,
+  .ws-opening .ws-rule::after { animation: none; }
+  .ws-opening[data-leaving] { animation-duration: 1ms; }
 }

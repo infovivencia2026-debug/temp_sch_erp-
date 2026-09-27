@@ -43,7 +43,6 @@ import {
   Nil
 } from './bento-cards'
 import { useCatalog, featurePath } from '@/lib/catalog'
-import PrincipalBriefCard from '@/components/ai/PrincipalBriefCard'
 
 /* THE HEAD'S PAGE, IN THE BENTO LANGUAGE.
 
@@ -4396,8 +4395,6 @@ export default function BentoPrincipalDashboard() {
 
   return (
     <BentoPage eyebrow={t('bento.principal.eyebrow')} title={t('bento.principal.title')}>
-      {/* The morning brief (AI summary, or plain bullets without a key) above the grid. */}
-      <div className="mb-4"><PrincipalBriefCard /></div>
       <WidgetLayer dashboard="principal">
       {/* THE ANCHOR — 2x2, the mint gradient, the largest number on the page,
           its two actions along the bottom edge.

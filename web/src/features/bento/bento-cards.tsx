@@ -214,6 +214,7 @@ export function CardShell({
      which is every card with real data on it: those take the branch they
      always took and nothing below this changes for them. */
   const [zero, setZero] = useState<string | null | false>(false)
+  const figRef = useFitFigure(`${String(value)}|${zero}`)
   const quiet = zero !== false
   /* The sentence the card prints. The zero sentence wins where there is one --
      see ONE SENTENCE above -- and where the drawing reported nothing to say,
@@ -475,6 +476,7 @@ export function CardShell({
             data". It is set down to the supporting size and muted, so the
             sentence beneath it becomes the thing you read. */}
         <p
+          ref={figRef}
           className={cn(
             /* THE FIGURE, WITH WEIGHT.
 
@@ -662,6 +664,31 @@ export function CardShell({
    it arrives, which is the safe direction to fail in.
 */
 const FIGURE = /^(\p{Sc}?)\s*([\d.,+\-]+)\s*([%\p{L}]{0,3})$/u
+
+/* FIT, NEVER CLIP. A figure that is wider than its card is scaled down
+   until it fits; one that fits keeps the size the card gave it. Measured
+   against the card's own width, and again whenever the card resizes. */
+export function useFitFigure(dep: unknown) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const fit = () => {
+      el.style.fontSize = ''
+      const avail = el.clientWidth
+      const need = el.scrollWidth
+      if (avail > 0 && need > avail + 1) {
+        const base = parseFloat(getComputedStyle(el).fontSize)
+        el.style.fontSize = `${Math.max(14, Math.floor(base * (avail / need) * 0.98))}px`
+      }
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el.parentElement ?? el)
+    return () => ro.disconnect()
+  }, [dep])
+  return ref
+}
 
 function Figure({ text }: { text: string }) {
   const m = FIGURE.exec(text.trim())

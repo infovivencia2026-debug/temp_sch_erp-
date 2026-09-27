@@ -94,3 +94,43 @@ export function applyBrand(primary?: string | null, accent?: string | null) {
   root.style.setProperty('--brand-accent-foreground', hslTriplet(accFg))
   accentWritten = true
 }
+
+/* THE SCHOOL'S MARK FOR THE OPENING SCREEN.
+
+   The opening (components/WorkspaceLoading.tsx) is on screen before the
+   session answers, so it cannot ask whose school this is. The last session
+   on this device leaves the school's name and logo here, the logo as a data
+   URL so it paints on the first frame with no request. White label: the
+   opening shows the school, never the product's name; with nothing stored it
+   shows no name at all. */
+export interface SchoolMark { name: string; logo?: string; key?: string }
+const MARK_KEY = 'erp.schoolMark'
+
+export function readSchoolMark(): SchoolMark | null {
+  try {
+    const raw = localStorage.getItem(MARK_KEY)
+    const m = raw ? (JSON.parse(raw) as SchoolMark) : null
+    return m && typeof m.name === 'string' && m.name ? m : null
+  } catch { return null }
+}
+
+export function rememberSchoolMark(name: string | undefined, logoKey: string | undefined) {
+  if (!name) return
+  const prev = readSchoolMark()
+  const key = logoKey || ''
+  if (prev && prev.name === name && (prev.key || '') === key) return
+  const save = (logo?: string) => {
+    try { localStorage.setItem(MARK_KEY, JSON.stringify({ name, key, ...(logo ? { logo } : {}) })) } catch { /* private mode */ }
+  }
+  save(prev && (prev.key || '') === key ? prev.logo : undefined)
+  if (!key) return
+  fetch(`/api/v1/files/${key}?inline=1`, { credentials: 'include' })
+    .then((r) => (r.ok ? r.blob() : null))
+    .then((b) => {
+      if (!b || b.size > 150_000 || !b.type.startsWith('image/')) return
+      const fr = new FileReader()
+      fr.onload = () => { if (typeof fr.result === 'string') save(fr.result) }
+      fr.readAsDataURL(b)
+    })
+    .catch(() => {})
+}
