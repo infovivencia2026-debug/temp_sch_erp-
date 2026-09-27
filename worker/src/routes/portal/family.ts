@@ -459,8 +459,8 @@ async function getFamilyResults(c: Ctx): Promise<Response> {
 /* Go gated this on APP_ENV=production (404 there). The Worker has no such
    flag, and it would write real receipts against real invoices, so it is on
    only when the deployment says APP_ENV is something other than production. */
-function simulatedPayEnabled(c: Ctx): boolean {
-  const v = c.env.APP_ENV
+export function simulatedPayEnabled(env: Ctx['env']): boolean {
+  const v = env.APP_ENV
   return typeof v === 'string' && v.trim() !== '' && v.trim().toLowerCase() !== 'production'
 }
 
@@ -532,7 +532,7 @@ const SIM_REMARKS = 'Simulated payment made from the family portal. ' +
   'before a payment gateway is connected.'
 
 async function portalSimulatedPay(c: Ctx): Promise<Response> {
-  if (!simulatedPayEnabled(c)) throw notFound()
+  if (!simulatedPayEnabled(c.env)) throw notFound()
   const student = await whichChild(c, c.url.searchParams.get('student_id'))
   const req = await readJSON<{ invoice_no?: string; amount?: number }>(c.req)
 

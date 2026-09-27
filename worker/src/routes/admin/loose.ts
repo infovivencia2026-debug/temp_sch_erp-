@@ -477,23 +477,26 @@ async function liveSeen(c: Ctx): Promise<Response> {
   switch ((req.scope ?? '').trim().toLowerCase()) {
     case 'staff':
       if (!isUUID(req.peer)) throw badRequest('peer must be a uuid')
-      kind = 'staff_message'; pattern = `%with=${req.peer.toLowerCase()}%`
+      kind = 'staff_message'; pattern = `with=${req.peer.toLowerCase()}`
       break
     case 'parent': {
       if (!isUUID(req.student) || !isUUID(req.parent) || !isUUID(req.teacher)) throw badRequest('student, parent and teacher must be uuids')
       const sid = req.student.toLowerCase(), pid = req.parent.toLowerCase(), tid = req.teacher.toLowerCase()
       kind = 'parent_message'
-      pattern = c.id.userId === pid ? `%student_id=${sid}&teacher_user_id=${tid}%` : `%child=${sid}&with=${pid}%`
+      pattern = c.id.userId === pid ? `student_id=${sid}&teacher_user_id=${tid}` : `child=${sid}&with=${pid}`
       break
     }
     case 'counselor':
       if (!isUUID(req.thread)) throw badRequest('thread must be a uuid')
-      kind = 'counselor_message'; pattern = `%thread=${req.thread.toLowerCase()}%`
+      kind = 'counselor_message'; pattern = `thread=${req.thread.toLowerCase()}`
       break
     default:
       throw badRequest('scope must be staff, parent or counselor')
   }
-  await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL AND kind = ? AND link LIKE ?`)
+  /* instr, not LIKE: D1 caps a LIKE pattern at 50 bytes, and a parent
+     conversation's link carries two uuids, so every parent thread answered
+     500 "LIKE or GLOB pattern too complex". Same match as Go's LIKE '%…%'. */
+  await c.db.prepare(`UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL AND kind = ? AND instr(link, ?) > 0`)
     .bind(now(), c.id.userId, kind, pattern).run()
   return noContent()
 }

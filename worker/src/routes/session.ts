@@ -4,6 +4,7 @@ import { currentSession } from '../auth/session'
 import { institutionById, tenantDb } from '../tenant'
 import { entitlementFor } from './misc/shell'
 import type { Ctx } from '../router'
+import { simulatedPayEnabled } from './portal/family'
 
 /* GET /api/v1/session: the boot call. Same JSON as internal/api/session.go
    so the web client needs no change. Permissions and roles come from the
@@ -44,10 +45,16 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
      (module_settings), and `subscription` is the entitlement the gate uses,
      with `active` -- the flag the app reads to decide whether the school is
      switched on. */
-  const [modRows, ent] = await Promise.all([
+  const [modRows, ent, pay] = await Promise.all([
     db.prepare('SELECT module, enabled FROM module_settings ORDER BY module').all<{ module: string; enabled: number }>()
       .catch(() => ({ results: [] as { module: string; enabled: number }[] })),
     entitlementFor({ env, id: { institution: inst } } as unknown as Ctx),
+    /* session.go carries the school's UPI address (and the payee, falling back
+       to the school's name) so the family fee page can draw the code, and
+       simulated_pay so it knows whether the no-money test button exists.
+       Without them the fee page offered a parent no way to pay at all. */
+    db.prepare(`SELECT COALESCE(upi_vpa,'') AS vpa, COALESCE(NULLIF(upi_payee_name,''), name) AS payee FROM institutions WHERE id = ?`)
+      .bind(inst.id).first<{ vpa: string; payee: string }>().catch(() => null),
   ])
   const modules = modRows.results.map((m) => ({ module: m.module, enabled: !!m.enabled }))
   const ALL_MODULES = ['students', 'academics', 'attendance', 'fees', 'communication', 'exams', 'hr', 'transport', 'library', 'hostel', 'inventory']
@@ -72,6 +79,8 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
       display_name: branding?.display_name ?? undefined, tagline: branding?.tagline ?? undefined,
       logo_key: branding?.logo_key || inst.logo_key || undefined, favicon_key: branding?.favicon_key ?? undefined,
       accent_color: branding?.accent_color ?? undefined,
+      upi_vpa: pay?.vpa || undefined, upi_payee_name: pay?.vpa ? (pay.payee || inst.name) : undefined,
+      simulated_pay: simulatedPayEnabled(env),
     },
     modules,
     subscription,
