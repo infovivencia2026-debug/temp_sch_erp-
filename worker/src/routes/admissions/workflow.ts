@@ -320,7 +320,8 @@ export function registerAdmissionsWorkflow(r: Router) {
         held_by = CASE WHEN ? = 'on_hold' THEN ? ELSE NULL END WHERE id = ?`)
       .bind(decision, c.id.userId, t, nz(remarks), t, decision, remarks, decision, t, decision, c.id.userId, appID).run()
     if (res.meta.changes === 0) throw notFound()
-    return ok({ id: appID, status: decision, note: 'the family was not told: email sending is not available in the worker' })
+    const note = await notifyApplicationStage(c, appID, decision)
+    return ok(note ? { id: appID, status: decision, note } : { id: appID, status: decision })
   })
 
   r.get('/admissions/workflow/pending-admissions', READ, async (c) => {
@@ -527,4 +528,41 @@ async function sendEnquiryLink(c: Ctx, enquiryId: string, studentName: string, p
   }
   await ms.kick()
   return failed.length ? failed : null
+}
+
+/* Go's notifyApplicationStage (admissions_notify.go): the stage email a family
+   has been waiting on. Never fails the decision; a problem comes back as the
+   note the office reads on the screen. */
+const applicationStageTemplate: Record<string, string> = {
+  under_review: 'admissions.under_review', documents_pending: 'admissions.documents_pending',
+  test_scheduled: 'admissions.test_scheduled', interviewed: 'admissions.interviewed', offered: 'admissions.offered',
+  accepted: 'admissions.accepted', rejected: 'admissions.rejected', waitlisted: 'admissions.waitlisted',
+}
+async function notifyApplicationStage(c: Ctx, appID: string, status: string): Promise<string> {
+  const code = applicationStageTemplate[status]
+  if (!code) return ''
+  const f = await c.db.prepare(`
+    SELECT TRIM(COALESCE(a.first_name,'') || ' ' || COALESCE(a.last_name,'')) AS student_name, COALESCE(a.parent_name,'') AS parent_name,
+           COALESCE(a.parent_email,'') AS email, COALESCE(a.application_no,'') AS application_no, COALESCE(cl.name,'') AS class_sought,
+           COALESCE(i.name,'') AS school_name
+      FROM applications a LEFT JOIN classes cl ON cl.id = a.class_sought LEFT JOIN institutions i ON i.id = a.institution_id
+     WHERE a.id = ?`).bind(appID).first<{ student_name: string; parent_name: string; email: string; application_no: string; class_sought: string; school_name: string }>()
+    .catch(() => null)
+  if (!f) return 'The change is saved. The family could not be emailed about it.'
+  const email = f.email.trim()
+  if (email === '') return 'The change is saved. There is no email address on this application, so nothing was sent - tell them by telephone.'
+  const vars = {
+    school_name: f.school_name || 'your school', parent_name: f.parent_name.trim() || 'Sir/Madam',
+    student_name: f.student_name.trim() || 'your child', application_no: f.application_no,
+    class_sought: f.class_sought || 'the class applied for', portal_url: new URL(c.req.url).origin + '/login',
+  }
+  try {
+    const ms = new Messenger(scopeOf(c))
+    await ms.queue({ channel: 'email', template_code: code, vars, recipient: email, source_kind: 'application', source_id: appID,
+      occurrence_key: 'stage:' + status })
+    await ms.kick()
+  } catch (e) {
+    return 'The change is saved, but the email could not be queued: ' + (e instanceof Error ? e.message : String(e))
+  }
+  return ''
 }

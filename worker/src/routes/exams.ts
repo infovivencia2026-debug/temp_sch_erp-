@@ -549,12 +549,16 @@ async function generateReportCards(c: Ctx) {
   let rank = 0, prevTotal: number | null = null, i = 0
   for (const t of totals.results) {
     i++
-    const total = t.total ?? 0
+    /* report_cards.total_marks is numeric(8,2) in Postgres: summed as REAL
+       here, 33.59 + 28.01 + ... came back as 113.99000000000001 and the card
+       printed it. Rounded to the column's scale before ranking or storing. */
+    const total = t.total === null ? 0 : Number(t.total.toFixed(2))
+    const maxTotal = t.max_total === null ? null : Number(t.max_total.toFixed(2))
     if (prevTotal === null || total !== prevTotal) { rank = i; prevTotal = total }
-    const pct = t.max_total ? Number((100 * total / t.max_total).toFixed(2)) : null
+    const pct = maxTotal ? Number((100 * total / maxTotal).toFixed(2)) : null
     const grade = pct === null ? null : pickGrade(bands, pct)
-    const totalS = t.total === null ? null : String(t.total)
-    const maxS = t.max_total === null ? null : String(t.max_total)
+    const totalS = t.total === null ? null : String(total)
+    const maxS = maxTotal === null ? null : String(maxTotal)
     const pctS = pct === null ? null : String(pct)
     const cardId = byStudent.get(t.student_id)
     if (cardId) {
