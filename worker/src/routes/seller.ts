@@ -1,6 +1,7 @@
 import type { Router } from '../router'
 import { registerSellerTenants } from './seller/tenants'
 import { registerSellerPlatform } from './seller/platform'
+import { registerSchoolGroups } from './seller/groups'
 
 /* Port of the /seller group in internal/api/api.go (lines 1387-1445): the
    vendor's own back office. The Go group guarded everything with
@@ -10,4 +11,6 @@ import { registerSellerPlatform } from './seller/platform'
 export function registerSeller(r: Router): void {
   registerSellerTenants(r)
   registerSellerPlatform(r)
+  // School groups; also /me/groups and /groups/{id}/dashboard for group admins (checked in the handlers).
+  registerSchoolGroups(r)
 }

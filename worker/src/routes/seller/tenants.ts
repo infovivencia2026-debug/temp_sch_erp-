@@ -171,6 +171,13 @@ export function registerSellerTenants(r: Router): void {
     requirePlatformAdmin(c)
     const insts = await allInstitutions(c.env)
     const subs = await subscriptionsByInstitution(c.env, `WHERE sub.status <> 'cancelled'`)
+    // Each school's group (Seller → School groups). Empty until control_school_groups.sql is applied.
+    const groups = new Map<string, { id: string; name: string }>()
+    try {
+      const g = await c.env.CONTROL.prepare(`SELECT m.institution_id, g.id, g.name FROM school_group_members m JOIN school_groups g ON g.id = m.group_id`)
+        .all<{ institution_id: string; id: string; name: string }>()
+      for (const r of g.results) groups.set(r.institution_id, { id: r.id, name: r.name })
+    } catch { /* table not there yet */ }
     const items = await Promise.all(insts.map(async (i) => {
       const sub = subs.get(i.id)
       let students = 0, staff = 0, setup = 0
@@ -204,6 +211,8 @@ export function registerSellerTenants(r: Router): void {
       if (sub?.renews_on) out.renews_on = day(sub.renews_on)
       if (licensed !== null) out.licensed_students = licensed
       if (lastSignIn) out.last_sign_in = lastSignIn
+      const grp = groups.get(i.id)
+      if (grp) { out.group_id = grp.id; out.group_name = grp.name }
       return out
     }))
     return ok({ items })
@@ -620,9 +629,11 @@ export function registerSellerTenants(r: Router): void {
     const insts = await allInstitutions(c.env)
     interface Member { id: string; full_name: string; email?: string; phone?: string; status: string; schools: { id: string; name: string }[] }
     const byId = new Map<string, Member>()
+    const scanned: string[] = []
     for (const i of insts) {
       const db = openTenant(c.env, i)
       if (!db) continue
+      scanned.push(i.id)
       const rows = await db.prepare(`SELECT u.id, u.full_name, u.email, u.phone, u.status FROM users u
           JOIN user_roles ur ON ur.user_id = u.id JOIN roles ro ON ro.id = ur.role_id AND ro.key = 'board_member'
           ORDER BY u.full_name, u.id`).all<{ id: string; full_name: string; email: string | null; phone: string | null; status: string }>()
@@ -639,87 +650,14 @@ export function registerSellerTenants(r: Router): void {
     }
     const items = [...byId.values()].sort((a, b) => a.full_name.localeCompare(b.full_name) || a.id.localeCompare(b.id))
     for (const m of items) m.schools.sort((a, b) => a.name.localeCompare(b.name))
+    await syncBoardIndex(c.env, items, scanned)
     return ok({ items })
   })
 
   r.post('/seller/board-members', PERM, async (c) => {
     requirePlatformAdmin(c)
     const req = await readJSON<{ full_name?: string; email?: string; phone?: string; institution_ids?: string[] }>(c.req)
-    const fullName = (req.full_name ?? '').trim()
-    const email = (req.email ?? '').trim().toLowerCase()
-    const phone = (req.phone ?? '').trim()
-    if (!fullName) throw badRequest('the board member needs a name')
-    if (!email && !phone) throw badRequest('an email or a phone number is required to sign in')
-    const raw = req.institution_ids ?? []
-    if (raw.length === 0) throw badRequest('name at least one school this board member oversees')
-    const instIds: string[] = []
-    for (const v of raw) {
-      const s = String(v).trim()
-      if (!isUUID(s)) throw badRequest('each institution_id must be a uuid')
-      if (!instIds.includes(s)) instIds.push(s)
-    }
-    const subject = email ? `${fullName} <${email}>` : fullName
-    const failed = async (m: string) => recordPlatformEvent(c.env, 'board_member', false, null, subject, m, c.id.userId)
-
-    const insts: Institution[] = []
-    for (const id of instIds) {
-      const i = await institutionById(c.env, id)
-      if (!i) { await failed('one of the named institutions does not exist'); throw badRequest('one of those schools does not exist') }
-      insts.push(i)
-    }
-    const home = insts[0]
-    const homeDb = openTenant(c.env, home)
-    if (!homeDb) notImplemented('provision tenant database')
-
-    const password = temporaryPassword()
-    const hash = await hashPassword(c.env.PASSWORD_PEPPER, password)
-    const t = now()
-    const found = email
-      ? await homeDb.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>()
-      : await homeDb.prepare('SELECT id FROM users WHERE phone = ?').bind(phone).first<{ id: string }>()
-    const createdNow = !found
-    const userId = found?.id ?? uuid()
-
-    try {
-      for (const inst of insts) {
-        const db = openTenant(c.env, inst)
-        if (!db) throw new Error(`no database for ${inst.slug}`)
-        let role = await db.prepare(`SELECT id FROM roles WHERE key = 'board_member' LIMIT 1`).first<{ id: string }>()
-        const stmts: D1PreparedStatement[] = []
-        if (!role) {
-          // rbac.InstallRole seeds the optional role on demand; the grants come from the catalog seed, not here.
-          role = { id: uuid() }
-          stmts.push(db.prepare(`INSERT INTO roles (id, institution_id, key, name, is_system, is_default, created_at) VALUES (?,?,'board_member','Board member',1,0,?)`).bind(role.id, inst.id, t))
-        }
-        /* One user, several databases: the row that Postgres held once is
-           mirrored into every school the member oversees, same id, so the
-           user_roles foreign key holds and each school reads its own copy. */
-        if (inst.id === home.id && createdNow) {
-          stmts.push(db.prepare(`INSERT INTO users (id, institution_id, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
-              VALUES (?,?,?,?,?,?,'active',1,?,?)`).bind(userId, inst.id, nullStr(email), nullStr(phone), fullName, hash, t, t))
-        } else if (inst.id !== home.id) {
-          stmts.push(db.prepare(`INSERT OR IGNORE INTO users (id, institution_id, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
-              VALUES (?,?,?,?,?,?,'active',1,?,?)`).bind(userId, inst.id, nullStr(email), nullStr(phone), fullName, hash, t, t))
-        }
-        stmts.push(db.prepare(`INSERT OR IGNORE INTO user_roles (id, institution_id, user_id, role_id, created_at) VALUES (?,?,?,?,?)`).bind(uuid(), inst.id, userId, role.id, t))
-        await db.batch(stmts)
-      }
-      if (createdNow) await c.env.CONTROL.batch(loginIndexRows(c.env, home.id, userId, { email: nullStr(email), phone: nullStr(phone) }))
-    } catch (e) {
-      await failed(String(e))
-      if (isUniqueViolation(e)) throw new HttpError(409, 'an account at that school already uses that email or phone', { code: 'account_in_use' })
-      throw e
-    }
-    await recordPlatformEvent(c.env, 'board_member', true, home.id, subject, `board_member granted in ${insts.length} ${insts.length === 1 ? 'school' : 'schools'}`, c.id.userId)
-    const resp: Record<string, unknown> = { user_id: userId, full_name: fullName, schools: insts.length, created: createdNow, home_school: home.id }
-    if (createdNow) {
-      resp.sign_in_as = email || phone
-      resp.temporary_password = password
-      resp.note = 'Shown once and not stored. Hand it over; they set their own password the first time they sign in.'
-    } else {
-      resp.note = 'This person already had an account; their sign-in and password are unchanged. They now oversee the named schools.'
-    }
-    return created(resp)
+    return created(await grantBoardMember(c.env, c.id.userId, { fullName: req.full_name, email: req.email, phone: req.phone, institutionIds: req.institution_ids ?? [], viaGroup: null }))
   })
 
   r.del('/seller/board-members/{userID}/institutions/{instID}', PERM, async (c) => {
@@ -735,9 +673,128 @@ export function registerSellerTenants(r: Router): void {
       removed = res.meta.changes
     }
     if (!removed) throw new HttpError(404, 'that person does not oversee that school', { code: 'no_such_membership' })
+    await c.env.CONTROL.prepare(`DELETE FROM board_memberships WHERE user_id = ? AND institution_id = ?`).bind(userId, inst!.id).run()
     await recordPlatformEvent(c.env, 'board_member', true, inst!.id, userId, 'board_member membership removed', c.id.userId)
     return ok({ removed: true })
   })
+}
+
+/** Rebuilds the CONTROL board_memberships index from what the schools themselves hold (the truth),
+    so grants made before the index existed show up in the switcher. Only schools actually read are touched. */
+async function syncBoardIndex(env: Env, members: { id: string; schools: { id: string }[] }[], scanned: string[]): Promise<void> {
+  const t = now()
+  const stmts: D1PreparedStatement[] = []
+  const pairs: string[] = []
+  for (const m of members) {
+    const home = await homeOf(env, m.id, m.schools[0]?.id ?? '')
+    for (const s of m.schools) {
+      if (s.id === home) continue
+      pairs.push(m.id + '|' + s.id)
+      stmts.push(env.CONTROL.prepare(`INSERT OR IGNORE INTO board_memberships (user_id, institution_id, home_institution_id, via_group, created_at) VALUES (?,?,?,NULL,?)`)
+        .bind(m.id, s.id, home, t))
+    }
+  }
+  stmts.push(env.CONTROL.prepare(`DELETE FROM board_memberships WHERE institution_id IN (SELECT value FROM json_each(?))
+      AND user_id || '|' || institution_id NOT IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(scanned), JSON.stringify(pairs)))
+  try { await env.CONTROL.batch(stmts) } catch (e) { console.error('board_memberships sync', e) }
+}
+
+export interface BoardGrant { fullName?: string; email?: string; phone?: string; institutionIds: string[]; viaGroup: string | null }
+
+/** Where this user signs in: the login_index row names their home school. */
+async function homeOf(env: Env, userId: string, fallback: string): Promise<string> {
+  const r = await env.CONTROL.prepare(`SELECT institution_id FROM login_index WHERE user_id = ? AND institution_id IS NOT NULL LIMIT 1`).bind(userId).first<{ institution_id: string }>()
+  return r?.institution_id ?? fallback
+}
+
+/** board_members.go createBoardMember: one user, a board_member grant in every named school, the first school
+    being home when the person is new. Shared by /seller/board-members and the school-group admins. */
+export async function grantBoardMember(env: Env, actor: string, req: BoardGrant): Promise<Record<string, unknown>> {
+  let resultHome = ''
+  const fullName = (req.fullName ?? '').trim()
+  const email = (req.email ?? '').trim().toLowerCase()
+  const phone = (req.phone ?? '').trim()
+  if (!fullName) throw badRequest('the board member needs a name')
+  if (!email && !phone) throw badRequest('an email or a phone number is required to sign in')
+  const raw = req.institutionIds
+  if (raw.length === 0) throw badRequest('name at least one school this board member oversees')
+  const instIds: string[] = []
+  for (const v of raw) {
+    const s = String(v).trim()
+    if (!isUUID(s)) throw badRequest('each institution_id must be a uuid')
+    if (!instIds.includes(s)) instIds.push(s)
+  }
+  const subject = email ? `${fullName} <${email}>` : fullName
+  const failed = async (m: string) => recordPlatformEvent(env, 'board_member', false, null, subject, m, actor)
+
+  const insts: Institution[] = []
+  for (const id of instIds) {
+    const i = await institutionById(env, id)
+    if (!i) { await failed('one of the named institutions does not exist'); throw badRequest('one of those schools does not exist') }
+    insts.push(i)
+  }
+  const home = insts[0]
+  const homeDb = openTenant(env, home)
+  if (!homeDb) notImplemented('provision tenant database')
+
+  const password = temporaryPassword()
+  const hash = await hashPassword(env.PASSWORD_PEPPER, password)
+  const t = now()
+  const found = email
+    ? await homeDb.prepare('SELECT id FROM users WHERE email = ?').bind(email).first<{ id: string }>()
+    : await homeDb.prepare('SELECT id FROM users WHERE phone = ?').bind(phone).first<{ id: string }>()
+  const createdNow = !found
+  const userId = found?.id ?? uuid()
+
+  try {
+    for (const inst of insts) {
+      const db = openTenant(env, inst)
+      if (!db) throw new Error(`no database for ${inst.slug}`)
+      let role = await db.prepare(`SELECT id FROM roles WHERE key = 'board_member' LIMIT 1`).first<{ id: string }>()
+      const stmts: D1PreparedStatement[] = []
+      if (!role) {
+        // rbac.InstallRole seeds the optional role on demand; the grants come from the catalog seed, not here.
+        role = { id: uuid() }
+        stmts.push(db.prepare(`INSERT INTO roles (id, institution_id, key, name, is_system, is_default, created_at) VALUES (?,?,'board_member','Board member',1,0,?)`).bind(role.id, inst.id, t))
+      }
+      /* One user, several databases: the row that Postgres held once is
+         mirrored into every school the member oversees, same id, so the
+         user_roles foreign key holds and each school reads its own copy. */
+      if (inst.id === home.id && createdNow) {
+        stmts.push(db.prepare(`INSERT INTO users (id, institution_id, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,'active',1,?,?)`).bind(userId, inst.id, nullStr(email), nullStr(phone), fullName, hash, t, t))
+      } else if (inst.id !== home.id) {
+        stmts.push(db.prepare(`INSERT OR IGNORE INTO users (id, institution_id, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
+            VALUES (?,?,?,?,?,?,'active',1,?,?)`).bind(userId, inst.id, nullStr(email), nullStr(phone), fullName, hash, t, t))
+      }
+      stmts.push(db.prepare(`INSERT OR IGNORE INTO user_roles (id, institution_id, user_id, role_id, created_at) VALUES (?,?,?,?,?)`).bind(uuid(), inst.id, userId, role.id, t))
+      await db.batch(stmts)
+    }
+    if (createdNow) await env.CONTROL.batch(loginIndexRows(env, home.id, userId, { email: nullStr(email), phone: nullStr(phone) }))
+    /* The index GET /me/institutions and identity.ts read. A direct grant clears via_group so leaving a group cannot take it away. */
+    const homeId = createdNow ? home.id : (await homeOf(env, userId, home.id))
+    const idx = insts.filter((i) => i.id !== homeId).map((i) => req.viaGroup
+      ? env.CONTROL.prepare(`INSERT OR IGNORE INTO board_memberships (user_id, institution_id, home_institution_id, via_group, created_at) VALUES (?,?,?,?,?)`).bind(userId, i.id, homeId, req.viaGroup, t)
+      : env.CONTROL.prepare(`INSERT INTO board_memberships (user_id, institution_id, home_institution_id, via_group, created_at) VALUES (?,?,?,NULL,?)
+          ON CONFLICT (user_id, institution_id) DO UPDATE SET via_group = NULL`).bind(userId, i.id, homeId, t))
+    if (idx.length) await env.CONTROL.batch(idx)
+    resultHome = homeId
+  } catch (e) {
+    await failed(String(e))
+    if (isUniqueViolation(e)) throw new HttpError(409, 'an account at that school already uses that email or phone', { code: 'account_in_use' })
+    throw e
+  }
+  await recordPlatformEvent(env, 'board_member', true, home.id, subject, `board_member granted in ${insts.length} ${insts.length === 1 ? 'school' : 'schools'}`, actor)
+  const resp: Record<string, unknown> = { user_id: userId, full_name: fullName, schools: insts.length, created: createdNow, home_school: home.id }
+  if (createdNow) {
+    resp.sign_in_as = email || phone
+    resp.temporary_password = password
+    resp.note = 'Shown once and not stored. Hand it over; they set their own password the first time they sign in.'
+  } else {
+    resp.note = 'This person already had an account; their sign-in and password are unchanged. They now oversee the named schools.'
+  }
+  resp.home_school = resultHome || home.id
+  return resp
 }
 
 const BRAND_TEXT = ['tagline', 'login_headline', 'login_message', 'support_email', 'support_phone'] as const

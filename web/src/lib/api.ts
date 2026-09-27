@@ -139,6 +139,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const e = body?.error
+    /* The school this tab was switched into is no longer one this person
+       oversees (a board grant or group membership was removed). Forget it so
+       the next request is back at home instead of every screen failing. */
+    if (acting && ['not_a_board_member', 'no_such_school'].includes(e?.code ?? body?.code)) setActingInstitution(null)
     /* A money action on a sign-in older than fifteen minutes. The prompt
        that asks for the password again listens for this; see
        components/ReauthPrompt.tsx. The error still reaches the caller so the

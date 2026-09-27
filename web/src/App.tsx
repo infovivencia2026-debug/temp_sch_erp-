@@ -13,6 +13,8 @@ import AccountPage from '@/features/shared/Profile'
 /* Lazy like every feature screen: Settings pulls the whole settings window
    module behind it, which nobody needs until they open Settings. */
 const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
+// A school group's combined report (Seller → School groups); the server decides who may read it.
+const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -460,6 +462,8 @@ export function AppRoutes({ location }: { location?: string }) {
           flushSync and React threw #426, blanking the app (phone dock cog). */}
       <Route path="/settings" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
       <Route path="/settings/:section" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
+      <Route path="/group-report" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
+      <Route path="/group-report/:groupId" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/" element={<Home />} />
       {/* Role-agnostic links, for anything that is written down
           before anybody knows who will read it — a notification,

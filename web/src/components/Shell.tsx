@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
    See docs/BENTO_UI_CONTRACT.md. */
 import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { YearSwitch } from '@/components/YearSwitch'
+import { GroupReportLink } from '@/components/GroupReportLink'
 import { InstitutionSwitch } from '@/components/InstitutionSwitch'
 import { BentoOutlet } from '@/features/bento/BentoOutlet'
 import TabStrip from '@/components/TabStrip'
@@ -1072,6 +1073,8 @@ export function Shell({
               nothing. Beside the year because both answer the same question --
               what is every number on this page about. */}
           <InstitutionSwitch />
+          {/* A school group's admin: the combined report across the group. */}
+          <GroupReportLink />
           {/* The year being worked in, only when there is more than one to
               choose. Beside the institution because it answers the same
               question -- what is every number on this page about. */}

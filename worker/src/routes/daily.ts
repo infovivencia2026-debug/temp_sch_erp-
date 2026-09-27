@@ -903,11 +903,17 @@ function registerMeGroup(r: Router) {
   })
 
   r.get('/me/institutions', 'auth', async (c) => {
-    // The Go handler gathers every school where the user holds a user_roles
-    // row, across tenants. Each school is its own D1 database here and the
-    // control database keeps no membership table, so only home is listed.
-    const items = c.id.institution ? [{ id: c.id.institution.id, name: c.id.institution.name, is_home: true }] : []
-    return ok({ items })
+    /* acting.go listMyInstitutions: home first, then every school the user is a
+       board member of. Postgres answered with one query across tenants; here the
+       CONTROL board_memberships index does, keyed by the session's home school.
+       identity.ts re-checks each against the school's own grant on switch. */
+    const home = c.id.homeInstitutionId
+    if (!home) return ok({ items: [] })
+    const rows = await c.env.CONTROL.prepare(`SELECT i.id, i.name, (i.id = ?1) AS is_home FROM institutions i
+        WHERE i.id = ?1 OR i.id IN (SELECT institution_id FROM board_memberships WHERE user_id = ?2 AND home_institution_id = ?1)
+        ORDER BY (i.id = ?1) DESC, i.name`).bind(home, c.id.userId).all<{ id: string; name: string; is_home: number }>()
+      .catch(() => ({ results: c.id.institution ? [{ id: home, name: c.id.institution.name, is_home: 1 }] : [] }))
+    return ok({ items: rows.results.map((r) => ({ id: r.id, name: r.name, is_home: !!r.is_home })) })
   })
 }
 

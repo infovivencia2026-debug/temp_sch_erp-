@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, ExternalLink, KeyRound, Palette, Plus, X } from 'lucide-react'
+import { Copy, ExternalLink, KeyRound, Network, Palette, Plus, X } from 'lucide-react'
+import { SchoolGroups } from './SchoolGroups'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -39,6 +40,9 @@ interface Tenant {
   setup_percent: number
   last_sign_in?: string
   created_on: string
+  /** Seller → School groups: the organisation this school belongs to, if any. */
+  group_id?: string
+  group_name?: string
 }
 interface Plan {
   code: string
@@ -152,6 +156,9 @@ export default function Tenants() {
   const [creating, setCreating] = useState(false)
   const [handover, setHandover] = useState<Handover | null>(null)
   const [branding, setBranding] = useState<Tenant | null>(null)
+  const [groupsOpen, setGroupsOpen] = useState(false)
+  // '' every school, '-' schools in no group, otherwise a group id.
+  const [groupFilter, setGroupFilter] = useState('')
 
   const tenants = useQuery({
     queryKey: ['seller-tenants'],
@@ -172,7 +179,11 @@ export default function Tenants() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['seller-tenants'] }),
   })
 
-  const rows = tenants.data?.items ?? []
+  const allRows = tenants.data?.items ?? []
+  const groupOptions = [...new Map(allRows.filter((t) => t.group_id).map((t) => [t.group_id!, t.group_name ?? ''])).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+  const rows = groupFilter === '' ? allRows
+    : allRows.filter((t) => (groupFilter === '-' ? !t.group_id : t.group_id === groupFilter))
   /* Stalled rollouts first: the number that predicts a cancellation.
 
      Above the early returns, not below. Every hook has to run on every
@@ -195,15 +206,21 @@ export default function Tenants() {
         title={title}
         description={description}
         actions={
-          <Button
-            onClick={() => {
-              setHandover(null)
-              setCreating((c) => !c)
-            }}
-          >
-            {creating ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {creating ? 'Cancel' : 'New school'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setGroupsOpen((o) => !o)}>
+              <Network className="h-3.5 w-3.5" />
+              {groupsOpen ? 'Hide groups' : 'School groups'}
+            </Button>
+            <Button
+              onClick={() => {
+                setHandover(null)
+                setCreating((c) => !c)
+              }}
+            >
+              {creating ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {creating ? 'Cancel' : 'New school'}
+            </Button>
+          </div>
         }
       />
       <PageBody>
@@ -216,6 +233,8 @@ export default function Tenants() {
             question. */}
 
         {handover && <HandoverCard h={handover} onClose={() => setHandover(null)} />}
+
+        {groupsOpen && <SchoolGroups onClose={() => setGroupsOpen(false)} />}
 
         {/* On its own entry the form is the screen, so it is open on arrival.
             Somebody who clicked "Onboard New School" has already said what
@@ -248,6 +267,20 @@ export default function Tenants() {
           <CardHeader
             title="Every school"
             description={`${rows.length} registered, plan, roll, setup and when each was last used.`}
+            action={(groupOptions.length > 0 || groupFilter !== '') && (
+              <div className="w-56">
+                <Select
+                  value={groupFilter}
+                  onChange={setGroupFilter}
+                  allowCustom={false}
+                  options={[
+                    { value: '', label: 'Every group' },
+                    ...groupOptions.map(([id, name]) => ({ value: id, label: name })),
+                    { value: '-', label: 'Not in a group' },
+                  ]}
+                />
+              </div>
+            )}
           />
           {rows.length === 0 ? (
             <EmptyState title="No customers yet" body="Provision the first school to get started." />
@@ -279,6 +312,16 @@ export default function Tenants() {
                     <span className="block text-[12px] font-normal text-muted-foreground">
                       {t.district ?? t.short_name} · since {formatDate(t.created_on)}
                     </span>
+                    {t.group_name && (
+                      <button
+                        type="button"
+                        className="mt-0.5 block text-left"
+                        title="Show only this group's schools"
+                        onClick={() => setGroupFilter(t.group_id!)}
+                      >
+                        <Badge tone="neutral">{t.group_name}</Badge>
+                      </button>
+                    )}
                   </Td>
                   <Td>
                     {t.subscription_status ? (
