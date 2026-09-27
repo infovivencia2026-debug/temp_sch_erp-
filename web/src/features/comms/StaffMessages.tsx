@@ -9,7 +9,7 @@ import {
   PageHead, PageBody, Card, CardHeader, Badge, Input,
   Loading, ErrorState, tabClass, TAB_BAR } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
-import { useSession } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
 
 /* One member of staff writing to another.
  *
@@ -110,10 +110,13 @@ export default function StaffMessages() {
      wrong way round. */
   const [unreadOnly, setUnreadOnly] = useState(false)
   const me = useSession().user?.id
+  /* The parents' register sits behind /teaching, which is gated on the
+     timetable. Finance and HR have neither, and asking only earned a 403. */
+  const canParents = useCan()('academics.timetable.read')
 
   /* Which register is open. In the URL for the same reason `with` is: a
      notification about a parent's message has to be able to land on it. */
-  const box = params.get('box') === 'parents' ? 'parents' : 'staff'
+  const box = canParents && params.get('box') === 'parents' ? 'parents' : 'staff'
   const setBox = (b: 'staff' | 'parents') => {
     const next = new URLSearchParams(params)
     if (b === 'parents') next.set('box', 'parents')
@@ -137,6 +140,7 @@ export default function StaffMessages() {
   const parentThreads = useQuery({
     queryKey: ['parent-threads'],
     queryFn: () => api.get<List<ParentThread>>('/api/v1/teaching/parent-messages'),
+    enabled: canParents,
   })
   /* ONE FAMILY, ONE ROW. A head reading the school's threads sees the same
      parent once per teacher they have written to -- three rows for one
@@ -368,7 +372,7 @@ export default function StaffMessages() {
           {([
             ['staff', 'Colleagues', staffUnread],
             ['parents', 'Parents', parentUnread],
-          ] as const).map(([k, label, unread]) => (
+          ] as const).filter(([k]) => k === 'staff' || canParents).map(([k, label, unread]) => (
             <button
               key={k}
               type="button"

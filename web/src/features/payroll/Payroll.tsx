@@ -4,7 +4,9 @@ import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, FormNotice, SkeletonTable, ErrorState, ExportButton, PrintButton,
+  UnavailableState,
 } from '@/components/ui'
+import { useCan } from '@/lib/session'
 import { cn, formatPaise } from '@/lib/utils'
 
 interface Payslip {
@@ -27,10 +29,18 @@ export default function Payroll() {
   const now = new Date()
   const [month, setMonth] = useState(String(now.getMonth() + 1))
   const [year, setYear] = useState(String(now.getFullYear()))
+  /* Finance opens this screen under "Approve & pay salaries", but the payroll
+     routes sit behind hr.payroll.read (Go and the Worker alike). Without it the
+     page asked three times, got 403 three times, and showed a zero month with
+     a Run payroll button that could only fail. */
+  const can = useCan()
+  const canRead = can('hr.payroll.read')
+  const canRun = can('hr.payroll.write')
 
   const slips = useQuery({
     queryKey: ['payslips', month, year],
     queryFn: () => api.get<List<Payslip>>(`/api/v1/payroll/payslips?month=${month}&year=${year}`),
+    enabled: canRead,
   })
   /* The month, moved forward one deliberate step at a time.
    *
@@ -124,6 +134,17 @@ export default function Payroll() {
   const net = rows.reduce((a, r) => a + r.net_paise, 0)
   const components = [...new Set(rows.flatMap((r) => Object.keys(r.breakup ?? {})))].sort()
 
+  if (!canRead) {
+    return (
+      <PageBody>
+        <UnavailableState
+          title="The payroll run is HR's to show"
+          body="Your role does not include viewing payroll. Ask the school admin to grant payroll view to your role, or use Release the money for the bank file."
+        />
+      </PageBody>
+    )
+  }
+
   return (
     <>
       <PageHead
@@ -141,7 +162,7 @@ export default function Payroll() {
               }))} />
             {/* Re-running a locked month would overwrite figures somebody has
                 already signed off, so it is not offered until it is unlocked. */}
-            {!locked && (
+            {!locked && canRun && (
               <Button disabled={run.isPending} onClick={() => run.mutate(false)}>
                 {run.isPending ? 'Running…' : 'Run payroll'}
               </Button>
