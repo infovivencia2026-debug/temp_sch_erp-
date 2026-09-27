@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mic, Square, X, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet } from 'lucide-react'
+import { Mic, Square, X, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet, Maximize2, Minimize2 } from 'lucide-react'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation } from '@/lib/speech'
@@ -268,6 +268,14 @@ function linksFromText(catalog: CatalogResponse, text?: string): ScreenLink[] {
 export function AssistantTab() {
   const session = useSession()
   const [open, setOpen] = useOpenState(false)
+  /* Full screen, remembered on this device (a per-viewer convenience). */
+  const [full, setFullState] = useState<boolean>(() => {
+    try { return localStorage.getItem('erp.assistant.full') === '1' } catch { return false }
+  })
+  const setFull = (v: boolean) => {
+    setFullState(v)
+    try { localStorage.setItem('erp.assistant.full', v ? '1' : '0') } catch { /* private mode */ }
+  }
   /* NOT ON SETTINGS.
    *
    * The orb floats above the dock at a fixed corner, which is right over a
@@ -763,9 +771,15 @@ export function AssistantTab() {
             paddingTop: 'env(safe-area-inset-top, 0px)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
-          className="fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card
-                     md:inset-y-0 md:left-auto md:right-0 md:w-[min(40vw,520px)]
-                     md:border-l md:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]"
+          className={cn(
+            'fixed inset-0 z-[60] flex h-full w-full flex-col overflow-hidden bg-card',
+            full
+              /* FULL SCREEN: the whole window, the conversation held to a
+                 readable column in the middle rather than stretched edge to
+                 edge. */
+              ? 'assistant-full [&>*:not(.assistant-corner)]:mx-auto [&>*:not(.assistant-corner)]:w-full [&>*:not(.assistant-corner)]:max-w-3xl'
+              : 'md:inset-y-0 md:left-auto md:right-0 md:w-[min(40vw,520px)] md:border-l md:shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.18)]',
+          )}
         >
           {/* NO HEADER BAR. The panel had a strip across the top -- orb, the
              word "Assistant", a status line and a close button -- and the
@@ -774,16 +788,32 @@ export function AssistantTab() {
              is a label on a thing that names itself. What must survive it is
              the way out on a phone, where the panel is the whole screen and
              there is no Escape key. One small close button in the corner. */}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close assistant"
-            className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-full
-                       text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          <div
+            className="assistant-corner absolute right-2 z-10 flex items-center gap-0.5"
             style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
           >
-            <X className="size-4" />
-          </button>
+            {/* Full screen, on a desk only: on a phone the panel already is. */}
+            <button
+              type="button"
+              onClick={() => setFull(!full)}
+              aria-label={full ? 'Exit full screen' : 'Full screen'}
+              aria-pressed={full}
+              title={full ? 'Exit full screen' : 'Full screen'}
+              className="hidden size-8 place-items-center rounded-full text-muted-foreground transition-colors
+                         hover:bg-accent hover:text-foreground md:grid"
+            >
+              {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close assistant"
+              className="grid size-8 place-items-center rounded-full
+                         text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
 
           {/* THE BALL IS ALWAYS AT THE TOP. It used to sit on the empty state
              and leave with it, so once a conversation had begun the one thing
