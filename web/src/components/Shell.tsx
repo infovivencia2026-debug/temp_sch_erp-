@@ -1094,13 +1094,13 @@ export function Shell({
               means anything, and the sidebar answers "where am I" rather than
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
-          <p className="min-w-0 truncate text-[calc(13.5px*var(--font-scale,1))]">
+          <p className="scope-glass min-w-0 truncate rounded-full border px-3.5 py-1.5 text-[calc(13.5px*var(--font-scale,1))]">
             {/* Who is signed in, first: on a shared office machine the
                 name is what stops one clerk working as another. */}
             {session.user?.full_name && (
               <span className="font-semibold">{session.user.full_name}<span className="font-normal text-muted-foreground"> · </span></span>
             )}
-            <span className="font-medium">{session.institution?.name ?? 'WISEN'}</span>
+            <span className="font-medium">{session.institution?.display_name || session.institution?.name || ''}</span>
             {/* Which desk you are sitting at, said up here as well: the role
                 is what decides what every screen below shows. */}
             {role?.name && <span className="text-muted-foreground"> · {role.name}</span>}

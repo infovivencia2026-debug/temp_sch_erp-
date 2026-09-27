@@ -111,7 +111,9 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
     // error that vanishes before it is read will simply happen again. Hovering
     // a confirmation holds it, so an Undo is never snatched away mid-reach.
     if (t.kind === 'error' || paused) return
-    const id = setTimeout(onDismiss, t.undo ? 4000 : 2400)
+    /* A plain confirmation: the tick draws (~450ms), holds half a second,
+       then fades over 350ms (.toast-square) and is removed. */
+    const id = setTimeout(onDismiss, t.undo ? 4000 : t.kind === 'ok' ? 1300 : 2400)
     return () => clearTimeout(id)
   }, [t.kind, t.undo, onDismiss, paused])
 
@@ -178,6 +180,21 @@ function Confirmation({ t, onDismiss, paused, setPaused }: {
   t: Toast; onDismiss: () => void; paused: boolean; setPaused: (p: boolean) => void
 }) {
   const ms = t.undo ? 4000 : 2400
+  if (!t.undo) {
+    /* 1:1. A square of glass, the tick in the accent disc, the words under it. */
+    return (
+      <div role="status" className="toast-glass toast-confirm toast-square pointer-events-auto grid aspect-square w-[132px] place-content-center justify-items-center gap-2.5 rounded-[28px] border p-3 text-center text-[13.5px] font-medium">
+        <span className="toast-mark relative grid h-11 w-11 place-items-center rounded-full" aria-hidden="true">
+          <span className="toast-ripple absolute inset-0 rounded-full" />
+          <svg viewBox="0 0 24 24" className="relative h-6 w-6" fill="none" stroke="currentColor"
+               strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+            <path className="toast-tick" d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        <p className="line-clamp-2 leading-snug">{t.message}</p>
+      </div>
+    )
+  }
   return (
     <div
       role="status"
@@ -242,11 +259,14 @@ const glassCSS = `
 .toast-timer { background: var(--tc); opacity: .55; animation: toast-timer var(--toast-ms) linear forwards; }
 .toast-timer[data-paused] { animation-play-state: paused; }
 @keyframes toast-draw { to { stroke-dashoffset: 0; } }
+.toast-square { animation: toast-pop 160ms cubic-bezier(.2,.9,.3,1.15), toast-fade 350ms ease 950ms forwards; }
+@keyframes toast-fade { to { opacity: 0; transform: scale(.96); } }
 @keyframes toast-ripple { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
 @keyframes toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) {
   .toast-tick { animation: none; stroke-dashoffset: 0; }
   .toast-ripple { animation: none; }
   .toast-timer { animation: none; opacity: 0; }
+  .toast-square { animation: toast-fade 350ms ease 950ms forwards; }
 }
 `

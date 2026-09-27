@@ -4,7 +4,7 @@ import { Skeleton, SkeletonText, SkeletonTable, SkeletonRows, SkeletonCards, Ske
 import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
-  Children, cloneElement, Fragment, isValidElement, useEffect, useRef, useState,
+  Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
   type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -67,6 +67,11 @@ export function CardHeader({
  * the same thing in a third of the vertical space, and the space goes to the
  * data instead.
  */
+/* A screen drawn INSIDE another page (the home's overview under its "Today"
+   figures): the host already has the gutter, so the guest's head and body
+   draw no page padding of their own and the head shrinks to a section label. */
+export const EmbeddedPage = createContext(false)
+
 export function PageHead({
   eyebrow,
   title,
@@ -82,6 +87,15 @@ export function PageHead({
   /** Must match the PageBody beneath it, or the two edges disagree. */
   width?: Width
 }) {
+  const embedded = useContext(EmbeddedPage)
+  if (embedded) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="eyebrow">{title}</p>
+        {actions}
+      </div>
+    )
+  }
   return (
     /* No bottom border. The rule under a page title is the most-repeated line
        in the product and it separates a heading from its own content -- the
@@ -167,6 +181,8 @@ export function PageBody({
      further in than the cards beneath it. Under Focus the layout already draws
      a gutter of its own and the token is only the difference, so the two do
      not stack to 36px a side on a 390px screen. */
+  const embedded = useContext(EmbeddedPage)
+  if (embedded) return <div className="mt-2.5 space-y-[var(--section-gap)]">{children}</div>
   return <div data-page-enter="" className={cn('space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10', WIDTH[width])}>{children}</div>
 }
 
@@ -348,6 +364,7 @@ export function Stat({
   period,
   onClick,
   active,
+  control,
 }: {
   label: string
   value: ReactNode
@@ -371,6 +388,8 @@ export function Stat({
   onClick?: () => void
   /** Whether this card's filter is the one currently applied. */
   active?: boolean
+  /** A small control beside the label (a picker that narrows the figure). */
+  control?: ReactNode
 }) {
   const Box = onClick ? 'button' : 'div'
   return (
@@ -386,7 +405,8 @@ export function Stat({
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[13px] text-muted-foreground">{label}</p>
-        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        {control}
+        {!control && Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
       </div>
       <p className="stat">{value}</p>
       {delta && (

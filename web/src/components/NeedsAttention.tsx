@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { EmbeddedPage } from '@/components/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -86,7 +87,7 @@ function markFor(label: string) {
   return hit ?? { icon: Bell, tint: 'bg-muted text-muted-foreground' }
 }
 
-export default function NeedsAttention({ name }: { name?: string }) {
+export default function NeedsAttention({ name, afterToday }: { name?: string; afterToday?: ReactNode }) {
   const navigate = useNavigate()
   const role = useActiveRole()
   const catalog = useCatalog()
@@ -307,6 +308,10 @@ export default function NeedsAttention({ name }: { name?: string }) {
           </div>
         </section>
       )}
+
+      {/* The role's own overview (the head's executive figures), directly
+          under Today and in its own layout. */}
+      {afterToday && <section><EmbeddedPage.Provider value><Suspense fallback={null}>{afterToday}</Suspense></EmbeddedPage.Provider></section>}
 
       {/* WHAT SOMEBODY PUT HERE THEMSELVES.
        *

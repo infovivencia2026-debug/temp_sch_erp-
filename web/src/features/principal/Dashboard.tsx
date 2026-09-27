@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid,
@@ -20,6 +21,7 @@ export default function PrincipalDashboard() {
   // Fee collection and arrears are for whoever answers for the money.
   const canSeeMoney = useCan()('finance.fees.read')
   const [range, setRange] = useRange()
+  const [sectionId, setSectionId] = useState('')
   const presets = useQuery({
     queryKey: ['date-ranges'],
     queryFn: () => api.get<{ items: RangeOption[] }>('/api/v1/date-ranges'),
@@ -41,6 +43,7 @@ export default function PrincipalDashboard() {
   if (kpis.isLoading) return <SkeletonTiles count={3} />
   if (kpis.error) return <ErrorState error={kpis.error} />
   const k = kpis.data!
+  const picked = sectionId ? k.students_by_section?.find((x) => x.section_id === sectionId) : undefined
   // Levels are true now whatever the range; saying so on the card stops a
   // balance being read as a period figure.
   const asOf = 'as of today'
@@ -68,8 +71,22 @@ export default function PrincipalDashboard() {
         <NeedsAttentionPanel limit={5} />
         <PrincipalBriefCard />
         <CellGrid cols={4}>
-          <Stat label="Students" value={k.students} icon={GraduationCap}
-            hint={`${k.sections} sections`} period={asOf} />
+          <Stat label="Students" icon={GraduationCap} period={asOf}
+            value={picked ? picked.students : k.students}
+            hint={picked ? picked.label : `${k.sections} sections`}
+            control={(k.students_by_section?.length ?? 0) > 0 ? (
+              <select
+                aria-label="Section"
+                value={sectionId}
+                onChange={(e) => setSectionId(e.target.value)}
+                className="max-w-[9rem] truncate rounded-md border bg-card px-1.5 py-0.5 text-[12px] text-foreground"
+              >
+                <option value="">All</option>
+                {k.students_by_section!.map((sec) => (
+                  <option key={sec.section_id} value={sec.section_id}>{sec.label}</option>
+                ))}
+              </select>
+            ) : undefined} />
           <Stat label="Staff" value={k.staff} icon={Users} period={asOf} />
           {/* TODAY, and said so.
             *

@@ -316,7 +316,7 @@ function FeatureRoute() {
       <Suspense fallback={<SkeletonPage />}>
         {isHome && (
           <PageBody>
-            <NeedsAttention name={session.user?.full_name.split(" ")[0]} />
+            <NeedsAttention name={session.user?.full_name.split(" ")[0]} afterToday={<Component key={feature.key} />} />
           </PageBody>
         )}
         {/* Keyed by the feature, not just by the component.
@@ -329,7 +329,7 @@ function FeatureRoute() {
             it had open. Each screen carries a guard for that, and every screen
             added later would need to remember one. A key ends it at the
             router, where the change actually happens. */}
-        <Component key={feature.key} />
+        {!isHome && <Component key={feature.key} />}
       </Suspense>
     </ChunkBoundary>
   )

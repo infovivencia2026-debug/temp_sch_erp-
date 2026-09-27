@@ -166,6 +166,18 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
   })
   if (roll.length) k.students_by_class = roll
 
+  /* Active students per section, for the Students card's section picker. */
+  const bySection = await c.db.prepare(`
+      SELECT se.id AS section_id, COALESCE(cl.name || ' - ', '') || se.name AS label, count(DISTINCT st.id) AS students
+        FROM sections se
+        LEFT JOIN classes cl ON cl.id = se.class_id
+        LEFT JOIN enrollments en ON en.section_id = se.id AND en.status = 'active'
+        LEFT JOIN students st ON st.id = en.student_id AND st.status = 'active'
+       GROUP BY se.id, cl.name, cl.level, se.name
+       ORDER BY cl.level IS NULL, cl.level, cl.name, se.name`).all()
+  const secs = (bySection.results as Record<string, unknown>[]).map((r) => ({ section_id: String(r.section_id), label: String(r.label), students: n(r.students) }))
+  if (secs.length) k.students_by_section = secs
+
   const ag = ageing.results[0] as Record<string, unknown> | undefined
   if (ag && n(ag.cnt) > 0) {
     k.outstanding_ageing = {
@@ -178,7 +190,7 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
     'outstanding_paise', 'defaulters', 'pending_leave',
     'open_applications', 'unassigned_subjects', 'students', 'staff', 'sections',
     'class_subjects_total', 'open_applications_by_status',
-    'pending_leave_by_type', 'students_by_class', 'outstanding_ageing']
+    'pending_leave_by_type', 'students_by_class', 'students_by_section', 'outstanding_ageing']
   return k
 }
 

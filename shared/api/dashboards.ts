@@ -46,6 +46,8 @@ export interface PrincipalDashboard {
   open_applications_by_status?: AppStatusCount[]
   pending_leave_by_type?: PendingLeaveGroup[]
   students_by_class?: ClassRollGroup[]
+  /** Active students in each section, for the Students card's picker. */
+  students_by_section?: { section_id: string; label: string; students: number }[]
   outstanding_ageing?: OutstandingAgeing
   range: DashboardRange
   as_of_now: string[]
