@@ -18,6 +18,7 @@ export interface Institution {
   support_email: string | null
   support_phone: string | null
   custom_domain: string | null
+  app_id: string | null
   teacher_day_code_secret: ArrayBuffer | null
   d1_database_id: string
   d1_binding: string
@@ -40,6 +41,9 @@ export async function institutionByHost(env: Env, host: string | null): Promise<
   return env.CONTROL.prepare('SELECT * FROM institutions WHERE custom_domain = ? COLLATE NOCASE')
     .bind(host.toLowerCase().replace(/:\d+$/, '')).first<Institution>()
 }
+
+/** The store id a school's apps get unless the seller sets another: com.wisen.<slug>. */
+export const defaultAppId = (i: Pick<Institution, 'slug'>) => `com.wisen.${i.slug.replace(/[^a-z0-9]/g, '')}`.replace(/\.(\d)/, '.s$1')
 
 /** Where a school's sign-in page lives on the shared host. */
 export const schoolPath = (i: Pick<Institution, 'country' | 'slug'>) => `/${i.country}/${i.slug}`

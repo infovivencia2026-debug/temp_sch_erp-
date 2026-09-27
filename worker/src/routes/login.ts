@@ -4,7 +4,7 @@ import { DUMMY_HASH, verifyPassword } from '../auth/password'
 import { issueSession } from '../auth/session'
 import { loginHTML, type Brand } from '../auth/login-page'
 import { askForCode } from '../pages/mfa'
-import { institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
+import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
 
 const CSRF = 'erp_csrf'
 const MAX_FAILS = 8
@@ -82,6 +82,32 @@ export async function schoolLogin(env: Env, req: Request, country: string, slug:
   if (req.method === 'GET') return pageFor(env, { next: safeNext(q.get('next')), school, action, remember: !q.has('preview') })
   if (req.method === 'POST') return login(env, req, school, action)
   return new Response(null, { status: 405, headers: { allow: 'GET, POST' } })
+}
+
+/* Everything a school's own app is built from, public and in one place, so
+   scripts/apps/build-school.sh needs only this address. Nothing about a
+   school is written into the app sources: change it in Tenants → Branding
+   and the next build picks it up. Name, colours and logo also show inside
+   the running app without a rebuild, because the app shows this page. */
+export async function schoolAppConfig(env: Env, req: Request, country: string, slug: string): Promise<Response | null> {
+  const s = await institutionByPath(env, country, slug)
+  if (!s) return null
+  const proto = req.headers.get('x-forwarded-proto') ?? new URL(req.url).protocol.replace(':', '')
+  const origin = s.custom_domain ? `https://${s.custom_domain}` : `${proto}://${hostOf(req)}`
+  const path = schoolPath(s)
+  const body = {
+    name: s.name,
+    short_name: s.short_name || s.name,
+    app_id: s.app_id ?? defaultAppId(s),
+    portal_url: s.custom_domain ? origin : origin + path,
+    // On its own domain the shared host is the other name the school answers on.
+    portal_aliases: s.custom_domain ? [hostOf(req)] : [],
+    primary_color: s.primary_color,
+    accent_color: s.accent_color ?? s.primary_color,
+    logo_url: s.logo_key ? `${origin}${path}/logo?v=${encodeURIComponent(s.logo_key.slice(-12))}` : null,
+  }
+  return new Response(JSON.stringify(body, null, 2), { headers: {
+    'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*' } })
 }
 
 /** The school's logo, public: it is on the sign-in page. */

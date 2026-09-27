@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS institutions (
   support_email TEXT,
   support_phone TEXT,
   custom_domain TEXT,
+  -- Store id of the school's own apps (scripts/apps/build-school.sh).
+  app_id TEXT,
   -- The school's own D1 database, and the Worker binding that reaches it.
   d1_database_id TEXT NOT NULL,
   d1_binding TEXT NOT NULL,
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS institutions (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS institutions_custom_domain ON institutions (custom_domain COLLATE NOCASE) WHERE custom_domain IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS institutions_app_id ON institutions (app_id) WHERE app_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS plans (
   code TEXT PRIMARY KEY,

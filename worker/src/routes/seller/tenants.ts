@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { HttpError, badRequest, created, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { hashPassword } from '../../auth/password'
-import { institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
+import { defaultAppId, institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
 import type { Env } from '../../env'
 import { notImplemented, requirePlatformAdmin } from './common'
 
@@ -383,7 +383,7 @@ export function registerSellerTenants(r: Router): void {
     requirePlatformAdmin(c)
     const inst = await institutionById(c.env, uuidParam(c.params.id))
     if (!inst) throw notFound('no such school')
-    const b = await readJSON<Partial<Record<(typeof BRAND_TEXT)[number] | 'country' | 'slug' | 'name' | 'primary_color' | 'accent_color' | 'custom_domain', string | null>>>(c.req)
+    const b = await readJSON<Partial<Record<(typeof BRAND_TEXT)[number] | 'country' | 'slug' | 'name' | 'primary_color' | 'accent_color' | 'custom_domain' | 'app_id', string | null>>>(c.req)
     const name = str(b.name, 200) ?? inst.name
     const country = (b.country ?? inst.country).trim().toLowerCase()
     if (!/^[a-z]{2}$/.test(country)) throw badRequest('country must be a two-letter code, like in')
@@ -396,13 +396,19 @@ export function registerSellerTenants(r: Router): void {
       domain = domain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
       if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) throw badRequest('that is not a domain name, like erp.school.edu.in')
     }
+    const appId = b.app_id === undefined ? inst.app_id : str(b.app_id, 150)?.toLowerCase() ?? null
+    if (appId && !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){2,}$/.test(appId)) throw badRequest('the app id looks like com.company.school: lowercase words joined by dots, each starting with a letter')
+    if (appId) {
+      const taken = await c.env.CONTROL.prepare('SELECT name FROM institutions WHERE id <> ? AND app_id = ?').bind(inst.id, appId).first<{ name: string }>()
+      if (taken) throw new HttpError(409, `${taken.name} already uses that app id`)
+    }
     const clash = await c.env.CONTROL.prepare(`SELECT name FROM institutions WHERE id <> ? AND (slug = ? OR (? IS NOT NULL AND custom_domain = ? COLLATE NOCASE))`)
       .bind(inst.id, slug, domain, domain).first<{ name: string }>()
     if (clash) throw new HttpError(409, `${clash.name} already uses that web address or domain`)
     const text = BRAND_TEXT.map((k) => (b[k] === undefined ? inst[k] : str(b[k], k === 'login_message' ? 400 : 160)))
-    await c.env.CONTROL.prepare(`UPDATE institutions SET name = ?, country = ?, slug = ?, primary_color = ?, accent_color = ?, custom_domain = ?,
+    await c.env.CONTROL.prepare(`UPDATE institutions SET name = ?, country = ?, slug = ?, primary_color = ?, accent_color = ?, custom_domain = ?, app_id = ?,
         ${BRAND_TEXT.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
-      .bind(name, country, slug, primary, accent, domain, ...text, now(), inst.id).run()
+      .bind(name, country, slug, primary, accent, domain, appId, ...text, now(), inst.id).run()
     // The app reads its name and colour from the school's own copy of the row.
     const db = openTenant(c.env, inst)
     if (db) await db.prepare('UPDATE institutions SET name = ?, primary_color = ? WHERE id = ?').bind(name, primary, inst.id).run()
@@ -820,5 +826,6 @@ function brandingOut(i: Institution) {
     logo_url: i.logo_key ? `${path}/logo?v=${encodeURIComponent(i.logo_key.slice(-12))}` : null,
     tagline: i.tagline, login_headline: i.login_headline, login_message: i.login_message,
     support_email: i.support_email, support_phone: i.support_phone, custom_domain: i.custom_domain,
+    app_id: i.app_id, app_id_default: defaultAppId(i), app_config: `${path}/app.json`,
   }
 }

@@ -41,14 +41,18 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.schoolerp.parent"
+        /* A school's own app (scripts/apps/build-school.sh) passes its store
+           id, version and address as -P properties from the school's
+           app.json; with none this is the WISEN app. No school is written
+           into this file. */
+        applicationId = (project.findProperty("appId") as String?) ?: "com.schoolerp.parent"
         // 24 rather than the tracker's 26: this asks nothing of the platform
         // that a 2016 phone cannot do, and the families least likely to own a
         // new handset are the ones who most need the bus on a screen.
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "1.0.0"
 
         /* One deployment, one address, compiled in. The tracker learned this
            the hard way: a field asking a driver for a server address is a

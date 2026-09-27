@@ -1159,6 +1159,9 @@ interface Branding {
   support_email: string | null
   support_phone: string | null
   custom_domain: string | null
+  app_id: string | null
+  app_id_default: string
+  app_config: string
 }
 
 const COUNTRIES: [string, string][] = [
@@ -1268,7 +1271,13 @@ function BrandingForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void
             <Field label="Help email">
               <Input value={b.support_email ?? ''} onChange={set('support_email')} placeholder="office@school.edu.in" />
             </Field>
-            <Field label="Logo" hint="PNG, JPEG, WebP or SVG, under 512 KB. Saved straight away.">
+            <Field
+              label="App id"
+              hint="The store id of this school's Android, iPhone and desktop apps. Set it before the first upload: a store never lets it change."
+            >
+              <Input value={b.app_id ?? ''} onChange={set('app_id')} placeholder={b.app_id_default} />
+            </Field>
+            <Field label="Logo" hint="A square PNG or JPEG, under 512 KB, also makes the app icons. Saved straight away.">
               <div className="flex items-center gap-3">
                 {b.logo_url && <img src={b.logo_url} alt="" className="h-10 w-10 rounded border bg-white object-contain" />}
                 <input
@@ -1291,6 +1300,19 @@ function BrandingForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void
             </Button>
             <a href={current.data!.path} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] text-accent hover:underline">
               Open sign-in page <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+          <div className="mt-5 rounded-lg border p-3 text-[12.5px]">
+            <p className="font-medium">This school’s own apps</p>
+            <p className="mt-1 text-muted-foreground">
+              Screens, fixes and this page’s name, colours and logo reach installed apps with no update.
+              A new store name, icon or app id needs a fresh build, made from this page’s settings:
+            </p>
+            <code className="mt-2 block break-all rounded bg-[hsl(var(--surface-hover))] px-2 py-1.5">
+              python3 scripts/apps/build-school.py {address}
+            </code>
+            <a href={current.data!.app_config} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-accent hover:underline">
+              What the apps are built from <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
           {dirty && <p className="mt-2 text-[12.5px] text-muted-foreground">The preview shows the saved page; save to see changes.</p>}
