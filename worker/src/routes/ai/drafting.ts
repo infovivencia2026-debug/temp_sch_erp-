@@ -186,7 +186,7 @@ async function draft(c: Ctx) {
   const prompt = `Task: ${ctx.task}\n\nFacts:\n${ctx.facts}` +
     (notes ? `\n\nPoints the writer wants covered:\n${notes}` : '') +
     (current ? `\n\nTheir current text (improve on it, keep what is good):\n"""${current}"""` : '')
-  const raw = await aiGenerate(c.env, c.db, draftSystem(language, tone, length, n), prompt, { maxTokens: 1500 })
+  const raw = await aiGenerate(c.env, c.db, draftSystem(language, tone, length, n), prompt, { maxTokens: 4000 })
   return ok({ drafts: parseDrafts(raw, n), label: 'AI draft', configured: true, kind, language, tone, length, model: AI_MODEL })
 }
 

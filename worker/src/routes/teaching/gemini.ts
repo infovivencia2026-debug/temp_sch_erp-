@@ -79,7 +79,7 @@ async function geminiGenerate(c: Ctx, system: string, contents: { role: string; 
   const out = await geminiRequest(c, {
     system_instruction: { parts: [{ text: system }] },
     contents,
-    generationConfig: { maxOutputTokens: maxTokens },
+    generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
   }, timeoutMs) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
   return (out.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
 }
