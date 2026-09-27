@@ -65,6 +65,14 @@ env:
   # The Cloud Run service itself, asked directly so that "Cloudflare is down"
   # and "the app is down" are distinguishable from the issue alone.
   API_URL: https://temperp-web-480232416236.asia-south1.run.app
+  # The Cloudflare Worker (worker/, deployed by worker.yml), asked for
+  # /healthz, which on Workers IS a real answer from the Worker itself
+  # (unlike Cloud Run's edge, see above). It is the test stack until the
+  # switchover (docs/d1-migration.md), so for now a failure is reported in the
+  # run and in any outage issue's detail but does not by itself call the site
+  # DOWN. Set WORKER_GATES to "true" at switchover.
+  WORKER_URL: https://school-erp.infovivencia2026.workers.dev
+  WORKER_GATES: "false"
   # Every timestamp shown to a human is in this zone; the school is in India.
   TZ_SHOW: Asia/Kolkata
 
@@ -96,6 +104,13 @@ jobs:
         continue-on-error: true
         run: bash scripts/uptime-check.sh "$API_URL"
 
+      - name: Probe the Worker's /healthz
+        id: worker
+        continue-on-error: true
+        env:
+          HEALTH_PATH: /healthz
+        run: bash scripts/uptime-check.sh "$WORKER_URL"
+
       # One verdict out of two probes: DOWN if either is, and a detail that
       # names the layer, so the issue body is already half the diagnosis.
       - name: Combine the two probes
@@ -107,6 +122,8 @@ jobs:
           RUN_STATUS: ${{ steps.run.outputs.status }}
           RUN_DETAIL: ${{ steps.run.outputs.detail }}
           RUN_HTTP: ${{ steps.run.outputs.http }}
+          WORKER_STATUS: ${{ steps.worker.outputs.status }}
+          WORKER_DETAIL: ${{ steps.worker.outputs.detail }}
         run: |
           set -euo pipefail
           # An empty status means the probe step crashed before writing any
@@ -118,6 +135,13 @@ jobs:
           status=up
           [ "$PAGES_STATUS" = up ] && [ "$RUN_STATUS" = up ] || status=down
           detail="Pages ($SITE_URL): $PAGES_STATUS, $PAGES_DETAIL | Cloud Run ($API_URL): $RUN_STATUS, $RUN_DETAIL"
+          # The Worker: always in the detail; part of the verdict only once it
+          # is production (WORKER_GATES). An empty status is a crashed probe.
+          detail="$detail | Worker ($WORKER_URL/healthz): ${WORKER_STATUS:-no result}, ${WORKER_DETAIL:-}"
+          if [ "${WORKER_STATUS:-}" != up ]; then
+              echo "::warning::the Worker's /healthz is not up: ${WORKER_DETAIL:-no result}"
+              if [ "$WORKER_GATES" = true ]; then status=down; fi
+          fi
           {
             echo "status=$status"
             echo "http=$PAGES_HTTP/$RUN_HTTP"

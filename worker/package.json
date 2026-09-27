@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/integration",
     "db:control:local": "wrangler d1 execute CONTROL --local --file=db/control.sql",
     "db:control:remote": "wrangler d1 execute CONTROL --remote --yes --file=db/control.sql",
     "migrate": "node --no-warnings scripts/migrate.mjs",
     "schema:sync": "node --no-warnings scripts/schema-sync.mjs",
     "schema:check": "node --no-warnings scripts/schema-sync.mjs --check",
-    "test:migrate": "node --no-warnings scripts/test-migrate.mjs"
+    "test:migrate": "node --no-warnings scripts/test-migrate.mjs",
+    "test": "vitest run && npm run test:unit",
+    "test:integration": "vitest run",
+    "test:unit": "bash scripts/test-provision.sh && bash scripts/test-billing.sh"
   },
   "dependencies": {
     "bcryptjs": "^3",
@@ -19,8 +22,10 @@
     "qrcode-generator": "^2.0.4"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^4",
     "typescript": "^5",
+    "vitest": "^4.1.11",
     "wrangler": "^4"
   }
 }

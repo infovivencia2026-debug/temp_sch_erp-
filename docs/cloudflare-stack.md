@@ -100,6 +100,125 @@ npx wrangler pages deploy --branch main
 Never deploy that config to the `school-erp` Pages project; that is the live
 site and it builds from git.
 
+## Testing and deploying
+
+### Running the tests locally
+
+Node 22+ (`export PATH=~/tools/node22/bin:$PATH` on the build boxes).
+
+```
+cd worker
+npm install --legacy-peer-deps   # once
+npm test                         # integration tests, then the node --test suites
+npx vitest run                   # integration tests only (~15-20 s)
+npx vitest run test/integration/fees.test.ts   # one file
+npm run typecheck                # src and tests
+npm run test:unit                # scripts/test-provision.sh + scripts/test-billing.sh
+
+cd ../web
+npx vitest run                   # plain run (a few known failures, below)
+npm run test:ci                  # what CI runs: fails only on unlisted failures
+```
+
+**Worker integration tests** (`worker/test/integration/`, config in
+`worker/vitest.config.ts`) run the real Worker inside workerd through
+`@cloudflare/vitest-pool-workers`: Miniflare gives it local D1, R2, the
+queue and the LiveHub Durable Object. Bindings come from
+`test/integration/wrangler.test.jsonc`, never from `wrangler.jsonc`, so a
+test cannot reach a Cloudflare resource and needs no account. Its
+`compatibility_date` trails production's because the bundled workerd only
+supports dates up to its own release; raise it when the package is updated.
+
+`fixture.ts` builds CONTROL from `db/control.sql` and the school database
+from `db/tenant.sql`, creates the school through the real provisioning code
+(`runProvision`, with the D1 API answered by the local binding, so the roles
+and permissions are the real seed), then seeds with fixed ids: an admin, a
+class teacher, a finance clerk, two parents each with one child in Class 5 A,
+Mathematics, a half-yearly exam with one paper, and a Rs 5,000 tuition
+invoice per child. Everyone signs in through `GET`/`POST /login` with the
+CSRF cookie, like a browser. Each test file gets its own fresh storage, so
+files may change data (the subscription gate test suspends the school)
+without affecting each other.
+
+| File | Covers |
+|---|---|
+| `auth.test.ts` | sign-in, wrong password, CSRF, session shape, logout, 401 |
+| `students.test.ts` | roll, search, profile, 404, 403 for a parent |
+| `attendance.test.ts` | teacher marks the register, correction, parent told, portal view |
+| `fees.test.ts` | collect, receipt, ledger balance, dashboard totals add up, invoice paid |
+| `exams.test.ts` | marks entry and limits, report cards with ranks, regenerate |
+| `access.test.ts` | parent cannot read another family's child, permission 403s, subscription 402 |
+| `live.test.ts` | staff chat, the LiveHub SSE `message` event reaching the recipient |
+| `background.test.ts` | a job from `POST /jobs` runs on the queue consumer; cron tick baseline then enqueue |
+
+A new route's test: add a file, `beforeAll(seed)`, and use
+`api('admin' | 'teacher' | 'finance' | 'parent' | 'otherParent', method, path, body)`.
+Anything the seed lacks, insert in the test through `E.TENANT_TEST`.
+
+**Known web failures.** `web/known-test-failures.txt` lists the web tests
+that were already red upstream (paint.test "Vivid: mint on card", and four
+size-tiers tests; see `docs/audit-2026-09-23.md`). They still run;
+`web/scripts/check-test-failures.mjs` fails the build on any failure *not*
+in the list and names listed tests that have started passing. Delete a line
+when its test is fixed; never add one to hide a new failure.
+
+### What CI does
+
+`.github/workflows/worker.yml`, on every pull request and every push to
+`cloudflare-workers` and `main`:
+
+1. **check**: `npm ci` in `worker/` and `web/`; `tsc` for the worker (src and
+   tests) and the web; worker integration tests; worker unit tests; web tests
+   (known failures allowed); `vite build`. The web build is kept as an
+   artifact for the jobs below.
+2. **deploy**, on a push to `cloudflare-workers` only, after check passes:
+   `wrangler deploy` of the Worker, a `/healthz` check, then the test Pages
+   site: `web/dist` plus `web/functions` with a generated `wrangler.toml`
+   (`name = "school-erp-d1"`, `API_ORIGIN` = the Worker) deployed to project
+   `school-erp-d1`, branch `main`. The repo's `web/wrangler.toml` (project
+   `school-erp`, the live site) is never used, and nothing deploys to
+   `school-erp`.
+3. **preview**, on a pull request from this repository: the PR's web build as
+   a Pages branch deployment of `school-erp-d1` (branch `pr-<number>`), against
+   the test Worker; the URL is in the run summary. Pull requests from forks
+   get only the check, since GitHub gives them no secrets.
+
+A push to `main` is tested but never deployed by this workflow.
+`uptime.yml` also probes the Worker's `/healthz` every ten minutes; until
+switchover a failure there is a warning and a line in the outage issue, not
+an outage by itself (`WORKER_GATES` in that file).
+
+### GitHub secrets
+
+Settings > Secrets and variables > Actions > New repository secret:
+
+| Secret | Value |
+|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | the account id (dashboard, Workers & Pages, right-hand column) |
+| `CLOUDFLARE_API_TOKEN` | a token made as below |
+
+The token: My Profile > API Tokens > Create Token > Custom token, with
+**Account** permissions on this one account only:
+
+| Permission | Level | Why |
+|---|---|---|
+| Workers Scripts | Edit | `wrangler deploy` uploads the Worker, its cron trigger and Durable Object migration |
+| Cloudflare Pages | Edit | deploys to `school-erp-d1` (production and PR branches) |
+| D1 | Edit | `wrangler deploy` checks every `d1_databases` binding |
+| Workers R2 Storage | Edit | checks the `r2_buckets` bindings |
+| Queues | Edit | attaches the queue consumer |
+| Account Settings | Read | lets wrangler look up the account and its workers.dev subdomain |
+
+plus **User > User Details > Read** and **User > Memberships > Read** (wrangler
+asks who it is on start). No zone permissions are needed while the Worker is
+on workers.dev; add **Zone > Workers Routes > Edit** for the zone if it gets a
+route on a custom domain. Set a short expiry and an IP filter if you like;
+GitHub's runners have no fixed IPs, so leave that open for CI.
+
+The Worker's own runtime secrets (`PASSWORD_PEPPER`, `CF_API_TOKEN`, ...) stay
+in Cloudflare (`wrangler secret put`); `wrangler deploy` keeps them and CI
+never sees them.
+
 ## Configuration
 
 Bindings (in `worker/wrangler.jsonc`):

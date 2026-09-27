@@ -1,0 +1,32 @@
+// The Worker as the integration tests see it (vitest.config.ts): the same
+// entry point, queue, Durable Object and cron as wrangler.jsonc, but only
+// local bindings -- CONTROL plus one school, TENANT_TEST. Miniflare runs
+// real D1, R2, Queues and the LiveHub; nothing reaches Cloudflare.
+{
+  "name": "school-erp-test",
+  "main": "../../src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "SESSION_TTL_SECONDS": "2592000",
+    "SESSION_IDLE_SECONDS": "86400",
+    "COOKIE_SECURE": "false",
+    "APP_ENV": "test",
+    "PASSWORD_PEPPER": "integration-test-pepper"
+  },
+  "r2_buckets": [
+    { "binding": "FILES", "bucket_name": "files-test" },
+    { "binding": "FILES_WRITE", "bucket_name": "files-write-test" }
+  ],
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "jobs-test" }],
+    "consumers": [{ "queue": "jobs-test", "max_batch_size": 10, "max_batch_timeout": 0, "max_retries": 1 }]
+  },
+  "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [
+    { "binding": "CONTROL", "database_name": "control-test", "database_id": "00000000-0000-4000-8000-00000000c001" },
+    { "binding": "TENANT_TEST", "database_name": "tenant-test", "database_id": "00000000-0000-4000-8000-00000000d001" }
+  ]
+}
