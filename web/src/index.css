@@ -1109,11 +1109,16 @@
   .card > :is(.form-grid, form, fieldset):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' py-']) {
     padding: 1.25rem;
   }
+  /* The ^= tests matter: a class list that STARTS with the utility has no
+     leading space, so `mx-auto max-w-md` (every EmptyState line) slipped past
+     the ' mx-' test, lost its auto margins to 1.25rem and sat left of
+     centre. An empty state already pads itself (p-10), so its last line takes
+     no extra bottom margin either, which had pushed its text above centre. */
   .card > :is(.form-grid, form, fieldset) + :is(.form-grid, form, fieldset) { padding-top: 0; }
-  .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']) {
+  .card > :is(p, label, button, a.btn, .field, .form-notice):not([class*=' p-']):not([class^='p-']):not([class*=' px-']):not([class*=' m-']):not([class*=' mx-']):not([class^='m-']):not([class^='mx-']):not([class^='px-']) {
     margin-inline: 1.25rem;
   }
-  .card > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: 1.25rem; }
+  .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: 1.25rem; }
 
   /* Content settles in once, on mount. Short and small: a long slide is
      theatre, and an operator opening the same screen forty times a day will
@@ -1155,6 +1160,17 @@
    the frozen first column that keeps the row's name on screen while the
    figures scroll past. */
 
+/* THE LAST COLUMN CLEARS THE EXPAND BUTTON.
+
+   The full-screen button sits over the table's top-right corner, which is the
+   last header cell, so "Collected" and "Contact" were printed underneath a
+   translucent square. The last column's cells get the button's width as extra
+   right padding -- header and body together, so a right-aligned money column
+   stays aligned with its own heading. */
+[data-table-expandable] tr > :last-child {
+  padding-right: 3rem;
+}
+
 /* A CELL HOLDS ITS LINE.
 
    `overflow-wrap: anywhere` on td (above) let a squeezed column break a
@@ -1165,7 +1181,10 @@
    `whitespace-normal`, and the print rules above re-enable wrapping for
    paper, where there is no scroller. Block children inside a cell (a name
    over a sub-line) still stack, because nowrap is about text, not boxes. */
-.responsive-table :where(th, td) {
+/* The opt-out has to be named here: this rule sits after the utilities in
+   the cascade at the same specificity, so a bare `whitespace-normal` on a
+   cell lost to it and the "cell that wants to wrap" never could. */
+.responsive-table :where(th, td):not(.whitespace-normal) {
   white-space: nowrap;
   overflow-wrap: normal;
 }

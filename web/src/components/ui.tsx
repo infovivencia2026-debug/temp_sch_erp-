@@ -894,7 +894,7 @@ export function Table({
 
   if (!full) {
     return (
-      <div className="relative">
+      <div className="relative" data-table-expandable="">
         <button
           type="button"
           onClick={() => setFull(true)}

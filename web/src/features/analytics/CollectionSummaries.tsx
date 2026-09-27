@@ -117,7 +117,7 @@ export default function CollectionSummaries() {
           ) : (
             <Table
               head={[
-                'Period', 'Receipts',
+                'Period', { label: 'Receipts', align: 'right' },
                 { label: 'Cash', align: 'right' },
                 { label: 'Cheque/DD', align: 'right' },
                 { label: 'Online', align: 'right' },
@@ -130,7 +130,7 @@ export default function CollectionSummaries() {
               {rows.map((r) => (
                 <tr key={r.bucket}>
                   <Td className="font-medium">{r.bucket}</Td>
-                  <Td>{r.receipts}</Td>
+                  <Td className="text-right tabular-nums">{r.receipts}</Td>
                   <Td className="text-right">{formatPaise(r.cash_paise)}</Td>
                   <Td className="text-right">{formatPaise(r.cheque_paise)}</Td>
                   <Td className="text-right">{formatPaise(r.online_paise)}</Td>
@@ -184,7 +184,7 @@ export default function CollectionSummaries() {
             ) : (
               <Table
                 head={[
-                  'Collected by', 'Receipts',
+                  'Collected by', { label: 'Receipts', align: 'right' },
                   { label: 'Cash', align: 'right' },
                   { label: 'Total', align: 'right' },
                   'Receipt range',
@@ -194,7 +194,7 @@ export default function CollectionSummaries() {
                 {(collectors.data?.items ?? []).map((c) => (
                   <tr key={c.collector}>
                     <Td className="font-medium">{c.collector}</Td>
-                    <Td>{c.receipts}</Td>
+                    <Td className="text-right tabular-nums">{c.receipts}</Td>
                     <Td className="text-right">{formatPaise(c.cash_paise)}</Td>
                     <Td className="text-right font-medium">{formatPaise(c.total_paise)}</Td>
                     <Td className="font-mono text-[12px] text-muted-foreground">

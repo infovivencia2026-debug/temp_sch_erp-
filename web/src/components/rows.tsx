@@ -146,7 +146,10 @@ export function SearchBox({
         {has ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
       </button>
       <Input value={value} onChange={onChange} placeholder={placeholder}
-        srLabel={placeholder} className="pl-9" />
+        /* On a touch screen the magnifier grows to its 44px floor, which
+           moves its glyph right onto the first letter of the placeholder;
+           the text steps over by the same amount. */
+        srLabel={placeholder} className="pl-9 [@media(pointer:coarse)]:pl-12" />
     </div>
   )
 }

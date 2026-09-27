@@ -655,7 +655,12 @@ function UnlinkedRow({ e, canWrite }: { e: Employee; canWrite: boolean }) {
           </span>
         </span>
       </Td>
-      <Td className="text-muted-foreground">{e.designation ?? '-'}</Td>
+      {/* A login with no staff record lists every role it holds here, which
+          on one line stretched the column across the page and pushed Contact
+          under the table's edge. Capped and allowed to wrap. */}
+      <Td className="text-muted-foreground">
+        <span className="block min-w-[12rem] max-w-[20rem] whitespace-normal">{e.designation ?? '-'}</span>
+      </Td>
       <Td className="text-muted-foreground">-</Td>
       <Td className="text-[13px]">
         {e.phone && (
