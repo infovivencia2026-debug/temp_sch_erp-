@@ -104,12 +104,15 @@ export async function geminiRequest(c: Ctx, payload: Record<string, unknown>, ti
     if (typeof rawKey === 'string' && rawKey.trim() !== '') {
       const apiKey = extractApiKey(rawKey)
       if (!apiKey) throw new GeminiNotConfigured('GOOGLE_API_KEY does not hold a Google API key (expected AIza... or AQ....); set it to the bare key')
-      if (apiKey.startsWith('AQ.')) {
+      /* AI Studio now issues keys in both formats (AIza... and AQ....), and
+         both work on the Gemini API. Try that first; an AQ. key that the
+         Gemini API refuses may be a Vertex express-mode key, so retry there. */
+      const gemini = () => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
+        { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) })
+      resp = await gemini()
+      if (apiKey.startsWith('AQ.') && (resp.status === 401 || resp.status === 403 || resp.status === 400)) {
         resp = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
           { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      } else {
-        resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
-          { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) })
       }
     } else {
       const { project, token } = await credentials(c, signal)
