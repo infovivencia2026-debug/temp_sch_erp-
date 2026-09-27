@@ -2434,17 +2434,36 @@ dialog,
    While the crossing runs the arrival fade on [data-page-enter] is switched
    off, or the new screen would fade twice. Reduced motion never starts a
    transition (App.tsx), so these rules never apply there. */
+/* NOTHING MOVES WHEN YOU CLICK. The crossing used to scale the whole window
+   (leave to 98.5%, arrive from 101.5%), and because the root snapshot is the
+   entire screen, the dock, the rail, the header and the corner controls all
+   breathed with it: every click read as the body of the app lurching. Now it
+   is a short fade and nothing else, and the frame that doesn't change between
+   screens is lifted out of the crossing (named below) so it stays perfectly
+   still while only the page underneath changes. */
 ::view-transition-old(root) {
-  animation: vt-leave 200ms var(--motion-ease) both;
+  animation: vt-leave 120ms linear both;
 }
 ::view-transition-new(root) {
-  animation: vt-arrive 340ms var(--motion-ease) both;
+  animation: vt-arrive 160ms linear both;
 }
 @keyframes vt-leave {
-  to { opacity: 0; transform: scale(0.985); }
+  to { opacity: 0; }
 }
 @keyframes vt-arrive {
-  from { opacity: 0; transform: scale(1.015); }
+  from { opacity: 0; }
+}
+/* The frame: its own snapshot group, shown as-is with no animation. */
+.bento-dock { view-transition-name: erp-dock; }
+.bento-corner { view-transition-name: erp-corner; }
+[data-app-rail] { view-transition-name: erp-rail; }
+::view-transition-group(erp-dock),
+::view-transition-group(erp-corner),
+::view-transition-group(erp-rail),
+::view-transition-old(erp-dock), ::view-transition-new(erp-dock),
+::view-transition-old(erp-corner), ::view-transition-new(erp-corner),
+::view-transition-old(erp-rail), ::view-transition-new(erp-rail) {
+  animation: none;
 }
 html:active-view-transition [data-page-enter] { animation: none; }
 

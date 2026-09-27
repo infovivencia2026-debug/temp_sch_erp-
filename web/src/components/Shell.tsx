@@ -585,6 +585,7 @@ export function Shell({
         id="shell-nav"
         ref={asideRef}
         data-paint="sidebar"
+        data-app-rail=""
         /* A drawer over the page is a dialog; a rail in the page is not.
 
            Only while it is actually the phone drawer, because announcing
