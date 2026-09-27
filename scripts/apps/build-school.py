@@ -82,6 +82,24 @@ def replace(path: Path, old: str, new: str) -> None:
     path.write_text(s.replace(old, new, 1))
 
 
+def android_env() -> dict:
+    """JDK 17+ and the SDK, found where Homebrew and Android Studio put them when not set."""
+    env = {}
+    if not os.environ.get('JAVA_HOME'):
+        for c in ['/opt/homebrew/opt/openjdk@17', '/opt/homebrew/opt/openjdk@21', '/opt/homebrew/opt/openjdk',
+                  '/Applications/Android Studio.app/Contents/jbr']:
+            home = Path(c) / 'libexec/openjdk.jdk/Contents/Home'
+            home = home if home.exists() else Path(c) / 'Contents/Home'
+            if (home / 'bin/java').exists():
+                env['JAVA_HOME'] = str(home)
+                break
+    if not os.environ.get('ANDROID_HOME'):
+        sdk = Path.home() / 'Library/Android/sdk'
+        if sdk.exists():
+            env['ANDROID_HOME'] = str(sdk)
+    return env
+
+
 def android(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args) -> None:
     app = work / 'android'
     copy(ANDROID, app)
@@ -106,7 +124,7 @@ def android(cfg: dict, work: Path, logo: Path | None, ver: tuple[int, str], args
     props = [f'-PappId={cfg["app_id"]}', f'-PportalUrl={cfg["portal_url"]}', f'-PversionCode={ver[0]}', f'-PversionName={ver[1]}']
     if cfg.get('portal_aliases'):
         props.append('-PportalAliases=' + ','.join(cfg['portal_aliases']))
-    run(['./gradlew', '--no-daemon', ':app:bundleRelease', ':app:assembleRelease', *props], app)
+    run(['./gradlew', '--no-daemon', ':app:bundleRelease', ':app:assembleRelease', *props], app, android_env())
     out = work / 'out'
     for f in (app / 'app/build/outputs').rglob('*-release.a*'):
         shutil.copy(f, out / f'{cfg["app_id"]}-{ver[1]}{f.suffix}')
