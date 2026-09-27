@@ -404,16 +404,24 @@ export function AssistantTab() {
   const [printedLen, setPrintedLen] = useState(0)
   const [printingIdx, setPrintingIdx] = useState(-1)
   const [caretIdx, setCaretIdx] = useState(-1)
-  const printCount = useRef(turns.length)
+  /* Print each answer once, when its text first arrives. The agent adds an
+     empty bubble and fills it later, so "a new turn" is not the trigger;
+     "a bot turn that just got text" is. History present at mount never
+     prints. Keyed on the last turn's id and text only, so a later patch to
+     its steps or card does not cancel a print in progress. */
+  const turnKey = (t: Turn | undefined, i: number) => (t ? `${t.uid ?? 'i' + i}` : '')
+  const printed = useRef<Set<string> | null>(null)
+  if (printed.current === null) printed.current = new Set(turns.map((t, i) => turnKey(t, i)).filter((_k, i) => turns[i].text !== ''))
+  const lastIdx = turns.length - 1
+  const lastTurn = turns[lastIdx]
+  const lastKey = turnKey(lastTurn, lastIdx)
+  const lastText = lastTurn?.role === 'bot' ? lastTurn.text : ''
   useEffect(() => {
-    if (turns.length <= printCount.current) {
-      printCount.current = turns.length
-      return
-    }
-    printCount.current = turns.length
-    const i = turns.length - 1
+    const i = lastIdx
     const last = turns[i]
-    if (!last || last.role !== 'bot') return
+    if (!last || last.role !== 'bot' || last.text === '') return
+    if (printed.current!.has(lastKey)) return
+    printed.current!.add(lastKey)
 
     // Every answer prints -- it is how the bot shows it just wrote the reply.
     // The one exception is reduced motion, where it lands whole.
@@ -443,9 +451,9 @@ export function AssistantTab() {
         lingerTimer = window.setTimeout(() => setCaretIdx((c) => (c === i ? -1 : c)), CARET_LINGER_MS)
       }
     }, delay)
-    return () => { window.clearInterval(timer); window.clearTimeout(lingerTimer) }
+    return () => { window.clearInterval(timer); window.clearTimeout(lingerTimer); setPrintingIdx((p) => (p === i ? -1 : p)) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns])
+  }, [lastKey, lastText])
 
   // Keep the log pinned to the bottom as the answer prints, not only when a
   // whole turn arrives -- but only for somebody who was at the bottom.
