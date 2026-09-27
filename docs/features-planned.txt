@@ -1,0 +1,23 @@
+# Catalogue features that are deliberately not built yet ("planned").
+#
+# feature:check (scripts/feature.mjs) fails on a catalogue feature with no
+# screen in web/src/features/registry.ts (or a *-keys.ts fragment) unless its
+# key is listed here. The menu shows these as "catalogued, not built" (the
+# FeatureRoute placeholder). Build one and take it off this list; the check
+# fails if a listed key gains a screen and stays here.
+#
+# One key per line; '#' starts a comment.
+
+# Third-party integrations with no provider contracted.
+super_admin.statutory_boards.digilocker_issuer_integration   # DigiLocker issuer onboarding
+transport_manager.transport.fuel_sensor_mileage_telematics    # needs a telematics vendor
+transport_manager.transport.seatbelt_cctv_video_streaming     # needs an MDVR/CCTV vendor
+transport_manager.transport.ais_140_telematics_vahan_compliance  # AIS-140 device + VAHAN feed
+
+# AI features: not built.
+super_admin.ai_automation.ai_sentiment_analysis_on_feedback
+super_admin.ai_automation.automated_exam_question_translation
+faculty.question_papers_online_tests.ved_ai_assessment_assistant
+admissions.enquiries.24_7_admission_chatbot
+admissions.enquiries.ai_voice_agent_integration
+student.learning.ai_personal_learning_companion

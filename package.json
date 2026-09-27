@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "feature:new": "node scripts/feature.mjs new",
+    "feature:rename": "node scripts/feature.mjs rename",
+    "feature:remove": "node scripts/feature.mjs remove",
+    "feature:check": "node scripts/feature.mjs check"
+  },
   "dependencies": {
     "@playwright/test": "^1.62.1",
     "playwright": "^1.62.1"
