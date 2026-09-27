@@ -177,9 +177,11 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
   'seller_admin.schools.schools': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.add_school': screen(() => import('./seller/Tenants')),
   'seller_admin.schools.access': screen(() => import('./seller/Tenants')),
-  'seller_admin.schools.setup': screen(() => import('./seller/Tenants')),
+  // Onboarding tracker: milestones read from each school's own records.
+  'seller_admin.schools.setup': screen(() => import('./seller/Onboarding')),
   'seller_admin.subscriptions_billing.plans_pricing': screen(() => import('./seller/Tenants')),
-  'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Tenants')),
+  // Invoices, payments and balances per school (seller billing).
+  'seller_admin.subscriptions_billing.subscription_ledger': screen(() => import('./seller/Billing')),
   'seller_admin.subscriptions_billing.license_capacity': screen(() => import('./seller/Tenants')),
   'seller_admin.subscriptions_billing.message_credits': screen(() => import('./seller/RechargeQueue')),
 

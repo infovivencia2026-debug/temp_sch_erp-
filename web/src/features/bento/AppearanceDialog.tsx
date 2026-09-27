@@ -212,8 +212,9 @@ type LinkSpec = {
       Absent on the two rows below that are not catalogue features at all --
       see `always` on the group. */
   at?: [string, string]
-  /** Where a built-in row goes, and what it is called. Only for rows with no
-      `at`, which the catalogue therefore never gets a vote on. */
+  /** Where a built-in row goes, and what it is called. Without `at` the
+      catalogue never gets a vote on it; with `at`, the catalogue feature only
+      decides who sees the row (Billing, gated on school setup). */
   href?: string
   name?: string
   /** What the screen does, said the way somebody would say it out loud. */
@@ -280,6 +281,13 @@ const LINK_GROUPS: LinkGroup[] = [
       {
         at: ['getting_started', 'school_setup'],
         note: 'The sixteen steps of setting the school up, in order, with what is done and what is left.',
+      },
+      // The school's invoices from the vendor; shown to whoever holds school setup.
+      {
+        at: ['getting_started', 'school_setup'],
+        href: '/billing',
+        name: 'Billing',
+        note: 'The subscription, its invoices and what is still due, and how to pay.',
       },
       {
         at: ['staff', 'privacy'],
@@ -466,8 +474,8 @@ function useSettingsLinks(): { group: LinkGroup; links: ResolvedLink[] }[] {
           )
           if (feature) {
             return {
-              href: featurePath(role.key, section.slug, feature.slug),
-              name: feature.name,
+              href: spec.href ?? featurePath(role.key, section.slug, feature.slug),
+              name: spec.name ?? feature.name,
               note: spec.note,
               explain: spec.explain,
             }

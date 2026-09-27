@@ -67,7 +67,7 @@ export function passwordGate(id: Identity, method: string, pathname: string): vo
 /* RequireSubscription (gate.go): a school that is not paying reaches only
    what explains why. Applies to a platform operator acting inside a school
    too, as in Go. */
-const OPEN_WHILE_LOCKED = ['/session', '/catalog', '/me', '/profile', '/ref-data']
+const OPEN_WHILE_LOCKED = ['/session', '/catalog', '/me', '/profile', '/ref-data', '/school-billing']
 
 export async function subscriptionGate(env: Env, id: Identity, pathname: string): Promise<void> {
   if (!id.institution) return

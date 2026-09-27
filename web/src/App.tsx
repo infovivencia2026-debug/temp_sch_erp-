@@ -15,6 +15,7 @@ import AccountPage from '@/features/shared/Profile'
 const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
 // A school group's combined report (Seller → School groups); the server decides who may read it.
 const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
+const BillingSchool = lazy(() => import('@/features/seller/BillingSchool'))
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -462,6 +463,7 @@ export function AppRoutes({ location }: { location?: string }) {
           flushSync and React threw #426, blanking the app (phone dock cog). */}
       <Route path="/settings" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
       <Route path="/settings/:section" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
+      <Route path="/billing" element={<Suspense fallback={<SkeletonPage />}><BillingSchool /></Suspense>} />
       <Route path="/group-report" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/group-report/:groupId" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/" element={<Home />} />
