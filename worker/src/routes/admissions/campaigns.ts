@@ -2,6 +2,7 @@ import type { Ctx, Router } from '../../router'
 import { Messenger, MessagingError, scopeOf } from '../../services/messaging'
 import { sendAtFor } from '../../services/message_rules'
 import { HttpError, badRequest, bool, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
+import { activityStmt } from './crm'
 import { IST, allowsValue, initcap, isUUIDish, isUniqueViolation, istDate, istMinute, notImplemented, nz, optionsForKind, placeholders, js, resolveRange, round2, str, todayIST, truncate } from './util'
 
 /* Port of admissions_growth.go sections 2 and 3: multi-touch campaign
@@ -287,9 +288,14 @@ export function registerAdmissionCampaigns(r: Router) {
     const t = now()
     // lost_month was a generated column in Postgres: the first of the month (India) the lead was lost in.
     const lostMonth = todayIST().slice(0, 8) + '01'
-    const res = await c.db.prepare(`UPDATE enquiries SET status = 'lost', lost_reason = ?, lost_reason_note = NULLIF(?,''), lost_at = ?, lost_by = ?, lost_month = ?, updated_at = ? WHERE id = ?`)
-      .bind(reason, note, t, c.id.userId, lostMonth, t, leadID).run()
-    if (res.meta.changes === 0) throw notFound()
+    const was = await c.db.prepare(`SELECT status FROM enquiries WHERE id = ?`).bind(leadID).first<{ status: string }>()
+    if (!was) throw notFound()
+    const label = (await optionsForKind(c.db, 'lost_reason')).find((o) => o.value === reason)?.label ?? reason
+    await c.db.batch([
+      c.db.prepare(`UPDATE enquiries SET status = 'lost', lost_reason = ?, lost_reason_note = NULLIF(?,''), lost_at = ?, lost_by = ?, lost_month = ?, updated_at = ? WHERE id = ?`)
+        .bind(reason, note, t, c.id.userId, lostMonth, t, leadID),
+      activityStmt(c.db, c.id.institution!.id, leadID, 'stage', { from: was.status, to: 'lost', body: note ? `${label}: ${note}` : label, author: c.id.userId, at: t }),
+    ])
     const stops = await stopEnrolmentsForLead(c.db, leadID, 'the lead was closed as lost')
     if (stops.length > 0) await c.db.batch(stops)
     return ok({ id: leadID, status: 'lost', reason })
@@ -297,9 +303,11 @@ export function registerAdmissionCampaigns(r: Router) {
 
   r.post('/admissions/leads/{id}/reopen', WRITE, async (c) => {
     const leadID = uuidParam(c.params.id)
+    const t = now()
     const res = await c.db.prepare(`UPDATE enquiries SET status = 'contacted', lost_reason = NULL, lost_reason_note = NULL, lost_at = NULL, lost_by = NULL, lost_month = NULL, updated_at = ?
-      WHERE id = ? AND status = 'lost'`).bind(now(), leadID).run()
+      WHERE id = ? AND status = 'lost'`).bind(t, leadID).run()
     if (res.meta.changes === 0) throw new HttpError(409, 'that lead is not closed as lost', { code: 'not_lost' })
+    await activityStmt(c.db, c.id.institution!.id, leadID, 'stage', { from: 'lost', to: 'contacted', body: 'Reopened', author: c.id.userId, at: t }).run()
     return ok({ id: leadID, status: 'contacted' })
   })
 

@@ -156,6 +156,8 @@ export default function Applications() {
       last_name: bits.slice(1).join(' '),
       parent_name: params.get('parent') ?? '',
       parent_phone: params.get('phone') ?? '',
+      parent_email: params.get('email') ?? '',
+      class_sought: params.get('class') ?? '',
     }
   })
   const set = (k: keyof typeof blank) => (v: string) => setForm((f) => ({ ...f, [k]: v }))

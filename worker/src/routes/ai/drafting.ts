@@ -17,7 +17,7 @@ import { safe, snapshotText, studentSnapshot, teacherStyle } from '../../service
    class teacher of the student, fee figures only with a finance permission.
    GET /ai/status tells a screen whether to show the button at all. */
 
-export const DRAFT_KINDS = ['report_remark', 'teacher_remark', 'parent_message', 'circular', 'admission_decision', 'fee_reminder', 'leave_reply'] as const
+export const DRAFT_KINDS = ['report_remark', 'teacher_remark', 'parent_message', 'circular', 'admission_decision', 'fee_reminder', 'leave_reply', 'enquiry_follow_up'] as const
 export type DraftKind = typeof DRAFT_KINDS[number]
 export const LANGUAGES: Record<string, string> = { en: 'English', te: 'Telugu (in Telugu script)', hi: 'Hindi (in Devanagari script)' }
 const TONES = ['warm', 'formal', 'neutral', 'encouraging', 'firm'] as const
@@ -35,6 +35,7 @@ export interface DraftRequest {
   variants?: number
   student_id?: string
   application_id?: string
+  enquiry_id?: string
   leave_request_id?: string
   decision?: string
   /** The person's own notes or points to cover. */
@@ -114,6 +115,22 @@ export async function draftContext(c: Ctx, k: DraftKind, b: DraftRequest): Promi
       return {
         task: `Write an email to the parent about the admission decision "${d}" for this application. Courteous, clear about the decision and the next step; for a rejection be kind and brief, and do not give reasons that are not in the notes.`,
         facts: `School: ${a.school ?? ''}\nApplicant: ${a.first_name} ${a.last_name ?? ''}\nClass sought: ${a.class_sought}\nParent: ${a.parent_name}\nDecision: ${d}${a.waitlist_rank ? `\nWaitlist position: ${a.waitlist_rank}` : ''}`,
+      }
+    }
+    case 'enquiry_follow_up': {
+      // A WhatsApp or SMS to a family that enquired about admission, from the lead and its recent timeline.
+      if (!can(c, 'admissions.read')) throw forbidden('drafting a message to an enquiry needs admissions.read')
+      if (!isUUID(b.enquiry_id)) throw badRequest('enquiry_id is required')
+      const e = await c.db.prepare(`SELECT e.student_name, e.parent_name, e.status, e.source, cl.name AS class_name, i.name AS school
+          FROM enquiries e LEFT JOIN classes cl ON cl.id = e.class_sought LEFT JOIN institutions i ON i.id = e.institution_id WHERE e.id = ?`)
+        .bind(b.enquiry_id).first<Record<string, string | null>>()
+      if (!e) throw notFound('no such enquiry')
+      const acts = await c.db.prepare(`SELECT kind, body, to_status, date(created_at) AS on_day FROM enquiry_activities WHERE enquiry_id = ? ORDER BY created_at DESC LIMIT 5`)
+        .bind(b.enquiry_id).all<Record<string, string | null>>()
+      const history = acts.results.map((a) => `- ${a.on_day} ${a.kind}${a.to_status ? ' -> ' + a.to_status : ''}${a.body ? ': ' + a.body : ''}`).join('\n')
+      return {
+        task: 'Write a short WhatsApp message from the school admissions office to a parent who enquired about admission. Friendly and plain, invite the next step (a campus visit, the application form, or a call back), and do not quote fees, seats or dates that are not in the facts or notes. No placeholders; sign off as the admissions office.',
+        facts: `School: ${e.school ?? ''}\nChild: ${e.student_name}\nParent: ${e.parent_name ?? 'not given'}\nClass sought: ${e.class_name ?? 'not given'}\nStage: ${e.status}\nCame through: ${e.source}${history ? '\nRecent contact (newest first):\n' + history : ''}`,
       }
     }
     case 'fee_reminder': {

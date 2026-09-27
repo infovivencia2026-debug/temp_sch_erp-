@@ -4,6 +4,7 @@ import { HttpError, badRequest, bool, clampInt, created, notFound, now, ok, read
 import { fullName, isUUIDish, isYMD, mergeModuleConfig, moduleConfig, nextNumber, nz, oneOfStr, placeholders, js, str, todayIST, workingYear, workingYearSQL } from './util'
 import { can } from '../../identity'
 import { syncTransportFeeComponent } from '../ops/transport_office'
+import { activityStmt, duplicatesOf } from './crm'
 
 /* Port of the /admissions/workflow group: mod_admissions.go (enquiry ->
    application -> assessment -> merit -> seat -> offer -> enrolment),
@@ -118,21 +119,29 @@ export function registerAdmissionsWorkflow(r: Router) {
     const follow = nz(req.next_follow_up)
     if (follow !== null && !isYMD(follow)) throw badRequest('next_follow_up must be YYYY-MM-DD')
     const id = uuid(), t = now()
-    await c.db.prepare(`INSERT INTO enquiries (id, institution_id, campus_id, student_name, parent_name, phone, email, class_sought, source, campaign, next_follow_up, notes, assigned_to, status, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'new',?,?)`)
-      .bind(id, c.id.institution!.id, campus.id, studentName, nz(req.parent_name), phone, nz(req.email), classSought, source, nz(req.campaign), follow, nz(req.notes), assigned, t, t).run()
+    // Other enquiries on this number, found before the insert so the new one is not among them.
+    const duplicates = await duplicatesOf(c.db, phone, null)
+    await c.db.batch([
+      c.db.prepare(`INSERT INTO enquiries (id, institution_id, campus_id, student_name, parent_name, phone, email, class_sought, source, campaign, referred_by, next_follow_up, notes, assigned_to, status, created_at, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'new',?,?)`)
+        .bind(id, c.id.institution!.id, campus.id, studentName, nz(req.parent_name), phone, nz(req.email), classSought, source, nz(req.campaign), nz(req.referred_by), follow, nz(req.notes), assigned, t, t),
+      activityStmt(c.db, c.id.institution!.id, id, 'created', { body: nz(req.notes), to: 'new', follow, author: c.id.userId, at: t }),
+    ])
     /* sendEnquiryApplicationLink: the open form's link on WhatsApp, SMS and email; a channel that
        could not be queued is named, never a failed enquiry. The family's watch-it login
        (issueEnquiryLogin) is not issued by the worker. */
     const linkFailed = await sendEnquiryLink(c, id, studentName, str(req.parent_name), phone, str(req.email))
-    return created({ id, status: 'new', link_not_sent: linkFailed,
+    return created({ id, status: 'new', link_not_sent: linkFailed, duplicates,
       parent_login: { note: 'parent login is not issued by the worker' } })
   })
 
   r.put('/admissions/workflow/enquiries/{id}', WRITE, async (c) => {
     if (!isUUIDish(c.params.id)) throw badRequest('invalid enquiry id')
     const req = await readJSON(c.req)
-    const status = str(req.status)
+    const before = await c.db.prepare(`SELECT status FROM enquiries WHERE id = ?`).bind(c.params.id).first<{ status: string }>()
+    if (!before) throw notFound()
+    // No status means "leave it where it is": a follow-up date or a note on its own.
+    const status = str(req.status) || before.status
     if (!['new', 'contacted', 'visit_scheduled', 'applied', 'lost'].includes(status)) throw badRequest('invalid status: ' + status)
     const lost = str(req.lost_reason)
     if (status === 'lost' && lost.trim() === '') throw badRequest('lost_reason is required when marking an enquiry lost')
@@ -140,10 +149,14 @@ export function registerAdmissionsWorkflow(r: Router) {
     if (lost !== '') notes = (notes + '\nLost: ' + lost).trim()
     const follow = nz(req.next_follow_up)
     if (follow !== null && !isYMD(follow)) throw badRequest('next_follow_up must be YYYY-MM-DD')
-    const res = await c.db.prepare(`UPDATE enquiries SET status = ?, next_follow_up = COALESCE(?, next_follow_up),
+    const t = now(), inst = c.id.institution!.id
+    const stmts = [c.db.prepare(`UPDATE enquiries SET status = ?, next_follow_up = COALESCE(?, next_follow_up),
         notes = CASE WHEN ? IS NULL THEN notes ELSE COALESCE(notes || char(10), '') || ? END, updated_at = ? WHERE id = ?`)
-      .bind(status, follow, nz(notes), nz(notes), now(), c.params.id).run()
-    if (res.meta.changes === 0) throw notFound()
+      .bind(status, follow, nz(notes), nz(notes), t, c.params.id)]
+    if (status !== before.status) stmts.push(activityStmt(c.db, inst, c.params.id, 'stage', { from: before.status, to: status, body: nz(lost), follow, author: c.id.userId, at: t }))
+    const said = str(req.notes).trim()
+    if (said !== '') stmts.push(activityStmt(c.db, inst, c.params.id, 'note', { body: said, follow, author: c.id.userId, at: t }))
+    await c.db.batch(stmts)
     return ok({ id: c.params.id, status })
   })
 
@@ -276,7 +289,13 @@ export function registerAdmissionsWorkflow(r: Router) {
       stmts.push(c.db.prepare(`INSERT INTO application_documents (id, institution_id, application_id, doc_type, is_required, status, created_at, updated_at) VALUES (?,?,?,?,?,'pending',?,?)`)
         .bind(uuid(), campus.institution_id, appID, d.type, d.required ? 1 : 0, t, t))
     }
-    if (enquiryID !== null) stmts.push(c.db.prepare(`UPDATE enquiries SET status = 'applied', updated_at = ? WHERE id = ?`).bind(t, enquiryID))
+    if (enquiryID !== null) {
+      const was = await c.db.prepare(`SELECT status FROM enquiries WHERE id = ?`).bind(enquiryID).first<{ status: string }>()
+      if (was) {
+        stmts.push(c.db.prepare(`UPDATE enquiries SET status = 'applied', updated_at = ? WHERE id = ?`).bind(t, enquiryID))
+        stmts.push(activityStmt(c.db, campus.institution_id, enquiryID, 'stage', { from: was.status, to: 'applied', body: 'Application ' + appNo, author: c.id.userId, at: t }))
+      }
+    }
     await c.db.batch(stmts)
     // Go: notifyApplicant(admissions.application_received, stage:submitted). The parent login is not ported.
     let acknowledged = false, ackNote = ''

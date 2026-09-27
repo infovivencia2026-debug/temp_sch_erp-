@@ -33,8 +33,9 @@ export function registerAdmissionsFunnel(r: Router) {
   r.get('/admissions/enquiries', READ, async (c) => {
     const status = nz(c.url.searchParams.get('status'))
     const rows = await c.db.prepare(`
-      SELECT e.id, e.student_name, e.parent_name, e.phone, e.source, e.status, e.next_follow_up, u.full_name AS assigned_to, ${istDate('e.created_at')} AS created_at
-        FROM enquiries e LEFT JOIN users u ON u.id = e.assigned_to
+      SELECT e.id, e.student_name, e.parent_name, e.phone, e.email, e.source, e.status, e.next_follow_up, u.full_name AS assigned_to, ${istDate('e.created_at')} AS created_at,
+             e.class_sought AS class_id, cl.name AS class_name, ${istDate('e.last_contacted_at')} AS last_contacted_at, e.lost_reason
+        FROM enquiries e LEFT JOIN users u ON u.id = e.assigned_to LEFT JOIN classes cl ON cl.id = e.class_sought
        WHERE (? IS NULL OR e.status = ?) ORDER BY e.created_at DESC LIMIT 300`).bind(status, status).all<Record<string, unknown>>()
     return ok({ items: rows.results.map(omitNull) })
   })

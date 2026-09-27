@@ -4,13 +4,14 @@ import { api } from '@/lib/api'
    so the shapes live here. Every text they return is a draft or summary for a
    person to read and edit; nothing is saved or sent by these calls. */
 
-export type DraftKind = 'report_remark' | 'teacher_remark' | 'parent_message' | 'circular' | 'admission_decision' | 'fee_reminder' | 'leave_reply'
+export type DraftKind = 'report_remark' | 'teacher_remark' | 'parent_message' | 'circular' | 'admission_decision' | 'fee_reminder' | 'leave_reply' | 'enquiry_follow_up'
 export type Lang = 'en' | 'te' | 'hi'
 export const LANG_LABEL: Record<Lang, string> = { en: 'English', te: 'Telugu', hi: 'Hindi' }
 
 export interface DraftContext {
   student_id?: string
   application_id?: string
+  enquiry_id?: string
   leave_request_id?: string
   decision?: string
   topic?: string
