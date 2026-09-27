@@ -637,7 +637,7 @@ export function registerPlatformConfig(r: Router): void {
       } catch { /* skip */ }
     }
     items.sort((a, b) => (String(a.started_at) < String(b.started_at) ? 1 : -1))
-    return ok(items.slice(0, limit))
+    return ok({ items: items.slice(0, limit) })
   })
   r.post('/admin/platform/impersonation', vendor, async (c) => {
     platformOnly(c)

@@ -367,7 +367,7 @@ export function registerTally(r: Router): void {
              r.exported_at, r.confirmed_at, u.full_name
         FROM tally_export_runs r LEFT JOIN users u ON u.id = r.exported_by
        WHERE r.institution_id = ? ORDER BY r.exported_at DESC LIMIT 100`).bind(school(c).id).all<Record<string, unknown>>()
-    return ok(rows.results.map(runRow))
+    return ok({ items: rows.results.map(runRow) })
   }))
 
   // downloadTallyExport: re-renders the XML from the vouchers the run pinned,
