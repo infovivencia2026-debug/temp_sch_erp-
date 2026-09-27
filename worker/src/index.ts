@@ -4,7 +4,7 @@ import './services/job-registry'
 import { tick } from './services/cron'
 import { json } from './env'
 import { clearCookie, currentSession, revokeSession } from './auth/session'
-import { login, showLogin } from './routes/login'
+import { homeOf, login, schoolLogin, schoolLogo, showLogin } from './routes/login'
 import { getSession } from './routes/session'
 import { buildRouter } from './routes/index'
 import { identityFrom, can } from './identity'
@@ -20,6 +20,7 @@ import { idempotent } from './idempotency'
 export { LiveHub } from './services/live'
 
 const router = buildRouter()
+const SCHOOL_ROUTE = /^\/([a-z]{2})\/([a-z0-9][a-z0-9-]{0,62})(\/logo)?\/?$/
 
 /* The Worker that replaces the Go server on Cloud Run. Every path the Pages
    proxy (web/functions/[[path]].ts) forwards lands here. Routes are added as
@@ -42,7 +43,14 @@ export default {
       if (pathname === '/logout') {
         const s = await currentSession(env, req)
         if (s) await revokeSession(env, s.id, 'signed_out')
-        return new Response(null, { status: 303, headers: { location: '/login', 'set-cookie': clearCookie(env) } })
+        return new Response(null, { status: 303, headers: { location: homeOf(req) ?? '/login', 'set-cookie': clearCookie(env) } })
+      }
+      /* A school's own address: /<country>/<slug> is its sign-in page and
+         /<country>/<slug>/logo its logo. See routes/login.ts. */
+      const school = SCHOOL_ROUTE.exec(pathname)
+      if (school) {
+        const res = school[3] ? (m === 'GET' ? await schoolLogo(env, school[1], school[2]) : null) : await schoolLogin(env, req, school[1], school[2])
+        if (res) return res
       }
       if (pathname === '/api/v1/session' && m === 'GET') return getSession(env, req)
       /* Callers with no session cookie: the Android SMS gateway authenticates

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, KeyRound, Plus, X } from 'lucide-react'
+import { Copy, ExternalLink, KeyRound, Palette, Plus, X } from 'lucide-react'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -151,6 +151,7 @@ export default function Tenants() {
   const qc = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [handover, setHandover] = useState<Handover | null>(null)
+  const [branding, setBranding] = useState<Tenant | null>(null)
 
   const tenants = useQuery({
     queryKey: ['seller-tenants'],
@@ -337,6 +338,14 @@ export default function Tenants() {
                       >
                         Open
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        title="This school's own web address, sign-in page and colours"
+                        onClick={() => setBranding(t)}
+                      >
+                        <Palette className="h-3.5 w-3.5" />
+                      </Button>
                       <ConfirmButton
                         label="Reset the administrator's password"
                         question={`Issue a new password for ${t.name}'s administrator?`}
@@ -377,6 +386,10 @@ export default function Tenants() {
             </div>
           )}
         </Card>
+        )}
+
+        {branding && (
+          <BrandingForm key={branding.id} tenant={branding} onClose={() => setBranding(null)} />
         )}
 
         {view === 'plans' && (
@@ -1085,6 +1098,169 @@ function PlanForm({
           </Button>
         </div>
       </form>
+    </Card>
+  )
+}
+
+interface Branding {
+  name: string
+  country: string
+  slug: string
+  path: string
+  primary_color: string
+  accent_color: string | null
+  logo_url: string | null
+  tagline: string | null
+  login_headline: string | null
+  login_message: string | null
+  support_email: string | null
+  support_phone: string | null
+  custom_domain: string | null
+}
+
+const COUNTRIES: [string, string][] = [
+  ['in', 'India'], ['ae', 'UAE'], ['np', 'Nepal'], ['lk', 'Sri Lanka'], ['bd', 'Bangladesh'],
+  ['sa', 'Saudi Arabia'], ['om', 'Oman'], ['kw', 'Kuwait'], ['bh', 'Bahrain'], ['sg', 'Singapore'],
+  ['my', 'Malaysia'], ['ke', 'Kenya'], ['ng', 'Nigeria'], ['uk', 'United Kingdom'], ['gb', 'Great Britain'],
+  ['us', 'United States'], ['ca', 'Canada'], ['au', 'Australia'], ['nz', 'New Zealand'], ['za', 'South Africa'],
+]
+
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63)
+
+/**
+ * White label. One school, one product: its own address, sign-in page,
+ * logo and colours, over the same app. The preview is the real page, so
+ * what the seller sees here is what the school's parents will see.
+ */
+function BrandingForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const qc = useQueryClient()
+  const url = `/api/v1/seller/tenants/${tenant.id}/branding`
+  const current = useQuery({ queryKey: ['seller-branding', tenant.id], queryFn: () => api.get<Branding>(url) })
+  const [edit, setEdit] = useState<Partial<Branding>>({})
+  const [previewKey, setPreviewKey] = useState(0)
+  const b = { ...current.data, ...edit } as Branding
+
+  const set = (k: keyof Branding) => (v: string) => setEdit((e) => ({ ...e, [k]: v }))
+  const done = (d: Branding) => {
+    qc.setQueryData(['seller-branding', tenant.id], d)
+    qc.invalidateQueries({ queryKey: ['seller-tenants'] })
+    setEdit({})
+    setPreviewKey((n) => n + 1)
+  }
+  const save = useMutation({ mutationFn: () => api.put<Branding>(url, edit), onSuccess: done })
+  const logo = useMutation({
+    mutationFn: async (file: File) => {
+      const data_url = await new Promise<string>((ok, fail) => {
+        const r = new FileReader()
+        r.onload = () => ok(String(r.result))
+        r.onerror = () => fail(r.error)
+        r.readAsDataURL(file)
+      })
+      return api.post<Branding>(`/api/v1/seller/tenants/${tenant.id}/logo`, { data_url })
+    },
+    onSuccess: done,
+  })
+
+  if (current.isLoading) return <Card><div className="p-5"><SkeletonTable columns={2} /></div></Card>
+  if (current.error) return <ErrorState error={current.error} />
+
+  const path = `/${b.country}/${b.slug}`
+  const address = `${window.location.origin}${path}`
+  const dirty = Object.keys(edit).length > 0
+
+  return (
+    <Card>
+      <CardHeader
+        title={`Branding · ${current.data!.name}`}
+        description="The school’s own web address and sign-in page. Everything behind the sign-in is the same app."
+        action={<Button size="sm" variant="ghost" onClick={onClose}><X className="h-3.5 w-3.5" /></Button>}
+      />
+      <div className="grid gap-6 px-5 py-5 lg:grid-cols-2">
+        <form onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+          <FormGrid>
+            <Field label="School name" hint="On the sign-in page and across the app.">
+              <Input value={b.name ?? ''} onChange={set('name')} />
+            </Field>
+            <Field label="Country">
+              <Select
+                value={b.country}
+                onChange={set('country')}
+                options={COUNTRIES.map(([code, label]) => ({ value: code, label: `${label} (/${code})` }))}
+              />
+            </Field>
+            <Field label="Web address" hint={address}>
+              <Input
+                value={b.slug ?? ''}
+                onChange={(v) => set('slug')(slugify(v))}
+                placeholder={slugify(current.data!.name)}
+              />
+            </Field>
+            <Field label="Own domain" hint="Optional, like erp.school.edu.in. Point its DNS at us and add it to the Pages project, then /login there is this school’s page.">
+              <Input value={b.custom_domain ?? ''} onChange={set('custom_domain')} placeholder="erp.school.edu.in" />
+            </Field>
+            <Field label="Main colour">
+              <div className="flex items-center gap-2">
+                <input type="color" aria-label="Main colour" value={b.primary_color || '#1e40af'} onChange={(e) => set('primary_color')(e.target.value)} className="h-9 w-12 rounded border" />
+                <Input value={b.primary_color ?? ''} onChange={set('primary_color')} placeholder="#1e40af" />
+              </div>
+            </Field>
+            <Field label="Second colour" hint="Blank uses the main colour.">
+              <div className="flex items-center gap-2">
+                <input type="color" aria-label="Second colour" value={b.accent_color || b.primary_color || '#1e40af'} onChange={(e) => set('accent_color')(e.target.value)} className="h-9 w-12 rounded border" />
+                <Input value={b.accent_color ?? ''} onChange={set('accent_color')} placeholder="#f97316" />
+              </div>
+            </Field>
+            <Field label="Small line above the headline">
+              <Input value={b.tagline ?? ''} onChange={set('tagline')} placeholder="Est. 1982 · CBSE" />
+            </Field>
+            <Field label="Headline">
+              <Input value={b.login_headline ?? ''} onChange={set('login_headline')} placeholder="Welcome to DPS Noida" />
+            </Field>
+            <Field label="Message under the headline">
+              <Input value={b.login_message ?? ''} onChange={set('login_message')} placeholder="Parents, staff and students sign in here." />
+            </Field>
+            <Field label="Help phone">
+              <Input value={b.support_phone ?? ''} onChange={set('support_phone')} placeholder="+91 98xxxxxxx" />
+            </Field>
+            <Field label="Help email">
+              <Input value={b.support_email ?? ''} onChange={set('support_email')} placeholder="office@school.edu.in" />
+            </Field>
+            <Field label="Logo" hint="PNG, JPEG, WebP or SVG, under 512 KB. Saved straight away.">
+              <div className="flex items-center gap-3">
+                {b.logo_url && <img src={b.logo_url} alt="" className="h-10 w-10 rounded border bg-white object-contain" />}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  disabled={logo.isPending}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) logo.mutate(f); e.target.value = '' }}
+                  className="text-[13px]"
+                />
+              </div>
+            </Field>
+          </FormGrid>
+          <FormNotice error={save.error ?? logo.error} />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button type="submit" disabled={!dirty || save.isPending}>
+              {save.isPending ? 'Saving…' : 'Save branding'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigator.clipboard?.writeText(address)}>
+              <Copy className="h-3.5 w-3.5" /> Copy link
+            </Button>
+            <a href={current.data!.path} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] text-accent hover:underline">
+              Open sign-in page <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+          {dirty && <p className="mt-2 text-[12.5px] text-muted-foreground">The preview shows the saved page; save to see changes.</p>}
+        </form>
+        <div className="overflow-hidden rounded-lg border">
+          <iframe
+            key={previewKey}
+            title="Sign-in page preview"
+            src={`${current.data!.path}?preview`}
+            className="h-[520px] w-full"
+          />
+        </div>
+      </div>
     </Card>
   )
 }

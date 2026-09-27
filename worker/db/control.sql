@@ -13,12 +13,24 @@ CREATE TABLE IF NOT EXISTS institutions (
   primary_color TEXT NOT NULL DEFAULT '#1e40af',
   logo_key TEXT,
   teacher_day_code_secret BLOB,
+  -- White label (Tenants → Branding): the sign-in page at /<country>/<slug>
+  -- or on custom_domain, with this school's logo, colours and words.
+  country TEXT NOT NULL DEFAULT 'in',
+  accent_color TEXT,
+  tagline TEXT,
+  login_headline TEXT,
+  login_message TEXT,
+  support_email TEXT,
+  support_phone TEXT,
+  custom_domain TEXT,
   -- The school's own D1 database, and the Worker binding that reaches it.
   d1_database_id TEXT NOT NULL,
   d1_binding TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS institutions_custom_domain ON institutions (custom_domain COLLATE NOCASE) WHERE custom_domain IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS plans (
   code TEXT PRIMARY KEY,

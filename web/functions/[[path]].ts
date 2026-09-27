@@ -52,9 +52,15 @@ const NOT_PROXIED = ['/api/v1/cron']
    SHA-256, and with no APK_DIR it renders a different page again — the one that
    says the download is coming from a static file. Only the APKs it links are
    static, and those are already under /download/. */
+const SCHOOL_COUNTRIES = ['in',  'ae',  'np',  'lk',  'bd',  'sa',  'om',  'kw',  'bh',  'sg',  'my',  'ke',  'ng',  'uk',  'us',  'au',  'ca',  'za',  'nz',  'gb']
+
 const SERVER_PATHS = [
   '/api/', '/login', '/logout', '/healthz', '/iclock/',
   '/buy', '/signup', '/forgot', '/reset', '/apps', '/files/',
+  /* Each school's own sign-in page, /<country>/<slug> (white label, set in
+     the seller's Tenants → Branding). One entry per country we sell in; keep
+     in step with _routes.json. 'qa' is absent: /qa/ is a static folder. */
+  ...SCHOOL_COUNTRIES.map((c) => `/${c}/`),
 ]
 
 function serverOwns(pathname: string): boolean {

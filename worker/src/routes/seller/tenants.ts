@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { HttpError, badRequest, created, isUUID, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { hashPassword } from '../../auth/password'
-import { institutionById, tenantDb, type Institution } from '../../tenant'
+import { institutionById, schoolPath, tenantDb, type Institution } from '../../tenant'
 import type { Env } from '../../env'
 import { notImplemented, requirePlatformAdmin } from './common'
 
@@ -362,6 +362,63 @@ export function registerSellerTenants(r: Router): void {
     return ok({ admin_name: admin.full_name, sign_in_as: admin.sign_in, password, note: 'Shown once. The previous password no longer works.' })
   })
 
+  // --- white label: the school's own address, sign-in page and look ---
+  r.get('/seller/tenants/{id}/branding', PERM, async (c) => {
+    requirePlatformAdmin(c)
+    const inst = await institutionById(c.env, uuidParam(c.params.id))
+    if (!inst) throw notFound('no such school')
+    return ok(brandingOut(inst))
+  })
+
+  r.put('/seller/tenants/{id}/branding', PERM, async (c) => {
+    requirePlatformAdmin(c)
+    const inst = await institutionById(c.env, uuidParam(c.params.id))
+    if (!inst) throw notFound('no such school')
+    const b = await readJSON<Partial<Record<(typeof BRAND_TEXT)[number] | 'country' | 'slug' | 'name' | 'primary_color' | 'accent_color' | 'custom_domain', string | null>>>(c.req)
+    const name = str(b.name, 200) ?? inst.name
+    const country = (b.country ?? inst.country).trim().toLowerCase()
+    if (!/^[a-z]{2}$/.test(country)) throw badRequest('country must be a two-letter code, like in')
+    const slug = (b.slug ?? inst.slug).trim().toLowerCase()
+    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(slug)) throw badRequest('the web address may use lowercase letters, digits and hyphens')
+    const primary = b.primary_color === undefined ? inst.primary_color : colour(b.primary_color, 'primary colour') ?? '#1e40af'
+    const accent = b.accent_color === undefined ? inst.accent_color : colour(b.accent_color, 'accent colour')
+    let domain = b.custom_domain === undefined ? inst.custom_domain : str(b.custom_domain, 253)
+    if (domain) {
+      domain = domain.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+      if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) throw badRequest('that is not a domain name, like erp.school.edu.in')
+    }
+    const clash = await c.env.CONTROL.prepare(`SELECT name FROM institutions WHERE id <> ? AND (slug = ? OR (? IS NOT NULL AND custom_domain = ? COLLATE NOCASE))`)
+      .bind(inst.id, slug, domain, domain).first<{ name: string }>()
+    if (clash) throw new HttpError(409, `${clash.name} already uses that web address or domain`)
+    const text = BRAND_TEXT.map((k) => (b[k] === undefined ? inst[k] : str(b[k], k === 'login_message' ? 400 : 160)))
+    await c.env.CONTROL.prepare(`UPDATE institutions SET name = ?, country = ?, slug = ?, primary_color = ?, accent_color = ?, custom_domain = ?,
+        ${BRAND_TEXT.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`)
+      .bind(name, country, slug, primary, accent, domain, ...text, now(), inst.id).run()
+    // The app reads its name and colour from the school's own copy of the row.
+    const db = openTenant(c.env, inst)
+    if (db) await db.prepare('UPDATE institutions SET name = ?, primary_color = ? WHERE id = ?').bind(name, primary, inst.id).run()
+    return ok(brandingOut((await institutionById(c.env, inst.id))!))
+  })
+
+  /* The logo, as a data: URL in JSON so the client needs no multipart code.
+     Small on purpose: it is fetched on every visit to the sign-in page. */
+  r.post('/seller/tenants/{id}/logo', PERM, async (c) => {
+    requirePlatformAdmin(c)
+    const inst = await institutionById(c.env, uuidParam(c.params.id))
+    if (!inst) throw notFound('no such school')
+    const { data_url } = await readJSON<{ data_url?: string }>(c.req)
+    const m = /^data:(image\/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/=]+)$/.exec(data_url ?? '')
+    if (!m) throw badRequest('send a PNG, JPEG, WebP or SVG image')
+    const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0))
+    if (bytes.length > 512 * 1024) throw badRequest('the logo must be under 512 KB')
+    const key = `branding/${inst.id}/logo-${Date.now()}`
+    await c.env.FILES_WRITE.put(key, bytes, { httpMetadata: { contentType: m[1] } })
+    await c.env.CONTROL.prepare('UPDATE institutions SET logo_key = ?, updated_at = ? WHERE id = ?').bind(key, now(), inst.id).run()
+    const db = openTenant(c.env, inst)
+    if (db) await db.prepare('UPDATE institutions SET logo_key = ? WHERE id = ?').bind(key, inst.id).run()
+    return ok(brandingOut((await institutionById(c.env, inst.id))!))
+  })
+
   // --- plans ---
   r.get('/seller/plans', PERM, async (c) => {
     requirePlatformAdmin(c)
@@ -681,4 +738,30 @@ export function registerSellerTenants(r: Router): void {
     await recordPlatformEvent(c.env, 'board_member', true, inst!.id, userId, 'board_member membership removed', c.id.userId)
     return ok({ removed: true })
   })
+}
+
+const BRAND_TEXT = ['tagline', 'login_headline', 'login_message', 'support_email', 'support_phone'] as const
+
+function str(v: unknown, max: number): string | null {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  if (t.length > max) throw badRequest(`keep it under ${max} characters`)
+  return t || null
+}
+
+function colour(v: unknown, what: string): string | null {
+  const t = str(v, 7)
+  if (t && !/^#[0-9a-fA-F]{6}$/.test(t)) throw badRequest(`the ${what} must be a colour like #1e40af`)
+  return t
+}
+
+function brandingOut(i: Institution) {
+  const path = schoolPath(i)
+  return {
+    name: i.name, country: i.country, slug: i.slug, path,
+    primary_color: i.primary_color, accent_color: i.accent_color,
+    logo_url: i.logo_key ? `${path}/logo?v=${encodeURIComponent(i.logo_key.slice(-12))}` : null,
+    tagline: i.tagline, login_headline: i.login_headline, login_message: i.login_message,
+    support_email: i.support_email, support_phone: i.support_phone, custom_domain: i.custom_domain,
+  }
 }
