@@ -2,6 +2,7 @@ import type { Env } from './env'
 import { can, type Identity } from './identity'
 import { HttpError, forbidden } from './http'
 import { entitlementFor } from './routes/misc/shell'
+import { featureGate } from './routes/seller/features'
 import type { Ctx } from './router'
 
 /* The middleware api.go stacks in front of every /api/v1 handler that the
@@ -74,4 +75,5 @@ export async function subscriptionGate(env: Env, id: Identity, pathname: string)
   if (OPEN_WHILE_LOCKED.some((p) => hasPrefix(path, p))) return
   const st = await entitlementFor({ env, id } as unknown as Ctx)
   if (!st.active) throw new HttpError(402, st.reason, { code: 'subscription_' + st.code })
+  await featureGate(env, id, path, st)
 }

@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { can } from '../../identity'
 import { institutionId, parseJSON, resolveScope, type Scope } from '../admin/common'
+import { catalogFeatureAllowed, featureOverrides } from '../seller/features'
 import { CATALOG_ROLES, IMPLEMENTED_FEATURES, allCatalogFeatureKeys, catalogLookup, type CatalogFeature } from '../admin/static_data'
 
 /* Port of the loose shell routes: getRefData (academics.go), working_year.go,
@@ -127,7 +128,7 @@ export function resolveRange(c: Ctx): DateRange {
 
 // --- entitlement (internal/entitlement) -----------------------------------------
 
-const SECTION_MODULE: Record<string, string> = {
+export const SECTION_MODULE: Record<string, string> = {
   students: 'students', admissions: 'students', enquiries: 'students', applications: 'students',
   academics: 'academics', my_classes: 'academics', teaching: 'academics', timetable: 'academics', learning: 'academics',
   homework: 'academics', department: 'academics', assessment_schemes: 'academics', question_papers_online_tests: 'academics',
@@ -234,6 +235,8 @@ async function getCatalog(c: Ctx): Promise<Response> {
   const sc = await resolveScope(c)
   const ent = await entitlementFor(c)
   const locked = await setupIncomplete(c)
+  // Seller feature switches (seller/features.ts): an override beats the plan's modules.
+  const ov = c.id.institution && !c.id.platformAdmin ? await featureOverrides(c.env, c.id.institution.id) : new Map()
   const implemented = [...IMPLEMENTED_FEATURES].sort()
 
   // heldRoleKeys and catalogRoleKeys share one read.
@@ -292,7 +295,9 @@ async function getCatalog(c: Ctx): Promise<Response> {
   }
   const canKey = (k: string) => viewingAll || can(c.id, k)
   const gate = async (secSlug: string, f: CatalogFeature): Promise<boolean> => {
-    if (!entitlementAllows(ent, secSlug)) return false
+    const sw = catalogFeatureAllowed(ov, secSlug, f.slug)
+    if (sw === false) return false
+    if (sw !== true && !entitlementAllows(ent, secSlug)) return false
     if (locked && !SETUP_SECTIONS.has(secSlug)) return false
     if (!canKey(f.key)) return false
     if (EVIDENCE_KEYS.has(f.key) && !(await evidenceFor(f.key))) return false
@@ -309,7 +314,7 @@ async function getCatalog(c: Ctx): Promise<Response> {
     if (held.size > 0 && !held.has(role.key)) continue
     const out: Role = { key: role.key, name: role.name, sections: [] }
     for (const sec of role.sections) {
-      if (!entitlementAllows(ent, sec.slug)) continue
+      if (!entitlementAllows(ent, sec.slug) && !sec.features.some((f) => catalogFeatureAllowed(ov, sec.slug, f.slug) === true)) continue
       if (locked && !SETUP_SECTIONS.has(sec.slug)) continue
       const cs: Sec = { slug: sec.slug, name: sec.name, workspace: sec.workspace, features: [] }
       for (const f of sec.features) {

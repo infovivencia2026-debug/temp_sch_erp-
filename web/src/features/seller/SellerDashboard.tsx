@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Announcements } from './Announcements'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Building2, Megaphone, TrendingUp } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -275,6 +276,8 @@ export default function SellerDashboard() {
             </div>
           </Card>
         )}
+
+        <Announcements />
 
         <Card>
           <CardHeader

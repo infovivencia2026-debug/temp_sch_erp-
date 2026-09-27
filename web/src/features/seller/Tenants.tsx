@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, KeyRound, Network, Palette, Plus, X } from 'lucide-react'
 import { SchoolGroups } from './SchoolGroups'
+import { Features } from './Features'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader,
@@ -157,6 +158,7 @@ export default function Tenants() {
   const [handover, setHandover] = useState<Handover | null>(null)
   const [branding, setBranding] = useState<Tenant | null>(null)
   const [groupsOpen, setGroupsOpen] = useState(false)
+  const [featuresOpen, setFeaturesOpen] = useState(false)
   // '' every school, '-' schools in no group, otherwise a group id.
   const [groupFilter, setGroupFilter] = useState('')
 
@@ -211,6 +213,9 @@ export default function Tenants() {
               <Network className="h-3.5 w-3.5" />
               {groupsOpen ? 'Hide groups' : 'School groups'}
             </Button>
+            <Button variant="secondary" onClick={() => setFeaturesOpen((o) => !o)}>
+              {featuresOpen ? 'Hide features' : 'Feature switches'}
+            </Button>
             <Button
               onClick={() => {
                 setHandover(null)
@@ -235,6 +240,7 @@ export default function Tenants() {
         {handover && <HandoverCard h={handover} onClose={() => setHandover(null)} />}
 
         {groupsOpen && <SchoolGroups onClose={() => setGroupsOpen(false)} />}
+        {featuresOpen && <Features onClose={() => setFeaturesOpen(false)} />}
 
         {/* On its own entry the form is the screen, so it is open on arrival.
             Somebody who clicked "Onboard New School" has already said what

@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../../router'
+import { liveAnnouncements } from '../seller/announcements'
 import { can } from '../../identity'
 import { HttpError, badRequest, conflict, created, isUUID, noContent, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { registerMetrics } from './metrics'
@@ -75,23 +76,10 @@ async function setTour(c: Ctx): Promise<Response> {
 // /platform-notices (platform_broadcast.go listLiveBroadcasts), from CONTROL
 // ============================================================================
 
-async function listLiveBroadcasts(c: Ctx): Promise<Response> {
-  const t = now()
-  const { results } = await c.env.CONTROL.prepare(`
-    SELECT id, severity, title, body, substr(starts_at,1,16) AS starts_at, substr(ends_at,1,16) AS ends_at
-      FROM platform_broadcasts
-     WHERE retired_at IS NULL AND starts_at <= ? AND (ends_at IS NULL OR ends_at > ?)
-     ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END, starts_at DESC
-     LIMIT 5`).bind(t, t).all<{ id: string; severity: string; title: string; body: string; starts_at: string; ends_at: string | null }>()
-  const items = results.map((v) => {
-    const o: Record<string, unknown> = { id: v.id, severity: v.severity, title: v.title }
-    if (v.body) o.body = v.body
-    o.starts_at = v.starts_at
-    if (v.ends_at !== null) o.ends_at = v.ends_at
-    o.live = true
-    return o
-  })
-  return ok({ items })
+/* Targeted since control_features.sql: seller/announcements.ts filters by school,
+   plan, group and audience and hides what this user dismissed. */
+function listLiveBroadcasts(c: Ctx): Promise<Response> {
+  return liveAnnouncements(c)
 }
 
 // ============================================================================

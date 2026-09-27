@@ -10,6 +10,7 @@ import {
 import Notifications from '@/components/Notifications'
 import Outbox from '@/components/Outbox'
 import { LiveToasts } from '@/components/LiveToasts'
+import { AnnouncementsBanner } from '@/features/seller/AnnouncementsBanner'
 import { useOfflineWarm } from '@/lib/offline-warm'
 import { AssistantTab } from '@/components/AssistantTab'
 import FirstRunTour from './FirstRunTour'
@@ -1213,6 +1214,7 @@ export function Shell({
               on screen — tap opens it. Mounted once, here, so a split work
               area does not draw it twice. */}
           <LiveToasts />
+          <AnnouncementsBanner />
         </div>
       </div>
     </div>
