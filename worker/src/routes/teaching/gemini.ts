@@ -17,6 +17,13 @@ export class GeminiError extends Error {
   constructor(public statusCode: number, public body: string) { super(`gemini ${statusCode}: ${body}`) }
 }
 export class GeminiTimeout extends Error {}
+export class GeminiNotConfigured extends Error {}
+
+/** The bare key from the secret; tolerates quotes or a pasted snippet around it. */
+export function extractApiKey(raw: string): string | null {
+  const m = raw.match(/AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_.-]{20,}/)
+  return m ? m[0] : null
+}
 
 export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } }
 
@@ -55,34 +62,44 @@ async function credentials(c: Ctx, signal: AbortSignal): Promise<{ project: stri
 }
 
 /** callGeminiParts: one user turn of mixed parts under a system instruction. */
-export async function callGeminiParts(c: Ctx, system: string, parts: GeminiPart[], maxTokens: number, timeoutMs: number): Promise<string> {
+export function callGeminiParts(c: Ctx, system: string, parts: GeminiPart[], maxTokens: number, timeoutMs: number): Promise<string> {
+  return geminiGenerate(c, system, [{ role: 'user', parts }], maxTokens, timeoutMs)
+}
+
+/** One turn of a conversation, in Gemini's vocabulary: role "user" or "model". */
+export interface GeminiTurn { role: 'user' | 'model'; text: string }
+
+/** callGemini: the assistant chat, a system instruction and the conversation so far. */
+export function callGemini(c: Ctx, system: string, turns: GeminiTurn[], maxTokens: number, timeoutMs: number): Promise<string> {
+  return geminiGenerate(c, system, turns.map((t) => ({ role: t.role, parts: [{ text: t.text }] })), maxTokens, timeoutMs)
+}
+
+/** geminiGenerate: the one HTTPS POST every caller shares. */
+async function geminiGenerate(c: Ctx, system: string, contents: { role: string; parts: GeminiPart[] }[], maxTokens: number, timeoutMs: number): Promise<string> {
   const signal = AbortSignal.timeout(timeoutMs)
   try {
     const payload = {
       system_instruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts }],
+      contents,
       generationConfig: { maxOutputTokens: maxTokens },
     }
     /* Two ways in. The Go server used Cloud Run's own identity against
-       Vertex AI; a Worker has none, and the organisation forbids service-
-       account keys. So the Gemini API with the project's API key
-       (GOOGLE_API_KEY, Secret Manager temperp-google-api-key) is tried first:
-       same model, same request body. A service-account key in
-       GOOGLE_SERVICE_ACCOUNT_JSON still works for Vertex if one is ever set. */
-    const apiKey = (c.env as unknown as Record<string, unknown>).GOOGLE_API_KEY
+       Vertex AI; a Worker has none. So an API key in GOOGLE_API_KEY is used
+       when set, and its format picks the endpoint: an AI Studio key (AIza...)
+       only works on the Gemini API (Vertex answers 401 CREDENTIALS_MISSING),
+       a Vertex express-mode key (AQ....) only on Vertex. A service-account key
+       in GOOGLE_SERVICE_ACCOUNT_JSON still works for Vertex if one is set. */
+    const rawKey = (c.env as unknown as Record<string, unknown>).GOOGLE_API_KEY
     let resp: Response
-    if (typeof apiKey === 'string' && apiKey.trim() !== '') {
-      /* A Vertex AI key (Vertex "express mode") is refused by the Gemini API
-         endpoint with ACCESS_TOKEN_TYPE_UNSUPPORTED, and a Gemini API key is
-         refused by Vertex; which one the project holds is not knowable from
-         the key, so Vertex is tried first (it is what Go used) and the Gemini
-         API second. */
-      const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() }
-      resp = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey.trim())}`,
-        { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (resp.status === 401 || resp.status === 403) {
+    if (typeof rawKey === 'string' && rawKey.trim() !== '') {
+      const apiKey = extractApiKey(rawKey)
+      if (!apiKey) throw new GeminiNotConfigured('GOOGLE_API_KEY does not hold a Google API key (expected AIza... or AQ....); set it to the bare key')
+      if (apiKey.startsWith('AQ.')) {
+        resp = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${ASSISTANT_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      } else {
         resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent`,
-          { method: 'POST', signal, headers, body: JSON.stringify(payload) })
+          { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(payload) })
       }
     } else {
       const { project, token } = await credentials(c, signal)
@@ -94,7 +111,7 @@ export async function callGeminiParts(c: Ctx, system: string, parts: GeminiPart[
     const out = JSON.parse(rb) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
     return (out.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('')
   } catch (e) {
-    if (e instanceof GeminiError) throw e
+    if (e instanceof GeminiError || e instanceof GeminiNotConfigured) throw e
     if (signal.aborted || (e as Error).name === 'TimeoutError') throw new GeminiTimeout('deadline exceeded')
     throw e
   }
@@ -105,9 +122,12 @@ export function assistantFailure(err: unknown): HttpError {
   console.error(err)
   if (err instanceof GeminiError) {
     if (err.statusCode === 429) return new HttpError(429, 'the assistant is busy. Wait a moment and ask again.', { code: 'assistant_busy' })
-    if (err.statusCode === 401 || err.statusCode === 403) {
+    if (err.statusCode === 401 || err.statusCode === 403 || (err.statusCode === 400 && err.body.includes('API_KEY_INVALID'))) {
       return new HttpError(503, "the assistant's key was refused. Ask whoever runs the server to check it.", { code: 'assistant_not_configured' })
     }
+  }
+  if (err instanceof GeminiNotConfigured) {
+    return new HttpError(503, "the assistant's key is not set up correctly. Ask whoever runs the server to check it.", { code: 'assistant_not_configured' })
   }
   if (err instanceof GeminiTimeout) return new HttpError(504, 'the assistant took too long to answer. Ask again.', { code: 'assistant_slow' })
   return new HttpError(502, 'the assistant could not be reached just now. Ask again in a minute.', { code: 'assistant_unreachable' })
