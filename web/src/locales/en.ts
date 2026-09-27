@@ -920,7 +920,7 @@ export const en = {
   // Two buttons in the shell header. Classic is the product as it ships;
   // Bento is the opt-in experiment. See docs/BENTO_UI_CONTRACT.md.
   'shell.layout.group': 'Dashboard layout',
-  'shell.layout.classic': 'Sidebar',
+  'shell.layout.classic': 'Work',
   'shell.layout.bento': 'Focus',
 
   // --- bento: my work -----------------------------------------------------
@@ -2528,7 +2528,7 @@ export const en = {
   'bento.settings.tab.roles': 'Role switch',
   'bento.settings.tab.security': 'Security',
   'bento.settings.layout': 'Layout',
-  'bento.settings.layout.classic': 'Sidebar',
+  'bento.settings.layout.classic': 'Work',
   'bento.settings.layout.bento': 'Focus',
   'bento.dock.home': 'Home',
   /* The phone bar's word for the launcher. "All features" is right on a wide

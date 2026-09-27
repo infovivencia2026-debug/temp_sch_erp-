@@ -31,7 +31,7 @@ export default function Outbox() {
   if (!waiting.length && !refused.length) return null
 
   return (
-    <div className="fixed bottom-[88px] left-1/2 z-40 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 sm:bottom-6 sm:left-6 sm:translate-x-0">
+    <div className="fixed bottom-[88px] left-1/2 z-40 w-[min(420px,calc(100vw-32px))] -translate-x-1/2 sm:bottom-20 sm:left-6 sm:translate-x-0">
       <div className="overflow-hidden rounded-[14px] border bg-card shadow-lg">
         <button
           type="button"

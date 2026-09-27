@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, Inbox, House } from 'lucide-react'
 import { useLayout } from '@/lib/layout'
+import { LayoutSwitch } from '@/components/LayoutSwitch'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
@@ -725,14 +726,30 @@ export function BentoDock() {
 
            Still `shrink-0` on a wide screen, where the bar is a floating pill
            and this is one of the items the row must never crush. */}
-        <span className={phone ? 'dock-tab' : 'shrink-0'}>
-          {/* Told where Home is, so "Customize board" in its menu can go
-              there first from any screen; the board rows are otherwise
-              offered only while standing on a board. */}
-          <BentoSettings placement="dock" home={homeHref} />
-          {tabLabel(t('bento.settings.label'))}
-        </span>
+        {phone && (
+          <span className="dock-tab">
+            {/* Told where Home is, so "Customize board" in its menu can go
+                there first from any screen; the board rows are otherwise
+                offered only while standing on a board. */}
+            <BentoSettings placement="dock" home={homeHref} />
+            {tabLabel(t('bento.settings.label'))}
+          </span>
+        )}
       </div>
+
+      {/* SETTINGS IN THE CORNER, WITH THE LAYOUT BESIDE IT.
+
+          On a desk the cog leaves the dock for the bottom-left corner, and the
+          Focus | Work switch sits right of it: the two things a person changes
+          about the frame itself, kept together and out of the row of places
+          to go. The phone keeps the cog as a dock cell, where it has a slot
+          and a label. */}
+      {!phone && (
+        <div className="bento-corner fixed bottom-6 left-6 z-50 flex items-center gap-2">
+          <BentoSettings placement="dock" home={homeHref} />
+          <LayoutSwitch />
+        </div>
+      )}
 
       {/* The account, at the edge of the screen rather than in the middle of
           the bar. Its own fixed element, not a third region of the dock: the

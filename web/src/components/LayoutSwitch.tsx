@@ -50,7 +50,8 @@ export function LayoutSwitch() {
       aria-label={t('shell.layout.group')}
       className="flex items-center gap-0.5 rounded-[7px] bg-surface-hover/60 p-0.5 shadow-[var(--field-inset)]"
     >
-      {LAYOUTS.map((value) => {
+      {/* Focus first, then Work: the order the owner reads them in. */}
+      {[...LAYOUTS].sort((a) => (a === 'bento' ? -1 : 1)).map((value) => {
         const active = layout === value
         return (
           <button
