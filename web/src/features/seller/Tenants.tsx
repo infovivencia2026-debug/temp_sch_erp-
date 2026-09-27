@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, KeyRound, Network, Palette, Plus, X } from 'lucide-react'
 import { SchoolGroups } from './SchoolGroups'
+import { NewSchool } from './NewSchool'
 import { Features } from './Features'
 import { api, setActingInstitution, type List } from '@/lib/api'
 import {
@@ -247,15 +248,7 @@ export default function Tenants() {
             they want; making them press "New school" first is the menu asking
             a question and then asking it again. */}
         {(creating || view === 'provision') && (
-          <ProvisionForm
-            plans={plans.data?.items ?? []}
-            onDone={(h) => {
-              setCreating(false)
-              setHandover(h)
-              qc.invalidateQueries({ queryKey: ['seller-tenants'] })
-            }}
-            onCancel={() => setCreating(false)}
-          />
+          <NewSchool plans={plans.data?.items ?? []} onClose={() => setCreating(false)} />
         )}
 
         {view === 'onboarding' && <OnboardingPipeline rows={rows} />}
@@ -510,130 +503,6 @@ function HandoverCard({ h, onClose }: { h: Handover; onClose: () => void }) {
           </Button>
         </div>
       </div>
-    </Card>
-  )
-}
-
-function ProvisionForm({
-  plans,
-  onDone,
-  onCancel,
-}: {
-  plans: Plan[]
-  onDone: (h: Handover) => void
-  onCancel: () => void
-}) {
-  const [f, setF] = useState({
-    school_name: '',
-    district: '',
-    state: 'Telangana',
-    affiliation_board: 'BSE Telangana',
-    plan_code: plans[0]?.code ?? 'starter',
-    admin_name: '',
-    admin_username: '',
-    admin_email: '',
-    admin_phone: '',
-    trial_days: '30',
-  })
-  const set = (k: keyof typeof f, v: string) => setF({ ...f, [k]: v })
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.post<Handover>('/api/v1/seller/tenants', {
-        ...f,
-        trial_days: Number(f.trial_days) || 30,
-      }),
-    onSuccess: onDone,
-  })
-
-  return (
-    <Card>
-      <CardHeader
-        title="Provision a school"
-        description="Creates the school, its first campus, its administrator and the subscription in one step."
-      />
-      <form
-        className="px-5 py-5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          create.mutate()
-        }}
-      >
-        <FormGrid>
-          <Field label="School name" required wide>
-            <Input
-              value={f.school_name}
-              onChange={(x) => set('school_name', x)}
-              placeholder="Bharat Public School, Warangal"
-            />
-          </Field>
-          <Field label="District">
-            <Input value={f.district} onChange={(x) => set('district', x)} />
-          </Field>
-          <Field label="State">
-            <Input value={f.state} onChange={(x) => set('state', x)} />
-          </Field>
-          <Field label="Board">
-            <Input value={f.affiliation_board} onChange={(x) => set('affiliation_board', x)} />
-          </Field>
-          <Field label="Plan">
-            <Select
-              value={f.plan_code}
-              onChange={(x) => set('plan_code', x)}
-              options={plans.map((p) => ({
-                value: p.code,
-                label: `${p.name} · ${formatPaise(p.price_paise)}/yr`,
-              }))}
-            />
-          </Field>
-          <Field label="Trial days" hint="Before the first invoice falls due.">
-            <Input value={f.trial_days} onChange={(x) => set('trial_days', x)} />
-          </Field>
-        </FormGrid>
-
-        <div className="mt-6 border-t pt-5">
-          <p className="mb-1 text-[15px] font-semibold">Who receives the credentials</p>
-          <p className="mb-4 text-[13px] text-muted-foreground">
-            The owner, principal or whoever the school nominates. They become its first
-            administrator and can create everyone else.
-          </p>
-          <FormGrid>
-            <Field label="Full name" required>
-              <Input
-                value={f.admin_name}
-                onChange={(x) => set('admin_name', x)}
-                placeholder="Sudha Rani"
-              />
-            </Field>
-            <Field label="Username" hint="What they type to sign in. Short is kinder.">
-              <Input
-                value={f.admin_username}
-                onChange={(x) => set('admin_username', x)}
-                placeholder="sudha"
-              />
-            </Field>
-            <Field label="Email">
-              <Input type="email" value={f.admin_email} onChange={(x) => set('admin_email', x)} />
-            </Field>
-            <Field label="Phone">
-              <Input value={f.admin_phone} onChange={(x) => set('admin_phone', x)} />
-            </Field>
-          </FormGrid>
-        </div>
-
-        <FormNotice error={create.error} />
-        <div className="mt-5 flex items-center gap-2">
-          <Button
-            type="submit"
-            disabled={create.isPending || !f.school_name.trim() || !f.admin_name.trim()}
-          >
-            {create.isPending ? 'Provisioning…' : 'Provision and show credentials'}
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      </form>
     </Card>
   )
 }

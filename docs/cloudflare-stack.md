@@ -140,11 +140,24 @@ Use `--persist-to <dir>` to keep separate local states. `wrangler dev
 
 ## Common tasks
 
-**Add a school.** `worker/scripts/provision-school.sh <slug> "<Name>" "<Short>"`
-creates the D1 database, applies `db/tenant.sql`, adds the `TENANT_<SLUG>`
-binding and the CONTROL row. Then `npx wrangler deploy` so the binding is live.
-Also fill `login_index` for its users (the seller "create school" route does
-this for its admin).
+**Add a school.** Seller → Schools → New school. The console queues the
+`school:provision` job (`worker/src/services/provision.ts`), which creates the
+D1 database through the Cloudflare API, applies `db/tenant.sql` in chunks,
+seeds roles, permissions, campus and administrator, then writes the CONTROL
+rows (institution, subscription, `login_index`). Progress is in
+`CONTROL.provisioning`; a failure shows its stage and error with Retry and
+Discard. No deploy is needed: until the Worker has the school's
+`TENANT_<SLUG>` binding, `src/tenant.ts` reaches it over the D1 HTTP API.
+Run `worker/scripts/provision-school.sh --attach` then `npx wrangler deploy`
+from time to time so such schools get a native binding (faster). Needs the
+Worker secrets `CF_ACCOUNT_ID` and `CF_API_TOKEN` (Account > D1 > Edit) and
+`db/changes/control_provisioning.sql` applied to CONTROL. Tests:
+`worker/scripts/test-provision.sh`.
+
+`worker/scripts/provision-school.sh <slug> "<Name>" "<Short>"` still works
+for local development (`--local`): it creates the database, applies the schema,
+adds the binding and the CONTROL row, but no administrator or roles; then
+`npx wrangler deploy`.
 
 **Change the schema.** There is no migration runner yet. A change must be
 applied to CONTROL once and to **every** school database:

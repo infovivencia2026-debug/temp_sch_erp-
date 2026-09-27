@@ -2,6 +2,7 @@ import type { Router } from '../router'
 import { registerSellerTenants } from './seller/tenants'
 import { registerSellerPlatform } from './seller/platform'
 import { registerSchoolGroups } from './seller/groups'
+import { registerSellerProvisioning } from './seller/provisioning'
 import { registerSellerFeatures } from './seller/features'
 import { registerSellerAnnouncements } from './seller/announcements'
 import { registerSchoolHealth } from './seller/health'
@@ -13,6 +14,7 @@ import { registerSchoolHealth } from './seller/health'
    handlers did, so a school admin holding the key by accident is refused. */
 export function registerSeller(r: Router): void {
   registerSellerTenants(r)
+  registerSellerProvisioning(r)
   registerSellerPlatform(r)
   // School groups; also /me/groups and /groups/{id}/dashboard for group admins (checked in the handlers).
   registerSchoolGroups(r)

@@ -25,7 +25,9 @@
   },
   // Secrets, set with `wrangler secret put <NAME>`:
   //   PASSWORD_PEPPER   the same value the Go server uses, or no stored hash verifies
-  //   CF_ACCOUNT_ID, CF_API_TOKEN   only needed by scripts/provision-school.sh
+  //   CF_ACCOUNT_ID, CF_API_TOKEN   Seller → New school creates D1 databases with them and
+  //                  reaches a new school over the D1 API until a deploy adds its binding
+  //                  (src/services/provision.ts; token: Account > D1 > Edit)
   // Files. FILES is the live bucket the Go server uses (read here); uploads
   // and deletes go to FILES_WRITE until switchover, so the test site can
   // never change a real file. At switchover FILES_WRITE becomes school-erp.

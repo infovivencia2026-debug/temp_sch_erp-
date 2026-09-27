@@ -1,4 +1,5 @@
 import type { Env } from './env'
+import { httpTenantDb } from './services/d1http'
 
 export interface Institution {
   id: string
@@ -57,6 +58,10 @@ export const schoolPath = (i: Pick<Institution, 'country' | 'slug'>) => `/${i.co
 export function tenantDb(env: Env, inst: Institution): D1Database {
   const db = env[inst.d1_binding]
   if (!db || typeof db !== 'object' || !('prepare' in db)) {
+    // A school created from the seller console before a deploy carried its
+    // binding: reach it over the D1 HTTP API (services/provision.ts).
+    const viaApi = httpTenantDb(env, inst.d1_database_id)
+    if (viaApi) return viaApi
     throw new Error(`no D1 binding ${inst.d1_binding} for school ${inst.slug}; run scripts/provision-school.sh and redeploy`)
   }
   return db as D1Database
