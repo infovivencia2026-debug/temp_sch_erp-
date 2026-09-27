@@ -105,13 +105,17 @@ export function ToastHost({ children }: { children: ReactNode }) {
 }
 
 function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
+  const [paused, setPaused] = useState(false)
   useEffect(() => {
-    // Errors stay. A confirmation has done its job in four seconds; an error
-    // that vanishes before it is read will simply happen again.
-    if (t.kind === 'error') return
-    const id = setTimeout(onDismiss, 2200)
+    // Errors stay. A confirmation has done its job in a couple of seconds; an
+    // error that vanishes before it is read will simply happen again. Hovering
+    // a confirmation holds it, so an Undo is never snatched away mid-reach.
+    if (t.kind === 'error' || paused) return
+    const id = setTimeout(onDismiss, t.undo ? 4000 : 2400)
     return () => clearTimeout(id)
-  }, [t.kind, onDismiss])
+  }, [t.kind, t.undo, onDismiss, paused])
+
+  if (t.kind === 'ok') return <Confirmation t={t} onDismiss={onDismiss} paused={paused} setPaused={setPaused} />
 
   return (
     <div
@@ -162,6 +166,57 @@ function ToastRow({ t, onDismiss }: { t: Toast; onDismiss: () => void }) {
   )
 }
 
+/* THE CONFIRMATION, IN THE SCHOOL'S OWN COLOUR.
+
+   It used to be a grey slab with a small green tick: the one moment in the
+   product that answers "did that work?", drawn in a colour that belongs to no
+   palette. Now the tick sits in a disc of the school's accent and draws
+   itself, a soft ring leaves the disc once, and a hairline along the foot
+   counts down to when it goes (held while the pointer is on it). Under
+   reduced motion all of that is still: the disc, the tick and the words. */
+function Confirmation({ t, onDismiss, paused, setPaused }: {
+  t: Toast; onDismiss: () => void; paused: boolean; setPaused: (p: boolean) => void
+}) {
+  const ms = t.undo ? 4000 : 2400
+  return (
+    <div
+      role="status"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="toast-glass toast-confirm pointer-events-auto relative flex max-w-sm items-center gap-3 overflow-hidden rounded-2xl border py-3 pl-3 pr-3.5 text-[14px] font-medium"
+      style={{ ['--toast-ms' as string]: `${ms}ms` }}
+    >
+      <span className="toast-mark relative grid h-8 w-8 shrink-0 place-items-center rounded-full" aria-hidden="true">
+        <span className="toast-ripple absolute inset-0 rounded-full" />
+        <svg viewBox="0 0 24 24" className="relative h-[18px] w-[18px]" fill="none" stroke="currentColor"
+             strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+          <path className="toast-tick" d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      </span>
+      <p className="min-w-0 flex-1 leading-snug">{t.message}</p>
+      {t.undo && (
+        <button
+          type="button"
+          onClick={() => { t.undo?.(); onDismiss() }}
+          className="toast-undo inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+          Undo
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+      <span className="toast-timer absolute inset-x-0 bottom-0 h-[2px] origin-left" data-paused={paused ? '' : undefined} aria-hidden="true" />
+    </div>
+  )
+}
+
 /* The glass the confirmation sits on. backdrop-filter where the browser has
    it; a plain card where it does not (the old phones this runs on), so the
    words never sit on a see-through nothing. */
@@ -175,4 +230,23 @@ const glassCSS = `
 }
 @keyframes toast-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .toast-glass { animation: none; } }
+
+/* The accent the confirmation speaks in: --sel-strong where Settings defines
+   it (a contrast-checked accent for text), otherwise the theme's primary. */
+.toast-confirm { --tc: var(--sel-strong, hsl(var(--primary))); }
+.toast-mark { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.toast-ripple { border: 2px solid var(--tc); opacity: 0; animation: toast-ripple 700ms ease-out 120ms 1 both; }
+.toast-tick { stroke-dasharray: 24; stroke-dashoffset: 24; animation: toast-draw 360ms cubic-bezier(.3,.8,.3,1) 90ms forwards; }
+.toast-undo { color: var(--tc); background: color-mix(in srgb, var(--tc) 12%, transparent); }
+.toast-undo:hover { background: color-mix(in srgb, var(--tc) 20%, transparent); }
+.toast-timer { background: var(--tc); opacity: .55; animation: toast-timer var(--toast-ms) linear forwards; }
+.toast-timer[data-paused] { animation-play-state: paused; }
+@keyframes toast-draw { to { stroke-dashoffset: 0; } }
+@keyframes toast-ripple { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.9); } }
+@keyframes toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .toast-tick { animation: none; stroke-dashoffset: 0; }
+  .toast-ripple { animation: none; }
+  .toast-timer { animation: none; opacity: 0; }
+}
 `

@@ -722,7 +722,18 @@ export function Shell({
               appearance controls are reached from the header, and a second
               gear at the foot of the rail read as a piece of the other layout
               left behind. */}
-          {layout === 'bento' && <BentoSettings placement="rail" />}
+          {/* Settings at the foot of the rail in both layouts, and in the Work
+              layout the Focus | Work switch beside it where the rail is wide
+              enough: the same corner the Focus layout keeps them in, so
+              switching layouts never moves the way back. */}
+          <div className="flex items-center gap-2">
+            <BentoSettings placement="rail" />
+            {layout !== 'bento' && (
+              <span className="hidden lg:block">
+                <LayoutSwitch />
+              </span>
+            )}
+          </div>
         </div>
 
         {/* --- the panel: the selected workspace, and nothing else ---------
@@ -1101,7 +1112,9 @@ export function Shell({
             {/* Classic | Bento, beside the theme control. Added, not moved:
                 every control that was here is still here, in the same order,
                 with the same classes. */}
-            <div className="hidden sm:block">
+            {/* The Focus | Work switch lives at the foot of the rail now (see
+                there); kept here only where the rail is too narrow for it. */}
+            <div className="hidden sm:block lg:hidden">
               <LayoutSwitch />
             </div>
             <button
