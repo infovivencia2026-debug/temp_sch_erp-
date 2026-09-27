@@ -13,6 +13,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "placement": { "mode": "smart" },
   "observability": { "enabled": true },
+  // The files Pages serves beside the app (the sign-in stylesheet and fonts
+  // under /static, the legal pages). Needed when the Worker is visited
+  // directly, as on workers.dev; behind Pages they are served there first.
+  "assets": { "directory": "../web/public" },
   "vars": {
     // Session lifetime and idle limit, seconds. Same defaults as the Go server.
     "SESSION_TTL_SECONDS": "2592000",
