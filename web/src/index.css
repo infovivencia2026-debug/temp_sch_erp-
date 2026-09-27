@@ -3654,3 +3654,24 @@ html.theme-anim *::after {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .scope-glass { background: hsl(var(--card)); }
 }
+
+input[type="search"]:not(.bg-transparent),
+input[placeholder^="Search" i]:not(.bg-transparent),
+input[placeholder^="Find" i]:not(.bg-transparent) { background-color: hsl(var(--muted)); }
+
+/* SEARCH FIELDS HAVE NO LINES. A filled, borderless field at rest, on hover
+   and while typing: no border, no ring, no outline. The fill is the edge. */
+input[type="search"],
+input[placeholder^="Search" i],
+input[placeholder^="Find" i] {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+input[type="search"]:hover, input[type="search"]:focus, input[type="search"]:focus-visible,
+input[placeholder^="Search" i]:hover, input[placeholder^="Search" i]:focus, input[placeholder^="Search" i]:focus-visible,
+input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[placeholder^="Find" i]:focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}

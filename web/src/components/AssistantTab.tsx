@@ -1295,8 +1295,8 @@ export function AssistantTab() {
                  whole conversation starts, so it is the largest text on the
                  panel and tall enough to be found with a thumb. 16px also
                  keeps iOS from zooming the page when the field is focused. */
-              className="min-w-0 flex-1 rounded-[14px] border bg-background px-4 py-3 text-[16px]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 flex-1 rounded-[14px] border-0 bg-background px-4 py-3 text-[16px]
+                         !shadow-none !outline-none focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0"
             />
             {/* Drawn only where it works. Firefox has no speech recognition at
                 all, so on Firefox there is no microphone, a button that does

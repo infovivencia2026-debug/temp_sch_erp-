@@ -277,7 +277,7 @@ export function CommandSearch({ wide = false }: { wide?: boolean } = {}) {
            was, the palette had no way in at all there — Ctrl+K was the only
            other door and a phone has no Ctrl. */
         className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border text-[13px] text-muted-foreground transition-colors hover:bg-accent sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
+          'flex h-9 w-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[hsl(var(--muted))] text-[13px] text-muted-foreground transition-colors hover:bg-[hsl(var(--muted))] focus-visible:outline-none sm:h-auto sm:w-auto sm:px-3 sm:py-1.5',
           /* The Work header's one control: a field-sized target, the words
              left and the shortcut right, the way a search box reads. */
           wide && 'md:h-10 md:w-[min(420px,40vw)] md:justify-start md:gap-2.5 md:px-4 md:text-[14px]',
