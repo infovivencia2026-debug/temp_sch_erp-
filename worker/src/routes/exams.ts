@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../router'
+import type { ExamSummary, GradebookRow, List, PendingReportCards, ReportCard, ReportCardReadiness, ReportCardStatus } from '@shared/api'
 import { can } from '../identity'
 import { badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
@@ -34,15 +35,15 @@ export function registerExams(r: Router): void {
 // ============================================================ /exams
 
 function registerExamGroup(r: Router) {
-  r.get('/exams/list', EXAMS_READ, async (c) => {
+  r.typed('GET /exams/list', EXAMS_READ, async (c) => {
     const rows = await c.db.prepare(`
       SELECT e.id, e.name, e.kind, ${dateOf('e.starts_on')} AS starts_on, e.is_published,
              (SELECT COUNT(*) FROM exam_subjects es WHERE es.exam_id = e.id) AS papers
         FROM exams e ORDER BY e.starts_on IS NULL, e.starts_on DESC, e.name`).all()
-    return ok(items(rows.results.map((v) => ({
-      id: v.id, name: v.name, kind: v.kind, starts_on: v.starts_on ?? undefined,
+    return items(rows.results.map((v): ExamSummary => ({
+      id: str(v.id), name: str(v.name), kind: str(v.kind), starts_on: v.starts_on == null ? undefined : str(v.starts_on),
       is_published: bool(v.is_published), papers: numOr0(v.papers),
-    }))))
+    })))
   })
 
   r.post('/exams/{id}/papers', EXAMS_WRITE, async (c) => {
@@ -130,7 +131,7 @@ function registerExamGroup(r: Router) {
     return ok({ updated: true, marks_entered: row.entered })
   })
 
-  r.get('/exams/gradebook', EXAMS_READ, async (c) => {
+  r.typed('GET /exams/gradebook', EXAMS_READ, async (c) => {
     const esId = c.url.searchParams.get('exam_subject_id') ?? ''
     if (esId === '') throw badRequest('exam_subject_id is required')
     const sectionId = (c.url.searchParams.get('section_id') ?? '').trim()
@@ -147,15 +148,15 @@ function registerExamGroup(r: Router) {
         LEFT JOIN marks m ON m.exam_subject_id = es.id AND m.student_id = st.id
        WHERE es.id = ? AND (? = '' OR e.section_id = ?)
        ORDER BY sec.name, st.admission_no`).bind(esId, sectionId, sectionId).all()
-    return ok(items(rows.results.map((v) => ({
-      student_id: v.student_id, admission_no: v.admission_no, full_name: v.full_name,
+    return items(rows.results.map((v): GradebookRow => ({
+      student_id: str(v.student_id), admission_no: str(v.admission_no), full_name: str(v.full_name),
       marks_obtained: num(v.marks_obtained) ?? undefined, max_marks: numOr0(v.max_marks),
-      grade: v.grade ?? undefined, is_absent: bool(v.is_absent), section: v.section,
-    }))))
+      grade: v.grade == null ? undefined : str(v.grade), is_absent: bool(v.is_absent), section: str(v.section),
+    })))
   })
 
-  r.get('/exams/report-cards', EXAMS_READ, listReportCards)
-  r.get('/exams/report-cards/readiness', EXAMS_READ, async (c) => {
+  r.typed('GET /exams/report-cards', EXAMS_READ, listReportCards)
+  r.typed('GET /exams/report-cards/readiness', EXAMS_READ, async (c) => {
     const sectionId = c.url.searchParams.get('section_id') || null
     const examId = c.url.searchParams.get('exam_id') || null
     const rows = await c.db.prepare(`
@@ -171,12 +172,12 @@ function registerExamGroup(r: Router) {
         JOIN sections sec ON sec.id = ?1 AND sec.class_id = cs.class_id
        WHERE es.exam_id = ?2
        ORDER BY sub.name`).bind(sectionId, examId).all()
-    return ok(items(rows.results.map((v) => ({
-      subject: v.subject, teacher: v.teacher ?? undefined, marks_entered: numOr0(v.marks_entered), students: numOr0(v.students),
-    }))))
+    return items(rows.results.map((v): ReportCardReadiness => ({
+      subject: str(v.subject), teacher: v.teacher == null ? undefined : str(v.teacher), marks_entered: numOr0(v.marks_entered), students: numOr0(v.students),
+    })))
   })
 
-  r.post('/exams/marks', MARKS_WRITE, enterMarks)
+  r.typed('POST /exams/marks', MARKS_WRITE, enterMarks)
 
   // --- question papers ------------------------------------------------
   r.get('/exams/question-papers', EXAMS_READ, listQuestionPapers)
@@ -258,7 +259,7 @@ function registerExamGroup(r: Router) {
 
   // --- approval -------------------------------------------------------
   r.post('/exams/report-cards/submit', RC_GENERATE, submitReportCards)
-  r.get('/exams/report-cards/pending', RC_PUBLISH, async (c) => {
+  r.typed('GET /exams/report-cards/pending', RC_PUBLISH, async (c) => {
     const rows = await c.db.prepare(`
       SELECT rc.status, sec.id AS section_id, sec.name AS section_name, c.name AS class_name, COUNT(*) AS cards,
              MAX(u.full_name) AS submitted_by,
@@ -271,10 +272,11 @@ function registerExamGroup(r: Router) {
        WHERE rc.status IN ('submitted','published')
        GROUP BY rc.status, sec.id, sec.name, c.name, c.level
        ORDER BY rc.status, c.level, sec.name`).all()
-    return ok(items(rows.results.map((v) => ({
-      status: v.status, section_id: v.section_id, section_name: v.section_name, class_name: v.class_name,
-      cards: numOr0(v.cards), submitted_by: v.submitted_by ?? undefined, submitted_at: v.submitted_at ?? undefined,
-    }))))
+    return items(rows.results.map((v): PendingReportCards => ({
+      status: str(v.status) as PendingReportCards['status'], section_id: str(v.section_id), section_name: str(v.section_name), class_name: str(v.class_name),
+      cards: numOr0(v.cards), submitted_by: v.submitted_by == null ? undefined : str(v.submitted_by),
+      submitted_at: v.submitted_at == null ? undefined : str(v.submitted_at),
+    })))
   })
   r.post('/exams/report-cards/publish', RC_PUBLISH, publishReportCards)
   r.post('/exams/report-cards/return', RC_PUBLISH, returnReportCards)
@@ -336,7 +338,7 @@ function registerExamGroup(r: Router) {
 
 interface MarksEntry { student_id: string; marks_obtained?: number | null; is_absent?: boolean; remarks?: string }
 
-async function enterMarks(c: Ctx) {
+async function enterMarks(c: Ctx): Promise<{ written: number }> {
   const req = await readJSON<{ exam_subject_id?: string; entries?: MarksEntry[] }>(c.req)
   const esId = req.exam_subject_id ?? ''
   if (!isUUID(esId)) throw badRequest('exam_subject_id must be a uuid')
@@ -401,7 +403,7 @@ async function enterMarks(c: Ctx) {
         e.remarks ? e.remarks : null, c.id.userId, now()))
   }
   await c.db.batch(stmts)
-  return ok({ written: stmts.length })
+  return { written: stmts.length }
 }
 
 function validateMark(subject: string, maxMarks: number, marks: number | null) {
@@ -421,7 +423,7 @@ const pickGrade = (bands: Band[], pct: number): string | null => bands.find((b) 
 
 // ------------------------------------------------------------ report cards
 
-async function listReportCards(c: Ctx) {
+async function listReportCards(c: Ctx): Promise<List<ReportCard>> {
   const res = await resolveScope(c)
   const sectionId = c.url.searchParams.get('section_id') || null
   const examId = c.url.searchParams.get('exam_id') || null
@@ -471,19 +473,21 @@ async function listReportCards(c: Ctx) {
       LEFT JOIN classes c ON c.id = sec.class_id
      WHERE (?1 IS NULL OR e.section_id = ?2) AND ${where}
      ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`).bind(...args).all()
-  return ok(items(rows.results.map((v) => ({
-    id: v.id, student_id: v.student_id, admission_no: v.admission_no, roll_no: v.roll_no ?? undefined, full_name: v.full_name,
-    photo_file_id: v.photo_file_id ?? undefined, class_name: v.class_name ?? undefined, section_name: v.section_name ?? undefined,
-    total_marks: num(v.total_marks) ?? undefined, max_marks: num(v.max_marks) ?? undefined,
-    percentage: num(v.percentage) ?? undefined, grade: v.grade ?? undefined, rank_in_section: v.rank_in_section ?? undefined,
-    attendance_percent: num(v.attendance_percent) ?? undefined, is_published: bool(v.is_published),
-    status: v.status, return_note: v.return_note ?? undefined,
+  const optS = (v: unknown) => (v === null || v === undefined ? undefined : str(v))
+  const optN = (v: unknown) => num(v) ?? undefined
+  return items(rows.results.map((v): ReportCard => ({
+    id: str(v.id), student_id: str(v.student_id), admission_no: str(v.admission_no), roll_no: optN(v.roll_no), full_name: str(v.full_name),
+    photo_file_id: optS(v.photo_file_id), class_name: optS(v.class_name), section_name: optS(v.section_name),
+    total_marks: optN(v.total_marks), max_marks: optN(v.max_marks),
+    percentage: optN(v.percentage), grade: optS(v.grade), rank_in_section: optN(v.rank_in_section),
+    attendance_percent: optN(v.attendance_percent), is_published: bool(v.is_published),
+    status: str(v.status) as ReportCardStatus, return_note: optS(v.return_note),
     subjects: (JSON.parse(String(v.subjects)) as Record<string, unknown>[]).sort((a, b) => String(a.subject).localeCompare(String(b.subject)))
       .map((s) => ({
-        subject: s.subject, marks_obtained: s.marks_obtained ?? undefined, grace_marks: s.grace_marks,
-        max_marks: s.max_marks, percent: s.percent ?? undefined, is_absent: bool(s.is_absent), grade: s.grade ?? undefined,
+        subject: str(s.subject), marks_obtained: optN(s.marks_obtained), grace_marks: numOr0(s.grace_marks),
+        max_marks: numOr0(s.max_marks), percent: optN(s.percent), is_absent: bool(s.is_absent), grade: optS(s.grade),
       })),
-  }))))
+  })))
 }
 
 async function generateReportCards(c: Ctx) {

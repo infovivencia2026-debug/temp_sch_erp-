@@ -28,11 +28,6 @@ interface Hall {
   capacity: number
   seats_allocated: number
 }
-interface Exam {
-  id: string
-  name: string
-  starts_on?: string
-}
 interface Seat {
   ticket_no: string
   student_name: string
@@ -74,13 +69,13 @@ interface Child {
 export default function HallTicket() {
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const isStaff = session.data?.permissions.includes('academics.exams.write') ?? false
 
   const exams = useQuery({
     queryKey: ['exams'],
-    queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
   })
   const [examId, setExamId] = useState('')
   const exam = examId || exams.data?.items[0]?.id || ''

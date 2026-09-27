@@ -206,7 +206,8 @@ export function syncWallet(c: Ctx, walletId: string): D1PreparedStatement {
 import type { Handler } from '../../router'
 import { school } from '../school'
 export const FINANCE_GROUP = 'finance.invoices.read'
-export const fin = (h: Handler): Handler => (c) => {
+/** Finance-group gate. Generic so it wraps a typed (contract) handler as well as a plain one. */
+export const fin = <R>(h: (c: Ctx) => R) => (c: Ctx): R => {
   if (!can(c.id, FINANCE_GROUP)) throw forbidden()
   return h(c)
 }

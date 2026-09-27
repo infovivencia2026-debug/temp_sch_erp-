@@ -2,7 +2,7 @@ import ClassTeachers from './ClassTeachers'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, GraduationCap, UserCheck, UserX } from 'lucide-react'
-import { api, type List, type Klass, type Teacher } from '@/lib/api'
+import { api, type List, type Klass } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, FormNotice, Select, SkeletonTiles, ErrorState, EmptyState,
@@ -56,7 +56,7 @@ export default function FacultyAllocation() {
   })
   const teachers = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
   })
   const alloc = useQuery({
     queryKey: ['faculty-allocation', classId, gapsOnly],

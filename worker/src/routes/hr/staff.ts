@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import type { Employee, HRAlert, HRAway, HRDashboard, Page } from '@shared/api'
 import { badRequest, bool, clampInt, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { addDays, fullName, isHHMM, isUUIDish, istClock, istMinute, nextNumber, nz, parseJSON, round1, str, todayIST } from '../admissions/util'
@@ -309,7 +310,7 @@ export function registerStaff(r: Router) {
     return ok({ id: c.params.id })
   })
 
-  r.get('/hr/dashboard', READ, async (c) => {
+  r.typed('GET /hr/dashboard', READ, async (c) => {
     const today = todayIST()
     const k = await c.db.prepare(`
       SELECT (SELECT count(*) FROM employees WHERE status='active') AS headcount,
@@ -318,7 +319,8 @@ export function registerStaff(r: Router) {
              (SELECT count(*) FROM leave_requests WHERE status='pending' AND subject_kind = 'staff') AS leave_pending,
              (SELECT count(*) FROM employees WHERE joined_on >= ?) AS new_joiners_30d,
              (SELECT count(*) FROM departments) AS departments`)
-      .bind(today, today, addDays(today, -30)).first<Record<string, number>>()
+      .bind(today, today, addDays(today, -30))
+      .first<Omit<HRDashboard, 'away_today' | 'attention'>>()
     const away = await c.db.prepare(`
       SELECT ${fullName('e.first_name', 'e.last_name')} AS name, e.employee_code, 'marked absent' AS reason, NULL AS until
         FROM staff_attendance sa JOIN employees e ON e.user_id = sa.user_id WHERE sa.on_date = ? AND sa.status IN ('absent', 'leave')
@@ -333,17 +335,17 @@ export function registerStaff(r: Router) {
              (SELECT count(*) FROM employee_documents WHERE expires_on < ?) AS expired,
              (SELECT count(*) FROM employees e WHERE e.status = 'active' AND e.user_id IS NULL) AS no_login`)
       .bind(today, addDays(today, 60), today).first<{ no_docs: number; expiring: number; expired: number; no_login: number }>()
-    const attention: { kind: string; text: string; count: number; link: string }[] = []
-    const add = (n: number, kind: string, text: string, link: string) => { if (n > 0) attention.push({ kind, text, count: n, link }) }
+    const attention: HRAlert[] = []
+    const add = (n: number, kind: HRAlert['kind'], text: string, link: string) => { if (n > 0) attention.push({ kind, text, count: n, link }) }
     add(a!.expired, 'danger', 'staff documents have already lapsed', '/go/records/staff_records?view=documents')
     add(a!.expiring, 'warning', 'staff documents lapse within 60 days', '/go/records/staff_records?view=documents')
     add(a!.no_docs, 'warning', 'staff have no documents on file at all', '/go/records/staff_records?view=documents')
     add(a!.no_login, 'neutral', 'staff cannot sign in yet', '/go/records/staff_records')
     add(k!.leave_pending, 'warning', 'leave requests are waiting on somebody', '/go/leave/leave')
-    return ok({ ...k, away_today: away.results.map((v) => omitNull({ name: v.name, employee_code: v.employee_code, reason: v.reason, until: v.until })), attention })
+    return { ...k!, away_today: away.results.map((v): HRAway => omitNull({ name: v.name, employee_code: v.employee_code, reason: v.reason, until: v.until ?? undefined })), attention }
   })
 
-  r.get('/hr/employees', READ, async (c) => {
+  r.typed('GET /hr/employees', READ, async (c) => {
     const q = c.url.searchParams
     const limit = clampInt(q.get('limit'), 50, 1, 200)
     const offset = clampInt(q.get('offset'), 0, 0, 1_000_000)
@@ -356,7 +358,7 @@ export function registerStaff(r: Router) {
     const from = `FROM employees e LEFT JOIN departments d ON d.id = e.department_id LEFT JOIN designations dg ON dg.id = e.designation_id
       WHERE (? IS NULL OR e.status = ?) AND (? IS NULL OR (COALESCE(e.employee_code, '') > ? OR (COALESCE(e.employee_code, '') = ? AND e.id > ?)))`
     const curCode = cur?.a ?? null, curID = cur?.i ?? null
-    const out: Record<string, unknown> = { items: [], limit, offset, has_more: false }
+    const out: Page<Employee> = { items: [], limit, offset, has_more: false }
     if (withTotal) out.total = (await c.db.prepare(`SELECT count(*) AS n ${from}`).bind(status, status, null, null, null, null).first<{ n: number }>())?.n ?? 0
     const rows = await c.db.prepare(`
       SELECT e.id, e.user_id, e.employee_code, e.staff_number, e.device_user_id, ${fullName('e.first_name', 'e.last_name')} AS full_name,
@@ -364,7 +366,7 @@ export function registerStaff(r: Router) {
              (SELECT count(*) FROM timetable_entries te WHERE te.teacher_user_id = e.user_id) AS periods_this_week
       ${from} ORDER BY COALESCE(e.employee_code, ''), e.id LIMIT ? OFFSET ?`)
       .bind(status, status, curCode, curCode, curCode, curID, limit + 1, cur ? 0 : offset).all<Record<string, unknown>>()
-    let items = rows.results.map(omitNull)
+    let items = rows.results.map((r) => omitNull(r) as unknown as Employee)
     if (items.length > limit) {
       items = items.slice(0, limit)
       out.has_more = true
@@ -372,7 +374,7 @@ export function registerStaff(r: Router) {
       out.next_cursor = encodeCursor({ a: str(last.employee_code), i: str(last.id), f: fp })
     }
     out.items = items
-    return ok(out)
+    return out
   })
 
   r.get('/hr/employees/unlinked', READ, async (c) => {

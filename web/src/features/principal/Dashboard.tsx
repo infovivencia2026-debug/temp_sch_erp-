@@ -12,19 +12,6 @@ import { formatPaise } from '@/lib/utils'
 import SetupProgress from './SetupProgress'
 import { useCan } from '@/lib/session'
 
-interface PrincipalKPIs {
-  students: number; staff: number; sections: number
-  /* Today's register, and the range's. The first pair is CURRENT_DATE however
-     the picker moves — the same day the attention panel counts unmarked
-     sections for. The second is the range and is absent, not zero, when no
-     register was marked in it. */
-  attendance_today_pct: number; attendance_marked_today: number
-  attendance_range_pct?: number; attendance_range_marked?: number
-  collected_paise: number; outstanding_paise: number; defaulters: number
-  pending_leave: number; open_applications: number; unassigned_subjects: number
-  range: { period: string; from: string; to: string; label: string }
-  as_of_now: string[]
-}
 interface TrendPoint { date: string; present: number; absent: number; total: number; pct: number }
 
 export default function PrincipalDashboard() {
@@ -39,7 +26,7 @@ export default function PrincipalDashboard() {
   const kpis = useQuery({
     queryKey: ['principal-dashboard', rangeQuery(range)],
     queryFn: () =>
-      api.get<PrincipalKPIs>(`/api/v1/principal/dashboard?${rangeQuery(range)}`),
+      api.call('GET /principal/dashboard', { query: Object.fromEntries(new URLSearchParams(rangeQuery(range))) }),
     // A custom range is incomplete until both ends are chosen; asking in
     // between would flash a number for a window nobody selected.
     enabled: range.period !== 'custom' || (!!range.from && !!range.to),

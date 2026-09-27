@@ -99,7 +99,7 @@ export default function Circulars() {
   // that works but logs an error each time it opens.
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const canPublish = session.data?.permissions.includes('comms.announcements.write') ?? false
   /* A handset that enrolled by sign-in waits here for a person to say yes.

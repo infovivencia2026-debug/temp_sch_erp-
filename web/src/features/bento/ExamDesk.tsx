@@ -41,7 +41,7 @@ function today(): string {
 function ExamDesk() {
   const exams = useQuery({
     queryKey: ['exams'],
-    queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
   })
   const papers = useQuery({
     queryKey: ['exam-papers'],

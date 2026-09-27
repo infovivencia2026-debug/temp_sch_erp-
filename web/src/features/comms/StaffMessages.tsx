@@ -26,15 +26,6 @@ import { useCan, useSession } from '@/lib/session'
  * which is how you look for a name you already know.
  */
 
-interface Thread {
-  user_id: string
-  full_name: string
-  designation?: string
-  photo?: string
-  unread: number
-  last_message?: string
-  last_at?: string
-}
 
 interface Message {
   id: string
@@ -198,11 +189,11 @@ export default function StaffMessages() {
 
   const threads = useQuery({
     queryKey: ['staff-threads'],
-    queryFn: () => api.get<List<Thread>>('/api/v1/staff-messages/threads'),
+    queryFn: () => api.call('GET /staff-messages/threads'),
   })
   const messages = useQuery({
     queryKey: ['staff-messages', openWith],
-    queryFn: () => api.get<List<Message>>(`/api/v1/staff-messages?with=${openWith}`),
+    queryFn: () => api.call('GET /staff-messages', { query: { with: openWith! } }),
     enabled: !!openWith,
   })
 

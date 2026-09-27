@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Award, ClipboardCheck, UserPlus, Users } from 'lucide-react'
-import { api, type Page, type Student } from '@/lib/api'
+import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge, Button,
   Checkbox, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -335,9 +335,7 @@ function SeatMember({
   const students = useQuery({
     queryKey: ['council-student-search', needle],
     queryFn: () =>
-      api.get<Page<Student>>(
-        '/api/v1/students/?limit=25' + (needle ? `&q=${encodeURIComponent(needle)}` : ''),
-      ),
+      api.call('GET /students', { query: { limit: 25, q: needle } }),
     enabled: needle.length !== 1,
     placeholderData: keepPreviousData,
   })

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
+import type { GradebookRow } from '@shared/api'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -17,11 +18,7 @@ interface Paper {
   class_id: string; class_name: string; subject: string
 }
 
-interface Row {
-  student_id: string; admission_no: string; full_name: string
-  marks_obtained?: number; max_marks: number; grade?: string; is_absent: boolean
-  section: string
-}
+type Row = GradebookRow
 
 interface SectionRow { id: string; name: string; class_id: string; class_name: string }
 
@@ -234,9 +231,7 @@ export default function Gradebook() {
 
   const book = useQuery({
     queryKey: ['gradebook', esID, sectionID],
-    queryFn: () => api.get<List<Row>>(
-      `/api/v1/exams/gradebook?exam_subject_id=${esID}` +
-      (sectionID ? `&section_id=${sectionID}` : '')),
+    queryFn: () => api.call('GET /exams/gradebook', { query: { exam_subject_id: esID, section_id: sectionID } }),
     enabled: !!esID,
   })
 
@@ -294,10 +289,10 @@ export default function Gradebook() {
 
   const save = useMutation({
     mutationFn: () =>
-      api.post('/api/v1/exams/marks', {
+      api.call('POST /exams/marks', { body: {
         exam_subject_id: esID,
         entries: touched.map(entryFor),
-      }),
+      } }),
     onSuccess: () => {
       // Counted before the draft is cleared: the mutation builds its own
       // payload, so there is nothing handed back to count.

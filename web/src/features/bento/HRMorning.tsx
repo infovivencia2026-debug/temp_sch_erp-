@@ -333,7 +333,7 @@ export default function HRMorning() {
   const t = useT()
   const kpis = useQuery({
     queryKey: ['hr-dashboard'],
-    queryFn: () => api.get<HRKPIs>('/api/v1/hr/dashboard'),
+    queryFn: () => api.call('GET /hr/dashboard'),
   })
 
   const registerHref = useFeatureHref('hr.attendance.staff_register')

@@ -1,5 +1,7 @@
 import type { Router } from '../../router'
 import type { Ctx } from '../../router'
+import { reply } from '../../router'
+import type { FeeLedger, FeeReceipt } from '@shared/api'
 import { badRequest, bool, created, forbidden, notFound, now, ok, readJSON, uuidParam, isUUID, HttpError } from '../../http'
 import { can } from '../../identity'
 import {
@@ -118,7 +120,7 @@ export async function walletDebitStmts(c: Ctx, campusId: string | null, studentI
 
 export function registerCounter(r: Router): void {
   // ---------------------------------------------------------------- ledger
-  r.get('/fees/students/{id}/ledger', 'auth', async (c) => {
+  r.typed('GET /fees/students/{id}/ledger', 'auth', async (c) => {
     const studentId = uuidParam(c.params.id)
     const scope = await studentPredicate(c, 'st')
     const head = await c.db.prepare(`SELECT st.admission_no, ${nameSQL('st')} AS full_name, ${CLASS_SQL('st')} AS class_name, ${SECTION_SQL('st')} AS section_name
@@ -163,17 +165,21 @@ export function registerCounter(r: Router): void {
           FROM refunds rf WHERE rf.student_id = ?1 AND rf.status IN ('approved', 'processed')
       ) x ORDER BY date DESC, kind`).bind(studentId).all<Record<string, unknown>>()
 
-    return ok(omitNulls({
+    type Entry = FeeLedger['entries'][number]
+    const ledger: FeeLedger = omitNulls({
       student_id: studentId, admission_no: head.admission_no, full_name: head.full_name,
-      class_name: head.class_name, section_name: head.section_name,
       charged_paise: charged, paid_paise: paid, balance_paise: charged - paid, pending_paise: pending,
-      concessions: concessions.results.map((x) => omitNulls({ kind: x.kind, percent: x.percent, amount_paise: x.amount_paise === null ? null : p(x.amount_paise), reason: x.reason, fee_head: x.fee_head })),
-      dues,
+      class_name: head.class_name ?? undefined, section_name: head.section_name ?? undefined,
+      concessions: concessions.results.map((x) => omitNulls({ kind: x.kind, percent: x.percent ?? undefined,
+        amount_paise: x.amount_paise === null ? undefined : p(x.amount_paise), reason: x.reason ?? undefined, fee_head: x.fee_head ?? undefined })),
+      dues: dues as FeeLedger['dues'],
       entries: entries.results.map((e) => omitNulls({
-        date: e.date, kind: e.kind, reference: e.reference, description: e.description ?? '',
-        debit_paise: p(e.debit_paise), credit_paise: p(e.credit_paise), status: e.status, mode: e.mode,
-      })),
-    }))
+        date: String(e.date), kind: String(e.kind), reference: String(e.reference), description: String(e.description ?? ''),
+        debit_paise: p(e.debit_paise), credit_paise: p(e.credit_paise), status: String(e.status),
+        mode: e.mode === null || e.mode === undefined ? undefined : String(e.mode),
+      }) as Entry),
+    })
+    return ledger
   })
 
   // ---------------------------------------------------------------- UPI code
@@ -285,7 +291,7 @@ export function registerCounter(r: Router): void {
   })
 
   // ---------------------------------------------------------------- collect
-  r.post('/fees/payments', 'finance.payments.write', async (c) => {
+  r.typed('POST /fees/payments', 'finance.payments.write', async (c) => {
     await requireFresh(c)
     const req = await readJSON<{ student_id?: string; amount_paise?: unknown; mode?: string; paid_on?: string; reference_no?: string; bank_name?: string;
       cheque_date?: string; remarks?: string; payer_name?: string; payer_relation?: string; invoice_ids?: string[] }>(c.req)
@@ -337,14 +343,14 @@ export function registerCounter(r: Router): void {
       if (isBatchGuardFailure(e)) throw new HttpError(409, 'another receipt was issued at the same moment; try again')
       throw e
     }
-    return created({
+    return reply({
       payment_id: paymentId, receipt_no: number.text, amount_paise: amount, allocated, unallocated_paise: unallocated, cleared: !pdc,
       receipt_url: '/api/v1/fees/receipts/' + paymentId,
-    })
+    }, 201)
   })
 
   // ---------------------------------------------------------------- receipt
-  r.get('/fees/receipts/{id}', 'finance.payments.read', async (c) => {
+  r.typed('GET /fees/receipts/{id}', 'finance.payments.read', async (c): Promise<FeeReceipt> => {
     const paymentId = uuidParam(c.params.id)
     const row = await c.db.prepare(`
       SELECT COALESCE(p.receipt_no, '-') AS receipt_no, p.amount_paise, p.mode, p.status, p.paid_on, p.reference_no,
@@ -358,13 +364,15 @@ export function registerCounter(r: Router): void {
              COALESCE((SELECT REPLACE(group_concat(DISTINCT fh.name), ',', ', ') FROM invoice_lines il JOIN fee_heads fh ON fh.id = il.fee_head_id WHERE il.invoice_id = i.id), 'Fee') AS particulars
         FROM payment_allocations pa JOIN invoices i ON i.id = pa.invoice_id WHERE pa.payment_id = ?`).bind(paymentId).all<Record<string, unknown>>()
     const amount = p(row.amount_paise)
-    return ok({
-      receipt_no: row.receipt_no, amount_paise: amount, amount_words: rupeesInWords(amount), mode: row.mode, status: row.status, paid_on: row.paid_on,
-      reference_no: row.reference_no ?? null, student_name: row.student_name, admission_no: row.admission_no, institution: row.institution,
-      class_name: row.class_name ?? null, section_name: row.section_name ?? null, collected_by: row.collected_by ?? null,
+    const s = (v: unknown) => String(v ?? '')
+    const n = (v: unknown) => (v === null || v === undefined ? null : String(v))
+    return {
+      receipt_no: s(row.receipt_no), amount_paise: amount, amount_words: rupeesInWords(amount), mode: s(row.mode), status: s(row.status), paid_on: s(row.paid_on),
+      reference_no: n(row.reference_no), student_name: s(row.student_name), admission_no: s(row.admission_no), institution: s(row.institution),
+      class_name: n(row.class_name), section_name: n(row.section_name), collected_by: n(row.collected_by),
       financial_year: financialYear(String(row.paid_on)),
-      lines: lines.results.map((l) => ({ invoice_no: l.invoice_no, amount_paise: p(l.amount_paise), particulars: l.particulars })),
-    })
+      lines: lines.results.map((l) => ({ invoice_no: s(l.invoice_no), amount_paise: p(l.amount_paise), particulars: s(l.particulars) })),
+    }
   })
 
   // ---------------------------------------------------------------- cheques

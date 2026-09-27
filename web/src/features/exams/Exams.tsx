@@ -37,14 +37,6 @@ import { formatDate, cn } from '@/lib/utils'
  * each decided what FA1 is out of would eventually disagree in a report card.
  */
 
-interface Exam {
-  id: string
-  name: string
-  kind: string
-  starts_on?: string
-  is_published: boolean
-  papers: number
-}
 
 export default function Exams() {
   const qc = useQueryClient()
@@ -54,7 +46,7 @@ export default function Exams() {
 
   const exams = useQuery({
     queryKey: ['exams-list'],
-    queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
   })
 
   const addPapers = useMutation({

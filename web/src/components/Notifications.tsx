@@ -98,7 +98,7 @@ export default function Notifications() {
 
   const feed = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => api.get<{ items: Note[]; unread: number }>('/api/v1/portal/notifications'),
+    queryFn: () => api.call('GET /portal/notifications'),
     /* THE SECOND POLL, WHICH THE FIRST ONE EXISTS TO MAKE UNNECESSARY.
      *
      * This was `refetchInterval: 10_000` — precisely the per-screen interval

@@ -67,70 +67,6 @@ import { useCatalog, featurePath } from '@/lib/catalog'
    billed — collected plus what is still outstanding, both figures straight off
    the same response. The labels say which. */
 
-interface PrincipalKPIs {
-  students: number
-  staff: number
-  sections: number
-  attendance_today_pct: number
-  attendance_marked_today: number
-  collected_paise: number
-  outstanding_paise: number
-  /* The year-consistent triple. `collected_paise` is receipts banked inside the
-     requested range whatever year's invoice they settle, and
-     `outstanding_paise` is arrears of EVERY year — so the two cannot be added,
-     and neither belongs under a caption that says "this year". */
-  billed_paise: number
-  collected_year_paise: number
-  outstanding_year_paise: number
-  defaulters: number
-  pending_leave: number
-  open_applications: number
-  unassigned_subjects: number
-  /* How many invoice rows the year trio above was summed over. ALWAYS sent,
-     because zero is the answer rather than the absence of one: on a database
-     where no invoice carries an academic year all three of billed, collected
-     and outstanding for the year come back 0, and a cell reading "₹0 billed"
-     under a caption that says "this year" is a confident lie. This is the tell
-     that separates "no year data" from "nothing was billed", and it is what
-     `yearly` below is decided on. */
-  year_invoice_count: number
-
-  /* THE BREAKDOWNS.
-
-     Each is cut from exactly the rows its headline scalar is cut from, so the
-     parts add back to the whole and a cell can draw a proportion without this
-     file inventing the bottom half of one.
-
-     EVERY ONE IS OPTIONAL, and an absent field is NOT a zero. The handler
-     omits each when there is nothing to say — no class-subject offered, no
-     leave pending, nothing outstanding — and a cell that reads an absent
-     field must draw the no-denominator form it drew before these existed. A
-     zero that looks real is the bug the omit-when-absent contract exists to
-     prevent, and this product has already removed four fabricated
-     denominators. */
-
-  /* Every class-subject pairing, of which `unassigned_subjects` is the part
-     nobody is timetabled to teach. Omitted when it is zero: a school that has
-     offered no subject has no denominator, and "9 of 0" is worse than "9". */
-  class_subjects_total?: number
-  /* `open_applications` split by the status column itself, ordered along the
-     admission stages and summing exactly to it. */
-  open_applications_by_status?: AppStatusCount[]
-  /* `pending_leave` split by type and by who asked. Students appear here:
-     `subject_kind` is carried precisely so student leave is not presented as
-     staff leave. */
-  pending_leave_by_type?: PendingLeaveGroup[]
-  /* `students` distributed over the class each is enrolled in, the
-     not-yet-enrolled in their own bucket so it sums to the roll. `class_name`
-     is NOT unique — a tenant can run two classes called "Grade 6" on
-     different campuses — so nothing below keys on it. */
-  students_by_class?: ClassRollGroup[]
-  /* `outstanding_paise` aged by how long each unpaid invoice has been due; the
-     six buckets add back to it. Null when nothing is outstanding at all. */
-  outstanding_ageing?: OutstandingAgeing | null
-  range: { period: string; from: string; to: string; label: string }
-  as_of_now: string[]
-}
 interface AppStatusCount {
   status: string
   applications: number
@@ -1003,7 +939,6 @@ interface GrievanceRow {
   overdue_hours?: number
 }
 interface CalendarEntry { name: string; starts_on: string; kind: string }
-interface ExamRow { name: string; starts_on?: string; is_published: boolean }
 interface SubjectPerformance {
   subject: string
   class_name: string
@@ -1019,7 +954,6 @@ interface PerformanceSummary {
      it — see `PassRateCell`. */
   by_subject?: SubjectPerformance[]
 }
-interface ThreadRow { unread: number }
 interface Payslip {
   period_month: number
   period_year: number
@@ -4095,7 +4029,7 @@ export default function BentoPrincipalDashboard() {
 
   const kpis = useQuery({
     queryKey: ['bento-principal-dashboard'],
-    queryFn: () => api.get<PrincipalKPIs>('/api/v1/principal/dashboard'),
+    queryFn: () => api.call('GET /principal/dashboard'),
   })
   const trend = useQuery({
     queryKey: ['attendance-trend'],
@@ -4189,7 +4123,7 @@ export default function BentoPrincipalDashboard() {
   })
   const exams = useQuery({
     queryKey: ['exams-list'],
-    queryFn: () => api.get<List<ExamRow>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
     enabled: placed('exams-upcoming'),
   })
   /* Unfiltered, which is what the performance screen itself opens on: every
@@ -4202,7 +4136,7 @@ export default function BentoPrincipalDashboard() {
   })
   const threads = useQuery({
     queryKey: ['staff-threads'],
-    queryFn: () => api.get<List<ThreadRow>>('/api/v1/staff-messages/threads'),
+    queryFn: () => api.call('GET /staff-messages/threads'),
     enabled: placed('staff-messages'),
   })
   const myPay = useQuery({

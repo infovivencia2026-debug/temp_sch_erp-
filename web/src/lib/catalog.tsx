@@ -3,54 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { useLocation, useParams } from 'react-router-dom'
 import { api } from './api'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
-import type { Scope, Tier } from '@/catalog.gen'
+import type {
+  CatalogFeature as ApiFeature, CatalogSection as ApiSection, CatalogRole as ApiRole, CatalogResponse,
+} from '@shared/api'
 
 /* The server decides what this user can see. The generated catalog.gen.ts is
    only a type/shape reference for the client — never the authority — so
    revoking a grant takes effect on next load with no client release. */
 
-export interface ApiFeature {
-  key: string
-  slug: string
-  name: string
-  summary: string
-  scope: Scope
-  tier: Tier
-  in_scope: boolean
-  live: boolean
-}
-
-export interface ApiSection {
-  slug: string
-  name: string
-  /** The workspace this group belongs to — the level the sidebar lists. */
-  workspace: string
-  features: ApiFeature[]
-}
-
-export interface ApiRole {
-  key: string
-  name: string
-  sections: ApiSection[]
-}
-
-export interface CatalogResponse {
-  /* True while a required setup step is outstanding, and the reason most of
-     the sections are missing from this response. Said on screen rather than
-     leaving somebody to wonder where the product went. */
-  setup_required?: boolean
-  active_role: string
-  roles: ApiRole[]
-  scope: {
-    platform_admin: boolean
-    all_campuses: boolean
-    campuses: number
-    departments: number
-    sections: number
-    students: number
-  }
-  implemented: string[]
-}
+/* The shapes live in the contract (shared/api/catalog.ts); these names are
+   what the shell has always imported. */
+export type {
+  CatalogFeature as ApiFeature, CatalogSection as ApiSection, CatalogRole as ApiRole, CatalogResponse,
+} from '@shared/api'
 
 const CatalogContext = createContext<CatalogResponse | null>(null)
 
@@ -92,8 +57,7 @@ export function setAllRoles(on: boolean) {
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['catalog', allRolesOn()],
-    queryFn: () => api.get<CatalogResponse>(
-      '/api/v1/catalog' + (allRolesOn() ? '?all_roles=1' : '')),
+    queryFn: () => api.call('GET /catalog', { query: { all_roles: allRolesOn() ? '1' : undefined } }),
     /* The menu is authority, not convenience: a feature just granted must show
        on the next load. That freshness comes from being EXCLUDED from the
        offline cache (App.tsx) — a full reload has no persisted copy, so it

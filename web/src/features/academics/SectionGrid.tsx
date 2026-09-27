@@ -15,14 +15,12 @@ import { cn } from '@/lib/utils'
  * grid — the plain edit a school reaches for when one period moves. */
 
 interface Section { id: string; class_id: string; class_name: string; name: string }
-interface Period { id: string; name: string; sequence: number; starts_at: string; ends_at: string; is_break: boolean }
 interface Entry {
   id: string; period_name: string; weekday: number
   subject_name: string; subject_code: string
   teacher_id?: string; teacher_name?: string; room?: string
 }
 interface ClassSubject { subject_id: string; subject_name: string }
-interface Teacher { user_id: string; full_name: string }
 
 const DAYS = [
   { n: 1, label: 'Mon' }, { n: 2, label: 'Tue' }, { n: 3, label: 'Wed' },
@@ -45,12 +43,12 @@ export default function SectionGrid() {
 
   const periods = useQuery({
     queryKey: ['periods', sectionID],
-    queryFn: () => api.get<List<Period>>(`/api/v1/timetable/periods?section_id=${sectionID}`),
+    queryFn: () => api.call('GET /timetable/periods', { query: { section_id: sectionID } }),
     enabled: !!sectionID,
   })
   const entries = useQuery({
     queryKey: ['tt-entries', sectionID],
-    queryFn: () => api.get<List<Entry>>(`/api/v1/timetable/entries?section_id=${sectionID}`),
+    queryFn: () => api.call('GET /timetable/entries', { query: { section_id: sectionID } }),
     enabled: !!sectionID,
   })
   const subjects = useQuery({
@@ -60,7 +58,7 @@ export default function SectionGrid() {
   })
   const teachers = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
   })
 
   // entry by "weekday|periodName"

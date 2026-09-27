@@ -108,7 +108,7 @@ export default function HolisticCard() {
 
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   // Only staff may file the school's own assessment. Everyone else sees the
   // card and may add their own view where the framework invites it.

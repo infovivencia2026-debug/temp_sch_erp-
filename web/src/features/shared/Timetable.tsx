@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api, type List, type Section, type Period, type TimetableEntry, type Teacher } from '@/lib/api'
+import { api, type List, type Section, type TimetableEntry } from '@/lib/api'
 import { Card, CardHeader, Table, Td, Badge, Select, Loading, SkeletonTable, ErrorState, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import WeekGrid from '@/components/WeekGrid'
@@ -21,7 +21,7 @@ export default function Timetable() {
   const [tabId, setTab] = useState('grid')
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const held = session.data?.permissions ?? []
   const isStaff = held.includes('academics.read')
@@ -94,7 +94,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   })
   const periods = useQuery({
     queryKey: ['periods'],
-    queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
+    queryFn: () => api.call('GET /timetable/periods'),
   })
   const query =
     view.mode === 'me' ? '?teacher_id=me' : sectionId ? `?section_id=${sectionId}` : ''
@@ -182,7 +182,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
 function Workload() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
   })
   if (isLoading) return <SkeletonTable columns={4} />
   if (error) return <ErrorState error={error} />

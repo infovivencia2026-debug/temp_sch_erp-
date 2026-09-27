@@ -56,6 +56,7 @@ Browser ─▶ Pages (web/, React)  ─ web/functions/[[path]].ts proxies server
 | `worker/migrations/` | Schema migrations (control, tenant); `scripts/migrate.mjs` |
 | `worker/db/control.sql` | CONTROL schema, **generated** from the migrations by `scripts/schema-sync.mjs` |
 | `worker/db/tenant.sql` | Per-school schema, **generated** from the migrations (baseline from Postgres via `scripts/d1/pg_to_d1.py`) |
+| `shared/api/` | The API contract: request/response types for the web and the Worker, one file per area (see "Adding or changing an endpoint") |
 | `worker/PORTING.md` | The rules every ported route follows (read before changing routes) |
 | `scripts/d1/pg_to_d1.py` | Postgres → SQLite schema + data export (optionally one school) |
 | `scripts/d1/split_big.py` | Makes an export fit D1 (100 KB statements, self-references, re-runnable) |
@@ -334,6 +335,72 @@ run a baseline over live data.
 
 **Add or change a route.** Follow `worker/PORTING.md`. Register in the domain
 module; literal paths before `{id}` paths; permission key per route.
+
+## Adding or changing an endpoint: define it in shared/api first
+
+The web (`web/`) and the Worker (`worker/`) are compiled separately, so a
+response shape written down twice drifts: a bare array where the screen reads
+`.items`, a renamed field, a `null` where the screen expected the field to be
+absent. Each of those was a blank screen. `shared/api/` is the one place the
+shape is written, and both sides compile against it.
+
+1. **Declare it.** In the area's file under `shared/api/` (a new area gets a
+   new file, exported from `shared/api/index.ts` and added to `interface Api`),
+   add the types and a route entry. The key is the method and the path as the
+   Worker registers it, without `/api/v1`, with `{placeholders}`:
+
+   ```ts
+   export interface StudentsApi {
+     'GET /students': { query: StudentListQuery; res: Page<Student> }
+     'GET /students/{id}': { res: StudentRecord }
+     'POST /students': { body: NewStudent; res: { id: string; admission_no: string } }
+   }
+   ```
+
+   Lists are `List<T>` (`{items}`) or `Page<T>` (`{items, limit, offset,
+   has_more, total?, next_cursor?}`), never a bare array. A field the server
+   omits when empty is `x?: T`; one it sends as `null` is `x: T | null`. Match
+   the Go handler in `internal/api` when in doubt.
+
+2. **Serve it** with `r.typed` instead of `r.get`/`r.post`. The handler returns
+   the body, not a Response, and the compiler checks it against `res`:
+
+   ```ts
+   r.typed('GET /students/{id}', 'students.read', async (c): Promise<StudentRecord> => { ... })
+   r.typed('POST /students', 'students.write', async (c) => reply({ id, admission_no }, 201))
+   ```
+
+   `reply(body, status)` (from `worker/src/router.ts`) sets a status other than
+   200; errors are thrown as before (`HttpError`, `badRequest`, ...). Map SQL
+   rows explicitly: `optStr`/`opt` (`worker/src/http.ts`) turn NULL into an
+   absent field, as Go's `omitempty` does.
+
+3. **Call it** with `api.call` instead of `api.get<T>`:
+
+   ```ts
+   api.call('GET /students', { query: { q, limit: 20 } })          // Page<Student>
+   api.call('GET /students/{id}', { params: { id } })               // StudentRecord
+   api.call('POST /fees/payments', { body: { student_id, amount_paise, mode } })
+   ```
+
+   Query values that are `undefined`, `null` or `''` are dropped. Import the
+   types from `@shared/api` (or the re-exports in `web/src/lib/api.ts`) rather
+   than declaring a local copy in the screen.
+
+Changing a shape is then a compile error on whichever side is behind: run
+`cd worker && npx tsc --noEmit` and `cd web && npx tsc --noEmit -p .`.
+
+`node scripts/check-api-contract.mjs` reports coverage: contract routes the
+Worker does not serve with `r.typed`, web calls that reach a contract route
+through `api.get`/`api.post` instead of `api.call`, and the routes not yet on
+the contract, by area (`--all` lists them, `--strict` exits 1 on the first
+two). Move a whole area at a time: declare, switch the handlers, switch the
+call sites, run both type checks.
+
+The alias is `@shared/*` → `shared/*` in `web/tsconfig.json`,
+`web/vite.config.ts` (and `vitest.config.ts`), and `worker/tsconfig.json`;
+wrangler's esbuild reads the Worker's tsconfig paths. `shared/api` holds types
+only, so it adds nothing to either bundle.
 
 ## D1 rules that bite
 

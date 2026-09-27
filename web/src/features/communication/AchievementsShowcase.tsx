@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Image, ShieldCheck, Trophy } from 'lucide-react'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
@@ -106,9 +106,7 @@ export default function AchievementsShowcase() {
   const studentHits = useQuery({
     queryKey: ['achievement-student-search', needle],
     queryFn: () =>
-      api.get<Page<Student>>(
-        `/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`,
-      ),
+      api.call('GET /students', { query: { q: needle, limit: 10 } }),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })

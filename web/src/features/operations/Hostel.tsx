@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td,
   Button, Input, Select, Loading, ErrorState, FormNotice, EmptyState,
@@ -67,7 +67,7 @@ export default function Hostel() {
   const needle = useDebouncedValue(search.trim())
   const candidates = useQuery({
     queryKey: ['hostel-candidates', needle],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    queryFn: () => api.call('GET /students', { query: { q: needle, limit: 15 } }),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })

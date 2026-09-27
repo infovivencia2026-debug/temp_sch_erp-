@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Wallet } from 'lucide-react'
-import { api, type Page, type Student } from '@/lib/api'
+import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, EmptyState, ErrorState, FormNotice,
@@ -92,7 +92,7 @@ export default function StudentWallets() {
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
     queryKey: ['wallet-search', needle],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=15`),
+    queryFn: () => api.call('GET /students', { query: { q: needle, limit: 15 } }),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })

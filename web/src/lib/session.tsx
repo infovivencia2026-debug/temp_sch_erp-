@@ -18,7 +18,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<SessionResponse>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
     // The server answers 200 with {authenticated:false} rather than 401, so a
     // signed-out visitor is a normal result, not a retryable failure.
     retry: false,

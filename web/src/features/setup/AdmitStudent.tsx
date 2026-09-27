@@ -62,12 +62,12 @@ export default function AdmitStudent({ onDone }: { onDone?: () => void }) {
 
   const admit = useMutation({
     mutationFn: () =>
-      api.post<{ id: string; admission_no: string }>('/api/v1/students', {
+      api.call('POST /students', { body: {
         ...f,
         roll_no: f.roll_no ? Number(f.roll_no) : undefined,
         is_rte: rte,
         is_cwsn: cwsn,
-      }),
+      } }),
     onSuccess: (created) => {
       // The handler returns the id and the admission number it issued, not the
       // name — so the confirmation is built from what was typed plus what came

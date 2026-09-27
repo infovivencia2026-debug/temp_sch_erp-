@@ -24,28 +24,6 @@ import { cn, formatDate } from '@/lib/utils'
  * the two or three actions that make up most days.
  */
 
-interface Away {
-  name: string
-  employee_code: string
-  reason: string
-  until?: string
-}
-interface Alert {
-  kind: 'danger' | 'warning' | 'neutral'
-  text: string
-  count: number
-  link: string
-}
-interface HRKPIs {
-  headcount: number
-  present_today: number
-  absent_today: number
-  leave_pending: number
-  new_joiners_30d: number
-  departments: number
-  away_today: Away[]
-  attention: Alert[]
-}
 
 /* The two or three things a day is mostly made of.
  *
@@ -62,7 +40,7 @@ const ACTIONS = [
 export default function HRDashboard() {
   const kpis = useQuery({
     queryKey: ['hr-dashboard'],
-    queryFn: () => api.get<HRKPIs>('/api/v1/hr/dashboard'),
+    queryFn: () => api.call('GET /hr/dashboard'),
   })
 
   if (kpis.isLoading) return <SkeletonTable columns={4} />

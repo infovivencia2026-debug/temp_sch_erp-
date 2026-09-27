@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, TriangleAlert, Upload } from 'lucide-react'
+import type { ReportCard as ReportCardBody } from '@shared/api'
 import { api, type List, type Section } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import { walkRoster } from '@/lib/rosters'
@@ -36,31 +37,9 @@ import { useCan } from '@/lib/session'
  * reads exactly like a paper the child failed.
  */
 
-interface Exam { id: string; name: string; kind: string; papers: number }
 
-interface SubjectMark {
-  subject: string
-  marks_obtained?: number
-  max_marks: number
-  percent?: number
-  grade?: string
-  is_absent: boolean
-}
 
-interface ReportCard {
-  id: string; student_id: string; admission_no: string; roll_no?: number; full_name: string
-  photo_file_id?: string
-  class_name?: string; section_name?: string
-  total_marks?: number; max_marks?: number; percentage?: number
-  grade?: string; rank_in_section?: number; attendance_percent?: number
-  is_published: boolean
-  /* draft → submitted → published, with returned as the way back.
-     is_published only says whether a family can read it; this says whose desk
-     the card is sitting on. */
-  status: 'draft' | 'submitted' | 'returned' | 'published'
-  return_note?: string
-  subjects: SubjectMark[]
-}
+type ReportCard = ReportCardBody
 
 /** The design the school prints on. */
 interface Template {
@@ -73,23 +52,12 @@ interface Template {
 }
 
 /** A section waiting on the head, as one line. */
-interface Pending {
-  status: 'submitted' | 'published'
-  section_id: string; section_name: string; class_name: string
-  cards: number; submitted_by?: string; submitted_at?: string
-}
 
 /** A child on the roll, whether or not a report card exists for them yet. */
 interface Pupil {
   id: string; admission_no: string; full_name: string; roll_no?: number
 }
 
-interface Readiness {
-  subject: string
-  teacher?: string
-  marks_entered: number
-  students: number
-}
 
 /* The import control itself.
 
@@ -218,7 +186,7 @@ export default function ReportCards() {
 
   const exams = useQuery({
     queryKey: ['exam-list'],
-    queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
   })
   /* Whose sections this person is choosing between.
 
@@ -238,9 +206,7 @@ export default function ReportCards() {
   const cards = useQuery({
     queryKey: ['report-cards', sectionId, examId],
     queryFn: () =>
-      api.get<List<ReportCard>>(
-        `/api/v1/exams/report-cards?section_id=${sectionId}${examId ? `&exam_id=${examId}` : ''}`,
-      ),
+      api.call('GET /exams/report-cards', { query: { section_id: sectionId, exam_id: examId } }),
     enabled: !!sectionId,
   })
   /* Who is in this section, whatever state their card is in. Named `roster`
@@ -256,9 +222,7 @@ export default function ReportCards() {
   const readiness = useQuery({
     queryKey: ['report-readiness', sectionId, examId],
     queryFn: () =>
-      api.get<List<Readiness>>(
-        `/api/v1/exams/report-cards/readiness?section_id=${sectionId}&exam_id=${examId}`,
-      ),
+      api.call('GET /exams/report-cards/readiness', { query: { section_id: sectionId, exam_id: examId } }),
     enabled: !!sectionId && !!examId,
   })
   /* Generate used to say nothing at all — no card, no error, no explanation —
@@ -313,7 +277,7 @@ export default function ReportCards() {
   const pending = useQuery({
     queryKey: ['report-cards-pending'],
     enabled: mayPublish,
-    queryFn: () => api.get<List<Pending>>('/api/v1/exams/report-cards/pending'),
+    queryFn: () => api.call('GET /exams/report-cards/pending'),
   })
   const queue = pending.data?.items ?? []
   const waiting = queue.filter((x) => x.status === 'submitted')

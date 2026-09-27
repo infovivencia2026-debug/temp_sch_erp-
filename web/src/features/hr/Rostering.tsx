@@ -149,7 +149,7 @@ export default function Rostering() {
    * clean result is read as assurance nobody was in a position to give. */
   const staff = useQuery({
     queryKey: ['hr-employees', 'active'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/hr/employees?status=active'),
+    queryFn: () => api.call('GET /hr/employees', { query: { status: 'active' } }),
     retry: false,
   })
 
@@ -251,7 +251,7 @@ function RosterTab({ shifts, duties }: { shifts: Shift[]; duties: Duty[] }) {
 
   const teachers = useQuery({
     queryKey: ['hr-employees', 'active'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/hr/employees?status=active'),
+    queryFn: () => api.call('GET /hr/employees', { query: { status: 'active' } }),
     retry: false,
   })
   const rosterable = (teachers.data?.items ?? []).filter((t) => t.user_id)

@@ -73,3 +73,9 @@ export const page = <T>(items: T[], total: number, limit: number, offset: number
 
 /** Builds `LIKE` search text: the caller's words wrapped for a case-insensitive contains match. */
 export const like = (q: string) => `%${q.replace(/[%_\\]/g, (c) => '\\' + c)}%`
+
+/* Go's `omitempty` on a pointer: a SQL NULL becomes an absent field rather
+   than `null`, which is what the contract types in shared/api (`x?: T`) say. */
+export const opt = <T>(v: T | null | undefined): T | undefined => (v === null || v === undefined ? undefined : v)
+/** As `opt`, for a column read as unknown: absent when NULL, else its text. */
+export const optStr = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v))

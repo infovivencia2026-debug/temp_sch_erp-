@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Banknote, Coins, ScaleIcon, Store } from 'lucide-react'
-import { api, type Page, type Student } from '@/lib/api'
+import { api, type Student } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Select, Input, Field, FormGrid, FormNotice,
@@ -252,7 +252,7 @@ function RingUp({ session, disabled }: { session: TillSession; disabled: boolean
   const results = useQuery({
     queryKey: [collectionsKey, 'student-search', needle],
     queryFn: () =>
-      api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`),
+      api.call('GET /students', { query: { q: needle, limit: 10 } }),
     enabled: needle.length >= 2,
   })
 

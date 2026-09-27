@@ -1,5 +1,7 @@
 import type { Ctx, Router } from '../router'
-import { HttpError, badRequest, bool, clampInt, created, like, ok, readJSON, uuid, isUUID, now } from '../http'
+import { reply } from '../router'
+import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
+import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
 import {
   addDays, batch, clientIP, coded, endFamilyAccess, errNoAcademicYear, forbiddenMsg, fullNameSQL, indiaToday, inst, isDate,
   isUniqueViolation, nextNumber, notifyStmt, nullStr, parseJSON, reachesStudent, resolveScope, sameName,
@@ -32,18 +34,18 @@ export function registerStudents(r: Router) {
   r.get('/students/import/template', 'students.read', () =>
     new Response(IMPORT_TEMPLATE_CSV, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="students-template.csv"' } }))
   r.get('/students/fee-preview', 'students.read', admissionFeePreview)
-  r.get('/students/counts', 'students.read', studentCounts)
+  r.typed('GET /students/counts', 'students.read', studentCounts)
   r.post('/students/import', 'students.write', importStudents)
   r.post('/students/photos/import', 'students.write', importStudentPhotos)
 
   // --- the roll ---------------------------------------------------------------------
-  r.get('/students', 'students.read', listStudents)
-  r.post('/students', 'students.write', createStudent)
-  r.get('/students/{id}', 'students.read', getStudent)
+  r.typed('GET /students', 'students.read', listStudents)
+  r.typed('POST /students', 'students.write', createStudent)
+  r.typed('GET /students/{id}', 'students.read', getStudent)
   r.put('/students/{id}', 'students.write', updateStudent)
   r.del('/students/{id}', 'students.write', deleteStudent)
-  r.get('/students/{id}/profile', 'students.read', getStudentProfile)
-  r.get('/students/{id}/detail', 'students.read', getStudentDetail)
+  r.typed('GET /students/{id}/profile', 'students.read', getStudentProfile)
+  r.typed('GET /students/{id}/detail', 'students.read', getStudentDetail)
   r.post('/students/{id}/section', 'students.write', moveStudentSection)
   r.post('/students/{id}/section-change', 'students.write', changeStudentSection)
   r.put('/students/{id}/photo', 'students.write', setStudentPhoto)
@@ -99,7 +101,7 @@ const latestEnrolmentJoin = (yearFilter: boolean) => `
 /** The first day of the current academic year, or 1 January (the COALESCE in Go). */
 const YEAR_START_SQL = `COALESCE((SELECT starts_on FROM academic_years WHERE is_current = 1 LIMIT 1), ?)`
 
-async function listStudents(c: Ctx) {
+async function listStudents(c: Ctx): Promise<Page<Student>> {
   const q = c.url.searchParams
   const limit = clampInt(q.get('limit'), 50, 1, 200)
   const offset = clampInt(q.get('offset'), 0, 0, 1_000_000)
@@ -157,28 +159,29 @@ async function listStudents(c: Ctx) {
   const items = rows.map(studentRow)
   const hasMore = items.length > limit
   if (hasMore) items.length = limit
-  const out: Record<string, unknown> = { items, limit, offset, has_more: hasMore }
+  const out: Page<Student> = { items, limit, offset, has_more: hasMore }
   if (total !== undefined) out.total = total
   if (items.length > 0 && hasMore) {
     const last = items[items.length - 1]
-    out.next_cursor = encodeCursor({ a: last.admission_no as string, i: last.id as string, f: fp })
-  }
-  return ok(out)
-}
-
-/** The `student` struct: omitempty pointers are dropped when null. */
-function studentRow(r: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {
-    id: r.id, admission_no: r.admission_no, full_name: r.full_name, first_name: r.first_name,
-    status: r.status, admission_date: r.admission_date,
-  }
-  for (const k of ['person_code', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'class_name', 'section_name', 'roll_no', 'primary_phone']) {
-    if (r[k] !== null && r[k] !== undefined) out[k] = r[k]
+    out.next_cursor = encodeCursor({ a: last.admission_no, i: last.id, f: fp })
   }
   return out
 }
 
-async function getStudent(c: Ctx) {
+/** The `student` struct: omitempty pointers are dropped when null. */
+function studentRow(r: Record<string, unknown>): Student {
+  const out: Student = {
+    id: String(r.id), admission_no: String(r.admission_no), full_name: String(r.full_name), first_name: String(r.first_name),
+    status: String(r.status), admission_date: String(r.admission_date),
+    person_code: optStr(r.person_code), middle_name: optStr(r.middle_name), last_name: optStr(r.last_name),
+    gender: optStr(r.gender), date_of_birth: optStr(r.date_of_birth), class_name: optStr(r.class_name),
+    section_name: optStr(r.section_name), roll_no: r.roll_no === null || r.roll_no === undefined ? undefined : Number(r.roll_no),
+    primary_phone: optStr(r.primary_phone),
+  }
+  return out
+}
+
+async function getStudent(c: Ctx): Promise<StudentRecord> {
   const id = sid(c)
   const pred = studentPredicate(await resolveScope(c), 'st')
   const row = await c.db.prepare(`
@@ -192,18 +195,20 @@ async function getStudent(c: Ctx) {
     SELECT g.id, g.full_name, g.relation, g.phone, g.email, sg.is_primary, g.photo_file_id, sg.portal_blocked, sg.access_until
       FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id
      WHERE sg.student_id = ? ORDER BY sg.is_primary DESC, g.full_name`).bind(id).all<Record<string, unknown>>()
-  const d = studentRow(row)
-  for (const k of ['blood_group', 'category', 'religion', 'address_line1', 'city', 'state', 'pincode']) if (row[k] !== null) d[k] = row[k]
-  d.nationality = row.nationality
-  d.guardians = guardians.results.map((g) => {
-    const o: Record<string, unknown> = { id: g.id, full_name: g.full_name, relation: g.relation, is_primary: bool(g.is_primary), portal_blocked: bool(g.portal_blocked) }
-    for (const k of ['phone', 'email', 'access_until', 'photo_file_id']) if (g[k] !== null) o[k] = g[k]
-    return o
-  })
-  return ok(d)
+  return {
+    ...studentRow(row),
+    blood_group: optStr(row.blood_group), category: optStr(row.category), religion: optStr(row.religion),
+    address_line1: optStr(row.address_line1), city: optStr(row.city), state: optStr(row.state), pincode: optStr(row.pincode),
+    nationality: String(row.nationality ?? ''),
+    guardians: guardians.results.map((g) => ({
+      id: String(g.id), full_name: String(g.full_name), relation: String(g.relation),
+      is_primary: bool(g.is_primary), portal_blocked: bool(g.portal_blocked),
+      phone: optStr(g.phone), email: optStr(g.email), access_until: optStr(g.access_until), photo_file_id: optStr(g.photo_file_id),
+    })),
+  }
 }
 
-async function studentCounts(c: Ctx) {
+async function studentCounts(c: Ctx): Promise<StudentCounts> {
   const pred = studentPredicate(await resolveScope(c), 'st')
   const jan1 = `${indiaToday().slice(0, 4)}-01-01`
   const row = await c.db.prepare(`
@@ -212,7 +217,7 @@ async function studentCounts(c: Ctx) {
            COALESCE(SUM(st.status = 'suspended'), 0) AS suspended,
            COALESCE(SUM(st.status = 'active' AND st.admission_date >= ${YEAR_START_SQL}), 0) AS new_this_year
       FROM students st WHERE ${pred.sql}`).bind(jan1, ...pred.args).first<Record<string, number>>()
-  return ok({ active: row?.active ?? 0, left: row?.left ?? 0, suspended: row?.suspended ?? 0, new_this_year: row?.new_this_year ?? 0 })
+  return { active: row?.active ?? 0, left: row?.left ?? 0, suspended: row?.suspended ?? 0, new_this_year: row?.new_this_year ?? 0 }
 }
 
 // --- create / update / delete ---------------------------------------------------------------
@@ -232,7 +237,7 @@ async function createStudent(c: Ctx) {
   let plan
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
-  return created({ id: plan.studentId, admission_no: plan.admissionNo })
+  return reply({ id: plan.studentId, admission_no: plan.admissionNo }, 201)
 }
 
 async function updateStudent(c: Ctx) {
@@ -603,7 +608,7 @@ async function admissionFeePreview(c: Ctx) {
 
 // --- the 360 view ------------------------------------------------------------------------------------
 
-async function getStudentProfile(c: Ctx) {
+async function getStudentProfile(c: Ctx): Promise<StudentProfile> {
   const id = sid(c)
   const pred = studentPredicate(await resolveScope(c), 'st')
   const st = await c.db.prepare(`
@@ -654,33 +659,41 @@ async function getStudentProfile(c: Ctx) {
 
   const s = sums.results[0] as { present: number; total: number; dues: number; paid: number }
   const pct = s.total > 0 ? Math.floor((s.present * 100) / s.total) : 0
-  const out: Record<string, unknown> = {
-    id, admission_no: st.admission_no, full_name: st.full_name, status: st.status, class_name: st.class_name, section_name: st.section_name,
-    roll_no: st.roll_no, gender: st.gender, date_of_birth: st.date_of_birth, medium: st.medium, blood_group: st.blood_group,
-    mother_tongue: st.mother_tongue, apaar_id: st.apaar_id, child_info_id: st.child_info_id, primary_phone: st.primary_phone, city: st.city,
-    prior_school: st.prior_school, is_rte: bool(st.is_rte), is_cwsn: bool(st.is_cwsn), admission_date: st.admission_date, category: st.category,
-    nationality: st.nationality, aadhaar_last4: st.aadhaar_last4, address_line1: st.address_line1, address_line2: st.address_line2, state: st.state,
-    pincode: st.pincode, permanent_address: st.permanent_address, emergency_contact_name: st.emergency_contact_name,
-    emergency_contact_phone: st.emergency_contact_phone, emergency_contact_relation: st.emergency_contact_relation, house_id: st.house_id,
-    house_name: st.house_name, house_color: st.house_color, exit_date: st.exit_date, exit_reason: st.exit_reason,
-    height_cm: strOrNull(st.height_cm), weight_kg: strOrNull(st.weight_kg), bmi: strOrNull(st.bmi), measured_on: st.measured_on, allergies: st.allergies,
-    photo_file_id: st.photo_file_id,
+  type P = StudentProfile
+  const o = optStr
+  const out: StudentProfile = {
+    id, admission_no: String(st.admission_no), full_name: String(st.full_name), status: String(st.status),
+    class_name: o(st.class_name), section_name: o(st.section_name),
+    roll_no: st.roll_no === null || st.roll_no === undefined ? undefined : Number(st.roll_no),
+    gender: o(st.gender), date_of_birth: o(st.date_of_birth), medium: o(st.medium), blood_group: o(st.blood_group),
+    mother_tongue: o(st.mother_tongue), apaar_id: o(st.apaar_id), child_info_id: o(st.child_info_id), primary_phone: o(st.primary_phone),
+    city: o(st.city), prior_school: o(st.prior_school), is_rte: bool(st.is_rte), is_cwsn: bool(st.is_cwsn),
+    admission_date: String(st.admission_date), category: o(st.category), nationality: o(st.nationality), aadhaar_last4: o(st.aadhaar_last4),
+    address_line1: o(st.address_line1), address_line2: o(st.address_line2), state: o(st.state), pincode: o(st.pincode),
+    permanent_address: o(st.permanent_address), emergency_contact_name: o(st.emergency_contact_name),
+    emergency_contact_phone: o(st.emergency_contact_phone), emergency_contact_relation: o(st.emergency_contact_relation),
+    house_id: o(st.house_id), house_name: o(st.house_name), house_color: o(st.house_color),
+    exit_date: o(st.exit_date), exit_reason: o(st.exit_reason),
+    height_cm: o(st.height_cm), weight_kg: o(st.weight_kg), bmi: o(st.bmi), measured_on: o(st.measured_on), allergies: o(st.allergies),
+    photo_file_id: o(st.photo_file_id),
     attendance: { present: s.present, total: s.total, percent: pct, below_threshold: s.total > 0 && pct < 75 },
     fees: { outstanding_paise: s.dues, paid_paise: s.paid },
-    guardians: (guardians.results as Record<string, unknown>[]).map((g) => ({ ...g, is_primary: bool(g.is_primary) })),
-    recent_attendance: attendance.results,
-    results: results.results,
-    invoices: ledger.results,
-    documents: documents.results,
-    enrolments: enrolments.results,
-    transport: transport.results,
+    guardians: (guardians.results as Record<string, unknown>[]).map((g) => ({
+      ...(g as unknown as P['guardians'][number]), is_primary: bool(g.is_primary), photo_file_id: o(g.photo_file_id),
+    })),
+    recent_attendance: attendance.results as P['recent_attendance'],
+    results: results.results as P['results'],
+    invoices: ledger.results as P['invoices'],
+    documents: documents.results as P['documents'],
+    enrolments: enrolments.results as P['enrolments'],
+    transport: transport.results as P['transport'],
   }
   const cf = parseJSON<Record<string, string>>(st.custom_fields, {})
   if (Object.keys(cf).length > 0) out.custom_fields = cf
-  return ok(out)
+  return out
 }
 
-async function getStudentDetail(c: Ctx) {
+async function getStudentDetail(c: Ctx): Promise<StudentFullDetail> {
   const id = sid(c)
   const pred = studentPredicate(await resolveScope(c), 'st')
   const classRow = await c.db.prepare(`SELECT e.class_id FROM enrollments e WHERE e.student_id = ? ORDER BY e.enrolled_on DESC LIMIT 1`).bind(id).first<{ class_id: string }>()
@@ -744,23 +757,25 @@ async function getStudentDetail(c: Ctx) {
                     LEFT JOIN employees de ON de.id = v.driver_employee_id LEFT JOIN employees ae ON ae.id = v.attendant_employee_id
                    WHERE ta.student_id = ? AND (ta.valid_to IS NULL OR ta.valid_to >= ?)`).bind(id, today),
   ])
+  type D = StudentFullDetail
   const rows = (r: D1Result) => r.results as Record<string, unknown>[]
-  return ok({
-    subject_marks: rows(marks).map((m) => ({ ...m, absent: bool(m.absent), approved: bool(m.approved) })),
-    fee_heads: feeHeads.results,
-    payments: payments.results,
-    documents: rows(documents).map((d) => ({ ...d, verified: bool(d.verified) })),
-    leave: leave.results,
-    enrolment_history: rows(history).map((h) => ({ ...h, promoted: bool(h.promoted) })),
-    prior_years: priorYears.results,
-    transport_crew: crew.results,
-    activities: activities.results,
-    concessions: concessions.results,
-    fee_components: rows(components).map((x) => ({ ...x, live: bool(x.live) })),
-    co_scholastic: coScholastic.results,
-    invoices: invoices.results,
+  const as = <T>(r: D1Result) => r.results as T
+  return {
+    subject_marks: rows(marks).map((m) => ({ ...(m as unknown as D['subject_marks'][number]), absent: bool(m.absent), approved: bool(m.approved) })),
+    fee_heads: as<D['fee_heads']>(feeHeads),
+    payments: as<D['payments']>(payments),
+    documents: rows(documents).map((d) => ({ ...(d as unknown as D['documents'][number]), verified: bool(d.verified) })),
+    leave: as<D['leave']>(leave),
+    enrolment_history: rows(history).map((h) => ({ ...(h as unknown as D['enrolment_history'][number]), promoted: bool(h.promoted) })),
+    prior_years: as<NonNullable<D['prior_years']>>(priorYears),
+    transport_crew: as<D['transport_crew']>(crew),
+    activities: as<D['activities']>(activities),
+    concessions: as<D['concessions']>(concessions),
+    fee_components: rows(components).map((x) => ({ ...(x as unknown as NonNullable<D['fee_components']>[number]), live: bool(x.live) })),
+    co_scholastic: as<D['co_scholastic']>(coScholastic),
+    invoices: as<D['invoices']>(invoices),
     class_id: classRow?.class_id ?? null,
-  })
+  }
 }
 
 // --- conduct notes ---------------------------------------------------------------------------

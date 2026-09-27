@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, CheckCircle2, ShieldAlert, UserMinus } from 'lucide-react'
-import { api, type List } from '@/lib/api'
+import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge,
   FormNotice, Input, Select, SkeletonTiles, ErrorState, EmptyState,
@@ -279,7 +279,7 @@ function AssignSelect({
 }) {
   const teachers = useQuery({
     queryKey: ['timetable-teachers'],
-    queryFn: () => api.get<List<{ user_id: string; full_name: string }>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
     staleTime: 5 * 60_000,
   })
 

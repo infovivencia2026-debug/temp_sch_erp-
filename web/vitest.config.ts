@@ -7,7 +7,7 @@ import path from 'node:path'
    shipped bundle. No React plugin — the tests render with `react-dom/server`
    and esbuild's automatic JSX transform is all that is needed for that. */
 export default defineConfig({
-  resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
+  resolve: { alias: { '@': path.resolve(__dirname, 'src'), '@shared': path.resolve(__dirname, '../shared') } },
   esbuild: { jsx: 'automatic' },
   test: {
     environment: 'jsdom',

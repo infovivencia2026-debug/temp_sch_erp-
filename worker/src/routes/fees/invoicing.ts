@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import { reply } from '../../router'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuidParam } from '../../http'
 import { can } from '../../identity'
@@ -93,7 +94,7 @@ export async function ensureFeeHead(c: Ctx, code: string, name: string): Promise
 }
 
 export function registerInvoicing(r: Router): void {
-  r.post('/fees/invoices/generate', 'auth', async (c) => {
+  r.typed('POST /fees/invoices/generate', 'auth', async (c) => {
     if (!can(c.id, 'finance.invoices.write') && !can(c.id, 'admissions.write')) throw forbidden()
     const req = await readJSON<{ fee_structure_id?: string; instalment_no?: number; due_on?: string; student_id?: string; all_instalments?: boolean }>(c.req)
     const studentOnly = (req.student_id ?? '').trim()
@@ -221,8 +222,8 @@ export function registerInvoicing(r: Router): void {
       if (moved > 0) { arrearsChildren++; arrearsPaise += moved }
       createdN++
     }
-    return created({ created: createdN, skipped: 0, instalment_no: instalmentNo, due_on: dueOn,
-      pending_concessions: p(pending?.n), arrears_children: arrearsChildren, arrears_paise: arrearsPaise })
+    return reply({ created: createdN, skipped: 0, instalment_no: instalmentNo, due_on: dueOn,
+      pending_concessions: p(pending?.n), arrears_children: arrearsChildren, arrears_paise: arrearsPaise }, 201)
   })
 
   // ---------------------------------------------------------------- penalty

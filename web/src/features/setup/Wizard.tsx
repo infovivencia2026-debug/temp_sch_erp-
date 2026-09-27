@@ -56,7 +56,7 @@ export default function Wizard() {
   // which one they mean before it can ask anything else.
   const { data: session } = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ user?: { platform_admin: boolean } }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const isPlatform = session?.user?.platform_admin ?? false
 

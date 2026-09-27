@@ -1,5 +1,8 @@
 import type { Env } from './env'
 import type { Identity } from './identity'
+import type { Api } from '@shared/api'
+import type { Method as ApiMethod } from '@shared/api/contract'
+import { json } from './env'
 
 export interface Ctx {
   req: Request
@@ -13,7 +16,34 @@ export interface Ctx {
 }
 
 export type Handler = (c: Ctx) => Promise<Response> | Response
-type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type Method = ApiMethod
+
+/* THE CONTRACT, ON THE SERVER SIDE.
+
+   A route registered with `r.typed('GET /students', perm, handler)` is one the
+   web reads through `api.call('GET /students')`: both sides take the answer's
+   shape from shared/api, so a handler that returns a bare array where the
+   screen reads `.items`, or renames a field, no longer compiles.
+
+   The handler returns the body itself, not a Response; `reply(body, 201)`
+   sets a status. Errors are still thrown (HttpError), as everywhere else. */
+export type ApiRoute = keyof Api & string
+export type ApiRes<K extends ApiRoute> = Api[K]['res']
+export class Reply<T> {
+  constructor(readonly body: T, readonly status: number) {}
+}
+/** A typed answer with a status other than 200. */
+export const reply = <T>(body: T, status = 200) => new Reply(body, status)
+export type TypedHandler<K extends ApiRoute> =
+  (c: Ctx) => Promise<ApiRes<K> | Reply<ApiRes<K>>> | ApiRes<K> | Reply<ApiRes<K>>
+
+/** Wraps a typed handler as an ordinary one: the body becomes JSON. */
+export function typedHandler<K extends ApiRoute>(h: TypedHandler<K>): Handler {
+  return async (c) => {
+    const out = await h(c)
+    return out instanceof Reply ? json(out.body, out.status) : json(out)
+  }
+}
 
 interface Route { method: Method; re: RegExp; keys: string[]; perm: string | 'auth'; handler: Handler }
 
@@ -39,6 +69,12 @@ export class Router {
   put(p: string, perm: string | 'auth', h: Handler) { return this.on('PUT', p, perm, h) }
   patch(p: string, perm: string | 'auth', h: Handler) { return this.on('PATCH', p, perm, h) }
   del(p: string, perm: string | 'auth', h: Handler) { return this.on('DELETE', p, perm, h) }
+
+  /** Registers a route that is on the contract (shared/api). "METHOD /path" names it there. */
+  typed<K extends ApiRoute>(route: K, perm: string | 'auth', handler: TypedHandler<K>): this {
+    const sp = route.indexOf(' ')
+    return this.on(route.slice(0, sp) as Method, route.slice(sp + 1), perm, typedHandler(handler))
+  }
 
   match(method: string, pathname: string): { route: Route; params: Record<string, string> } | null {
     for (const route of this.routes) {

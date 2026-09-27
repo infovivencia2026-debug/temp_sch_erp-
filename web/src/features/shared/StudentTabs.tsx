@@ -1,3 +1,4 @@
+import type { StudentFullDetail } from '@shared/api'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -16,31 +17,7 @@ import { formatPaise, formatDate } from '@/lib/utils'
    slice of GET /students/{id}/detail; none of them fetch, so the seven tabs
    share one round trip rather than firing a query each as somebody clicks. */
 
-export interface Detail {
-  subject_marks: { exam: string; subject: string; marks?: string; max?: string; grade?: string; absent: boolean; on?: string; approved?: boolean }[]
-  fee_heads: { head: string; charged_paise?: string; paid_paise?: string }[]
-  /* Charges this child carries that their class does not: the bus fare from
-     the stop they board at. Per instalment, added to every demand raised
-     while live. */
-  fee_components?: { code: string; description: string; fee_head: string; amount_paise: string; valid_from: string; valid_to: string; live: boolean }[]
-  payments: { receipt_no: string; paid_on: string; amount_paise: string; mode: string; reference: string; status: string }[]
-  documents: { id: string; doc_type: string; file_id: string; uploaded_on: string; verified: boolean; verified_by: string; notes: string; filename: string; content_type: string }[]
-  leave: { from: string; to: string; type: string; reason: string; status: string; applied_by: string; decision_note: string; days: string }[]
-  enrolment_history: { year: string; class: string; section: string; roll_no?: string; status: string; from: string; to?: string; remarks: string; promoted: boolean }[]
-  /* The years before this school used this system, imported from whatever it
-     kept. Deliberately not folded into enrolment_history: those are live rows
-     in the live tables, these are a summary of a closed year. */
-  prior_years?: {
-    year: string; class: string
-    days_present?: number | null; days_total?: number | null
-    fee_billed_paise?: number | null; fee_paid_paise?: number | null
-    fee_waived_paise?: number | null; notes: string
-  }[]
-  transport_crew: { route: string; vehicle: string; driver: string; driver_phone: string; attendant: string; attendant_phone: string }[]
-  activities: { id: string; name: string; category: string; schedule: string; fee_paise: string; status: string; enrolled_on: string; invoice_status: string; invoice_no: string; due_paise: string }[]
-  class_id?: string
-  co_scholastic: { area_id: string; area: string; grade: string; remark: string; term: string; graded_by: string; graded_on: string }[]
-}
+export type Detail = StudentFullDetail
 
 /* MARKS BY SUBJECT.
 

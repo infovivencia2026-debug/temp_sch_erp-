@@ -5,6 +5,8 @@
 // automatically. The one thing worth centralising is the error envelope, which
 // the server guarantees is always {error:{code,message,request_id}}.
 
+import type { Api } from '@shared/api'
+import type { PathParams, QueryValue } from '@shared/api/contract'
 import { takeOffline } from './outbox'
 import { noteWrite } from './save-feedback'
 
@@ -183,6 +185,8 @@ export function servedFromCache(data: unknown): boolean {
 }
 
 export const api = {
+  /** A route on the contract (shared/api), typed end to end. See `call` below. */
+  call,
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
@@ -204,94 +208,61 @@ export const api = {
     request<T>(path, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
 }
 
+/* THE CONTRACT, ON THE WEB SIDE.
+
+   `api.call('GET /students', { query })` names an endpoint as shared/api does,
+   and returns exactly the type the Worker is compiled against (its handler is
+   registered with `r.typed` under the same name). Path placeholders are
+   filled from `params`: `api.call('GET /students/{id}', { params: { id } })`.
+   Query values that are undefined, null or '' are left out.
+
+   Prefer this to api.get<T>() for anything on the contract: there the T is a
+   promise nobody checks. */
+export type ApiRoute = keyof Api & string
+type Field<K extends ApiRoute, F extends string> = F extends keyof Api[K] ? Api[K][F] : undefined
+type NeedsBody<K extends ApiRoute> = 'body' extends keyof Api[K] ? (undefined extends Field<K, 'body'> ? false : true) : false
+type CallArgs<K extends ApiRoute> =
+  & (keyof PathParams<K> extends never ? { params?: undefined } : { params: PathParams<K> })
+  & { query?: Field<K, 'query'> }
+  & (NeedsBody<K> extends true ? { body: Field<K, 'body'> } : { body?: Field<K, 'body'> })
+type OptionalIfEmpty<K extends ApiRoute> =
+  keyof PathParams<K> extends never ? (NeedsBody<K> extends true ? [args: CallArgs<K>] : [args?: CallArgs<K>]) : [args: CallArgs<K>]
+
+/** Builds the URL for a contract route: fills {placeholders}, appends the query. */
+export function apiPath(route: string, params?: Record<string, string>, query?: Record<string, QueryValue>): string {
+  const sp = route.indexOf(' ')
+  let path = '/api/v1' + route.slice(sp + 1).replace(/\{([a-zA-Z_]+)\}/g, (_, k: string) => {
+    const v = params?.[k]
+    if (v === undefined) throw new Error(`api.call ${route}: missing path parameter ${k}`)
+    return encodeURIComponent(v)
+  })
+  if (query) {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(query)) {
+      if (v === undefined || v === null || v === '') continue
+      qs.set(k, String(v))
+    }
+    const s = qs.toString()
+    if (s) path += '?' + s
+  }
+  return path
+}
+
+async function call<K extends ApiRoute>(route: K, ...rest: OptionalIfEmpty<K>): Promise<Api[K]['res']> {
+  const args = (rest[0] ?? {}) as { params?: Record<string, string>; query?: Record<string, QueryValue>; body?: unknown }
+  const method = route.slice(0, route.indexOf(' '))
+  const path = apiPath(route, args.params, args.query)
+  if (method === 'GET') return request(path)
+  return request(path, { method, body: args.body !== undefined ? JSON.stringify(args.body) : undefined })
+}
+
 // --- types mirroring the Go response structs --------------------------------
 
-export interface SessionResponse {
-  authenticated: boolean
-  user?: {
-    id: string
-    full_name: string
-    roles: string[]
-    platform_admin: boolean
-    /** Still on the password the office issued — their own phone number. */
-    must_change_password?: boolean
-    /** Signed in with the teachers' day code on a shared screen; the
-        password form is hidden because the API refuses it. */
-    day_code?: boolean
-    /** The file id of their photograph, absent if they have none. Carried on
-        the session so every surface that shows who is signed in can draw it,
-        rather than each one fetching /profile for a single string. */
-    avatar_key?: string
-  }
-  institution?: {
-    id: string; name: string; short_name: string; slug: string
-    primary_color: string; timezone: string; locale: string
-    // The white-label overrides, folded in by the session. Empty on a school
-    // that has set no branding.
-    display_name?: string; tagline?: string
-    logo_key?: string; favicon_key?: string; accent_color?: string
-    // The school's UPI address for fees, absent when none is set -- and then
-    // no screen offers a UPI code. The payee name is already defaulted to the
-    // school's name by the server.
-    upi_vpa?: string; upi_payee_name?: string
-    /** The no-money test payment is offered only where the server allows
-        it -- never in production, where the endpoint is 404. */
-    simulated_pay?: boolean
-  }
-  permissions: string[]
-  modules?: { module: string; enabled: boolean }[]
-  /** What the school has bought, and whether it is paid up. Absent for
-   *  platform staff, who are not customers and have nothing to buy. */
-  subscription?: Subscription
-}
-
-export interface Subscription {
-  active: boolean
-  /** none | expired | past_due | suspended | cancelled — for branching on the
-   *  reason without parsing the prose in `reason`. */
-  code?: string
-  reason?: string
-  plan_code?: string
-  plan_name?: string
-  status?: string
-  trial_ends_on?: string
-  modules: string[]
-  /** Whether this pack may link the school's own SMS/WhatsApp vendor account.
-   *  Decides what the messaging screen offers; the gate is on the server. */
-  custom_integration?: boolean
-}
-
-export interface Student {
-  id: string; admission_no: string; full_name: string
-  first_name: string; middle_name?: string; last_name?: string
-  gender?: string; date_of_birth?: string; status: string; admission_date: string
-  class_name?: string; section_name?: string; roll_no?: number
-  primary_phone?: string
-}
-
-/* One page of a list, and the way to the next one.
-
-   `limit` is the size of THIS response, not a ceiling on what the caller can
-   reach: follow `next_cursor` and the list continues, however long it is.
-
-   `total` is optional because counting is not free. count(*) over a filtered
-   million rows costs the same on page fifty as on page one, so the server
-   sends it on the first page -- the one whose header says how many children
-   are on the roll -- and omits it thereafter. Absent is not zero: a screen
-   that sees no total must keep the one it already has.
-
-   `has_more` is a fact about the rows (the server fetches one more than it
-   returns), so it stays right on the pages that carry no total. */
-export interface Page<T> {
-  items: T[]
-  total?: number
-  limit: number
-  offset: number
-  has_more: boolean
-  /** Feed back as `cursor`. Empty or absent means this was the last page. */
-  next_cursor?: string
-}
-export interface List<T> { items: T[] }
+/* The contract's types (shared/api), re-exported so screens keep importing
+   them from here. Edit them in shared/api, never here. */
+export type {
+  List, Page, SessionResponse, Subscription, Student, Period, TimetableEntry, Teacher, AttendanceRow,
+} from '@shared/api'
 
 export interface AcademicYear { id: string; name: string; starts_on: string; ends_on: string; is_current: boolean }
 export interface Klass { id: string; name: string; level: number; stream?: string }
@@ -304,32 +275,6 @@ export interface Section {
   stated_strength?: number
 }
 export interface Subject { id: string; name: string; code: string; is_scholastic: boolean }
-
-export interface Period {
-  id: string; name: string; sequence: number; starts_at: string; ends_at: string; is_break: boolean
-  bell_schedule_id?: string | null
-}
-export interface TimetableEntry {
-  id: string; section_id: string; section_name: string; class_name: string
-  period_id: string; period_name: string; weekday: number
-  subject_name: string; subject_code: string
-  teacher_id?: string; teacher_name?: string; room?: string
-}
-export interface Teacher {
-  user_id: string
-  full_name: string
-  employee_code: string
-
-  /* Absent unless the caller plans the timetable. The whole staff's weekly
-     load is a league table of colleagues; the server omits it rather than
-     sending a zero that would say something false about everybody. */
-  weekly_periods?: number
-}
-
-export interface AttendanceRow {
-  id: string; student_id: string; student_name: string; admission_no: string
-  section_id: string; on_date: string; status: string; minutes_late?: number; remarks?: string
-}
 
 export interface QueueStat {
   size: number; pending: number; active: number; scheduled: number; retry: number

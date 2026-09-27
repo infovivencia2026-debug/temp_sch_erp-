@@ -75,8 +75,7 @@ export default function StudentFees({ studentID, classID, mayEdit, onChanged }: 
 
   const detail = useQuery({
     queryKey: ['student-detail', studentID],
-    queryFn: () => api.get<{ concessions: Concession[] }>(
-      `/api/v1/students/${studentID}/detail`),
+    queryFn: () => api.call('GET /students/{id}/detail', { params: { id: studentID } }),
   })
   const concessions = detail.data?.concessions ?? []
   const pending = concessions.filter((c) => c.status === 'pending')

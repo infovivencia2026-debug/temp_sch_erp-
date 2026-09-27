@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import type { Notification } from '@shared/api'
 import { json } from '../../env'
 import { readJSON, ok, created, notFound, badRequest, forbidden, isUUID, now } from '../../http'
 import { can } from '../../identity'
@@ -144,7 +145,7 @@ export function registerPortalSchoolLife(r: Router): void {
   r.get('/portal/profile/id-card/verify', GROUP, verifyCampusPass)
 
   r.get('/portal/live', GROUP, getLiveRevision)
-  r.get('/portal/notifications', GROUP, listFamilyNotifications)
+  r.typed('GET /portal/notifications', GROUP, listFamilyNotifications)
   r.post('/portal/notifications/read-all', GROUP, markAllNotificationsRead)
   r.post('/portal/notifications/clear', GROUP, clearNotifications)
   r.post('/portal/notifications/{id}/read', GROUP, markNotificationRead)
@@ -932,7 +933,7 @@ export function deliverFamilyAlerts(c: Ctx, user: string, kids: string[]): D1Pre
   ]
 }
 
-async function listFamilyNotifications(c: Ctx): Promise<Response> {
+async function listFamilyNotifications(c: Ctx): Promise<{ items: Notification[]; unread: number }> {
   const { scope, studentIds: kids } = await familyChildren(c, c.url.searchParams.get('student_id'))
   const user = c.id.userId
   const hidden = can(c.id, LEAVE_APPROVE) ? [] : ['leave_request']
@@ -956,7 +957,7 @@ async function listFamilyNotifications(c: Ctx): Promise<Response> {
     student_name: string | null; created_at: string; read_at: string | null
   }[]
   let unread = 0
-  const items = rows.map((v) => {
+  const items = rows.map((v): Notification => {
     const readAt = istStamp(v.read_at)
     if (v.read_at === null) unread++
     return {
@@ -965,7 +966,7 @@ async function listFamilyNotifications(c: Ctx): Promise<Response> {
       created_at: istStamp(v.created_at) ?? '', read_at: o(readAt),
     }
   })
-  return ok({ items, unread })
+  return { items, unread }
 }
 
 async function markNotificationRead(c: Ctx): Promise<Response> {

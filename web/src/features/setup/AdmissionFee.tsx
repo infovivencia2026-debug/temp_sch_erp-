@@ -70,12 +70,11 @@ export default function AdmissionFee({ classID, studentID, studentName }: {
      skipped as already invoiced, so it reads as a button that failed. This
      raises the one bill, through the same endpoint and the same arithmetic. */
   const raise = useMutation({
-    mutationFn: () => api.post<{ created: number; skipped: number }>(
-      '/api/v1/fees/invoices/generate', {
-        fee_structure_id: quote.data?.structure_id,
+    mutationFn: () => api.call('POST /fees/invoices/generate', { body: {
+        fee_structure_id: quote.data?.structure_id ?? '',
         instalment_no: 1,
         student_id: studentID,
-      }),
+      } }),
   })
 
   const grant = useMutation({

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type List, type Section, type AttendanceRow, type Student } from '@/lib/api'
+import { api, type List, type Section, type Student } from '@/lib/api'
 import { walkRoster } from '@/lib/rosters'
 import { Card, CardHeader, Table, Td, Badge, Button, Select, Loading, ErrorState } from '@/components/ui'
 import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
@@ -78,7 +78,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
   const marks = useQuery({
     queryKey: ['attendance', sectionId, onDate],
     queryFn: () =>
-      api.get<List<AttendanceRow>>(`/api/v1/attendance?section_id=${sectionId}&on_date=${onDate}`),
+      api.call('GET /attendance', { query: { section_id: sectionId, on_date: onDate } }),
     enabled: !!sectionId,
   })
 
@@ -109,12 +109,10 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
 
   const save = useMutation({
     mutationFn: (entries: { student_id: string; status: Status }[]) =>
-      api.post<{
-        newly_absent?: number; parents_told?: number; messages_queued?: number
-      }>('/api/v1/attendance', {
+      api.call('POST /attendance', { body: {
         section_id: sectionId, on_date: onDate, entries,
         notify_channels: channels, silent,
-      }),
+      } }),
     onSuccess: (res, entries) => {
       setDraft({})
       qc.invalidateQueries({ queryKey: ['attendance', sectionId, onDate] })

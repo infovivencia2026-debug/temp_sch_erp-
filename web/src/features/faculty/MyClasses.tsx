@@ -114,7 +114,7 @@ export default function MyClasses() {
   })
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
 
   const canNote = session.data?.permissions.includes('welfare.discipline.write') ?? false

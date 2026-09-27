@@ -114,9 +114,11 @@ export default defineConfig({
     }),
     serviceWorker(),
   ],
-  resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
+  resolve: { alias: { '@': path.resolve(__dirname, 'src'), '@shared': path.resolve(__dirname, '../shared') } },
   server: {
     port: 5173,
+    // shared/api (the API contract) lives beside web/, outside Vite's root.
+    fs: { allow: [path.resolve(__dirname), path.resolve(__dirname, '../shared')] },
     // Mirrors the nginx locations, so `npm run dev` hits the same URLs the
     // production bundle does and no code needs a base-URL switch.
     proxy: {

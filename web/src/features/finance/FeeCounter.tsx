@@ -2,7 +2,8 @@ import { Fragment, useRef, useState } from 'react'
 import { parseRupees, rupeesToPaise } from '@/lib/money'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, Banknote, Check } from 'lucide-react'
-import { api, type Page, type Student } from '@/lib/api'
+import type { FeeReceipt } from '@shared/api'
+import { api } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
@@ -20,30 +21,7 @@ import { upiNote } from '@/lib/upi'
    read what they owe, take the money, hand over a printed receipt. Everything
    else on the screen is in service of not getting those four wrong. */
 
-interface Due {
-  invoice_id: string; invoice_no: string; issued_on: string; due_on?: string
-  net_paise: number; paid_paise: number; balance_paise: number
-  fine_paise: number; status: string; days_overdue: number
-}
-interface LedgerEntry {
-  date: string; kind: string; reference: string; description: string
-  debit_paise: number; credit_paise: number; status: string; mode?: string
-}
-interface Ledger {
-  student_id: string; admission_no: string; full_name: string
-  class_name?: string; section_name?: string
-  charged_paise: number; paid_paise: number; balance_paise: number; pending_paise: number
-  concessions: { kind: string; percent?: string; amount_paise?: number; reason?: string; fee_head?: string }[]
-  dues: Due[]
-  entries: LedgerEntry[]
-}
-interface Receipt {
-  receipt_no: string; amount_paise: number; amount_words: string
-  mode: string; paid_on: string; student_name: string; admission_no: string
-  institution: string; class_name?: string; section_name?: string
-  collected_by?: string; financial_year: string; reference_no?: string
-  lines: { invoice_no: string; amount_paise: number; particulars: string }[]
-}
+type Receipt = FeeReceipt
 
 const MODES = [
   { value: 'cash', label: 'Cash' },
@@ -100,14 +78,14 @@ export default function FeeCounter() {
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
     queryKey: ['fee-search', needle],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&status=all&limit=15`),
+    queryFn: () => api.call('GET /students', { query: { q: needle, status: 'all', limit: 15 } }),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })
 
   const ledger = useQuery({
     queryKey: ['fee-ledger', studentId],
-    queryFn: () => api.get<Ledger>(`/api/v1/fees/students/${studentId}/ledger`),
+    queryFn: () => api.call('GET /fees/students/{id}/ledger', { params: { id: studentId! } }),
     enabled: !!studentId,
   })
 
@@ -131,8 +109,8 @@ export default function FeeCounter() {
 
   const collect = useMutation({
     mutationFn: () =>
-      api.post<{ payment_id: string; receipt_no: string }>('/api/v1/fees/payments', {
-        student_id: studentId,
+      api.call('POST /fees/payments', { body: {
+        student_id: studentId!,
         // Rupees in the box, paise on the wire — the API never sees a decimal.
         amount_paise: rupeesToPaise(amount),
         mode,
@@ -142,9 +120,9 @@ export default function FeeCounter() {
         payer_name: payer.trim() || undefined,
         payer_relation: payerRel.trim() || undefined,
         invoice_ids: selected.size ? [...selected] : undefined,
-      }),
+      } }),
     onSuccess: async (res) => {
-      const r = await api.get<Receipt>(`/api/v1/fees/receipts/${res.payment_id}`)
+      const r = await api.call('GET /fees/receipts/{id}', { params: { id: res.payment_id } })
       setReceipt(r)
       setDone({ receipt_no: res.receipt_no, amount_paise: r.amount_paise, receipt: r })
       // Named, not "Saved": the cashier reads this number back across the

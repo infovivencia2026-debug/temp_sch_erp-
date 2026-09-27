@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import type { ClassRollGroup, PendingLeaveGroup, PrincipalDashboard } from '@shared/api'
 import { ok, badRequest, notFound, clampInt, isUUID } from '../../http'
 import { can } from '../../identity'
 import {
@@ -58,7 +59,7 @@ const scalar = async <T = number>(c: Ctx, sql: string, ...args: (string | number
 
 const APP_STAGES = ['draft', 'submitted', 'under_review', 'documents_pending', 'test_scheduled', 'interviewed', 'waitlisted', 'offered']
 
-async function getPrincipalDashboard(c: Ctx) {
+async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
   const rng = resolveRange(c)
   const today = todayIST()
   const CUR_YEAR = `(SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1)`
@@ -127,22 +128,17 @@ async function getPrincipalDashboard(c: Ctx) {
         FROM invoices i WHERE i.status IN ('unpaid','partial','overdue')`).bind(today),
   ])
   const s = scalars.results[0] as Record<string, unknown>
-  const k: Record<string, unknown> = {
+  const k: PrincipalDashboard = {
     students: n(s.students), staff: n(s.staff), sections: n(s.sections),
     attendance_today_pct: n(s.att_today), attendance_marked_today: n(s.marked_today),
+    collected_paise: n(s.collected), outstanding_paise: n(s.outstanding), defaulters: n(s.defaulters),
+    billed_paise: n(s.billed), collected_year_paise: n(s.collected_year), outstanding_year_paise: n(s.outstanding_year),
+    year_invoice_count: n(s.year_invoices),
+    pending_leave: n(s.pending_leave), open_applications: n(s.open_apps), unassigned_subjects: n(s.unassigned),
+    range: rangeJSON(rng), as_of_now: [],
   }
   if (s.range_pct !== null && s.range_pct !== undefined) k.attendance_range_pct = n(s.range_pct)
   if (s.range_marked !== null && s.range_marked !== undefined) k.attendance_range_marked = n(s.range_marked)
-  k.collected_paise = n(s.collected)
-  k.outstanding_paise = n(s.outstanding)
-  k.defaulters = n(s.defaulters)
-  k.billed_paise = n(s.billed)
-  k.collected_year_paise = n(s.collected_year)
-  k.outstanding_year_paise = n(s.outstanding_year)
-  k.year_invoice_count = n(s.year_invoices)
-  k.pending_leave = n(s.pending_leave)
-  k.open_applications = n(s.open_apps)
-  k.unassigned_subjects = n(s.unassigned)
   if (s.class_subjects_total !== null && s.class_subjects_total !== undefined) k.class_subjects_total = n(s.class_subjects_total)
 
   const stages = (byStatus.results as { status: string; applications: number }[])
@@ -156,17 +152,16 @@ async function getPrincipalDashboard(c: Ctx) {
   if (stages.length) k.open_applications_by_status = stages
 
   const leave = (byLeave.results as Record<string, unknown>[]).map((r) => {
-    const o: Record<string, unknown> = { leave_type: r.leave_type, subject_kind: r.subject_kind }
-    if (r.department !== null && r.department !== undefined) o.department = r.department
+    const o: PendingLeaveGroup = { leave_type: String(r.leave_type), subject_kind: String(r.subject_kind), requests: 0, days: 0 }
+    if (r.department !== null && r.department !== undefined) o.department = String(r.department)
     o.requests = n(r.requests); o.days = n(r.days)
     return o
   })
   if (leave.length) k.pending_leave_by_type = leave
 
   const roll = (byClass.results as Record<string, unknown>[]).map((r) => {
-    const o: Record<string, unknown> = {}
-    if (r.class_id !== null && r.class_id !== undefined) o.class_id = r.class_id
-    o.class_name = r.class_name; o.students = n(r.students)
+    const o: ClassRollGroup = { class_name: String(r.class_name), students: n(r.students) }
+    if (r.class_id !== null && r.class_id !== undefined) o.class_id = String(r.class_id)
     return o
   })
   if (roll.length) k.students_by_class = roll
@@ -184,7 +179,7 @@ async function getPrincipalDashboard(c: Ctx) {
     'open_applications', 'unassigned_subjects', 'students', 'staff', 'sections',
     'class_subjects_total', 'open_applications_by_status',
     'pending_leave_by_type', 'students_by_class', 'outstanding_ageing']
-  return ok(k)
+  return k
 }
 
 async function getAttendanceTrend(c: Ctx) {
@@ -811,7 +806,7 @@ async function listStudentProgress(c: Ctx) {
 // ---------------------------------------------------------------------------
 
 export function registerDashboards(r: Router): void {
-  r.get('/principal/dashboard', 'admin.reports.read', getPrincipalDashboard)
+  r.typed('GET /principal/dashboard', 'admin.reports.read', getPrincipalDashboard)
   r.get('/principal/attendance-trend', 'admin.reports.read', getAttendanceTrend)
   r.get('/principal/attendance-shortage', 'admin.reports.read', getAttendanceShortage)
   r.get('/principal/staff-workload', 'admin.reports.read', getStaffWorkload)

@@ -103,7 +103,7 @@ export default function Syllabus() {
   const qc = useQueryClient()
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const canReview = session.data?.permissions.includes('academics.write') ?? false
 

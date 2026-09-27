@@ -1,5 +1,6 @@
 import type { Env } from '../env'
 import { json } from '../env'
+import type { SessionResponse } from '@shared/api'
 import { currentSession } from '../auth/session'
 import { institutionById, tenantDb } from '../tenant'
 import { entitlementFor } from './misc/shell'
@@ -10,19 +11,24 @@ import { simulatedPayEnabled } from './portal/family'
    so the web client needs no change. Permissions and roles come from the
    school's database; modules and subscription from CONTROL. */
 export async function getSession(env: Env, req: Request): Promise<Response> {
+  return json(await sessionBody(env, req))
+}
+
+/** The body of GET /session, typed against the contract (shared/api/session.ts). */
+export async function sessionBody(env: Env, req: Request): Promise<SessionResponse> {
   const s = await currentSession(env, req)
-  if (!s) return json({ authenticated: false, permissions: [] })
+  if (!s) return { authenticated: false, permissions: [] }
 
   if (s.institution_id === null) {
     const u = await env.CONTROL.prepare('SELECT full_name FROM platform_users WHERE id = ?').bind(s.user_id).first<{ full_name: string }>()
-    return json({
+    return {
       authenticated: true, permissions: ['*'],
       user: { id: s.user_id, full_name: u?.full_name ?? '', roles: ['platform_admin'], platform_admin: true },
-    })
+    }
   }
 
   const inst = await institutionById(env, s.institution_id)
-  if (!inst) return json({ authenticated: false, permissions: [] })
+  if (!inst) return { authenticated: false, permissions: [] }
   const db = tenantDb(env, inst)
 
   const [user, roles, perms, branding, sub] = await Promise.all([
@@ -39,7 +45,7 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
     env.CONTROL.prepare('SELECT s.plan_code, p.name AS plan_name, s.status, s.renews_on, s.trial_ends_on, p.modules FROM subscriptions s JOIN plans p ON p.code = s.plan_code WHERE s.institution_id = ?')
       .bind(inst.id).first<{ plan_code: string; plan_name: string; status: string; renews_on: string | null; trial_ends_on: string | null; modules: string }>(),
   ])
-  if (!user) return json({ authenticated: false, permissions: [] })
+  if (!user) return { authenticated: false, permissions: [] }
 
   /* As internal/api/session.go: `modules` is the school's own module switches
      (module_settings), and `subscription` is the entitlement the gate uses,
@@ -65,7 +71,7 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
     modules: ent.all ? ALL_MODULES : ALL_MODULES.filter((m) => ent.modules.has(m)),
     custom_integration: ent.customIntegration,
   }
-  return json({
+  return {
     authenticated: true,
     permissions: perms.results.map((p) => p.key),
     user: {
@@ -84,5 +90,5 @@ export async function getSession(env: Env, req: Request): Promise<Response> {
     },
     modules,
     subscription,
-  })
+  }
 }

@@ -861,7 +861,7 @@ export default function BentoFinanceDashboard() {
 
   const kpis = useQuery({
     queryKey: ['bento-finance-dashboard'],
-    queryFn: () => api.get<FinanceKPIs>('/api/v1/finance/dashboard'),
+    queryFn: () => api.call('GET /finance/dashboard'),
   })
   const overdue = useQuery({
     queryKey: ['finance-invoices-overdue'],

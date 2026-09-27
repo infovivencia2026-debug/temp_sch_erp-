@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, type List, type Period, type TimetableEntry } from '@/lib/api'
+import { api } from '@/lib/api'
 import { PageHead, PageBody, Select, ErrorState, EmptyState } from '@/components/ui'
 import DayTimeline from '@/components/DayTimeline'
 import { Freshness, ScreenSkeleton } from './screen-state'
@@ -32,12 +32,12 @@ export default function ChildTimetable() {
        schedule's breaks and none of the lessons. The timeline keeps to the
        periods the lessons actually use, and takes breaks from their schedule. */
     queryKey: ['periods'],
-    queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
+    queryFn: () => api.call('GET /timetable/periods'),
     enabled: !!sectionId,
   })
   const entries = useQuery({
     queryKey: ['timetable', 'section', sectionId],
-    queryFn: () => api.get<List<TimetableEntry>>(`/api/v1/timetable/entries?section_id=${sectionId}`),
+    queryFn: () => api.call('GET /timetable/entries', { query: { section_id: sectionId } }),
     enabled: !!sectionId,
   })
 

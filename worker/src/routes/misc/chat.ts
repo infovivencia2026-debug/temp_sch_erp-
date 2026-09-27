@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import type { StaffMessage, StaffThread } from '@shared/api'
 import { badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
 import { isoZ } from '../comms/common'
@@ -118,7 +119,7 @@ export function registerChat(r: Router): void {
   })
 
   // --- staff_messages.go -----------------------------------------------------
-  r.get('/staff-messages/threads', 'auth', async (c) => {
+  r.typed('GET /staff-messages/threads', 'auth', async (c) => {
     institutionId(c)
     const me = c.id.userId
     const rows = await c.db.prepare(`
@@ -133,11 +134,11 @@ export function registerChat(r: Router): void {
        WHERE u.id <> ?1 AND (e.id IS NULL OR e.status = 'active') AND ${STAFF_ROLE_SQL}
        ORDER BY 5 DESC, (last_at IS NULL), last_at DESC, u.full_name`).bind(me)
       .all<{ user_id: string; full_name: string; designation: string | null; photo: string | null; unread: number; last_message: string | null; last_at: string | null }>()
-    return ok({ items: rows.results.map((v) => ({ user_id: v.user_id, full_name: v.full_name, designation: v.designation ?? undefined, photo: v.photo ?? undefined,
-      unread: v.unread, last_message: v.last_message ?? undefined, last_at: v.last_at ?? undefined })) })
+    return { items: rows.results.map((v): StaffThread => ({ user_id: v.user_id, full_name: v.full_name, designation: v.designation ?? undefined, photo: v.photo ?? undefined,
+      unread: v.unread, last_message: v.last_message ?? undefined, last_at: v.last_at ?? undefined })) }
   })
 
-  r.get('/staff-messages', 'auth', async (c) => {
+  r.typed('GET /staff-messages', 'auth', async (c) => {
     institutionId(c)
     const other = c.url.searchParams.get('with')
     if (!isUUID(other)) throw badRequest('with must be the uuid of a colleague')
@@ -160,10 +161,10 @@ export function registerChat(r: Router): void {
     const more = items.length > pageSize
     if (more) items = items.slice(0, pageSize)
     items.reverse()
-    const out = items.map((v) => ({ id: v.id, body: v.body, sent_at: v.sent_z, mine: !!v.mine, sender_name: v.sender_name,
+    const out = items.map((v): StaffMessage => ({ id: v.id, body: v.body, sent_at: v.sent_z, mine: !!v.mine, sender_name: v.sender_name,
       attachments: scanAttachments(v.attachments), cursor: v.sent_at, reply_to_id: v.reply_to_id ?? undefined,
       reply_body: v.reply_body ?? undefined, reply_sender: v.reply_sender ?? undefined, edited: !!v.edited, deleted: !!v.deleted, read_at: v.read_at ?? undefined }))
-    return ok({ items: out, has_more: more, cursor: out.length ? out[0].cursor : '' })
+    return { items: out, has_more: more, cursor: out.length ? out[0].cursor : '' }
   })
 
   r.post('/staff-messages', 'auth', async (c) => {

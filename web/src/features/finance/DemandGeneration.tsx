@@ -32,12 +32,6 @@ interface FeeStructure {
   lines: number
 }
 
-interface GenerateResult {
-  created: number
-  skipped: number
-  arrears_children?: number
-  arrears_paise?: number
-}
 
 export default function DemandGeneration() {
   const qc = useQueryClient()
@@ -53,13 +47,13 @@ export default function DemandGeneration() {
 
   const generate = useMutation({
     mutationFn: () =>
-      api.post<GenerateResult>('/api/v1/fees/invoices/generate', {
+      api.call('POST /fees/invoices/generate', { body: {
         fee_structure_id: structure,
         instalment_no: Number(instalment) || 1,
         // Omitted rather than sent empty: the server defaults to two weeks out,
         // and an empty string would be a parse error.
         ...(dueOn ? { due_on: dueOn } : {}),
-      }),
+      } }),
     onSuccess: (r) => {
       /* Arrears are said out loud. A run whose total is ₹1,40,000 higher
          than the structure implies is otherwise a mystery the accountant

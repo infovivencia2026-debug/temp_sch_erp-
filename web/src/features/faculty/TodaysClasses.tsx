@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { NavLink } from 'react-router-dom'
 import { Clock } from 'lucide-react'
-import { api, type List, type Period, type TimetableEntry } from '@/lib/api'
+import { api } from '@/lib/api'
 import { featurePath } from '@/lib/catalog'
 import { PageHead, Loading, ErrorState, EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -42,11 +42,11 @@ export default function TodaysClasses() {
 
   const periods = useQuery({
     queryKey: ['periods'],
-    queryFn: () => api.get<List<Period>>('/api/v1/timetable/periods'),
+    queryFn: () => api.call('GET /timetable/periods'),
   })
   const entries = useQuery({
     queryKey: ['timetable', 'me'],
-    queryFn: () => api.get<List<TimetableEntry>>('/api/v1/timetable/entries?teacher_id=me'),
+    queryFn: () => api.call('GET /timetable/entries', { query: { teacher_id: 'me' } }),
   })
 
   if (periods.isLoading || entries.isLoading) return <Loading label="Loading your timetable" />

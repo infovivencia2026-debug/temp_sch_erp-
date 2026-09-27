@@ -1316,7 +1316,7 @@ function PeriodsPanel({ onDone }: PanelProps) {
   type P = { name: string; sequence: number; starts_at: string; ends_at: string; is_break: boolean }
   const { data } = useQuery({
     queryKey: ['periods'],
-    queryFn: () => api.get<List<P & { id: string }>>('/api/v1/timetable/periods'),
+    queryFn: () => api.call('GET /timetable/periods'),
   })
   const [rows, setRows] = useState<P[]>([])
   /* WHOSE DAY IS BEING EDITED.
@@ -1625,7 +1625,7 @@ function StaffPanel({ onDone }: PanelProps) {
        nothing joining the two numbers. Every picker filters to the active
        ones itself; a class teacher who has resigned is not a class teacher. */
     queryFn: () =>
-      api.get<List<Teacher>>('/api/v1/timetable/teachers?include_former=true'),
+      api.call('GET /timetable/teachers', { query: { include_former: 'true' } }),
   })
   const [f, setF] = useState({
     employee_code: '',
@@ -1745,7 +1745,7 @@ function Assignments({ onDone }: PanelProps) {
        nothing joining the two numbers. Every picker filters to the active
        ones itself; a class teacher who has resigned is not a class teacher. */
     queryFn: () =>
-      api.get<List<Teacher>>('/api/v1/timetable/teachers?include_former=true'),
+      api.call('GET /timetable/teachers', { query: { include_former: 'true' } }),
   })
   const [sectionID, setSectionID] = useState('')
   const section = sections?.items.find((s) => s.id === sectionID)
@@ -1781,7 +1781,7 @@ function Assignments({ onDone }: PanelProps) {
      moves them, which the server does in a single step. */
   const { data: freeTeachers } = useQuery({
     queryKey: ['teachers', 'all-ct'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
   })
 
   const [classTeacher, setClassTeacher] = useState('')
@@ -3555,7 +3555,7 @@ function SubjectTeacherSelect({
   const { data, isLoading } = useQuery({
     queryKey: ['teachers', subjectID],
     queryFn: () =>
-      api.get<List<Teacher>>(`/api/v1/timetable/teachers?subject_id=${subjectID}`),
+      api.call('GET /timetable/teachers', { query: { subject_id: subjectID } }),
     enabled: !!subjectID,
   })
   /* Same rule as the class-teacher picker: a subject teacher is stored as a

@@ -141,7 +141,7 @@ function Row({ row, termID }: { row: ReportRemark; termID: string }) {
   // from the role name, which is how a deputy head ends up locked out.
   const session = useQuery({
     queryKey: ['session'],
-    queryFn: () => api.get<{ permissions: string[] }>('/api/v1/session'),
+    queryFn: () => api.call('GET /session'),
   })
   const canSummarise = session.data?.permissions.includes('academics.reportcards.generate') ?? false
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError, type List, type Page, type Student } from '@/lib/api'
+import { api, ApiError, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
   Table, Td, Badge, Button, Select, Input, Field, SkeletonTable, ErrorState,
@@ -89,7 +89,7 @@ export default function Certificates() {
   const needle = useDebouncedValue(search.trim())
   const results = useQuery({
     queryKey: ['cert-search', needle],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?q=${encodeURIComponent(needle)}&limit=10`),
+    queryFn: () => api.call('GET /students', { query: { q: needle, limit: 10 } }),
     enabled: needle.length >= 2,
     placeholderData: keepPreviousData,
   })

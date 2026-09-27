@@ -20,7 +20,6 @@ import { formatDate } from '@/lib/utils'
    The gap between what the school's papers say and what the state says is the
    most useful number on the page. */
 
-interface Exam { id: string; name: string; kind: string }
 
 interface SubjectRow {
   subject: string
@@ -79,7 +78,7 @@ export default function PerformanceOverview() {
 
   const exams = useQuery({
     queryKey: ['exam-list'],
-    queryFn: () => api.get<List<Exam>>('/api/v1/exams/list'),
+    queryFn: () => api.call('GET /exams/list'),
   })
   const classes = useQuery({
     queryKey: ['classes'],

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import AdmitStudent from '@/features/setup/AdmitStudent'
 import { Phone, Mail } from 'lucide-react'
+import type { StudentProfile as StudentProfileBody, StudentRecord as StudentDetail } from '@shared/api'
 import { api, type List, type Student, type Klass, type Section } from '@/lib/api'
 import { usePagedList } from '@/lib/paged'
 import {
@@ -20,7 +21,7 @@ import { setTabTitle } from '@/lib/tabs'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
 import {
   SubjectMarks, FeeLedger, Receipts, StudentDocuments, LeaveHistory,
-  TransportCrew, Activities, CoScholastic, type Detail,
+  TransportCrew, Activities, CoScholastic,
 } from './StudentTabs'
 import { RecordBlock, FieldSheet } from './RecordBlock'
 import StudentEditDialog from './StudentEditDialog'
@@ -35,59 +36,8 @@ import { useOpenState } from '@/lib/motion'
    split across two endpoints -- names and address here, medium and the
    statutory ids on the profile -- so the form is prefilled from both rather
    than from casts that lie about what the response contains. */
-interface StudentDetail extends Student {
-  blood_group?: string; religion?: string; nationality?: string
-  address_line1?: string; address_line2?: string
-  city?: string; state?: string; pincode?: string
-  category?: string; aadhaar_last4?: string
-  custom_fields?: Record<string, string>
-}
 
-interface Profile {
-  id: string; admission_no: string; full_name: string; status: string
-  class_name?: string; section_name?: string; roll_no?: number
-  gender?: string; date_of_birth?: string; medium?: string; blood_group?: string
-  mother_tongue?: string; apaar_id?: string; child_info_id?: string
-  primary_phone?: string; city?: string; prior_school?: string
-  is_rte: boolean; is_cwsn: boolean; admission_date: string
-  photo_file_id?: string
-  attendance: { present: number; total: number; percent: number; below_threshold: boolean }
-  fees: { outstanding_paise: number; paid_paise: number }
-  category?: string; nationality?: string; aadhaar_last4?: string
-  address_line1?: string; address_line2?: string; state?: string; pincode?: string
-  permanent_address?: string
-  emergency_contact_name?: string; emergency_contact_phone?: string
-  emergency_contact_relation?: string
-  house_id?: string; house_name?: string; house_color?: string
-  exit_date?: string; exit_reason?: string
-  height_cm?: string; weight_kg?: string; bmi?: string; measured_on?: string
-  allergies?: string
-  custom_fields?: Record<string, string>
-  guardians: {
-    id?: string; full_name: string; relation: string; phone: string
-    email: string; is_primary: boolean; photo_file_id?: string
-    portal_blocked?: boolean; access_until?: string
-    occupation?: string
-    annual_income?: number | null
-    /** none | issued | active | invited | suspended … — the parent's own login. */
-    login?: string
-    last_login_at?: string | null
-  }[]
-  recent_attendance: { date: string; status: string }[]
-  results: { exam: string; percentage: string; grade: string; rank: string }[]
-  invoices: { date: string; invoice_no: string; net_paise: number; paid_paise: number; status: string }[]
-  documents: { serial_no: string; type: string; issued_on: string }[]
-  enrolments: {
-    year: string; class: string; section: string
-    roll_no: number | null; from: string; status: string
-  }[]
-  transport: {
-    route: string; vehicle: string
-    pickup_stop: string; pickup_time: string
-    drop_stop: string; drop_time: string
-    from: string; to: string
-  }[]
-}
+type Profile = StudentProfileBody
 
 const DOT: Record<string, string> = {
   present: 'bg-success', late: 'bg-warning', absent: 'bg-destructive',
@@ -193,7 +143,7 @@ export default function StudentProfile() {
      the school. */
   const counts = useQuery({
     queryKey: ['student-counts'],
-    queryFn: () => api.get<Record<string, number>>('/api/v1/students/counts'),
+    queryFn: () => api.call('GET /students/counts'),
     enabled: !selected,
   })
 
@@ -284,7 +234,7 @@ export default function StudentProfile() {
 
   const profile = useQuery({
     queryKey: ['student-profile', selected],
-    queryFn: () => api.get<Profile>(`/api/v1/students/${selected}/profile`),
+    queryFn: () => api.call('GET /students/{id}/profile', { params: { id: selected! } }),
     enabled: !!selected,
   })
 
@@ -297,7 +247,7 @@ export default function StudentProfile() {
   const [admitting, setAdmitting] = useState(false)
   const record = useQuery({
     queryKey: ['student-record', selected],
-    queryFn: () => api.get<StudentDetail>(`/api/v1/students/${selected}`),
+    queryFn: () => api.call('GET /students/{id}', { params: { id: selected! } }),
     // Fetched whenever a child is open, not only while editing: the update
     // dialog needs the name in parts and cannot wait for a second round trip
     // after somebody has already pressed the button.
@@ -331,7 +281,7 @@ export default function StudentProfile() {
   const detail = useQuery({
     queryKey: ['student-detail', selected],
     enabled: !!selected,
-    queryFn: () => api.get<Detail>(`/api/v1/students/${selected}/detail`),
+    queryFn: () => api.call('GET /students/{id}/detail', { params: { id: selected! } }),
   })
 
   const remarks = useQuery({
@@ -1559,7 +1509,7 @@ export default function StudentProfile() {
             for, and nowhere to ask for one. */}
         <StudentFees
           studentID={p.id}
-          classID={detail.data?.class_id}
+          classID={detail.data?.class_id ?? undefined}
           mayEdit={can('students.write')}
           onChanged={() => {
             detail.refetch()

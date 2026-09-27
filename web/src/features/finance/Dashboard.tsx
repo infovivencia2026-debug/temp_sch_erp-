@@ -8,13 +8,6 @@ import {
 } from '@/components/ui'
 import { formatPaise, formatDate } from '@/lib/utils'
 
-interface FinanceKPIs {
-  today_paise: number; month_paise: number; outstanding_paise: number
-  overdue_paise: number; defaulters: number; invoices: number
-  unreconciled: number; refunds_pending: number
-  range: { period: string; from: string; to: string; label: string }
-  as_of_now: string[]
-}
 interface InvoiceRow {
   id: string; invoice_no: string; student_name: string; admission_no: string
   issued_on: string; due_on?: string
@@ -34,7 +27,7 @@ export default function FinanceDashboard() {
   })
   const kpis = useQuery({
     queryKey: ['finance-dashboard', rangeQuery(range)],
-    queryFn: () => api.get<FinanceKPIs>(`/api/v1/finance/dashboard?${rangeQuery(range)}`),
+    queryFn: () => api.call('GET /finance/dashboard', { query: Object.fromEntries(new URLSearchParams(rangeQuery(range))) }),
     enabled: range.period !== 'custom' || (!!range.from && !!range.to),
   })
   const overdue = useQuery({

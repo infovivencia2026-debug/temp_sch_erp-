@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, ShieldCheck, Star, Landmark } from 'lucide-react'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
@@ -294,18 +294,14 @@ function AddAccount() {
   const students = useQuery({
     queryKey: ['students', 'picker', studentQuery],
     queryFn: () =>
-      api.get<Page<Student>>(
-        `/api/v1/students?limit=20${studentQuery ? `&q=${encodeURIComponent(studentQuery)}` : ''}`,
-      ),
+      api.call('GET /students', { query: { limit: 20, q: studentQuery } }),
     enabled: open && studentQuery.length > 1,
   })
 
   const guardians = useQuery({
     queryKey: ['students', 'guardians', studentId],
     queryFn: () =>
-      api.get<{ guardians?: { id: string; full_name: string; relation: string }[] }>(
-        `/api/v1/students/${studentId}/profile`,
-      ),
+      api.call('GET /students/{id}/profile', { params: { id: studentId } }),
     enabled: open && !!studentId && relationship !== 'self',
   })
 

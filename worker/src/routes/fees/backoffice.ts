@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import type { FinanceDashboard } from '@shared/api'
 import { bool, ok } from '../../http'
 import { fin, items, nameSQL, omitNulls, p, rangeJSON, resolveRange, today } from './common'
 
@@ -6,7 +7,7 @@ import { fin, items, nameSQL, omitNulls, p, rangeJSON, resolveRange, today } fro
    the two 300-row lists behind the fee workspace. Reads only. */
 
 export function registerBackoffice(r: Router): void {
-  r.get('/finance/dashboard', 'finance.invoices.read', fin(async (c) => {
+  r.typed('GET /finance/dashboard', 'finance.invoices.read', fin(async (c): Promise<FinanceDashboard> => {
     const rng = resolveRange(c)
     const t = today()
     const k = await c.db.prepare(`
@@ -18,12 +19,12 @@ export function registerBackoffice(r: Router): void {
              (SELECT count(*) FROM invoices) AS invoices,
              (SELECT count(*) FROM payments WHERE gateway IS NOT NULL AND reconciled_at IS NULL AND status = 'success') AS unreconciled,
              (SELECT count(*) FROM refunds WHERE status = 'pending') AS refunds_pending`).bind(t, rng.from, rng.to).first<Record<string, number>>()
-    return ok({
+    return {
       today_paise: p(k?.today_paise), month_paise: p(k?.month_paise), outstanding_paise: p(k?.outstanding_paise), overdue_paise: p(k?.overdue_paise),
       defaulters: p(k?.defaulters), invoices: p(k?.invoices), unreconciled: p(k?.unreconciled), refunds_pending: p(k?.refunds_pending),
       range: rangeJSON(rng),
       as_of_now: ['today_paise', 'outstanding_paise', 'overdue_paise', 'defaulters', 'invoices', 'unreconciled', 'refunds_pending'],
-    })
+    }
   }))
 
   r.get('/finance/invoices', 'finance.invoices.read', fin(async (c) => {

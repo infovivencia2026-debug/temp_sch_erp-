@@ -33,12 +33,6 @@ interface Section {
   enrolled: number
 }
 
-interface Teacher {
-  user_id: string
-  full_name: string
-  employee_code?: string
-  employee_id: string
-}
 
 export default function ClassTeachers() {
   const qc = useQueryClient()
@@ -51,7 +45,7 @@ export default function ClassTeachers() {
   })
   const teachers = useQuery({
     queryKey: ['teachers'],
-    queryFn: () => api.get<List<Teacher>>('/api/v1/timetable/teachers'),
+    queryFn: () => api.call('GET /timetable/teachers'),
   })
 
   const save = useMutation({

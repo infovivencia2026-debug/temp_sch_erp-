@@ -123,9 +123,8 @@ export default function EnrolPanel({
   })
 
   const collect = useMutation({
-    mutationFn: () => api.post<{ payment_id: string; receipt_no: string }>(
-      '/api/v1/fees/payments',
-      {
+    mutationFn: () => api.call('POST /fees/payments', {
+      body: {
         student_id: done!.student_id,
         // Rupees in the box, paise on the wire: the API never sees a decimal.
         amount_paise: rupeesToPaise(paid),
@@ -134,7 +133,7 @@ export default function EnrolPanel({
         bank_name: bank || undefined,
         cheque_date: chequeDate || undefined,
       },
-    ),
+    }),
     onSuccess: (r) => setReceipt(r.receipt_no),
   })
 

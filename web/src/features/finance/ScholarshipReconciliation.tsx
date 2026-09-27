@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BadgeCheck, GraduationCap, Upload, Wallet } from 'lucide-react'
-import { api, type List, type Page, type Student } from '@/lib/api'
+import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Checkbox, Field, FormGrid, FormNotice, Input, Select,
@@ -666,9 +666,7 @@ function NewAward() {
   const students = useQuery({
     queryKey: ['students', 'picker', studentQuery],
     queryFn: () =>
-      api.get<Page<Student>>(
-        `/api/v1/students?limit=20${studentQuery ? `&q=${encodeURIComponent(studentQuery)}` : ''}`,
-      ),
+      api.call('GET /students', { query: { limit: 20, q: studentQuery } }),
     enabled: studentQuery.length > 1,
   })
 

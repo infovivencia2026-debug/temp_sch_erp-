@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronRight } from 'lucide-react'
-import { api, type Page, type Student, type List, type Section } from '@/lib/api'
+import { api, type List, type Section } from '@/lib/api'
 import {
   Card, CardHeader, Table, Td, Badge, Button, Input, Select, ErrorState,
 } from '@/components/ui'
@@ -47,7 +47,7 @@ export default function Students() {
 
   const { data, isLoading, error, isPlaceholderData } = useQuery({
     queryKey: ['students', params.toString()],
-    queryFn: () => api.get<Page<Student>>(`/api/v1/students?${params}`),
+    queryFn: () => api.call('GET /students', { query: Object.fromEntries(params) }),
     // Keeps the previous page on screen while the next one loads, so paging
     // does not flash an empty table.
     placeholderData: keepPreviousData,

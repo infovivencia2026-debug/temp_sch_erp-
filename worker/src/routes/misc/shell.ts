@@ -1,4 +1,5 @@
 import type { Router, Ctx } from '../../router'
+import type { CatalogResponse } from '@shared/api'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { can } from '../../identity'
 import { institutionId, parseJSON, resolveScope, type Scope } from '../admin/common'
@@ -231,7 +232,7 @@ async function setupIncomplete(c: Ctx): Promise<boolean> {
   } catch (err) { console.error(err); return false }
 }
 
-async function getCatalog(c: Ctx): Promise<Response> {
+async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const sc = await resolveScope(c)
   const ent = await entitlementFor(c)
   const locked = await setupIncomplete(c)
@@ -360,14 +361,14 @@ async function getCatalog(c: Ctx): Promise<Response> {
     }
   }
 
-  return ok({
+  return {
     setup_required: locked,
     active_role: roles.length > 0 ? roles[0].key : '',
     roles,
     scope: { platform_admin: sc.platformAdmin, all_campuses: sc.allCampuses, campuses: sc.campusIds.length,
       departments: sc.departmentIds.length, sections: sc.sectionIds.length, students: sc.studentIds.length },
     implemented,
-  })
+  }
 }
 
 // --- the store's shop window (collections.go storeCatalogue) ----------------------
@@ -415,6 +416,6 @@ export function registerShell(r: Router): void {
     return getWorkingYear(c)
   })
   r.get('/date-ranges', 'auth', () => ok({ items: RANGE_PRESETS, default: 'this_month' }))
-  r.get('/catalog', 'auth', getCatalog)
+  r.typed('GET /catalog', 'auth', getCatalog)
   r.get('/store/catalogue', 'auth', storeCatalogue)
 }

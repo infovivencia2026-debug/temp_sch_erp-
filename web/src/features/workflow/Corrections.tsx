@@ -70,8 +70,7 @@ export default function Corrections() {
   const register = useQuery({
     queryKey: ['attendance', sectionId, onDate],
     enabled: asking && !!sectionId && !!onDate,
-    queryFn: () => api.get<List<Mark>>(
-      `/api/v1/attendance?section_id=${sectionId}&on_date=${onDate}`),
+    queryFn: () => api.call('GET /attendance', { query: { section_id: sectionId, on_date: onDate } }),
   })
 
   const raise = useMutation({

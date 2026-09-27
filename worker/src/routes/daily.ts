@@ -1,4 +1,5 @@
 import type { Ctx, Router } from '../router'
+import type { AttendanceRow, MarkAttendanceResult, Period, Teacher, TimetableEntry } from '@shared/api'
 import { Messenger, enqueueMessageSends, scopeOf, type SendRequest } from '../services/messaging'
 import { can } from '../identity'
 import {
@@ -213,7 +214,7 @@ export function registerDaily(r: Router): void {
 
 // ================================================================ timetable
 function registerTimetable(r: Router) {
-  r.get('/timetable/entries', 'academics.timetable.read', async (c) => {
+  r.typed('GET /timetable/entries', 'academics.timetable.read', async (c) => {
     const q = c.url.searchParams
     const res = await resolveScope(c)
     const mine = timetablePred(res, 'te.section_id')
@@ -236,16 +237,17 @@ function registerTimetable(r: Router) {
          AND (? IS NULL OR te.academic_year_id = ?)
          AND (? IS NULL OR te.teacher_user_id = ?)
          AND ${mine.sql}
-       ORDER BY te.weekday, p.sequence`).bind(section, section, year, year, t, t, ...mine.args).all()
-    return ok({ items: rows.results.map((v) => ({
+       ORDER BY te.weekday, p.sequence`).bind(section, section, year, year, t, t, ...mine.args)
+      .all<Omit<TimetableEntry, 'teacher_id' | 'teacher_name' | 'room'> & { teacher_id: string | null; teacher_name: string | null; room: string | null }>()
+    return { items: rows.results.map((v): TimetableEntry => ({
       id: v.id, section_id: v.section_id, section_name: v.section_name, class_name: v.class_name,
       period_id: v.period_id, period_name: v.period_name, weekday: v.weekday,
       subject_name: v.subject_name, subject_code: v.subject_code,
       teacher_id: v.teacher_id ?? undefined, teacher_name: v.teacher_name ?? undefined, room: v.room ?? undefined,
-    })) })
+    })) }
   })
 
-  r.get('/timetable/periods', 'academics.timetable.read', async (c) => {
+  r.typed('GET /timetable/periods', 'academics.timetable.read', async (c) => {
     const q = c.url.searchParams
     const sec = uuidQuery(q.get('section_id')), cls = uuidQuery(q.get('class_id'))
     const rows = await c.db.prepare(`
@@ -263,11 +265,11 @@ function registerTimetable(r: Router) {
        WHERE p.bell_schedule_id = want.id
           OR (want.id IS NULL AND p.bell_schedule_id IS NULL)
           OR NOT EXISTS (SELECT 1 FROM periods q2, want w2 WHERE q2.bell_schedule_id = w2.id)
-       ORDER BY p.sequence`).bind(sec, cls, sec).all()
-    return ok({ items: rows.results.map((v) => ({
+       ORDER BY p.sequence`).bind(sec, cls, sec).all<Omit<Period, 'is_break'> & { is_break: number }>()
+    return { items: rows.results.map((v): Period => ({
       id: v.id, name: v.name, sequence: v.sequence, starts_at: v.starts_at, ends_at: v.ends_at,
       is_break: bool(v.is_break), bell_schedule_id: v.bell_schedule_id ?? null,
-    })) })
+    })) }
   })
 
   r.get('/timetable/bell-schedules', 'academics.timetable.read', async (c) => {
@@ -285,7 +287,7 @@ function registerTimetable(r: Router) {
     })) })
   })
 
-  r.get('/timetable/teachers', 'academics.timetable.read', async (c) => {
+  r.typed('GET /timetable/teachers', 'academics.timetable.read', async (c) => {
     const q = c.url.searchParams
     const mayPlan = can(c.id, 'academics.write')
     const subject = uuidQuery(q.get('subject_id'))
@@ -314,13 +316,15 @@ function registerTimetable(r: Router) {
          AND (? <> 1
               OR NOT EXISTS (SELECT 1 FROM sections sec WHERE sec.class_teacher_id = u.id AND (? IS NULL OR sec.id <> ?)))
        ORDER BY COALESCE(u.full_name, ${fullName2('e')})`)
-      .bind(former, subject, subject, subject, freeCT, except, except).all()
-    return ok({ items: rows.results.map((v) => ({
+      .bind(former, subject, subject, subject, freeCT, except, except)
+      .all<{ user_id: string; full_name: string; employee_code: string; employee_id: string; status: string; sign_in_as: string
+             can_sign_in: number; roles: string; periods: number; subjects: string; class_teacher_of: string }>()
+    return { items: rows.results.map((v): Teacher => ({
       user_id: v.user_id, full_name: v.full_name, employee_code: v.employee_code, status: v.status,
       weekly_periods: mayPlan ? num(v.periods) : undefined,
       employee_id: v.employee_id, sign_in_as: v.sign_in_as, can_sign_in: bool(v.can_sign_in),
-      roles: v.roles, subjects: v.subjects, class_teacher_of: (v.class_teacher_of as string) || undefined,
-    })) })
+      roles: v.roles, subjects: v.subjects, class_teacher_of: v.class_teacher_of || undefined,
+    })) }
   })
 
   const weekdayName: Record<number, string> = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' }
@@ -416,7 +420,7 @@ function registerAttendance(r: Router) {
     return ok({ sections: rows.results.length, notified: byTeacher.size, sections_without_a_class_teacher: unowned })
   })
 
-  r.get('/attendance', 'academics.attendance.read', async (c) => {
+  r.typed('GET /attendance', 'academics.attendance.read', async (c) => {
     const q = c.url.searchParams
     const on = q.get('on_date') || today()
     const res = await resolveScope(c)
@@ -428,12 +432,13 @@ function registerAttendance(r: Router) {
         FROM student_attendance sa JOIN students st ON st.id = sa.student_id
        WHERE sa.on_date = ? AND (? IS NULL OR sa.section_id = ?) AND (? IS NULL OR sa.student_id = ?)
          AND ${pred.sql}
-       ORDER BY st.admission_no`).bind(on, section, section, student, student, ...pred.args).all()
-    return ok({ items: rows.results.map((v) => ({
+       ORDER BY st.admission_no`).bind(on, section, section, student, student, ...pred.args)
+      .all<Omit<AttendanceRow, 'minutes_late' | 'remarks'> & { minutes_late: number | null; remarks: string | null }>()
+    return { items: rows.results.map((v): AttendanceRow => ({
       id: v.id, student_id: v.student_id, student_name: v.student_name, admission_no: v.admission_no,
       section_id: v.section_id, on_date: v.on_date, status: v.status,
       minutes_late: v.minutes_late ?? undefined, remarks: v.remarks ?? undefined,
-    })) })
+    })) }
   })
 
   r.get('/attendance/day.csv', 'academics.attendance.read', async (c) => {
@@ -461,7 +466,7 @@ function registerAttendance(r: Router) {
     })
   })
 
-  r.post('/attendance', 'academics.attendance.write', async (c) => {
+  r.typed('POST /attendance', 'academics.attendance.write', async (c): Promise<MarkAttendanceResult> => {
     interface Entry { student_id: string; status: string; minutes_late?: number | null; remarks?: string | null }
     const req = await readJSON<{ section_id?: string; on_date?: string; period_id?: string; entries?: Entry[]; notify_channels?: string[]; silent?: boolean }>(c.req)
     const sectionId = req.section_id ?? ''
@@ -546,8 +551,8 @@ function registerAttendance(r: Router) {
       for (const s of absenceSends) { try { await ms.queue(s); queued++ } catch { /* as Go: continue */ } }
       await ms.kick()
     }
-    return ok({ section_id: sectionId, on_date: onDate, submitted: entries.length, written, newly_absent: nowAbsent.length,
-      parents_told: told, messages_queued: queued, channels })
+    return { section_id: sectionId, on_date: onDate, submitted: entries.length, written, newly_absent: nowAbsent.length,
+      parents_told: told, messages_queued: queued, channels }
   })
 
   // RequireAnyPermission(AttendanceRead, AttendanceReadAll): either grant

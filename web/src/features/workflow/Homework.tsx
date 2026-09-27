@@ -108,7 +108,7 @@ export default function Homework() {
   const { data: session } = useQuery({
     queryKey: ['session'],
     queryFn: () =>
-      api.get<{ permissions: string[]; user?: { roles?: string[] } }>('/api/v1/session'),
+      api.call('GET /session'),
   })
   const canPublish = session?.permissions.includes('academics.homework.write') ?? false
 
