@@ -12,6 +12,7 @@ import {
 import { useFeatureHref } from '../bento/bento-kit'
 import { usePhone } from '@/lib/viewport'
 import { useOpenState } from '@/lib/motion'
+import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* All messages.
  *
@@ -374,6 +375,11 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
         error={reply.error}
         allowAttachments={false}
         placeholder="Reply to the parent, sent in your name; the teacher sees it too"
+        composerTools={item.student_id ? (draft, setDraft) => (
+          <WriteWithAI kind="parent_message" context={{ student_id: item.student_id,
+            reply_to: [...(thread.data?.items ?? [])].reverse().find((m) => !m.from_school)?.body }}
+            current={draft} onInsert={setDraft} defaultLength="short" />
+        ) : undefined}
         height="min-h-0"
       />
     </ThreadPane>

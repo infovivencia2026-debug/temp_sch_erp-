@@ -10,6 +10,7 @@ import { ExportRows, SearchBox, Showing, useSearch } from '@/components/rows'
 import { StatusPill } from '@/components/NeedsAttention'
 import { useCan, useSession } from '@/lib/session'
 import { formatDate } from '@/lib/utils'
+import DecisionNote from '@/components/ai/DecisionNote'
 
 /* Leave, as the queue it is.
  *
@@ -106,8 +107,8 @@ export default function Leave() {
   })
 
   const decide = useMutation({
-    mutationFn: (v: { id: string; decision: 'approved' | 'rejected' }) =>
-      api.post(`/api/v1/workflow/leave/${v.id}/decide`, { decision: v.decision }),
+    mutationFn: (v: { id: string; decision: 'approved' | 'rejected'; note?: string }) =>
+      api.post(`/api/v1/workflow/leave/${v.id}/decide`, { decision: v.decision, note: v.note }),
     onSuccess: (_r, v) => {
       setDone(v.decision === 'approved' ? 'Approved.' : 'Rejected.')
       qc.invalidateQueries({ queryKey: ['leave'] })
@@ -535,6 +536,8 @@ export default function Leave() {
                         >
                           Reject
                         </Button>
+                        <DecisionNote kind="leave_reply" context={{ leave_request_id: l.id }} pending={decide.isPending}
+                          onDecide={(d, note) => decide.mutate({ id: l.id, decision: d as 'approved' | 'rejected', note })} />
                       </span>
                     )}
                   </Td>

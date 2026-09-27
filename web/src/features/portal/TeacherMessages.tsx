@@ -10,6 +10,7 @@ import { ScreenError } from './screen-error'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* Writing to your child's teacher.
 
@@ -248,6 +249,11 @@ export default function TeacherMessages() {
             loading={thread.isLoading}
             empty={t('portal.teacher_messages.empty_thread_body')}
             canSend={teacher !== ''}
+            composerTools={(draft, setDraft) => (
+              <WriteWithAI kind="parent_message" label="Write with AI"
+                context={{ student_id: studentId, reply_to: [...messages].reverse().find((m) => !m.mine && !m.deleted)?.body }}
+                current={draft} onInsert={setDraft} defaultLength="short" />
+            )}
             peerName={chosenTeacher?.full_name}
             peerPhoto={chosenTeacher?.photo}
             onSend={(m) => send.mutate(m)}

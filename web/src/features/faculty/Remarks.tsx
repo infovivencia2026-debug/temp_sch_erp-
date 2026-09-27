@@ -13,6 +13,7 @@ import {
   REMARK_KINDS, useMyClasses, useRoster, today,
   type Remark,
 } from './comms'
+import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* What a teacher writes about a child.
 
@@ -246,6 +247,12 @@ function Compose({ anecdotal, onClose }: { anecdotal: boolean; onClose: () => vo
               }
               className="field h-auto w-full py-2"
             />
+            {!anecdotal && f.student_id && (
+              <div className="mt-1">
+                <WriteWithAI kind="teacher_remark" context={{ student_id: f.student_id }} current={f.body}
+                  onInsert={(t) => setF((cur) => ({ ...cur, body: t }))} />
+              </div>
+            )}
           </Field>
         </FormGrid>
 

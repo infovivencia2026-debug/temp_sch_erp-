@@ -13,6 +13,7 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { ChildSwitch } from './ChildSwitch'
 import { formatPaise, cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import WeeklyNoteCard from '@/components/ai/WeeklyNoteCard'
 
 interface PortalChild {
   student_id: string; admission_no: string; full_name: string
@@ -431,6 +432,8 @@ export default function Portal() {
       />
       <Freshness query={summary} />
       <PageBody>
+        {/* The weekly AI note about this child, once one has been written. */}
+        {activeId && <WeeklyNoteCard studentId={activeId} />}
         {/* One dashboard rather than three tabs of it. What needs attention
             comes first: an unpaid fee or an absence to explain is the reason a
             parent opened the application at all, and making them find it on a

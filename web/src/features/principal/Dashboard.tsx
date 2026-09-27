@@ -10,6 +10,8 @@ import {
 } from '@/components/ui'
 import { formatPaise } from '@/lib/utils'
 import SetupProgress from './SetupProgress'
+import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
+import PrincipalBriefCard from '@/components/ai/PrincipalBriefCard'
 import { useCan } from '@/lib/session'
 
 interface TrendPoint { date: string; present: number; absent: number; total: number; pct: number }
@@ -63,6 +65,8 @@ export default function PrincipalDashboard() {
             setting up is looking at zeroes, and the explanation has to arrive
             first or the dashboard reads as broken. */}
         <SetupProgress />
+        <NeedsAttentionPanel limit={5} />
+        <PrincipalBriefCard />
         <CellGrid cols={4}>
           <Stat label="Students" value={k.students} icon={GraduationCap}
             hint={`${k.sections} sections`} period={asOf} />

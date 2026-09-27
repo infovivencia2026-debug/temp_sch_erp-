@@ -44,6 +44,9 @@ export const SCHEDULES: Schedule[] = [
   { name: 'message_plans', spec: '*/15 * * * *', kind: 'message:plans', perInstitution: true, payload: env0 },
   { name: 'report_digest_daily', spec: '0 7 * * *', kind: 'report:digest_daily', perInstitution: true, payload: env0 },
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
+  // AI briefs (services/ai/briefs.ts): the principal's morning brief at 07:00, weekly parent notes on Saturday morning.
+  { name: 'ai_principal_brief', spec: '0 7 * * *', kind: 'ai:principal_brief', perInstitution: true, payload: env0 },
+  { name: 'ai_parent_weekly', spec: '0 9 * * 6', kind: 'ai:parent_weekly', perInstitution: true, payload: env0 },
   { name: 'transport_trip_timeout', spec: '*/5 * * * *', kind: 'transport:trip_timeout', perInstitution: false, payload: () => ({}) },
   { name: 'transport_position_retention', spec: '20 3 * * *', kind: 'transport:position_retention', perInstitution: false, payload: () => ({}) },
   { name: 'seller_health_snapshot', spec: '*/15 * * * *', kind: 'seller:health_snapshot', perInstitution: false, payload: () => ({}) },

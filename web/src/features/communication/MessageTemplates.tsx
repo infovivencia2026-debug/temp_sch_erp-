@@ -8,6 +8,7 @@ import {
 import { api, type List } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
+import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /**
  * The words the school actually sends.
@@ -180,6 +181,14 @@ function ChannelEditor({
         </span>
         <Textarea value={body} onChange={setBody} rows={5} className="w-full" />
       </label>
+      {/* Fee reminder wording can be drafted with AI; the placeholders already
+          in the text are kept, and nothing is saved until "Save this wording". */}
+      {t.code.startsWith('fees.') && (
+        <div className="mt-2">
+          <WriteWithAI kind="fee_reminder" current={body} onInsert={setBody} defaultTone="formal"
+            defaultLength={t.channel === 'sms' ? 'short' : 'medium'} />
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button

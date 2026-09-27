@@ -31,6 +31,7 @@ import { formatPaise, formatDate, formatDateTime, cn } from '@/lib/utils'
 import { useToast } from '@/components/Toast'
 import { useDebouncedValue } from '@/lib/debounce'
 import { useOpenState } from '@/lib/motion'
+import Student360Card from '@/components/ai/Student360Card'
 
 /* What GET /students/{id} adds on top of the list row. The editable set is
    split across two endpoints -- names and address here, medium and the
@@ -921,6 +922,8 @@ export default function StudentProfile() {
               </div>
             </Card>
           ) : null}
+          {/* Student 360: an AI summary on request, cached until the records change; staff only (the card hides itself otherwise). */}
+          {selected && <div className="lg:col-span-2"><Student360Card studentId={selected} /></div>}
           {/* 4. QUICK STATUS — the three things somebody wants before they
                  have finished reading the name, and the one that cannot wait.
 

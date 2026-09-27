@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { useToast } from '@/components/Toast'
 import { useMyClasses, useTerms, type ReportRemark } from './comms'
+import WriteWithAI from '@/components/ai/WriteWithAI'
 
 /* The term-end remark, written a class at a time.
 
@@ -175,6 +176,9 @@ function Row({ row, termID }: { row: ReportRemark; termID: string }) {
         placeholder="A steady term. Reads widely and now asks for the harder problems."
         className="field mt-2 h-auto w-full py-2"
       />
+      <div className="mt-1">
+        <WriteWithAI kind="report_remark" context={{ student_id: row.student_id }} current={text} onInsert={setText} defaultLength="short" />
+      </div>
       {row.class_teacher_remark_by && (
         <p className="mt-1 text-[13px] text-muted-foreground">
           Last written by {row.class_teacher_remark_by}

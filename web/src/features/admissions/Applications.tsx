@@ -14,6 +14,7 @@ import { StatusPill } from '@/components/NeedsAttention'
 import { useCan } from '@/lib/session'
 import { formatDate, cn } from '@/lib/utils'
 import { useOpenState } from '@/lib/motion'
+import FamilyEmailComposer from '@/components/ai/FamilyEmailComposer'
 
 /* The application, from submitted to enrolled.
  *
@@ -725,6 +726,13 @@ export default function Applications() {
                         </Button>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* A note to the family about where the application stands, drafted with AI if wanted. */}
+                {mayWrite && (
+                  <div className="border-t pt-5">
+                    <FamilyEmailComposer key={open.id} applicationId={open.id} status={open.status} />
                   </div>
                 )}
 

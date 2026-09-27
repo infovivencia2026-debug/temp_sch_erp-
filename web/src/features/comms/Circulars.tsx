@@ -12,6 +12,8 @@ import {
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
 import { PendingApprovals } from '../communication/SmsGateway'
+import WriteWithAI from '@/components/ai/WriteWithAI'
+import TranslateNotice from '@/components/ai/TranslateNotice'
 
 interface Circular {
   id: string; title: string; kind: string; audience_role: string
@@ -199,6 +201,18 @@ export default function Circulars() {
           <form className="space-y-3 p-5" onSubmit={(e) => { e.preventDefault(); publish.mutate() }}>
             <Input value={title} onChange={setTitle} placeholder="Title" className="w-full" />
             <Textarea value={body} onChange={setBody} placeholder="Body" rows={4} className="w-full" />
+            {/* AI draft from the title (the topic) and the points in the body; the
+                first line of a draft is its title. Translation keeps the original
+                and adds the Telugu or Hindi below it. Nothing is published until
+                the form is sent as usual. */}
+            <div className="flex flex-wrap items-start gap-3">
+              <WriteWithAI kind="circular" context={{ topic: title || body.slice(0, 300) }} current={body}
+                onInsert={(t) => {
+                  const [first, ...rest] = t.split('\n')
+                  if (rest.join('\n').trim()) { if (!title.trim()) setTitle(first.trim()); setBody(rest.join('\n').trim()) } else setBody(t)
+                }} />
+              {body.trim() && <TranslateNotice title={title} text={body} onUse={(tr) => setBody(tr.bilingual)} />}
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground">
                 <Paperclip className="h-3.5 w-3.5" />

@@ -77,6 +77,7 @@ export function ChatThread({
       parent thread): the paperclip is not drawn rather than drawn and
       ignored. */
   allowAttachments = true,
+  composerTools,
   /* A floor and a viewport-relative ceiling, not a fixed 28rem cap: capped, the
      paper stopped a third of the way down a tall card and the composer floated
      over empty white. It now fills the card it is given (flex-1 on the root)
@@ -129,6 +130,8 @@ export function ChatThread({
   /** Name the author on their bubbles: for a thread with more than two people. */
   showSender?: boolean
   allowAttachments?: boolean
+  /** Extra controls above the composer (e.g. Write with AI); gets the draft and a setter. */
+  composerTools?: (draft: string, setDraft: (text: string) => void) => ReactNode
   height?: string
 }) {
   const [draft, setDraft] = useState('')
@@ -836,6 +839,7 @@ export function ChatThread({
               {error instanceof Error ? error.message : 'Could not send that.'}
             </p>
           )}
+          {composerTools && <div className="mb-1.5">{composerTools(draft, setDraft)}</div>}
           <form
             className="flex items-end gap-1.5"
             onSubmit={(e) => {
