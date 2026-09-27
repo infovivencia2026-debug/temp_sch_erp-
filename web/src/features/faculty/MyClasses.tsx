@@ -8,6 +8,7 @@ import {
   Loading, SkeletonTiles, ErrorState, EmptyState, useSort,
   RangePicker, rangeQuery, useRange, type RangeOption,
 } from '@/components/ui'
+import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
 import { cn, formatDate } from '@/lib/utils'
 
 /* How is this one doing?
@@ -141,6 +142,7 @@ export default function MyClasses() {
         description="Attendance, marks, homework and conduct in one row per child, with the reason wherever something needs attention."
       />
       <PageBody>
+        <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CellGrid cols={4}>
             <Stat label="Children" value={rows.length} icon={Users} />

@@ -53,6 +53,9 @@ export const SCHEDULES: Schedule[] = [
   { name: 'seller_usage_alerts', spec: '10 2 * * *', kind: 'seller:usage_alerts', perInstitution: false, payload: () => ({}) },
   { name: 'security_retention', spec: '40 3 * * *', kind: 'security:retention', perInstitution: false, payload: () => ({}) },
   // Nightly SQL dumps of every school and CONTROL to R2, with retention (services/background/backup.ts).
+  // Early warnings (services/ai/warnings.ts): rules nightly, a digest on Monday mornings.
+  { name: 'ai_warnings_nightly', spec: '15 2 * * *', kind: 'ai:warnings_nightly', perInstitution: true, payload: env0 },
+  { name: 'ai_warnings_digest', spec: '30 7 * * 1', kind: 'ai:warnings_digest', perInstitution: true, payload: env0 },
   { name: 'backup_nightly', spec: '30 1 * * *', kind: 'backup:fanout', perInstitution: false, payload: () => ({}) },
 ]
 

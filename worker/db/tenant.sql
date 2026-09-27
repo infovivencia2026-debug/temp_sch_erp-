@@ -10130,6 +10130,49 @@ CREATE UNIQUE INDEX IF NOT EXISTS "working_days_adjustments_one_per_day" ON work
 CREATE UNIQUE INDEX IF NOT EXISTS "working_days_return_lines_one_per_class" ON working_days_return_lines (return_id, COALESCE(class_id, '00000000-0000-0000-0000-000000000000'));
 CREATE UNIQUE INDEX IF NOT EXISTS "working_days_returns_one_per_title" ON working_days_returns (institution_id, academic_year_id, lower(title));
 
+CREATE TABLE IF NOT EXISTS "ai_warnings" (
+  "id" TEXT NOT NULL,
+  "institution_id" TEXT NOT NULL,
+  "rule" TEXT NOT NULL,
+  "subject_kind" TEXT NOT NULL,
+  "subject_id" TEXT NOT NULL,
+  "subject_name" TEXT,
+  "student_id" TEXT,
+  "section_id" TEXT,
+  "severity" TEXT NOT NULL DEFAULT 'medium',
+  "owner_role" TEXT NOT NULL,
+  "owner_user_id" TEXT,
+  "evidence" TEXT NOT NULL DEFAULT '{}',
+  "evidence_hash" TEXT NOT NULL DEFAULT '',
+  "reason" TEXT NOT NULL DEFAULT '',
+  "explanation" TEXT,
+  "explained_by" TEXT,
+  "next_step" TEXT NOT NULL DEFAULT '',
+  "status" TEXT NOT NULL DEFAULT 'open',
+  "status_note" TEXT,
+  "status_by" TEXT,
+  "status_at" TEXT,
+  "first_seen_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  "last_seen_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  "cleared_at" TEXT,
+  PRIMARY KEY ("id"),
+  UNIQUE ("rule", "subject_kind", "subject_id"),
+  CHECK ("severity" IN ('low','medium','high')),
+  CHECK ("status" IN ('open','acknowledged','resolved')),
+  CHECK ("owner_role" IN ('class_teacher','accounts','principal'))
+);
+CREATE INDEX IF NOT EXISTS "ai_warnings_open" ON "ai_warnings" ("status", "cleared_at", "severity");
+CREATE INDEX IF NOT EXISTS "ai_warnings_student" ON "ai_warnings" ("student_id");
+CREATE INDEX IF NOT EXISTS "ai_warnings_section" ON "ai_warnings" ("section_id");
+
+CREATE TABLE IF NOT EXISTS "ai_explanations" (
+  "key" TEXT NOT NULL,
+  "text" TEXT NOT NULL,
+  "source" TEXT NOT NULL,
+  "created_at" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY ("key")
+);
+
 CREATE TABLE IF NOT EXISTS ai_briefs (
   id TEXT NOT NULL PRIMARY KEY,
   institution_id TEXT NOT NULL,
@@ -10159,4 +10202,5 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 -- Rows the migrations insert (settings singletons) and the migrations applied.
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 1, 'baseline', '9a4a44c3446aaf329c71f4b3c6e711c51dbc8fed1e50cef32cf0a3f0ce120f87');
+INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 2, 'ai_warnings', '0f8344df6470633822b91a572b64501625fcf0a5982a45c96299ea4b6f2631e2');
 INSERT OR IGNORE INTO _migrations (scope, version, name, checksum) VALUES ('tenant', 3, 'ai_briefs', '6dcef06668a4c85f68e7c2344964d13e875ba02b1995c8f2b60f9c4ff233d236');

@@ -21,6 +21,8 @@ import { registerAdmin } from './admin'
 import { registerGrowth } from './growth'
 import { registerComms } from './comms'
 import { registerScheduling } from './scheduling'
+import { registerAIWarnings } from './ai/warnings'
+import { registerAIImport } from './ai/import'
 import { registerAi } from './ai'
 
 /* Every ported domain registers here, one module per Go handler group.
@@ -50,6 +52,8 @@ export function buildRouter(): Router {
   registerGrowth(r)
   registerComms(r)
   registerScheduling(r)
+  registerAIWarnings(r)
+  registerAIImport(r)
   registerAi(r)
   return r
 }

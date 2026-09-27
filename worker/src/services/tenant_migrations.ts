@@ -3,5 +3,6 @@
 // them in a new school's _migrations so the runner never re-applies them.
 export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; checksum: string }> = [
   { version: 1, name: 'baseline', checksum: '9a4a44c3446aaf329c71f4b3c6e711c51dbc8fed1e50cef32cf0a3f0ce120f87' },
+  { version: 2, name: 'ai_warnings', checksum: '0f8344df6470633822b91a572b64501625fcf0a5982a45c96299ea4b6f2631e2' },
   { version: 3, name: 'ai_briefs', checksum: '6dcef06668a4c85f68e7c2344964d13e875ba02b1995c8f2b60f9c4ff233d236' },
 ]

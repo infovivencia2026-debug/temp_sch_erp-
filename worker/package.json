@@ -14,7 +14,7 @@
     "test:migrate": "node --no-warnings scripts/test-migrate.mjs",
     "test": "vitest run && npm run test:unit",
     "test:integration": "vitest run",
-    "test:unit": "bash scripts/test-provision.sh && bash scripts/test-billing.sh"
+    "test:unit": "bash scripts/test-provision.sh && bash scripts/test-billing.sh && bash scripts/test-ai.sh"
   },
   "dependencies": {
     "bcryptjs": "^3",

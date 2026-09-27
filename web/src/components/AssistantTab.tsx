@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Mic, Square, X, ArrowRight, Wand2, Check, Paperclip, FileSpreadsheet, Maximize2, Minimize2 } from 'lucide-react'
+import { AssistantImportWithAI } from '@/components/ai/SmartImport'
 import { AssistantOrb, type OrbState } from '@/components/AssistantOrb'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { useDictation } from '@/lib/speech'
@@ -1267,6 +1268,7 @@ export function AssistantTab() {
             >
               <Paperclip className="size-3.5" />
             </button>
+            <AssistantImportWithAI disabled={state !== 'idle'} />
             <input
               ref={inputRef}
               value={draft}

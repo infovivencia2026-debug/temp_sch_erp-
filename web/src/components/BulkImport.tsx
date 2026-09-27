@@ -7,6 +7,7 @@ import {
 import { api, actingInstitution } from '@/lib/api'
 import { Button, Input, Table, Td } from '@/components/ui'
 import { PickerMenu } from '@/components/PickerMenu'
+import { ImportWithAIButton } from '@/components/ai/SmartImport'
 import { useOverlayHistory } from '@/lib/overlay-history'
 import { markTaken, packFor } from '@/features/setup/setup-pack'
 import { SETUP_KEYS, ROSTER_KEYS, invalidateKeys } from '@/lib/invalidate'
@@ -421,6 +422,7 @@ export default function BulkImport({
           <p className="text-[14px] font-medium">{title}</p>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">{hint}</p>
         </div>
+        <ImportWithAIButton kind={entity} onDone={onDone} />
         {/* FETCHED, NOT LINKED.
 
             This was a plain <a download>, and a plain <a download> has one
