@@ -342,7 +342,12 @@ function registerTimetable(r: Router) {
     if (!year) throw rejected('no current academic year set')
     const period = await c.db.prepare(`
       SELECT p.id FROM periods p JOIN bell_schedules bs ON bs.id = p.bell_schedule_id
-       WHERE p.institution_id = ? AND bs.name = ? AND p.name = ? LIMIT 1`).bind(inst, day, periodName).first<{ id: string }>()
+       WHERE p.institution_id = ? AND p.name = ?
+         AND (bs.name = ? OR bs.id = (SELECT cl.bell_schedule_id FROM sections s JOIN classes cl ON cl.id = s.class_id WHERE s.id = ?) OR bs.is_default)
+       ORDER BY (bs.name = ?) DESC,
+                (bs.id = (SELECT cl.bell_schedule_id FROM sections s JOIN classes cl ON cl.id = s.class_id WHERE s.id = ?)) DESC,
+                bs.is_default DESC
+       LIMIT 1`).bind(inst, periodName, day, sec, day, sec).first<{ id: string }>()
     if (!period) throw rejected(`no period "${periodName}" on ${day}`)
     const cs = await c.db.prepare(`
       SELECT cs.id FROM class_subjects cs
