@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/Skeleton'
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -191,12 +192,12 @@ export default function Logins() {
       />
       <PageBody>
         <CellGrid cols={4}>
-          <Stat label="Logins" value={all.length} icon={ShieldCheck} />
-          <Stat label="Can sign in" value={active} hint={`${all.length - active} cannot`} />
-          <Stat label="Signed in now" value={signedIn} hint="Holding a live session" />
+          <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : all.length} icon={ShieldCheck} />
+          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${all.length - active} cannot`} />
+          <Stat label="Signed in now" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn} hint="Holding a live session" />
           <Stat
             label="No linked record"
-            value={orphans.length}
+            value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : orphans.length}
             icon={ShieldAlert}
             hint="Active logins whose person is gone"
           />

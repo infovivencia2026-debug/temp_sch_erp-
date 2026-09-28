@@ -218,7 +218,11 @@ export function SkeletonTable({
       {Array.from({ length: rows }, (_, r) => (
         <div key={r} className="flex h-[45px] items-center gap-4 border-b px-4 last:border-b-0">
           {Array.from({ length: n }, (_, c) => (
-            <Bone key={c} className="h-3" style={{ width: COL_WIDTHS[c % COL_WIDTHS.length] }} />
+            /* Rows vary in length the way real data does, so the table reads
+               as rows of names and figures rather than a ruled grid. */
+            <div key={c} style={{ width: COL_WIDTHS[c % COL_WIDTHS.length] }}>
+              <Bone className="h-3" style={{ width: `${62 + ((r * 7 + c * 3) % 5) * 9}%` }} />
+            </div>
           ))}
         </div>
       ))}
@@ -303,13 +307,13 @@ export function SkeletonForm({ fields = 6, delay, label }: { fields?: number; de
 export function SkeletonPage({ delay = 0, label }: { delay?: number; label?: string }) {
   return (
     <Shape delay={delay} label={label}>
-      <div className="mx-auto w-full max-w-[1360px] px-5 pb-6 pt-5 sm:px-7">
+      <div className="mx-auto w-full max-w-[1360px] px-[var(--page-gutter)] pb-[var(--page-head-gap)] pt-[var(--page-top)]">
         <div className="flex h-[23px] items-center gap-2">
           <Bone className="h-2.5 w-16" />
           <Bone className="h-2.5 w-28" />
         </div>
       </div>
-      <div className="mx-auto w-full max-w-[1360px] space-y-7 px-5 pb-10 sm:px-7">
+      <div className="mx-auto w-full max-w-[1360px] space-y-[var(--section-gap)] px-[var(--page-gutter)] pb-10">
         <SkeletonText lines={3} delay={0} className="max-w-xl" />
         <SkeletonTable rows={5} cols={4} delay={0} />
       </div>

@@ -3801,3 +3801,38 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 @media (prefers-reduced-motion: reduce) {
   .bento-dock .dock-mag, .bento-dock .dock-mag:hover { transform: none !important; }
 }
+
+/* SKELETONS, CALMER AND IN STEP (owner, 2026-09-28).
+   One band of light crosses the whole screen at once instead of every bar
+   running its own sweep: the bars are painted from one gradient fixed to the
+   viewport, so they read as one surface being lit. The band carries a trace
+   of the school's colour. Bars fade up in a short stagger rather than
+   appearing as a block, and they round like the real controls. */
+.skeleton {
+  background-color: hsl(var(--foreground) / 0.085);
+  background-image: linear-gradient(100deg,
+    transparent 0%, transparent 38%,
+    color-mix(in srgb, hsl(var(--card)) 82%, hsl(var(--primary)) 18%) 50%,
+    transparent 62%, transparent 100%);
+  background-size: 200vw 100%;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  animation: skeleton-in 360ms ease-out both, skeleton-sweep-screen 1.9s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes skeleton-sweep-screen {
+  from { background-position: 100vw 0; }
+  to   { background-position: -100vw 0; }
+}
+@keyframes skeleton-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+[aria-hidden] > .skeleton:nth-child(2), [aria-hidden] > * > .skeleton:nth-child(2) { animation-delay: 40ms, 0s; }
+[aria-hidden] > .skeleton:nth-child(3), [aria-hidden] > * > .skeleton:nth-child(3) { animation-delay: 80ms, 0s; }
+[aria-hidden] > .skeleton:nth-child(4), [aria-hidden] > * > .skeleton:nth-child(4) { animation-delay: 120ms, 0s; }
+[aria-hidden] > .skeleton:nth-child(5), [aria-hidden] > * > .skeleton:nth-child(5) { animation-delay: 160ms, 0s; }
+[aria-hidden] > .skeleton:nth-child(n+6), [aria-hidden] > * > .skeleton:nth-child(n+6) { animation-delay: 200ms, 0s; }
+.dark .skeleton { background-color: hsl(var(--foreground) / 0.08); }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none !important; background-image: none; }
+}
