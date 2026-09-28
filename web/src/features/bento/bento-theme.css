@@ -925,7 +925,7 @@ html[data-skin='focus'][data-layout='bento'] .bento-cue {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-skin='focus'] .bento-cue:active { transform: scale(0.98); }
+  html[data-skin='focus'] .bento-cue:active:not(:has(:is(button, input, select, textarea, [role='button'], [role='tab'], [role='switch'], [role='option']):active)) { transform: scale(0.98); }
 }
 
 

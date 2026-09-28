@@ -1988,9 +1988,19 @@
    that IS a link or a button. A static card that gave under the finger
    would be promising a screen it cannot deliver. The bento cell's own press
    rule (bento-theme.css) drops the elevation; this adds the give. */
+/* NOT WHEN SOMETHING INSIDE IT IS PRESSED.
+
+   :active is true of every ancestor of the element under the finger, so a
+   button pressed inside a dashboard card also pressed the card: the whole
+   card shrank to 98% and sprang back on every click of every control in it,
+   and a board of them read as the screen shaking. The card gives only when
+   the press is on the card, not on a control it contains. (A browser without
+   :has drops this rule entirely, which is the right failure: no give.) */
 :where(.bento-cell:has(.bento-cue), .launcher-tile, .launcher-app,
        a.card, button.card, [role='button'].card, .card[data-cue],
-       a.cell, button.cell):active {
+       a.cell, button.cell):active:not(:has(:is(button, input, select, textarea, label,
+       [role='button'], [role='tab'], [role='switch'], [role='option'], [role='menuitem'],
+       [role='checkbox'], [role='combobox']):active)) {
   transform: scale(0.98);
   transition-duration: var(--motion-press);
 }
