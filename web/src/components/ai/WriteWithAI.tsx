@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Sparkles, RefreshCw, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { usePhone } from '@/lib/viewport'
+import { useAnchoredPosition } from '@/components/anchored'
 import { aiApi, AiLabel, LANG_LABEL, type DraftContext, type DraftKind, type Lang } from './aiApi'
 
 /* "Write with AI": a button that opens a small panel (tone, length,
@@ -46,15 +47,19 @@ export default function WriteWithAI({
      card pressed on the way here scales on :active, and a transformed
      ancestor would re-anchor a fixed sheet to the card. */
   const sheet = (node: ReactNode) =>
-    phone
-      ? createPortal(
-          <>
-            <div aria-hidden className="fixed inset-0 z-[74] bg-black/30" onClick={() => setOpen(false)} />
-            {node}
-          </>,
-          document.body,
-        )
-      : node
+    createPortal(
+      phone ? (
+        <>
+          <div aria-hidden className="fixed inset-0 z-[74] bg-black/30" onClick={() => setOpen(false)} />
+          {node}
+        </>
+      ) : node,
+      document.body,
+    )
+  /* On a desk the panel is anchored to its button in viewport coordinates
+     (anchored.ts) rather than drawn absolute inside whatever card holds the
+     button, which clipped it or let it run off the bottom of the screen. */
+  const place = useAnchoredPosition(open && !phone, box, panel, { align: align === 'right' ? 'end' : 'start', width: 416, maxHeight: 560 })
 
   useEffect(() => {
     if (!open) return
@@ -89,13 +94,14 @@ export default function WriteWithAI({
         <Sparkles className="mr-1 h-3.5 w-3.5" aria-hidden />{label}
       </Button>
       {open && sheet(
-        <div role="dialog" aria-label={label} ref={panel}
+        <div role="dialog" aria-label={label} ref={panel} data-anchored-panel=""
           className={phone
             /* A bottom sheet on a phone. Anchored under its button it opened
                below the fold behind the dock, and its three selects ran off
                the right edge of a 390px screen. */
             ? 'fixed inset-x-0 bottom-0 z-[75] max-h-[85dvh] overflow-y-auto rounded-t-[16px] border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)]'
-            : `absolute z-50 mt-2 w-[min(92vw,26rem)] rounded-lg border bg-card p-3 shadow-lg ${align === 'right' ? 'right-0' : 'left-0'}`}>
+            : 'z-[210] rounded-lg border bg-card p-3 shadow-lg'}
+          style={phone ? undefined : place}>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold">{label}</span>
             <button type="button" className="text-muted-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="h-4 w-4" /></button>

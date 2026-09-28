@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useAnchoredPosition } from './anchored'
 import {
   CalendarRange, Check, ChevronDown, ChevronRight, ChevronUp, Clock, Download, Eye, EyeOff,
   Maximize2, Printer, RefreshCw, X,
@@ -53,7 +54,12 @@ export function CardHeader({
           filter + export wrap and fit the card), a shrink-0 toolbar from sm up.
           It was shrink-0 at every width, so a fixed-width toolbar pushed the
           whole card past the screen edge on mobile. */}
-      {action && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">{action}</div>}
+      {/* From sm up it was also shrink-0, so a toolbar longer than the card
+          (a search and three filters on the question bank at 768) could not
+          wrap and ran past the card's edge; scrolling a control there into
+          view then slid the whole page sideways. It may take the card's
+          width and wrap inside it, and it wraps under the title first. */}
+      {action && <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-end">{action}</div>}
     </div>
   )
 }
@@ -1548,10 +1554,16 @@ export function Select({
          middle of the card with nothing under it, which reads as a menu
          belonging to some other control. Anchoring the bottom to just above
          the trigger is correct for a menu of any height. */
+      /* Kept 8px inside the screen sideways too: a field at the card's
+         right edge on a tablet put the list's edge on the screen's. */
+      const vLeft = vv ? vv.offsetLeft : 0
+      const vW = vv ? vv.width : window.innerWidth
+      const width = Math.min(r.width, vW - 16)
+      const left = Math.max(vLeft + 8, Math.min(r.left, vLeft + vW - width - 8))
       setBox_(
         wantsAbove
-          ? { left: r.left, bottom: window.innerHeight - r.top + 4, width: r.width, maxH }
-          : { left: r.left, top: r.bottom + 4, width: r.width, maxH },
+          ? { left, bottom: window.innerHeight - r.top + 4, width, maxH }
+          : { left, top: r.bottom + 4, width, maxH },
       )
     }
     place()
@@ -2214,14 +2226,23 @@ export function ExportButton({ report, label }: { report: string; label?: string
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement | null>(null)
   const trigger = useRef<HTMLDivElement | null>(null)
+  const menu = useRef<HTMLDivElement | null>(null)
+  /* Portalled and placed in viewport coordinates (see anchored.ts). As an
+     absolute child of the page header it opened BEHIND the next card -- the
+     header's entrance animation makes it a stacking context, so its z-40
+     only counted inside the header -- and on a phone, right-aligned to a
+     button at the left edge, it started 146px off the screen. */
+  const place = useAnchoredPosition(open, trigger, menu, { align: 'end', width: 256 })
 
   useEffect(() => {
     if (!open) return
     /* Focus lands on the first choice, so Enter downloads the CSV: the
        default is the default from the keyboard too. */
-    box.current?.querySelector<HTMLAnchorElement>('a')?.focus()
+    menu.current?.querySelector<HTMLAnchorElement>('a')?.focus({ preventScroll: true })
     const onDoc = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (box.current?.contains(t) || menu.current?.contains(t)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -2242,7 +2263,7 @@ export function ExportButton({ report, label }: { report: string; label?: string
   const walk = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     e.preventDefault()
-    const items = Array.from(box.current?.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]') ?? [])
+    const items = Array.from(menu.current?.querySelectorAll<HTMLAnchorElement>('a[role="menuitem"]') ?? [])
     if (items.length === 0) return
     const i = items.findIndex((a) => a === document.activeElement)
     const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
@@ -2264,12 +2285,15 @@ export function ExportButton({ report, label }: { report: string; label?: string
           <ChevronDown className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
         </Button>
       </div>
-      {open && (
+      {open && createPortal(
         <div
+          ref={menu}
+          data-anchored-panel=""
           role="menu"
           aria-label="Download as"
           onKeyDown={walk}
-          className="absolute right-0 z-40 mt-1 w-64 overflow-hidden rounded-lg border bg-card py-1 shadow-pop"
+          style={place}
+          className="z-[200] overflow-x-hidden rounded-lg border bg-card py-1 shadow-pop"
         >
           {EXPORT_FORMATS.map((f) => (
             <a
@@ -2291,7 +2315,8 @@ export function ExportButton({ report, label }: { report: string; label?: string
               <span className="block text-[12px] text-muted-foreground">{f.about}</span>
             </a>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

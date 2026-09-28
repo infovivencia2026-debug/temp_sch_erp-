@@ -275,6 +275,14 @@ export function Shell({
      inside the drawer that is about to be removed. */
   const openerRef = useRef<HTMLButtonElement>(null)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  /* Escape closes the workspace switcher, as it closes every other menu. The
+     scrim handled a click outside; the keyboard had no way out. */
+  useEffect(() => {
+    if (!switcherOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSwitcherOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [switcherOpen])
   const scopeLine = useScopeLine()
   // Most catalogued features have no screen yet. Hiding them by default keeps
   // a role's navigation to what actually works, with one line to reveal the
