@@ -28,33 +28,37 @@
 }
 
 /* The child switcher: a small segmented control. Obvious because it is the
-   only control in the header; small because the name is already the title. */
-[data-role='parent'] .parent-switch {
+   only control in the header; small because the name is already the title.
+
+   Not scoped to [data-role='parent'] like the rest of this file: Work draws
+   the same control and has no data-role, so on a phone its label and name
+   ran together as "Switch childDiya" with no pill round them. */
+.parent-switch {
   display: inline-flex;
   gap: 2px;
   padding: 2px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bento-ink) 8%, transparent);
+  background: color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 8%, transparent);
 }
-[data-role='parent'] .parent-switch__item {
+.parent-switch__item {
   min-height: 32px;
   padding: 0 14px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  color: var(--bento-ink);
+  color: var(--bento-ink, hsl(var(--foreground)));
   opacity: 0.7;
   transition: opacity 0.15s ease, background-color 0.15s ease;
 }
-[data-role='parent'] .parent-switch__item.is-on {
-  background: var(--bento-card);
+.parent-switch__item.is-on {
+  background: var(--bento-card, hsl(var(--card)));
   opacity: 1;
   /* The selected segment is a lifted knob on its track. */
   box-shadow: var(--edge-lip), var(--elev-1);
 }
-[data-role='parent'] .parent-switch__item:focus-visible {
-  outline: 2px solid var(--bento-ink);
+.parent-switch__item:focus-visible {
+  outline: 2px solid var(--bento-ink, hsl(var(--foreground)));
   outline-offset: 1px;
 }
 
@@ -62,7 +66,7 @@
    on screen and says "Switch child", with the platform's own picker laid
    over it. Small on purpose: the name is already the title, and the header
    on a phone is one line. See ChildSwitch.tsx. */
-[data-role='parent'] .parent-switch-small {
+.parent-switch-small {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -70,25 +74,25 @@
   min-height: 30px;
   padding: 0 8px 0 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bento-ink) 8%, transparent);
-  color: var(--bento-ink);
+  background: color-mix(in srgb, var(--bento-ink, hsl(var(--foreground))) 8%, transparent);
+  color: var(--bento-ink, hsl(var(--foreground)));
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
 }
-[data-role='parent'] .parent-switch-small__label {
+.parent-switch-small__label {
   opacity: 0.65;
 }
-[data-role='parent'] .parent-switch-small__name {
+.parent-switch-small__name {
   font-weight: 600;
 }
-[data-role='parent'] .parent-switch-small__chev {
+.parent-switch-small__chev {
   width: 14px;
   height: 14px;
   opacity: 0.7;
 }
-[data-role='parent'] .parent-switch-small__select {
+.parent-switch-small__select {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -98,8 +102,8 @@
   -webkit-appearance: none;
   font-size: 16px; /* iOS zooms into anything smaller when it opens */
 }
-[data-role='parent'] .parent-switch-small:focus-within {
-  outline: 2px solid var(--bento-ink);
+.parent-switch-small:focus-within {
+  outline: 2px solid var(--bento-ink, hsl(var(--foreground)));
   outline-offset: 1px;
 }
 

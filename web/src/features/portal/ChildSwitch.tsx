@@ -2,6 +2,9 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PickerMenu } from '@/components/PickerMenu'
 import type { PortalChild } from './use-children'
+import { useLocation } from 'react-router-dom'
+/* Work (classic) has no BentoOutlet, which is where this sheet was loaded. */
+import './parent.css'
 
 /* WHICH CHILD, IN ONE CONTROL ON EVERY PARENT SCREEN.
 
@@ -40,7 +43,11 @@ export function ChildSwitch({
   /* Shown with one child too, by request: the header then always carries the
      same control in the same place, and a family that gains a second child
      finds the switch where it already was rather than discovering a new one. */
-  if (kids.length < 1) return null
+  /* A student signed in as themselves shares these screens with their
+     parents, and is the child: a "Switch child" button naming them is a
+     control about somebody else's account. */
+  const onStudent = useLocation().pathname.startsWith('/student/')
+  if (kids.length < 1 || onStudent) return null
   const first = (name: string) => name.split(' ')[0]
   const current = kids.find((c) => c.student_id === activeId) ?? kids[0]
   return (

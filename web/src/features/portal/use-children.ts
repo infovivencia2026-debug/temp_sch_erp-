@@ -72,7 +72,19 @@ export function useChildren() {
      fan-out fails, so the worst case is the behaviour this hook had before. */
   const query = useQuery({
     queryKey: ['my-students', 'everywhere'],
-    queryFn: () => api.get<List<PortalChild>>('/api/v1/portal/students/everywhere'),
+    /* A STUDENT'S OWN LOGIN HAS NO FAMILY TO FAN OUT OVER.
+
+       /everywhere walks the guardian accounts behind a session, and a student
+       signed in as themselves has none, so it answered an empty list -- and
+       every one-child screen (the ID card, the library, the wall, the
+       portfolio...) sat on "Choose a child" with no child to choose. The
+       single-school list does know them, so an empty fan-out falls back to it:
+       a guardian with no children gets the same empty answer either way. */
+    queryFn: async () => {
+      const all = await api.get<List<PortalChild>>('/api/v1/portal/students/everywhere')
+      if ((all.items ?? []).length > 0) return all
+      return api.get<List<PortalChild>>('/api/v1/portal/students')
+    },
   })
   const children = query.data?.items ?? []
   const [chosen, setChosenState] = useState(remembered)
