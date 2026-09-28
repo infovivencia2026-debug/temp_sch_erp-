@@ -285,6 +285,10 @@
     --radius-k: max(var(--radius-scale), calc(1 + (var(--radius-scale) - 1) * 0.5));
     --radius-control: min(calc(7px * var(--radius-k)), 12px);
     --radius-input: min(calc(8px * var(--radius-k)), 14px);
+    /* ONE CONTROL HEIGHT. A field was 40px and a button 32px, so a search box,
+       a filter and Apply in one toolbar never lined up. Both read this; a
+       finger gets the 44px floor. */
+    --control-h: 36px;
     --radius-card: min(calc(11px * var(--radius-k)), 20px);
     --radius-dialog: min(calc(14px * var(--radius-k)), 26px);
     --radius: var(--radius-card);
@@ -1067,8 +1071,9 @@
     letter-spacing: 0;
   }
 
+  @media (pointer: coarse) { :root { --control-h: 44px; } }
   .field {
-    height: 40px;
+    height: var(--control-h);
     width: 100%;
     border-radius: var(--radius-input);
     padding-inline: 12px;
@@ -1132,6 +1137,10 @@
     }
   }
   .field::placeholder { color: hsl(var(--muted-foreground)); }
+  /* Disabled reads as disabled, and an invalid box says so in red. */
+  .field:disabled { cursor: not-allowed; background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); box-shadow: none; }
+  .field[aria-invalid='true'] { border-color: hsl(var(--destructive)); }
+  .field[aria-invalid='true']:focus { box-shadow: var(--field-inset), 0 0 0 3px hsl(var(--destructive) / 0.18); }
 
   /* Status as a dot and a word, not a filled pill. A row of saturated
      lozenges competes with the data for attention and reads as decoration;

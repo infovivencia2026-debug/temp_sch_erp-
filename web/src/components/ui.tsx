@@ -1114,11 +1114,11 @@ export function Badge({
     <span
       className={cn(
         'inline-flex items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[12px] font-medium leading-tight',
-        tone === 'success' && 'bg-success/12 text-success',
-        tone === 'danger' && 'bg-destructive/12 text-destructive',
+        tone === 'success' && 'bg-success/10 text-success',
+        tone === 'danger' && 'bg-destructive/10 text-destructive',
         tone === 'warning' && 'bg-warning/15 text-warning',
-        tone === 'primary' && 'bg-primary/12 text-primary',
-        tone === 'info' && 'bg-info/12 text-info',
+        tone === 'primary' && 'bg-primary/10 text-primary',
+        tone === 'info' && 'bg-info/10 text-info',
         tone === 'neutral' && 'bg-muted text-secondary-foreground',
         className,
       )}
@@ -1235,7 +1235,7 @@ export function Button({
            rather than a new measurement. */
         size === 'sm'
           ? 'h-8 px-3 text-[13px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[14px]'
-          : 'h-9 px-4 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
+          : 'h-[var(--control-h)] px-4 text-[14px] [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] [@media(pointer:coarse)]:px-[16px]',
         level === 'primary' &&
           (tone === 'danger'
             ? 'bg-destructive text-white hover:bg-destructive/90'
@@ -2014,8 +2014,8 @@ export function FormNotice({ error, ok }: { error?: unknown; ok?: string }) {
 export function ErrorState({ error }: { error: unknown }) {
   const msg = error instanceof Error ? error.message : 'Unexpected error'
   return (
-    <Card className="p-8 text-center">
-      <p className="text-[14px] text-destructive">{msg}</p>
+    <Card className="empty-state p-10 text-center">
+      <p role="alert" className="mx-auto max-w-md text-[15px] font-medium text-destructive">{msg}</p>
     </Card>
   )
 }
@@ -2307,7 +2307,7 @@ export function ExportButton({ report, label }: { report: string; label?: string
               <span className="flex items-center gap-2 text-[13.5px] font-medium">
                 {f.name}
                 {f.key === 'csv' && (
-                  <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[12px] font-medium text-muted-foreground">
                     default
                   </span>
                 )}
