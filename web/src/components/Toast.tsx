@@ -59,7 +59,18 @@ export function ToastHost({ children }: { children: ReactNode }) {
   const push = useCallback((kind: Kind, message: string, undo?: () => void) => {
     const id = Date.now() + Math.random()
     if (kind === 'ok') lastOkAt = Date.now()
-    setItems((prev) => [...prev.slice(-2), { id, kind, message, undo }])
+    /* One confirmation on screen at a time: a new one replaces the last
+       rather than stacking, and the same words twice in a row are not shown
+       again. Errors still queue, up to three. */
+    setItems((prev) => {
+      if (kind === 'ok') {
+        const errs = prev.filter((t) => t.kind !== 'ok')
+        const cur = prev.find((t) => t.kind === 'ok')
+        if (cur && cur.message === message && !undo) return prev
+        return [...errs, { id, kind, message, undo }]
+      }
+      return [...prev.slice(-2), { id, kind, message, undo }]
+    })
   }, [])
 
   const api: ToastApi = {

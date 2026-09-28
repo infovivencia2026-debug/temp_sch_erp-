@@ -29,7 +29,20 @@ const QUIET: RegExp[] = [
   /\/outbox|\/sync|\/heartbeat|\/ping|\/beacon|\/telemetry|\/analytics/,
   /\/notifications\/read|\/read-all|\/dismiss|\/seen/,
   /\/pay(ments)?\/|\/collect|\/checkout|\/upi|\/gateway/, // money names its receipt itself
+  // Things the app saves on its own, not a person pressing Save.
+  /preferences|display|\/layout|\/board|widget|shortcut|\/coach|\/tour|\/onboarding-hints|draft|autosave|\/progress|\/activity|\/pins?(\/|$)|\/favourites?|\/recent|\/order(ing)?(\/|$)|\/position/,
 ]
+
+/* ONLY WHEN SOMEBODY ASKED. The fallback speaks only for a write that
+   follows a press or a click within a few seconds: saves the app makes on
+   its own (a board rearranged, a panel remembered, a draft kept) are not
+   news to anyone. */
+let lastGestureAt = 0
+if (typeof window !== 'undefined') {
+  const mark = () => { lastGestureAt = Date.now() }
+  window.addEventListener('pointerup', mark, { capture: true, passive: true })
+  window.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') mark() }, { capture: true, passive: true })
+}
 
 const WORD: Record<string, string> = {
   DELETE: 'Removed',
@@ -41,6 +54,7 @@ export function noteWrite(method: string, path: string) {
   const clean = path.split('#')[0]
   if (QUIET.some((re) => re.test(clean))) return
   const doneAt = Date.now()
+  if (doneAt - lastGestureAt > 4000) return
   /* A beat, so a screen's own onSuccess -- which runs after this -- gets to
      speak first. If it did, it said more than "Saved" and this stays quiet. */
   window.setTimeout(() => {
