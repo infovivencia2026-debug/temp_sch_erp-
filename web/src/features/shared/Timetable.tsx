@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import WeekGrid from '@/components/WeekGrid'
 import DayTimeline from '@/components/DayTimeline'
 import { useSession } from '@/lib/session'
+import { usePhone } from '@/lib/viewport'
 
 /* One screen, two audiences.
 
@@ -86,6 +87,7 @@ function Grid({ isStaff }: { isStaff: boolean }) {
   const [view, setView] = useState<View>(isStaff ? { mode: 'me' } : { mode: 'section', sectionId: '' })
   const session = useSession()
   const sectionId = view.mode === 'section' ? view.sectionId : ''
+  const phone = usePhone()
 
   const sections = useQuery({
     queryKey: ['sections'],
@@ -102,6 +104,12 @@ function Grid({ isStaff }: { isStaff: boolean }) {
     queryKey: ['timetable', view.mode, sectionId],
     queryFn: () => api.get<List<TimetableEntry>>(`/api/v1/timetable/entries${query}`),
   })
+
+  const picked = (sections.data?.items ?? []).find((x) => x.id === sectionId)
+  const first = (entries.data?.items ?? [])[0]
+  const sectionLabel = picked
+    ? `${picked.class_name}-${picked.name}`
+    : first ? `${first.class_name}-${first.section_name}` : ''
 
   if (periods.isLoading || entries.isLoading) return <Loading />
   if (entries.error) return <ErrorState error={entries.error} />
@@ -155,6 +163,24 @@ function Grid({ isStaff }: { isStaff: boolean }) {
               period_id: e.period_id,
               title: e.subject_name || e.subject_code,
               detail: [`${e.class_name}-${e.section_name}`, e.room].filter(Boolean).join(' • '),
+            }))}
+          />
+        </div>
+      ) : phone ? (
+        /* A section's week on a phone is the same day timeline, one day at a
+           time. As a grid it was seven columns in a 390px card: each about a
+           hundred pixels, so "Mathematics" broke as "Mathemat / ics" and the
+           teacher's name under it ran to four lines. */
+        <div className="p-3">
+          <DayTimeline
+            who={sectionLabel || 'This week'}
+            where="The whole week for this class, whoever teaches it"
+            periods={periods.data?.items ?? []}
+            entries={(entries.data?.items ?? []).map((e) => ({
+              weekday: e.weekday,
+              period_id: e.period_id,
+              title: e.subject_name || e.subject_code,
+              detail: [e.teacher_name ?? 'no teacher', e.room].filter(Boolean).join(' • '),
             }))}
           />
         </div>

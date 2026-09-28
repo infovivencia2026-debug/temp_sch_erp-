@@ -1252,7 +1252,10 @@ export function AssistantTab() {
 
           <form
             onSubmit={(e) => { e.preventDefault(); void ask() }}
-            className="flex items-center gap-2 border-t px-3 py-2.5"
+            /* On a phone the box takes a row of its own and the four round
+               buttons share the row under it: side by side they left the box
+               about 140px, which cut the placeholder to "Ask, or press the r". */
+            className="flex items-center gap-2 border-t px-3 py-2.5 max-sm:flex-wrap"
           >
             {/* Attach a spreadsheet to import. FileReader/FormData only, so it
                 works on low-end browsers; the hidden input is driven by the
@@ -1295,7 +1298,7 @@ export function AssistantTab() {
                  whole conversation starts, so it is the largest text on the
                  panel and tall enough to be found with a thumb. 16px also
                  keeps iOS from zooming the page when the field is focused. */
-              className="min-w-0 flex-1 rounded-[14px] border-0 bg-background px-4 py-3 text-[16px]
+              className="min-w-0 flex-1 rounded-[14px] border-0 bg-background px-4 py-3 text-[16px] max-sm:order-first max-sm:basis-full
                          !shadow-none !outline-none focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0"
             />
             {/* Drawn only where it works. Firefox has no speech recognition at
@@ -1303,6 +1306,7 @@ export function AssistantTab() {
                 nothing when pressed is worse than an absent one, because the
                 person presses it, waits, and concludes the assistant is
                 broken. */}
+            <span aria-hidden className="hidden max-sm:block max-sm:flex-1" />
             {dictation.supported && (
               <button
                 type="button"

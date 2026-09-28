@@ -144,6 +144,9 @@ export default function MyClasses() {
       <PageBody>
         <NeedsAttentionPanel limit={5} title="Early warnings for my sections" />
         <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* The figures take the row: as a bare flex item the grid shrank to
+              its content, a half-width column of tiles on a phone. */}
+          <div className="min-w-0 flex-[1_1_24rem]">
           <CellGrid cols={4}>
             <Stat label="Children" value={rows.length} icon={Users} />
             <Stat
@@ -172,6 +175,7 @@ export default function MyClasses() {
               }
             />
           </CellGrid>
+          </div>
           <RangePicker
             value={range}
             onChange={setRange}

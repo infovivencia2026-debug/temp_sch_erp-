@@ -771,7 +771,7 @@ export default function ReportCards() {
                   <span className="min-w-[7rem] font-medium">
                     {x.class_name}-{x.section_name}
                   </span>
-                  <span className="flex-1 text-[13px] text-muted-foreground">
+                  <span className="min-w-[12rem] flex-1 text-[13px] text-muted-foreground">
                     {x.submitted_by ?? 'the class teacher'}
                     {x.submitted_at ? ` · published ${x.submitted_at.replace('T', ' ')}` : ''}
                   </span>
@@ -819,7 +819,7 @@ export default function ReportCards() {
                   <span className="min-w-[7rem] font-medium">
                     {x.class_name}-{x.section_name}
                   </span>
-                  <span className="flex-1 text-[13px] text-muted-foreground">
+                  <span className="min-w-[12rem] flex-1 text-[13px] text-muted-foreground">
                     {/* Who sent it up: a head returning a section replies to a
                         person, not to a row. */}
                     {x.submitted_by ?? 'the class teacher'}
