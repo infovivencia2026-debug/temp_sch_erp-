@@ -1,33 +1,26 @@
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Film, Sparkles, Trash2 } from 'lucide-react'
+import { ChevronLeft, Film, Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, PageBody, PageHead, Select, Table, Td, Textarea,
 } from '@/components/ui'
-import VideoLibrary, { VideoPick } from './VideoLibrary'
-import { FilePick, KIND_LABEL, KindIcon, LessonContent, fmtWhen, type Lesson, type RubricRow, type Unit } from '../learning/lms-shared'
+import VideoLibrary from './VideoLibrary'
+import { FilePick, type RubricRow } from '../learning/lms-shared'
+import { Modules, type CourseDetail } from './TeacherModules'
 
 /* THE LMS, FROM THE FRONT OF THE CLASS (worker routes/teaching/lms.ts).
 
    A course is one subject in one section. A teacher sees the ones they
    teach; the LMS Admin (and anyone who sees every student) sees them all.
-   Inside: units of lessons laid out by day and published on a schedule,
-   assignments with an optional rubric and a gradebook, and timed MCQ
-   quizzes with an optional AI draft from a lesson. */
+   Inside: modules first (TeacherModules.tsx: each module's sources,
+   assignments and quizzes in one order, published on a schedule, with who
+   has finished it), then every assignment with its rubric and gradebook, and
+   every timed MCQ quiz with an optional AI draft from a lesson. */
 
 interface Course {
   section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string; teacher?: string | null
   units: number; lessons: number; assignments: number; to_mark: number; quizzes: number; roll: number
-}
-interface Assignment {
-  id: string; kind: string; title: string; instructions?: string | null; assigned_on: string; due_on?: string | null; max_marks?: number | null
-  rubric: RubricRow[] | null; submitted: number; to_mark: number; graded: number; returned: number
-}
-interface Quiz { id: string; title: string; status: string; duration_minutes?: number | null; closes_at?: string | null; questions: number; attempted: number }
-interface CourseDetail {
-  course: { section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string }
-  roll: number; today: string; units: Unit[]; assignments: Assignment[]; quizzes: Quiz[]
 }
 
 export default function TeacherLMS() {
@@ -72,7 +65,7 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
 }
 
 function CourseView({ k, back }: { k: { section_id: string; class_subject_id: string }; back: () => void }) {
-  const [tab, setTab] = useState<'lessons' | 'assignments' | 'quizzes'>('lessons')
+  const [tab, setTab] = useState<'modules' | 'assignments' | 'quizzes'>('modules')
   const key = ['lms-course', k.section_id, k.class_subject_id]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<CourseDetail>(`/api/v1/lms/course?section_id=${k.section_id}&class_subject_id=${k.class_subject_id}`) })
   const d = q.data
@@ -86,133 +79,21 @@ function CourseView({ k, back }: { k: { section_id: string; class_subject_id: st
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : (
           <div className="space-y-4">
-            <div className="flex gap-2" role="tablist">
-              {(['lessons', 'assignments', 'quizzes'] as const).map((t) => (
-                <Button key={t} variant={tab === t ? 'primary' : 'secondary'} onClick={() => setTab(t)}>
-                  {t === 'lessons' ? `Lessons (${d.units.reduce((a, u) => a + u.lessons.length, 0)})` : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}
-                </Button>
+            <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="tablist">
+              {(['modules', 'assignments', 'quizzes'] as const).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+                  className={`min-h-10 shrink-0 whitespace-nowrap rounded px-3.5 text-[14px] font-medium ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                  {t === 'modules' ? `Modules (${d.units.filter((u) => u.is_active !== false).length})` : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}
+                </button>
               ))}
             </div>
-            {tab === 'lessons' && <Lessons d={d} qkey={key} />}
+            {tab === 'modules' && <Modules d={d} qkey={key} onTab={setTab} />}
             {tab === 'assignments' && <Assignments d={d} qkey={key} />}
             {tab === 'quizzes' && <Quizzes d={d} qkey={key} />}
           </div>
         )}
       </PageBody>
     </>
-  )
-}
-
-/* ─── LESSONS ─────────────────────────────────────────────────────────── */
-
-function Lessons({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
-  const qc = useQueryClient()
-  const [unitTitle, setUnitTitle] = useState('')
-  const [adding, setAdding] = useState<string | null>(null)
-  const [openLesson, setOpenLesson] = useState<string | null>(null)
-  const addUnit = useMutation({
-    mutationFn: () => api.post('/api/v1/lms/units', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title: unitTitle }),
-    onSuccess: () => { setUnitTitle(''); qc.invalidateQueries({ queryKey: qkey }) },
-  })
-  const delLesson = useMutation({
-    mutationFn: (id: string) => api.del(`/api/v1/lms/lessons/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qkey }),
-  })
-  const now = new Date().toISOString()
-  return (
-    <div className="space-y-4">
-      {d.units.map((u) => {
-        const days = [...new Set(u.lessons.map((l) => l.day ?? null))]
-        return (
-          <Card key={u.id}>
-            <CardHeader title={u.title} action={<Button size="sm" onClick={() => setAdding(adding === u.id ? null : u.id)}>{adding === u.id ? 'Close' : 'Add a lesson'}</Button>} />
-            {adding === u.id && <LessonForm unit={u} sectionId={d.course.section_id} done={() => { setAdding(null); qc.invalidateQueries({ queryKey: qkey }) }} />}
-            {!u.lessons.length ? <p className="px-[var(--card-pad)] py-4 text-[14px] text-muted-foreground">No lessons in this unit yet.</p> : days.map((day) => (
-              <div key={String(day)} className="border-t">
-                <p className="block w-full bg-muted/40 px-[var(--card-pad)] py-1.5 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{day ? `Day ${day}` : 'Any day'}</p>
-                <ul className="divide-y">
-                  {u.lessons.filter((l) => (l.day ?? null) === day).map((l: Lesson) => (
-                    <li key={l.id} className="px-[var(--card-pad)] py-2.5">
-                      <div className="flex flex-wrap items-center gap-2 text-[14px]">
-                        <KindIcon kind={l.kind} />
-                        <button type="button" className="font-medium hover:underline" onClick={() => setOpenLesson(openLesson === l.id ? null : l.id)}>{l.title}</button>
-                        <Badge>{KIND_LABEL[l.kind]}</Badge>
-                        {!l.is_published ? <Badge tone="warning">Draft</Badge> : l.publish_at && l.publish_at > now ? <Badge tone="info">Opens {fmtWhen(l.publish_at)}</Badge> : null}
-                        <span className="ml-auto text-[13px] text-muted-foreground">{l.completed ?? 0} of {d.roll} finished</span>
-                        <Button size="sm" variant="ghost" title="Delete lesson" onClick={() => { if (window.confirm(`Delete "${l.title}"? Children's progress on it goes too.`)) delLesson.mutate(l.id) }}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                      {openLesson === l.id && <div className="mt-3 pl-6"><LessonContent l={l} /></div>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </Card>
-        )
-      })}
-      <Card>
-        <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] py-4">
-          <div className="w-80"><Field label="New unit"><Input value={unitTitle} onChange={setUnitTitle} placeholder="For example: Fractions" /></Field></div>
-          <Button disabled={!unitTitle.trim()} pending={addUnit.isPending} onClick={() => addUnit.mutate()}>Add unit</Button>
-          <FormNotice error={addUnit.error} />
-        </div>
-      </Card>
-    </div>
-  )
-}
-
-function LessonForm({ unit, sectionId, done }: { unit: Unit; sectionId: string; done: () => void }) {
-  const [title, setTitle] = useState('')
-  const [kind, setKind] = useState('text')
-  const [body, setBody] = useState('')
-  const [url, setUrl] = useState('')
-  const [source, setSource] = useState<'library' | 'link'>('library')
-  const [video, setVideo] = useState('')
-  const [file, setFile] = useState<{ id: string; name: string } | null>(null)
-  const [day, setDay] = useState('')
-  const [when, setWhen] = useState('')
-  const [onlyHere, setOnlyHere] = useState(false)
-  const save = useMutation({
-    mutationFn: () => api.post('/api/v1/lms/lessons', {
-      unit_id: unit.id, title, kind, body, url: kind === 'video' && source === 'library' ? '' : url,
-      video_id: kind === 'video' && source === 'library' ? video : undefined, file_id: file?.id, day: day ? Number(day) : null,
-      publish_at: when ? new Date(when).toISOString() : null, section_id: onlyHere ? sectionId : undefined,
-    }),
-    onSuccess: done,
-  })
-  return (
-    <div className="space-y-3 border-b bg-muted/20 px-[var(--card-pad)] py-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
-        <Field label="Kind">
-          <Select value={kind} onChange={setKind} options={[
-            { value: 'text', label: 'Reading (text)' }, { value: 'pdf', label: 'PDF' }, { value: 'file', label: 'File to download' },
-            { value: 'video', label: 'Video' }, { value: 'link', label: 'Web link' },
-          ]} />
-        </Field>
-        <Field label="Day of the unit" hint="Optional. Lessons are listed by day."><Input type="number" value={day} onChange={setDay} /></Field>
-        <Field label="Publish at" hint="Optional. Children see it from this moment; empty is now."><Input type="datetime-local" value={when} onChange={setWhen} /></Field>
-      </div>
-      <Field label={kind === 'text' ? 'Lesson text' : 'Notes for the class (optional)'}><Textarea rows={kind === 'text' ? 8 : 3} value={body} onChange={setBody} /></Field>
-      {kind === 'video' && (
-        <div className="flex flex-wrap gap-4 text-[14px]">
-          <label className="flex items-center gap-2"><input type="radio" checked={source === 'library'} onChange={() => setSource('library')} /> From the video library</label>
-          <label className="flex items-center gap-2"><input type="radio" checked={source === 'link'} onChange={() => setSource('link')} /> A link (YouTube, Vimeo or any address)</label>
-        </div>
-      )}
-      {kind === 'video' && source === 'library' && <Field label="Video"><VideoPick value={video} onChange={setVideo} /></Field>}
-      {((kind === 'video' && source === 'link') || kind === 'link' || kind === 'file' || kind === 'pdf') && (
-        <Field label={kind === 'video' ? 'Video address (YouTube, Vimeo or any link)' : 'Link'} hint={kind === 'file' || kind === 'pdf' ? 'Or attach the file below.' : undefined}>
-          <Input value={url} onChange={setUrl} placeholder="https://" />
-        </Field>
-      )}
-      {(kind === 'file' || kind === 'pdf') && <FilePick purpose="study_material" onDone={setFile} />}
-      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> Only this section (otherwise every section of the class)</label>
-      <div className="flex items-center gap-3">
-        <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>Save lesson</Button>
-        <FormNotice error={save.error} />
-      </div>
-    </div>
   )
 }
 
@@ -238,10 +119,11 @@ function Assignments({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
       <Card>
         <CardHeader title="Assignments" action={<Button onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'Set an assignment'}</Button>} />
         {creating && <AssignmentForm d={d} done={() => { setCreating(false); qc.invalidateQueries({ queryKey: qkey }) }} />}
-        <Table head={['Title', 'Due', 'Handed in', 'To mark', 'Returned', '']} empty={!d.assignments.length} emptyLabel="Nothing set in this course yet.">
+        <Table head={['Title', 'Module', 'Due', 'Handed in', 'To mark', 'Returned', '']} empty={!d.assignments.length} emptyLabel="Nothing set in this course yet.">
           {d.assignments.map((a) => (
             <tr key={a.id}>
               <Td><span className="font-medium">{a.title}</span>{a.rubric && <Badge className="ml-2">Rubric</Badge>}</Td>
+              <Td>{d.units.find((u) => u.id === a.lms_unit_id)?.title ?? '—'}</Td>
               <Td>{a.due_on ?? '—'}{a.due_on && a.due_on < d.today && <Badge tone="danger" className="ml-2">Past due</Badge>}</Td>
               <Td>{a.submitted} of {d.roll}</Td>
               <Td>{a.to_mark ? <Badge tone="warning">{a.to_mark}</Badge> : '0'}</Td>
@@ -255,7 +137,9 @@ function Assignments({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
   )
 }
 
-function AssignmentForm({ d, done }: { d: CourseDetail; done: () => void }) {
+/** A module's own form passes unitId; from the Assignments tab the teacher may pick one. */
+export function AssignmentForm({ d, done, unitId }: { d: CourseDetail; done: () => void; unitId?: string }) {
+  const [unit, setUnit] = useState(unitId ?? '')
   const [title, setTitle] = useState('')
   const [instr, setInstr] = useState('')
   const [due, setDue] = useState('')
@@ -265,7 +149,7 @@ function AssignmentForm({ d, done }: { d: CourseDetail; done: () => void }) {
   const save = useMutation({
     mutationFn: () => api.post('/api/v1/lms/assignments', {
       section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title, instructions: instr, due_on: due || null,
-      max_marks: max === '' ? null : Number(max), rubric: rubric.filter((r) => r.criterion.trim() && r.max > 0), file_ids: file ? [file.id] : [],
+      max_marks: max === '' ? null : Number(max), rubric: rubric.filter((r) => r.criterion.trim() && r.max > 0), file_ids: file ? [file.id] : [], unit_id: unit || null,
     }),
     onSuccess: done,
   })
@@ -275,6 +159,7 @@ function AssignmentForm({ d, done }: { d: CourseDetail; done: () => void }) {
         <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
         <Field label="Due on"><Input type="date" value={due} onChange={setDue} /></Field>
         <Field label="Out of" hint={rubric.length ? 'Set by the rubric.' : undefined}><Input type="number" value={rubric.length ? String(rubric.reduce((a, r) => a + (r.max || 0), 0)) : max} onChange={setMax} /></Field>
+        {!unitId && <ModulePick d={d} value={unit} onChange={setUnit} />}
       </div>
       <Field label="Instructions"><Textarea rows={3} value={instr} onChange={setInstr} /></Field>
       <div className="space-y-2">
@@ -404,10 +289,11 @@ function Quizzes({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
       <Card>
         <CardHeader title="Quizzes" action={<Button onClick={() => setCreating(!creating)}>{creating ? 'Close' : 'New quiz'}</Button>} />
         {creating && <QuizForm d={d} done={() => { setCreating(false); qc.invalidateQueries({ queryKey: qkey }) }} />}
-        <Table head={['Title', 'Questions', 'Time limit', 'Taken', 'Status', '']} empty={!d.quizzes.length} emptyLabel="No quizzes in this course yet.">
+        <Table head={['Title', 'Module', 'Questions', 'Time limit', 'Taken', 'Status', '']} empty={!d.quizzes.length} emptyLabel="No quizzes in this course yet.">
           {d.quizzes.map((z) => (
             <tr key={z.id}>
               <Td><span className="font-medium">{z.title}</span></Td>
+              <Td>{d.units.find((u) => u.id === z.lms_unit_id)?.title ?? '—'}</Td>
               <Td>{z.questions}</Td>
               <Td>{z.duration_minutes ? `${z.duration_minutes} min` : 'None'}</Td>
               <Td>{z.attempted} of {d.roll}</Td>
@@ -449,14 +335,16 @@ function QuizResults({ id }: { id: string }) {
   )
 }
 
-function QuizForm({ d, done }: { d: CourseDetail; done: () => void }) {
+export function QuizForm({ d, done, unitId }: { d: CourseDetail; done: () => void; unitId?: string }) {
+  const [unit, setUnit] = useState(unitId ?? '')
   const [title, setTitle] = useState('')
   const [mins, setMins] = useState('15')
   const [closes, setCloses] = useState('')
   const [qs, setQs] = useState<DraftQ[]>([{ stem: '', options: ['', '', '', ''], correct: 0 }])
   const [aiLesson, setAiLesson] = useState('')
   const [aiNote, setAiNote] = useState('')
-  const lessons = d.units.flatMap((u) => u.lessons.filter((l) => l.kind === 'text' || l.body))
+  /* The module's own notes first when the quiz is made inside a module. */
+  const lessons = [...d.units.filter((u) => u.id === unitId), ...d.units.filter((u) => u.id !== unitId)].flatMap((u) => u.lessons.filter((l) => l.kind === 'text' || l.body))
   const draft = useMutation({
     mutationFn: () => api.post<{ configured: boolean; message?: string; questions: DraftQ[] }>('/api/v1/lms/ai/quiz-draft', { lesson_id: aiLesson, count: 5 }),
     onSuccess: (r) => {
@@ -469,7 +357,7 @@ function QuizForm({ d, done }: { d: CourseDetail; done: () => void }) {
   const save = useMutation({
     mutationFn: () => api.post('/api/v1/lms/quizzes', {
       section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title, duration_minutes: mins === '' ? null : Number(mins),
-      closes_at: closes ? new Date(closes).toISOString() : null,
+      closes_at: closes ? new Date(closes).toISOString() : null, unit_id: unit || null,
       questions: qs.filter((x) => x.stem.trim()).map((x) => {
         const opts = x.options.map((o, i) => ({ o: o.trim(), i })).filter((y) => y.o)
         return { stem: x.stem, options: opts.map((y) => y.o), correct: Math.max(0, opts.findIndex((y) => y.i === x.correct)), marks: x.marks ?? 1 }
@@ -484,6 +372,7 @@ function QuizForm({ d, done }: { d: CourseDetail; done: () => void }) {
         <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
         <Field label="Time limit, minutes" hint="Empty for no limit."><Input type="number" value={mins} onChange={setMins} /></Field>
         <Field label="Closes at" hint="Optional."><Input type="datetime-local" value={closes} onChange={setCloses} /></Field>
+        {!unitId && <ModulePick d={d} value={unit} onChange={setUnit} />}
       </div>
       {lessons.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
@@ -516,5 +405,15 @@ function QuizForm({ d, done }: { d: CourseDetail; done: () => void }) {
         <FormNotice error={save.error} />
       </div>
     </div>
+  )
+}
+
+function ModulePick({ d, value, onChange }: { d: CourseDetail; value: string; onChange: (v: string) => void }) {
+  const units = d.units.filter((u) => u.is_active !== false)
+  if (!units.length) return null
+  return (
+    <Field label="Module" hint="Optional. Where the class finds it.">
+      <Select value={value} onChange={onChange} placeholder="No module" options={[{ value: '', label: 'No module' }, ...units.map((u) => ({ value: u.id, label: u.title }))]} />
+    </Field>
   )
 }

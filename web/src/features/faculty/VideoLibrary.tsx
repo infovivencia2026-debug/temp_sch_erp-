@@ -176,7 +176,7 @@ async function runUpload(job: Job, meta: { title: string; description: string; s
   upd({ phase: 'done' })
 }
 
-function Uploader({ lib, onChange }: { lib: Library; onChange: () => void }) {
+function Uploader({ lib, onChange, onUploaded }: { lib: Library; onChange: () => void; onUploaded?: (id: string, title: string) => void }) {
   const [job, setJob] = useState<Job | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -188,8 +188,10 @@ function Uploader({ lib, onChange }: { lib: Library; onChange: () => void }) {
 
   const start = async (j: Job) => {
     setErr('')
-    try { await runUpload(j, { title, description, subject_id: subject, class_id: klass }, setJob) }
-    catch (e) { setJob({ ...j, phase: 'failed', error: e instanceof Error ? e.message : 'upload failed' }) }
+    try {
+      await runUpload(j, { title, description, subject_id: subject, class_id: klass }, setJob)
+      if (j.phase === 'done' && j.id) onUploaded?.(j.id, title || j.file.name.replace(/\.[^.]+$/, ''))
+    } catch (e) { setJob({ ...j, phase: 'failed', error: e instanceof Error ? e.message : 'upload failed' }) }
     onChange()
   }
   const pick = async (f: File | undefined) => {
@@ -432,6 +434,15 @@ function UseInLesson({ v, done }: { v: Video; done: () => void }) {
       </div>
     </Card>
   )
+}
+
+/** For a module's "Add source": upload a new video into the library, then hand its id back. */
+export function VideoUpload({ onUploaded }: { onUploaded: (id: string, title: string) => void }) {
+  const qc = useQueryClient()
+  const q = useQuery({ queryKey: ['lms-videos', 'status=ready'], queryFn: () => api.get<Library>('/api/v1/lms/videos?status=ready') })
+  if (q.error) return <ErrorState error={q.error} />
+  if (!q.data) return <Loading />
+  return <Uploader lib={q.data} onChange={() => qc.invalidateQueries({ queryKey: ['lms-videos'] })} onUploaded={onUploaded} />
 }
 
 /** For the lesson form: pick a ready video from the library. */
