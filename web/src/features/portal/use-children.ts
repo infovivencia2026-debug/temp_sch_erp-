@@ -81,6 +81,12 @@ export function useChildren() {
        single-school list does know them, so an empty fan-out falls back to it:
        a guardian with no children gets the same empty answer either way. */
     queryFn: async () => {
+      /* On a student's own screens there is no family to walk, so ask the
+         one list that answers them rather than waiting on two in a row:
+         until this resolves every such screen shows "Choose a child". */
+      if (typeof location !== 'undefined' && location.pathname.startsWith('/student/')) {
+        return api.get<List<PortalChild>>('/api/v1/portal/students')
+      }
       const all = await api.get<List<PortalChild>>('/api/v1/portal/students/everywhere')
       if ((all.items ?? []).length > 0) return all
       return api.get<List<PortalChild>>('/api/v1/portal/students')

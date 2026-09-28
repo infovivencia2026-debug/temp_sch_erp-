@@ -2925,6 +2925,14 @@ html:not(.dark)[data-layout='bento'] {
       var(--dock-tap, 44px) + 12px + 2 * var(--dock-pad, 8px) +
       env(safe-area-inset-bottom, 0px)
     );
+    /* THE END OF A PAGE CLEARS THE ORB, NOT ONLY THE BAR.
+
+       On a phone the assistant orb floats above the bar at the right edge
+       (bottom: --dock-h + 1.25rem, 56px tall). The reserve under the work
+       area covered the bar alone, so scrolled to its end a page left its
+       last right-hand control -- a table's Next, the last row's action --
+       sitting under the orb, where a tap opens the assistant instead. */
+    --dock-reserve: calc(var(--dock-h) + 1.25rem + 56px + 8px);
   }
 
   /* THE PAGER. One grid, wide enough for every page, scrolled sideways.
