@@ -117,7 +117,7 @@ export default function DayTimeline({
   return (
     <Card className="mx-auto w-full max-w-[640px]">
       {/* Sticky head: who, and the day strip. Stays put while the day scrolls. */}
-      <div className="sticky top-0 z-10 border-b bg-card px-4 pb-2.5 pt-3">
+      <div className="sticky top-0 z-10 rounded-t-[var(--radius-card)] border-b bg-card px-4 pb-2.5 pt-3">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-[15px] font-semibold tracking-[-0.01em]">{who}</div>
