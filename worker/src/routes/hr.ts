@@ -1,6 +1,7 @@
 import type { Router } from '../router'
 import { registerStaff } from './hr/staff'
 import { registerLifecycle } from './hr/lifecycle'
+import { registerStaffConcerns } from './hr/concerns'
 import { registerOffice } from './hr/office'
 import { registerAttendanceWorkflow } from './hr/attendance'
 
@@ -10,6 +11,7 @@ import { registerAttendanceWorkflow } from './hr/attendance'
    not part of this block. */
 export function registerHR(r: Router): void {
   registerStaff(r)
+  registerStaffConcerns(r)
   registerLifecycle(r)
   registerOffice(r)
   registerAttendanceWorkflow(r)

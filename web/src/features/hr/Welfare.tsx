@@ -4,9 +4,10 @@ import { Award, Cake, MessageSquareWarning } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat,
-  Table, Td, Badge, Button, Checkbox, Field, FormGrid, FormNotice,
+  Table, Td, Badge, Button, Field, FormGrid, FormNotice,
   Input, Select, Textarea, SkeletonTable, ErrorState, EmptyState, tabClass, TAB_BAR } from '@/components/ui'
 import { useEmployeeRoster } from '@/lib/rosters'
+import { StaffConcernCell } from './StaffConcernCell'
 
 /* The three things a school does for its staff that cost nothing.
 
@@ -14,9 +15,9 @@ import { useEmployeeRoster } from '@/lib/rosters'
    actually protects the person making them, and a wall for the awards a
    staff room reads on the way in.
 
-   The grievance form's anonymous option is real: when it is ticked, neither
-   the employee nor the account raising it is stored, and the database refuses
-   the row otherwise. A cell that promises anonymity and keeps the name is
+   The grievance cell (StaffConcernCell.tsx) is a pipeline over what staff
+   raise from their own /concerns page. The anonymous option is real: when it
+   is ticked, neither the employee nor the account raising it is stored. A cell that promises anonymity and keeps the name is
    worse than none, because the staff find out the first time somebody is
    asked about a complaint they thought was untraceable. */
 
@@ -76,7 +77,9 @@ const nameOf = (e: Employee) => e.full_name ?? e.name ?? e.id
 const useEmployees = () => useEmployeeRoster<Employee>()
 
 export default function Welfare() {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('diary')
+  // ?tab=grievances&id= is where a notification about a staff concern lands.
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'grievances' ? 'grievances' : 'diary')
 
   const diary = useQuery({
     queryKey: ['hr', 'celebrations'],
@@ -129,7 +132,7 @@ export default function Welfare() {
         </div>
 
         {tab === 'diary' && <DiaryTab rows={days} />}
-        {tab === 'grievances' && <GrievanceTab rows={grievances.data?.items ?? []} />}
+        {tab === 'grievances' && <StaffConcernCell />}
         {tab === 'wall' && <WallTab />}
       </PageBody>
     </>
@@ -180,141 +183,6 @@ function DiaryTab({ rows }: { rows: Celebration[] }) {
       )}
       <div className="border-t p-5"><FormNotice error={greet.error} /></div>
     </Card>
-  )
-}
-
-function GrievanceTab({ rows }: { rows: Grievance[] }) {
-  const qc = useQueryClient()
-  const employees = useEmployees()
-  const [anonymous, setAnonymous] = useState(true)
-  const [employeeId, setEmployeeId] = useState('')
-  const [category, setCategory] = useState('workload')
-  const [severity, setSeverity] = useState('medium')
-  const [subject, setSubject] = useState('')
-  const [description, setDescription] = useState('')
-
-  const raise = useMutation({
-    mutationFn: () =>
-      api.post<{ reference_no: string }>('/api/v1/hr/grievances', {
-        is_anonymous: anonymous,
-        employee_id: anonymous ? undefined : employeeId,
-        category, severity, subject, description,
-      }),
-    onSuccess: () => {
-      setSubject(''); setDescription('')
-      qc.invalidateQueries({ queryKey: ['hr', 'grievances'] })
-    },
-  })
-
-  return (
-    <>
-      <Card>
-        <CardHeader title="Raise a complaint"
-          description="Anonymous means anonymous: neither the employee nor the account raising it is stored, and the record cannot be traced back afterwards." />
-        <div className="space-y-5 p-5">
-          <Checkbox checked={anonymous} onChange={setAnonymous}
-            label="Raise this anonymously"
-            hint="Nothing identifying the reporter is written down" />
-          <FormGrid>
-            {!anonymous && (
-              <Field label="Employee" required>
-                <Select value={employeeId} onChange={setEmployeeId} placeholder="Choose an employee"
-                  options={(employees.data?.items ?? []).map((e) => ({ value: e.id, label: nameOf(e) }))} />
-              </Field>
-            )}
-            <Field label="About">
-              <Select value={category} onChange={setCategory} options={[
-                { value: 'harassment', label: 'Harassment' },
-                { value: 'pay', label: 'Pay' },
-                { value: 'workload', label: 'Workload' },
-                { value: 'facilities', label: 'Facilities' },
-                { value: 'discrimination', label: 'Discrimination' },
-                { value: 'safety', label: 'Safety' },
-                { value: 'management', label: 'Management' },
-                { value: 'other', label: 'Other' },
-              ]} />
-            </Field>
-            <Field label="Severity">
-              <Select value={severity} onChange={setSeverity} options={[
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-              ]} />
-            </Field>
-            <Field label="Subject" required wide>
-              <Input value={subject} onChange={setSubject} placeholder="Substitution load" />
-            </Field>
-            <Field label="What happened" required wide>
-              <Textarea value={description} onChange={setDescription} rows={4} />
-            </Field>
-          </FormGrid>
-          <FormNotice error={raise.error}
-            ok={raise.data ? `Recorded as ${raise.data.reference_no}. Quote that to follow it up.` : undefined} />
-          <Button onClick={() => raise.mutate()}
-            disabled={!subject || !description || (!anonymous && !employeeId) || raise.isPending}>
-            Raise it
-          </Button>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="The cell"
-          description="Open complaints first, worst first, oldest first. A grievance cell is judged on how long things sit here." />
-        <Table head={['Reference', 'From', 'About', 'Subject', 'Severity', 'Open', 'Status', '']}
-          empty={rows.length === 0} emptyLabel="Nothing has been raised.">
-          {rows.map((g) => <GrievanceLine key={g.id} row={g} />)}
-        </Table>
-      </Card>
-    </>
-  )
-}
-
-function GrievanceLine({ row }: { row: Grievance }) {
-  const qc = useQueryClient()
-  const [resolution, setResolution] = useState(row.resolution ?? '')
-  const decide = useMutation({
-    mutationFn: (status: string) =>
-      api.post(`/api/v1/hr/grievances/${row.id}/decide`, {
-        status, resolution: resolution || undefined,
-      }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'grievances'] }),
-  })
-  const settled = ['resolved', 'closed', 'withdrawn'].includes(row.status)
-
-  return (
-    <tr>
-      <Td className="font-medium tabular-nums">{row.reference_no}</Td>
-      <Td className="text-muted-foreground">
-        {row.is_anonymous ? <Badge tone="info">anonymous</Badge> : (row.full_name ?? '-')}
-      </Td>
-      <Td className="text-muted-foreground">{row.category}</Td>
-      <Td>
-        {row.subject}
-        <div className="text-[12px] text-muted-foreground">{row.description.slice(0, 90)}</div>
-      </Td>
-      <Td>
-        <Badge tone={row.severity === 'high' ? 'danger' : row.severity === 'medium' ? 'warning' : 'neutral'}>
-          {row.severity}
-        </Badge>
-      </Td>
-      <Td className="tabular-nums text-muted-foreground">{row.open_days}d</Td>
-      <Td><Badge tone={settled ? 'success' : 'warning'}>{row.status}</Badge></Td>
-      <Td>
-        {settled ? (
-          <span className="text-[12px] text-muted-foreground">{row.resolution}</span>
-        ) : (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Input value={resolution} onChange={setResolution} placeholder="What was done" />
-            <Button size="sm" variant="secondary" onClick={() => decide.mutate('investigating')}>
-              Investigating
-            </Button>
-            <Button size="sm" disabled={!resolution} onClick={() => decide.mutate('resolved')}>
-              Resolve
-            </Button>
-          </div>
-        )}
-      </Td>
-    </tr>
   )
 }
 

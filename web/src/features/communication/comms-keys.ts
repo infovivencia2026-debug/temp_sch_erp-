@@ -65,8 +65,9 @@ export const commsKeys = {
  */
 export const commsQueryKeys = {
   grievanceRoot: () => ['comms', 'grievances'] as const,
-  grievances: (status: string, category: string, overdue: boolean) =>
-    ['comms', 'grievances', 'list', status, category, overdue] as const,
+  grievances: (stage: string, category: string, overdue: boolean, mine = false, q = '') =>
+    ['comms', 'grievances', 'list', stage, category, overdue, mine, q] as const,
+  grievanceAssignees: () => ['comms', 'grievances', 'assignees'] as const,
   grievance: (id: string | null) => ['comms', 'grievances', 'one', id] as const,
   grievanceTimeline: (id: string | null) => ['comms', 'grievances', 'timeline', id] as const,
   grievanceSummary: () => ['comms', 'grievances', 'summary'] as const,

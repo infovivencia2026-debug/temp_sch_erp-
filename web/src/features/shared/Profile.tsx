@@ -18,6 +18,8 @@ interface Profile {
   }
 }
 
+import { ConcernsCard } from '@/features/me/MyConcerns'
+
 export default function ProfileView() {
   const session = useSession()
   const qc = useQueryClient()
@@ -294,6 +296,9 @@ export default function ProfileView() {
         that hold the other side of these records are gated on
         hr.employees.read and a teacher cannot open them. Renders nothing for
         a signed-in user who has no staff record. */}
+    <div className="mt-4">
+      <ConcernsCard />
+    </div>
     <div className="mt-4 grid gap-4">
       <MyGrowthPanels quiet />
     </div>

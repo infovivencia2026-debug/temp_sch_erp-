@@ -17,6 +17,7 @@ const SettingsPage = lazy(() => import('@/features/bento/SettingsPage'))
 const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
 const BillingSchool = lazy(() => import('@/features/seller/BillingSchool'))
 const NeedsAttentionPage = lazy(() => import('@/components/ai/EarlyWarnings'))
+const ConcernsPage = lazy(() => import('@/features/me/MyConcerns'))
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -467,6 +468,8 @@ export function AppRoutes({ location }: { location?: string }) {
       <Route path="/settings/:section" element={<Suspense fallback={<SkeletonPage />}><SettingsPage /></Suspense>} />
       {/* Early warnings: outside the catalogue like /settings; the server scopes the list to the caller. */}
       <Route path="/needs-attention" element={<Suspense fallback={<SkeletonPage />}><NeedsAttentionPage /></Suspense>} />
+      {/* Raising and following a concern: families to the office, staff to HR. Outside the catalogue like /account. */}
+      <Route path="/concerns" element={<Suspense fallback={<SkeletonPage />}><ConcernsPage /></Suspense>} />
       <Route path="/billing" element={<Suspense fallback={<SkeletonPage />}><BillingSchool /></Suspense>} />
       <Route path="/group-report" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/group-report/:groupId" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />

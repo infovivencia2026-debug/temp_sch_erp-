@@ -4,6 +4,8 @@ import { HttpError, badRequest, bool, created, isUUID, notFound, now, ok, readJS
 import { can } from '../../identity'
 import { familyChildren, institutionId, marks, js, notYourChild, notifyStmt, ownsStudent, portalChild, requirePerm, resolveScope, str, todayIST } from '../teaching/common'
 import { publish } from '../../services/live'
+import { feedbackUpdateStmt } from '../comms/grievances'
+import { canReopen, dueAt, notify, ownAttachment, policyFor, ticketStage } from '../comms/concern_shared'
 
 /* Port of internal/api/portal_requests.go (mountParentPortal): what a family
    asks the school for, and what the school owes them back. Every route sits
@@ -345,25 +347,35 @@ async function releasePickup(c: Ctx): Promise<Response> {
 async function listPortalConcerns(c: Ctx): Promise<Response> {
   const rows = await c.db.prepare(`
     SELECT t.id, NULLIF(${nameFL('st')}, '') AS student_name,
-           t.category, t.subject, t.body, t.priority, t.status, t.resolution,
+           t.category, t.subject, t.body, t.priority, t.status, ${ticketStage('t')} AS stage, t.resolution,
            u.full_name AS assigned_to, ${istDate('t.created_at')} AS created_at,
-           ${istDate('t.resolved_at')} AS resolved_at,
-           CAST(julianday('now') - julianday(t.created_at) AS INTEGER) AS open_days
+           ${istDate('t.resolved_at')} AS resolved_at, t.satisfaction, t.reopened_count,
+           ${canReopen('t', "t.status IN ('resolved', 'closed')")} AS can_reopen,
+           CAST(julianday('now') - julianday(t.created_at) AS INTEGER) AS open_days,
+           (SELECT count(*) FROM grievance_updates g WHERE g.ticket_id = t.id AND g.visible_to_parent = 1
+              AND g.author_id IS NOT NULL AND g.author_id <> t.raised_by) AS replies,
+           (SELECT strftime('%Y-%m-%dT%H:%M:%SZ', max(g.created_at)) FROM grievance_updates g
+             WHERE g.ticket_id = t.id AND g.visible_to_parent = 1) AS last_update_at
       FROM support_tickets t
       LEFT JOIN students st ON st.id = t.student_id
       LEFT JOIN users u ON u.id = t.assigned_to
      WHERE t.raised_by = ? AND t.audience = 'school'
-     ORDER BY t.created_at DESC
+     ORDER BY t.resolved_at IS NOT NULL, t.created_at DESC
      LIMIT 100`).bind(c.id.userId).all<Record<string, unknown>>()
   return ok({ items: rows.results.map((v) => {
     const o: Record<string, unknown> = { id: v.id }
     put(o, 'student_name', v.student_name)
-    Object.assign(o, { category: v.category, subject: v.subject, body: v.body, priority: v.priority, status: v.status })
+    Object.assign(o, { category: v.category, subject: v.subject, body: v.body, priority: v.priority, status: v.status, stage: v.stage })
     put(o, 'resolution', v.resolution)
     put(o, 'assigned_to', v.assigned_to)
     o.created_at = v.created_at
     put(o, 'resolved_at', v.resolved_at)
+    put(o, 'satisfaction', v.satisfaction)
+    put(o, 'last_update_at', v.last_update_at)
     o.open_days = nz(v.open_days)
+    o.replies = Number(v.replies ?? 0)
+    o.reopened_count = Number(v.reopened_count ?? 0)
+    o.can_reopen = bool(v.can_reopen)
     return o
   }) })
 }
@@ -385,19 +397,39 @@ async function raisePortalConcern(c: Ctx): Promise<Response> {
   let child: string | null = null
   const rawChild = raw(body.student_id)
   if (rawChild.trim() !== '') child = (await portalChild(c, rawChild)).studentId
+  else {
+    // A student raising their own concern: it is about them.
+    const self = await c.db.prepare(`SELECT id FROM students WHERE user_id = ? LIMIT 1`).bind(c.id.userId).first<{ id: string }>()
+    child = self?.id ?? null
+  }
+  const attachment = await ownAttachment(c, body.attachment_file_id)
 
+  // The promise is made the moment the concern arrives, from the category's
+  // policy, not when somebody gets round to triaging it.
+  const policy = await policyFor(c, category)
   const newID = uuid()
   const t = now()
-  try {
-    await c.db.prepare(`
+  const stmts: D1PreparedStatement[] = [
+    c.db.prepare(`
       INSERT INTO support_tickets
-          (id, institution_id, raised_by, student_id, category, subject, body, priority, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(newID, institutionId(c), c.id.userId, child, category, subject, text, priority, t, t).run()
+          (id, institution_id, raised_by, student_id, category, subject, body, priority, attachment_file_id,
+           owner_department, assigned_to, respond_due_at, resolve_due_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(newID, institutionId(c), c.id.userId, child, category, subject, text, priority, attachment,
+        policy?.owner_department ?? null, policy?.default_owner_id ?? null,
+        policy ? dueAt(t, policy.respond_hours) : null, policy ? dueAt(t, policy.resolve_hours) : null, t, t),
+    feedbackUpdateStmt(c, newID, 'created', 'Concern raised.', 'open', true, c.id.userId),
+  ]
+  if (policy?.default_owner_id && policy.default_owner_id !== c.id.userId) {
+    stmts.push(notify(c, policy.default_owner_id, 'A new concern has been raised', subject,
+      `/institution_admin/communication/grievances?id=${newID}`, 'support_ticket', newID))
+  }
+  try {
+    await c.db.batch(stmts)
   } catch (e) {
     throw badRequest(errMsg(e))
   }
-  return created({ id: newID })
+  return created({ id: newID, respond_due_at: policy ? dueAt(t, policy.respond_hours) : undefined })
 }
 
 // ---------------------------------------------------------------------------

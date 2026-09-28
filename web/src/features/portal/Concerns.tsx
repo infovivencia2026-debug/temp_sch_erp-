@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquareWarning } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
-  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Badge, Button, Field,
+  PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Button, Field,
   FormGrid, FormNotice, Input, Select, Textarea, EmptyState,
 } from '@/components/ui'
 import { ScreenError } from './screen-error'
@@ -11,6 +11,8 @@ import { Freshness, ScreenSkeleton } from './screen-state'
 import { formatDate } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { useChildren, childOptions } from './use-children'
+import { AttachFile, StageBadge } from '@/features/communication/concern-ui'
+import { RaiserCasePanel } from '@/features/communication/concern-raiser'
 
 /* Raising a concern, and following it.
 
@@ -30,19 +32,16 @@ interface Concern {
   body: string
   priority: 'low' | 'normal' | 'high' | 'urgent'
   status: 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed'
+  stage: string
+  replies: number
+  last_update_at?: string
+  can_reopen: boolean
+  satisfaction?: number
   resolution?: string
   assigned_to?: string
   created_at: string
   resolved_at?: string
   open_days: number
-}
-
-const TONE: Record<Concern['status'], 'warning' | 'info' | 'success' | 'neutral'> = {
-  open: 'warning',
-  in_progress: 'info',
-  waiting: 'info',
-  resolved: 'success',
-  closed: 'neutral',
 }
 
 const CATEGORIES = [
@@ -63,6 +62,8 @@ export default function Concerns() {
   const concerns = useQuery({
     queryKey: ['portal-concerns'],
     queryFn: () => api.get<List<Concern>>('/api/v1/portal/concerns'),
+    // A reply or stage change must show on the next visit, not after the app-wide five minutes.
+    staleTime: 0,
   })
   const { children, chosen, setChosen } = useChildren()
 
@@ -70,6 +71,9 @@ export default function Concerns() {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [priority, setPriority] = useState('normal')
+  const [file, setFile] = useState<{ id: string; name: string } | null>(null)
+  // ?id= opens one straight away: the link a notification carries.
+  const [openId, setOpenId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('id'))
 
   const raise = useMutation({
     mutationFn: () =>
@@ -79,10 +83,12 @@ export default function Concerns() {
         subject,
         body,
         priority,
+        attachment_file_id: file?.id,
       }),
     onSuccess: () => {
       setSubject('')
       setBody('')
+      setFile(null)
       qc.invalidateQueries({ queryKey: ['portal-concerns'] })
     },
   })
@@ -177,6 +183,9 @@ export default function Concerns() {
               </Field>
             </FormGrid>
             <div className="mt-4">
+              <AttachFile file={file} onChange={setFile} />
+            </div>
+            <div className="mt-4">
               <Button
                 disabled={raise.isPending || subject.trim() === '' || body.trim() === ''}
                 onClick={() => raise.mutate()}
@@ -204,24 +213,27 @@ export default function Concerns() {
           ) : (
             <ul className="divide-y">
               {rows.map((c) => (
-                <li key={c.id} className="px-5 py-4">
-                  <div className="flex flex-wrap items-start gap-3">
-                    <div className="min-w-[18rem] flex-1">
+                <li key={c.id} className="px-[var(--card-pad)] py-4">
+                  <button
+                    type="button"
+                    className="flex w-full flex-wrap items-start gap-3 text-left"
+                    aria-expanded={openId === c.id}
+                    onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                  >
+                    <div className="min-w-[14rem] flex-1">
                       <div className="font-medium">{c.subject}</div>
-                      <div className="mt-0.5 text-[13px] text-muted-foreground">{c.body}</div>
                       <div className="mt-1 text-[12px] text-muted-foreground">
                         {categoryLabel(c.category)}
                         {c.student_name && ` · ${c.student_name}`}
                         {t('portal.concerns.raised_on', { date: formatDate(c.created_at) })}
-                        {c.assigned_to && t('portal.concerns.assigned_to', { name: c.assigned_to })}
+                        {c.replies > 0 && ` · ${c.replies} ${c.replies === 1 ? 'reply' : 'replies'} from the school`}
                       </div>
                     </div>
-                    <Badge tone={TONE[c.status]}>{c.status.replace('_', ' ')}</Badge>
-                  </div>
-                  {c.resolution && (
-                    <div className="mt-3 rounded-sm bg-muted px-3 py-2 text-[13px]">
-                      <span className="font-medium">{t('portal.concerns.school_says')}</span>
-                      {c.resolution}
+                    <StageBadge stage={c.stage} />
+                  </button>
+                  {openId === c.id && (
+                    <div className="mt-4 border-t pt-4">
+                      <RaiserCasePanel id={c.id} base="/api/v1/portal/comms/grievances" rateSuffix="satisfaction" listKey={['portal-concerns']} />
                     </div>
                   )}
                 </li>

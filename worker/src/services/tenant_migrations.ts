@@ -7,4 +7,5 @@ export const TENANT_MIGRATIONS: ReadonlyArray<{ version: number; name: string; c
   { version: 3, name: 'ai_briefs', checksum: '6dcef06668a4c85f68e7c2344964d13e875ba02b1995c8f2b60f9c4ff233d236' },
   { version: 4, name: 'enquiry_activity', checksum: '2e4d2e29b0872c56c175c3c7bbb0f5c73c94cfd3987c8e2447ec1908cabfe4b8' },
   { version: 5, name: 'session_activity', checksum: '4bf89c2455eec680ca76661992b66198e675bce8475640648312620be65077b6' },
+  { version: 6, name: 'concerns_pipeline', checksum: '8af8accb30a7e5ba5ddc0f4a177fd5b6c580d7964e8d562cac0298e52f7eb81d' },
 ]

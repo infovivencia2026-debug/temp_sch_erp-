@@ -1,7 +1,7 @@
 import type { Router } from '../../router'
 import { HttpError, badRequest, bool, created, notFound, now, ok, readJSON, uuid, uuidParam } from '../../http'
 import { addDays, fullName, initcap, isUUIDish, isUniqueViolation, istMinuteT, nextNumber, nowIST, nz, parseJSON, str, todayIST } from '../admissions/util'
-import { employeeFilter, grievanceFilter, growthReach, type Reach } from './reach'
+import { employeeFilter, growthReach, type Reach } from './reach'
 import { issueStaffCertificate } from './staff'
 import { lopRegister } from './lop'
 import { school } from '../school'
@@ -513,56 +513,7 @@ export function registerLifecycle(r: Router) {
     return ok({ greeted: true, already_sent: res.meta.changes === 0 })
   })
 
-  r.get('/hr/grievances', READ, async (c) => {
-    const re = await growthReach(c.db, c.id)
-    const mine = grievanceFilter(re, 'g')
-    const rows = await c.db.prepare(`
-      SELECT g.id, g.reference_no, g.is_anonymous, CASE WHEN g.is_anonymous THEN NULL ELSE ${fullName('e.first_name', 'e.last_name')} END AS full_name,
-             g.category, g.severity, g.subject, g.description, g.status, u.full_name AS assigned_to, g.resolution,
-             ${istMinuteT('g.created_at')} AS raised_at, ${istMinuteT('g.resolved_at')} AS resolved_at,
-             CAST(julianday(COALESCE(g.resolved_at, ?)) - julianday(g.created_at) AS INTEGER) AS open_days
-        FROM staff_grievances g LEFT JOIN employees e ON e.id = g.employee_id LEFT JOIN users u ON u.id = g.assigned_to
-       WHERE (? IS NOT 1 OR g.status NOT IN ('resolved','closed','withdrawn')) AND ${mine.sql}
-       ORDER BY g.status IN ('resolved','closed','withdrawn'), CASE g.severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, g.created_at LIMIT 300`)
-      .bind(now(), c.url.searchParams.get('open') === 'true' ? 1 : 0, ...mine.args).all<Record<string, unknown>>()
-    return ok({ items: rows.results.map((v) => omitNull({ ...v, is_anonymous: bool(v.is_anonymous) })) })
-  })
-
-  r.post('/hr/grievances', WRITE, async (c) => {
-    const req = await readJSON(c.req)
-    if (str(req.subject).trim() === '' || str(req.description).trim() === '') throw badRequest('a grievance needs a subject and what happened')
-    let category = str(req.category), severity = str(req.severity)
-    if (category === '') category = 'other'
-    if (severity === '') severity = 'medium'
-    const anonymous = req.is_anonymous === true
-    if (!anonymous && str(req.employee_id) === '') throw badRequest('name the employee, or raise it anonymously')
-    const inst = school(c).id
-    // Seed the series before asking for a number, so the reference reads GRV/2026-27/0001.
-    const scheme = await c.db.prepare(`SELECT 1 FROM numbering_schemes WHERE institution_id = ? AND kind = 'grievance' AND campus_id IS NULL`).bind(inst).first()
-    if (!scheme) await c.db.prepare(`INSERT INTO numbering_schemes (id, institution_id, kind, prefix, padding, next_value, reset_yearly, updated_at) VALUES (?,?,'grievance','GRV/',4,1,1,?)`).bind(uuid(), inst, now()).run()
-    const ref = await nextNumber(c.db, inst, 'grievance')
-    const id = uuid(), t = now()
-    try {
-      await c.db.prepare(`INSERT INTO staff_grievances (id, institution_id, reference_no, employee_id, raised_by, is_anonymous, category, severity, subject, description, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .bind(id, inst, ref, anonymous ? null : nullID(req.employee_id), anonymous ? null : c.id.userId, anonymous ? 1 : 0, category, severity, str(req.subject), str(req.description), t, t).run()
-    } catch (e) { bad(e) }
-    return created({ id, reference_no: ref })
-  })
-
-  r.post('/hr/grievances/{id}/decide', WRITE, async (c) => {
-    const gid = uuidParam(c.params.id)
-    const req = await readJSON(c.req)
-    const status = str(req.status)
-    if (status === '') throw badRequest('say what the grievance has moved to')
-    if ((status === 'resolved' || status === 'closed') && str(req.resolution).trim() === '') throw badRequest('closing a grievance needs a note saying what was done')
-    const t = now()
-    const res = await c.db.prepare(`UPDATE staff_grievances SET status = ?, assigned_to = COALESCE(?, assigned_to), resolution = COALESCE(?, resolution),
-        acknowledged_at = COALESCE(acknowledged_at, CASE WHEN ? <> 'open' THEN ? END),
-        resolved_at = CASE WHEN ? IN ('resolved','closed') THEN COALESCE(resolved_at, ?) END, updated_at = ? WHERE id = ?`)
-      .bind(status, nullID(req.assigned_to), nz(req.resolution), status, t, status, t, t, gid).run()
-    if (res.meta.changes === 0) throw notFound()
-    return ok({ status })
-  })
+  // /hr/grievances moved to ./concerns.ts (the staff concerns pipeline).
 
   r.get('/hr/recognitions', READ, async (c) => {
     const rows = await c.db.prepare(`

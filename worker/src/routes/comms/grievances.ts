@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid, bool } from '../../http'
 import { institutionId, requirePerm } from '../teaching/common'
 import { firstLast, hoursBetween, isoZ, omitNull, optBool, optInt, trim } from './common'
+import { STAGE_LABEL, notify, policyFor, raiserLink, resolveBreached, respondBreached, stageCounts, ticketStage } from './concern_shared'
 
 /* Port of the grievance hub in comms.go: the office's queue of family
    complaints (support_tickets with audience = 'school'), its timeline
@@ -56,30 +57,40 @@ export function feedbackUpdateStmt(c: Ctx, ticket: string, kind: string, body: s
 
 const rowColumns = `
   t.id, NULLIF(${firstLast('st')}, '') AS student, COALESCE(ru.full_name, 'Unknown') AS raised_by,
-  t.category, t.subject, t.priority, t.status, t.owner_department AS department, au.full_name AS assigned_to,
+  t.category, t.subject, t.priority, t.status, ${ticketStage('t')} AS stage,
+  t.owner_department AS department, au.full_name AS assigned_to, t.assigned_to AS assigned_to_id,
+  eu.full_name AS escalated_to,
   t.subject_employee_id IS NOT NULL AS names_staff,
   ${isoZ('t.created_at')} AS created_at, ${isoZ('t.respond_due_at')} AS respond_due_at,
   ${isoZ('t.resolve_due_at')} AS resolve_due_at, ${isoZ('t.acknowledged_at')} AS acknowledged_at,
   ${isoZ('t.resolved_at')} AS resolved_at, t.escalated_at IS NOT NULL AS escalated,
+  ${respondBreached('t')} AS respond_breached, ${resolveBreached('t')} AS resolve_breached,
   CASE WHEN t.resolve_due_at IS NULL THEN NULL
        ELSE ${hoursBetween(`COALESCE(t.resolved_at, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`, 't.resolve_due_at')} END AS overdue_hours,
   CAST(julianday(COALESCE(t.resolved_at, strftime('%Y-%m-%dT%H:%M:%fZ','now'))) - julianday(t.created_at) AS INTEGER) AS open_days,
-  t.satisfaction`
+  t.satisfaction, t.reopened_count, t.attachment_file_id,
+  (SELECT count(*) FROM grievance_updates gu WHERE gu.ticket_id = t.id AND gu.kind = 'raiser_reply'
+     AND julianday(gu.created_at) > julianday(COALESCE((SELECT max(g2.created_at) FROM grievance_updates g2
+       WHERE g2.ticket_id = t.id AND g2.kind <> 'raiser_reply' AND g2.author_id IS NOT NULL AND g2.author_id <> t.raised_by), t.created_at))) AS unanswered`
 
 const rowJoins = `
   FROM support_tickets t
   LEFT JOIN students st ON st.id = t.student_id
   LEFT JOIN users ru ON ru.id = t.raised_by
-  LEFT JOIN users au ON au.id = t.assigned_to`
+  LEFT JOIN users au ON au.id = t.assigned_to
+  LEFT JOIN users eu ON eu.id = t.escalated_to`
 
 function feedbackRow(v: Record<string, unknown>): Record<string, unknown> {
   return omitNull({
     id: v.id, student: v.student, raised_by: v.raised_by, category: v.category, subject: v.subject,
-    priority: v.priority, status: v.status, department: v.department, assigned_to: v.assigned_to,
+    priority: v.priority, status: v.status, stage: v.stage, department: v.department, assigned_to: v.assigned_to,
+    assigned_to_id: v.assigned_to_id, escalated_to: v.escalated_to,
     names_staff: bool(v.names_staff), created_at: v.created_at, respond_due_at: v.respond_due_at,
     resolve_due_at: v.resolve_due_at, acknowledged_at: v.acknowledged_at, resolved_at: v.resolved_at,
-    escalated: bool(v.escalated), overdue_hours: v.overdue_hours, open_days: Number(v.open_days ?? 0),
-    satisfaction: v.satisfaction,
+    escalated: bool(v.escalated), respond_breached: bool(v.respond_breached), resolve_breached: bool(v.resolve_breached),
+    overdue_hours: v.overdue_hours, open_days: Number(v.open_days ?? 0),
+    satisfaction: v.satisfaction, reopened_count: Number(v.reopened_count ?? 0), has_attachment: v.attachment_file_id != null,
+    unanswered_replies: Number(v.unanswered ?? 0),
   })
 }
 
@@ -91,33 +102,46 @@ export function feedbackUpdateRow(v: Record<string, unknown>): Record<string, un
 async function listParentFeedback(c: Ctx): Promise<Response> {
   const q = c.url.searchParams
   const status = (q.get('status') ?? '').trim()
+  const stage = (q.get('stage') ?? '').trim()
   const category = (q.get('category') ?? '').trim()
   const overdue = q.get('overdue') === 'true' ? 1 : 0
+  const mine = q.get('mine') === 'true' ? 1 : 0
+  const search = (q.get('q') ?? '').trim().toLowerCase()
   const me = await callerEmployeeID(c)
-  const rows = await c.db.prepare(`SELECT ${rowColumns} ${rowJoins}
-      WHERE t.audience = 'school'
+  const filters = `t.audience = 'school'
         AND ${notAboutMe('t.subject_employee_id')}
-        AND (? = '' OR t.status = ?)
         AND (? = '' OR t.category = ?)
         AND (? = 0 OR (t.resolve_due_at IS NOT NULL AND t.resolved_at IS NULL AND julianday(t.resolve_due_at) < julianday('now')))
-      ORDER BY t.resolve_due_at NULLS LAST, t.created_at
-      LIMIT 300`)
-    .bind(me, me, status, status, category, category, overdue).all<Record<string, unknown>>()
-  return ok({ items: rows.results.map(feedbackRow) })
+        AND (? = 0 OR t.assigned_to = ?)
+        AND (? = '' OR instr(lower(t.subject || ' ' || t.body || ' ' || COALESCE(ru.full_name, '')), ?) > 0)`
+  const binds = [me, me, category, category, overdue, mine, c.id.userId, search, search]
+  const [rows, counts] = await Promise.all([
+    c.db.prepare(`SELECT ${rowColumns} ${rowJoins}
+      WHERE ${filters}
+        AND (? = '' OR t.status = ?)
+        AND (? = '' OR ${ticketStage('t')} = ?)
+      ORDER BY t.resolved_at IS NOT NULL, t.resolve_due_at NULLS LAST, t.created_at
+      LIMIT 300`).bind(...binds, status, status, stage, stage).all<Record<string, unknown>>(),
+    c.db.prepare(`SELECT ${ticketStage('t')} AS stage, count(*) AS n ${rowJoins} WHERE ${filters} GROUP BY 1`)
+      .bind(...binds).all<{ stage: string; n: number }>(),
+  ])
+  return ok({ items: rows.results.map(feedbackRow), counts: stageCounts(counts.results) })
 }
 
 async function getParentFeedback(c: Ctx): Promise<Response> {
   const ticket = ticketParam(c)
   const me = await callerEmployeeID(c)
   const v = await c.db.prepare(`SELECT ${rowColumns}, t.body, t.resolution,
-        NULLIF(${firstLast('se')}, '') AS subject_staff, t.satisfaction_note
+        NULLIF(${firstLast('se')}, '') AS subject_staff, t.satisfaction_note, f.original_name AS attachment_name
       ${rowJoins}
       LEFT JOIN employees se ON se.id = t.subject_employee_id
+      LEFT JOIN files f ON f.id = t.attachment_file_id AND f.deleted_at IS NULL
       WHERE t.id = ? AND t.audience = 'school' AND ${notAboutMe('t.subject_employee_id')}`)
     .bind(ticket, me, me).first<Record<string, unknown>>()
   if (!v) throw notFound()
   return ok(omitNull({ ...feedbackRow(v), body: v.body, resolution: v.resolution, subject_staff: v.subject_staff,
-    satisfaction_note: v.satisfaction_note }))
+    satisfaction_note: v.satisfaction_note,
+    attachment: v.attachment_name != null ? { id: v.attachment_file_id, name: v.attachment_name } : null }))
 }
 
 async function listFeedbackUpdates(c: Ctx): Promise<Response> {
@@ -132,6 +156,30 @@ async function listFeedbackUpdates(c: Ctx): Promise<Response> {
       ORDER BY g.created_at`).bind(ticket, me, me).all<Record<string, unknown>>()
   return ok({ items: rows.results.map(feedbackUpdateRow) })
 }
+
+/** Who a concern can be given to: the school's staff with an account, less the person it is about. */
+async function listAssignees(c: Ctx): Promise<Response> {
+  const rows = await c.db.prepare(`SELECT u.id, u.full_name AS name, d.name AS designation
+      FROM employees e JOIN users u ON u.id = e.user_id
+      LEFT JOIN designations d ON d.id = e.designation_id
+      WHERE e.status = 'active' AND u.status = 'active'
+      ORDER BY u.full_name LIMIT 500`).all<Record<string, unknown>>()
+  return ok({ items: rows.results.map((v) => omitNull({ id: v.id, name: v.name, designation: v.designation })) })
+}
+
+/** The raiser of a ticket, to tell them something moved. */
+async function raiserOf(c: Ctx, ticket: string): Promise<{ raised_by: string; subject: string; student_id: string | null } | null> {
+  return c.db.prepare(`SELECT raised_by, subject, student_id FROM support_tickets WHERE id = ?`).bind(ticket)
+    .first<{ raised_by: string; subject: string; student_id: string | null }>()
+}
+
+function tellRaiser(c: Ctx, r: { raised_by: string; subject: string; student_id: string | null } | null, ticket: string,
+  title: string, body: string | null): D1PreparedStatement[] {
+  if (!r || r.raised_by === c.id.userId) return []
+  return [notify(c, r.raised_by, title, body ?? r.subject, raiserLink(ticket), 'support_ticket', ticket, r.student_id)]
+}
+
+const officeLink = (id: string) => `/institution_admin/communication/grievances?id=${id}`
 
 async function triageParentFeedback(c: Ctx): Promise<Response> {
   const ticket = ticketParam(c)
@@ -162,11 +210,10 @@ async function triageParentFeedback(c: Ctx): Promise<Response> {
   if (clearSubject) effective = null
   else if (subjectEmp) effective = subjectEmp
 
-  const policy = await c.db.prepare(`SELECT respond_hours, resolve_hours, owner_department, default_owner_id
-      FROM grievance_sla_policies WHERE lower(category) = lower(?) AND is_active = 1`).bind(category)
-    .first<{ respond_hours: number | null; resolve_hours: number | null; owner_department: string | null; default_owner_id: string | null }>()
+  const policy = await policyFor(c, category)
   let department = trim(req.department)
   if (department === '' && policy?.owner_department != null) department = policy.owner_department
+  const explicitAssignee = assignee
   if (assignee === null && policy?.default_owner_id != null) assignee = policy.default_owner_id
 
   if (effective && assignee) {
@@ -178,7 +225,7 @@ async function triageParentFeedback(c: Ctx): Promise<Response> {
   const due = (col: string) => `CASE WHEN ? IS NULL THEN ${col}
       WHEN ${col} IS NULL OR ? = 1 THEN strftime('%Y-%m-%dT%H:%M:%fZ', julianday(created_at) + ? / 24.0)
       ELSE ${col} END`
-  await c.db.batch([
+  const stmts = [
     c.db.prepare(`UPDATE support_tickets
         SET category = ?, priority = COALESCE(NULLIF(?, ''), priority), owner_department = NULLIF(?, ''),
             assigned_to = COALESCE(?, assigned_to),
@@ -191,8 +238,38 @@ async function triageParentFeedback(c: Ctx): Promise<Response> {
         respondH, restamp ? 1 : 0, respondH, resolveH, restamp ? 1 : 0, resolveH, now(), ticket),
     feedbackUpdateStmt(c, ticket, 'assignment', `Triaged as ${category}, owner ${department.trim() === '' ? 'unassigned' : department}`,
       null, false, c.id.userId),
-  ])
+  ]
+  if (explicitAssignee && explicitAssignee !== c.id.userId) {
+    const r = await raiserOf(c, ticket)
+    stmts.push(notify(c, explicitAssignee, 'A concern has been given to you', r?.subject ?? null, officeLink(ticket), 'support_ticket', ticket))
+  }
+  await c.db.batch(stmts)
   return ok({ triaged: true })
+}
+
+/** Give a concern to one person. The raiser is not told who: only that it has an owner. */
+async function assignParentFeedback(c: Ctx): Promise<Response> {
+  const ticket = ticketParam(c)
+  const req = await readJSON<Record<string, unknown>>(c.req)
+  const to = trim(req.assigned_to)
+  if (!isUUID(to)) throw badRequest('assigned_to must be a uuid')
+  const me = await callerEmployeeID(c)
+  const cur = await lockTicket(c, ticket, me)
+  const who = await c.db.prepare(`SELECT u.full_name FROM users u JOIN employees e ON e.user_id = u.id WHERE u.id = ? LIMIT 1`)
+    .bind(to).first<{ full_name: string }>()
+  if (!who) throw badRequest('choose a member of staff')
+  if (cur.subject_employee_id) {
+    const same = await c.db.prepare(`SELECT 1 AS x FROM employees WHERE id = ? AND user_id = ?`).bind(cur.subject_employee_id, to).first()
+    if (same) throw forbidden(SELF_ROUTE)
+  }
+  const r = await raiserOf(c, ticket)
+  const stmts = [
+    c.db.prepare(`UPDATE support_tickets SET assigned_to = ?, updated_at = ? WHERE id = ?`).bind(to, now(), ticket),
+    feedbackUpdateStmt(c, ticket, 'assignment', `Assigned to ${who.full_name}`, null, false, c.id.userId),
+  ]
+  if (to !== c.id.userId) stmts.push(notify(c, to, 'A concern has been given to you', r?.subject ?? null, officeLink(ticket), 'support_ticket', ticket))
+  await c.db.batch(stmts)
+  return ok({ assigned: true, assigned_to: who.full_name })
 }
 
 async function addFeedbackUpdate(c: Ctx): Promise<Response> {
@@ -207,17 +284,25 @@ async function addFeedbackUpdate(c: Ctx): Promise<Response> {
   const visible = optBool(req.visible_to_parent) === true
   const me = await callerEmployeeID(c)
   await lockTicket(c, ticket, me)
-  let kind = visible ? 'reply' : 'note'
+  const r = await raiserOf(c, ticket)
+  const t = now()
   const stmts: D1PreparedStatement[] = []
   if (newStatus !== '') {
-    kind = 'status'
-    stmts.push(c.db.prepare(`UPDATE support_tickets SET status = ?, updated_at = ? WHERE id = ?`).bind(newStatus, now(), ticket))
+    stmts.push(c.db.prepare(`UPDATE support_tickets SET status = ?, updated_at = ? WHERE id = ?`).bind(newStatus, t, ticket))
   }
   if (visible) {
     stmts.push(c.db.prepare(`UPDATE support_tickets SET acknowledged_at = COALESCE(acknowledged_at, ?), updated_at = ? WHERE id = ?`)
-      .bind(now(), now(), ticket))
+      .bind(t, t, ticket))
   }
-  stmts.push(feedbackUpdateStmt(c, ticket, kind, body, newStatus === '' ? null : newStatus, visible, c.id.userId))
+  if (newStatus !== '' && visible) {
+    stmts.push(feedbackUpdateStmt(c, ticket, 'status', body, newStatus, true, c.id.userId))
+  } else {
+    stmts.push(feedbackUpdateStmt(c, ticket, visible ? 'reply' : 'note', body, null, visible, c.id.userId))
+    // A stage change is always the raiser's to know, even when the words beside it are internal.
+    if (newStatus !== '') stmts.push(feedbackUpdateStmt(c, ticket, 'status', `Status changed to ${STAGE_LABEL[newStatus] ?? newStatus}.`, newStatus, true, c.id.userId))
+  }
+  if (visible) stmts.push(...tellRaiser(c, r, ticket, 'The school replied to your concern', body))
+  else if (newStatus !== '') stmts.push(...tellRaiser(c, r, ticket, `Your concern is now: ${STAGE_LABEL[newStatus] ?? newStatus}`, null))
   await c.db.batch(stmts)
   return created({ added: true })
 }
@@ -226,14 +311,31 @@ async function acknowledgeParentFeedback(c: Ctx): Promise<Response> {
   const ticket = ticketParam(c)
   const me = await callerEmployeeID(c)
   await lockTicket(c, ticket, me)
+  const r = await raiserOf(c, ticket)
   await c.db.batch([
-    c.db.prepare(`UPDATE support_tickets
-        SET acknowledged_at = COALESCE(acknowledged_at, ?),
-            status = CASE WHEN status = 'open' THEN 'in_progress' ELSE status END, updated_at = ?
-        WHERE id = ?`).bind(now(), now(), ticket),
-    feedbackUpdateStmt(c, ticket, 'status', 'The school has picked this up and is looking into it.', 'in_progress', true, c.id.userId),
+    c.db.prepare(`UPDATE support_tickets SET acknowledged_at = COALESCE(acknowledged_at, ?), updated_at = ? WHERE id = ?`)
+      .bind(now(), now(), ticket),
+    feedbackUpdateStmt(c, ticket, 'status', 'The school has received your concern and will look into it.', null, true, c.id.userId),
+    ...tellRaiser(c, r, ticket, 'Your concern has been acknowledged', null),
   ])
   return ok({ ok: true })
+}
+
+/** Quick action: work has started. Acknowledges it too, if nobody had. */
+async function startParentFeedback(c: Ctx): Promise<Response> {
+  const ticket = ticketParam(c)
+  const me = await callerEmployeeID(c)
+  await lockTicket(c, ticket, me)
+  const r = await raiserOf(c, ticket)
+  const t = now()
+  await c.db.batch([
+    c.db.prepare(`UPDATE support_tickets SET status = 'in_progress', acknowledged_at = COALESCE(acknowledged_at, ?),
+        assigned_to = COALESCE(assigned_to, ?), updated_at = ? WHERE id = ? AND status IN ('open', 'waiting')`)
+      .bind(t, c.id.userId, t, ticket),
+    feedbackUpdateStmt(c, ticket, 'status', 'The school is working on this now.', 'in_progress', true, c.id.userId),
+    ...tellRaiser(c, r, ticket, 'Your concern is now: In progress', null),
+  ])
+  return ok({ status: 'in_progress' })
 }
 
 async function escalateParentFeedback(c: Ctx): Promise<Response> {
@@ -249,12 +351,44 @@ async function escalateParentFeedback(c: Ctx): Promise<Response> {
     const same = await c.db.prepare(`SELECT 1 AS x FROM employees WHERE id = ? AND user_id = ?`).bind(cur.subject_employee_id, to).first()
     if (same) throw forbidden(SELF_ROUTE)
   }
+  const r = await raiserOf(c, ticket)
   await c.db.batch([
     c.db.prepare(`UPDATE support_tickets SET escalated_at = ?, escalated_to = ?, priority = 'high', updated_at = ? WHERE id = ?`)
       .bind(now(), to, now(), ticket),
     feedbackUpdateStmt(c, ticket, 'escalation', reason, null, false, c.id.userId),
+    ...(to !== c.id.userId ? [notify(c, to, 'A concern has been escalated to you', reason, officeLink(ticket), 'support_ticket', ticket)] : []),
+    ...tellRaiser(c, r, ticket, 'Your concern has been escalated', 'It has been raised to a senior member of staff.'),
   ])
   return ok({ escalated: true })
+}
+
+/* Escalate every open concern past its resolution deadline that nobody has
+   escalated yet, to one person. The office's answer to "the SLA was breached":
+   one press rather than a case at a time. */
+async function escalateOverdue(c: Ctx): Promise<Response> {
+  const req = await readJSON<Record<string, unknown>>(c.req)
+  const to = trim(req.to_user_id)
+  if (!isUUID(to)) throw badRequest('to_user_id must be a uuid')
+  const me = await callerEmployeeID(c)
+  const target = await c.db.prepare(`SELECT id FROM employees WHERE user_id = ? LIMIT 1`).bind(to).first<{ id: string }>()
+  const rows = await c.db.prepare(`SELECT t.id, t.subject FROM support_tickets t
+      WHERE t.audience = 'school' AND t.resolved_at IS NULL AND t.escalated_at IS NULL
+        AND ${resolveBreached('t')} AND ${notAboutMe('t.subject_employee_id')}
+        AND (? IS NULL OR t.subject_employee_id IS NULL OR t.subject_employee_id <> ?)
+      LIMIT 100`).bind(me, me, target?.id ?? null, target?.id ?? null).all<{ id: string; subject: string }>()
+  if (!rows.results.length) return ok({ escalated: 0 })
+  const t = now()
+  const stmts: D1PreparedStatement[] = []
+  for (const r of rows.results) {
+    stmts.push(c.db.prepare(`UPDATE support_tickets SET escalated_at = ?, escalated_to = ?, priority = 'high', updated_at = ? WHERE id = ?`).bind(t, to, t, r.id))
+    stmts.push(feedbackUpdateStmt(c, r.id, 'escalation', 'Escalated: past its resolution deadline.', null, false, c.id.userId))
+  }
+  if (to !== c.id.userId) {
+    stmts.push(notify(c, to, `${rows.results.length} overdue concern${rows.results.length === 1 ? '' : 's'} escalated to you`,
+      rows.results.map((r) => r.subject).join('; '), '/institution_admin/communication/grievances', 'support_ticket', rows.results[0].id))
+  }
+  await c.db.batch(stmts)
+  return ok({ escalated: rows.results.length })
 }
 
 async function resolveParentFeedback(c: Ctx): Promise<Response> {
@@ -265,6 +399,7 @@ async function resolveParentFeedback(c: Ctx): Promise<Response> {
   const status = req.status === 'closed' ? 'closed' : 'resolved'
   const me = await callerEmployeeID(c)
   await lockTicket(c, ticket, me)
+  const r = await raiserOf(c, ticket)
   const t = now()
   await c.db.batch([
     c.db.prepare(`UPDATE support_tickets
@@ -272,6 +407,7 @@ async function resolveParentFeedback(c: Ctx): Promise<Response> {
             acknowledged_at = COALESCE(acknowledged_at, ?), updated_at = ?
         WHERE id = ?`).bind(status, resolution, t, c.id.userId || null, t, t, ticket),
     feedbackUpdateStmt(c, ticket, 'resolution', resolution, status, true, c.id.userId),
+    ...tellRaiser(c, r, ticket, status === 'closed' ? 'Your concern has been closed' : 'Your concern has been resolved', resolution),
   ])
   return ok({ status })
 }
@@ -329,6 +465,7 @@ async function listFeedbackSLA(c: Ctx): Promise<Response> {
   const rows = await c.db.prepare(`SELECT p.category, p.owner_department AS department, u.full_name AS default_owner,
         p.respond_hours, p.resolve_hours, p.is_sensitive, p.is_active
       FROM grievance_sla_policies p LEFT JOIN users u ON u.id = p.default_owner_id
+      WHERE p.category NOT LIKE 'staff:%'
       ORDER BY p.category`).all<Record<string, unknown>>()
   return ok({ items: rows.results.map((v) => omitNull({ category: v.category, department: v.department, default_owner: v.default_owner,
     respond_hours: Number(v.respond_hours), resolve_hours: Number(v.resolve_hours), is_sensitive: bool(v.is_sensitive), is_active: bool(v.is_active) })) })
@@ -377,11 +514,15 @@ export function registerGrievances(r: Router): void {
   const write = (h: (c: Ctx) => Promise<Response>) => async (c: Ctx) => { requirePerm(c, READ); return h(c) }
   r.get('/comms/grievances', READ, listParentFeedback)
   r.get('/comms/grievances/summary', READ, getFeedbackSummary)
+  r.get('/comms/grievances/assignees', READ, listAssignees)
+  r.post('/comms/grievances/escalate-overdue', WRITE, write(escalateOverdue))
   r.get('/comms/grievances/{id}', READ, getParentFeedback)
   r.get('/comms/grievances/{id}/updates', READ, listFeedbackUpdates)
   r.put('/comms/grievances/{id}/triage', WRITE, write(triageParentFeedback))
   r.post('/comms/grievances/{id}/updates', WRITE, write(addFeedbackUpdate))
   r.post('/comms/grievances/{id}/acknowledge', WRITE, write(acknowledgeParentFeedback))
+  r.post('/comms/grievances/{id}/start', WRITE, write(startParentFeedback))
+  r.put('/comms/grievances/{id}/assign', WRITE, write(assignParentFeedback))
   r.post('/comms/grievances/{id}/escalate', WRITE, write(escalateParentFeedback))
   r.post('/comms/grievances/{id}/resolve', WRITE, write(resolveParentFeedback))
 
