@@ -166,28 +166,63 @@ try {
   const ask = (go: () => void) => {
     if (asking) return
     asking = true
+    /* The question, drawn to the product's own soft-grey sheet: an icon, the
+       question, the consequence, and two answers of equal weight. Not the red
+       of a destructive button -- signing out destroys nothing, and dressing it
+       as deletion teaches people to ignore the colour that means deletion.
+
+       Tokens, not the mock-up's fixed greys, so it follows the theme; the
+       greys are the fallbacks, which is what a browser without the tokens
+       gets. The one colour that is NOT a token is this button's grey: the
+       --foreground token is near-black, and a black slab reads as a warning
+       rather than as the way out. A mid-grey sits correctly on the card in
+       either theme, which is the whole reason the mock-up chose one.
+       Margin rather than flex `gap` between the buttons: the tablets in
+       these schools are old enough to lay a gap out as nothing at all. */
+    const style = document.createElement('style')
+    style.textContent =
+      '@keyframes erp-signout-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}' +
+      '@media (prefers-reduced-motion:reduce){.erp-signout-box{animation:none!important}}'
     const back = document.createElement('div')
     back.setAttribute('role', 'presentation')
     back.style.cssText =
       'position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;' +
-      'padding:16px;background:rgba(11,20,26,.42)'
+      'padding:20px;background:rgba(11,20,26,.42)'
     const box = document.createElement('div')
+    box.className = 'erp-signout-box'
     box.setAttribute('role', 'alertdialog')
     box.setAttribute('aria-modal', 'true')
     box.setAttribute('aria-labelledby', 'signout-q')
+    box.setAttribute('aria-describedby', 'signout-d')
     box.style.cssText =
-      'width:100%;max-width:360px;border-radius:16px;padding:20px;' +
-      'background:hsl(var(--card,0 0% 100%));color:hsl(var(--card-foreground,222 47% 11%));' +
-      'box-shadow:0 18px 45px rgba(11,20,26,.28);font:14px/1.45 system-ui,sans-serif'
+      'width:100%;max-width:360px;border-radius:12px;padding:32px;text-align:center;' +
+      'background:hsl(var(--card,0 0% 100%));color:hsl(var(--card-foreground,215 8% 25%));' +
+      'border:1px solid hsl(var(--border,214 16% 90%));' +
+      'box-shadow:0 12px 32px rgba(95,99,104,.16),0 2px 8px rgba(95,99,104,.08);' +
+      'font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;' +
+      'animation:erp-signout-in .4s ease-out both'
     box.innerHTML =
-      '<p id="signout-q" style="margin:0;font-size:16px;font-weight:600">Sign out?</p>' +
-      '<p style="margin:6px 0 0;opacity:.75">Anything you have not saved on this screen will be lost.</p>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">' +
-      '<button type="button" data-no style="min-height:40px;padding:0 16px;border-radius:10px;cursor:pointer;' +
-      'border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;font:inherit;font-weight:600">Stay</button>' +
-      '<button type="button" data-yes style="min-height:40px;padding:0 16px;border-radius:10px;cursor:pointer;' +
-      'border:0;background:hsl(var(--destructive,0 72% 51%));color:#fff;font:inherit;font-weight:600">Sign out</button>' +
+      '<div style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;' +
+      'margin:0 auto 20px;border-radius:50%;background:hsl(var(--muted,220 14% 96%));' +
+      'color:hsl(var(--muted-foreground,220 6% 46%))">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" ' +
+      'stroke-width="1.5" stroke="currentColor" aria-hidden="true">' +
+      '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 ' +
+      '2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"/>' +
+      '</svg></div>' +
+      '<p id="signout-q" style="margin:0;font-size:18px;font-weight:500">Ready to leave?</p>' +
+      '<p id="signout-d" style="margin:12px 0 32px;font-size:14.5px;line-height:1.5;' +
+      'color:hsl(var(--muted-foreground,220 6% 46%))">If you sign out now, any unsaved work will be ' +
+      'lost. Make sure you have saved everything you need.</p>' +
+      '<div style="display:flex">' +
+      '<button type="button" data-no style="flex:1;min-height:44px;padding:12px 16px;border-radius:8px;' +
+      'cursor:pointer;border:0;background:hsl(var(--muted,220 14% 96%));color:inherit;font:inherit;' +
+      'font-weight:500">Stay here</button>' +
+      '<button type="button" data-yes style="flex:1;min-height:44px;margin-left:12px;padding:12px 16px;' +
+      'border-radius:8px;cursor:pointer;border:0;background:#5f6368;' +
+      'color:#fff;font:inherit;font-weight:500">Sign out</button>' +
       '</div>'
+    back.appendChild(style)
     back.appendChild(box)
     const close = () => {
       asking = false
