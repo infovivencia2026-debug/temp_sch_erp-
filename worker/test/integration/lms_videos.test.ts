@@ -196,7 +196,7 @@ describe('who may play', () => {
     r = await (await post({ position: 58, watched: '000000111110' })).json() as any
     expect(r).toMatchObject({ percent: 92, done: true })
     const c = await (await call(`/api/v1/portal/lms/course?class_subject_id=${IDS.classSubject}`, { cookie: child })).json() as any
-    const l = c.units.flatMap((x: { lessons: unknown[] }) => x.lessons).find((x: { id: string }) => x.id === lesson)
+    const l = c.modules.flatMap((m: any) => m.days).flatMap((d: any) => d.items).find((i: any) => i.id === lesson)?.lesson
     expect(l).toMatchObject({ done: true, video_position: 58, video_percent: 92 })
     const g = await (await call(`/api/v1/portal/lms/lessons/${lesson}/video-progress`, { cookie: child })).json() as any
     expect(g).toMatchObject({ position: 58, percent: 92, bucket_seconds: 5 })

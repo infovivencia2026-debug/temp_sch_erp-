@@ -22,6 +22,8 @@ let chirag = ''
 const K = `section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`
 const course = async () => (await api('teacher', 'GET', `/lms/course?${K}`)).body
 const mine = async () => (await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)).body
+/** A module's lessons as the child gets them (0012: modules > days > items). */
+const lessonsOf = (d: any, unit: string) => (d.modules.find((m: { id: string }) => m.id === unit)?.days ?? []).flatMap((x: any) => x.items).filter((i: any) => i.type === 'lesson').map((i: any) => i.lesson)
 
 beforeAll(async () => {
   await seed()
@@ -31,6 +33,8 @@ beforeAll(async () => {
   const s = await signIn(row.sign_in_as, row.password)
   await raw(s.cookie!, 'POST', '/profile/password', { current_password: row.password, new_password: 'chirag-module-password-1' })
   chirag = s.cookie!
+  // One-by-one gating has its own tests (lms_progression.test.ts); here every module is open.
+  expect((await api('teacher', 'PUT', '/lms/course/settings', { section_id: IDS.section, class_subject_id: IDS.classSubject, gating: 'open' })).status).toBe(200)
 })
 
 describe('modules', () => {
@@ -136,11 +140,14 @@ describe('modules', () => {
     expect((await api('teacher', 'POST', `/lms/lessons/${src.image}/publish`, { is_published: false })).status).toBe(200)
     expect((await api('teacher', 'POST', `/lms/lessons/${src.audio}/publish`, { is_published: true, publish_at: future })).status).toBe(200)
     const d = await mine()
-    const u = d.units.find((x: { id: string }) => x.id === m1)
-    const ids = u.lessons.map((l: { id: string }) => l.id)
+    const u = d.modules.find((x: { id: string }) => x.id === m1)
+    const ls = lessonsOf(d, m1)
+    const ids = ls.map((l: { id: string }) => l.id)
     expect(ids).toContain(src.notes)
     expect(ids).not.toContain(src.image)
-    expect(ids).not.toContain(src.audio)
+    // Scheduled: on its day, but only the title, and it cannot be opened.
+    const sched = ls.find((l: { id: string }) => l.id === src.audio)
+    expect(sched).toMatchObject({ scheduled: true, url: null })
     expect(u).toMatchObject({ starts_on: '2026-10-01', ends_on: '2026-10-07' })
     // Opening or finishing a hidden one is a 404.
     expect((await raw(chirag, 'POST', `/portal/lms/lessons/${src.audio}/complete`, {})).status).toBe(404)
@@ -151,7 +158,7 @@ describe('modules', () => {
     expect(t.find((l: { id: string }) => l.id === src.audio).publish_at).toBe(future)
     // Due now: it appears.
     await api('teacher', 'POST', `/lms/lessons/${src.audio}/publish`, { is_published: true, publish_at: new Date(Date.now() - 60_000).toISOString() })
-    expect((await mine()).units.find((x: { id: string }) => x.id === m1).lessons.map((l: { id: string }) => l.id)).toContain(src.audio)
+    expect(lessonsOf(await mine(), m1).find((l: { id: string }) => l.id === src.audio)).toMatchObject({ scheduled: false, url: 'https://example.org/song.mp3' })
     // The quiz and assignment carry their module.
     const again = await mine()
     expect(again.assignments.find((x: { id: string }) => x.id === hw).lms_unit_id).toBe(m1)
@@ -160,19 +167,19 @@ describe('modules', () => {
 
   it('"new" until opened, and "continue where you left off"', async () => {
     let d = await mine()
-    let ls = d.units.find((x: { id: string }) => x.id === m1).lessons
+    let ls = lessonsOf(d, m1)
     expect(ls.find((l: { id: string }) => l.id === src.video).is_new).toBe(true)
     expect(d.resume).toMatchObject({ started: false })
     expect((await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/view`, {})).status).toBe(200)
     d = await mine()
-    ls = d.units.find((x: { id: string }) => x.id === m1).lessons
+    ls = lessonsOf(d, m1)
     expect(ls.find((l: { id: string }) => l.id === src.video).is_new).toBe(false)
-    expect(d.resume).toMatchObject({ lesson_id: src.video, unit_id: m1, started: true })
+    expect(d.resume).toMatchObject({ type: 'lesson', id: src.video, unit_id: m1, started: true })
     // A parent opening it records nothing.
     expect((await api('parent', 'POST', `/portal/lms/lessons/${src.notes}/view`, {})).body.recorded).toBe(false)
     // Finished: resume moves on.
     await raw(chirag, 'POST', `/portal/lms/lessons/${src.video}/complete`, {})
-    expect((await mine()).resume.lesson_id).not.toBe(src.video)
+    expect((await mine()).resume.id).not.toBe(src.video)
   })
 
   it('the teacher sees who has completed the module', async () => {

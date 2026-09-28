@@ -178,11 +178,12 @@ describe('the LMS', () => {
     expect(m).toMatchObject({ lessons: 2, completed: 0 })
     expect((await raw(chirag, 'POST', `/portal/lms/lessons/${lesson}/complete`, {})).status).toBe(200)
     const after = await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
-    const ls = after.body.units[0].lessons
+    const lessonsOf = (b: any) => b.modules.flatMap((m: any) => m.days).flatMap((d: any) => d.items).filter((i: any) => i.type === 'lesson').map((i: any) => i.lesson)
+    const ls = lessonsOf(after.body)
     expect(ls.find((x: { id: string }) => x.id === lesson).done).toBe(true)
     // Diya's progress is her own.
     const d = await raw(diya, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
-    expect(d.body.units[0].lessons.find((x: { id: string }) => x.id === lesson).done).toBe(false)
+    expect(lessonsOf(d.body).find((x: { id: string }) => x.id === lesson).done).toBe(false)
     // A parent reads but does not do the child's work.
     expect((await api('parent', 'POST', `/portal/lms/lessons/${lesson}/complete`, {})).status).toBe(403)
     const pv = await api('parent', 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}&student_id=${IDS.child}`)
@@ -285,11 +286,15 @@ describe('scheduled lessons and the LMS Admin role', () => {
     expect(l.status).toBe(200)
     const teacherView = await api('teacher', 'GET', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`)
     expect(teacherView.body.units[0].lessons.find((x: { id: string }) => x.id === l.body.id)).toMatchObject({ day: 2, publish_at: later })
+    // Since 0012 it stands on its day as a title with its opening time, with none of its content.
+    const find = (b: any) => b.modules.flatMap((m: any) => m.days).flatMap((d: any) => d.items).find((i: any) => i.id === l.body.id)?.lesson
     const kid = await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
-    expect(JSON.stringify(kid.body)).not.toContain(l.body.id)
+    expect(find(kid.body)).toMatchObject({ scheduled: true, body: null })
+    expect(JSON.stringify(kid.body)).not.toContain('Not yet.')
+    expect((await raw(chirag, 'POST', `/portal/lms/lessons/${l.body.id}/complete`, {})).status).toBe(404)
     await T().prepare(`UPDATE lms_lessons SET publish_at = ? WHERE id = ?`).bind(new Date(Date.now() - 1000).toISOString(), l.body.id).run()
     const now = await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
-    expect(JSON.stringify(now.body)).toContain(l.body.id)
+    expect(find(now.body)).toMatchObject({ scheduled: false, body: 'Not yet.' })
   })
 
   it('installs as an optional role, is granted beside another role, and reaches every course', async () => {

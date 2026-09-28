@@ -3,6 +3,7 @@ import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, 
 import { fullName, institutionId, resolveScope, todayIST } from '../teaching/common'
 import { notifyMany, parseRubric } from '../teaching/lms'
 import { bucketFor, mergeWatched } from '../teaching/videos'
+import { assertOpen, computeSteps, dayName, loadProgress, loadStructure, satisfied, type PItem } from '../teaching/lms_progress'
 
 /* The child's side of the LMS (the teacher's is teaching/lms.ts).
 
@@ -47,6 +48,17 @@ async function classroom(c: Ctx, studentId: string) {
 
 const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
   AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
+
+/** One by one: refuse a child's work on a source, quiz or assignment whose day is still locked (403, code 'locked'). */
+async function gate(c: Ctx, sid: string, section: string, type: PItem['type'], id: string) {
+  const row = type === 'lesson'
+    ? await c.db.prepare(`SELECT su.class_subject_id AS cs FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id WHERE l.id = ?`).bind(id).first<{ cs: string }>()
+    : await c.db.prepare(`SELECT class_subject_id AS cs FROM ${type === 'quiz' ? 'online_tests' : 'homework'} WHERE id = ? AND lms_unit_id IS NOT NULL`).bind(id).first<{ cs: string }>()
+  if (!row?.cs) return
+  const st = await loadStructure(c, section, row.cs, true)
+  const p = (await loadProgress(c, st, [sid])).get(sid)!
+  assertOpen(st, computeSteps(st, p), type, id)
+}
 
 async function todo(c: Ctx, sid: string, section: string, classId: string) {
   const today = todayIST()
@@ -112,13 +124,14 @@ export function registerPortalLMS(r: Router) {
     const [units, lessons, hw, quizzes] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
       c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
-          l.url, l.sequence, l.day, l.duration_minutes, p.completed_at, vw.last_at AS viewed_at, max(COALESCE(l.publish_at, l.created_at), l.created_at) AS released_at,
+          l.url, l.sequence, l.day, l.duration_minutes, COALESCE(l.section, 'resources') AS section, l.is_optional, l.publish_at, p.completed_at, vw.last_at AS viewed_at, max(COALESCE(l.publish_at, l.created_at), l.created_at) AS released_at,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           vp.position_seconds AS video_position, vp.percent AS video_percent, vp.watched AS video_watched, vp.bucket_seconds AS video_bucket
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
           LEFT JOIN lms_videos v ON v.id = l.video_id AND v.status = 'ready' LEFT JOIN lms_video_progress vp ON vp.lesson_id = l.id AND vp.student_id = ?
           LEFT JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ? LEFT JOIN lms_lesson_views vw ON vw.lesson_id = l.id AND vw.student_id = ?
-          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.sequence, l.created_at`).bind(sid, sid, sid, cs, k.section_id),
+          WHERE su.class_subject_id = ? AND l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
+          ORDER BY l.sequence, l.created_at`).bind(sid, sid, sid, cs, k.section_id),
       c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
           h.lms_unit_id, h.lms_sequence, COALESCE(hs.status, 'pending') AS status, hs.submitted_at, hs.text_answer, hs.file_id, f.original_name AS file_name, hs.returned_at,
           CASE WHEN hs.returned_at IS NOT NULL THEN CAST(hs.marks AS REAL) END AS marks,
@@ -136,31 +149,66 @@ export function registerPortalLMS(r: Router) {
           FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = ? AND t.status IN ('published','closed') ORDER BY t.created_at DESC`).bind(sid, sid, sid, k.section_id, cs),
     ])
     const today = todayIST(), t = now()
+    /* One by one: every day's state for this child (lms_progress.ts). */
+    const st = await loadStructure(c, k.section_id, cs, true)
+    const prog = (await loadProgress(c, st, [sid])).get(sid)!
+    const states = computeSteps(st, prog)
+    const stepOf = new Map<string, number>()
+    st.steps.forEach((x, i) => x.items.forEach((it) => stepOf.set(`${it.type}:${it.id}`, i)))
+    const lockedOf = (type: string, id: string) => { const i = stepOf.get(`${type}:${id}`); return i !== undefined && states[i].state === 'locked' }
     /* "New": out in the last week and not opened yet. */
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
-    const ls: Record<string, unknown>[] = (lessons.results as Record<string, unknown>[]).map((l) => ({ ...l, done: !!l.completed_at, is_new: !l.viewed_at && !l.completed_at && String(l.released_at) >= weekAgo }))
-    const inModule = new Set([...(hw.results as { lms_unit_id: string | null }[]), ...(quizzes.results as { lms_unit_id: string | null }[])].map((x) => x.lms_unit_id).filter(Boolean))
-    /* Continue where you left off: the source opened last that is not done, else the first not done. */
-    const open = ls.filter((l) => !l.done)
-    const last = [...open].filter((l) => l.viewed_at).sort((a, b) => String(b.viewed_at).localeCompare(String(a.viewed_at)))[0]
-    const unitSeq = new Map((units.results as { id: string; sequence: number }[]).map((u) => [u.id, u.sequence]))
-    const first = [...open].sort((a, b) => (unitSeq.get(String(a.unit_id)) ?? 0) - (unitSeq.get(String(b.unit_id)) ?? 0) || Number(a.sequence) - Number(b.sequence))[0]
-    const next = last ?? first
+    const lessonRows = new Map<string, Record<string, unknown>>((lessons.results as Record<string, unknown>[]).map((l) => {
+      const locked = lockedOf('lesson', String(l.id)), scheduled = !!l.publish_at && String(l.publish_at) > t
+      /* Locked or not out yet: the title and kind only, never the content. */
+      const hide = locked || scheduled
+      return [String(l.id), { ...l, is_optional: !!l.is_optional, done: !!l.completed_at, locked, scheduled,
+        is_new: !hide && !l.viewed_at && !l.completed_at && String(l.released_at) >= weekAgo,
+        ...(hide ? { body: null, url: null, file_id: null, video_id: null, video_watched: null } : {}) }]
+    }))
+    const hwRows = new Map<string, Record<string, unknown>>((hw.results as Record<string, unknown>[]).map((h) => {
+      let files: unknown[] = [], rs: unknown = null
+      try { files = JSON.parse(String(h.files)) } catch { files = [] }
+      try { rs = h.rubric_scores ? JSON.parse(String(h.rubric_scores)) : null } catch { rs = null }
+      const submitted = !!h.submitted_at && h.status !== 'resubmit'
+      const locked = lockedOf('assignment', String(h.id))
+      return [String(h.id), { ...h, files: locked ? [] : files, instructions: locked ? null : h.instructions, rubric: parseRubric(h.rubric), rubric_scores: rs, allow_submission: !!h.allow_submission,
+        overdue: !submitted && !!h.due_on && String(h.due_on) < today, late: h.status === 'late', locked }]
+    }))
+    const qRows = new Map<string, Record<string, unknown>>((quizzes.results as Record<string, unknown>[]).map((q) => {
+      const locked = lockedOf('quiz', String(q.id))
+      return [String(q.id), { ...q, locked, instructions: locked ? null : q.instructions,
+        open: !locked && (!q.opens_at || String(q.opens_at) <= t) && (!q.closes_at || String(q.closes_at) > t) && Number(q.attempts) < Number(q.max_attempts) }]
+    }))
+    const itemOut = (i: PItem, state: string) => ({ type: i.type, id: i.id, section: i.section, required: i.required, done: satisfied(i, prog),
+      pass_percent: i.pass_percent, locked: state === 'locked',
+      ...(i.type === 'lesson' ? { lesson: lessonRows.get(i.id) ?? null } : {}) })
+    const modules = st.units.map((u) => {
+      const idx = st.steps.map((x, i) => (x.unit_id === u.id ? i : -1)).filter((i) => i >= 0)
+      const days = idx.map((i) => {
+        const x = st.steps[i], ss = states[i]
+        return { key: x.key, day: x.day, label: x.label, name: dayName(x.day, x.label), state: ss.state, reason: ss.reason, done: ss.done, total: ss.total,
+          opens_at: ss.opens_at, items: x.items.map((it) => itemOut(it, ss.state)).filter((it) => it.type !== 'lesson' || it.lesson) }
+      })
+      const done = days.filter((d) => d.state === 'done').length
+      return { id: u.id, title: u.title, description: u.description, starts_on: u.starts_on, ends_on: u.ends_on, parent_unit_id: u.parent_unit_id,
+        state: !days.length ? 'empty' : done === days.length ? 'done' : days[0].state === 'locked' ? 'locked' : 'open', days_done: done, days: days }
+    }).filter((m) => m.days.length > 0 || st.units.some((x) => x.parent_unit_id === m.id))
+    /* Continue: the open source opened last and not done, else the first open one not done. */
+    const flat = modules.flatMap((m) => m.days.flatMap((d) => d.items.map((it) => ({ m, d, it }))))
+    const todoItems = flat.filter((x) => !x.it.locked && !x.it.done && !(x.it.lesson && (x.it.lesson as { scheduled?: boolean }).scheduled))
+    const seen = todoItems.filter((x) => x.it.lesson && (x.it.lesson as { viewed_at?: string | null }).viewed_at)
+      .sort((a, b) => String((b.it.lesson as { viewed_at: string }).viewed_at).localeCompare(String((a.it.lesson as { viewed_at: string }).viewed_at)))[0]
+    const nx = seen ?? todoItems[0]
+    const titleOf = (x: typeof flat[number]) => x.it.type === 'lesson' ? String((x.it.lesson as { title: string }).title)
+      : String((x.it.type === 'quiz' ? qRows.get(x.it.id) : hwRows.get(x.it.id))?.title ?? '')
+    const kindOf = (x: typeof flat[number]) => x.it.type === 'lesson' ? String((x.it.lesson as { kind: string }).kind) : x.it.type
     return ok({
-      student_id: sid, course: co, today,
-      resume: next ? { lesson_id: next.id, unit_id: next.unit_id, title: next.title, kind: next.kind, started: !!last } : null,
-      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, id: String(u.id), lessons: ls.filter((l) => l.unit_id === u.id) }))
-        .filter((u) => u.lessons.length > 0 || inModule.has(u.id)),
-      assignments: (hw.results as Record<string, unknown>[]).map((h) => {
-        let files: unknown[] = [], rs: unknown = null
-        try { files = JSON.parse(String(h.files)) } catch { files = [] }
-        try { rs = h.rubric_scores ? JSON.parse(String(h.rubric_scores)) : null } catch { rs = null }
-        const submitted = !!h.submitted_at && h.status !== 'resubmit'
-        return { ...h, files, rubric: parseRubric(h.rubric), rubric_scores: rs, allow_submission: !!h.allow_submission,
-          overdue: !submitted && !!h.due_on && String(h.due_on) < today, late: h.status === 'late' }
-      }),
-      quizzes: (quizzes.results as Record<string, unknown>[]).map((q) => ({ ...q,
-        open: (!q.opens_at || String(q.opens_at) <= t) && (!q.closes_at || String(q.closes_at) > t) && Number(q.attempts) < Number(q.max_attempts) })),
+      student_id: sid, course: co, today, gating: st.gating,
+      resume: nx ? { type: nx.it.type, id: nx.it.id, unit_id: nx.m.id, day_key: nx.d.key, day_name: nx.d.name, section: nx.it.section, title: titleOf(nx), kind: kindOf(nx), started: !!seen } : null,
+      modules,
+      assignments: [...hwRows.values()],
+      quizzes: [...qRows.values()],
     })
   })
 
@@ -205,6 +253,7 @@ export function registerPortalLMS(r: Router) {
     const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
         WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
     if (!l) throw notFound()
+    await gate(c, own.id, k.section_id, 'lesson', l.id)
     const t = now()
     await c.db.prepare(`INSERT INTO lms_lesson_views (institution_id, lesson_id, student_id, first_at, last_at) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (lesson_id, student_id) DO UPDATE SET last_at = excluded.last_at`).bind(institutionId(c), l.id, own.id, t, t).run()
@@ -219,6 +268,7 @@ export function registerPortalLMS(r: Router) {
     const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
         WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
     if (!l) throw notFound()
+    await gate(c, me.id, k.section_id, 'lesson', l.id)
     const b = await readJSON<Body>(c.req).catch(() => ({} as Body))
     if (b.done === false) {
       await c.db.prepare(`DELETE FROM lms_lesson_progress WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id).run()
@@ -251,6 +301,7 @@ export function registerPortalLMS(r: Router) {
         JOIN lms_videos v ON v.id = l.video_id AND v.status = 'ready' WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`)
       .bind(id, k.class_id, k.section_id).first<{ id: string; video_id: string; duration_seconds: number | null }>()
     if (!l) throw notFound()
+    await gate(c, me.id, k.section_id, 'lesson', l.id)
     const b = await readJSON<Body>(c.req)
     const dur = l.duration_seconds && l.duration_seconds > 0 ? l.duration_seconds : Number(b.duration)
     if (!(dur > 0)) throw badRequest('duration is required')
@@ -282,6 +333,7 @@ export function registerPortalLMS(r: Router) {
       .bind(id, k.section_id).first<{ id: string; title: string; due_on: string | null; allow_submission: number; created_by: string | null }>()
     if (!h) throw notFound()
     if (!h.allow_submission) throw badRequest('this work is done in class or in the notebook, not handed in here')
+    await gate(c, me.id, k.section_id, 'assignment', h.id)
     const b = await readJSON<Body>(c.req)
     const text = typeof b.text_answer === 'string' ? b.text_answer.trim().slice(0, 20_000) : ''
     const fileId = str(b.file_id)
@@ -315,6 +367,7 @@ export function registerPortalLMS(r: Router) {
     const q = await c.db.prepare(`SELECT id, title, instructions, opens_at, closes_at, duration_minutes, max_attempts, shuffle_questions, status FROM online_tests WHERE id = ? AND section_id = ?`)
       .bind(id, k.section_id).first<{ id: string; title: string; instructions: string | null; opens_at: string | null; closes_at: string | null; duration_minutes: number | null; max_attempts: number; shuffle_questions: number; status: string }>()
     if (!q || q.status === 'draft') throw notFound()
+    await gate(c, me.id, k.section_id, 'quiz', q.id)
     const t = now()
     let a = await c.db.prepare(`SELECT id, started_at, attempt_no FROM online_test_attempts WHERE test_id = ? AND student_id = ? AND status = 'in_progress' ORDER BY started_at DESC LIMIT 1`)
       .bind(q.id, me.id).first<{ id: string; started_at: string; attempt_no: number }>()
