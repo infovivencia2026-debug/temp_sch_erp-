@@ -2948,13 +2948,27 @@ body[data-scroll-lock] {
       min-width: 44px;
     }
 
+    /* A link drawn as a button -- a bordered pill such as "Download
+       template" or the UPI app chips on the fee screen -- is pressed like
+       one, so it is sized like one. */
+    :where(a.border[class*='rounded']):not(.tap-inline) {
+      min-height: 44px;
+    }
+
     /* A phone number in a row is written as text and pressed as a button:
        an 18px-tall line is too thin to hit. It gets the invisible target
        below rather than a bigger box, so the row keeps its height. */
+    /* The same invisible target for the other links a row writes as text
+       and a thumb presses: mail and WhatsApp beside a phone number, and the
+       standalone underlined links ("My timetable", "Open", "Finish setup")
+       that sit on their own rather than inside a sentence. */
     .tap-inline,
-    a[href^='tel:'] {
+    a[href^='tel:'], a[href^='mailto:'], a[href*='wa.me/'],
+    a.underline, a.hover\:underline {
       position: relative;
     }
+    a[href^='mailto:']::after, a[href*='wa.me/']::after,
+    a.underline::after, a.hover\:underline::after,
     a[href^='tel:']::after,
     .tap-inline::after {
       content: '';
@@ -3975,4 +3989,20 @@ main, [data-paint='workarea'] {
   textarea {
     font-size: max(16px, 1em);
   }
+}
+
+/* THE TABLE'S EXPAND BUTTON, OVER A TABLE WIDER THAN ITS CARD.
+
+   A scrolling table has its last column off to the right, so the padding
+   the last header keeps for this button is not what sits under it: whichever
+   header is at the card's edge is, and the faint bordered square was drawn
+   over half its word ("Availat", "Entra"). Opaque in the header's own tint,
+   with the fade the scroller draws at its edge, it reads as the end of the
+   row. Unlayered because the button's own look is utilities. */
+[data-table-expandable] > button {
+  background: hsl(var(--surface-subtle));
+  box-shadow: -10px 0 8px -2px hsl(var(--surface-subtle));
+}
+@media (max-width: 900px) {
+  [data-table-expandable] > button { opacity: 1; border-color: transparent; }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Paperclip, Star, X } from 'lucide-react'
-import { Badge, Button, Textarea } from '@/components/ui'
+import { Badge, Button, SEG_BAR, Textarea } from '@/components/ui'
 import { shrinkImage } from '@/lib/shrink-image'
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 
@@ -54,7 +54,7 @@ export function StageBar({
     </button>
   )
   return (
-    <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="group" aria-label="Stage">
+    <div className={SEG_BAR} role="group" aria-label="Stage">
       {item('', 'All', total)}
       {STAGES.map((s) => item(s, STAGE_LABEL[s], counts?.[s] ?? 0))}
     </div>

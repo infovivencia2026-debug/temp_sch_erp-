@@ -929,7 +929,10 @@ export function Table({
              everybody who did not happen to sweep the mouse over it — and from
              everybody on a touch screen, where there is no hover at all. Faint
              until wanted, rather than absent until discovered. */
-          className="absolute right-2 top-2 z-10 grid size-8 place-items-center rounded-[3px]
+          /* `tap-inline`: a 44px target on touch without a 44px box. Grown
+             to 44 by the coarse-pointer rule, the square was taller than the
+             header row and sat over the first row's last cell as well. */
+          className="tap-inline absolute right-2 top-1 z-10 grid size-8 place-items-center rounded-[3px]
                      border border-border bg-card text-muted-foreground opacity-60
                      transition-opacity hover:text-foreground hover:opacity-100
                      focus-visible:opacity-100 group-hover/table:opacity-100"
@@ -2514,7 +2517,10 @@ export function tabClass(active: boolean): string {
     : '-mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[14px] text-muted-foreground transition-colors hover:text-foreground'
 }
 
-export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1'
+/* The pills never shrink or wrap: on a phone the strip scrolls sideways
+   instead. Shrinking was the default for a flex child, so on a 390px screen
+   "In progress" broke onto two lines and drew over its neighbour. */
+export const SEG_BAR = 'inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1 [&>*]:shrink-0 [&>*]:whitespace-nowrap'
 
 export function segClass(active: boolean): string {
   return active

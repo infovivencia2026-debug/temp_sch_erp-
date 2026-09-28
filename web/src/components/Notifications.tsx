@@ -230,8 +230,10 @@ export default function Notifications() {
         <Bell className="h-4 w-4" />
         {unread > 0 && (
           <span
-            className="absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full
-                       bg-destructive px-1 text-[10px] font-medium text-white"
+            /* 12px, the smallest size text is drawn at anywhere else: at 10 the
+               count was the one figure in the chrome a phone could not read. */
+            className="absolute right-1 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full
+                       bg-destructive px-1 text-[12px] font-medium leading-none text-white"
             aria-hidden
           >
             {unread > 9 ? '9+' : unread}
