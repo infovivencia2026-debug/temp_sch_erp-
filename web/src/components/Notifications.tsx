@@ -231,8 +231,12 @@ export default function Notifications() {
         {unread > 0 && (
           <span
             /* 12px, the smallest size text is drawn at anywhere else: at 10 the
-               count was the one figure in the chrome a phone could not read. */
-            className="absolute right-1 top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full
+               count was the one figure in the chrome a phone could not read.
+               Placed from the glyph's centre, not the button's corner: the
+               button is 32px in the desk dock and 44 on a phone, and pinned
+               to the corner the badge sat squarely on the bell in the first
+               and floated clear of it in the second. */
+            className="absolute left-[calc(50%+1px)] top-[calc(50%-16px)] grid h-4 min-w-4 place-items-center rounded-full
                        bg-destructive px-1 text-[12px] font-medium leading-none text-white"
             aria-hidden
           >

@@ -4588,7 +4588,11 @@ body:has(.bento-frost) [data-assistant-orb] {
    line for all three and nothing changes. The work area's reserve grows by
    the same row so the lifted corner never sits on the last line of a page. */
 @media (min-width: 768px) and (max-width: 1099.98px) {
-  [data-layout='bento'] .bento-corner {
+  /* The board's Edit pill (right: 104px, bottom: 28px) meets the dock at the
+     same widths -- measured under it at 768 and touching it at 1024 -- so it
+     takes the same step up. */
+  [data-layout='bento'] .bento-corner,
+  .bento-edit-pill {
     bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 10px);
   }
   :root[data-layout='bento'] {
@@ -4605,4 +4609,17 @@ body:has(.bento-frost) [data-assistant-orb] {
   [data-layout='bento'] [data-assistant-orb] {
     bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 4px) !important;
   }
+}
+
+/* THE FLOATING DOCK SIZES TO ITS ROW, NOT TO HALF THE SCREEN.
+
+   It is `left: 50%` with a -50% translate, and a positioned box that sizes to
+   its content is offered only the room right of its left edge: half the
+   viewport. At 768 that is 384px against a 648px row, so the box came out at
+   its min-content width, 628, and the last item -- the bell -- was cut by
+   the bar's own edge. max-content asks for the row; the existing
+   max-w-[calc(100vw-6rem)] still caps it, and the fold measures against that
+   same cap. */
+@media (min-width: 768px) {
+  [data-layout='bento'] .bento-dock { width: max-content; }
 }
