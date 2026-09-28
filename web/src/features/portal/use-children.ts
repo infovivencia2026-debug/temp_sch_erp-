@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, type List } from '@/lib/api'
+import { useSession } from '@/lib/session'
 
 export interface PortalChild {
   student_id: string
@@ -70,8 +71,21 @@ export function useChildren() {
 
      The endpoint falls back to the current school alone if anything about the
      fan-out fails, so the worst case is the behaviour this hook had before. */
+  /* NO "CHOOSE A CHILD" FLASH. Every one-child screen treats an empty list
+     as "nobody chosen", so while the list was still on its way each of them
+     showed the chooser for a moment. The last list this person had on this
+     device is shown at once and replaced when the fresh one lands. Keyed by
+     the signed-in user, so a shared phone never shows one family another's
+     children. */
+  const uid = useSession().user?.id ?? ''
+  const cacheKey = uid ? `portal-children:${uid}` : ''
+  const cached = (() => {
+    if (!cacheKey) return undefined
+    try { const raw = localStorage.getItem(cacheKey); return raw ? (JSON.parse(raw) as List<PortalChild>) : undefined } catch { return undefined }
+  })()
   const query = useQuery({
-    queryKey: ['my-students', 'everywhere'],
+    placeholderData: cached,
+    queryKey: ['my-students', 'everywhere', uid],
     /* A STUDENT'S OWN LOGIN HAS NO FAMILY TO FAN OUT OVER.
 
        /everywhere walks the guardian accounts behind a session, and a student
@@ -85,11 +99,14 @@ export function useChildren() {
          one list that answers them rather than waiting on two in a row:
          until this resolves every such screen shows "Choose a child". */
       if (typeof location !== 'undefined' && location.pathname.startsWith('/student/')) {
-        return api.get<List<PortalChild>>('/api/v1/portal/students')
+        const own = await api.get<List<PortalChild>>('/api/v1/portal/students')
+        try { if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(own)) } catch { /* private mode */ }
+        return own
       }
       const all = await api.get<List<PortalChild>>('/api/v1/portal/students/everywhere')
-      if ((all.items ?? []).length > 0) return all
-      return api.get<List<PortalChild>>('/api/v1/portal/students')
+      const out = (all.items ?? []).length > 0 ? all : await api.get<List<PortalChild>>('/api/v1/portal/students')
+      try { if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(out)) } catch { /* private mode */ }
+      return out
     },
   })
   const children = query.data?.items ?? []

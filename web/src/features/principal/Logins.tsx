@@ -130,7 +130,20 @@ export default function Logins() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
-  const [record, setRecord] = useState('')
+  /* ONE LOGINS FEATURE, ONE SWITCH (owner, 2026-09-28). Staff, students and
+     parents are three audiences of the same thing; the switch at the top picks
+     whose logins, counts and settings the page is about. Kept in the address
+     (?who=) so a link or a reload lands on the same view. */
+  const [record, setRecordState] = useState(() => {
+    const w = new URLSearchParams(window.location.search).get('who') ?? ''
+    return ['staff', 'student', 'guardian', 'none'].includes(w) ? w : ''
+  })
+  const setRecord = (w: string) => {
+    setRecordState(w)
+    const u = new URL(window.location.href)
+    if (w) u.searchParams.set('who', w); else u.searchParams.delete('who')
+    window.history.replaceState(window.history.state, '', u)
+  }
 
   const params = new URLSearchParams()
   if (search.trim()) params.set('q', search.trim())
@@ -174,8 +187,8 @@ export default function Logins() {
      filtering the one list keeps the headline number and the rows below it
      describing the same thing. */
   const users = record ? all.filter((u) => u.record === record) : all
-  const active = all.filter((u) => u.status === 'active').length
-  const signedIn = all.filter((u) => u.active_sessions > 0).length
+  const active = users.filter((u) => u.status === 'active').length
+  const signedIn = users.filter((u) => u.active_sessions > 0).length
   const orphans = all.filter((u) => u.record === 'none' && u.status === 'active')
 
   return (
@@ -192,9 +205,29 @@ export default function Logins() {
         }
       />
       <PageBody>
+        <div role="tablist" aria-label="Whose logins" className="flex flex-wrap gap-1 rounded-full bg-[hsl(var(--muted))] p-1 sm:w-fit">
+          {([
+            ['', 'Everyone'],
+            ['staff', 'Staff'],
+            ['student', 'Students'],
+            ['guardian', 'Parents'],
+            ...(orphans.length > 0 ? [['none', 'No record']] as [string, string][] : []),
+          ] as [string, string][]).map(([k, label]) => {
+            const n = k ? all.filter((u) => u.record === k).length : all.length
+            const on = record === k
+            return (
+              <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => setRecord(k)}
+                className={cn('min-h-9 flex-1 rounded-full px-4 text-[13.5px] font-medium transition-colors sm:flex-none',
+                  on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+                {label}{!isLoading && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
+              </button>
+            )
+          })}
+        </div>
+
         <CellGrid cols={4}>
-          <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : all.length} icon={ShieldCheck} />
-          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${all.length - active} cannot`} />
+          <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
+          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${users.length - active} cannot`} />
           <Stat label="Signed in now" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn} hint="Holding a live session" />
           <Stat
             label="No linked record"
@@ -231,13 +264,13 @@ export default function Logins() {
           </Card>
         )}
 
-        <StudentLoginsCard />
+        {record === 'student' && <StudentLoginsCard />}
 
         <OnlineNow />
         <SignInAttempts />
         <SessionActivityDesk />
 
-        <DayCodeCard />
+        {(record === '' || record === 'staff') && <DayCodeCard />}
 
         {creating && (
           <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
@@ -270,17 +303,6 @@ export default function Logins() {
                     { value: 'invited', label: 'Invited' },
                     { value: 'suspended', label: 'Suspended' },
                     { value: 'archived', label: 'Archived' },
-                  ]}
-                />
-                <Select
-                  value={record}
-                  onChange={setRecord}
-                  placeholder="Anybody"
-                  options={[
-                    { value: 'staff', label: 'Staff' },
-                    { value: 'student', label: 'Students' },
-                    { value: 'guardian', label: 'Guardians' },
-                    { value: 'none', label: 'No record' },
                   ]}
                 />
                 <Reload onClick={() => refetch()} busy={isFetching} label="Re-read the list" />
