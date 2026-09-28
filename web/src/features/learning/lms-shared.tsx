@@ -320,9 +320,12 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
       {(l.kind === 'pdf' || (l.kind === 'doc' && isPdf(l))) && (l.file_id || l.url) && (
         <>
           <iframe src={l.file_id ? fileUrl(l.file_id, true) : l.url!} title={l.title} className="h-[70vh] min-h-[420px] w-full max-w-4xl rounded-lg border bg-white" />
-          <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
-            <ExternalLink className="h-4 w-4" /> Open the PDF full screen
-          </a>
+          <div className="flex flex-wrap gap-x-5">
+            <a href={l.file_id ? fileUrl(l.file_id, true) : l.url!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 text-primary underline-offset-2 hover:underline">
+              <ExternalLink className="h-4 w-4" /> Open the PDF full screen
+            </a>
+            {l.file_id && <a href={fileUrl(l.file_id)} className="inline-flex min-h-10 items-center gap-1.5 text-muted-foreground underline-offset-2 hover:underline"><Download className="h-4 w-4" /> Download{l.file_size ? ` (${fmtSize(l.file_size)})` : ''}</a>}
+          </div>
         </>
       )}
       {l.kind === 'image' && (l.file_id || l.url) && (
@@ -341,7 +344,7 @@ export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boo
           <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
         </a>
       )}
-      {(l.kind === 'pdf' || l.kind === 'image' || l.kind === 'audio') && l.file_id && (
+      {(l.kind === 'image' || l.kind === 'audio') && l.file_id && (
         <a href={fileUrl(l.file_id)} className="inline-flex min-h-10 items-center gap-1.5 text-[13px] text-muted-foreground underline-offset-2 hover:underline">
           <Download className="h-4 w-4" /> Download {l.file_name ?? 'the file'}{l.file_size ? ` (${fmtSize(l.file_size)})` : ''}
         </a>

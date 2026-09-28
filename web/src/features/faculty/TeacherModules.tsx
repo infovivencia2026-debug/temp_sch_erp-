@@ -141,7 +141,7 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
                 {archived.map((u) => (
                   <li key={u.id} className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-2.5 text-[14px]">
                     <span className="min-w-0 flex-1 font-medium text-muted-foreground">{u.title}</span>
-                    <span className="text-[13px] text-muted-foreground">{u.lessons.length} sources</span>
+                    <span className="text-[13px] text-muted-foreground">{u.lessons.length} source{u.lessons.length === 1 ? "" : "s"}</span>
                     <Button size="sm" variant="secondary" pending={restore.isPending && restore.variables === u.id} onClick={() => restore.mutate(u.id)}><ArchiveRestore className="h-4 w-4" /> Restore</Button>
                   </li>
                 ))}
@@ -262,7 +262,7 @@ function ModuleView({ d, u, n, qkey, back, onTab }: { d: CourseDetail; u: Unit; 
           {adding === 'pick' && <TypePicker onPick={setAdding} canAttach={d.assignments.some((a) => !a.lms_unit_id) || d.quizzes.some((q) => !q.lms_unit_id)} />}
           {adding && adding !== 'pick' && (
             <Card>
-              <CardHeader title={adding === 'attach' ? 'Add an assignment or quiz already set' : `Add ${KIND_LABEL[adding].toLowerCase()}`} action={<Button size="sm" variant="ghost" onClick={() => setAdding('pick')}><ChevronLeft className="h-4 w-4" /> Other type</Button>} />
+              <CardHeader title={adding === 'attach' ? 'Add an assignment or quiz already set' : ADD_TITLE[adding]} action={<Button size="sm" variant="ghost" onClick={() => setAdding('pick')}><ChevronLeft className="h-4 w-4" /> Other type</Button>} />
               {adding === 'assignment' ? <AssignmentForm d={d} unitId={u.id} done={() => { setAdding(null); refresh() }} />
                 : adding === 'quiz' ? <QuizForm d={d} unitId={u.id} done={() => { setAdding(null); refresh() }} />
                   : adding === 'attach' ? <AttachExisting d={d} u={u} done={() => { setAdding(null); refresh() }} />
@@ -276,6 +276,10 @@ function ModuleView({ d, u, n, qkey, back, onTab }: { d: CourseDetail; u: Unit; 
   )
 }
 
+const ADD_TITLE: Record<ItemType, string> = {
+  video: 'Add a video', pdf: 'Add a PDF', text: 'Add notes', file: 'Add a file to download', link: 'Add a web link', image: 'Add an image', audio: 'Add a recording',
+  doc: 'Add slides or a document', quiz: 'Add a quiz', assignment: 'Add an assignment',
+}
 const PICKS: ItemType[] = ['video', 'pdf', 'text', 'file', 'link', 'image', 'audio', 'doc', 'quiz', 'assignment']
 const PICK_HINT: Record<string, string> = {
   video: 'From the library, a new upload, or YouTube', pdf: 'Read in the page', text: 'Written here, with headings and lists', file: 'Any file to download',
