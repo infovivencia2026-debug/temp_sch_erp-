@@ -232,6 +232,8 @@ async function setupIncomplete(c: Ctx): Promise<boolean> {
   } catch (err) { console.error(err); return false }
 }
 
+const STUDENT_HIDDEN_SECTIONS = new Set(['alumni', 'fees'])
+
 async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const sc = await resolveScope(c)
   const ent = await entitlementFor(c)
@@ -318,6 +320,10 @@ async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     if (held.size > 0 && !held.has(role.key)) continue
     const out: Role = { key: role.key, name: role.name, sections: [] }
     for (const sec of role.sections) {
+      /* Not for a student's own login (owner, 2026-09-28): alumni is for
+         those who have left, and fees are the family's business, reached
+         from the parent portal. */
+      if (role.key === 'student' && STUDENT_HIDDEN_SECTIONS.has(sec.slug)) continue
       if (!entitlementAllows(ent, sec.slug) && !sec.features.some((f) => catalogFeatureAllowed(ov, sec.slug, f.slug) === true)) continue
       if (locked && !SETUP_SECTIONS.has(sec.slug)) continue
       const cs: Sec = { slug: sec.slug, name: sec.name, workspace: sec.workspace, features: [] }
@@ -336,6 +342,7 @@ async function getCatalog(c: Ctx): Promise<CatalogResponse> {
     const granted: ReturnType<typeof feat>[] = []
     for (const role of CATALOG_ROLES) for (const sec of role.sections) for (const f of sec.features) {
       if (!directFeatures.has(f.key) || emitted.has(f.key)) continue
+      if (role.key === 'student' && STUDENT_HIDDEN_SECTIONS.has(sec.slug)) continue
       if (!(await gate(sec.slug, f))) continue
       granted.push(feat(f, true))
       emitted.add(f.key)

@@ -134,7 +134,6 @@ export default function StudentDay() {
   const toTimetable = useFeatureHref('student.timetable.timetable')
   const toAttendance = useFeatureHref('student.attendance.attendance')
   const toHomework = useFeatureHref('student.homework.homework_assignments')
-  const toFees = useFeatureHref('student.fees.fees')
 
   const children = useQuery({
     queryKey: ['portal-students'],
@@ -156,12 +155,7 @@ export default function StudentDay() {
   })
   const toCourses = useFeatureHref('student.learning.courses_subjects')
   const toResults = useFeatureHref('student.exams_results.exams_grades')
-  const ledger = useQuery({
-    queryKey: ['portal-fees', 'self'],
-    queryFn: () => api.get<FamilyFees>('/api/v1/portal/fees'),
-  })
-
-  if (children.isLoading || summary.isLoading || register.isLoading || ledger.isLoading) {
+  if (children.isLoading || summary.isLoading || register.isLoading) {
     return <BentoLoading message={t('bento.student_day.loading')} />
   }
   /* A failed query is an error, never an empty state. "Nothing due today" read
@@ -186,7 +180,6 @@ export default function StudentDay() {
   /* `null` is "the register could not be read", which is not the same fact as
      "no day has been marked" and must never be drawn as one. */
   const days: RegisterDay[] | null = register.error ? null : (register.data?.items ?? [])
-  const fees: FamilyFees | null = ledger.error ? null : (ledger.data ?? null)
 
   const form = [
     me?.class_name ? `${me.class_name}${me.section_name ? `-${me.section_name}` : ''}` : null,
@@ -227,9 +220,8 @@ export default function StudentDay() {
         {(span) => <HomeworkCell span={span} s={s} to={toHomework} />}
       </Widget>
 
-      <Widget id="fees" label={t('bento.student_day.fees')} size="small" index={3}>
-        {(span) => <FeesCell span={span} s={s} fees={fees} to={toFees} />}
-      </Widget>
+      {/* No fees card on a student's own home (owner, 2026-09-28): fees are
+          the family's business, on the parent portal. */}
 
       <Widget id="absent" label={t('bento.student_day.absent')} size="small" index={4}>
         {(span) => <AbsentCell span={span} s={s} days={days} to={toAttendance} />}
