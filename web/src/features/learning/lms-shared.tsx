@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FileText, Link2, PlayCircle, Paperclip } from 'lucide-react'
+import { VideoPlayer } from './VideoPlayer'
 
 /* Pieces both sides of the LMS use: the teacher's (faculty/TeacherLMS.tsx)
    and the child's (learning/StudentCourses.tsx). */
@@ -9,6 +10,9 @@ export interface Lesson {
   body?: string | null; file_id?: string | null; file_name?: string | null; url?: string | null
   sequence: number; day?: number | null; publish_at?: string | null
   is_published?: boolean; completed?: number; done?: boolean
+  /* A library video (worker routes/teaching/videos.ts) instead of a link. */
+  video_id?: string | null; video_title?: string | null; video_duration?: number | null; video_thumb?: number | boolean | null; video_type?: string | null
+  video_position?: number | null; video_percent?: number | null; video_watched?: string | null; video_bucket?: number | null
 }
 export interface Unit { id: string; title: string; description?: string | null; lessons: Lesson[] }
 export interface RubricRow { criterion: string; max: number }
@@ -75,12 +79,15 @@ export function KindIcon({ kind }: { kind: string }) {
   return <C className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
 }
 
-/** The body of a lesson: text, a player, a file to open, or a link. */
-export function LessonContent({ l }: { l: Lesson }) {
+/** The body of a lesson: text, a player, a file to open, or a link.
+    `track` saves the child's place in a library video (their own login only). */
+export function LessonContent({ l, track, onFinished }: { l: Lesson; track?: boolean; onFinished?: () => void }) {
   const embed = l.kind === 'video' && l.url ? embedOf(l.url) : null
   return (
     <div className="space-y-3 text-[14px]">
       {l.body && <div className="whitespace-pre-wrap leading-relaxed">{l.body}</div>}
+      {l.kind === 'video' && l.video_id && <VideoPlayer lesson={l} track={track} onFinished={onFinished} />}
+      {l.kind === 'video' && !l.video_id && !l.url && <p className="text-muted-foreground">The video for this lesson has been removed from the library.</p>}
       {embed && (
         <div className="aspect-video w-full max-w-2xl overflow-hidden rounded-md border">
           <iframe src={embed} title={l.title} className="h-full w-full" allowFullScreen allow="encrypted-media; picture-in-picture" />

@@ -4,6 +4,7 @@ import { fullName, institutionId, marks, js, requirePerm, resolveScope, todayIST
 import { reachesSection } from './classwork'
 import { AI_MODEL, aiConfigured, aiGenerate, NOT_CONFIGURED_MSG, parseJsonObject } from '../../services/ai/llm'
 import { assistantRateLimit } from './gemini'
+import { checkLessonVideo } from './videos'
 
 /* The teacher's side of the LMS. A course is one subject in one section
    (class_subjects x sections). It is built from what the school already
@@ -136,8 +137,9 @@ export function registerLMS(r: Router) {
     const [units, lessons, hw, quizzes, roll] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(co.class_subject_id),
       c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at,
+          l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           (SELECT count(*) FROM lms_lesson_progress p JOIN enrollments e ON e.student_id = p.student_id AND e.section_id = ? AND e.status = 'active' WHERE p.lesson_id = l.id) AS completed
-          FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id
+          FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id LEFT JOIN lms_videos v ON v.id = l.video_id
           WHERE su.class_subject_id = ? AND (l.section_id IS NULL OR l.section_id = ?) ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(co.section_id, co.class_subject_id, co.section_id),
       c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
           (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status IN ('submitted','late','graded')) AS submitted,
@@ -202,7 +204,10 @@ export function registerLMS(r: Router) {
     if (url && !/^https?:\/\//i.test(url)) throw badRequest('a link must start with http:// or https://')
     const fileId = optStr(b.file_id)
     if (fileId && !isUUID(fileId)) throw badRequest('file_id must be a uuid')
-    if ((kind === 'video' || kind === 'link') && !url) throw badRequest('a video or link lesson needs its address')
+    const videoId = kind === 'video' ? optStr(b.video_id) : null
+    if (videoId && !isUUID(videoId)) throw badRequest('video_id must be a uuid')
+    if (kind === 'video' && !url && !videoId) throw badRequest('pick a video from the library, or give its address')
+    if (kind === 'link' && !url) throw badRequest('a link lesson needs its address')
     if ((kind === 'file' || kind === 'pdf') && !fileId && !url) throw badRequest('attach the file, or give a link to it')
     if (kind === 'text' && !str(b.body)) throw badRequest('write the lesson text')
     let day: number | null = null
@@ -216,7 +221,7 @@ export function registerLMS(r: Router) {
       if (Number.isNaN(t)) throw badRequest('publish_at is not a date and time')
       publishAt = new Date(t).toISOString()
     }
-    return { kind, url, fileId, day, publishAt, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null }
+    return { kind, url: videoId ? null : url, fileId, videoId: videoId ? videoId.toLowerCase() : null, day, publishAt, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null }
   }
 
   r.post('/lms/lessons', P, async (c) => {
@@ -233,11 +238,12 @@ export function registerLMS(r: Router) {
       if (!ok2 || !reachesSection(s, sectionId)) throw forbidden('that section is not one you teach in this class')
     }
     const f = lessonFields(b)
+    if (f.videoId) f.videoId = await checkLessonVideo(c, f.videoId)
     const published = b.is_published === false ? 0 : 1
     const id = uuid(), t = now()
-    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(max(sequence), 0) + 1 FROM lms_lessons WHERE unit_id = ?), ?, ?, ?, ?, ?, ?)`)
-      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, published, c.id.userId, t, t, f.day, f.publishAt)]
+    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(max(sequence), 0) + 1 FROM lms_lessons WHERE unit_id = ?), ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId)]
     /* A scheduled lesson is announced by nobody: the child finds it on the day. */
     if (published && (!f.publishAt || f.publishAt <= t)) {
       const secs = sectionId ? [sectionId] : (await c.db.prepare(`SELECT id FROM sections WHERE class_id = ?`).bind(u.class_id).all<{ id: string }>()).results.map((x) => x.id)
@@ -266,9 +272,12 @@ export function registerLMS(r: Router) {
     const title = str(b.title)
     if (!title) throw badRequest('a lesson needs a title')
     const f = lessonFields(b)
-    await c.db.prepare(`UPDATE lms_lessons SET title = ?, kind = ?, body = ?, file_id = ?, url = ?, day = ?, publish_at = ?, is_published = COALESCE(?, is_published),
+    /* Keeping a video the lesson already has needs no library check (a colleague's lesson). */
+    const had = await c.db.prepare(`SELECT video_id FROM lms_lessons WHERE id = ?`).bind(l.id).first<{ video_id: string | null }>()
+    if (f.videoId && f.videoId !== had?.video_id) f.videoId = await checkLessonVideo(c, f.videoId)
+    await c.db.prepare(`UPDATE lms_lessons SET title = ?, kind = ?, body = ?, file_id = ?, url = ?, video_id = ?, day = ?, publish_at = ?, is_published = COALESCE(?, is_published),
         sequence = COALESCE(?, sequence), updated_at = ? WHERE id = ?`)
-      .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
+      .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.videoId, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
         typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, now(), l.id).run()
     return ok({ id: l.id })
   })

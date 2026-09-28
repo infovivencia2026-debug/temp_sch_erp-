@@ -2,6 +2,7 @@ import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { fullName, institutionId, resolveScope, todayIST } from '../teaching/common'
 import { notifyMany, parseRubric } from '../teaching/lms'
+import { bucketFor, mergeWatched } from '../teaching/videos'
 
 /* The child's side of the LMS (the teacher's is teaching/lms.ts).
 
@@ -110,10 +111,13 @@ export function registerPortalLMS(r: Router) {
     if (!co) throw notFound()
     const [units, lessons, hw, quizzes] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
-      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.day, p.completed_at
+      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.day, p.completed_at,
+          l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
+          vp.position_seconds AS video_position, vp.percent AS video_percent, vp.watched AS video_watched, vp.bucket_seconds AS video_bucket
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
+          LEFT JOIN lms_videos v ON v.id = l.video_id AND v.status = 'ready' LEFT JOIN lms_video_progress vp ON vp.lesson_id = l.id AND vp.student_id = ?
           LEFT JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ?
-          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(sid, cs, k.section_id),
+          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(sid, sid, cs, k.section_id),
       c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
           COALESCE(hs.status, 'pending') AS status, hs.submitted_at, hs.text_answer, hs.file_id, f.original_name AS file_name, hs.returned_at,
           CASE WHEN hs.returned_at IS NOT NULL THEN CAST(hs.marks AS REAL) END AS marks,
@@ -195,6 +199,49 @@ export function registerPortalLMS(r: Router) {
     await c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`)
       .bind(institutionId(c), l.id, me.id, now()).run()
     return ok({ id: l.id, done: true })
+  })
+
+  /* Where the child is in a lesson's library video. `watched` is the stretches
+     played this time ('1' per bucket); it is merged with what was saved, and
+     at 90% watched the lesson counts as finished. Only the child's own login. */
+  /* The saved place, read fresh by the player (the course page may come from a cache). */
+  r.get('/portal/lms/lessons/{id}/video-progress', PERM, async (c) => {
+    const sid = await child(c)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const p = await c.db.prepare(`SELECT position_seconds AS position, percent, watched, bucket_seconds FROM lms_video_progress WHERE lesson_id = ? AND student_id = ?`)
+      .bind(id, sid).first()
+    return ok(p ?? { position: 0, percent: 0, watched: '', bucket_seconds: null })
+  })
+
+  r.post('/portal/lms/lessons/{id}/video-progress', PERM, async (c) => {
+    const me = await self(c)
+    const k = await classroom(c, me.id)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const l = await c.db.prepare(`SELECT l.id, v.id AS video_id, v.duration_seconds FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        JOIN lms_videos v ON v.id = l.video_id AND v.status = 'ready' WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`)
+      .bind(id, k.class_id, k.section_id).first<{ id: string; video_id: string; duration_seconds: number | null }>()
+    if (!l) throw notFound()
+    const b = await readJSON<Body>(c.req)
+    const dur = l.duration_seconds && l.duration_seconds > 0 ? l.duration_seconds : Number(b.duration)
+    if (!(dur > 0)) throw badRequest('duration is required')
+    const bucket = bucketFor(dur), n = Math.ceil(dur / bucket)
+    const sent = typeof b.watched === 'string' ? b.watched.slice(0, n).replace(/[^01]/g, '0') : ''
+    const pos = Math.max(0, Math.min(dur, Number(b.position) || 0))
+    const prev = await c.db.prepare(`SELECT watched, bucket_seconds FROM lms_video_progress WHERE lesson_id = ? AND student_id = ?`).bind(l.id, me.id)
+      .first<{ watched: string; bucket_seconds: number }>()
+    const watched = mergeWatched(prev && prev.bucket_seconds === bucket ? prev.watched : '', sent, n)
+    const percent = Math.min(100, Math.round((100 * [...watched].filter((x) => x === '1').length) / n))
+    const t = now(), inst = institutionId(c)
+    const stmts = [c.db.prepare(`INSERT INTO lms_video_progress (institution_id, lesson_id, student_id, video_id, position_seconds, bucket_seconds, watched, percent, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (lesson_id, student_id) DO UPDATE SET video_id = excluded.video_id, position_seconds = excluded.position_seconds,
+          bucket_seconds = excluded.bucket_seconds, watched = excluded.watched, percent = excluded.percent, updated_at = excluded.updated_at`)
+      .bind(inst, l.id, me.id, l.video_id, pos, bucket, watched, percent, t)]
+    const done = percent >= 90
+    if (done) stmts.push(c.db.prepare(`INSERT OR IGNORE INTO lms_lesson_progress (institution_id, lesson_id, student_id, completed_at) VALUES (?, ?, ?, ?)`).bind(inst, l.id, me.id, t))
+    await c.db.batch(stmts)
+    return ok({ id: l.id, position: pos, percent, bucket_seconds: bucket, watched, done })
   })
 
   /* Hand in: text, a file, or both. Late when handed in after the due date. */

@@ -1,0 +1,147 @@
+import { useEffect, useRef, useState } from 'react'
+import { actingInstitution } from '@/lib/api'
+import type { Lesson } from './lms-shared'
+
+/* A lesson's library video (worker routes/teaching/videos.ts).
+
+   A plain <video> over GET /lms/videos/{id}/stream, which answers Range
+   requests, so seeking works in Safari (iPhone) as in Chrome. Speed buttons
+   under it. For the child's own login (`track`), the place is saved and
+   restored ("resume where you left off"), and the stretches actually played
+   are sent as a map of buckets; the server merges them and, at 90% watched,
+   marks the lesson finished. */
+
+const SPEEDS = [0.75, 1, 1.25, 1.5, 2]
+
+/** Same as bucketFor in the worker. */
+export const bucketFor = (duration: number) => Math.max(5, Math.ceil(duration / 2000))
+
+export function fmtDur(s?: number | null): string {
+  if (!s || !Number.isFinite(s)) return ''
+  const t = Math.round(s), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60
+  return (h ? `${h}:${String(m).padStart(2, '0')}` : String(m)) + ':' + String(sec).padStart(2, '0')
+}
+
+export function VideoPlayer({ lesson, track, onFinished, videoId }: { lesson?: Lesson; track?: boolean; onFinished?: () => void; videoId?: string }) {
+  const id = videoId ?? lesson?.video_id ?? ''
+  const ref = useRef<HTMLVideoElement>(null)
+  const [speed, setSpeed] = useState(1)
+  const [resumed, setResumed] = useState<number | null>(null)
+  const [percent, setPercent] = useState<number>(lesson?.video_percent ?? 0)
+  const [failed, setFailed] = useState(false)
+  const st = useRef({ watched: [] as number[], bucket: 5, last: -1, dirty: false, sending: false, off: false, sentPos: lesson?.video_position ?? 0, done: !!lesson?.done })
+
+  const send = async () => {
+    const v = ref.current, s = st.current
+    if (!track || !lesson || !v || s.sending || s.off || !Number.isFinite(v.duration)) return
+    /* Something new watched, or the place moved: either is worth saving. */
+    if (!s.dirty && Math.abs(v.currentTime - s.sentPos) < 2) return
+    s.sending = true; s.dirty = false; s.sentPos = v.currentTime
+    try {
+      /* A plain fetch, not api.post: this is a background save nobody pressed
+         (no "Saved" notice, no offline queue), and keepalive lets the last one
+         out as the page closes. */
+      const acting = actingInstitution()
+      const res = await fetch(`/api/v1/portal/lms/lessons/${lesson.id}/video-progress`, {
+        method: 'POST', credentials: 'same-origin', keepalive: true,
+        headers: { 'Content-Type': 'application/json', ...(acting ? { 'X-Acting-Institution': acting } : {}) },
+        body: JSON.stringify({ position: v.currentTime, duration: v.duration, watched: s.watched.map((x) => (x ? '1' : '0')).join('') }),
+      })
+      if (res.status === 403 || res.status === 404) { s.off = true; return }
+      if (!res.ok) { s.dirty = true; return }
+      const r = await res.json() as { percent: number; done: boolean }
+      setPercent(r.percent)
+      if (r.done && !s.done) { s.done = true; onFinished?.() }
+    } catch { s.dirty = true } finally { s.sending = false }
+  }
+
+  useEffect(() => {
+    if (!track) return
+    const t = window.setInterval(send, 15_000)
+    const hide = () => { if (document.visibilityState === 'hidden') void send() }
+    document.addEventListener('visibilitychange', hide)
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', hide); void send() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [track, lesson?.id])
+
+  const onMeta = async () => {
+    const v = ref.current
+    if (!v) return
+    const s = st.current
+    s.bucket = bucketFor(v.duration)
+    const n = Math.ceil(v.duration / s.bucket)
+    let saved = { position: lesson?.video_position ?? 0, watched: lesson?.video_watched ?? '', bucket_seconds: lesson?.video_bucket ?? null }
+    if (track && lesson) {
+      /* Read fresh: the course page may have been drawn from a cache. */
+      try {
+        const res = await fetch(`/api/v1/portal/lms/lessons/${lesson.id}/video-progress`, { credentials: 'same-origin' })
+        if (res.ok) saved = await res.json()
+      } catch { /* keep what the page had */ }
+    }
+    const w = saved.bucket_seconds === s.bucket ? saved.watched ?? '' : ''
+    s.watched = Array.from({ length: n }, (_, i) => (w[i] === '1' ? 1 : 0))
+    const pos = saved.position ?? 0
+    s.sentPos = pos
+    if (track && pos > 5 && pos < v.duration - 5 && v.currentTime < 1 && v.paused) { v.currentTime = pos; setResumed(pos) }
+    s.last = v.currentTime
+  }
+  const onTime = () => {
+    const v = ref.current, s = st.current
+    if (!v || !s.watched.length) return
+    const t = v.currentTime
+    if (!v.seeking && !v.paused && s.last >= 0 && t >= s.last && t - s.last <= 1.5 * Math.max(1, v.playbackRate)) {
+      for (let i = Math.floor(s.last / s.bucket); i <= Math.min(s.watched.length - 1, Math.floor(t / s.bucket)); i++) {
+        if (!s.watched[i]) { s.watched[i] = 1; s.dirty = true }
+      }
+    }
+    s.last = t
+  }
+
+  if (!id) return null
+  return (
+    <div className="w-full max-w-3xl space-y-2">
+      <div className="overflow-hidden rounded-lg border bg-black shadow-sm">
+        <video
+          ref={ref}
+          className="aspect-video w-full bg-black"
+          src={`/api/v1/lms/videos/${id}/stream`}
+          poster={lesson?.video_thumb ? `/api/v1/lms/videos/${id}/thumbnail` : undefined}
+          controls
+          playsInline
+          preload="metadata"
+          controlsList="nodownload"
+          onContextMenu={(e) => e.preventDefault()}
+          onLoadedMetadata={onMeta}
+          onTimeUpdate={onTime}
+          onSeeked={() => { st.current.last = ref.current?.currentTime ?? -1 }}
+          onPause={() => void send()}
+          onEnded={() => void send()}
+          onError={() => setFailed(true)}
+          onRateChange={() => setSpeed(ref.current?.playbackRate ?? 1)}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-[13px]">
+        <span className="hidden text-muted-foreground sm:inline">Speed</span>
+        <div className="inline-flex overflow-hidden rounded-md border" role="group" aria-label="Playback speed">
+          {SPEEDS.map((x) => (
+            <button key={x} type="button" aria-pressed={speed === x}
+              className={`min-h-10 min-w-11 px-2.5 text-[14px] sm:min-h-8 sm:min-w-0 sm:text-[13px] ${speed === x ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+              onClick={() => { if (ref.current) ref.current.playbackRate = x; setSpeed(x) }}>{x}×</button>
+          ))}
+        </div>
+        {track && <span className="w-full text-muted-foreground sm:ml-auto sm:w-auto">{percent ? `${percent}% watched` : 'Not started'}{lesson?.done || percent >= 90 ? ' · finished' : ' · 90% finishes the lesson'}</span>}
+      </div>
+      {resumed !== null && (
+        <p className="text-[13px] text-muted-foreground">
+          Resumed at {fmtDur(resumed)}.{' '}
+          <button type="button" className="min-h-10 underline" onClick={() => { if (ref.current) { ref.current.currentTime = 0; st.current.last = 0 } setResumed(null) }}>Start from the beginning</button>
+        </p>
+      )}
+      {failed && (
+        <p className="text-[13px] text-destructive">
+          This video will not play in this browser. It may be a .mov or HEVC (H.265) file, which some Android browsers cannot play. Try another browser, or ask your teacher for an mp4 (H.264) copy.
+        </p>
+      )}
+    </div>
+  )
+}

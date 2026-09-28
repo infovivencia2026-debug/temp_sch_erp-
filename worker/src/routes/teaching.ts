@@ -4,6 +4,7 @@ import { registerFacultyComms } from './teaching/comms'
 import { registerClasswork } from './teaching/classwork'
 import { registerAssessment } from './teaching/assessment'
 import { registerLMS } from './teaching/lms'
+import { registerVideos } from './teaching/videos'
 
 /* Port of the /principal, /department and /teaching route groups of
    internal/api/api.go. Group permissions are on each route; nested ones
@@ -16,4 +17,5 @@ export function registerTeaching(r: Router): void {
   registerClasswork(r)
   registerAssessment(r)
   registerLMS(r)
+  registerVideos(r)
 }

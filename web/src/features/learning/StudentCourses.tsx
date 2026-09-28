@@ -134,8 +134,8 @@ function Course({ cs, back }: { cs: string; back: () => void }) {
                         <Badge>{KIND_LABEL[l.kind]}</Badge>
                       </div>
                       {openLesson === l.id && (
-                        <div className="mt-3 space-y-3 pl-6">
-                          <LessonContent l={l} />
+                        <div className="mt-3 space-y-3 sm:pl-6">
+                          <LessonContent l={l} track onFinished={() => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['my-courses'] }) }} />
                           <Button size="sm" variant={l.done ? 'secondary' : 'primary'} pending={done.isPending} onClick={() => done.mutate({ id: l.id, done: !l.done })}>
                             {l.done ? 'Mark as not done' : 'Mark as done'}
                           </Button>

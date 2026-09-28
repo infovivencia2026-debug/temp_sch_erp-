@@ -1,10 +1,11 @@
 import { Fragment, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Sparkles, Trash2 } from 'lucide-react'
+import { ChevronLeft, Film, Sparkles, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, PageBody, PageHead, Select, Table, Td, Textarea,
 } from '@/components/ui'
+import VideoLibrary, { VideoPick } from './VideoLibrary'
 import { FilePick, KIND_LABEL, KindIcon, LessonContent, fmtWhen, type Lesson, type RubricRow, type Unit } from '../learning/lms-shared'
 
 /* THE LMS, FROM THE FRONT OF THE CLASS (worker routes/teaching/lms.ts).
@@ -31,17 +32,19 @@ interface CourseDetail {
 
 export default function TeacherLMS() {
   const [open, setOpen] = useState<{ section_id: string; class_subject_id: string } | null>(null)
+  const [videos, setVideos] = useState(false)
+  if (videos) return <VideoLibrary back={() => setVideos(false)} />
   if (open) return <CourseView k={open} back={() => setOpen(null)} />
-  return <CourseList onOpen={setOpen} />
+  return <CourseList onOpen={setOpen} onVideos={() => setVideos(true)} />
 }
 
-function CourseList({ onOpen }: { onOpen: (k: { section_id: string; class_subject_id: string }) => void }) {
+function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; class_subject_id: string }) => void; onVideos: () => void }) {
   const q = useQuery({ queryKey: ['lms-courses'], queryFn: () => api.get<{ items: Course[] }>('/api/v1/lms/courses') })
   const [filter, setFilter] = useState('')
   const items = (q.data?.items ?? []).filter((c) => !filter || `${c.class_name} ${c.section_name} ${c.subject}`.toLowerCase().includes(filter.toLowerCase()))
   return (
     <>
-      <PageHead eyebrow="LMS" title="Courses" />
+      <PageHead eyebrow="LMS" title="Courses" actions={<Button variant="secondary" onClick={onVideos}><Film className="h-4 w-4" /> Video library</Button>} />
       <PageBody>
         {q.error ? <ErrorState error={q.error} /> : q.isLoading ? <Loading /> : !q.data?.items.length ? (
           <EmptyState title="No courses yet" body="A course appears for every subject you teach in a section. Ask the office to allocate your subjects." />
@@ -163,13 +166,16 @@ function LessonForm({ unit, sectionId, done }: { unit: Unit; sectionId: string; 
   const [kind, setKind] = useState('text')
   const [body, setBody] = useState('')
   const [url, setUrl] = useState('')
+  const [source, setSource] = useState<'library' | 'link'>('library')
+  const [video, setVideo] = useState('')
   const [file, setFile] = useState<{ id: string; name: string } | null>(null)
   const [day, setDay] = useState('')
   const [when, setWhen] = useState('')
   const [onlyHere, setOnlyHere] = useState(false)
   const save = useMutation({
     mutationFn: () => api.post('/api/v1/lms/lessons', {
-      unit_id: unit.id, title, kind, body, url, file_id: file?.id, day: day ? Number(day) : null,
+      unit_id: unit.id, title, kind, body, url: kind === 'video' && source === 'library' ? '' : url,
+      video_id: kind === 'video' && source === 'library' ? video : undefined, file_id: file?.id, day: day ? Number(day) : null,
       publish_at: when ? new Date(when).toISOString() : null, section_id: onlyHere ? sectionId : undefined,
     }),
     onSuccess: done,
@@ -181,14 +187,21 @@ function LessonForm({ unit, sectionId, done }: { unit: Unit; sectionId: string; 
         <Field label="Kind">
           <Select value={kind} onChange={setKind} options={[
             { value: 'text', label: 'Reading (text)' }, { value: 'pdf', label: 'PDF' }, { value: 'file', label: 'File to download' },
-            { value: 'video', label: 'Video link' }, { value: 'link', label: 'Web link' },
+            { value: 'video', label: 'Video' }, { value: 'link', label: 'Web link' },
           ]} />
         </Field>
         <Field label="Day of the unit" hint="Optional. Lessons are listed by day."><Input type="number" value={day} onChange={setDay} /></Field>
         <Field label="Publish at" hint="Optional. Children see it from this moment; empty is now."><Input type="datetime-local" value={when} onChange={setWhen} /></Field>
       </div>
       <Field label={kind === 'text' ? 'Lesson text' : 'Notes for the class (optional)'}><Textarea rows={kind === 'text' ? 8 : 3} value={body} onChange={setBody} /></Field>
-      {(kind === 'video' || kind === 'link' || kind === 'file' || kind === 'pdf') && (
+      {kind === 'video' && (
+        <div className="flex flex-wrap gap-4 text-[14px]">
+          <label className="flex items-center gap-2"><input type="radio" checked={source === 'library'} onChange={() => setSource('library')} /> From the video library</label>
+          <label className="flex items-center gap-2"><input type="radio" checked={source === 'link'} onChange={() => setSource('link')} /> A link (YouTube, Vimeo or any address)</label>
+        </div>
+      )}
+      {kind === 'video' && source === 'library' && <Field label="Video"><VideoPick value={video} onChange={setVideo} /></Field>}
+      {((kind === 'video' && source === 'link') || kind === 'link' || kind === 'file' || kind === 'pdf') && (
         <Field label={kind === 'video' ? 'Video address (YouTube, Vimeo or any link)' : 'Link'} hint={kind === 'file' || kind === 'pdf' ? 'Or attach the file below.' : undefined}>
           <Input value={url} onChange={setUrl} placeholder="https://" />
         </Field>
