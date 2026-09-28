@@ -35,6 +35,11 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
     // screen. Nothing here navigates: the app appears underneath.
     onSuccess: () => qc.invalidateQueries({ queryKey: ['session'] }),
   })
+  /* A child's login is issued on a printed code, not a phone number, and the
+     school's rule for children is the original one: no way past. The server
+     refuses the skip for a student account too. */
+  const roles = qc.getQueryData<{ user?: { roles?: string[] } }>(['session'])?.user?.roles ?? []
+  const student = roles.length > 0 && roles.every((r) => r === 'student')
   const skip = useMutation({
     mutationFn: () => api.post('/api/v1/profile/password/skip', {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['session'] }),
@@ -45,8 +50,9 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
       <div className="w-full max-w-md">
         <h1 className="text-[22px] font-semibold">Set your own password</h1>
         <p className="mt-2 text-[14px] text-muted-foreground">
-          The school gave you your phone number as a temporary password. Anyone holding the
-          class list knows it, so choose one only you know before you go any further.
+          {student
+            ? 'Your school gave you a temporary password on a printed slip. Choose one only you know before you go any further, and keep it to yourself.'
+            : 'The school gave you your phone number as a temporary password. Anyone holding the class list knows it, so choose one only you know before you go any further.'}
         </p>
 
         <div className="mt-6 space-y-4">
@@ -112,15 +118,17 @@ export default function SetYourPassword({ signInName }: { signInName?: string })
               server clears the flag on this call and refuses nothing after
               it; the screen goes away by the same session re-read as a
               successful change. */}
-          <Button
-            variant="secondary"
-            className="w-full"
-            disabled={skip.isPending || change.isPending}
-            onClick={() => skip.mutate()}
-          >
-            {skip.isPending ? 'One moment…' : 'Skip for now, keep the password I was given'}
-          </Button>
-          <FormNotice error={skip.error} />
+          {!student && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              disabled={skip.isPending || change.isPending}
+              onClick={() => skip.mutate()}
+            >
+              {skip.isPending ? 'One moment…' : 'Skip for now, keep the password I was given'}
+            </Button>
+          )}
+          {!student && <FormNotice error={skip.error} />}
         </div>
 
         <a href="/logout" className="mt-6 inline-block text-[13px] text-muted-foreground underline">

@@ -6,6 +6,7 @@ import { registerPortalSchoolLife } from './portal/school_life'
 import { registerPortalLearning } from './portal/learning'
 import { registerPortalRecords } from './portal/records'
 import { registerPortalLife } from './portal/life'
+import { registerPortalLMS } from './portal/lms'
 
 /* Port of the /portal route group of internal/api/api.go: what parents and
    students use. Every route carries self.profile.read; each handler then
@@ -13,6 +14,7 @@ import { registerPortalLife } from './portal/life'
    portalChild / familyChildren in teaching/common.ts. */
 export function registerPortal(r: Router): void {
   registerPortalFamily(r)
+  registerPortalLMS(r)
   registerChildRemarks(r)
   registerPortalRequests(r)
   registerPortalSchoolLife(r)

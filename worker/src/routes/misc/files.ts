@@ -67,10 +67,11 @@ export function registerFiles(r: Router): void {
         (SELECT student_id FROM student_documents WHERE file_id = f.id LIMIT 1) AS student_owner,
         (SELECT application_id FROM application_documents WHERE file_id = f.id LIMIT 1) AS app_owner,
         (SELECT employee_id FROM employee_documents WHERE file_id = f.id LIMIT 1) AS emp_owner,
-        (SELECT homework_id FROM homework_attachments WHERE file_id = f.id LIMIT 1) AS hw_owner
+        (SELECT homework_id FROM homework_attachments WHERE file_id = f.id LIMIT 1) AS hw_owner,
+        (SELECT hs.id FROM homework_submissions hs WHERE hs.file_id = f.id LIMIT 1) AS sub_owner
        FROM files f WHERE f.id = ? AND f.deleted_at IS NULL`).bind(c.params.id)
       .first<{ object_key: string; original_name: string; content_type: string; purpose: string; uploaded_by: string | null;
-        student_owner: string | null; app_owner: string | null; emp_owner: string | null; hw_owner: string | null }>()
+        student_owner: string | null; app_owner: string | null; emp_owner: string | null; hw_owner: string | null; sub_owner: string | null }>()
     if (!f) throw notFound('resource not found')
     const gone = notFound('resource not found')
     if (f.student_owner) {
@@ -102,6 +103,16 @@ export function registerFiles(r: Router): void {
         } else if (sc.sectionIds.length === 0) throw gone
         else { const q = inList(sc.sectionIds); pred = `hw.section_id IN ${q.sql}`; args = q.args }
         const okRow = await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM homework hw WHERE hw.id = ? AND ${pred}) AS ok`).bind(f.hw_owner, ...args).first<{ ok: number }>()
+        if (!okRow?.ok) throw gone
+      }
+    } else if (f.sub_owner) {
+      /* A child's handed-in work: the child and their family, the section's teachers, and staff who see every student. */
+      const sc = await resolveScope(c)
+      if (!sc.allStudents && !(f.uploaded_by !== null && f.uploaded_by === c.id.userId)) {
+        const secs = inList(sc.sectionIds), kids = inList(sc.studentIds)
+        const okRow = await c.db.prepare(`SELECT EXISTS (SELECT 1 FROM homework_submissions hs JOIN homework hw ON hw.id = hs.homework_id WHERE hs.id = ?
+            AND (${sc.sectionIds.length ? `hw.section_id IN ${secs.sql}` : '0'} OR ${sc.studentIds.length ? `hs.student_id IN ${kids.sql}` : '0'})) AS ok`)
+          .bind(f.sub_owner, ...(sc.sectionIds.length ? secs.args : []), ...(sc.studentIds.length ? kids.args : [])).first<{ ok: number }>()
         if (!okRow?.ok) throw gone
       }
     } else if (!BROADCAST_PURPOSE.has(f.purpose)) {

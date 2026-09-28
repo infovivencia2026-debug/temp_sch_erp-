@@ -3,6 +3,7 @@ import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } f
 import { now } from '../../http'
 import { activitySettings, recordSignOutMany, recordViews, type ViewIn } from '../../services/session_activity'
 import { hashPassword, verifyPassword } from '../../auth/password'
+import { studentOnlyAccount } from '../../services/student_logins'
 import { qrDataURL } from '../../services/qrpng'
 
 
@@ -216,6 +217,10 @@ export function registerProfile(r: Router): void {
   })
 
   r.post('/profile/password/skip', 'self.profile.write', async (c) => {
+    /* A child's login was issued on a code the class teacher handed out on a printed sheet: the child sets their own, no skipping. */
+    if (await studentOnlyAccount(c.db, c.id.userId)) {
+      throw new HttpError(403, 'Choose your own password to go on. The one on your slip was printed for your class teacher.', { code: 'password_change_required' })
+    }
     await c.db.prepare(`UPDATE users SET must_change_password = 0, updated_at = ? WHERE id = ?`).bind(now(), c.id.userId).run()
     return ok({ skipped: true })
   })

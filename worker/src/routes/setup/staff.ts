@@ -3,6 +3,7 @@ import { Messenger, scopeOf } from '../../services/messaging'
 import type { Ctx } from '../../router'
 import { HttpError, badRequest, created, forbidden, notFound, ok, readJSON, uuid, uuidParam, now, bool, isUUID } from '../../http'
 import { can } from '../../identity'
+import { studentLoginPolicy, studentLoginRefusal } from '../../services/student_logins'
 import { indexLogin, requireInstitution, instId, nullStr, ensureCampus, appointEmployee, employeeRoles, PLATFORM_ONLY_ROLES, PhoneInUse,
   plural, oneOfStr, todayIndia, monthIndia, endAccess, revokeSessions, isUniqueViolation, trim, str, batch, changes, istClock, istDate,
   clockMinutes, uniqueUsername, issuedPassword, temporaryPassword, temporaryPIN, hash, signInAs, grantRole, normalisePhone } from './common'
@@ -675,11 +676,16 @@ export function registerStaff(r: Router): void {
     const s = await c.db.prepare(`SELECT user_id, admission_no, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name FROM students WHERE id = ?`).bind(studentId)
       .first<{ user_id: string | null; admission_no: string; full_name: string }>()
     if (!s) throw new HttpError(404, 'no such student', { code: 'not_found' })
+    if (!s.user_id || reset) {
+      const why = await studentLoginRefusal(c.db, studentId)
+      if (why) throw new HttpError(409, why, { code: 'student_logins_off' })
+    }
     const out: Record<string, unknown> = { sign_in_as: '', full_name: s.full_name, password: '', existing: false, note: '' }
     if (s.user_id) {
       out.existing = true
       if (reset) {
-        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?`).bind(pwHash, now(), s.user_id).run()
+        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = 1, updated_at = ? WHERE id = ?`).bind(pwHash, now(), s.user_id).run()
+        await revokeSessions(c, s.user_id)
       }
       out.sign_in_as = await signInAs(c, s.user_id, 'username')
       await indexLogin(c, s.user_id)
@@ -690,7 +696,7 @@ export function registerStaff(r: Router): void {
       const taken = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND username = ?`).bind(instId(c), username).first()
       if (taken) throw badRequest('that username already belongs to another account')
       await c.db.batch([
-        c.db.prepare(`INSERT INTO users (id, institution_id, username, full_name, password_hash, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`)
+        c.db.prepare(`INSERT INTO users (id, institution_id, username, full_name, password_hash, status, must_change_password, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'active', 1, ?, ?)`)
           .bind(newId, instId(c), username, s.full_name, pwHash, t, t),
         c.db.prepare(`UPDATE students SET user_id = ?, updated_at = ? WHERE id = ?`).bind(newId, t, studentId),
       ])
@@ -703,7 +709,7 @@ export function registerStaff(r: Router): void {
       return ok(out)
     }
     out.password = password
-    out.note = 'Shown once and not stored. Hand it to the child or their parent; if it is lost, reset it rather than looking this one up.'
+    out.note = 'Shown once and not stored. Hand it to the child or their parent; they choose their own password the first time they sign in. If it is lost, reset it rather than looking this one up.'
     return ok(out)
   })
 
@@ -779,7 +785,7 @@ export function registerStaff(r: Router): void {
 
   r.post('/setup/logins/bulk', 'auth', async (c) => {
     requireInstitution(c)
-    const req = await readJSON<{ kind?: string; section_id?: string; reset?: boolean }>(c.req)
+    const req = await readJSON<{ kind?: string; section_id?: string; class_id?: string; reset?: boolean }>(c.req)
     const kind = str(req.kind)
     const need = kind === 'staff' ? 'hr.employees.write' : 'students.write'
     if (!can(c.id, need)) throw forbidden('missing permission: issuing logins for ' + kind)
@@ -788,14 +794,26 @@ export function registerStaff(r: Router): void {
       if (!isUUID(trim(req.section_id))) throw badRequest('section_id must be a uuid')
       section = trim(req.section_id)
     }
+    let classId: string | null = null
+    if (trim(req.class_id) !== '') {
+      if (!isUUID(trim(req.class_id))) throw badRequest('class_id must be a uuid')
+      classId = trim(req.class_id)
+    }
+    const policy = kind === 'students' ? await studentLoginPolicy(c.db) : null
+    if (policy && !policy.enabled) throw new HttpError(409, 'Student logins are switched off at this school. Switch them on under Staff, Logins & access first.', { code: 'student_logins_off' })
     const inst = instId(c)
     const usable = `COALESCE((SELECT u.password_hash IS NOT NULL AND u.status <> 'invited' FROM users u WHERE u.id = %COL%), 0) AS usable`
     let sql: string
     switch (kind) {
       case 'students':
         sql = `SELECT st.id, TRIM(st.first_name || ' ' || COALESCE(st.last_name, '')) AS name, st.user_id, st.admission_no AS username, '' AS email, '' AS phone,
+            st.admission_no, cl.name AS class_name, (SELECT sec.name FROM sections sec WHERE sec.id = e.section_id) AS section_name, e.roll_no,
             ${usable.replace('%COL%', 'st.user_id')} FROM students st LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
-            WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?) ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
+            LEFT JOIN classes cl ON cl.id = e.class_id
+            WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?)
+              AND (${classId === null ? 'TRUE' : 'e.class_id = ' + "'" + classId + "'"})
+              AND (${policy?.min_level == null ? 'TRUE' : 'cl.level >= ' + Math.trunc(policy.min_level)})
+            ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`
         break
       case 'guardians':
         sql = `SELECT g.id, g.full_name AS name, g.user_id, COALESCE(g.phone, '') AS username, COALESCE(g.email, '') AS email, COALESCE(g.phone, '') AS phone,
@@ -809,7 +827,11 @@ export function registerStaff(r: Router): void {
       default:
         throw badRequest('kind must be students, guardians or staff')
     }
-    const people = await c.db.prepare(sql).bind(section, section).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number }>()
+    const people = await c.db.prepare(sql).bind(section, section).all<{ id: string; name: string; user_id: string | null; username: string; email: string; phone: string; usable: number
+      admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }>()
+    /* The class teacher's credentials sheet needs to know whose slip is whose. */
+    const studentCols = (p: { admission_no?: string; class_name?: string | null; section_name?: string | null; roll_no?: number | null }) => kind !== 'students' ? {}
+      : { admission_no: p.admission_no, class_name: p.class_name ?? undefined, section_name: p.section_name ?? undefined, roll_no: p.roll_no ?? undefined }
     const out = { created: 0, existing: 0, skipped: 0, rows: [] as Record<string, unknown>[], note: '', sent: 0 }
     const t = now()
     const ms = new Messenger(scopeOf(c))
@@ -820,21 +842,22 @@ export function registerStaff(r: Router): void {
       if (p.user_id && (!bool(p.usable) || req.reset === true)) {
         const { password, known } = issuedPassword(p.phone, p.email)
         const h = await hash(c, password)
-        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(h, known ? 1 : 0, t, p.user_id).run()
+        await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id).run()
+        if (kind === 'students') await revokeSessions(c, p.user_id)
         out.created++
         const signIn = await signInAs(c, p.user_id, 'username')
-        out.rows.push({ name: p.name, sign_in_as: signIn, password, existing: false })
+        out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: signIn, password, existing: false })
         await tell(kind === 'guardians', p, signIn, password, h)
         continue
       }
       if (p.user_id) {
         out.existing++
-        out.rows.push({ name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), existing: true })
+        out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), existing: true })
         continue
       }
       if (kind !== 'students' && p.email === '' && p.phone === '') {
         out.skipped++
-        out.rows.push({ name: p.name, existing: false, detail: 'no email or phone on the record' })
+        out.rows.push({ ...studentCols(p), name: p.name, existing: false, detail: 'no email or phone on the record' })
         continue
       }
       const username = await uniqueUsername(c, p.username === '' ? p.name : p.username)
@@ -857,7 +880,7 @@ export function registerStaff(r: Router): void {
           if (attach) {
             await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ?`).bind(attach.id, p.id).run()
             out.existing++
-            out.rows.push({ name: p.name, sign_in_as: await signInAs(c, attach.id, 'username'), existing: true, detail: 'shares the login of ' + attach.full_name + ', who has the same number' })
+            out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, attach.id, 'username'), existing: true, detail: 'shares the login of ' + attach.full_name + ', who has the same number' })
             continue
           }
           phone = ''
@@ -866,14 +889,14 @@ export function registerStaff(r: Router): void {
       const newId = uuid()
       try {
         await c.db.prepare(`INSERT INTO users (id, institution_id, username, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
-            VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, 'active', ?, ?, ?)`).bind(newId, inst, username, email, phone, p.name, pwHash, known ? 1 : 0, t, t).run()
+            VALUES (?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, 'active', ?, ?, ?)`).bind(newId, inst, username, email, phone, p.name, pwHash, known || kind === 'students' ? 1 : 0, t, t).run()
       } catch (e) {
         if (!isUniqueViolation(e)) throw e
         out.skipped++
         let detail = 'that phone number already belongs to another account'
         if (p.phone === '') detail = 'no phone number on record, and the email is already in use'
         if (kind === 'staff') detail = 'another account already signs in with that username; give this person a different staff code'
-        out.rows.push({ name: p.name, existing: false, detail })
+        out.rows.push({ ...studentCols(p), name: p.name, existing: false, detail })
         continue
       }
       const table = kind === 'students' ? 'students' : kind === 'guardians' ? 'guardians' : 'employees'
@@ -882,7 +905,7 @@ export function registerStaff(r: Router): void {
       if (roleKey) await grantRole(c, newId, roleKey)
       await indexLogin(c, newId)
       out.created++
-      out.rows.push({ name: p.name, sign_in_as: username, password, existing: false })
+      out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: username, password, existing: false })
       await tell(kind === 'guardians', p, username, password, pwHash)
     }
     await ms.kick()

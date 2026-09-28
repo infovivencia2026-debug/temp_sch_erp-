@@ -4,6 +4,7 @@ import { DUMMY_HASH, verifyPassword } from '../auth/password'
 import { issueSession } from '../auth/session'
 import { loginHTML, type Brand } from '../auth/login-page'
 import { askForCode } from '../pages/mfa'
+import { studentLoginRefusal, studentOnlyAccount } from '../services/student_logins'
 import { defaultAppId, institutionById, institutionByHost, institutionByPath, schoolPath, tenantDb, type Institution } from '../tenant'
 
 const CSRF = 'erp_csrf'
@@ -220,6 +221,21 @@ export async function login(env: Env, req: Request, school?: Institution | null,
   }
 
   await env.CONTROL.prepare('DELETE FROM login_throttle WHERE key = ?').bind(idKey).run()
+
+  /* A child's own login works only while the school allows student logins
+     (services/student_logins.ts). The password was right, so say why. */
+  if (r.c.institution_id) {
+    const inst = await institutionById(env, r.c.institution_id)
+    if (inst) {
+      const db = tenantDb(env, inst)
+      const sid = await studentOnlyAccount(db, r.c.user_id)
+      const why = sid ? await studentLoginRefusal(db, sid) : null
+      if (why) {
+        await record(env, req, identifier, 'student_logins_off', r.c.institution_id, r.c.user_id)
+        return page(env, { error: why.replace('An administrator can switch them on under Staff, Logins & access.', 'Ask your class teacher or the school office.'), next, identifier, status: 403 })
+      }
+    }
+  }
 
   /* Two-factor: a school user with an authenticator set up gets the code
      step (pages/mfa.ts) instead of a session, as internal/auth does. */
