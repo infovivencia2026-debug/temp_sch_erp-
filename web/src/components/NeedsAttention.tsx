@@ -273,7 +273,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
       {summary.length > 0 && (
         <section>
           <p className="eyebrow mb-2.5">Today</p>
-          <div className={cn('grid gap-4 sm:grid-cols-2',
+          <div className={cn('tint-grid grid gap-4 sm:grid-cols-2',
             /* One row on a desk, however many figures this role has. */
             ({ 1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' } as Record<number, string>)[Math.min(summary.length, 5)] ?? 'lg:grid-cols-5')}>
             {summary.map((s) => {
