@@ -425,6 +425,31 @@ const staffAway: ToolSpec = {
   },
 }
 
+// --- the school at a glance ---------------------------------------------------------------
+
+const schoolOverview: ToolSpec = {
+  name: 'school_overview', label: 'Reading the school at a glance',
+  description: 'School-wide totals: how many active students (and per class), sections, staff (teaching and non-teaching), attendance today, fees collected and outstanding, fee defaulters. Use this for any "how many" question about the whole school.',
+  params: {},
+  offer: (c) => can(c.id, 'admin.reports.read'),
+  run: async (c) => {
+    const g = await readAs(c, '/principal/dashboard')
+    if (g.status !== 200) return fail(refusal(g))
+    const d = g.data as Record<string, any>
+    const rupee = (p: unknown) => `₹${Math.round(Number(p ?? 0) / 100).toLocaleString('en-IN')}`
+    const stats = [
+      { label: 'Students', value: d.students ?? 0 },
+      { label: 'Sections', value: d.sections ?? 0 },
+      { label: 'Staff', value: d.staff ?? 0 },
+      ...(d.staff_teaching !== undefined ? [{ label: 'Teaching', value: d.staff_teaching }, { label: 'Non-teaching', value: d.staff_non_teaching ?? 0 }] : []),
+      { label: 'Attendance today', value: d.attendance_marked_today ? `${d.attendance_today_pct}%` : 'not marked yet' },
+      ...(d.outstanding_paise !== undefined ? [{ label: 'Outstanding', value: rupee(d.outstanding_paise) }, { label: 'Defaulters', value: d.defaulters ?? 0 }] : []),
+    ]
+    const rows = Array.isArray(d.students_by_class) ? d.students_by_class : []
+    return { ...table('The school at a glance', rows, [['class_name', 'Class'], ['students', 'Students']], undefined, { stats }) }
+  },
+}
+
 // --- timetable ------------------------------------------------------------------------------
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -499,6 +524,7 @@ const notices: ToolSpec = {
 }
 
 export const READ_TOOLS: ToolSpec[] = [
+  schoolOverview,
   searchStudents, studentProfile, studentAttendance, studentMarks,
   sectionAttendance, absentees, attendanceTrend,
   feeDefaulters, feeLedger, feeCollections,
