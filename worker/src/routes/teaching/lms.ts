@@ -19,7 +19,16 @@ import { checkLessonVideo } from './videos'
 
 const P = 'academics.timetable.read'
 const HW = 'academics.homework.write'
-const LESSON_KINDS = new Set(['text', 'file', 'pdf', 'video', 'link'])
+/* A lesson is a module's "source". image, audio and doc (slides or an Office
+   document) came with 0011; like file and pdf they are an upload or a link. */
+export const LESSON_KINDS = new Set(['text', 'file', 'pdf', 'video', 'link', 'image', 'audio', 'doc'])
+const FILE_KINDS = new Set(['file', 'pdf', 'image', 'audio', 'doc'])
+const isoDate = (v: unknown, what: string) => {
+  const x = str(v)
+  if (!x) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(x)) throw badRequest(`${what} must be YYYY-MM-DD`)
+  return x
+}
 
 type Body = Record<string, unknown>
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
@@ -104,6 +113,18 @@ async function assignmentInReach(c: Ctx, s: Scope, id: string) {
   return h
 }
 
+/** The next place at the end of a module, over its sources, assignments and quizzes (binds the unit id three times). */
+const NEXT_IN_MODULE = `(SELECT max(COALESCE((SELECT max(sequence) FROM lms_lessons WHERE unit_id = ?), 0),
+  COALESCE((SELECT max(lms_sequence) FROM homework WHERE lms_unit_id = ?), 0), COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1)`
+
+/** An optional module id for an assignment or quiz: in reach and of the same subject, or null. */
+async function moduleOf(c: Ctx, s: Scope, v: unknown, classSubjectId: string): Promise<string | null> {
+  if (v === null || v === undefined || v === '') return null
+  const u = await unitInReach(c, s, needUUID(v, 'unit_id'))
+  if (u.class_subject_id !== classSubjectId) throw badRequest('that module is not part of this course')
+  return u.id
+}
+
 export function registerLMS(r: Router) {
   /* Every course the caller can teach, with what is in it. */
   r.get('/lms/courses', P, async (c) => {
@@ -135,19 +156,20 @@ export function registerLMS(r: Router) {
     const q = c.url.searchParams
     const co = await course(c, s, needUUID(q.get('section_id'), 'section_id'), needUUID(q.get('class_subject_id'), 'class_subject_id'))
     const [units, lessons, hw, quizzes, roll] = await c.db.batch([
-      c.db.prepare(`SELECT id, title, description, sequence FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(co.class_subject_id),
-      c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at,
+      c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on, is_active FROM syllabus_units WHERE class_subject_id = ? ORDER BY sequence, created_at`).bind(co.class_subject_id),
+      c.db.prepare(`SELECT l.id, l.unit_id, l.section_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
+          l.url, l.sequence, l.is_published, l.created_at, l.day, l.publish_at, l.duration_minutes,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           (SELECT count(*) FROM lms_lesson_progress p JOIN enrollments e ON e.student_id = p.student_id AND e.section_id = ? AND e.status = 'active' WHERE p.lesson_id = l.id) AS completed
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id LEFT JOIN lms_videos v ON v.id = l.video_id
           WHERE su.class_subject_id = ? AND (l.section_id IS NULL OR l.section_id = ?) ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(co.section_id, co.class_subject_id, co.section_id),
-      c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
+      c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission, h.lms_unit_id, h.lms_sequence,
           (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status IN ('submitted','late','graded')) AS submitted,
           (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status IN ('submitted','late')) AS to_mark,
           (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.status = 'graded') AS graded,
           (SELECT count(*) FROM homework_submissions hs WHERE hs.homework_id = h.id AND hs.returned_at IS NOT NULL) AS returned
           FROM homework h WHERE h.section_id = ? AND h.class_subject_id = ? ORDER BY h.assigned_on DESC, h.created_at DESC`).bind(co.section_id, co.class_subject_id),
-      c.db.prepare(`SELECT t.id, t.title, t.instructions, t.status, t.opens_at, t.closes_at, t.duration_minutes, t.max_attempts,
+      c.db.prepare(`SELECT t.id, t.title, t.instructions, t.status, t.opens_at, t.closes_at, t.duration_minutes, t.max_attempts, t.lms_unit_id, t.lms_sequence,
           (SELECT count(*) FROM online_test_questions q WHERE q.test_id = t.id) AS questions,
           (SELECT count(DISTINCT a.student_id) FROM online_test_attempts a WHERE a.test_id = t.id AND a.status IN ('submitted','graded','timed_out')) AS attempted
           FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = ? ORDER BY t.created_at DESC`).bind(co.section_id, co.class_subject_id),
@@ -156,7 +178,8 @@ export function registerLMS(r: Router) {
     const ls = lessons.results as Record<string, unknown>[]
     return ok({
       course: co, roll: (roll.results[0] as { n: number }).n, today: todayIST(),
-      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published })) })),
+      /* Archived modules come too (is_active false), so they can be brought back. */
+      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, is_active: !!u.is_active, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, is_published: !!l.is_published })) })),
       assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, rubric: parseRubric(h.rubric), allow_submission: !!h.allow_submission })),
       quizzes: quizzes.results,
     })
@@ -169,10 +192,12 @@ export function registerLMS(r: Router) {
     const co = await course(c, s, needUUID(b.section_id, 'section_id'), needUUID(b.class_subject_id, 'class_subject_id'))
     const title = str(b.title)
     if (!title) throw badRequest('give the unit a title')
+    const starts = isoDate(b.starts_on, 'starts_on'), ends = isoDate(b.ends_on, 'ends_on')
+    if (starts && ends && ends < starts) throw badRequest('the module must end on or after the day it starts')
     const id = uuid()
-    await c.db.prepare(`INSERT INTO syllabus_units (id, institution_id, class_subject_id, sequence, title, description, planned_periods, is_active, created_at)
-        VALUES (?, ?, ?, (SELECT COALESCE(max(sequence), 0) + 1 FROM syllabus_units WHERE class_subject_id = ?), ?, ?, 1, 1, ?)`)
-      .bind(id, institutionId(c), co.class_subject_id, co.class_subject_id, title.slice(0, 200), optStr(b.description), now()).run()
+    await c.db.prepare(`INSERT INTO syllabus_units (id, institution_id, class_subject_id, sequence, title, description, planned_periods, is_active, created_at, starts_on, ends_on)
+        VALUES (?, ?, ?, (SELECT COALESCE(max(sequence), 0) + 1 FROM syllabus_units WHERE class_subject_id = ?), ?, ?, 1, 1, ?, ?, ?)`)
+      .bind(id, institutionId(c), co.class_subject_id, co.class_subject_id, title.slice(0, 200), optStr(b.description), now(), starts, ends).run()
     return ok({ id })
   })
 
@@ -183,12 +208,88 @@ export function registerLMS(r: Router) {
     const b = await readJSON<Body>(c.req)
     const title = str(b.title)
     if (b.title !== undefined && !title) throw badRequest('a unit needs a title')
-    await c.db.prepare(`UPDATE syllabus_units SET title = COALESCE(?, title), description = CASE WHEN ? THEN ? ELSE description END WHERE id = ?`)
-      .bind(title || null, b.description !== undefined ? 1 : 0, optStr(b.description), u.id).run()
+    const dates = b.starts_on !== undefined || b.ends_on !== undefined
+    const starts = isoDate(b.starts_on, 'starts_on'), ends = isoDate(b.ends_on, 'ends_on')
+    if (starts && ends && ends < starts) throw badRequest('the module must end on or after the day it starts')
+    /* is_active true brings an archived module back. */
+    await c.db.prepare(`UPDATE syllabus_units SET title = COALESCE(?, title), description = CASE WHEN ? THEN ? ELSE description END,
+        starts_on = CASE WHEN ? THEN ? ELSE starts_on END, ends_on = CASE WHEN ? THEN ? ELSE ends_on END,
+        is_active = CASE WHEN ? THEN 1 ELSE is_active END WHERE id = ?`)
+      .bind(title || null, b.description !== undefined ? 1 : 0, optStr(b.description), dates ? 1 : 0, starts, dates ? 1 : 0, ends, b.is_active === true ? 1 : 0, u.id).run()
     return ok({ id: u.id })
   })
 
-  /* A unit is retired, not deleted: the syllabus tracker and question bank may point at it. */
+  /* Modules in the order given (every id must be a module of this course). */
+  r.post('/lms/units/reorder', P, async (c) => {
+    requirePerm(c, HW)
+    const b = await readJSON<Body>(c.req)
+    const s = await resolveScope(c)
+    const co = await course(c, s, needUUID(b.section_id, 'section_id'), needUUID(b.class_subject_id, 'class_subject_id'))
+    const ids = Array.isArray(b.ids) ? (b.ids as unknown[]).map((x) => needUUID(x, 'ids')) : []
+    if (!ids.length || ids.length > 200) throw badRequest('give the modules in their new order')
+    const have = await c.db.prepare(`SELECT id FROM syllabus_units WHERE class_subject_id = ? AND id IN (${marks()})`).bind(co.class_subject_id, js(ids)).all<{ id: string }>()
+    if (have.results.length !== new Set(ids).size) throw badRequest('a module in that list is not part of this course')
+    await c.db.batch(ids.map((id, i) => c.db.prepare(`UPDATE syllabus_units SET sequence = ? WHERE id = ?`).bind(i + 1, id)))
+    return ok({ ordered: ids.length })
+  })
+
+  /* A module's sources, assignments and quizzes in the order given:
+     items [{type: 'lesson'|'assignment'|'quiz', id}]. Anything left out keeps its place. */
+  r.post('/lms/units/{id}/order', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const u = await unitInReach(c, s, needUUID(c.params.id, 'id'))
+    const b = await readJSON<Body>(c.req)
+    const items = Array.isArray(b.items) ? (b.items as Body[]) : []
+    if (!items.length || items.length > 500) throw badRequest('give the items in their new order')
+    const stmts: D1PreparedStatement[] = []
+    items.forEach((it, i) => {
+      const id = needUUID(it?.id, 'id'), type = str(it?.type)
+      if (type === 'lesson') stmts.push(c.db.prepare(`UPDATE lms_lessons SET sequence = ?, updated_at = ? WHERE id = ? AND unit_id = ?`).bind(i + 1, now(), id, u.id))
+      else if (type === 'assignment') stmts.push(c.db.prepare(`UPDATE homework SET lms_sequence = ? WHERE id = ? AND lms_unit_id = ?`).bind(i + 1, id, u.id))
+      else if (type === 'quiz') stmts.push(c.db.prepare(`UPDATE online_tests SET lms_sequence = ? WHERE id = ? AND lms_unit_id = ?`).bind(i + 1, id, u.id))
+      else throw badRequest('type must be lesson, assignment or quiz')
+    })
+    const res = await c.db.batch(stmts)
+    const moved = res.reduce((a, r) => a + (r.meta?.changes ?? 0), 0)
+    if (moved !== items.length) throw badRequest('an item in that list is not in this module')
+    return ok({ ordered: moved })
+  })
+
+  /* Who has finished a module: per child on the section's roll, the sources
+     done (of those the class can see now), work handed in and quizzes taken. */
+  r.get('/lms/units/{id}/progress', P, async (c) => {
+    const s = await resolveScope(c)
+    const u = await unitInReach(c, s, needUUID(c.params.id, 'id'))
+    const sec = needUUID(c.url.searchParams.get('section_id'), 'section_id')
+    if (!reachesSection(s, sec)) throw forbidden('this section is not one you teach')
+    const vis = `l.unit_id = ? AND l.is_published = 1 AND (l.section_id IS NULL OR l.section_id = ?) AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
+    const [tot, rows] = await c.db.batch([
+      c.db.prepare(`SELECT (SELECT count(*) FROM lms_lessons l WHERE ${vis}) AS sources,
+          (SELECT count(*) FROM homework h WHERE h.lms_unit_id = ? AND h.section_id = ? AND h.is_published = 1 AND h.allow_submission = 1) AS assignments,
+          (SELECT count(*) FROM online_tests t WHERE t.lms_unit_id = ? AND t.section_id = ? AND t.status IN ('published','closed')) AS quizzes`)
+        .bind(u.id, sec, u.id, sec, u.id, sec),
+      c.db.prepare(`SELECT st.id AS student_id, ${fullName('st')} AS full_name, e.roll_no,
+          (SELECT count(*) FROM lms_lessons l JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = st.id WHERE ${vis}) AS sources_done,
+          (SELECT count(*) FROM homework h JOIN homework_submissions hs ON hs.homework_id = h.id AND hs.student_id = st.id
+            WHERE h.lms_unit_id = ? AND h.section_id = ? AND h.is_published = 1 AND h.allow_submission = 1 AND (hs.status = 'graded' OR (hs.submitted_at IS NOT NULL AND hs.status <> 'resubmit'))) AS assignments_done,
+          (SELECT count(*) FROM online_tests t WHERE t.lms_unit_id = ? AND t.section_id = ? AND t.status IN ('published','closed')
+            AND EXISTS (SELECT 1 FROM online_test_attempts a WHERE a.test_id = t.id AND a.student_id = st.id AND a.status <> 'in_progress')) AS quizzes_done,
+          (SELECT max(v.last_at) FROM lms_lesson_views v JOIN lms_lessons l ON l.id = v.lesson_id WHERE v.student_id = st.id AND l.unit_id = ?) AS last_seen
+          FROM enrollments e JOIN students st ON st.id = e.student_id WHERE e.section_id = ? AND e.status = 'active' ORDER BY e.roll_no IS NULL, e.roll_no, st.first_name`)
+        .bind(u.id, sec, u.id, sec, u.id, sec, u.id, sec),
+    ])
+    const t = tot.results[0] as { sources: number; assignments: number; quizzes: number }
+    const total = t.sources + t.assignments + t.quizzes
+    const items = (rows.results as Record<string, number | string | null>[]).map((r) => {
+      const done = Number(r.sources_done) + Number(r.assignments_done) + Number(r.quizzes_done)
+      return { ...r, done, total, complete: total > 0 && done >= total }
+    })
+    return ok({ totals: { ...t, total }, items, complete: items.filter((i) => i.complete).length, roll: items.length })
+  })
+
+  /* A unit (module) is archived, not deleted: the syllabus tracker and question
+     bank may point at it, and PUT with is_active true brings it back. */
   r.del('/lms/units/{id}', P, async (c) => {
     requirePerm(c, HW)
     const s = await resolveScope(c)
@@ -199,7 +300,7 @@ export function registerLMS(r: Router) {
 
   const lessonFields = (b: Body) => {
     const kind = str(b.kind) || 'text'
-    if (!LESSON_KINDS.has(kind)) throw badRequest('kind must be text, file, pdf, video or link')
+    if (!LESSON_KINDS.has(kind)) throw badRequest('kind must be text, file, pdf, video, link, image, audio or doc')
     const url = optStr(b.url)
     if (url && !/^https?:\/\//i.test(url)) throw badRequest('a link must start with http:// or https://')
     const fileId = optStr(b.file_id)
@@ -208,7 +309,7 @@ export function registerLMS(r: Router) {
     if (videoId && !isUUID(videoId)) throw badRequest('video_id must be a uuid')
     if (kind === 'video' && !url && !videoId) throw badRequest('pick a video from the library, or give its address')
     if (kind === 'link' && !url) throw badRequest('a link lesson needs its address')
-    if ((kind === 'file' || kind === 'pdf') && !fileId && !url) throw badRequest('attach the file, or give a link to it')
+    if (FILE_KINDS.has(kind) && !fileId && !url) throw badRequest('attach the file, or give a link to it')
     if (kind === 'text' && !str(b.body)) throw badRequest('write the lesson text')
     let day: number | null = null
     if (b.day !== null && b.day !== undefined && b.day !== '') {
@@ -221,7 +322,12 @@ export function registerLMS(r: Router) {
       if (Number.isNaN(t)) throw badRequest('publish_at is not a date and time')
       publishAt = new Date(t).toISOString()
     }
-    return { kind, url: videoId ? null : url, fileId, videoId: videoId ? videoId.toLowerCase() : null, day, publishAt, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null }
+    let minutes: number | null = null
+    if (b.duration_minutes !== null && b.duration_minutes !== undefined && b.duration_minutes !== '') {
+      minutes = Math.trunc(Number(b.duration_minutes))
+      if (!Number.isFinite(minutes) || minutes < 1 || minutes > 600) throw badRequest('duration_minutes must be from 1 to 600')
+    }
+    return { kind, url: videoId ? null : url, fileId, videoId: videoId ? videoId.toLowerCase() : null, day, publishAt, minutes, body: typeof b.body === 'string' ? b.body.slice(0, 50_000) : null }
   }
 
   r.post('/lms/lessons', P, async (c) => {
@@ -241,9 +347,11 @@ export function registerLMS(r: Router) {
     if (f.videoId) f.videoId = await checkLessonVideo(c, f.videoId)
     const published = b.is_published === false ? 0 : 1
     const id = uuid(), t = now()
-    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(max(sequence), 0) + 1 FROM lms_lessons WHERE unit_id = ?), ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId)]
+    /* At the end of the module, after its sources, assignments and quizzes. */
+    const stmts = [c.db.prepare(`INSERT INTO lms_lessons (id, institution_id, unit_id, section_id, title, kind, body, file_id, url, sequence, is_published, created_by, created_at, updated_at, day, publish_at, video_id, duration_minutes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(COALESCE((SELECT max(sequence) FROM lms_lessons WHERE unit_id = ?), 0), COALESCE((SELECT max(lms_sequence) FROM homework WHERE lms_unit_id = ?), 0),
+          COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, institutionId(c), u.id, sectionId, title.slice(0, 200), f.kind, f.body, f.fileId, f.url, u.id, u.id, u.id, published, c.id.userId, t, t, f.day, f.publishAt, f.videoId, f.minutes)]
     /* A scheduled lesson is announced by nobody: the child finds it on the day. */
     if (published && (!f.publishAt || f.publishAt <= t)) {
       const secs = sectionId ? [sectionId] : (await c.db.prepare(`SELECT id FROM sections WHERE class_id = ?`).bind(u.class_id).all<{ id: string }>()).results.map((x) => x.id)
@@ -276,10 +384,43 @@ export function registerLMS(r: Router) {
     const had = await c.db.prepare(`SELECT video_id FROM lms_lessons WHERE id = ?`).bind(l.id).first<{ video_id: string | null }>()
     if (f.videoId && f.videoId !== had?.video_id) f.videoId = await checkLessonVideo(c, f.videoId)
     await c.db.prepare(`UPDATE lms_lessons SET title = ?, kind = ?, body = ?, file_id = ?, url = ?, video_id = ?, day = ?, publish_at = ?, is_published = COALESCE(?, is_published),
-        sequence = COALESCE(?, sequence), updated_at = ? WHERE id = ?`)
+        sequence = COALESCE(?, sequence), duration_minutes = ?, updated_at = ? WHERE id = ?`)
       .bind(title.slice(0, 200), f.kind, f.body, f.fileId, f.url, f.videoId, f.day, f.publishAt, typeof b.is_published === 'boolean' ? (b.is_published ? 1 : 0) : null,
-        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, now(), l.id).run()
+        typeof b.sequence === 'number' ? Math.trunc(b.sequence) : null, f.minutes, now(), l.id).run()
     return ok({ id: l.id })
+  })
+
+  /* Publish, unpublish or schedule a source without resending all of it. */
+  r.post('/lms/lessons/{id}/publish', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const l = await lessonInReach(c, s, needUUID(c.params.id, 'id'))
+    const b = await readJSON<Body>(c.req)
+    if (typeof b.is_published !== 'boolean') throw badRequest('is_published must be true or false')
+    let publishAt: string | null = null
+    if (str(b.publish_at)) {
+      const t = Date.parse(str(b.publish_at))
+      if (Number.isNaN(t)) throw badRequest('publish_at is not a date and time')
+      publishAt = new Date(t).toISOString()
+    }
+    await c.db.prepare(`UPDATE lms_lessons SET is_published = ?, publish_at = ?, updated_at = ? WHERE id = ?`).bind(b.is_published ? 1 : 0, publishAt, now(), l.id).run()
+    return ok({ id: l.id, is_published: b.is_published, publish_at: publishAt })
+  })
+
+  /* Move a source to another module of the same subject; it goes to the end there. */
+  r.post('/lms/lessons/{id}/move', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const l = await lessonInReach(c, s, needUUID(c.params.id, 'id'))
+    const b = await readJSON<Body>(c.req)
+    const to = await unitInReach(c, s, needUUID(b.unit_id, 'unit_id'))
+    const from = await unitInReach(c, s, l.unit_id)
+    if (to.class_subject_id !== from.class_subject_id) throw badRequest('a source can only move to another module of the same subject')
+    if (to.id === l.unit_id) return ok({ id: l.id, unit_id: to.id })
+    await c.db.prepare(`UPDATE lms_lessons SET unit_id = ?, sequence = (SELECT max(COALESCE((SELECT max(sequence) FROM lms_lessons WHERE unit_id = ?), 0),
+        COALESCE((SELECT max(lms_sequence) FROM homework WHERE lms_unit_id = ?), 0), COALESCE((SELECT max(lms_sequence) FROM online_tests WHERE lms_unit_id = ?), 0)) + 1), updated_at = ? WHERE id = ?`)
+      .bind(to.id, to.id, to.id, to.id, now(), l.id).run()
+    return ok({ id: l.id, unit_id: to.id })
   })
 
   r.del('/lms/lessons/{id}', P, async (c) => {
@@ -318,12 +459,13 @@ export function registerLMS(r: Router) {
     if (max !== null && (!Number.isFinite(max) || max < 0 || max > 1000)) throw badRequest('max_marks must be between 0 and 1000')
     if (rubric) max = rubric.reduce((a, r) => a + r.max, 0)
     const kind = str(b.kind) === 'classwork' ? 'classwork' : 'homework'
+    const unitId = await moduleOf(c, s, b.unit_id, co.class_subject_id)
     const fileIds = Array.isArray(b.file_ids) ? (b.file_ids as unknown[]).map(str).filter(isUUID) : []
     const id = uuid(), t = now(), inst = institutionId(c)
     const stmts: D1PreparedStatement[] = [c.db.prepare(`INSERT INTO homework (id, institution_id, section_id, class_subject_id, kind, title, instructions, assigned_on, due_on, max_marks,
-        is_published, allow_submission, created_by, created_at, updated_at, rubric) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`)
+        is_published, allow_submission, created_by, created_at, updated_at, rubric, lms_unit_id, lms_sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ${unitId ? NEXT_IN_MODULE : 'NULL'})`)
       .bind(id, inst, co.section_id, co.class_subject_id, kind, title.slice(0, 200), optStr(b.instructions), todayIST(), due,
-        max === null ? null : String(max), b.allow_submission === false ? 0 : 1, c.id.userId, t, t, rubric ? JSON.stringify(rubric) : null)]
+        max === null ? null : String(max), b.allow_submission === false ? 0 : 1, c.id.userId, t, t, rubric ? JSON.stringify(rubric) : null, unitId, ...(unitId ? [unitId, unitId, unitId] : []))]
     for (const f of fileIds) {
       stmts.push(c.db.prepare(`INSERT INTO homework_attachments (id, institution_id, homework_id, file_id) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM files WHERE id = ? AND deleted_at IS NULL)`)
         .bind(uuid(), inst, id, f, f))
@@ -466,12 +608,13 @@ export function registerLMS(r: Router) {
     const opens = iso(b.opens_at, 'opens_at'), closes = iso(b.closes_at, 'closes_at')
     if (opens && closes && closes <= opens) throw badRequest('the quiz must close after it opens')
     const attempts = Math.max(1, Math.min(5, Math.trunc(Number(b.max_attempts ?? 1)) || 1))
+    const unitId = await moduleOf(c, s, b.unit_id, co.class_subject_id)
     const inst = institutionId(c), t = now(), testId = uuid()
     const publish = b.publish !== false
     const stmts: D1PreparedStatement[] = [c.db.prepare(`INSERT INTO online_tests (id, institution_id, section_id, class_subject_id, title, instructions, opens_at, closes_at, duration_minutes,
-        max_attempts, shuffle_questions, status, published_at, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        max_attempts, shuffle_questions, status, published_at, created_by, created_at, updated_at, lms_unit_id, lms_sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${unitId ? NEXT_IN_MODULE : 'NULL'})`)
       .bind(testId, inst, co.section_id, co.class_subject_id, title.slice(0, 200), optStr(b.instructions), opens, closes, dur, attempts, b.shuffle === true ? 1 : 0,
-        publish ? 'published' : 'draft', publish ? t : null, c.id.userId, t, t)]
+        publish ? 'published' : 'draft', publish ? t : null, c.id.userId, t, t, unitId, ...(unitId ? [unitId, unitId, unitId] : []))]
     qs.forEach((q, i) => {
       const stem = str(q.stem)
       const options = Array.isArray(q.options) ? (q.options as unknown[]).map(str).filter(Boolean) : []
@@ -524,6 +667,30 @@ export function registerLMS(r: Router) {
         FROM enrollments e JOIN students st ON st.id = e.student_id WHERE e.section_id = ? AND e.status = 'active' ORDER BY e.roll_no IS NULL, e.roll_no, st.first_name`)
       .bind(t0.id, t0.id, t0.id, t0.id, t0.section_id).all()
     return ok({ quiz: t0, items: rows.results })
+  })
+
+  /* Put an assignment or a quiz into a module (at its end), or take it out (unit_id null). */
+  r.post('/lms/assignments/{id}/module', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const h = await assignmentInReach(c, s, c.params.id)
+    const b = await readJSON<Body>(c.req)
+    const unitId = await moduleOf(c, s, b.unit_id, h.class_subject_id ?? '')
+    await c.db.prepare(`UPDATE homework SET lms_unit_id = ?, lms_sequence = ${unitId ? NEXT_IN_MODULE : 'NULL'}, updated_at = ? WHERE id = ?`)
+      .bind(unitId, ...(unitId ? [unitId, unitId, unitId] : []), now(), h.id).run()
+    return ok({ id: h.id, unit_id: unitId })
+  })
+
+  r.post('/lms/quizzes/{id}/module', P, async (c) => {
+    requirePerm(c, HW)
+    const s = await resolveScope(c)
+    const t0 = await c.db.prepare(`SELECT id, section_id, class_subject_id FROM online_tests WHERE id = ?`).bind(needUUID(c.params.id, 'id')).first<{ id: string; section_id: string; class_subject_id: string }>()
+    if (!t0 || !reachesSection(s, t0.section_id)) throw notFound()
+    const b = await readJSON<Body>(c.req)
+    const unitId = await moduleOf(c, s, b.unit_id, t0.class_subject_id)
+    await c.db.prepare(`UPDATE online_tests SET lms_unit_id = ?, lms_sequence = ${unitId ? NEXT_IN_MODULE : 'NULL'}, updated_at = ? WHERE id = ?`)
+      .bind(unitId, ...(unitId ? [unitId, unitId, unitId] : []), now(), t0.id).run()
+    return ok({ id: t0.id, unit_id: unitId })
   })
 
   /* Optional, and labelled as such: draft MCQs from a lesson's text for the teacher to check. Nothing is saved. */

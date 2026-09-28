@@ -110,23 +110,24 @@ export function registerPortalLMS(r: Router) {
         FROM class_subjects cs JOIN subjects sub ON sub.id = cs.subject_id WHERE cs.id = ? AND cs.class_id = ?`).bind(k.section_id, cs, k.class_id).first()
     if (!co) throw notFound()
     const [units, lessons, hw, quizzes] = await c.db.batch([
-      c.db.prepare(`SELECT id, title, description, sequence FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
-      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.day, p.completed_at,
+      c.db.prepare(`SELECT id, title, description, sequence, starts_on, ends_on FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
+      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, f.size_bytes AS file_size, f.content_type AS file_type,
+          l.url, l.sequence, l.day, l.duration_minutes, p.completed_at, vw.last_at AS viewed_at, max(COALESCE(l.publish_at, l.created_at), l.created_at) AS released_at,
           l.video_id, v.title AS video_title, v.duration_seconds AS video_duration, (v.thumb_key IS NOT NULL) AS video_thumb, v.content_type AS video_type,
           vp.position_seconds AS video_position, vp.percent AS video_percent, vp.watched AS video_watched, vp.bucket_seconds AS video_bucket
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
           LEFT JOIN lms_videos v ON v.id = l.video_id AND v.status = 'ready' LEFT JOIN lms_video_progress vp ON vp.lesson_id = l.id AND vp.student_id = ?
-          LEFT JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ?
-          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(sid, sid, cs, k.section_id),
+          LEFT JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ? LEFT JOIN lms_lesson_views vw ON vw.lesson_id = l.id AND vw.student_id = ?
+          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.sequence, l.created_at`).bind(sid, sid, sid, cs, k.section_id),
       c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
-          COALESCE(hs.status, 'pending') AS status, hs.submitted_at, hs.text_answer, hs.file_id, f.original_name AS file_name, hs.returned_at,
+          h.lms_unit_id, h.lms_sequence, COALESCE(hs.status, 'pending') AS status, hs.submitted_at, hs.text_answer, hs.file_id, f.original_name AS file_name, hs.returned_at,
           CASE WHEN hs.returned_at IS NOT NULL THEN CAST(hs.marks AS REAL) END AS marks,
           CASE WHEN hs.returned_at IS NOT NULL THEN hs.feedback END AS feedback,
           CASE WHEN hs.returned_at IS NOT NULL THEN hs.rubric_scores END AS rubric_scores,
           COALESCE((SELECT json_group_array(json_object('file_id', af.id, 'name', af.original_name)) FROM homework_attachments ha JOIN files af ON af.id = ha.file_id AND af.deleted_at IS NULL WHERE ha.homework_id = h.id), '[]') AS files
           FROM homework h LEFT JOIN homework_submissions hs ON hs.homework_id = h.id AND hs.student_id = ? LEFT JOIN files f ON f.id = hs.file_id AND f.deleted_at IS NULL
           WHERE h.section_id = ? AND h.class_subject_id = ? AND h.is_published = 1 ORDER BY h.due_on IS NULL, h.due_on DESC, h.assigned_on DESC`).bind(sid, k.section_id, cs),
-      c.db.prepare(`SELECT t.id, t.title, t.instructions, t.opens_at, t.closes_at, t.duration_minutes, t.max_attempts,
+      c.db.prepare(`SELECT t.id, t.title, t.instructions, t.opens_at, t.closes_at, t.duration_minutes, t.max_attempts, t.lms_unit_id, t.lms_sequence,
           (SELECT count(*) FROM online_test_questions q WHERE q.test_id = t.id) AS questions,
           (SELECT sum(CAST(q.marks AS REAL)) FROM online_test_questions q WHERE q.test_id = t.id) AS max_score,
           (SELECT count(*) FROM online_test_attempts a WHERE a.test_id = t.id AND a.student_id = ? AND a.status <> 'in_progress') AS attempts,
@@ -135,11 +136,21 @@ export function registerPortalLMS(r: Router) {
           FROM online_tests t WHERE t.section_id = ? AND t.class_subject_id = ? AND t.status IN ('published','closed') ORDER BY t.created_at DESC`).bind(sid, sid, sid, k.section_id, cs),
     ])
     const today = todayIST(), t = now()
-    const ls = lessons.results as Record<string, unknown>[]
+    /* "New": out in the last week and not opened yet. */
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+    const ls: Record<string, unknown>[] = (lessons.results as Record<string, unknown>[]).map((l) => ({ ...l, done: !!l.completed_at, is_new: !l.viewed_at && !l.completed_at && String(l.released_at) >= weekAgo }))
+    const inModule = new Set([...(hw.results as { lms_unit_id: string | null }[]), ...(quizzes.results as { lms_unit_id: string | null }[])].map((x) => x.lms_unit_id).filter(Boolean))
+    /* Continue where you left off: the source opened last that is not done, else the first not done. */
+    const open = ls.filter((l) => !l.done)
+    const last = [...open].filter((l) => l.viewed_at).sort((a, b) => String(b.viewed_at).localeCompare(String(a.viewed_at)))[0]
+    const unitSeq = new Map((units.results as { id: string; sequence: number }[]).map((u) => [u.id, u.sequence]))
+    const first = [...open].sort((a, b) => (unitSeq.get(String(a.unit_id)) ?? 0) - (unitSeq.get(String(b.unit_id)) ?? 0) || Number(a.sequence) - Number(b.sequence))[0]
+    const next = last ?? first
     return ok({
       student_id: sid, course: co, today,
-      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, lessons: ls.filter((l) => l.unit_id === u.id).map((l) => ({ ...l, done: !!l.completed_at })) }))
-        .filter((u) => u.lessons.length > 0),
+      resume: next ? { lesson_id: next.id, unit_id: next.unit_id, title: next.title, kind: next.kind, started: !!last } : null,
+      units: (units.results as Record<string, unknown>[]).map((u) => ({ ...u, id: String(u.id), lessons: ls.filter((l) => l.unit_id === u.id) }))
+        .filter((u) => u.lessons.length > 0 || inModule.has(u.id)),
       assignments: (hw.results as Record<string, unknown>[]).map((h) => {
         let files: unknown[] = [], rs: unknown = null
         try { files = JSON.parse(String(h.files)) } catch { files = [] }
@@ -181,6 +192,23 @@ export function registerPortalLMS(r: Router) {
     return ok({ student_id: sid, class_name: k.class_name, section_name: k.section_name,
       todo: await todo(c, sid, k.section_id, k.class_id), marks: marks.results, notices: notices.results,
       library: (loans.results as Record<string, unknown>[]).map((l) => ({ ...l, overdue: !!l.overdue })) })
+  })
+
+  /* The child opened a source: for "new" and "continue where you left off".
+     Only the child's own login records it; a parent reading is not the child. */
+  r.post('/portal/lms/lessons/{id}/view', PERM, async (c) => {
+    const own = await c.db.prepare(`SELECT id FROM students WHERE user_id = ? AND status = 'active'`).bind(c.id.userId).first<{ id: string }>()
+    if (!own) return ok({ recorded: false })
+    const k = await classroom(c, own.id)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const l = await c.db.prepare(`SELECT l.id FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id
+        WHERE l.id = ? AND cs.class_id = ? AND ${lessonVisible}`).bind(id, k.class_id, k.section_id).first<{ id: string }>()
+    if (!l) throw notFound()
+    const t = now()
+    await c.db.prepare(`INSERT INTO lms_lesson_views (institution_id, lesson_id, student_id, first_at, last_at) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (lesson_id, student_id) DO UPDATE SET last_at = excluded.last_at`).bind(institutionId(c), l.id, own.id, t, t).run()
+    return ok({ recorded: true })
   })
 
   r.post('/portal/lms/lessons/{id}/complete', PERM, async (c) => {
