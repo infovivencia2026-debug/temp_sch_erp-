@@ -111,7 +111,41 @@ html[data-printing] { overflow: hidden; }
    lay itself out; this only takes the screen out of it. */
 .print-sheet__body { color: #000; }
 .print-sheet__source { max-width: none; overflow: visible; }
-.print-sheet__body [data-page-enter] { display: none; }
+/* NOT BY THIS ATTRIBUTE.
+   PageHead and PageBody both carry data-page-enter -- it is the fade every
+   screen arrives with, not a marker for the heading. So this hid the heading
+   as intended and the entire page body with it, and every report in the
+   product printed as a letterhead, a title, a footer, and nothing in between.
+   The heading is removed in print.ts, which can tell the two apart; hiding it
+   here as well was belt and braces that cut the belt. */
+
+/* A4 IS NOT 1280px.
+   The screen lays a row of metrics out in four columns and a pair of panels
+   side by side, which is right at desk width and wrong on paper: the same grid
+   on a 180mm sheet gives each figure about 40mm, and a fee total came out as
+   "Rs 7,79,9" on one line and "63" on the next. A number broken across two
+   lines is not a number, and this is a document somebody reconciles against a
+   bank statement. */
+.print-sheet__body .cell-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.print-sheet__body .cell { padding: 10pt 12pt; }
+.print-sheet__body .stat { font-size: 15pt; white-space: nowrap; margin-top: 4pt; }
+
+/* Everything else the screen set in columns comes back to one. Two panels side
+   by side each get about 90mm, and the second loses its last column off the
+   edge -- which is how the concession table printed without the figure the
+   page is about. The metric row is the exception and keeps its two. */
+.print-sheet__body [class*="grid-cols-"]:not(.cell-grid) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* A TABLE MUST END ON THE PAGE.
+   Every table on screen sits in overflow-x:auto, so a wide one simply scrolls
+   and nothing is lost. On paper there is no scrolling: the columns past the
+   edge are gone with no sign they existed. */
+.print-sheet__body table { width: 100%; font-size: 8.5pt; table-layout: auto; }
+.print-sheet__body th, .print-sheet__body td { padding: 3pt 5pt; }
+.print-sheet__body .overflow-x-auto,
+.print-sheet__body [class*="overflow-x"] { overflow: visible !important; }
 .print-sheet__body .card,
 .print-sheet__body .cell,
 .print-sheet__body .cell-grid,

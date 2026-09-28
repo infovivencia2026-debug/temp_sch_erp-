@@ -2068,9 +2068,28 @@ import { useOpenState } from '@/lib/motion'
  * that admits printing is a first-class action in a school rather than
  * something the browser menu handles. Hidden from the printout itself.
  */
-export function PrintButton({ label = 'Print' }: { label?: string }) {
+export function PrintButton({
+  label = 'Print',
+  source,
+  title,
+}: {
+  label?: string
+  /* WHAT TO PRINT, WHEN THE SCREEN IS NOT THE DOCUMENT.
+     Left out, this prints the whole <main>, which is right for a report: the
+     cash book, the register, the payroll sheet ARE the screen. It is wrong
+     wherever the screen is a workbench that produces a document. "Print 5" on
+     the ID cards printed the template settings, then the whole staff roster,
+     and only then the five cards. */
+  source?: React.RefObject<HTMLElement | null>
+  title?: string
+}) {
   return (
-    <Button variant="secondary" size="sm" onClick={() => printDocument()} className="no-print">
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => printDocument({ source: source?.current, title })}
+      className="no-print"
+    >
       <Printer className="h-3.5 w-3.5" />
       {label}
     </Button>

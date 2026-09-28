@@ -79,7 +79,7 @@ export default function StudentIDCard() {
   // Drawn from one place: it is the only thing on the screen before the
   // question of whose card this is has been answered.
   const picker = children.length > 1 && (
-    <Card>
+    <Card className="print:hidden">
       <div className="px-5 py-4">
         <Field label={t('portal.student_id_card.field_child')}>
           <Select value={chosen} onChange={setChosen} options={childOptions(children)} />

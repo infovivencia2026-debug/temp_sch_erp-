@@ -115,7 +115,12 @@ export function printDocument(opts: PrintDocumentOptions = {}): HTMLElement | nu
 
   /* The title is the page's own heading unless the caller names one, and
      the heading block is not repeated below it. */
-  const head = copy.querySelector('[data-page-enter]')
+  /* The heading block, not simply the first thing that fades in. PageHead
+     and PageBody both carry data-page-enter, and on a screen with no
+     PageHead the first match is the whole body -- removing it printed an
+     empty sheet. The heading is the one holding the h1. */
+  const head = [...copy.querySelectorAll<HTMLElement>('[data-page-enter]')]
+    .find((el) => el.querySelector('h1')) ?? null
   const h1 = copy.querySelector('h1')
   const title = opts.title ?? h1?.textContent?.trim() ?? document.title
   const subtitle = opts.subtitle ?? (head ? head.querySelector('p')?.textContent?.trim() : undefined)
