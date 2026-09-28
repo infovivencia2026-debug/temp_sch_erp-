@@ -720,7 +720,7 @@ export function Shell({
           {/* The header's controls, in the Work layout: the header keeps only
               the search. Stacked, one per row, at the rail's own size. */}
           {layout !== 'bento' && (
-            <div className="hidden flex-col items-center gap-1 pb-2 md:flex">
+            <div className="rail-foot hidden flex-col items-center gap-2.5 pb-2.5 md:flex">
               <Notifications />
               <button
                 onClick={cycleDensity}
@@ -748,7 +748,7 @@ export function Shell({
               </a>
             </div>
           )}
-          <BentoSettings placement="rail" />
+          <div className="rail-foot flex flex-col items-center"><BentoSettings placement="rail" /></div>
         </div>
 
         {/* --- the panel: the selected workspace, and nothing else ---------

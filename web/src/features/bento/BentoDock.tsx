@@ -301,7 +301,7 @@ export function BentoDock() {
      the dock crowded the row of buttons on a phone. */
 
   const item =
-    `grid shrink-0 place-items-center rounded-full transition-colors ` +
+    `dock-mag grid shrink-0 place-items-center rounded-full transition-colors ` +
     `hover:bg-[color-mix(in_srgb,var(--ink-here)_12%,transparent)] focus-visible:outline-none ` +
     `focus-visible:ring-2 focus-visible:ring-[var(--ink-here)]`
   const btnStyle = { width: 'var(--dock-btn, 40px)', height: 'var(--dock-btn, 40px)' }

@@ -3750,3 +3750,54 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
 @media (prefers-reduced-motion: reduce) {
   .fluid-orb, .fluid-orb__blob { animation: none !important; }
 }
+
+/* The rail's foot (alerts, row height, account, sign out, settings): the same
+   bold tiles and dock hover as the workspace marks, each in its own colour. */
+.rail-foot > button, .rail-foot > a, .rail-foot > div > button:first-child {
+  --tile: hsl(var(--foreground) / .78);
+  width: 44px !important; height: 44px !important; border-radius: 13px !important;
+  display: grid; place-items: center;
+  background: var(--tile) !important; color: #fff !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), 0 2px 6px -2px color-mix(in srgb, var(--tile) 60%, transparent);
+  transform-origin: left center;
+  transition: transform 260ms cubic-bezier(.34, 1.56, .64, 1), filter 200ms ease, box-shadow 200ms ease;
+}
+.rail-foot > div > button:first-child { --tile: hsl(var(--primary)); }
+.rail-foot > div > button:first-child:hover { transform: scale(1.28) translateX(3px); filter: brightness(1.12); }
+.rail-foot > div > button:first-child:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-foot > div > button:first-child svg { width: 20px; height: 20px; }
+.rail-foot > button svg, .rail-foot > a svg { width: 20px; height: 20px; }
+.rail-foot > button:hover, .rail-foot > a:hover {
+  transform: scale(1.28) translateX(3px); filter: brightness(1.12) saturate(1.15); z-index: 5;
+  box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--tile) 75%, transparent);
+}
+.rail-foot > button:hover svg, .rail-foot > a:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+.rail-foot > :is(button, a):hover + :is(button, a),
+.rail-foot > :is(button, a):has(+ :is(button, a):hover) { transform: scale(1.12) translateX(1px); }
+.rail-foot > button[aria-label*="otification" i], .rail-foot > button[aria-label*="lert" i] { --tile: var(--dom-warning, hsl(var(--warning))); }
+.rail-foot > button[aria-label^="Row height"] { --tile: var(--dom-attendance, hsl(var(--primary))); }
+.rail-foot > a[href="/account"] { --tile: var(--dom-staff, hsl(var(--primary))); }
+.rail-foot > a[href="/logout"] { --tile: var(--dom-critical, hsl(var(--destructive))); }
+@media (prefers-reduced-motion: reduce) {
+  .rail-foot > :is(button, a), .rail-foot > :is(button, a):hover { transform: none; }
+  .rail-foot > :is(button, a):hover svg { animation: none; }
+}
+
+/* The Focus dock magnifies like the Mac dock: the icon under the pointer
+   swells and rises, its neighbours rise a little, on a springy curve. */
+@media (hover: hover) and (min-width: 640px) {
+  .bento-dock .dock-mag {
+    transform-origin: 50% 100%;
+    transition: transform 280ms cubic-bezier(.34, 1.56, .64, 1), background-color 160ms ease !important;
+    position: relative;
+  }
+  html .bento-dock .dock-mag.dock-mag:hover { transform: translateY(-8px) scale(1.45) !important; z-index: 5; }
+  .bento-dock .dock-mag:hover svg { animation: rail-bob 420ms cubic-bezier(.34, 1.56, .64, 1); }
+  .bento-dock .dock-mag:hover + .dock-mag,
+  .bento-dock .dock-mag:has(+ .dock-mag:hover) { transform: translateY(-4px) scale(1.2); }
+  .bento-dock .dock-mag:hover + .dock-mag + .dock-mag,
+  .bento-dock .dock-mag:has(+ .dock-mag + .dock-mag:hover) { transform: translateY(-1px) scale(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bento-dock .dock-mag, .bento-dock .dock-mag:hover { transform: none !important; }
+}
