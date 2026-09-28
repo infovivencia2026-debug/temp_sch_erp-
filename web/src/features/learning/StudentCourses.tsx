@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Circle, Clock, PlayCircle } from 'lucide-react'
+import { Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Clock, Lock, PlayCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Loading, PageBody, PageHead, Textarea } from '@/components/ui'
 import {
-  FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, ProgressRing, TypeCounts, dateRange, fmtWhen, itemKind, moduleItems, sourceMeta,
-  type ModuleItem, type RubricRow, type SourceKind, type Unit,
+  FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, ProgressRing, SECTIONS, SECTION_LABEL, dateRange, fmtWhen, sourceMeta,
+  type Lesson, type RubricRow, type Section,
 } from './lms-shared'
 
 /* THE CHILD'S COURSES (worker routes/portal/lms.ts).
 
    Every subject of their class, with how far through they are. Inside one,
-   module first: each module with a progress ring, and "continue where you
-   left off". A module lists its sources (video, PDF, notes, file, link,
-   image, audio, slides) with its assignments and quizzes in the teacher's
-   order; opening one shows its viewer, a way to mark it done (a library
-   video marks itself at 90% watched), and previous / next through the
-   module. Assignments show what was handed in and, once returned, the marks
+   the course is taken one day at a time (worker lms_progress.ts): a big
+   Continue button, then the modules, each opening to its days (done, open
+   with a ring, or locked with the reason). A day shows its four sections,
+   Pre-requisites, Resources, Tools and Assessment; a source opens in its
+   viewer with a way to mark it done (a library video marks itself at 90%
+   watched), and previous / next run through the day and on to the next
+   one once it is open. Assignments show what was handed in and, once returned, the marks
    and comments; quizzes are taken here against the clock. A parent opening
    this reads it; only the child's own login does the work. */
 
@@ -29,8 +30,8 @@ interface Assignment {
 }
 interface Quiz { id: string; title: string; instructions?: string | null; closes_at?: string | null; duration_minutes?: number | null; questions: number; max_score?: number | null; attempts: number; max_attempts: number; best?: number | null; open: boolean; open_attempt?: string | null; lms_unit_id?: string | null; lms_sequence?: number | null }
 interface Detail {
-  student_id: string; course: { subject: string; teacher?: string | null }; today: string; units: Unit[]; assignments: Assignment[]; quizzes: Quiz[]
-  resume: { lesson_id: string; unit_id: string; title: string; kind: SourceKind; started: boolean } | null
+  student_id: string; course: { subject: string; teacher?: string | null }; today: string; gating: 'sequential' | 'open'
+  modules: SModule[]; assignments: Assignment[]; quizzes: Quiz[]; resume: Resume | null
 }
 interface Todo {
   assignments: { id: string; title: string; subject?: string; class_subject_id?: string; due_on?: string | null; overdue: boolean; status: string }[]
@@ -109,114 +110,147 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
   )
 }
 
-type Item = ModuleItem
+interface SItem { type: 'lesson' | 'assignment' | 'quiz'; id: string; section: Section; required: boolean; done: boolean; pass_percent: number | null; locked: boolean; lesson?: Lesson | null }
+interface SDay { key: string; day: number | null; label: string; name: string; state: 'done' | 'open' | 'locked'; reason: string | null; done: number; total: number; opens_at: string | null; items: SItem[] }
+interface SModule { id: string; title: string; description?: string | null; starts_on?: string | null; ends_on?: string | null; parent_unit_id?: string | null; state: string; days_done: number; days: SDay[] }
+interface Resume { type: 'lesson' | 'assignment' | 'quiz'; id: string; unit_id: string; day_key: string; day_name: string; section: Section; title: string; kind: string; started: boolean }
 const OTHER = 'other'
+const shortDay = (d: SDay) => (d.day === null ? d.label || 'More' : `Day ${d.day}`)
+interface Stop { m: SModule; d: SDay; it: SItem }
+
+function DayMark({ d, size = 40 }: { d: SDay; size?: number }) {
+  if (d.state === 'done') return <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-success text-white" style={{ width: size, height: size }} aria-label="Done"><Check className="h-5 w-5" /></span>
+  if (d.state === 'locked') return <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground" style={{ width: size, height: size }} aria-label="Locked"><Lock className="h-4 w-4" /></span>
+  return <ProgressRing pct={d.total ? Math.round((100 * d.done) / d.total) : 0} size={size} label={`${d.done} of ${d.total} done`} />
+}
 
 function Course({ cs, back }: { cs: string; back: () => void }) {
   const qc = useQueryClient()
   const key = ['my-course', cs]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<Detail>(`/api/v1/portal/lms/course?class_subject_id=${cs}`) })
-  const [where, setWhere] = useState<{ unit: string | null; item: string | null }>({ unit: null, item: null })
+  const [where, setWhere] = useState<{ day: string | null; item: string | null }>({ day: null, item: null })
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [quiz, setQuiz] = useState<string | null>(null)
   const top = useRef<HTMLDivElement>(null)
   const first = useRef(true)
   useEffect(() => {
     if (first.current) { first.current = false; return }
     top.current?.scrollIntoView({ block: 'start' })
-  }, [where.unit, where.item, quiz])
+  }, [where.day, where.item, quiz])
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['my-courses'] }); qc.invalidateQueries({ queryKey: ['my-lms-todo'] }) }
   const d = q.data
   if (quiz) return <div ref={top}><TakeQuiz id={quiz} back={() => { setQuiz(null); refresh() }} /></div>
 
-  const units = d?.units ?? []
-  const other: Unit = { id: OTHER, title: 'Other work', lessons: [] }
-  const loose = d ? moduleItems(other, d.assignments.filter((a) => !a.lms_unit_id).map((a) => ({ ...a, lms_unit_id: OTHER })), d.quizzes.filter((z) => !z.lms_unit_id).map((z) => ({ ...z, lms_unit_id: OTHER }))) : []
-  const itemsOf = (u: Unit): Item[] => (!d ? [] : u.id === OTHER ? loose : moduleItems(u, d.assignments, d.quizzes))
-  const isDone = (i: Item) => {
-    if (!d) return false
-    if (i.type === 'lesson') return !!i.lesson.done
-    if (i.type === 'assignment') { const a = d.assignments.find((x) => x.id === i.id); return !!a && (a.status === 'graded' || (!!a.submitted_at && a.status !== 'resubmit') || !a.allow_submission) }
-    const z = d.quizzes.find((x) => x.id === i.id); return !!z && z.attempts > 0
+  const modules = d?.modules ?? []
+  const tops = modules.filter((m) => !m.parent_unit_id || !modules.some((x) => x.id === m.parent_unit_id))
+  const number = (m: SModule) => {
+    if (!m.parent_unit_id) return `Module ${tops.indexOf(m) + 1}`
+    const p = modules.find((x) => x.id === m.parent_unit_id)
+    return p ? `Module ${tops.indexOf(p) + 1}.${modules.filter((x) => x.parent_unit_id === p.id).indexOf(m) + 1}` : 'Module'
   }
-  const unit = where.unit === OTHER ? other : units.find((u) => u.id === where.unit)
-  const n = unit ? units.indexOf(unit) + 1 : 0
-  const items = unit ? itemsOf(unit) : []
-  const idx = items.findIndex((i) => `${i.type}:${i.id}` === where.item)
-  const item = idx >= 0 ? items[idx] : null
-  const all = units.flatMap(itemsOf)
-  const doneAll = all.filter(isDone).length
+  /* The stops, in the order the course is taken. */
+  const stops: Stop[] = modules.flatMap((m) => m.days.flatMap((dd) => dd.items.map((it) => ({ m, d: dd, it }))))
+  const loose: SItem[] = d ? [
+    ...d.assignments.filter((a) => !a.lms_unit_id).map((a) => ({ type: 'assignment' as const, id: a.id, section: 'assessment' as Section, required: false, done: !!a.submitted_at && a.status !== 'resubmit' || a.status === 'graded', pass_percent: null, locked: false })),
+    ...d.quizzes.filter((z) => !z.lms_unit_id).map((z) => ({ type: 'quiz' as const, id: z.id, section: 'assessment' as Section, required: false, done: z.attempts > 0, pass_percent: null, locked: false })),
+  ] : []
+  const otherModule: SModule = { id: OTHER, title: 'Other work', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'Other work', name: 'Other work', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
+  const dayStops = where.day === OTHER ? loose.map((it) => ({ m: otherModule, d: otherModule.days[0], it })) : stops
+  const cur = where.day ? (where.day === OTHER ? { m: otherModule, d: otherModule.days[0] } : (() => { for (const m of modules) { const x = m.days.find((y) => y.key === where.day); if (x) return { m, d: x } } return null })()) : null
+  const item = where.item ? dayStops.find((s) => `${s.it.type}:${s.it.id}` === where.item) ?? null : null
+  const titleOf = (it: SItem) => it.type === 'lesson' ? it.lesson?.title ?? '' : it.type === 'quiz' ? d?.quizzes.find((z) => z.id === it.id)?.title ?? 'Quiz' : d?.assignments.find((a) => a.id === it.id)?.title ?? 'Assignment'
+  const allDays = modules.flatMap((m) => m.days)
+  const daysDone = allDays.filter((x) => x.state === 'done').length
+  const open = (s: Stop) => setWhere({ day: s.d.key, item: `${s.it.type}:${s.it.id}` })
+  const backLabel = item ? shortDay(item.d) : cur ? 'All modules' : 'My courses'
   return (
     <div ref={top} className="scroll-mt-4">
       <PageHead
-        eyebrow={unit ? `My courses · ${d?.course.subject ?? ''}` : 'Learning · My courses'}
-        title={item ? (item.type === 'lesson' ? item.lesson.title : item.title) : unit ? unit.title : d?.course.subject ?? 'Course'}
-        actions={
-          <Button variant="secondary" onClick={() => (item ? setWhere({ unit: where.unit, item: null }) : unit ? setWhere({ unit: null, item: null }) : back())}>
-            <ChevronLeft className="h-4 w-4" /> {item ? (unit!.id === OTHER ? 'Other work' : `Module ${n}`) : unit ? 'All modules' : 'My courses'}
-          </Button>
-        }
+        eyebrow={cur ? `${d?.course.subject ?? ''} · ${cur.m.id === OTHER ? 'Other work' : `${number(cur.m)} · ${cur.m.title}`}` : 'Learning · My courses'}
+        title={item ? titleOf(item.it) : cur ? cur.d.name : d?.course.subject ?? 'Course'}
+        actions={<Button variant="secondary" onClick={() => (item ? setWhere({ day: where.day, item: null }) : cur ? setWhere({ day: null, item: null }) : back())}><ChevronLeft className="h-4 w-4" /> {backLabel}</Button>}
       />
       <PageBody>
-        {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : item && unit ? (
-          <ItemPage d={d} qkey={key} unit={unit} n={n} items={items} idx={idx} isDone={isDone} refresh={refresh}
-            go={(i) => setWhere({ unit: unit.id, item: i ? `${i.type}:${i.id}` : null })} onQuiz={setQuiz}
-            nextModule={() => { const nu = units[units.indexOf(unit) + 1]; setWhere({ unit: nu ? nu.id : null, item: null }) }} hasNextModule={unit.id !== OTHER && units.indexOf(unit) < units.length - 1} />
-        ) : unit ? (
-          <ModulePage unit={unit} n={n} items={items} isDone={isDone} open={(i) => setWhere({ unit: unit.id, item: `${i.type}:${i.id}` })} />
+        {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : item ? (
+          <ItemPage d={d} qkey={key} stop={item} stops={dayStops} titleOf={titleOf} refresh={refresh} open={open} toDay={(k) => setWhere({ day: k, item: null })} onQuiz={setQuiz} />
+        ) : cur ? (
+          <DayPage d={d} m={cur.m} day={cur.d} titleOf={titleOf} open={(it) => open({ m: cur.m, d: cur.d, it })}
+            prev={allDays[allDays.indexOf(cur.d) - 1] ?? null} next={allDays[allDays.indexOf(cur.d) + 1] ?? null} toDay={(k) => setWhere({ day: k, item: null })} />
         ) : (
           <div className="space-y-4">
             <Card>
               <div className="flex flex-wrap items-center gap-4 px-[var(--card-pad)] py-4">
-                <ProgressRing pct={all.length ? Math.round((100 * doneAll) / all.length) : 0} size={56} />
+                <ProgressRing pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={56} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold">{all.length ? `${doneAll} of ${all.length} done` : 'Nothing to do yet'}</p>
-                  <p className="text-[13px] text-muted-foreground">{d.course.teacher ? `Taught by ${d.course.teacher}` : 'Teacher not set'} · {units.length} module{units.length === 1 ? '' : 's'}</p>
+                  <p className="text-[15px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} days done` : 'Nothing to do yet'}</p>
+                  <p className="text-[13px] text-muted-foreground">{d.course.teacher ? `Taught by ${d.course.teacher}` : 'Teacher not set'} · {tops.length} module{tops.length === 1 ? '' : 's'}</p>
                 </div>
+                <Badge tone={d.gating === 'open' ? 'neutral' : 'primary'}>{d.gating === 'open' ? 'Open course' : 'One day at a time'}</Badge>
               </div>
-              {d.resume && (() => {
-                const ru = units.find((u) => u.id === d.resume!.unit_id)
-                if (!ru) return null
-                return (
-                  <button type="button" onClick={() => setWhere({ unit: ru.id, item: `lesson:${d.resume!.lesson_id}` })}
-                    className="flex w-full items-center gap-3 border-t px-[var(--card-pad)] py-3 text-left hover:bg-primary/[0.03]">
-                    <KindChip kind={d.resume.kind} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[12px] font-medium uppercase tracking-wide text-primary">{d.resume.started ? 'Continue where you left off' : 'Start here'}</span>
-                      <span className="block truncate text-[15px] font-medium">{d.resume.title}</span>
-                      <span className="block truncate text-[13px] text-muted-foreground">Module {units.indexOf(ru) + 1} · {ru.title}</span>
-                    </span>
-                    <PlayCircle className="h-6 w-6 shrink-0 text-primary" />
-                  </button>
-                )
-              })()}
             </Card>
-            {!units.length && !loose.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added any modules to this course yet." /> : (
+            {d.resume ? (() => {
+              const r = d.resume!
+              const s = stops.find((x) => x.it.type === r.type && x.it.id === r.id)
+              if (!s) return null
+              return (
+                <button type="button" onClick={() => open(s)} className="flex w-full items-center gap-3 rounded-xl bg-primary px-[var(--card-pad)] py-4 text-left text-primary-foreground shadow-sm transition hover:brightness-110">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15"><PlayCircle className="h-6 w-6" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12px] font-medium uppercase tracking-wide opacity-80">{r.started ? 'Continue' : 'Start here'}</span>
+                    <span className="block text-[16px] font-semibold leading-snug [overflow-wrap:anywhere]">{shortDay(s.d)} · {SECTION_LABEL[r.section]} · {r.title}</span>
+                    <span className="block truncate text-[13px] opacity-80">{number(s.m)} · {s.m.title}</span>
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0" />
+                </button>
+              )
+            })() : allDays.length > 0 && daysDone === allDays.length ? (
+              <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-4"><span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-success text-white"><Check className="h-5 w-5" /></span><p className="text-[15px] font-semibold">Every day is done. Well done.</p></div></Card>
+            ) : null}
+            {!modules.length && !loose.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added any modules to this course yet." /> : (
               <ol className="space-y-3">
-                {units.map((u, i) => {
-                  const its = itemsOf(u), done = its.filter(isDone).length, fresh = u.lessons.filter((l) => l.is_new).length
-                  const range = dateRange(u.starts_on, u.ends_on)
+                {tops.map((m) => {
+                  const subs = modules.filter((x) => x.parent_unit_id === m.id)
+                  const all = [m, ...subs]
+                  const days = all.flatMap((x) => x.days)
+                  const done = days.filter((x) => x.state === 'done').length
+                  const locked = days.length > 0 && days.every((x) => x.state === 'locked')
+                  const isOpen = (expanded ?? (d.resume ? (modules.find((x) => x.id === d.resume!.unit_id)?.parent_unit_id ?? d.resume.unit_id) : tops[0]?.id)) === m.id
+                  const range = dateRange(m.starts_on, m.ends_on)
                   return (
-                    <li key={u.id}>
-                      <button type="button" onClick={() => setWhere({ unit: u.id, item: null })} className="card flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
-                        <ProgressRing pct={its.length ? Math.round((100 * done) / its.length) : 0} label={`${done} of ${its.length} done`} />
-                        <span className="min-w-0 flex-1 space-y-1">
-                          <span className="block text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Module {i + 1}{range ? ` · ${range}` : ''}</span>
-                          <span className="flex flex-wrap items-center gap-2"><span className="text-[16px] font-semibold leading-snug">{u.title}</span>{fresh > 0 && <Badge tone="primary">{fresh} new</Badge>}</span>
-                          {u.description && <span className="block text-[13px] text-muted-foreground line-clamp-2">{u.description}</span>}
-                          <span className="flex flex-wrap items-center gap-x-3 gap-y-1"><TypeCounts items={its} /><span className="text-[13px] text-muted-foreground">{done} of {its.length} done</span></span>
+                    <li key={m.id} className="card overflow-hidden p-0">
+                      <button type="button" onClick={() => setExpanded(isOpen ? '' : m.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
+                        {locked ? <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock className="h-5 w-5" /></span>
+                          : done === days.length && days.length ? <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success text-white"><Check className="h-5 w-5" /></span>
+                            : <ProgressRing pct={days.length ? Math.round((100 * done) / days.length) : 0} />}
+                        <span className="min-w-0 flex-1 space-y-0.5">
+                          <span className="block text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{number(m)}{range ? ` · ${range}` : ''}</span>
+                          <span className="block text-[16px] font-semibold leading-snug">{m.title}</span>
+                          <span className="block text-[13px] text-muted-foreground">{locked ? (days[0]?.reason ?? 'Locked') : `${done} of ${days.length} day${days.length === 1 ? '' : 's'} done`}</span>
                         </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                       </button>
+                      {isOpen && (
+                        <div className="border-t">
+                          {m.description && <p className="px-[var(--card-pad)] pt-3 text-[14px] text-muted-foreground">{m.description}</p>}
+                          <DayList days={m.days} onOpen={(k) => setWhere({ day: k, item: null })} />
+                          {subs.map((sx) => (
+                            <div key={sx.id} className="border-t">
+                              <p className="px-[var(--card-pad)] pt-3 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{number(sx)} · {sx.title}</p>
+                              <DayList days={sx.days} onOpen={(k) => setWhere({ day: k, item: null })} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </li>
                   )
                 })}
                 {loose.length > 0 && (
                   <li>
-                    <button type="button" onClick={() => setWhere({ unit: OTHER, item: null })} className="card flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
-                      <ProgressRing pct={Math.round((100 * loose.filter(isDone).length) / loose.length)} />
-                      <span className="min-w-0 flex-1 space-y-1">
+                    <button type="button" onClick={() => setWhere({ day: OTHER, item: null })} className="card flex w-full items-center gap-3 px-[var(--card-pad)] py-4 text-left">
+                      <ProgressRing pct={Math.round((100 * loose.filter((x) => x.done).length) / loose.length)} />
+                      <span className="min-w-0 flex-1">
                         <span className="block text-[16px] font-semibold">Other work</span>
-                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1"><TypeCounts items={loose} /><span className="text-[13px] text-muted-foreground">Assignments and quizzes not in a module</span></span>
+                        <span className="block text-[13px] text-muted-foreground">Assignments and quizzes not on a day</span>
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </button>
@@ -231,122 +265,176 @@ function Course({ cs, back }: { cs: string; back: () => void }) {
   )
 }
 
-function itemTitle(i: Item) { return i.type === 'lesson' ? i.lesson.title : i.title }
+function DayList({ days, onOpen }: { days: SDay[]; onOpen: (key: string) => void }) {
+  if (!days.length) return <p className="px-[var(--card-pad)] py-3 text-[14px] text-muted-foreground">Nothing here yet.</p>
+  return (
+    <ol className="divide-y">
+      {days.map((x) => (
+        <li key={x.key}>
+          <button type="button" disabled={x.state === 'locked'} onClick={() => onOpen(x.key)}
+            className="flex min-h-[60px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed">
+            <DayMark d={x} size={36} />
+            <span className="min-w-0 flex-1">
+              <span className={`block text-[15px] font-medium leading-snug ${x.state === 'locked' ? 'text-muted-foreground' : ''}`}>{x.name}</span>
+              <span className="block text-[13px] text-muted-foreground">
+                {x.state === 'locked' ? x.reason : x.state === 'done' ? 'Done' : `${x.done} of ${x.total} done`}
+                {x.state !== 'locked' && x.opens_at ? ` · more opens ${fmtWhen(x.opens_at)}` : ''}
+              </span>
+            </span>
+            {x.state !== 'locked' && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          </button>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
-function ModulePage({ unit, n, items, isDone, open }: { unit: Unit; n: number; items: Item[]; isDone: (i: Item) => boolean; open: (i: Item) => void }) {
-  const done = items.filter(isDone).length
-  const range = dateRange(unit.starts_on, unit.ends_on)
+function itemMeta(d: Detail, it: SItem): string {
+  if (it.type === 'lesson' && it.lesson) return [KIND_LABEL[it.lesson.kind], sourceMeta(it.lesson)].filter(Boolean).join(' · ')
+  if (it.type === 'quiz') { const z = d.quizzes.find((x) => x.id === it.id); return ['Quiz', z ? `${z.questions} question${z.questions === 1 ? '' : 's'}` : '', it.pass_percent ? `pass ${it.pass_percent}%` : ''].filter(Boolean).join(' · ') }
+  const a = d.assignments.find((x) => x.id === it.id)
+  return ['Assignment', a?.due_on ? `due ${a.due_on}` : '', it.pass_percent ? `pass ${it.pass_percent}%` : ''].filter(Boolean).join(' · ')
+}
+
+function DayPage({ d, m, day, titleOf, open, prev, next, toDay }: {
+  d: Detail; m: SModule; day: SDay; titleOf: (it: SItem) => string; open: (it: SItem) => void; prev: SDay | null; next: SDay | null; toDay: (k: string) => void
+}) {
+  const bySection = SECTIONS.map((s) => ({ s, items: day.items.filter((i) => i.section === s) })).filter((x) => x.items.length)
   return (
     <div className="space-y-4">
       <Card>
         <div className="flex items-center gap-4 px-[var(--card-pad)] py-4">
-          <ProgressRing pct={items.length ? Math.round((100 * done) / items.length) : 0} size={56} />
-          <div className="min-w-0 flex-1 space-y-0.5">
-            {unit.id !== OTHER && <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Module {n}{range ? ` · ${range}` : ''}</p>}
-            <p className="text-[15px] font-semibold">{done} of {items.length} done</p>
-            {unit.description && <p className="text-[14px] text-muted-foreground">{unit.description}</p>}
+          <DayMark d={day} size={52} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold">{day.state === 'locked' ? 'Locked' : day.state === 'done' ? 'Day complete' : `${day.done} of ${day.total} done`}</p>
+            <p className="text-[13px] text-muted-foreground">{day.state === 'locked' ? day.reason : m.id === OTHER ? 'Not part of any day' : day.state === 'done' ? 'Everything required is done.' : 'Finish the required items to open the next day.'}</p>
           </div>
         </div>
       </Card>
-      {!items.length ? <EmptyState title="Nothing here yet" body="Your teacher has not added anything to this module yet." /> : (
-        <Card>
+      {bySection.map(({ s, items }) => (
+        <Card key={s}>
+          <div className="border-b px-[var(--card-pad)] py-2.5"><h3 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{m.id === OTHER ? (s === 'assessment' ? 'Assignments and quizzes' : SECTION_LABEL[s]) : SECTION_LABEL[s]}</h3></div>
           <ol className="divide-y">
-            {items.map((i) => {
-              const k = itemKind(i), ok = isDone(i)
-              const meta = i.type === 'lesson' ? sourceMeta(i.lesson) : ''
+            {items.map((it) => {
+              const k = it.type === 'lesson' ? it.lesson?.kind ?? 'text' : it.type
+              const sched = it.type === 'lesson' && it.lesson?.scheduled
+              const blocked = it.locked || sched
               return (
-                <li key={`${i.type}:${i.id}`}>
-                  <button type="button" onClick={() => open(i)} className="flex min-h-[64px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left hover:bg-muted/40">
-                    <KindChip kind={k} done={ok} />
+                <li key={`${it.type}:${it.id}`}>
+                  <button type="button" disabled={!!blocked} onClick={() => open(it)} className="flex min-h-[64px] w-full items-center gap-3 px-[var(--card-pad)] py-2.5 text-left enabled:hover:bg-muted/40 disabled:cursor-not-allowed">
+                    <KindChip kind={k} done={it.done} />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-medium leading-snug [overflow-wrap:anywhere]">{itemTitle(i)}</span>
-                      <span className="block text-[13px] text-muted-foreground">{KIND_LABEL[k]}{meta ? ` · ${meta}` : ''}</span>
+                      <span className={`block text-[15px] font-medium leading-snug [overflow-wrap:anywhere] ${blocked ? 'text-muted-foreground' : ''}`}>{titleOf(it)}</span>
+                      <span className="block text-[13px] text-muted-foreground">{itemMeta(d, it)}{it.type === 'lesson' && it.lesson?.is_optional ? ' · optional' : ''}</span>
                     </span>
-                    {i.type === 'lesson' && i.lesson.is_new && !ok && <Badge tone="primary">New</Badge>}
-                    {ok ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-label="Done" /> : <Circle className="h-5 w-5 shrink-0 text-muted-foreground/50" aria-label="Not done" />}
+                    {sched ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground"><Clock className="h-3.5 w-3.5" /> Opens {fmtWhen(it.lesson?.publish_at)}</span>
+                      : it.locked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Locked" />
+                        : it.done ? <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-label="Done" />
+                          : it.lesson?.is_new ? <Badge tone="primary">New</Badge> : <Circle className="h-5 w-5 shrink-0 text-muted-foreground/50" aria-label="Not done" />}
                   </button>
                 </li>
               )
             })}
           </ol>
         </Card>
+      ))}
+      {!bySection.length && <EmptyState title="Nothing on this day yet" body="Your teacher has not added anything here yet." />}
+      {m.id !== OTHER && (
+        <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next day">
+          {prev ? <button type="button" onClick={() => toDay(prev.key)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous day</span><span className="block truncate text-[14px] font-medium">{prev.name}</span></span></button> : <span />}
+          {next ? (
+            <button type="button" disabled={next.state === 'locked'} onClick={() => toDay(next.key)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right disabled:cursor-not-allowed disabled:opacity-70">
+              <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">{next.state === 'locked' ? 'Locked' : 'Next day'}</span><span className="block truncate text-[14px] font-medium">{next.name}</span></span>
+              {next.state === 'locked' ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+            </button>
+          ) : <span />}
+        </nav>
       )}
     </div>
   )
 }
 
-function ItemPage({ d, qkey, unit, n, items, idx, isDone, refresh, go, onQuiz, nextModule, hasNextModule }: {
-  d: Detail; qkey: unknown[]; unit: Unit; n: number; items: Item[]; idx: number; isDone: (i: Item) => boolean; refresh: () => void
-  go: (i: Item | null) => void; onQuiz: (id: string) => void; nextModule: () => void; hasNextModule: boolean
+function ItemPage({ d, qkey, stop, stops, titleOf, refresh, open, toDay, onQuiz }: {
+  d: Detail; qkey: unknown[]; stop: Stop; stops: Stop[]; titleOf: (it: SItem) => string; refresh: () => void; open: (s: Stop) => void; toDay: (k: string) => void; onQuiz: (id: string) => void
 }) {
-  const it = items[idx]
-  const prev = items[idx - 1], next = items[idx + 1]
-  const l = it.type === 'lesson' ? it.lesson : null
-  const done = useMutation({
-    mutationFn: (v: boolean) => api.post(`/api/v1/portal/lms/lessons/${l!.id}/complete`, { done: v }),
-    onSuccess: refresh,
-  })
-  /* Opened: no longer "new", and the place to come back to. */
+  const it = stop.it
+  /* Previous and next skip what cannot be opened yet (scheduled); a locked day ends the way forward. */
+  const openable = (s: Stop) => !(s.it.type === 'lesson' && s.it.lesson?.scheduled)
+  const idx = stops.findIndex((s) => s === stop || (s.it.type === it.type && s.it.id === it.id))
+  const prev = [...stops.slice(0, idx)].reverse().find(openable) ?? null
+  const next = stops.slice(idx + 1).find(openable) ?? null
+  const l = it.type === 'lesson' ? it.lesson ?? null : null
+  const done = useMutation({ mutationFn: (v: boolean) => api.post(`/api/v1/portal/lms/lessons/${l!.id}/complete`, { done: v }), onSuccess: refresh })
   useEffect(() => {
-    if (!l) return
+    if (!l || it.locked) return
     fetch(`/api/v1/portal/lms/lessons/${l.id}/view`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
       .then((r) => { if (r.ok && l.is_new) refresh() }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [l?.id])
-  const k = itemKind(it)
-  const meta = l ? sourceMeta(l) : ''
+  const k = l ? l.kind : it.type
+  const meta = itemMeta(d, it)
   const autoVideo = !!l && l.kind === 'video' && !!l.video_id
   const quiz = it.type === 'quiz' ? d.quizzes.find((z) => z.id === it.id) : null
   const asg = it.type === 'assignment' ? d.assignments.find((a) => a.id === it.id) : null
+  const inDay = stop.d.items.filter((x) => x.section === it.section)
   return (
     <div className="space-y-4">
-      <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
-        <KindIcon kind={k} /> {KIND_LABEL[k]}{meta ? ` · ${meta}` : ''} · {idx + 1} of {items.length} in {unit.id === OTHER ? 'Other work' : `Module ${n}`}
-        {isDone(it) && <Badge tone="success">Done</Badge>}
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+        <KindIcon kind={k} /> {shortDay(stop.d)} · {SECTION_LABEL[it.section]}{inDay.length > 1 ? ` ${inDay.indexOf(it) + 1} of ${inDay.length}` : ''} · {meta}
+        {it.done && <Badge tone="success">Done</Badge>}
+        {l?.is_optional && <Badge>Optional</Badge>}
       </p>
-      <Card>
-        <div className="px-[var(--card-pad)] py-4">
-          {l && <LessonContent l={l} track onFinished={refresh} />}
-          {asg && <ul className="-mx-[var(--card-pad)] -my-3"><AssignmentItem a={asg} qkey={qkey} /></ul>}
-          {quiz && (
-            <div className="space-y-3 text-[14px]">
-              {quiz.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{quiz.instructions}</p>}
-              <p>{quiz.questions} question{quiz.questions === 1 ? '' : 's'}{quiz.duration_minutes ? ` · ${quiz.duration_minutes} minutes` : ' · no time limit'}{quiz.closes_at ? ` · closes ${fmtWhen(quiz.closes_at)}` : ''}</p>
-              {quiz.best !== null && quiz.best !== undefined && <Badge tone="success">Your best: {quiz.best} / {quiz.max_score}</Badge>}
-              <div>
-                {quiz.open_attempt ? <Button onClick={() => onQuiz(quiz.id)}>Carry on with the quiz</Button>
-                  : quiz.open ? <Button onClick={() => onQuiz(quiz.id)}>Start the quiz</Button>
-                    : <span className="text-muted-foreground">{quiz.attempts >= quiz.max_attempts ? 'You have taken this quiz.' : 'This quiz is not open.'}</span>}
+      {it.locked ? (
+        <Card><div className="flex items-center gap-3 px-[var(--card-pad)] py-6"><Lock className="h-5 w-5 text-muted-foreground" /><p className="text-[15px]">{stop.d.reason ?? 'This is locked.'}</p></div></Card>
+      ) : (
+        <Card>
+          <div className="px-[var(--card-pad)] py-4">
+            {l && <LessonContent l={l} track onFinished={refresh} />}
+            {asg && <ul className="-mx-[var(--card-pad)] -my-3"><AssignmentItem a={asg} qkey={qkey} /></ul>}
+            {quiz && (
+              <div className="space-y-3 text-[14px]">
+                {quiz.instructions && <p className="whitespace-pre-wrap text-muted-foreground">{quiz.instructions}</p>}
+                <p>{quiz.questions} question{quiz.questions === 1 ? '' : 's'}{quiz.duration_minutes ? ` · ${quiz.duration_minutes} minutes` : ' · no time limit'}{quiz.closes_at ? ` · closes ${fmtWhen(quiz.closes_at)}` : ''}</p>
+                {it.pass_percent ? <p className="text-muted-foreground">Score {it.pass_percent}% or more to open the next day.</p> : null}
+                {quiz.best !== null && quiz.best !== undefined && <Badge tone={it.done ? 'success' : 'warning'}>Your best: {quiz.best} / {quiz.max_score}{it.pass_percent && !it.done ? ' · below the pass mark' : ''}</Badge>}
+                <div>
+                  {quiz.open_attempt ? <Button onClick={() => onQuiz(quiz.id)}>Carry on with the quiz</Button>
+                    : quiz.open ? <Button onClick={() => onQuiz(quiz.id)}>{quiz.attempts ? 'Try again' : 'Start the quiz'}</Button>
+                      : <span className="text-muted-foreground">{quiz.attempts >= quiz.max_attempts ? 'You have used every attempt. Ask your teacher if you are stuck.' : 'This quiz is not open.'}</span>}
+                </div>
               </div>
+            )}
+          </div>
+          {l && (
+            <div className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
+              {autoVideo && !l.done ? <p className="text-[13px] text-muted-foreground">This is marked done by itself when you have watched 90% of the video.</p> : (
+                <Button variant={l.done ? 'secondary' : 'primary'} pending={done.isPending} onClick={() => done.mutate(!l.done)}>
+                  {l.done ? <><Check className="h-4 w-4" /> Done · undo</> : 'Mark as done'}
+                </Button>
+              )}
+              <FormNotice error={done.error} />
             </div>
           )}
-        </div>
-        {l && (
-          <div className="flex flex-wrap items-center gap-3 border-t px-[var(--card-pad)] py-3">
-            {autoVideo && !l.done ? <p className="text-[13px] text-muted-foreground">This is marked done by itself when you have watched 90% of the video.</p> : (
-              <Button variant={l.done ? 'secondary' : 'primary'} pending={done.isPending} onClick={() => done.mutate(!l.done)}>
-                {l.done ? <><Check className="h-4 w-4" /> Done · undo</> : 'Mark as done'}
-              </Button>
-            )}
-            <FormNotice error={done.error} />
-          </div>
-        )}
-      </Card>
-      <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next in this module">
+        </Card>
+      )}
+      <nav className="grid grid-cols-2 gap-2" aria-label="Previous and next">
         {prev ? (
-          <button type="button" onClick={() => go(prev)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left">
+          <button type="button" onClick={() => open(prev)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left">
             <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous</span><span className="block truncate text-[14px] font-medium">{itemTitle(prev)}</span></span>
+            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Previous{prev.d !== stop.d ? ` · ${shortDay(prev.d)}` : ''}</span><span className="block truncate text-[14px] font-medium">{titleOf(prev.it)}</span></span>
           </button>
-        ) : <button type="button" onClick={() => go(null)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="text-[14px] font-medium">Module list</span></button>}
+        ) : <button type="button" onClick={() => toDay(stop.d.key)} className="card flex min-h-14 items-center gap-2 px-3 py-2 text-left"><ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="text-[14px] font-medium">{shortDay(stop.d)}</span></button>}
         {next ? (
-          <button type="button" onClick={() => go(next)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right">
-            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">Next</span><span className="block truncate text-[14px] font-medium">{itemTitle(next)}</span></span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <button type="button" disabled={next.it.locked} onClick={() => open(next)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right disabled:cursor-not-allowed disabled:opacity-70">
+            <span className="min-w-0">
+              <span className="block text-[12px] text-muted-foreground">{next.it.locked ? `${shortDay(next.d)} is locked` : `Next${next.d !== stop.d ? ` · ${shortDay(next.d)}` : ''}`}</span>
+              <span className="block truncate text-[14px] font-medium">{next.it.locked ? 'Finish this day first' : titleOf(next.it)}</span>
+            </span>
+            {next.it.locked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
           </button>
         ) : (
-          <button type="button" onClick={hasNextModule ? nextModule : () => go(null)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right">
-            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">End of module</span><span className="block truncate text-[14px] font-medium">{hasNextModule ? 'Next module' : 'Back to the module'}</span></span>
+          <button type="button" onClick={() => toDay(stop.d.key)} className="card flex min-h-14 items-center justify-end gap-2 px-3 py-2 text-right">
+            <span className="min-w-0"><span className="block text-[12px] text-muted-foreground">The end</span><span className="block truncate text-[14px] font-medium">Back to {shortDay(stop.d)}</span></span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
         )}

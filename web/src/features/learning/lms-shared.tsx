@@ -13,23 +13,32 @@ import { VideoPlayer, fmtDur } from './VideoPlayer'
 
 export type SourceKind = 'text' | 'file' | 'pdf' | 'video' | 'link' | 'image' | 'audio' | 'doc'
 export type ItemType = SourceKind | 'quiz' | 'assignment'
+/* A day's four sections (0012), in this order. Any source can go in any of them; quizzes and assignments are the Assessment. */
+export type Section = 'prereq' | 'resources' | 'tools' | 'assessment'
+export const SECTIONS: Section[] = ['prereq', 'resources', 'tools', 'assessment']
+export const SECTION_LABEL: Record<Section, string> = { prereq: 'Pre-requisites', resources: 'Resources', tools: 'Tools', assessment: 'Assessment' }
+/** "Day 3", or "Day 3: Fractions on a line"; a null day is the part of a module with no day. */
+export const dayTitle = (day: number | null, label?: string | null) => (day === null ? label || 'Not on a day' : label ? `Day ${day}: ${label}` : `Day ${day}`)
 
 export interface Lesson {
   id: string; unit_id: string; title: string; kind: SourceKind
   body?: string | null; file_id?: string | null; file_name?: string | null; file_size?: number | null; file_type?: string | null; url?: string | null
   sequence: number; day?: number | null; publish_at?: string | null; duration_minutes?: number | null; created_at?: string
   is_published?: boolean; completed?: number; done?: boolean; is_new?: boolean; viewed_at?: string | null
+  section?: Section; is_optional?: boolean
+  /* The child's view: on a locked day, or not out yet (no content either way). */
+  locked?: boolean; scheduled?: boolean
   /* A library video (worker routes/teaching/videos.ts) instead of a link. */
   video_id?: string | null; video_title?: string | null; video_duration?: number | null; video_thumb?: number | boolean | null; video_type?: string | null
   video_position?: number | null; video_percent?: number | null; video_watched?: string | null; video_bucket?: number | null
 }
 export interface Unit {
   id: string; title: string; description?: string | null; sequence?: number; starts_on?: string | null; ends_on?: string | null
-  is_active?: boolean; lessons: Lesson[]
+  is_active?: boolean; parent_unit_id?: string | null; lessons: Lesson[]
 }
 export interface RubricRow { criterion: string; max: number }
 /** What an assignment or a quiz needs to sit in a module. */
-export interface Placed { id: string; title: string; lms_unit_id?: string | null; lms_sequence?: number | null }
+export interface Placed { id: string; title: string; lms_unit_id?: string | null; lms_sequence?: number | null; lms_day?: number | null; lms_pass_percent?: number | null }
 
 /** Uploads one file to POST /api/v1/files and returns its id and name. */
 export async function uploadFile(f: File, purpose: string): Promise<{ id: string; name: string; size: number; type: string }> {

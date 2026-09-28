@@ -1,27 +1,27 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X,
+  Archive, ArchiveRestore, ArrowDown, ArrowUp, CalendarClock, Check, ChevronLeft, ChevronRight, Eye, EyeOff, FolderInput, GripVertical, Lock, MoreHorizontal, Pencil, Plus, Trash2, Unlock, X,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, FormNotice, Input, Loading, Select, Textarea } from '@/components/ui'
 import { VideoPick, VideoUpload } from './VideoLibrary'
 import {
-  FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, NotesEditor, ProgressRing, TypeCounts, dateRange, fmtWhen, itemKind, moduleItems, sourceMeta,
-  type ItemType, type Lesson, type ModuleItem, type Placed, type RubricRow, type SourceKind, type Unit,
+  FilePick, KIND_LABEL, KindChip, KindIcon, LessonContent, NotesEditor, ProgressRing, SECTIONS, SECTION_LABEL, TypeCounts, dateRange, dayTitle, fmtWhen, moduleItems, sourceMeta,
+  type ItemType, type Lesson, type Placed, type RubricRow, type Section, type SourceKind, type Unit,
 } from '../learning/lms-shared'
 import { AssignmentForm, QuizForm } from './TeacherLMS'
 
-/* A COURSE, MODULE FIRST (worker routes/teaching/lms.ts, migration 0011).
+/* A COURSE, MODULE FIRST AND ONE DAY AT A TIME (worker routes/teaching/lms.ts,
+   lms_progress.ts; migrations 0011, 0012).
 
-   The course is its modules, in order: each with a title, a short
-   description, a day or date range, what is in it counted by type, and how
-   many of the class have finished it. Opening one shows every source in it
-   (video, PDF, notes, file, link, image, audio, slides) with its assignments
-   and quizzes, in one order the teacher sets by dragging (or the arrows, on
-   a phone). A source can be a draft, published, or scheduled for a moment;
-   it can move to another module. The Progress view is who has finished the
-   module and who has not. */
+   Course > Module (a module may hold sub-modules) > Day 1, Day 2, ... > the
+   day's four sections: Pre-requisites, Resources, Tools and Assessment. Any
+   source (video, PDF, notes, file, link, image, audio, slides) can go in any
+   section; a quiz or an assignment is the day's assessment, with an
+   optional pass mark. In a course taken one by one (the default), a child's
+   next day opens when this one is done; the teacher can switch a course to
+   open, and can open a day early for one child from the Progress grid. */
 
 export interface TAssignment extends Placed {
   kind: string; instructions?: string | null; assigned_on: string; due_on?: string | null; max_marks?: number | null
@@ -31,24 +31,41 @@ export interface TQuiz extends Placed { status: string; duration_minutes?: numbe
 export interface CourseDetail {
   course: { section_id: string; section_name: string; class_name: string; class_subject_id: string; subject: string }
   roll: number; today: string; units: Unit[]; assignments: TAssignment[]; quizzes: TQuiz[]
+  gating: 'sequential' | 'open'; days: { unit_id: string; day: number; label: string }[]
 }
-type Tab = 'modules' | 'assignments' | 'quizzes'
+export type Tab = 'modules' | 'assignments' | 'quizzes' | 'progress'
 
 const nowIso = () => new Date().toISOString()
-/** Draft, scheduled or live, for a source row. */
 function StateBadge({ l }: { l: Lesson }) {
   if (!l.is_published) return <Badge tone="warning">Draft</Badge>
   if (l.publish_at && l.publish_at > nowIso()) return <Badge tone="info">Opens {fmtWhen(l.publish_at)}</Badge>
   return <Badge tone="success">Published</Badge>
 }
-/** Local "YYYY-MM-DDTHH:mm" for a datetime-local box. */
 const toLocal = (iso?: string | null) => {
   if (!iso) return ''
   const d = new Date(iso)
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
 }
 
-/** Drag to reorder (mouse and pen); the arrows do the same on a phone. */
+/** A module's items with their day and section, the teacher's way. */
+interface TItem { type: 'lesson' | 'assignment' | 'quiz'; id: string; day: number | null; section: Section; seq: number; title: string; lesson?: Lesson }
+function itemsOf(d: CourseDetail, u: Unit): TItem[] {
+  return [
+    ...u.lessons.map((l) => ({ type: 'lesson' as const, id: l.id, day: l.day ?? null, section: l.section ?? 'resources', seq: l.sequence, title: l.title, lesson: l })),
+    ...d.assignments.filter((a) => a.lms_unit_id === u.id).map((a) => ({ type: 'assignment' as const, id: a.id, day: a.lms_day ?? null, section: 'assessment' as Section, seq: a.lms_sequence ?? 9999, title: a.title })),
+    ...d.quizzes.filter((q) => q.lms_unit_id === u.id).map((q) => ({ type: 'quiz' as const, id: q.id, day: q.lms_day ?? null, section: 'assessment' as Section, seq: q.lms_sequence ?? 9999, title: q.title })),
+  ]
+}
+const kindOf = (i: TItem): ItemType => (i.type === 'lesson' ? i.lesson!.kind : i.type)
+/** Every day of a module: labelled ones and ones with something on them, in order, then "not on a day". */
+function daysOf(d: CourseDetail, u: Unit, items: TItem[]): { day: number | null; label: string }[] {
+  const lab = new Map(d.days.filter((x) => x.unit_id === u.id).map((x) => [x.day, x.label]))
+  const nums = new Set<number>([...lab.keys(), ...items.filter((i) => i.day !== null).map((i) => i.day!)])
+  const out: { day: number | null; label: string }[] = [...nums].sort((a, b) => a - b).map((n) => ({ day: n, label: lab.get(n) ?? '' }))
+  if (items.some((i) => i.day === null)) out.push({ day: null, label: '' })
+  return out
+}
+
 function useDragOrder(ids: string[], commit: (ids: string[]) => void) {
   const from = useRef<string | null>(null)
   const [over, setOver] = useState<string | null>(null)
@@ -57,7 +74,7 @@ function useDragOrder(ids: string[], commit: (ids: string[]) => void) {
     next.splice(Math.max(0, Math.min(next.length, to)), 0, id)
     if (next.join() !== ids.join()) commit(next)
   }
-  /* The grip is what is dragged (so text in a form below can still be selected); the row is where it drops. */
+  /* The grip is what is dragged (text in a form below stays selectable); the row is where it drops. */
   const handle = (id: string) => ({
     draggable: true,
     onDragStart: (e: React.DragEvent) => {
@@ -68,9 +85,9 @@ function useDragOrder(ids: string[], commit: (ids: string[]) => void) {
     onDragEnd: () => { from.current = null; setOver(null) },
   })
   const props = (id: string) => ({
-    onDragOver: (e: React.DragEvent) => { if (from.current) { e.preventDefault(); setOver(id) } },
+    onDragOver: (e: React.DragEvent) => { if (from.current && ids.includes(from.current)) { e.preventDefault(); setOver(id) } },
     onDragLeave: () => setOver((o) => (o === id ? null : o)),
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); const f = from.current; from.current = null; setOver(null); if (f && f !== id) move(f, ids.indexOf(id)) },
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); const f = from.current; from.current = null; setOver(null); if (f && f !== id && ids.includes(f)) move(f, ids.indexOf(id)) },
     'data-over': over === id ? '' : undefined,
   })
   return { props, handle, up: (id: string) => move(id, ids.indexOf(id) - 1), down: (id: string) => move(id, ids.indexOf(id) + 1) }
@@ -84,47 +101,92 @@ function Arrows({ first, last, up, down, label }: { first: boolean; last: boolea
     </span>
   )
 }
+const seg = (on: boolean) => `min-h-10 rounded px-3.5 text-[14px] font-medium ${on ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`
 
 export function Modules({ d, qkey, onTab }: { d: CourseDetail; qkey: unknown[]; onTab: (t: Tab) => void }) {
   const [open, setOpen] = useState<string | null>(null)
   const active = d.units.filter((u) => u.is_active !== false)
   const unit = active.find((u) => u.id === open)
-  if (unit) return <ModuleView d={d} u={unit} n={active.indexOf(unit) + 1} qkey={qkey} back={() => setOpen(null)} onTab={onTab} />
+  if (unit) return <ModuleView d={d} u={unit} qkey={qkey} back={() => setOpen(unit.parent_unit_id && active.some((x) => x.id === unit.parent_unit_id) ? unit.parent_unit_id : null)} onOpen={setOpen} onTab={onTab} />
   return <ModuleList d={d} qkey={qkey} onOpen={setOpen} />
 }
 
+/** "Module 3", or "Module 3.2" for a sub-module. */
+function moduleNumber(d: CourseDetail, u: Unit): string {
+  const tops = d.units.filter((x) => x.is_active !== false && !x.parent_unit_id)
+  if (!u.parent_unit_id) return `Module ${tops.indexOf(u) + 1}`
+  const p = tops.find((x) => x.id === u.parent_unit_id)
+  const subs = d.units.filter((x) => x.is_active !== false && x.parent_unit_id === u.parent_unit_id)
+  return p ? `Module ${tops.indexOf(p) + 1}.${subs.indexOf(u) + 1}` : 'Sub-module'
+}
+
 /* ─── The list of modules ──────────────────────────────────────────── */
+
+function GatingSwitch({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
+  const qc = useQueryClient()
+  const set = useMutation({
+    mutationFn: (gating: string) => api.put('/api/v1/lms/course/settings', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, gating }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['lms-course-progress'] }) },
+  })
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center gap-3 px-[var(--card-pad)] py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-medium">How the class moves through the course</p>
+          <p className="text-[13px] text-muted-foreground">{d.gating === 'open' ? 'Open: every published day can be opened in any order.' : 'One by one: a day opens when the one before it is finished.'}</p>
+        </div>
+        <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="radiogroup" aria-label="Progression">
+          {([['sequential', 'One by one'], ['open', 'Open']] as const).map(([v, label]) => (
+            <button key={v} type="button" role="radio" aria-checked={d.gating === v} disabled={set.isPending} onClick={() => d.gating !== v && set.mutate(v)} className={seg(d.gating === v)}>
+              {v === 'sequential' ? <Lock className="mr-1.5 inline h-3.5 w-3.5" /> : <Unlock className="mr-1.5 inline h-3.5 w-3.5" />}{label}
+            </button>
+          ))}
+        </div>
+        <FormNotice error={set.error} />
+      </div>
+    </Card>
+  )
+}
 
 function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onOpen: (id: string) => void }) {
   const qc = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const active = d.units.filter((u) => u.is_active !== false)
+  const tops = active.filter((u) => !u.parent_unit_id)
   const archived = d.units.filter((u) => u.is_active === false)
   const [order, setOrder] = useState<string[] | null>(null)
-  const ids = order ?? active.map((u) => u.id)
+  const ids = order ?? tops.map((u) => u.id)
   const reorder = useMutation({
-    mutationFn: (next: string[]) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, ids: [...next, ...archived.map((u) => u.id)] }),
+    mutationFn: (next: string[]) => api.post('/api/v1/lms/units/reorder', { section_id: d.course.section_id, class_subject_id: d.course.class_subject_id,
+      ids: [...next, ...active.filter((u) => u.parent_unit_id).map((u) => u.id), ...archived.map((u) => u.id)] }),
     onSettled: async () => { await qc.invalidateQueries({ queryKey: qkey }); setOrder(null) },
   })
   const drag = useDragOrder(ids, (next) => { setOrder(next); reorder.mutate(next) })
   const restore = useMutation({ mutationFn: (id: string) => api.put(`/api/v1/lms/units/${id}`, { is_active: true }), onSuccess: () => qc.invalidateQueries({ queryKey: qkey }) })
-  const byId = new Map(active.map((u) => [u.id, u]))
+  const byId = new Map(tops.map((u) => [u.id, u]))
   return (
     <div className="space-y-3">
+      <GatingSwitch d={d} qkey={qkey} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[14px] text-muted-foreground">{active.length ? `${active.length} module${active.length === 1 ? '' : 's'}. Drag to reorder, or use the arrows.` : 'No modules yet.'}</p>
+        <p className="text-[14px] text-muted-foreground">{tops.length ? `${tops.length} module${tops.length === 1 ? '' : 's'}, in the order the class takes them.` : 'No modules yet.'}</p>
         <Button onClick={() => setAdding(!adding)}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> New module</>}</Button>
       </div>
       {adding && <Card><ModuleForm d={d} done={() => { setAdding(false); qc.invalidateQueries({ queryKey: qkey }) }} /></Card>}
-      {!active.length && !adding && <EmptyState title="No modules yet" body="A module is a topic or a week: add one, then put videos, PDFs, notes, links, quizzes and assignments in it." />}
+      {!tops.length && !adding && <EmptyState title="No modules yet" body="A module is a topic or a week. Add one, give it days, and put videos, PDFs, notes, links, quizzes and assignments on each day." />}
       <ol className="space-y-3">
         {ids.map((id, i) => {
           const u = byId.get(id)
           if (!u) return null
+          const subs = active.filter((x) => x.parent_unit_id === u.id)
           return (
-            <li key={id} {...drag.props(id)} className="rounded-xl data-[over]:outline data-[over]:outline-2 data-[over]:outline-primary">
-              <ModuleCard d={d} u={u} n={i + 1} onOpen={() => onOpen(id)} grip={drag.handle(id)} arrows={<Arrows first={i === 0} last={i === ids.length - 1} up={() => drag.up(id)} down={() => drag.down(id)} label={u.title} />} />
+            <li key={id} {...drag.props(id)} className="space-y-2 rounded-xl data-[over]:outline data-[over]:outline-2 data-[over]:outline-primary">
+              <ModuleCard d={d} u={u} onOpen={() => onOpen(id)} grip={drag.handle(id)} arrows={<Arrows first={i === 0} last={i === ids.length - 1} up={() => drag.up(id)} down={() => drag.down(id)} label={u.title} />} />
+              {subs.length > 0 && (
+                <ol className="space-y-2 border-l-2 border-primary/15 pl-3 sm:ml-6 sm:pl-4">
+                  {subs.map((sx) => <li key={sx.id}><ModuleCard d={d} u={sx} onOpen={() => onOpen(sx.id)} /></li>)}
+                </ol>
+              )}
             </li>
           )
         })}
@@ -141,7 +203,7 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
                 {archived.map((u) => (
                   <li key={u.id} className="flex flex-wrap items-center gap-2 px-[var(--card-pad)] py-2.5 text-[14px]">
                     <span className="min-w-0 flex-1 font-medium text-muted-foreground">{u.title}</span>
-                    <span className="text-[13px] text-muted-foreground">{u.lessons.length} source{u.lessons.length === 1 ? "" : "s"}</span>
+                    <span className="text-[13px] text-muted-foreground">{u.lessons.length} source{u.lessons.length === 1 ? '' : 's'}</span>
                     <Button size="sm" variant="secondary" pending={restore.isPending && restore.variables === u.id} onClick={() => restore.mutate(u.id)}><ArchiveRestore className="h-4 w-4" /> Restore</Button>
                   </li>
                 ))}
@@ -154,26 +216,28 @@ function ModuleList({ d, qkey, onOpen }: { d: CourseDetail; qkey: unknown[]; onO
   )
 }
 
-interface ModProgress { totals: { total: number }; complete: number; roll: number; items: { student_id: string; full_name: string; roll_no?: number | null; done: number; total: number; complete: boolean; last_seen?: string | null; sources_done: number; assignments_done: number; quizzes_done: number }[] }
+interface ModProgress { totals: { total: number }; complete: number; roll: number; items: { student_id: string; full_name: string; roll_no?: number | null; done: number; total: number; complete: boolean; last_seen?: string | null }[] }
 const useModuleProgress = (u: Unit, sectionId: string) =>
   useQuery({ queryKey: ['lms-module-progress', u.id, sectionId], queryFn: () => api.get<ModProgress>(`/api/v1/lms/units/${u.id}/progress?section_id=${sectionId}`) })
 
-function ModuleCard({ d, u, n, onOpen, arrows, grip }: { d: CourseDetail; u: Unit; n: number; onOpen: () => void; arrows: React.ReactNode; grip: object }) {
+function ModuleCard({ d, u, onOpen, arrows, grip }: { d: CourseDetail; u: Unit; onOpen: () => void; arrows?: React.ReactNode; grip?: object }) {
   const p = useModuleProgress(u, d.course.section_id)
   const items = moduleItems(u, d.assignments, d.quizzes)
+  const days = daysOf(d, u, itemsOf(d, u)).filter((x) => x.day !== null).length
   const drafts = u.lessons.filter((l) => !l.is_published || (l.publish_at && l.publish_at > nowIso())).length
   const range = dateRange(u.starts_on, u.ends_on)
   const pct = p.data && p.data.roll ? Math.round((100 * p.data.complete) / p.data.roll) : 0
   return (
     <div className="card flex items-stretch gap-1 overflow-hidden p-0">
-      <span {...grip} className="hidden cursor-grab items-center pl-2 text-muted-foreground active:cursor-grabbing sm:flex" aria-hidden title="Drag to reorder"><GripVertical className="h-4 w-4" /></span>
-      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] py-4 text-left sm:pl-2">
-        <ProgressRing pct={pct} label={p.data ? `${p.data.complete} of ${p.data.roll} have finished this module` : undefined} />
+      {grip && <span {...grip} className="hidden cursor-grab items-center pl-2 text-muted-foreground active:cursor-grabbing sm:flex" aria-hidden title="Drag to reorder"><GripVertical className="h-4 w-4" /></span>}
+      <button type="button" onClick={onOpen} className={`flex min-w-0 flex-1 items-center gap-3 px-[var(--card-pad)] ${u.parent_unit_id ? 'py-3' : 'py-4'} text-left ${grip ? 'sm:pl-2' : ''}`}>
+        <ProgressRing pct={pct} size={u.parent_unit_id ? 38 : 44} label={p.data ? `${p.data.complete} of ${p.data.roll} have finished this module` : undefined} />
         <span className="min-w-0 flex-1 space-y-1">
-          <span className="block text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Module {n}{range ? ` · ${range}` : ''}</span>
-          <span className="block text-[16px] font-semibold leading-snug">{u.title}</span>
+          <span className="block text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{moduleNumber(d, u)}{u.parent_unit_id ? ' · sub-module' : ''}{range ? ` · ${range}` : ''}</span>
+          <span className={`block font-semibold leading-snug ${u.parent_unit_id ? 'text-[15px]' : 'text-[16px]'}`}>{u.title}</span>
           {u.description && <span className="block text-[13px] text-muted-foreground line-clamp-2">{u.description}</span>}
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {days > 0 && <span className="text-[13px] font-medium">{days} day{days === 1 ? '' : 's'}</span>}
             {items.length ? <TypeCounts items={items} /> : <span className="text-[13px] text-muted-foreground">Empty</span>}
             {drafts > 0 && <Badge tone="warning">{drafts} not yet visible</Badge>}
             {p.data && p.data.totals.total > 0 && <span className="text-[13px] text-muted-foreground">{p.data.complete} of {p.data.roll} finished</span>}
@@ -181,12 +245,12 @@ function ModuleCard({ d, u, n, onOpen, arrows, grip }: { d: CourseDetail; u: Uni
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
-      <span className="flex flex-col justify-center border-l pr-1">{arrows}</span>
+      {arrows && <span className="flex flex-col justify-center border-l pr-1">{arrows}</span>}
     </div>
   )
 }
 
-function ModuleForm({ d, u, done }: { d: CourseDetail; u?: Unit; done: () => void }) {
+function ModuleForm({ d, u, parent, done }: { d: CourseDetail; u?: Unit; parent?: Unit; done: () => void }) {
   const [title, setTitle] = useState(u?.title ?? '')
   const [desc, setDesc] = useState(u?.description ?? '')
   const [from, setFrom] = useState(u?.starts_on ?? '')
@@ -194,132 +258,228 @@ function ModuleForm({ d, u, done }: { d: CourseDetail; u?: Unit; done: () => voi
   const save = useMutation({
     mutationFn: () => {
       const body = { title, description: desc, starts_on: from || null, ends_on: to || null }
-      return u ? api.put(`/api/v1/lms/units/${u.id}`, body) : api.post('/api/v1/lms/units', { ...body, section_id: d.course.section_id, class_subject_id: d.course.class_subject_id })
+      return u ? api.put(`/api/v1/lms/units/${u.id}`, body)
+        : api.post('/api/v1/lms/units', { ...body, section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, parent_unit_id: parent?.id })
     },
     onSuccess: done,
   })
   return (
     <div className="space-y-3 px-[var(--card-pad)] py-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Module title"><Input value={title} onChange={setTitle} placeholder="For example: Fractions" /></Field>
-        <Field label="Short description" hint="Optional. One line on what the module covers."><Input value={desc} onChange={setDesc} /></Field>
+        <Field label={parent ? 'Sub-module title' : 'Module title'}><Input value={title} onChange={setTitle} placeholder={parent ? 'For example: Fraction puzzles' : 'For example: Fractions'} /></Field>
+        <Field label="Short description" hint="Optional. One line on what it covers."><Input value={desc} onChange={setDesc} /></Field>
         <Field label="Starts on" hint="Optional."><Input type="date" value={from} onChange={setFrom} /></Field>
-        <Field label="Ends on" hint="Optional. The same day for a one-day module."><Input type="date" value={to} onChange={setTo} /></Field>
+        <Field label="Ends on" hint="Optional."><Input type="date" value={to} onChange={setTo} /></Field>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>{u ? 'Save module' : 'Add module'}</Button>
-        {u && <Button variant="secondary" onClick={done}>Cancel</Button>}
+        <Button disabled={!title.trim()} pending={save.isPending} onClick={() => save.mutate()}>{u ? 'Save' : parent ? 'Add sub-module' : 'Add module'}</Button>
+        <Button variant="secondary" onClick={done}>Cancel</Button>
         <FormNotice error={save.error} />
       </div>
     </div>
   )
 }
 
-/* ─── One module ───────────────────────────────────────────────────── */
+/* ─── One module: its days and their sections ─────────────────────── */
 
-function ModuleView({ d, u, n, qkey, back, onTab }: { d: CourseDetail; u: Unit; n: number; qkey: unknown[]; back: () => void; onTab: (t: Tab) => void }) {
+interface Adding { day: number | null; section: Section; type: ItemType | 'pick' | 'attach' }
+
+function ModuleView({ d, u, qkey, back, onOpen, onTab }: { d: CourseDetail; u: Unit; qkey: unknown[]; back: () => void; onOpen: (id: string) => void; onTab: (t: Tab) => void }) {
   const qc = useQueryClient()
-  const [view, setView] = useState<'sources' | 'progress'>('sources')
-  const [editing, setEditing] = useState(false)
-  const [adding, setAdding] = useState<ItemType | 'pick' | 'attach' | null>(null)
-  const refresh = () => { qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['lms-module-progress', u.id] }) }
+  const [view, setView] = useState<'days' | 'progress'>('days')
+  const [editing, setEditing] = useState<'module' | 'sub' | null>(null)
+  const refresh = () => { qc.invalidateQueries({ queryKey: qkey }); qc.invalidateQueries({ queryKey: ['lms-module-progress'] }); qc.invalidateQueries({ queryKey: ['lms-course-progress'] }) }
   const archive = useMutation({ mutationFn: () => api.del(`/api/v1/lms/units/${u.id}`), onSuccess: () => { refresh(); back() } })
+  const addDay = useMutation({ mutationFn: () => api.post(`/api/v1/lms/units/${u.id}/days`, {}), onSuccess: refresh })
   const range = dateRange(u.starts_on, u.ends_on)
+  const subs = d.units.filter((x) => x.is_active !== false && x.parent_unit_id === u.id)
+  const parent = d.units.find((x) => x.id === u.parent_unit_id)
+  const items = itemsOf(d, u)
+  const days = daysOf(d, u, items)
+  const numbered = days.filter((x) => x.day !== null).map((x) => x.day as number)
+  const orderDays = useMutation({ mutationFn: (next: number[]) => api.post(`/api/v1/lms/units/${u.id}/days/order`, { days: next }), onSuccess: refresh })
+  const moveDay = (day: number, by: number) => {
+    const i = numbered.indexOf(day), j = i + by
+    if (j < 0 || j >= numbered.length) return
+    const next = [...numbered]; [next[i], next[j]] = [next[j], next[i]]
+    orderDays.mutate(next)
+  }
   return (
     <div className="space-y-4">
-      <div>
-        <Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> All modules</Button>
-      </div>
+      <div><Button variant="ghost" onClick={back}><ChevronLeft className="h-4 w-4" /> {parent ? parent.title : 'All modules'}</Button></div>
       <Card>
-        {editing ? <ModuleForm d={d} u={u} done={() => { setEditing(false); refresh() }} /> : (
+        {editing === 'module' ? <ModuleForm d={d} u={u} done={() => { setEditing(null); refresh() }} /> : (
           <div className="flex flex-wrap items-start gap-3 px-[var(--card-pad)] py-4">
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Module {n}{range ? ` · ${range}` : ''}</p>
+              <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{moduleNumber(d, u)}{parent ? ` · in ${parent.title}` : ''}{range ? ` · ${range}` : ''}</p>
               <h2 className="text-[20px] font-semibold leading-tight">{u.title}</h2>
               {u.description && <p className="text-[14px] text-muted-foreground">{u.description}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit</Button>
+              <Button variant="secondary" onClick={() => setEditing('module')}><Pencil className="h-4 w-4" /> Edit</Button>
+              {!u.parent_unit_id && <Button variant="secondary" onClick={() => setEditing('sub')}><Plus className="h-4 w-4" /> Sub-module</Button>}
               <Button variant="secondary" pending={archive.isPending} onClick={() => { if (window.confirm(`Archive "${u.title}"? The class stops seeing it. You can restore it from the list of modules.`)) archive.mutate() }}><Archive className="h-4 w-4" /> Archive</Button>
             </div>
           </div>
         )}
+        {editing === 'sub' && <div className="border-t"><ModuleForm d={d} parent={u} done={() => { setEditing(null); refresh() }} /></div>}
         <FormNotice error={archive.error} />
       </Card>
+      {subs.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Sub-modules, taken after this module's days</p>
+          {subs.map((sx) => <ModuleCard key={sx.id} d={d} u={sx} onOpen={() => onOpen(sx.id)} />)}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex gap-1 rounded-md border bg-muted p-1" role="tablist">
-          {(['sources', 'progress'] as const).map((t) => (
-            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)}
-              className={`min-h-10 rounded px-3.5 text-[14px] font-medium ${view === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-              {t === 'sources' ? 'Sources' : 'Progress'}
-            </button>
+          {(['days', 'progress'] as const).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={view === t} onClick={() => setView(t)} className={seg(view === t)}>{t === 'days' ? 'Days' : 'Who has finished'}</button>
           ))}
         </div>
-        {view === 'sources' && <Button onClick={() => setAdding(adding ? null : 'pick')}>{adding ? <><X className="h-4 w-4" /> Close</> : <><Plus className="h-4 w-4" /> Add source</>}</Button>}
+        {view === 'days' && <Button pending={addDay.isPending} onClick={() => addDay.mutate()}><Plus className="h-4 w-4" /> Add day</Button>}
       </div>
-      {view === 'progress' ? <ModuleProgressView d={d} u={u} /> : (
-        <>
-          {adding === 'pick' && <TypePicker onPick={setAdding} canAttach={d.assignments.some((a) => !a.lms_unit_id) || d.quizzes.some((q) => !q.lms_unit_id)} />}
-          {adding && adding !== 'pick' && (
-            <Card>
-              <CardHeader title={adding === 'attach' ? 'Add an assignment or quiz already set' : ADD_TITLE[adding]} action={<Button size="sm" variant="ghost" onClick={() => setAdding('pick')}><ChevronLeft className="h-4 w-4" /> Other type</Button>} />
-              {adding === 'assignment' ? <AssignmentForm d={d} unitId={u.id} done={() => { setAdding(null); refresh() }} />
-                : adding === 'quiz' ? <QuizForm d={d} unitId={u.id} done={() => { setAdding(null); refresh() }} />
-                  : adding === 'attach' ? <AttachExisting d={d} u={u} done={() => { setAdding(null); refresh() }} />
-                    : <SourceForm kind={adding} u={u} sectionId={d.course.section_id} done={() => { setAdding(null); refresh() }} />}
-            </Card>
-          )}
-          <ItemList d={d} u={u} qkey={qkey} refresh={refresh} onTab={onTab} />
-        </>
+      <FormNotice error={addDay.error ?? orderDays.error} />
+      {view === 'progress' ? <ModuleProgressView d={d} u={u} /> : !days.length ? (
+        <EmptyState title="No days yet" body="Press Add day. Each day has four parts: pre-requisites, resources, tools and an assessment." />
+      ) : (
+        <div className="space-y-4">
+          {days.map((x) => (
+            <DayCard key={String(x.day)} d={d} u={u} day={x.day} label={x.label} items={items.filter((i) => i.day === x.day)} refresh={refresh} onTab={onTab}
+              arrows={x.day === null ? null : <Arrows first={numbered.indexOf(x.day) === 0} last={numbered.indexOf(x.day) === numbered.length - 1} up={() => moveDay(x.day!, -1)} down={() => moveDay(x.day!, 1)} label={`Day ${x.day}`} />} />
+          ))}
+        </div>
       )}
     </div>
   )
 }
 
-const ADD_TITLE: Record<ItemType, string> = {
-  video: 'Add a video', pdf: 'Add a PDF', text: 'Add notes', file: 'Add a file to download', link: 'Add a web link', image: 'Add an image', audio: 'Add a recording',
-  doc: 'Add slides or a document', quiz: 'Add a quiz', assignment: 'Add an assignment',
-}
-const PICKS: ItemType[] = ['video', 'pdf', 'text', 'file', 'link', 'image', 'audio', 'doc', 'quiz', 'assignment']
-const PICK_HINT: Record<string, string> = {
-  video: 'From the library, a new upload, or YouTube', pdf: 'Read in the page', text: 'Written here, with headings and lists', file: 'Any file to download',
-  link: 'A web page', image: 'A picture or diagram', audio: 'A recording', doc: 'Slides, Word or Excel', quiz: 'Timed, marked at once', assignment: 'Work to hand in',
-}
-function TypePicker({ onPick, canAttach }: { onPick: (t: ItemType | 'attach') => void; canAttach: boolean }) {
+function DayCard({ d, u, day, label, items, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; day: number | null; label: string; items: TItem[]; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(label)
+  const [adding, setAdding] = useState<Adding | null>(null)
+  const saveLabel = useMutation({ mutationFn: () => api.put(`/api/v1/lms/units/${u.id}/days/${day}`, { label: name }), onSuccess: () => { setEditing(false); refresh() } })
+  const del = useMutation({ mutationFn: () => api.del(`/api/v1/lms/units/${u.id}/days/${day}`), onSuccess: refresh })
+  const reorder = useMutation({
+    mutationFn: (next: TItem[]) => api.post(`/api/v1/lms/units/${u.id}/order`, { items: next.map((i) => ({ type: i.type, id: i.id })) }),
+    onSuccess: () => refresh(),
+  })
+  const sorted = (s: Section) => items.filter((i) => i.section === s).sort((a, b) => a.seq - b.seq)
+  const done = () => { setAdding(null); refresh() }
   return (
     <Card>
-      <CardHeader title="What would you like to add?" />
-      <div className="grid grid-cols-2 gap-2 p-[var(--card-pad)] sm:grid-cols-3 lg:grid-cols-5">
-        {PICKS.map((k) => (
-          <button key={k} type="button" onClick={() => onPick(k)} className="flex min-h-[4.5rem] items-start gap-2.5 rounded-lg border bg-background p-3 text-left hover:border-primary hover:bg-primary/[0.03]">
-            <KindChip kind={k} />
-            <span className="min-w-0"><span className="block text-[14px] font-medium">{KIND_LABEL[k]}</span><span className="block text-[12px] leading-snug text-muted-foreground">{PICK_HINT[k]}</span></span>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 border-b px-[var(--card-pad)] py-3">
+        {editing && day !== null ? (
+          <div className="flex w-full flex-wrap items-end gap-2">
+            <div className="min-w-0 flex-1"><Field label={`Name for Day ${day}`} hint="Optional, for example: Fractions on a line."><Input value={name} onChange={setName} /></Field></div>
+            <Button pending={saveLabel.isPending} onClick={() => saveLabel.mutate()}>Save</Button>
+            <Button variant="secondary" onClick={() => { setEditing(false); setName(label) }}>Cancel</Button>
+            <FormNotice error={saveLabel.error} />
+          </div>
+        ) : (
+          <>
+            <h3 className="min-w-0 flex-1 text-[16px] font-semibold">{dayTitle(day, label)}</h3>
+            <span className="text-[13px] text-muted-foreground">{items.length} item{items.length === 1 ? '' : 's'}</span>
+            {day !== null && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Rename Day ${day}`} title="Rename" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /></button>}
+            {day !== null && !items.length && <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Remove Day ${day}`} title="Remove this empty day" onClick={() => del.mutate()}><Trash2 className="h-4 w-4" /></button>}
+            {arrows}
+          </>
+        )}
+        <FormNotice error={del.error} />
       </div>
-      {canAttach && (
-        <div className="border-t px-[var(--card-pad)] py-3">
-          <button type="button" className="min-h-10 text-[14px] text-primary hover:underline" onClick={() => onPick('attach')}>Or put an assignment or quiz already set in this course into the module</button>
-        </div>
-      )}
+      <div className="divide-y">
+        {SECTIONS.map((s) => {
+          const list = sorted(s)
+          const open = !!adding && adding.section === s
+          return (
+            <section key={s} className="py-2" aria-label={SECTION_LABEL[s]}>
+              <div className="flex items-center justify-between gap-2 px-[var(--card-pad)]">
+                <h4 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{SECTION_LABEL[s]}{list.length ? ` · ${list.length}` : ''}</h4>
+                <button type="button" className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-primary hover:bg-primary/5"
+                  onClick={() => setAdding(open ? null : { day, section: s, type: 'pick' })} aria-expanded={open} aria-label={open ? 'Close' : `Add to ${SECTION_LABEL[s]}`}>
+                  {open ? <><X className="h-3.5 w-3.5" /> Close</> : <><Plus className="h-3.5 w-3.5" /> Add</>}
+                </button>
+              </div>
+              {open && adding && (
+                <div className="mx-[var(--card-pad)] my-2 overflow-hidden rounded-lg border bg-muted/20">
+                  {adding.type === 'pick' ? <TypePicker section={s} onPick={(t) => setAdding({ ...adding, type: t })} canAttach={d.assignments.some((a) => !a.lms_unit_id) || d.quizzes.some((q) => !q.lms_unit_id)} />
+                    : adding.type === 'assignment' ? <AssignmentForm d={d} unitId={u.id} day={day} done={done} />
+                      : adding.type === 'quiz' ? <QuizForm d={d} unitId={u.id} day={day} done={done} />
+                        : adding.type === 'attach' ? <AttachExisting d={d} u={u} day={day} done={done} />
+                          : <SourceForm kind={adding.type} u={u} d={d} day={day} section={s} done={done} />}
+                </div>
+              )}
+              {list.length > 0 && (
+                <ol>
+                  {list.map((it, i) => (
+                    <li key={`${it.type}:${it.id}`}>
+                      <ItemRow d={d} u={u} it={it} refresh={refresh} onTab={onTab}
+                        arrows={<Arrows first={i === 0} last={i === list.length - 1} label={it.title}
+                          up={() => { const n = [...list]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; reorder.mutate(n) }}
+                          down={() => { const n = [...list]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; reorder.mutate(n) }} />} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          )
+        })}
+      </div>
+      <FormNotice error={reorder.error} />
     </Card>
   )
 }
 
-function AttachExisting({ d, u, done }: { d: CourseDetail; u: Unit; done: () => void }) {
+const PICKS: ItemType[] = ['video', 'pdf', 'text', 'file', 'link', 'image', 'audio', 'doc', 'quiz', 'assignment']
+const PICK_HINT: Record<string, string> = {
+  video: 'Library, upload or YouTube', pdf: 'Read in the page', text: 'Written here', file: 'Any file to download',
+  link: 'A web page', image: 'A picture or diagram', audio: 'A recording', doc: 'Slides, Word or Excel', quiz: 'Marked at once', assignment: 'Work to hand in',
+}
+const ADD_TITLE: Record<ItemType, string> = {
+  video: 'Add a video', pdf: 'Add a PDF', text: 'Add notes', file: 'Add a file to download', link: 'Add a web link', image: 'Add an image', audio: 'Add a recording',
+  doc: 'Add slides or a document', quiz: 'Add a quiz', assignment: 'Add an assignment',
+}
+function TypePicker({ section, onPick, canAttach }: { section: Section; onPick: (t: ItemType | 'attach') => void; canAttach: boolean }) {
+  /* The assessment section offers the quiz and the assignment first; any source can still go there. */
+  const assess: ItemType[] = ['quiz', 'assignment']
+  const sources: ItemType[] = PICKS.filter((k) => !assess.includes(k))
+  const picks: ItemType[] = section === 'assessment' ? [...assess, ...sources] : sources
+  return (
+    <div>
+      <p className="px-3 pt-3 text-[13px] font-medium">Add to {SECTION_LABEL[section]}</p>
+      <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+        {picks.map((k) => (
+          <button key={k} type="button" onClick={() => onPick(k)} className="flex min-h-[3.5rem] items-center gap-2 rounded-lg border bg-background p-2 text-left hover:border-primary hover:bg-primary/[0.03]">
+            <KindChip kind={k} />
+            <span className="min-w-0"><span className="block text-[14px] font-medium leading-tight">{KIND_LABEL[k]}</span><span className="block text-[12px] leading-snug text-muted-foreground">{PICK_HINT[k]}</span></span>
+          </button>
+        ))}
+      </div>
+      {section === 'assessment' && canAttach && (
+        <div className="border-t px-3 py-2">
+          <button type="button" className="min-h-10 text-left text-[14px] text-primary hover:underline" onClick={() => onPick('attach')}>Or use an assignment or quiz already set in this course</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AttachExisting({ d, u, day, done }: { d: CourseDetail; u: Unit; day: number | null; done: () => void }) {
   const [pick, setPick] = useState('')
+  const [pass, setPass] = useState('')
   const opts = [
     ...d.assignments.filter((a) => !a.lms_unit_id).map((a) => ({ value: `assignment:${a.id}`, label: `Assignment: ${a.title}` })),
     ...d.quizzes.filter((q) => !q.lms_unit_id).map((q) => ({ value: `quiz:${q.id}`, label: `Quiz: ${q.title}` })),
   ]
   const save = useMutation({
-    mutationFn: () => { const [t, id] = pick.split(':'); return api.post(`/api/v1/lms/${t === 'quiz' ? 'quizzes' : 'assignments'}/${id}/module`, { unit_id: u.id }) },
+    mutationFn: () => { const [t, id] = pick.split(':'); return api.post(`/api/v1/lms/${t === 'quiz' ? 'quizzes' : 'assignments'}/${id}/module`, { unit_id: u.id, day, pass_percent: pass || null }) },
     onSuccess: done,
   })
   return (
-    <div className="flex flex-wrap items-end gap-3 px-[var(--card-pad)] py-4">
-      <div className="w-full sm:w-96"><Field label="Assignment or quiz"><Select value={pick} onChange={setPick} placeholder="Choose one" options={opts} /></Field></div>
-      <Button disabled={!pick} pending={save.isPending} onClick={() => save.mutate()}>Add to module</Button>
+    <div className="flex flex-wrap items-end gap-3 p-3">
+      <div className="w-full sm:w-80"><Field label="Assignment or quiz"><Select value={pick} onChange={setPick} placeholder="Choose one" options={opts} /></Field></div>
+      <div className="w-full sm:w-40"><Field label="Pass mark, %" hint="Empty: handing in is enough."><Input type="number" value={pass} onChange={setPass} /></Field></div>
+      <Button disabled={!pick} pending={save.isPending} onClick={() => save.mutate()}>Add to this day</Button>
       <FormNotice error={save.error} />
     </div>
   )
@@ -328,9 +488,13 @@ function AttachExisting({ d, u, done }: { d: CourseDetail; u: Unit; done: () => 
 const ACCEPT: Partial<Record<SourceKind, string>> = {
   pdf: 'application/pdf,.pdf', image: 'image/*', audio: 'audio/*,.mp3,.m4a,.wav,.ogg', doc: '.pdf,.ppt,.pptx,.pps,.ppsx,.doc,.docx,.xls,.xlsx,.odp,.odt,.ods,.key,.pages',
 }
+const sectionOptions = SECTIONS.map((s) => ({ value: s, label: SECTION_LABEL[s] }))
+function dayOptions(d: CourseDetail, u: Unit) {
+  return [...daysOf(d, u, itemsOf(d, u)).filter((x) => x.day !== null).map((x) => ({ value: String(x.day), label: dayTitle(x.day, x.label) })), { value: '', label: 'Not on a day' }]
+}
 
-function SourceForm({ kind: kind0, u, sectionId, lesson, done }: { kind: SourceKind; u: Unit; sectionId: string; lesson?: Lesson; done: () => void }) {
-  const [kind] = useState<SourceKind>(lesson?.kind ?? kind0)
+function SourceForm({ kind: kind0, u, d, day: day0, section: section0, lesson, done }: { kind: SourceKind; u: Unit; d: CourseDetail; day: number | null; section: Section; lesson?: Lesson; done: () => void }) {
+  const kind = lesson?.kind ?? kind0
   const [title, setTitle] = useState(lesson?.title ?? '')
   const [body, setBody] = useState(lesson?.body ?? '')
   const [url, setUrl] = useState(lesson?.url ?? '')
@@ -338,6 +502,9 @@ function SourceForm({ kind: kind0, u, sectionId, lesson, done }: { kind: SourceK
   const [video, setVideo] = useState(lesson?.video_id ?? '')
   const [file, setFile] = useState<{ id: string; name: string } | null>(lesson?.file_id ? { id: lesson.file_id, name: lesson.file_name ?? 'file' } : null)
   const [mins, setMins] = useState(lesson?.duration_minutes ? String(lesson.duration_minutes) : '')
+  const [day, setDay] = useState(lesson ? (lesson.day ? String(lesson.day) : '') : day0 === null ? '' : String(day0))
+  const [section, setSection] = useState<string>(lesson?.section ?? section0)
+  const [optional, setOptional] = useState(!!lesson?.is_optional)
   const [publish, setPublish] = useState<'now' | 'draft' | 'schedule'>(lesson ? (!lesson.is_published ? 'draft' : lesson.publish_at && lesson.publish_at > nowIso() ? 'schedule' : 'now') : 'now')
   const [when, setWhen] = useState(toLocal(lesson?.publish_at))
   const [onlyHere, setOnlyHere] = useState(false)
@@ -347,23 +514,23 @@ function SourceForm({ kind: kind0, u, sectionId, lesson, done }: { kind: SourceK
     mutationFn: () => {
       const b = {
         unit_id: u.id, title, kind, body, url: lib ? '' : fileKind && file ? '' : url, video_id: lib ? video : undefined, file_id: fileKind ? file?.id ?? null : null,
-        duration_minutes: mins ? Number(mins) : null, is_published: publish !== 'draft',
-        publish_at: publish === 'schedule' && when ? new Date(when).toISOString() : null, day: lesson?.day ?? null,
+        duration_minutes: mins ? Number(mins) : null, is_published: publish !== 'draft', publish_at: publish === 'schedule' && when ? new Date(when).toISOString() : null,
+        day: day ? Number(day) : null, section, is_optional: optional,
       }
-      return lesson ? api.put(`/api/v1/lms/lessons/${lesson.id}`, b) : api.post('/api/v1/lms/lessons', { ...b, section_id: onlyHere ? sectionId : undefined })
+      return lesson ? api.put(`/api/v1/lms/lessons/${lesson.id}`, b) : api.post('/api/v1/lms/lessons', { ...b, section_id: onlyHere ? d.course.section_id : undefined })
     },
     onSuccess: done,
   })
   const ready = title.trim() && (kind === 'text' ? body.trim() : kind === 'link' ? url.trim() : kind === 'video' ? (lib ? video : url.trim()) : file || url.trim())
   return (
-    <div className="space-y-4 px-[var(--card-pad)] py-4">
-      <Field label="Title"><Input value={title} onChange={setTitle} placeholder={kind === 'video' ? 'For example: Adding fractions, explained' : undefined} /></Field>
+    <div className="space-y-4 p-3 sm:p-4">
+      <p className="text-[14px] font-semibold">{lesson ? `Edit: ${lesson.title}` : ADD_TITLE[kind]}</p>
+      <Field label="Title"><Input value={title} onChange={setTitle} /></Field>
       {kind === 'video' && (
         <div className="space-y-3">
           <div className="inline-flex max-w-full flex-wrap gap-1 rounded-md border bg-muted p-1" role="radiogroup" aria-label="Where the video comes from">
-            {([['library', 'From the library'], ['upload', 'Upload new'], ['link', 'YouTube or link']] as const).map(([v, label]) => (
-              <button key={v} type="button" role="radio" aria-checked={vsrc === v} onClick={() => setVsrc(v)}
-                className={`min-h-10 rounded px-3 text-[14px] ${vsrc === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}>{label}</button>
+            {([['library', 'From the library'], ['upload', 'Upload new'], ['link', 'YouTube or link']] as const).map(([v, lab]) => (
+              <button key={v} type="button" role="radio" aria-checked={vsrc === v} onClick={() => setVsrc(v)} className={`min-h-10 rounded px-3 text-[14px] ${vsrc === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}>{lab}</button>
             ))}
           </div>
           {vsrc === 'library' && <Field label="Video"><VideoPick value={video} onChange={setVideo} /></Field>}
@@ -380,100 +547,67 @@ function SourceForm({ kind: kind0, u, sectionId, lesson, done }: { kind: SourceK
           {!file && <Field label="Or a link to it" hint="Optional, when the file lives somewhere else."><Input value={url} onChange={setUrl} placeholder="https://" /></Field>}
         </div>
       )}
-      {kind !== 'text' && <Field label="A note for the class" hint="Optional. Shown under the source."><Textarea rows={2} value={body} onChange={setBody} /></Field>}
+      {kind !== 'text' && <Field label="A note for the class" hint="Optional. Shown with the source."><Textarea rows={2} value={body} onChange={setBody} /></Field>}
       <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Day"><Select value={day} onChange={setDay} options={dayOptions(d, u)} /></Field>
+        <Field label="Section"><Select value={section} onChange={setSection} options={sectionOptions} /></Field>
         {(kind === 'text' || kind === 'audio' || (kind === 'video' && vsrc === 'link') || kind === 'link') && (
-          <Field label={kind === 'text' ? 'Reading time, minutes' : 'Length, minutes'} hint="Optional. Shown to the class."><Input type="number" value={mins} onChange={setMins} /></Field>
+          <Field label={kind === 'text' ? 'Reading time, minutes' : 'Length, minutes'} hint="Optional."><Input type="number" value={mins} onChange={setMins} /></Field>
         )}
         <Field label="Who sees it, and when">
-          <Select value={publish} onChange={(v) => setPublish(v as typeof publish)} options={[
-            { value: 'now', label: 'Published now' }, { value: 'schedule', label: 'Scheduled for later' }, { value: 'draft', label: 'Draft (only you)' },
-          ]} />
+          <Select value={publish} onChange={(v) => setPublish(v as typeof publish)} options={[{ value: 'now', label: 'Published now' }, { value: 'schedule', label: 'Scheduled for later' }, { value: 'draft', label: 'Draft (only you)' }]} />
         </Field>
         {publish === 'schedule' && <Field label="Opens at" hint="The class sees it from this moment."><Input type="datetime-local" value={when} onChange={setWhen} /></Field>}
       </div>
+      <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={optional} onChange={(e) => setOptional(e.target.checked)} /> Optional: the next day can open without it</label>
       {!lesson && <label className="flex min-h-10 items-center gap-2 text-[14px]"><input type="checkbox" className="h-4 w-4" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> Only this section (otherwise every section of the class)</label>}
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={!ready || (publish === 'schedule' && !when)} pending={save.isPending} onClick={() => save.mutate()}>{lesson ? 'Save' : publish === 'draft' ? 'Save as draft' : publish === 'schedule' ? 'Schedule' : 'Publish'}</Button>
-        {lesson && <Button variant="secondary" onClick={done}>Cancel</Button>}
+        <Button variant="secondary" onClick={done}>Cancel</Button>
         <FormNotice error={save.error} />
       </div>
     </div>
   )
 }
 
-function ItemList({ d, u, qkey, refresh, onTab }: { d: CourseDetail; u: Unit; qkey: unknown[]; refresh: () => void; onTab: (t: Tab) => void }) {
-  const qc = useQueryClient()
-  const items = moduleItems(u, d.assignments, d.quizzes)
-  const [order, setOrder] = useState<string[] | null>(null)
-  const key = (i: ModuleItem) => `${i.type}:${i.id}`
-  const ids = order ?? items.map(key)
-  const byKey = new Map(items.map((i) => [key(i), i]))
-  const reorder = useMutation({
-    mutationFn: (next: string[]) => api.post(`/api/v1/lms/units/${u.id}/order`, { items: next.map((k) => { const [type, id] = k.split(':'); return { type, id } }) }),
-    onSettled: async () => { await qc.invalidateQueries({ queryKey: qkey }); setOrder(null) },
-  })
-  const drag = useDragOrder(ids, (next) => { setOrder(next); reorder.mutate(next) })
-  if (!items.length) return <EmptyState title="Nothing in this module yet" body="Press Add source to put in a video, a PDF, notes, a link, a quiz or an assignment." />
-  return (
-    <Card>
-      <ol className="divide-y">
-        {ids.map((k, i) => {
-          const it = byKey.get(k)
-          if (!it) return null
-          return (
-            <li key={k} {...drag.props(k)} className="data-[over]:bg-primary/[0.06]">
-              <ItemRow d={d} u={u} it={it} refresh={refresh} onTab={onTab} grip={drag.handle(k)}
-                arrows={<Arrows first={i === 0} last={i === ids.length - 1} up={() => drag.up(k)} down={() => drag.down(k)} label={it.type === 'lesson' ? it.lesson.title : it.title} />} />
-            </li>
-          )
-        })}
-      </ol>
-      <FormNotice error={reorder.error} />
-    </Card>
-  )
-}
-
-function ItemRow({ d, u, it, arrows, grip, refresh, onTab }: { d: CourseDetail; u: Unit; it: ModuleItem; arrows: React.ReactNode; grip: object; refresh: () => void; onTab: (t: Tab) => void }) {
+function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Unit; it: TItem; arrows: React.ReactNode; refresh: () => void; onTab: (t: Tab) => void }) {
   const [open, setOpen] = useState<'preview' | 'menu' | 'edit' | null>(null)
-  const kind = itemKind(it)
-  const title = it.type === 'lesson' ? it.lesson.title : it.title
+  const kind = kindOf(it)
   let meta: React.ReactNode = null, right: React.ReactNode = null
   if (it.type === 'lesson') {
-    const l = it.lesson
-    meta = <>{KIND_LABEL[l.kind]}{sourceMeta(l) ? ` · ${sourceMeta(l)}` : ''}</>
+    const l = it.lesson!
+    meta = <>{KIND_LABEL[l.kind]}{sourceMeta(l) ? ` · ${sourceMeta(l)}` : ''}{l.is_optional ? ' · optional' : ''}</>
     right = <><StateBadge l={l} /><span className="hidden text-[13px] text-muted-foreground sm:inline">{l.completed ?? 0}/{d.roll} done</span></>
   } else if (it.type === 'assignment') {
     const a = d.assignments.find((x) => x.id === it.id)!
-    meta = <>Assignment{a.due_on ? ` · due ${a.due_on}` : ''}</>
+    meta = <>Assignment{a.due_on ? ` · due ${a.due_on}` : ''}{a.lms_pass_percent ? ` · pass ${a.lms_pass_percent}%` : ''}</>
     right = <><span className="hidden text-[13px] text-muted-foreground sm:inline">{a.submitted}/{d.roll} handed in</span>{a.to_mark > 0 && <Badge tone="warning">{a.to_mark} to mark</Badge>}</>
   } else {
     const q = d.quizzes.find((x) => x.id === it.id)!
-    meta = <>Quiz · {q.questions} question{q.questions === 1 ? '' : 's'}{q.duration_minutes ? ` · ${q.duration_minutes} min` : ''}</>
+    meta = <>Quiz · {q.questions} question{q.questions === 1 ? '' : 's'}{q.duration_minutes ? ` · ${q.duration_minutes} min` : ''}{q.lms_pass_percent ? ` · pass ${q.lms_pass_percent}%` : ''}</>
     right = <><Badge tone={q.status === 'published' ? 'success' : 'neutral'}>{q.status === 'published' ? 'Open' : q.status === 'closed' ? 'Closed' : 'Draft'}</Badge><span className="hidden text-[13px] text-muted-foreground sm:inline">{q.attempted}/{d.roll} taken</span></>
   }
   return (
     <div>
-      <div className="flex items-center gap-1 py-2 pl-1 pr-1 sm:pl-2">
-        <span {...grip} className="hidden cursor-grab py-3 text-muted-foreground active:cursor-grabbing sm:inline" aria-hidden title="Drag to reorder"><GripVertical className="h-4 w-4" /></span>
+      <div className="flex items-center gap-1 py-1 pl-1 pr-1 sm:pl-2">
         <button type="button" className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-md px-2 text-left hover:bg-muted/50" onClick={() => setOpen(open === 'preview' ? null : 'preview')} aria-expanded={open === 'preview'}>
           <KindChip kind={kind} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] font-medium">{title}</span>
+            <span className="block truncate text-[14px] font-medium">{it.title}</span>
             <span className="block truncate text-[13px] text-muted-foreground">{meta}</span>
           </span>
           <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">{right}</span>
         </button>
-        <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Actions for ${title}`} aria-expanded={open === 'menu'} onClick={() => setOpen(open === 'menu' ? null : 'menu')}>
+        <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Actions for ${it.title}`} aria-expanded={open === 'menu'} onClick={() => setOpen(open === 'menu' ? null : 'menu')}>
           <MoreHorizontal className="h-4 w-4" />
         </button>
         {arrows}
       </div>
       {open === 'menu' && <ItemActions d={d} u={u} it={it} refresh={refresh} onTab={onTab} onEdit={() => setOpen('edit')} close={() => setOpen(null)} />}
-      {open === 'edit' && it.type === 'lesson' && <div className="border-t bg-muted/20"><SourceForm kind={it.lesson.kind} u={u} sectionId={d.course.section_id} lesson={it.lesson} done={() => { setOpen(null); refresh() }} /></div>}
+      {open === 'edit' && it.lesson && <div className="mx-[var(--card-pad)] mb-2 rounded-lg border bg-muted/20"><SourceForm kind={it.lesson.kind} u={u} d={d} day={it.day} section={it.section} lesson={it.lesson} done={() => { setOpen(null); refresh() }} /></div>}
       {open === 'preview' && (
-        <div className="border-t bg-muted/10 px-[var(--card-pad)] py-4">
-          {it.type === 'lesson' ? <LessonContent l={it.lesson} /> : (
+        <div className="mx-[var(--card-pad)] mb-2 rounded-lg border bg-background p-3">
+          {it.lesson ? <LessonContent l={it.lesson} /> : (
             <div className="flex flex-wrap items-center gap-3 text-[14px]">
               <KindIcon kind={kind} />
               <span className="text-muted-foreground">{it.type === 'assignment' ? 'Marks, rubric and who has handed in are in the gradebook.' : 'Scores are in the quiz results.'}</span>
@@ -486,37 +620,58 @@ function ItemRow({ d, u, it, arrows, grip, refresh, onTab }: { d: CourseDetail; 
   )
 }
 
-function ItemActions({ d, u, it, refresh, onTab, onEdit, close }: { d: CourseDetail; u: Unit; it: ModuleItem; refresh: () => void; onTab: (t: Tab) => void; onEdit: () => void; close: () => void }) {
-  const [when, setWhen] = useState(it.type === 'lesson' ? toLocal(it.lesson.publish_at) : '')
+function ItemActions({ d, u, it, refresh, onTab, onEdit, close }: { d: CourseDetail; u: Unit; it: TItem; refresh: () => void; onTab: (t: Tab) => void; onEdit: () => void; close: () => void }) {
+  const [when, setWhen] = useState(it.lesson ? toLocal(it.lesson.publish_at) : '')
   const [scheduling, setScheduling] = useState(false)
-  const [moveTo, setMoveTo] = useState('')
-  const others = d.units.filter((x) => x.is_active !== false && x.id !== u.id)
+  const [toUnit, setToUnit] = useState(u.id)
+  const [toDay, setToDay] = useState(it.day === null ? '' : String(it.day))
+  const [toSection, setToSection] = useState<string>(it.section)
+  const placed = it.type === 'assignment' ? d.assignments.find((x) => x.id === it.id) : it.type === 'quiz' ? d.quizzes.find((x) => x.id === it.id) : null
+  const [pass, setPass] = useState(placed?.lms_pass_percent ? String(placed.lms_pass_percent) : '')
+  const target = d.units.find((x) => x.id === toUnit) ?? u
   const run = useMutation({
     mutationFn: async (a: { op: string }) => {
-      if (it.type !== 'lesson') return api.post(`/api/v1/lms/${it.type === 'quiz' ? 'quizzes' : 'assignments'}/${it.id}/module`, { unit_id: null })
+      if (it.type !== 'lesson') {
+        const base = `/api/v1/lms/${it.type === 'quiz' ? 'quizzes' : 'assignments'}/${it.id}/module`
+        if (a.op === 'remove') return api.post(base, { unit_id: null })
+        return api.post(base, { unit_id: toUnit, day: toDay ? Number(toDay) : null, pass_percent: pass || null })
+      }
       const id = it.id
       if (a.op === 'publish') return api.post(`/api/v1/lms/lessons/${id}/publish`, { is_published: true, publish_at: null })
-      if (a.op === 'draft') return api.post(`/api/v1/lms/lessons/${id}/publish`, { is_published: false, publish_at: it.lesson.publish_at ?? null })
+      if (a.op === 'draft') return api.post(`/api/v1/lms/lessons/${id}/publish`, { is_published: false, publish_at: it.lesson!.publish_at ?? null })
       if (a.op === 'schedule') return api.post(`/api/v1/lms/lessons/${id}/publish`, { is_published: true, publish_at: new Date(when).toISOString() })
-      if (a.op === 'move') return api.post(`/api/v1/lms/lessons/${id}/move`, { unit_id: moveTo })
+      if (a.op === 'place') return api.post(`/api/v1/lms/lessons/${id}/move`, { unit_id: toUnit, day: toDay ? Number(toDay) : null, section: toSection })
       if (a.op === 'delete') return api.del(`/api/v1/lms/lessons/${id}`)
     },
     onSuccess: () => { close(); refresh() },
   })
   const btn = 'inline-flex min-h-10 items-center gap-1.5 rounded-md border bg-background px-3 text-[14px] hover:bg-muted'
+  const modules = d.units.filter((x) => x.is_active !== false).map((x) => ({ value: x.id, label: `${moduleNumber(d, x)} · ${x.title}` }))
+  const place = (
+    <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+      <Field label="Module"><Select value={toUnit} onChange={(v) => { setToUnit(v); setToDay('') }} options={modules} /></Field>
+      <Field label="Day"><Select value={toDay} onChange={setToDay} options={dayOptions(d, target)} /></Field>
+      {it.type === 'lesson' ? <Field label="Section"><Select value={toSection} onChange={setToSection} options={sectionOptions} /></Field>
+        : <Field label="Pass mark, %"><Input type="number" value={pass} onChange={setPass} /></Field>}
+      <Button variant="secondary" pending={run.isPending} onClick={() => run.mutate({ op: 'place' })}><FolderInput className="h-4 w-4" /> {it.type === 'lesson' ? 'Move' : 'Save'}</Button>
+    </div>
+  )
   if (it.type !== 'lesson') {
     return (
-      <div className="flex flex-wrap gap-2 border-t bg-muted/20 px-[var(--card-pad)] py-3">
-        <button type="button" className={btn} onClick={() => onTab(it.type === 'assignment' ? 'assignments' : 'quizzes')}>{it.type === 'assignment' ? 'Gradebook' : 'Results'}</button>
-        <button type="button" className={btn} onClick={() => run.mutate({ op: 'remove' })}><X className="h-4 w-4" /> Take out of this module</button>
+      <div className="mx-[var(--card-pad)] mb-2 space-y-3 rounded-lg border bg-muted/20 p-3">
+        {place}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btn} onClick={() => onTab(it.type === 'assignment' ? 'assignments' : 'quizzes')}>{it.type === 'assignment' ? 'Gradebook' : 'Results'}</button>
+          <button type="button" className={btn} onClick={() => run.mutate({ op: 'remove' })}><X className="h-4 w-4" /> Take out of this module</button>
+        </div>
         <FormNotice error={run.error} />
       </div>
     )
   }
-  const l = it.lesson
+  const l = it.lesson!
   const live = l.is_published && !(l.publish_at && l.publish_at > nowIso())
   return (
-    <div className="space-y-3 border-t bg-muted/20 px-[var(--card-pad)] py-3">
+    <div className="mx-[var(--card-pad)] mb-2 space-y-3 rounded-lg border bg-muted/20 p-3">
       <div className="flex flex-wrap gap-2">
         <button type="button" className={btn} onClick={onEdit}><Pencil className="h-4 w-4" /> Edit</button>
         {!live && <button type="button" className={btn} onClick={() => run.mutate({ op: 'publish' })}><Eye className="h-4 w-4" /> Publish now</button>}
@@ -530,12 +685,7 @@ function ItemActions({ d, u, it, refresh, onTab, onEdit, close }: { d: CourseDet
           <Button disabled={!when} pending={run.isPending} onClick={() => run.mutate({ op: 'schedule' })}>Schedule</Button>
         </div>
       )}
-      {others.length > 0 && (
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="w-full sm:w-72"><Field label="Move to another module"><Select value={moveTo} onChange={setMoveTo} placeholder="Choose a module" options={others.map((x) => ({ value: x.id, label: x.title }))} /></Field></div>
-          <Button variant="secondary" disabled={!moveTo} pending={run.isPending} onClick={() => run.mutate({ op: 'move' })}><FolderInput className="h-4 w-4" /> Move</Button>
-        </div>
-      )}
+      {place}
       <FormNotice error={run.error} />
     </div>
   )
@@ -569,13 +719,111 @@ function ModuleProgressView({ d, u }: { d: CourseDetail; u: Unit }) {
                   <span className="block text-[12px] text-muted-foreground">{r.last_seen ? `Last opened ${fmtWhen(r.last_seen)}` : 'Not opened yet'}</span>
                 </span>
                 <span className="hidden w-40 sm:block" aria-hidden><span className="block h-2 overflow-hidden rounded-full bg-muted"><span className={`block h-full ${r.complete ? 'bg-success' : 'bg-primary'}`} style={{ width: `${pct}%` }} /></span></span>
-                <span className="w-16 shrink-0 text-right tabular-nums">{r.done}/{r.total}</span>
+                <span className="w-12 shrink-0 text-right tabular-nums">{r.done}/{r.total}</span>
                 {r.complete ? <Badge tone="success">Finished</Badge> : <Badge>{pct}%</Badge>}
               </li>
             )
           })}
         </ul>
       )}
+    </Card>
+  )
+}
+
+/* ─── The course's progress grid: every child against every day ────── */
+
+interface Grid {
+  gating: string
+  steps: { key: string; unit_id: string; day: number | null; label: string; module: string; items: number }[]
+  students: { student_id: string; full_name: string; roll_no?: number | null; states: { state: 'done' | 'open' | 'locked'; done: number; total: number }[]; days_done: number; at: string | null; unlocks: string[] }[]
+}
+
+export function CourseProgress({ d }: { d: CourseDetail }) {
+  const qc = useQueryClient()
+  const key = ['lms-course-progress', d.course.section_id, d.course.class_subject_id]
+  const q = useQuery({ queryKey: key, queryFn: () => api.get<Grid>(`/api/v1/lms/course/progress?section_id=${d.course.section_id}&class_subject_id=${d.course.class_subject_id}`) })
+  const unlock = useMutation({
+    mutationFn: (v: { student_id: string; key: string; on: boolean }) => {
+      const [unit_id, day] = v.key.split(':')
+      const body = { student_id: v.student_id, unit_id, day: Number(day) || null }
+      return v.on ? api.post('/api/v1/lms/unlocks', body) : api.del('/api/v1/lms/unlocks', body)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: key }),
+  })
+  if (q.error) return <ErrorState error={q.error} />
+  if (!q.data) return <Loading />
+  const g = q.data
+  if (!g.steps.length) return <EmptyState title="No days yet" body="Once a module has days with something on them, every child's progress shows here." />
+  const step = new Map(g.steps.map((s, i) => [s.key, { ...s, i }]))
+  const mods: { unit_id: string; module: string; n: number }[] = []
+  for (const s of g.steps) { const last = mods[mods.length - 1]; if (last && last.unit_id === s.unit_id) last.n++; else mods.push({ unit_id: s.unit_id, module: s.module, n: 1 }) }
+  const short = (s: { day: number | null }) => (s.day === null ? '•' : `D${s.day}`)
+  return (
+    <Card>
+      <CardHeader title={`Where everyone is · ${g.steps.length} day${g.steps.length === 1 ? '' : 's'}`} action={<span className="text-[13px] text-muted-foreground">{g.gating === 'open' ? 'Open course: nothing is locked.' : 'One by one: a day opens when the one before is done.'}</span>} />
+      <div className="flex flex-wrap gap-x-4 gap-y-1 border-b px-[var(--card-pad)] py-2 text-[12px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-success text-white"><Check className="h-3 w-3" /></span> Done</span>
+        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-primary bg-primary/10" /> Open: done of required</span>
+        <span className="inline-flex items-center gap-1"><span className="h-4 w-4 rounded border-2 border-warning bg-warning/10" /> Opened early</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-flex h-4 w-4 items-center justify-center rounded bg-muted"><Lock className="h-2.5 w-2.5" /></span> Locked</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b">
+              <th rowSpan={2} className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2 text-left font-medium">Student</th>
+              {mods.map((m, i) => <th key={m.unit_id + i} colSpan={m.n} className="border-l px-1 py-1.5 text-left text-[12px] font-medium text-muted-foreground"><span className="block max-w-[10rem] truncate">{m.module}</span></th>)}
+              <th rowSpan={2} className="border-l px-3 py-2 text-left font-medium">Where they are</th>
+            </tr>
+            <tr className="border-b">
+              {g.steps.map((s) => <th key={s.key} title={`${s.module} · ${s.label}`} className="px-1 py-1 text-center text-[11px] font-medium text-muted-foreground">{short(s)}</th>)}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {g.students.map((r) => {
+              const at = r.at ? step.get(r.at) : null
+              const firstLocked = r.states.findIndex((x) => x.state === 'locked')
+              const nextKey = firstLocked >= 0 ? g.steps[firstLocked].key : null
+              return (
+                <tr key={r.student_id}>
+                  <td className="sticky left-0 z-10 bg-card px-[var(--card-pad)] py-2">
+                    <span className="block max-w-[9rem] truncate font-medium sm:max-w-[14rem]">{r.full_name}</span>
+                    <span className="block text-[12px] text-muted-foreground">{r.days_done} of {g.steps.length} done</span>
+                  </td>
+                  {r.states.map((x, i) => {
+                    const s = g.steps[i]
+                    const early = r.unlocks.includes(s.key)
+                    return (
+                      <td key={s.key} className="px-1 py-2 text-center" title={`${s.module} · ${s.label}: ${x.state === 'done' ? 'done' : x.state === 'open' ? `${x.done} of ${x.total} done` : 'locked'}${early ? ' (opened early)' : ''}`}>
+                        {x.state === 'done' ? <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-success text-white"><Check className="h-3.5 w-3.5" /></span>
+                          : x.state === 'open' ? <span className={`inline-flex h-7 w-7 items-center justify-center rounded border-2 text-[10px] font-semibold tabular-nums ${early ? 'border-warning bg-warning/10' : 'border-primary bg-primary/10'}`}>{x.total ? `${x.done}/${x.total}` : ''}</span>
+                            : <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-muted text-muted-foreground"><Lock className="h-3 w-3" /></span>}
+                      </td>
+                    )
+                  })}
+                  <td className="border-l px-3 py-2">
+                    <div className="flex min-w-[14rem] flex-wrap items-center gap-2">
+                      <span className="min-w-0 flex-1">{!at ? <Badge tone="success">Finished</Badge> : <><span className="block text-[12px] text-muted-foreground">{at.module}</span><span className="block">{at.label}</span></>}</span>
+                      {g.gating !== 'open' && nextKey && (
+                        <Button size="sm" variant="secondary" pending={unlock.isPending && unlock.variables?.student_id === r.student_id} onClick={() => unlock.mutate({ student_id: r.student_id, key: nextKey, on: true })}>
+                          <Unlock className="h-3.5 w-3.5" /> Open {short(step.get(nextKey)!)}
+                        </Button>
+                      )}
+                      {r.unlocks.filter((k) => step.has(k)).map((k) => (
+                        <button key={k} type="button" className="inline-flex min-h-8 items-center gap-1 rounded-md bg-warning/10 px-2 text-[12px] text-warning" title="Opened early by a teacher. Press to take it back."
+                          onClick={() => unlock.mutate({ student_id: r.student_id, key: k, on: false })}>
+                          {short(step.get(k)!)} opened early <X className="h-3 w-3" />
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <FormNotice error={unlock.error} />
     </Card>
   )
 }

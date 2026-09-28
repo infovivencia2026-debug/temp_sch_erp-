@@ -7,7 +7,7 @@ import {
 } from '@/components/ui'
 import VideoLibrary from './VideoLibrary'
 import { FilePick, type RubricRow } from '../learning/lms-shared'
-import { Modules, type CourseDetail } from './TeacherModules'
+import { CourseProgress, Modules, type CourseDetail, type Tab } from './TeacherModules'
 
 /* THE LMS, FROM THE FRONT OF THE CLASS (worker routes/teaching/lms.ts).
 
@@ -65,7 +65,7 @@ function CourseList({ onOpen, onVideos }: { onOpen: (k: { section_id: string; cl
 }
 
 function CourseView({ k, back }: { k: { section_id: string; class_subject_id: string }; back: () => void }) {
-  const [tab, setTab] = useState<'modules' | 'assignments' | 'quizzes'>('modules')
+  const [tab, setTab] = useState<Tab>('modules')
   const key = ['lms-course', k.section_id, k.class_subject_id]
   const q = useQuery({ queryKey: key, queryFn: () => api.get<CourseDetail>(`/api/v1/lms/course?section_id=${k.section_id}&class_subject_id=${k.class_subject_id}`) })
   const d = q.data
@@ -80,14 +80,15 @@ function CourseView({ k, back }: { k: { section_id: string; class_subject_id: st
         {q.error ? <ErrorState error={q.error} /> : !d ? <Loading /> : (
           <div className="space-y-4">
             <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-md border bg-muted p-1" role="tablist">
-              {(['modules', 'assignments', 'quizzes'] as const).map((t) => (
+              {(['modules', 'progress', 'assignments', 'quizzes'] as const).map((t) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`min-h-10 shrink-0 whitespace-nowrap rounded px-3.5 text-[14px] font-medium ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                  {t === 'modules' ? `Modules (${d.units.filter((u) => u.is_active !== false).length})` : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}
+                  {t === 'modules' ? `Modules (${d.units.filter((u) => u.is_active !== false && !u.parent_unit_id).length})` : t === 'progress' ? 'Progress' : t === 'assignments' ? `Assignments (${d.assignments.length})` : `Quizzes (${d.quizzes.length})`}
                 </button>
               ))}
             </div>
             {tab === 'modules' && <Modules d={d} qkey={key} onTab={setTab} />}
+            {tab === 'progress' && <CourseProgress d={d} />}
             {tab === 'assignments' && <Assignments d={d} qkey={key} />}
             {tab === 'quizzes' && <Quizzes d={d} qkey={key} />}
           </div>
@@ -138,8 +139,9 @@ function Assignments({ d, qkey }: { d: CourseDetail; qkey: unknown[] }) {
 }
 
 /** A module's own form passes unitId; from the Assignments tab the teacher may pick one. */
-export function AssignmentForm({ d, done, unitId }: { d: CourseDetail; done: () => void; unitId?: string }) {
+export function AssignmentForm({ d, done, unitId, day }: { d: CourseDetail; done: () => void; unitId?: string; day?: number | null }) {
   const [unit, setUnit] = useState(unitId ?? '')
+  const [pass, setPass] = useState('')
   const [title, setTitle] = useState('')
   const [instr, setInstr] = useState('')
   const [due, setDue] = useState('')
@@ -150,6 +152,7 @@ export function AssignmentForm({ d, done, unitId }: { d: CourseDetail; done: () 
     mutationFn: () => api.post('/api/v1/lms/assignments', {
       section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title, instructions: instr, due_on: due || null,
       max_marks: max === '' ? null : Number(max), rubric: rubric.filter((r) => r.criterion.trim() && r.max > 0), file_ids: file ? [file.id] : [], unit_id: unit || null,
+      day: unitId ? day ?? null : undefined, pass_percent: unit && pass ? Number(pass) : null,
     }),
     onSuccess: done,
   })
@@ -160,13 +163,14 @@ export function AssignmentForm({ d, done, unitId }: { d: CourseDetail; done: () 
         <Field label="Due on"><Input type="date" value={due} onChange={setDue} /></Field>
         <Field label="Out of" hint={rubric.length ? 'Set by the rubric.' : undefined}><Input type="number" value={rubric.length ? String(rubric.reduce((a, r) => a + (r.max || 0), 0)) : max} onChange={setMax} /></Field>
         {!unitId && <ModulePick d={d} value={unit} onChange={setUnit} />}
+        {unit && <Field label="Pass mark, %" hint="Optional. Empty: handing in opens the next day."><Input type="number" value={pass} onChange={setPass} /></Field>}
       </div>
       <Field label="Instructions"><Textarea rows={3} value={instr} onChange={setInstr} /></Field>
       <div className="space-y-2">
         <p className="text-[13px] font-medium text-secondary-foreground">Rubric (optional)</p>
         {rubric.map((r, i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className="w-64"><Input value={r.criterion} onChange={(v) => setRubric(rubric.map((x, j) => (j === i ? { ...x, criterion: v } : x)))} placeholder="Criterion" /></div>
+            <div className="min-w-0 flex-1 sm:w-64 sm:flex-none"><Input value={r.criterion} onChange={(v) => setRubric(rubric.map((x, j) => (j === i ? { ...x, criterion: v } : x)))} placeholder="Criterion" /></div>
             <div className="w-24"><Input type="number" value={String(r.max)} onChange={(v) => setRubric(rubric.map((x, j) => (j === i ? { ...x, max: Number(v) } : x)))} /></div>
             <Button size="sm" variant="ghost" onClick={() => setRubric(rubric.filter((_, j) => j !== i))}>Remove</Button>
           </div>
@@ -335,8 +339,9 @@ function QuizResults({ id }: { id: string }) {
   )
 }
 
-export function QuizForm({ d, done, unitId }: { d: CourseDetail; done: () => void; unitId?: string }) {
+export function QuizForm({ d, done, unitId, day }: { d: CourseDetail; done: () => void; unitId?: string; day?: number | null }) {
   const [unit, setUnit] = useState(unitId ?? '')
+  const [pass, setPass] = useState('')
   const [title, setTitle] = useState('')
   const [mins, setMins] = useState('15')
   const [closes, setCloses] = useState('')
@@ -358,6 +363,7 @@ export function QuizForm({ d, done, unitId }: { d: CourseDetail; done: () => voi
     mutationFn: () => api.post('/api/v1/lms/quizzes', {
       section_id: d.course.section_id, class_subject_id: d.course.class_subject_id, title, duration_minutes: mins === '' ? null : Number(mins),
       closes_at: closes ? new Date(closes).toISOString() : null, unit_id: unit || null,
+      day: unitId ? day ?? null : undefined, pass_percent: unit && pass ? Number(pass) : null,
       questions: qs.filter((x) => x.stem.trim()).map((x) => {
         const opts = x.options.map((o, i) => ({ o: o.trim(), i })).filter((y) => y.o)
         return { stem: x.stem, options: opts.map((y) => y.o), correct: Math.max(0, opts.findIndex((y) => y.i === x.correct)), marks: x.marks ?? 1 }
@@ -373,11 +379,12 @@ export function QuizForm({ d, done, unitId }: { d: CourseDetail; done: () => voi
         <Field label="Time limit, minutes" hint="Empty for no limit."><Input type="number" value={mins} onChange={setMins} /></Field>
         <Field label="Closes at" hint="Optional."><Input type="datetime-local" value={closes} onChange={setCloses} /></Field>
         {!unitId && <ModulePick d={d} value={unit} onChange={setUnit} />}
+        {unit && <Field label="Pass mark, %" hint="Optional. Empty: taking it opens the next day."><Input type="number" value={pass} onChange={setPass} /></Field>}
       </div>
       {lessons.length > 0 && (
         <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
           <Sparkles className="mb-2 h-4 w-4 text-primary" />
-          <div className="w-72"><Field label="Optional: draft questions with AI from a lesson"><Select value={aiLesson} onChange={setAiLesson} placeholder="Choose a lesson" options={lessons.map((l) => ({ value: l.id, label: l.title }))} /></Field></div>
+          <div className="w-full sm:w-72"><Field label="Optional: draft questions with AI from a lesson"><Select value={aiLesson} onChange={setAiLesson} placeholder="Choose a lesson" options={lessons.map((l) => ({ value: l.id, label: l.title }))} /></Field></div>
           <Button variant="secondary" disabled={!aiLesson} pending={draft.isPending} onClick={() => draft.mutate()}>AI draft</Button>
           {aiNote && <span className="text-[13px] text-muted-foreground">{aiNote}</span>}
           <FormNotice error={draft.error} />
@@ -389,7 +396,7 @@ export function QuizForm({ d, done, unitId }: { d: CourseDetail; done: () => voi
           {x.options.map((o, j) => (
             <label key={j} className="flex items-center gap-2 text-[14px]">
               <input type="radio" name={`q${i}`} checked={x.correct === j} onChange={() => set(i, { correct: j })} aria-label={`Option ${j + 1} is correct`} />
-              <div className="w-96"><Input value={o} onChange={(v) => set(i, { options: x.options.map((y, k) => (k === j ? v : y)) })} placeholder={`Option ${j + 1}`} /></div>
+              <div className="min-w-0 flex-1 sm:max-w-96 sm:flex-none sm:w-96"><Input value={o} onChange={(v) => set(i, { options: x.options.map((y, k) => (k === j ? v : y)) })} placeholder={`Option ${j + 1}`} /></div>
             </label>
           ))}
           <div className="flex gap-2">
