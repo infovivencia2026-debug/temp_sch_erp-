@@ -120,7 +120,7 @@ export function RecordShell({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* --- identity ---------------------------------------------------- */}
-      <header className="chrome border-b px-5 pt-4 sm:px-7">
+      <header className="chrome border-b px-[var(--page-gutter)] pt-4">
         {onBack && (
           <button
             onClick={onBack}
@@ -251,7 +251,7 @@ export function RecordShell({
         </nav>
       </header>
 
-      <div className="flex flex-col gap-6 px-5 py-6 sm:px-7">{active.render()}</div>
+      <div className="flex flex-col gap-[var(--section-gap)] px-[var(--page-gutter)] py-6">{active.render()}</div>
     </div>
   )
 }

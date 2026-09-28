@@ -20,7 +20,7 @@ export default function SellerAudit() {
   })
   return (
     <>
-      <div className="px-5 pt-5 sm:px-7">
+      <div className="px-[var(--page-gutter)] pt-[var(--page-top)]">
         <div className={TAB_BAR} role="tablist">
           <button role="tab" aria-selected={tab === 'actions'} className={tabClass(tab === 'actions')} onClick={() => setTab('actions')}>Seller actions</button>
           <button role="tab" aria-selected={tab === 'acting'} className={tabClass(tab === 'acting')} onClick={() => setTab('acting')}>Acting as a school</button>

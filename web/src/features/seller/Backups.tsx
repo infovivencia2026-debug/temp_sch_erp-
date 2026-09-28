@@ -69,7 +69,7 @@ export default function BackupsScreen() {
   const [tab, setTab] = useState<'health' | 'backups' | 'offboarding'>('health')
   return (
     <>
-      <div className="px-5 pt-5 sm:px-7">
+      <div className="px-[var(--page-gutter)] pt-[var(--page-top)]">
         <div className={TAB_BAR} role="tablist">
           <button role="tab" aria-selected={tab === 'health'} className={tabClass(tab === 'health')} onClick={() => setTab('health')}>Health</button>
           <button role="tab" aria-selected={tab === 'backups'} className={tabClass(tab === 'backups')} onClick={() => setTab('backups')}>Backups & restore</button>

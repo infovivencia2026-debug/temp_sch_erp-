@@ -345,7 +345,7 @@ export default function StaffRecord({ employeeID, onClose }: {
 
   const assign = useMutation({
     mutationFn: () => api.post<{ taken_from: string }>(
-      `/api/v1/hr/employees/${employeeID}/subjects`,
+      `/api/v1/setup/employees/${employeeID}/subjects`,
       { section_id: sectionID, class_subject_id: classSubjectID }),
     onSuccess: () => {
       setAdding(false)
@@ -418,7 +418,7 @@ export default function StaffRecord({ employeeID, onClose }: {
 
   const unassign = useMutation({
     mutationFn: (allocID: string) =>
-      api.del(`/api/v1/hr/employees/${employeeID}/subjects/${allocID}`),
+      api.del(`/api/v1/setup/employees/${employeeID}/subjects/${allocID}`),
     onSuccess: () => detail.refetch(),
   })
 
