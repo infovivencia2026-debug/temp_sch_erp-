@@ -35,6 +35,12 @@ export function featureDefs(): FeatureDef[] {
       if (!seen.has(id)) seen.set(id, { id, section: sec.name, name: f.name, summary: f.summary, module: SECTION_MODULE[sec.slug] ?? 'core' })
     }
   }
+  /* Not a catalogue screen: the switch that lets the seller forbid session
+     activity recording for a school (services/session_activity.ts). Off =
+     the school cannot record; on or no override = the school's own choice,
+     which is off until its administrator turns it on. */
+  seen.set('staff.session_activity', { id: 'staff.session_activity', section: 'Staff', name: 'Session activity recording',
+    summary: 'Lets the school record sign-ins, screens visited and time spent. The school still has to turn it on.', module: 'core' })
   defs = [...seen.values()]
   return defs
 }

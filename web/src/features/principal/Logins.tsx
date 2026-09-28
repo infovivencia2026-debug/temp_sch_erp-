@@ -14,6 +14,7 @@ import { OnlineNow, SignInAttempts, SessionRules, SignInStrip, AdminMFAOff } fro
 import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
+import { SessionActivityDesk } from './SessionActivityDesk'
 
 /* Who can sign in to this school.
 
@@ -230,6 +231,7 @@ export default function Logins() {
 
         <OnlineNow />
         <SignInAttempts />
+        <SessionActivityDesk />
 
         <DayCodeCard />
 

@@ -1,5 +1,6 @@
 import type { Env } from '../env'
 import { now } from '../env'
+import { recordSignIn, recordSignOut } from '../services/session_activity'
 
 export const COOKIE = 'erp_session'
 
@@ -33,11 +34,14 @@ export async function issueSession(env: Env, req: Request, userId: string, insti
   const ttl = Number(env.SESSION_TTL_SECONDS) || 2592000
   const t = now()
   const expires = new Date(Date.now() + ttl * 1000).toISOString()
+  const id = crypto.randomUUID()
   await env.CONTROL.prepare(`INSERT INTO sessions (id, token_hash, institution_id, user_id, ip, user_agent, via, created_at, last_seen_at, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(crypto.randomUUID(), await sha256hex(token), institutionId, userId,
+    .bind(id, await sha256hex(token), institutionId, userId,
       req.headers.get('cf-connecting-ip'), req.headers.get('user-agent')?.slice(0, 512) ?? null, via, t, t, expires)
     .run()
+  // Session activity (off unless the school switched it on): records nothing otherwise.
+  if (institutionId) await recordSignIn(env, req, id, userId, institutionId, via, t)
   return cookieHeader(env, token, ttl)
 }
 
@@ -62,6 +66,7 @@ export async function currentSession(env: Env, req: Request): Promise<Session | 
   const idle = Number(env.SESSION_IDLE_SECONDS) || 86400
   if (Date.now() - Date.parse(s.last_seen_at) > idle * 1000) {
     await env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'idle' WHERE id = ?`).bind(now(), s.id).run()
+    await recordSignOut(env, s.id, 'idle', s.institution_id)
     return null
   }
   if (Date.now() - Date.parse(s.last_seen_at) > 60_000) {
@@ -73,4 +78,5 @@ export async function currentSession(env: Env, req: Request): Promise<Session | 
 export async function revokeSession(env: Env, id: string, reason: string): Promise<void> {
   await env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = ? WHERE id = ? AND revoked_at IS NULL`)
     .bind(now(), reason, id).run()
+  await recordSignOut(env, id, reason)
 }

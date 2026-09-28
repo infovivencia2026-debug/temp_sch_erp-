@@ -1,6 +1,7 @@
 import type { Router, Ctx } from '../../router'
 import { HttpError, badRequest, forbidden, noContent, notFound, ok, readJSON } from '../../http'
 import { now } from '../../http'
+import { activitySettings, recordSignOutMany, recordViews, type ViewIn } from '../../services/session_activity'
 import { hashPassword, verifyPassword } from '../../auth/password'
 import { qrDataURL } from '../../services/qrpng'
 
@@ -274,9 +275,10 @@ export function registerProfile(r: Router): void {
   })
 
   r.post('/profile/sessions/sign-out-others', 'auth', async (c) => {
-    const res = await c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'signed_out' WHERE user_id = ? AND id <> ? AND revoked_at IS NULL`)
-      .bind(now(), c.id.userId, c.id.sessionId).run()
-    return ok({ signed_out: res.meta.changes ?? 0 })
+    const res = await c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'signed_out' WHERE user_id = ? AND id <> ? AND revoked_at IS NULL RETURNING id`)
+      .bind(now(), c.id.userId, c.id.sessionId).all<{ id: string }>()
+    await recordSignOutMany(c.db, res.results.map((x) => x.id), 'signed_out')
+    return ok({ signed_out: res.results.length })
   })
 
   // --- session beacons (session_activity.go) and re-auth (login_security.go) ----
@@ -295,6 +297,35 @@ export function registerProfile(r: Router): void {
         .bind(c.id.sessionId, c.id.institution?.id ?? null, c.id.userId, screen, now(), now()).run()
     } catch (err) { console.warn('session_screens beacon dropped', err) }
     return noContent()
+  })
+
+  /* Session activity (services/session_activity.ts): screen visits with the
+     time spent on each, batched by the web app and sent with sendBeacon.
+     While the school has not switched recording on, this stores nothing. */
+  r.post('/session/activity/batch', 'auth', async (c) => {
+    const inst = c.id.institution?.id
+    if (!inst || c.id.platformAdmin) return noContent()
+    let body: { views?: ViewIn[] } = {}
+    try { body = JSON.parse(await c.req.text()) } catch { return noContent() }
+    if (!Array.isArray(body.views)) return noContent()
+    try {
+      await recordViews(c.env, c.req, c.db, { sessionId: c.id.sessionId, userId: c.id.userId, institutionId: inst }, body.views)
+    } catch (err) { console.warn('session activity batch dropped', err) }
+    return noContent()
+  })
+
+  /* Your own sessions, as recorded: whether recording is on (so the account
+     page can say so), and your recent sign-ins with time and screens. */
+  r.get('/profile/session-activity', 'auth', async (c) => {
+    const inst = c.id.institution?.id
+    if (!inst || c.id.platformAdmin) return ok({ recording: false, retention_days: 0, items: [] })
+    const st = await activitySettings(c.env, inst, c.db)
+    const rows = await c.db.prepare(`SELECT a.session_id, a.signed_in_at, a.signed_out_at, a.ended_reason, a.ip, a.device, a.browser, a.os, a.city, a.region, a.country,
+        a.last_active_at, a.active_seconds, (SELECT count(*) FROM session_activity_views v WHERE v.session_id = a.session_id) AS screens
+        FROM session_activity a WHERE a.user_id = ? ORDER BY a.signed_in_at DESC LIMIT 50`).bind(c.id.userId).all<Record<string, unknown>>()
+      .catch(() => ({ results: [] as Record<string, unknown>[] }))
+    return ok({ recording: st.recording, retention_days: st.retention_days,
+      items: rows.results.map((r) => ({ ...r, current: r.session_id === c.id.sessionId })) })
   })
 
   r.post('/session/reauth', 'auth', async (c) => {

@@ -202,3 +202,62 @@ export function MyDevicesCard() {
     </Card>
   )
 }
+
+/* Session activity, from the person's side (worker routes/misc/profile.ts
+   GET /profile/session-activity). While the school records activity this
+   says so plainly and lists the person's own recent sessions; while it does
+   not, and nothing was recorded, it renders nothing. */
+interface OwnActivity {
+  session_id: string
+  signed_in_at: string
+  signed_out_at?: string | null
+  ip?: string | null
+  device?: string | null
+  browser?: string | null
+  os?: string | null
+  city?: string | null
+  region?: string | null
+  country?: string | null
+  active_seconds: number
+  screens: number
+  current: boolean
+}
+
+export function MySessionActivityCard() {
+  const { data } = useQuery({
+    queryKey: ['own-session-activity'],
+    queryFn: () => api.get<{ recording: boolean; retention_days: number; items: OwnActivity[] }>('/api/v1/profile/session-activity'),
+  })
+  if (!data || (!data.recording && !data.items.length)) return null
+  const mins = (s: number) => (s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`)
+  return (
+    <Card>
+      <CardHeader title="Your sessions" />
+      {data.recording && (
+        <p className="border-b bg-muted/40 px-4 py-2.5 text-[13px]">
+          Your school records activity on this account: when you sign in and out, the device, browser and approximate
+          location, and which screens you open and for how long. Your school&rsquo;s administrators can see it. It is kept
+          for {data.retention_days} days.
+        </p>
+      )}
+      <ul className="divide-y">
+        {data.items.slice(0, 10).map((s) => (
+          <li key={s.session_id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-[13.5px]">
+            <span>
+              <span className="font-medium">{[s.browser, s.os].filter((x) => x && x !== 'Unknown').join(' on ') || 'Unknown device'}</span>
+              {s.current && <Badge tone="success">This session</Badge>}
+              {[s.city, s.country].filter(Boolean).length > 0 && (
+                <span className="ml-2 text-[12px] text-muted-foreground">{[s.city, s.region, s.country].filter(Boolean).join(', ')}</span>
+              )}
+            </span>
+            <span className="text-[12.5px] text-muted-foreground">
+              {formatDateTime(s.signed_in_at)} · active {mins(s.active_seconds)} · {s.screens} screen{s.screens === 1 ? '' : 's'}
+              {s.signed_out_at ? ` · ended ${formatDateTime(s.signed_out_at)}` : ''}
+            </span>
+          </li>
+        ))}
+        {!data.items.length && <li className="px-4 py-3 text-[13.5px] text-muted-foreground">Nothing recorded yet.</li>}
+      </ul>
+    </Card>
+  )
+}

@@ -1,3 +1,4 @@
+import { recordSignOut, recordSignOutMany } from '../../services/session_activity'
 import type { Router, Ctx } from '../../router'
 import { badRequest, clampInt, isUUID, like, notFound, now, ok, readJSON, uuid } from '../../http'
 import { inList, institutionId, parseJSON } from './common'
@@ -310,9 +311,10 @@ export function registerAdminSecurity(r: Router): void {
 
   r.del('/admin/sessions', 'access.sessions.revoke', async (c) => {
     if (c.url.searchParams.get('all') !== 'true') throw badRequest('pass all=true to sign everyone out')
-    const res = await c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'all_signed_out' WHERE institution_id = ? AND revoked_at IS NULL AND expires_at > ? AND id <> ?`)
-      .bind(now(), institutionId(c), now(), c.id.sessionId).run()
-    return ok({ signed_out: res.meta.changes ?? 0 })
+    const res = await c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ?, ended_reason = 'all_signed_out' WHERE institution_id = ? AND revoked_at IS NULL AND expires_at > ? AND id <> ? RETURNING id`)
+      .bind(now(), institutionId(c), now(), c.id.sessionId).all<{ id: string }>()
+    await recordSignOutMany(c.db, res.results.map((x) => x.id), 'all_signed_out')
+    return ok({ signed_out: res.results.length })
   })
 
   r.get('/admin/sessions/{id}/activity', 'admin.audit.read', async (c) => {
@@ -332,6 +334,7 @@ export function registerAdminSecurity(r: Router): void {
     if (!isUUID(c.params.id)) throw badRequest('invalid session id')
     const res = await c.env.CONTROL.prepare(`UPDATE sessions SET revoked_at = ? WHERE id = ? AND institution_id = ? AND revoked_at IS NULL`).bind(now(), c.params.id, institutionId(c)).run()
     if ((res.meta.changes ?? 0) === 0) throw notFound('resource not found')
+    await recordSignOut(c.env, c.params.id, 'revoked', institutionId(c))
     return ok({ id: c.params.id, revoked: true })
   })
 

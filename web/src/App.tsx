@@ -27,7 +27,7 @@ import GoTo from '@/features/shared/GoTo'
 import { PageHead, PageBody, EmptyState, UnavailableState, Button } from '@/components/ui'
 import { SkeletonPage } from '@/components/Skeleton'
 import { componentFor } from '@/features/registry'
-import { useScreenBeacon } from '@/lib/activity'
+import { useActivityTracker, useScreenBeacon } from '@/lib/activity'
 import { ToastHost } from './components/Toast'
 import ReauthPrompt from '@/components/ReauthPrompt'
 import NeedsAttention from '@/components/NeedsAttention'
@@ -174,6 +174,7 @@ function FeatureRoute() {
   const { section, feature } = useFeature(sectionSlug, featureSlug)
   const catalog = useCatalog()
   useScreenBeacon(feature?.key)
+  useActivityTracker(feature?.key, !!session.modules?.some((m) => m.module === 'session_activity' && m.enabled))
 
   /* Checked before setup_required and before the feature message, because
      "this screen opens after setup" and "that feature is not in your

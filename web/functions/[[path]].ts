@@ -103,6 +103,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     headers.set('X-Forwarded-For', prior ? `${prior}, ${client}` : client)
   }
 
+  /* The visitor, for session activity (worker services/session_activity.ts):
+     past this hop CF-Connecting-IP and request.cf describe this function, not
+     the person. Always set or removed here, never copied from the visitor. */
+  const cf = (context.request as unknown as { cf?: Record<string, unknown> }).cf ?? {}
+  const visitor: Record<string, unknown> = { 'X-Visitor-IP': client, 'X-Visitor-City': cf.city, 'X-Visitor-Region': cf.region, 'X-Visitor-Country': cf.country }
+  for (const [k, v] of Object.entries(visitor)) {
+    if (typeof v === 'string' && v) headers.set(k, encodeURIComponent(v).slice(0, 120))
+    else headers.delete(k)
+  }
+
   const init: RequestInit & { redirect: RequestRedirect } = {
     method: context.request.method,
     headers,

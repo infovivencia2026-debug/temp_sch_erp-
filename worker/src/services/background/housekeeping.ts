@@ -1,5 +1,6 @@
 import { registerJob } from '../jobs'
 import { daysAgo, forEachSchool } from './schools'
+import { purgeSessionActivity } from '../session_activity'
 
 /* Housekeeping sweeps: session:prune (worker.go sessionPrune),
    security:retention (api/login_security.go handleSecurityRetention) and
@@ -25,14 +26,17 @@ registerJob('security:retention', async (env) => {
       WHERE (revoked_at IS NOT NULL OR expires_at < ?) AND last_seen_at < ?`).bind(nowIso, daysAgo(365)).run()
   // Not in Go: River kept finished jobs 24h; CONTROL.jobs is trimmed here.
   const jb = await env.CONTROL.prepare(`DELETE FROM jobs WHERE finished_at IS NOT NULL AND finished_at < ?`).bind(daysAgo(1)).run()
-  let screens = 0
+  let screens = 0, activity = 0
   await forEachSchool(env, async (_inst, db) => {
     const r = await db.prepare(`DELETE FROM session_screens WHERE last_at < ?`).bind(daysAgo(90)).run()
     screens += r.meta.changes
+    // Session activity: each school's own retention period (default 90 days).
+    const sa = await purgeSessionActivity(db)
+    activity += sa.sessions + sa.views
     // The pre-migration copies of the platform tables in each school database.
     await db.prepare(`DELETE FROM login_events WHERE created_at < ?`).bind(daysAgo(365)).run()
   })
-  console.log('security retention sweep', { screens, login_events: ev.meta.changes, sessions: se.meta.changes, jobs: jb.meta.changes })
+  console.log('security retention sweep', { screens, session_activity: activity, login_events: ev.meta.changes, sessions: se.meta.changes, jobs: jb.meta.changes })
 })
 
 /* Reminders the child (or parent) asked for, delivered when they asked.

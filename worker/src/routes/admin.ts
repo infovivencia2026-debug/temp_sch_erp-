@@ -16,6 +16,7 @@ import { registerPlatformGateways } from './admin/platform_gateways'
 import { registerPlatformSignals } from './admin/platform_signals'
 import { registerIntegrationsIndex } from './admin/integrations_index'
 import { registerLoose } from './admin/loose'
+import { registerSessionActivity } from './admin/session_activity'
 
 /* /admin and /admin/inbox of internal/api/api.go, composed from the
    modules under admin/. Platform-level reads go to CONTROL. */
@@ -37,4 +38,5 @@ export function registerAdmin(r: Router): void {
   registerPlatformSignals(r)
   registerIntegrationsIndex(r)
   registerLoose(r)
+  registerSessionActivity(r)
 }
