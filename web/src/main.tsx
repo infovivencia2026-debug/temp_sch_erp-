@@ -151,6 +151,82 @@ try {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void check() })
 })()
 
+/* SIGNING OUT ASKS ONCE.
+
+   The door out sits in the header beside the account and theme buttons, and
+   in Settings, and a slip of the pointer ended the session -- with a half-typed
+   register or a fee half-collected on screen. Every link or form that goes to
+   /logout, wherever it is in the product and whichever is added later, is
+   caught here, in the capture phase before the browser follows it, and asked
+   about once. Drawn in plain DOM so it works before React, and in the app's
+   own tokens so it themes with everything else. */
+;(() => {
+  if (typeof document === 'undefined') return
+  let asking = false
+  const ask = (go: () => void) => {
+    if (asking) return
+    asking = true
+    const back = document.createElement('div')
+    back.setAttribute('role', 'presentation')
+    back.style.cssText =
+      'position:fixed;inset:0;z-index:2147483100;display:flex;align-items:center;justify-content:center;' +
+      'padding:16px;background:rgba(11,20,26,.42)'
+    const box = document.createElement('div')
+    box.setAttribute('role', 'alertdialog')
+    box.setAttribute('aria-modal', 'true')
+    box.setAttribute('aria-labelledby', 'signout-q')
+    box.style.cssText =
+      'width:100%;max-width:360px;border-radius:16px;padding:20px;' +
+      'background:hsl(var(--card,0 0% 100%));color:hsl(var(--card-foreground,222 47% 11%));' +
+      'box-shadow:0 18px 45px rgba(11,20,26,.28);font:14px/1.45 system-ui,sans-serif'
+    box.innerHTML =
+      '<p id="signout-q" style="margin:0;font-size:16px;font-weight:600">Sign out?</p>' +
+      '<p style="margin:6px 0 0;opacity:.75">Anything you have not saved on this screen will be lost.</p>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">' +
+      '<button type="button" data-no style="min-height:40px;padding:0 16px;border-radius:10px;cursor:pointer;' +
+      'border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;font:inherit;font-weight:600">Stay</button>' +
+      '<button type="button" data-yes style="min-height:40px;padding:0 16px;border-radius:10px;cursor:pointer;' +
+      'border:0;background:hsl(var(--destructive,0 72% 51%));color:#fff;font:inherit;font-weight:600">Sign out</button>' +
+      '</div>'
+    back.appendChild(box)
+    const close = () => {
+      asking = false
+      back.remove()
+      document.removeEventListener('keydown', onKey, true)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); close() }
+    }
+    back.addEventListener('click', (e) => { if (e.target === back) close() })
+    box.querySelector<HTMLButtonElement>('[data-no]')?.addEventListener('click', close)
+    box.querySelector<HTMLButtonElement>('[data-yes]')?.addEventListener('click', () => { close(); go() })
+    document.addEventListener('keydown', onKey, true)
+    document.body.appendChild(back)
+    // Focus the safe answer, so Enter on a stray keypress keeps the session.
+    box.querySelector<HTMLButtonElement>('[data-no]')?.focus()
+  }
+  const isLogout = (href: string | null) => {
+    if (!href) return false
+    try { return new URL(href, location.href).pathname === '/logout' } catch { return false }
+  }
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+    if (!a || !isLogout(a.getAttribute('href'))) return
+    e.preventDefault()
+    e.stopPropagation()
+    ask(() => { location.href = a.href })
+  }, true)
+  document.addEventListener('submit', (e) => {
+    const f = e.target as HTMLFormElement | null
+    if (!f || !isLogout(f.getAttribute('action'))) return
+    if (f.dataset.confirmed === '1') return
+    e.preventDefault()
+    e.stopPropagation()
+    ask(() => { f.dataset.confirmed = '1'; f.submit() })
+  }, true)
+})()
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     /* THE FIRST VISIT USED TO BOOT THE APPLICATION TWICE.
