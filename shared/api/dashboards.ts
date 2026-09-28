@@ -46,6 +46,9 @@ export interface PrincipalDashboard {
   open_applications_by_status?: AppStatusCount[]
   pending_leave_by_type?: PendingLeaveGroup[]
   students_by_class?: ClassRollGroup[]
+  /** Active staff whose designation is in the teaching category, and the rest. */
+  staff_teaching?: number
+  staff_non_teaching?: number
   /** Active students in each section, for the Students card's picker. */
   students_by_section?: { section_id: string; label: string; students: number }[]
   outstanding_ageing?: OutstandingAgeing

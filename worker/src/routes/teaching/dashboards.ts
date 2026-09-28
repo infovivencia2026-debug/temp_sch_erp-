@@ -68,6 +68,15 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
       SELECT
         (SELECT count(*) FROM students  WHERE status = 'active') AS students,
         (SELECT count(*) FROM employees WHERE status = 'active') AS staff,
+        /* Teaching: a designation in the teaching category, or anyone who
+           actually teaches here -- on the timetable, assigned a subject, or a
+           class teacher. Most schools never fill in designations. */
+        (SELECT count(*) FROM employees e LEFT JOIN designations dg ON dg.id = e.designation_id
+          WHERE e.status = 'active' AND (dg.category = 'teaching' OR (e.user_id IS NOT NULL AND (
+            EXISTS (SELECT 1 FROM timetable_entries te WHERE te.teacher_user_id = e.user_id)
+            OR EXISTS (SELECT 1 FROM section_subject_teachers sst WHERE sst.teacher_user_id = e.user_id)
+            OR EXISTS (SELECT 1 FROM teacher_subjects ts WHERE ts.user_id = e.user_id)
+            OR EXISTS (SELECT 1 FROM sections se WHERE se.class_teacher_id = e.user_id))))) AS staff_teaching,
         (SELECT count(*) FROM sections) AS sections,
         COALESCE((SELECT ROUND(100.0 * SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) / NULLIF(count(*), 0))
                     FROM student_attendance WHERE on_date = ?1), 0) AS att_today,
@@ -130,6 +139,7 @@ async function getPrincipalDashboard(c: Ctx): Promise<PrincipalDashboard> {
   const s = scalars.results[0] as Record<string, unknown>
   const k: PrincipalDashboard = {
     students: n(s.students), staff: n(s.staff), sections: n(s.sections),
+    staff_teaching: n(s.staff_teaching), staff_non_teaching: n(s.staff) - n(s.staff_teaching),
     attendance_today_pct: n(s.att_today), attendance_marked_today: n(s.marked_today),
     collected_paise: n(s.collected), outstanding_paise: n(s.outstanding), defaulters: n(s.defaulters),
     billed_paise: n(s.billed), collected_year_paise: n(s.collected_year), outstanding_year_paise: n(s.outstanding_year),

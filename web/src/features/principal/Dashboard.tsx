@@ -22,6 +22,7 @@ export default function PrincipalDashboard() {
   const canSeeMoney = useCan()('finance.fees.read')
   const [range, setRange] = useRange()
   const [sectionId, setSectionId] = useState('')
+  const [staffKind, setStaffKind] = useState<'all' | 'teaching' | 'non_teaching'>('all')
   const presets = useQuery({
     queryKey: ['date-ranges'],
     queryFn: () => api.get<{ items: RangeOption[] }>('/api/v1/date-ranges'),
@@ -84,7 +85,21 @@ export default function PrincipalDashboard() {
                 ))}
               </select>
             ) : undefined} />
-          <Stat label="Staff" value={k.staff} icon={Users} period={asOf} />
+          <Stat label="Staff" icon={Users} period={asOf}
+            value={staffKind === 'teaching' ? (k.staff_teaching ?? 0) : staffKind === 'non_teaching' ? (k.staff_non_teaching ?? 0) : k.staff}
+            hint={staffKind === 'all' && k.staff_teaching !== undefined ? `${k.staff_teaching} teaching · ${k.staff_non_teaching ?? 0} non-teaching` : undefined}
+            control={k.staff_teaching !== undefined ? (
+              <select
+                aria-label="Staff type"
+                value={staffKind}
+                onChange={(e) => setStaffKind(e.target.value as 'all' | 'teaching' | 'non_teaching')}
+                className="rounded-md border bg-card px-1.5 py-0.5 text-[12px] text-foreground"
+              >
+                <option value="all">All</option>
+                <option value="teaching">Teaching</option>
+                <option value="non_teaching">Non-teaching</option>
+              </select>
+            ) : undefined} />
           {/* TODAY, and said so.
             *
             * This tile carried the range's attendance under the word "today"
