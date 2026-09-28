@@ -52,6 +52,8 @@ export type IconSize = 'small' | 'default' | 'large'
    than a rule because a school that keeps its timetable in 24-hour notation
    should not have to re-learn its own day. */
 export type Clock = '12h' | '24h'
+/** How strongly cards glow in their colour: off, subtle (default), strong. */
+export type Glow = 'off' | 'subtle' | 'strong'
 
 export const DENSITIES: readonly Density[] = ['hairline', 'compact', 'comfortable', 'relaxed', 'spacious'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -73,6 +75,7 @@ export const CONTRASTS: readonly Contrast[] =
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
 export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
+export const GLOWS: readonly Glow[] = ['off', 'subtle', 'strong'] as const
 
 /* The continuous axes.
 
@@ -149,6 +152,7 @@ export interface Appearance {
   /** Comma-separated list of workspace names hidden from the dock */
   hiddenDockItems: string
   clock: Clock
+  glow: Glow
   scales: Scales
 }
 
@@ -164,6 +168,7 @@ const DEFAULTS: Appearance = {
   dockSize: 'compact',
   iconSize: 'large',
   clock: '12h',
+  glow: 'subtle',
   scales: SCALE_DEFAULTS,
   hiddenDockItems: '',
 }
@@ -175,6 +180,7 @@ const KEYS = {
   typeface: 'erp.typeface',
   borders: 'erp.borders',
   shadow: 'erp.shadow',
+  glow: 'erp.glow',
   pattern: 'erp.pattern',
   contrast: 'erp.contrast',
   dockSize: 'erp.dockSize',
@@ -265,6 +271,7 @@ function read(): Appearance {
     dockSize: one(KEYS.dockSize, DOCK_SIZES, DEFAULTS.dockSize),
     iconSize: one(KEYS.iconSize, ICON_SIZES, DEFAULTS.iconSize),
     clock: one(KEYS.clock, CLOCKS, DEFAULTS.clock),
+    glow: one(KEYS.glow, GLOWS, DEFAULTS.glow),
     hiddenDockItems: readRaw(KEYS.hiddenDockItems) ?? '',
     scales: readScales(),
   }
@@ -319,6 +326,7 @@ export function applyAppearance(next: Appearance) {
   root.style.setProperty('--font-ui', typefaceById(next.typeface).stack)
   stamp('data-borders', next.borders, 'hairline')
   stamp('data-shadow', next.shadow, 'default')
+  stamp('data-glow', next.glow, 'subtle')
   stamp('data-pattern', next.pattern, 'none')
   stamp('data-contrast', next.contrast, 'normal')
 
@@ -366,7 +374,7 @@ export function applyAppearance(next: Appearance) {
     localStorage.setItem(KEYS.density, JSON.stringify(next.density))
     for (const k of ['corners', 'text', 'typeface', 'borders', 'shadow', 'pattern',
                      'contrast', 'dockSize', 'iconSize', 'hiddenDockItems',
-                     'clock'] as const) {
+                     'clock', 'glow'] as const) {
       localStorage.setItem(KEYS[k], next[k])
     }
     /* The continuous scales, under the same keys readScales() looks for.

@@ -4014,6 +4014,12 @@ main, [data-paint='workarea'] {
   [data-table-expandable] > button { opacity: 1; border-color: transparent; }
 }
 
+/* GLOW STRENGTH, one dial for the whole app (Settings, Colour, Glow).
+   Every coloured glow below multiplies its alpha by --glow-k. */
+:root { --glow-k: 0.4; }
+:root[data-glow='off'] { --glow-k: 0; }
+:root[data-glow='strong'] { --glow-k: 1; }
+
 /* COLOUR, AFTER caller_perf (owner, 2026-09-28: "the UI looks too pale and
    white"). The reference's recipe:
    - the page sits a clear step below the cards (#eef0f6) under two faint
@@ -4058,7 +4064,7 @@ main, [data-paint='workarea'] {
     inset 0 1px 0 0 rgb(255 255 255 / 0.9),
     0 1px 2px -1px rgb(15 15 30 / 0.12),
     0 8px 20px -8px rgb(15 15 30 / 0.14),
-    0 18px 40px -24px hsl(var(--primary) / 0.35);
+    0 18px 40px -24px hsl(var(--primary) / calc(0.35 * var(--glow-k)));
 }
 .dark .card {
   background: linear-gradient(180deg, #17171c 0%, #101014 100%);
@@ -4067,7 +4073,7 @@ main, [data-paint='workarea'] {
     inset 0 1px 0 0 rgb(255 255 255 / 0.06),
     0 1px 2px -1px rgb(0 0 0 / 0.6),
     0 10px 24px -10px rgb(0 0 0 / 0.7),
-    0 20px 44px -26px hsl(var(--primary) / 0.45);
+    0 20px 44px -26px hsl(var(--primary) / calc(0.45 * var(--glow-k)));
 }
 :root:not(.dark) .card .cell { background: #ffffff; }
 .dark .card .cell { background: #141418; }
@@ -4093,7 +4099,7 @@ main, [data-paint='workarea'] {
       inset 0 1px 0 0 rgb(255 255 255 / 0.9),
       0 2px 4px -2px rgb(15 15 30 / 0.14),
       0 14px 30px -10px rgb(15 15 30 / 0.18),
-      0 24px 50px -24px hsl(var(--primary) / 0.55);
+      0 24px 50px -24px hsl(var(--primary) / calc(0.55 * var(--glow-k)));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4120,7 +4126,7 @@ main, [data-paint='workarea'] {
     inset 0 1px 0 rgb(255 255 255 / .9),
     0 1px 2px -1px rgb(15 15 30 / .10),
     0 8px 20px -8px rgb(15 15 30 / .10),
-    0 16px 36px -14px rgb(var(--tint) / 0.55) !important;
+    0 16px 36px -14px rgb(var(--tint) / calc(0.55 * var(--glow-k))) !important;
 }
 :root:not(.dark) .cell-grid > .cell {
   background: linear-gradient(180deg, rgb(var(--tint) / 0.07) 0%, rgb(var(--tint) / 0.02) 55%, transparent 100%), #ffffff !important;
@@ -4142,6 +4148,6 @@ main, [data-paint='workarea'] {
     inset 0 1px 0 rgb(255 255 255 / .9),
     0 1px 2px -1px rgb(15 15 30 / .10),
     0 8px 20px -8px rgb(15 15 30 / .10),
-    -40px 18px 44px -26px rgb(99 102 241 / .45),
-    40px 18px 44px -26px rgb(14 165 233 / .40);
+    -40px 18px 44px -26px rgb(99 102 241 / calc(.45 * var(--glow-k))),
+    40px 18px 44px -26px rgb(14 165 233 / calc(.40 * var(--glow-k)));
 }

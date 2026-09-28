@@ -10,6 +10,29 @@ import { applyPersonality } from '@/lib/personality'
 import { useT } from '@/lib/i18n'
 import { useLayout } from '@/lib/layout'
 import { cn } from '@/lib/utils'
+import { useAppearance, GLOWS, type Glow } from '@/lib/appearance'
+
+/* The coloured glow under cards and figures, one setting for the whole app.
+   Subtle is the default; Off keeps plain shadows; Strong is the full bloom. */
+function GlowRow() {
+  const { appearance, set } = useAppearance()
+  const label: Record<Glow, string> = { off: 'Off', subtle: 'Subtle', strong: 'Strong' }
+  return (
+    <div className="px-5 pt-4">
+      <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>Glow</p>
+      <div role="radiogroup" aria-label="Glow" className="flex gap-1 rounded-full bg-[hsl(var(--muted))] p-1">
+        {GLOWS.map((g) => (
+          <button key={g} type="button" role="radio" aria-checked={appearance.glow === g}
+            onClick={() => set('glow', g)}
+            className={cn('min-h-9 flex-1 rounded-full px-3 text-[13px] font-medium transition-colors',
+              appearance.glow === g ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+            {label[g]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 /* Painting the interface, region by region.
 
@@ -538,6 +561,9 @@ export function ColourPanel({
           </div>,
           document.body,
         )}
+
+        {/* Glow: how strongly cards glow in their colour, everywhere. */}
+        <GlowRow />
 
         {/* Palettes: saved sets and the shipped ones, first, because picking one
             is the whole act for most people; the wheel below is for the few who
