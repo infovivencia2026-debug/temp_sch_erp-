@@ -33,7 +33,7 @@ import { BentoDock } from '@/features/bento/BentoDock'
 import { useLayout } from '@/lib/layout'
 import { useAppearance, DENSITIES } from '@/lib/appearance'
 import { BentoSettings } from '@/features/bento/BentoSettings'
-import { markFor, hueFor } from '@/features/bento/BentoLauncher'
+import { hueFor, uniqueMarks } from '@/features/bento/BentoLauncher'
 import { useViewport } from '@/lib/viewport'
 import ScrollBox from '@/components/ScrollBox'
 
@@ -667,8 +667,8 @@ export function Shell({
             was. */}
         <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-2.5 border-r py-3.5
                         md:max-lg:overflow-y-auto">
-          {railWorkspaces.map((ws) => {
-            const Mark = markFor(ws.name)
+          {railWorkspaces.map((ws, i) => {
+            const Mark = uniqueMarks(railWorkspaces.map((x) => x.name))[i]
             const on = ws.slug === activeWs?.slug
             return (
               <button

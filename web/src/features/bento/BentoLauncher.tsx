@@ -9,9 +9,13 @@ import {
   BarChart3, Bus, Settings2, ShieldCheck, CalendarDays, Boxes, Clock, Search,
   CornerDownLeft, House, Pin, PinOff, Ellipsis, X,
   Activity, Banknote, Bot, Building2, CalendarCheck, CircleUser, CreditCard, LayoutGrid,
-  FileCheck2, FileText, FolderTree, Handshake, Inbox, KeyRound, Landmark,
-  LibraryBig, LifeBuoy, ListChecks, Presentation, Server, Sparkle,
+  FileCheck2, FileText, FolderTree, Handshake, KeyRound, Landmark,
+  LibraryBig, LifeBuoy, ListChecks, Presentation, Server,
   Wrench,
+  Baby, NotebookPen, Receipt, PiggyBank, HandCoins, IdCard, Contact, ConciergeBell, Lock,
+  LayoutDashboard, Cog, BedDouble, Briefcase, School as SchoolIcon, UserCog, ListTodo, SlidersHorizontal,
+  Compass, Shapes, Puzzle, Layers, Flag, Star, Gem, Leaf, Feather, Anchor, Globe, Lightbulb, Target,
+  Trophy, Palette, Music, Microscope, Utensils, HeartPulse, Shirt, Warehouse, Store,
 } from 'lucide-react'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { useT } from '@/lib/i18n'
@@ -68,68 +72,91 @@ const MOTION_MS = 200
     decision in a document the product owner edits. Anything unmatched gets the
     neutral mark; a missing icon must never be a missing row. */
 const WORKSPACE_ICON: Record<string, typeof Home> = {
+  /* ONE ICON, ONE WORKSPACE (owner, 2026-09-28: "no icon in the dock should
+     be the same"). Every name below has a glyph of its own; nothing here is
+     shared, and uniqueMarks() below settles any clash that a new, unmapped
+     workspace could still cause. */
   Home,
   Students: GraduationCap,
+  'My Child': Baby,
   Academics: BookOpen,
   Examinations: ClipboardList,
-  Finance: Wallet,
-  Fees: Wallet,
-  Staff: Users,
-  Communication: MessageSquare,
-  Administration: ShieldCheck,
-  Reports: BarChart3,
-  Operations: Bus,
-  Transport: Bus,
-  Timetable: CalendarDays,
-  Stores: Boxes,
-
-  /* Each of these is the thing the workspace is ABOUT rather than a shape
-     that happened to be free — a reader learns "money is a banknote" once and
-     it holds across Accounts, Payroll and Campus Money. */
-  Admissions: Handshake,
-  'Front Desk': Handshake,
   Assessments: FileCheck2,
+  Timetable: CalendarDays,
   'Attendance & Leave': CalendarCheck,
-  Accounts: Landmark,
-  'Banking & Reports': Landmark,
-  'Campus Money': Banknote,
-  Payroll: Banknote,
-  'Subscriptions & Billing': CreditCard,
-  Entitlements: KeyRound,
-  'Access & Security': KeyRound,
-  'AI & Automation': Bot,
-  Customers: Building2,
-  Dashboard: BarChart3,
-  'Department Workspace': FolderTree,
-  Employees: Users,
-  People: Users,
-  Library: LibraryBig,
-  'My Child': GraduationCap,
-  School: Building2,
   'My Classes': Presentation,
-  Teaching: Presentation,
-  'My Profile': CircleUser,
-  Profile: CircleUser,
-  'My Work': Inbox,
+  Teaching: NotebookPen,
+  Finance: Wallet,
+  Fees: Receipt,
+  Accounts: Landmark,
+  'Banking & Reports': PiggyBank,
+  'Campus Money': Banknote,
+  Payroll: HandCoins,
+  'Subscriptions & Billing': CreditCard,
+  Staff: Users,
+  Employees: IdCard,
+  People: Contact,
+  Communication: MessageSquare,
+  Admissions: Handshake,
+  'Front Desk': ConciergeBell,
   Requests: ListChecks,
+  Support: LifeBuoy,
+  Administration: ShieldCheck,
+  Entitlements: KeyRound,
+  'Access & Security': Lock,
+  Reports: BarChart3,
+  Dashboard: LayoutDashboard,
+  'Usage & Health': Activity,
+  Operations: Cog,
+  Transport: Bus,
+  Hostel: BedDouble,
+  Stores: Boxes,
+  Library: LibraryBig,
+  'AI & Automation': Bot,
+  Customers: Briefcase,
+  School: SchoolIcon,
+  Schools: Building2,
+  'Department Workspace': FolderTree,
+  'My Profile': CircleUser,
+  Profile: UserCog,
+  'My Work': ListTodo,
   'Institution Setup': Wrench,
   'Platform Setup': Server,
-  'Platform Configuration': Server,
-  Support: LifeBuoy,
-  'Usage & Health': Activity,
+  'Platform Configuration': SlidersHorizontal,
   Setup: Settings2,
-  /* Schools reuses the building the singular School already uses, because
-     they are the same subject seen from the two sides of the product. */
-  Schools: Building2,
   Documents: FileText,
 }
 
 export function markFor(workspace: string) {
-  /* The fallback is deliberately NOT LayoutGrid: that is the All-features
-     glyph, so anything unmapped used to be a perfect copy of the button
-     beside it. A workspace nobody has thought about should look unremarkable,
-     not look like something else. */
-  return WORKSPACE_ICON[workspace] ?? Sparkle
+  /* An unmapped workspace gets a glyph from a pool, chosen by its name so it
+     is the same every time; never LayoutGrid (All features) or Inbox. */
+  return WORKSPACE_ICON[workspace] ?? POOL[hashName(workspace) % POOL.length]
+}
+
+const POOL: (typeof Home)[] = [Compass, Shapes, Puzzle, Layers, Flag, Star, Gem, Leaf, Feather, Anchor, Globe, Lightbulb, Target, Trophy, Palette, Music, Microscope, Utensils, HeartPulse, Shirt, Warehouse, Store]
+function hashName(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** Icons for a row of workspaces with no two alike: a clash takes the next
+    free glyph from the pool. Also never repeats the icons the caller already
+    shows beside them (the dock's Home, Inbox and All features). */
+export function uniqueMarks(names: string[], reserved: (typeof Home)[] = []): (typeof Home)[] {
+  const used = new Set<typeof Home>(reserved)
+  return names.map((n) => {
+    let m = markFor(n)
+    if (used.has(m)) {
+      const start = hashName(n) % POOL.length
+      for (let i = 0; i < POOL.length; i++) {
+        const c = POOL[(start + i) % POOL.length]
+        if (!used.has(c)) { m = c; break }
+      }
+    }
+    used.add(m)
+    return m
+  })
 }
 
 /* Colour by ERP domain, not by launcher category.

@@ -206,6 +206,7 @@ export const FEATURE_ICONS: Record<string, string> = {
   live_event_seating_pass: 'local_activity', // Live Event Seating Pass
   live_vehicle_tracking: 'my_location', // Live vehicle tracking
   lms_study_material_upload: 'upload_file', // LMS Study Material Upload
+  courses: 'cast_for_education', // Courses (LMS Admin)
   login_session_audit: 'login', // Login & session audit
   logins_access: 'lock_person', // Logins & access
   privacy: 'policy', // Privacy
@@ -366,6 +367,7 @@ export const FEATURE_ICONS: Record<string, string> = {
 /** One per section, the fallback for a slug that somehow has no row above
     (a freshly generated catalogue, before the table catches up). */
 export const SECTION_ICONS: Record<string, string> = {
+  lms: 'cast_for_education', // LMS
   store: 'inventory_2', // Store
   academics: 'school', // Academics
   access: 'key', // Access

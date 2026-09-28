@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils'
 import { useActiveRole, featurePath, usable } from '@/lib/catalog'
 import { CommandSearch } from '@/components/CommandSearch'
 import Notifications from '@/components/Notifications'
-import { BentoLauncher, markFor, hueFor } from './BentoLauncher'
+import { BentoLauncher, hueFor, uniqueMarks } from './BentoLauncher'
+import { House as DockHouse, Home as DockHome, Inbox as DockInbox, LayoutGrid as DockGrid, Search as DockSearch, Bell as DockBell } from 'lucide-react'
+const DOCK_RESERVED = [DockHouse, DockHome, DockInbox, DockGrid, DockSearch, DockBell]
 import { onOpenLauncher } from './launcher-open'
 import { buzz } from '@/lib/haptics'
 import { BentoSettings } from './BentoSettings'
@@ -582,8 +584,10 @@ export function BentoDock() {
               mark that opens the launcher, where every workspace is listed by
               name. Nothing is ever hidden without a sign that it is, and with
               nothing to clip the labels are free to be labels. */}
-          {shownCategories.map((c) => {
-            const Mark = markFor(c.name)
+          {shownCategories.map((c, i) => {
+            /* No two marks alike, and none that copies the dock's own Home,
+               Inbox, Search, All features or alerts. */
+            const Mark = uniqueMarks(shownCategories.map((x) => x.name), DOCK_RESERVED)[i]
             return (
               <button
                 key={c.name}

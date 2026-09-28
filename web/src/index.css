@@ -3924,7 +3924,9 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   color: var(--tile, hsl(var(--primary))) !important;
   box-shadow: none !important;
 }
-.rail-tile svg, .rail-foot svg { stroke-width: 1.75; }
+.rail-tile svg, .rail-foot svg { stroke-width: 2.4; }
+/* Thicker marks in the dock too (owner, 2026-09-28: "make the icons thicker"). */
+.bento-dock svg.lucide, .bento-corner svg.lucide { stroke-width: 2.4; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    NO TEXT UNDER 12PX ON A PHONE OR A TABLET.
@@ -3942,10 +3944,12 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
    unlayered rule outranks the utilities layer without !important. Below
    1024 only, so the desk keeps the density those sizes were chosen for. */
 @media (max-width: 1023.98px) {
-  .text-xs,
-  .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\],
-  .text-\[11px\], .text-\[11\.5px\] {
-    font-size: 12px;
+  /* `html:root` because the Text size setting restates every one of these
+     as `html .text-[Npx]` further up; a floor that loses to it floors
+     nothing. The setting still applies: a larger choice lifts past 12. */
+  html:root :is(.text-xs, .text-\[8px\], .text-\[8\.5px\], .text-\[9px\], .text-\[9\.5px\],
+    .text-\[10px\], .text-\[10\.5px\], .text-\[11px\], .text-\[11\.5px\]) {
+    font-size: max(12px, calc(11px * var(--font-scale, 1)));
   }
 }
 
@@ -3984,9 +3988,12 @@ main, [data-paint='workarea'] {
    focus. Unlayered, this outranks every utility; checkboxes, radios, ranges
    and file inputs draw no text and are left alone. */
 @media (pointer: coarse) {
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']),
-  select,
-  textarea {
+  /* html:root outranks the Text size setting's `html .text-[Npx]` too. */
+  html:root :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']),
+    select,
+    textarea
+  ) {
     font-size: max(16px, 1em);
   }
 }
