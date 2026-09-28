@@ -171,6 +171,37 @@ run gcloud builds submit "$ROOT" \
     --config "$TMP/cloudbuild.yaml" \
     --substitutions "_IMAGE=${IMAGE},_COMMIT=${COMMIT}"
 
+say "PDF renderer"
+# temperp-pdf (service-pdf.yaml): headless Chromium that prints the API's
+# document templates. Deployed before the manifests are rendered because the
+# web service is told its URL. PRIVATE: the only invoker is temperp-run, the
+# account the API runs as, so no allUsers binding is ever made here.
+#
+# Deliberately non-fatal. Printing is one feature; a failed renderer deploy
+# must not hold back every other fix in the commit. On failure PDF_URL keeps
+# whatever the service already had (or stays empty on the very first run),
+# and the print endpoints answer 503 with a sentence instead of a PDF.
+PDF_URL="${PDF_URL:-}"
+sed -e "s|PROJECT_ID|${PROJECT_ID}|g" "$HERE/service-pdf.yaml" > "$TMP/service-pdf.yaml"
+if [ "$DRY_RUN" = "1" ]; then
+    echo "+ gcloud run services replace $TMP/service-pdf.yaml --project $PROJECT_ID --region $REGION"
+    echo "+ gcloud run services add-iam-policy-binding temperp-pdf --member serviceAccount:temperp-run@${PROJECT_ID}.iam.gserviceaccount.com --role roles/run.invoker"
+    PDF_URL="${PDF_URL:-https://temperp-pdf-PLACEHOLDER.a.run.app}"
+elif gcloud run services replace "$TMP/service-pdf.yaml" \
+        --project "$PROJECT_ID" --region "$REGION" \
+    && gcloud run services add-iam-policy-binding temperp-pdf \
+        --project "$PROJECT_ID" --region "$REGION" \
+        --member "serviceAccount:temperp-run@${PROJECT_ID}.iam.gserviceaccount.com" \
+        --role roles/run.invoker --quiet >/dev/null; then
+    PDF_URL="$(gcloud run services describe temperp-pdf \
+        --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)')"
+    echo "  $PDF_URL (private; invoker temperp-run only)"
+else
+    echo "  !! temperp-pdf did not deploy; printing will answer 503 until it does" >&2
+    PDF_URL="$(gcloud run services describe temperp-pdf \
+        --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)' 2>/dev/null || true)"
+fi
+
 say "Manifests"
 # The committed manifests carry placeholders; the copies in $TMP carry values.
 # sed on tokens rather than envsubst so a manifest that mentions \$PORT or any
@@ -182,6 +213,7 @@ render() {
         -e "s|R2_ACCOUNT_ID_VALUE|${R2_ACCOUNT_ID}|g" \
         -e "s|R2_BUCKET_VALUE|${R2_BUCKET}|g" \
         -e "s|R2_PUBLIC_HOST_VALUE|${R2_PUBLIC_HOST}|g" \
+        -e "s|PDF_URL_VALUE|${PDF_URL}|g" \
         "$HERE/$1" > "$TMP/$1"
     # A token that survived means the env file is missing a value; refuse
     # rather than hand Cloud Run a manifest with PROJECT_ID in the image path.

@@ -1,0 +1,72 @@
+# temperp-pdf: turns a filled document template into a PDF.
+#
+# Receipts, report cards, certificates and ID cards are laid out as HTML
+# templates by the API (internal/pdf) and printed to PDF here by headless
+# Chromium, in Gotenberg's official Cloud Run build with LibreOffice left
+# out. Chromium because Indian names are often written in Telugu or Hindi
+# and only a browser engine shapes those scripts correctly; a Go PDF library
+# prints the conjuncts broken.
+#
+# PRIVATE. No allUsers invoker binding: Cloud Run's front door refuses every
+# request that does not carry a Google identity token for a principal with
+# roles/run.invoker, and deploy.sh grants that to temperp-run -- the API's
+# own service account -- and nobody else. The API mints the token from the
+# metadata server (internal/pdf/client.go). Nothing on the internet can use
+# this service to render arbitrary pages.
+#
+# Pinned to an exact release. A document that prints on one page today must
+# print on one page tomorrow, and a floating tag is how a font or layout
+# change arrives unannounced.
+#
+# Scales to zero. The first print after an idle spell starts Chromium (a few
+# seconds); the rest are well under one.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: temperp-pdf
+  labels:
+    cloud.googleapis.com/location: asia-south1
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "2"
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/startup-cpu-boost: "true"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      # Chromium renders one document at a time well; a few at once is
+      # plenty for a school counter and keeps memory inside the limit.
+      containerConcurrency: 4
+      timeoutSeconds: 60
+      serviceAccountName: temperp-run@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: docker.io/gotenberg/gotenberg:8.37.0-chromium-cloudrun
+          ports:
+            - name: http1
+              containerPort: 3000
+          args:
+            - gotenberg
+            # The templates carry everything inline (logo as a data URI,
+            # no scripts), so the renderer needs neither JavaScript nor the
+            # network. Both off: a value typed into a student's name can
+            # never make the renderer run code or fetch anything.
+            - --chromium-disable-javascript=true
+            # Only the page Gotenberg itself wrote to /tmp and inline data.
+            - --chromium-allow-list=^(file:///tmp/|data:|about:blank)
+            - --api-timeout=30s
+            - --log-level=warn
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 2

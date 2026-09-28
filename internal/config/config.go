@@ -19,6 +19,9 @@ type Config struct {
 	AppEnv   string
 	HTTPAddr string
 	BaseURL  string
+	// PDFURL is the private document renderer (deploy/cloudrun/service-pdf.yaml).
+	// Empty: printing answers 503.
+	PDFURL string
 
 	DatabaseURL string
 	DBMaxConns  int32
@@ -110,6 +113,7 @@ func Load() (*Config, error) {
 		AppEnv:                env("APP_ENV", "development"),
 		HTTPAddr:              env("HTTP_ADDR", defaultHTTPAddr()),
 		BaseURL:               env("BASE_URL", "http://localhost:8090"),
+		PDFURL:                os.Getenv("PDF_URL"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		DBMaxConns:            int32(envInt("DB_MAX_CONNS", 10)),
 		RedisURL:              env("REDIS_URL", "redis://127.0.0.1:6379/0"),
