@@ -593,7 +593,7 @@ export function Shell({
              drawn only below lg, so on a desktop the white sidebar ran into
              the white page with nothing marking where one ended. */
           'border-r max-md:transition-transform',
-          'md:max-lg:w-[58px] lg:w-[282px]',
+          'md:max-lg:w-[62px] lg:w-[286px]',
           navOpen ? 'flex max-md:translate-x-0' : 'hidden md:flex max-md:-translate-x-full',
           /* The tablet drawer: the in-flow 58px rail lifts into the same 288px
              overlay the phone uses, so the full panel (workspace header, role
@@ -665,7 +665,7 @@ export function Shell({
             -- marks, focus rings and the labels that escape it -- above the
             panel, and leaves everything inside the rail ordered exactly as it
             was. */}
-        <div className="relative z-30 flex w-[58px] shrink-0 flex-col items-center gap-1 border-r py-3
+        <div className="relative z-30 flex w-[62px] shrink-0 flex-col items-center gap-2.5 border-r py-3.5
                         md:max-lg:overflow-y-auto">
           {railWorkspaces.map((ws) => {
             const Mark = markFor(ws.name)
@@ -697,13 +697,13 @@ export function Shell({
                 className={cn(
                   /* A bold tile in the workspace's own colour, which the theme
                      sets; the one you are in is ringed in the same colour. */
-                  'rail-item rail-tile grid size-10 shrink-0 place-items-center rounded-[12px]',
+                  'rail-item rail-tile grid size-11 shrink-0 place-items-center rounded-[13px]',
                   'transition-[filter,box-shadow,transform] duration-150 focus-visible:outline-none',
                   on && 'rail-tile-on',
                 )}
                 style={{ ['--tile' as string]: `var(--dom-${hueFor(ws.name)})` }}
               >
-                <Mark className="size-[18px]" aria-hidden="true" />
+                <Mark className="size-[22px]" strokeWidth={2.1} aria-hidden="true" />
               </button>
             )
           })}
