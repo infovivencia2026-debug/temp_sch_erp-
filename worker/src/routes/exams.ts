@@ -1642,7 +1642,11 @@ function plainCertificate(typeName: string, code: string, f: Record<string, stri
         ? `is a bonafide student of this school${cls ? `, studying in <strong>${escapeHtml(cls)}</strong>` : ''}${f.academic_year ? ` in the academic year ${escapeHtml(f.academic_year)}` : ''}.`
         : `has been a student of this school${cls ? ` (${escapeHtml(cls)})` : ''}, and that to the best of our knowledge their conduct and character have been ${escapeHtml(f.conduct || 'good')}.`) +
       `</p>`
-    if (f.reason) b += `<p style="margin:0 0 14pt;font-size:10.5pt">Issued on request, for: ${escapeHtml(f.reason)}.</p>`
+    if (f.reason) {
+      /* "For passport application" already says what it is for; don't say "for" twice. */
+      const why = String(f.reason).trim().replace(/^for\s+/i, '').replace(/[.\s]+$/, '')
+      b += `<p style="margin:0 0 14pt;font-size:10.5pt">Issued on request, for ${escapeHtml(why.charAt(0).toLowerCase() + why.slice(1))}.</p>`
+    }
   }
   const hidden = new Set(['school_name', 'serial_no', 'signatory', 'signatory_role', 'issued_at', 'name', 'student_name', 'issued_on', 'reason', 'date_of_issue'])
   const labelOf = (k: string) => ({ admission_no: 'Admission no.', apaar_id: 'APAAR ID', attendance_percent: 'Attendance (%)', dues_paise: 'Fees outstanding', date_of_birth: 'Date of birth', admission_date: 'Date of admission' } as Record<string, string>)[k]
