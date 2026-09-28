@@ -978,6 +978,12 @@
   .responsive-table tbody tr {
     transition: background-color 0.1s ease;
   }
+  /* Room for the expand button, which sits in the header row's right end.
+     Without it the button was drawn over the last column's name -- "Quota",
+     "Available", "Starts" -- on every phone and on any card narrow enough. */
+  [data-table-expandable] .responsive-table thead th:last-child {
+    padding-right: 44px;
+  }
   @media (hover: hover) {
     .responsive-table tbody tr:hover {
       background: hsl(var(--surface-hover) / 0.6);
@@ -2901,8 +2907,10 @@ body[data-scroll-lock] {
     :where(
       button, select, summary,
       [role='button'], [role='tab'], [role='switch'], [role='menuitem'], [role='option'],
-      input:not([type='hidden']):not([type='range'])
+      input:not([type='hidden']):not([type='range']):not([type='checkbox']):not([type='radio'])
     ):not(.tap-inline):not(.bento-dot) {
+      /* Not a checkbox or a radio: those sit inside a label that is the
+         target, and a 44px-tall box put the tick below its own words. */
       min-height: 44px;
     }
 
@@ -2930,9 +2938,24 @@ body[data-scroll-lock] {
        the visible text is untouched and the tappable area around it is 44px
        tall and at least 44px wide. It is transparent on purpose: anything
        visible would read as a button, which is exactly what these are not. */
-    .tap-inline {
+    /* Links were outside both rules above, which list buttons and roles
+       only. An icon-only link is a button in every way that matters to a
+       thumb -- the header's account and sign-out marks measured 32x32 on a
+       phone -- so it takes the same box. `:has(> svg:only-child)` keeps it
+       to links whose whole content is the glyph; a text link is left alone. */
+    :where(a[aria-label]:has(> svg:only-child)):not(.tap-inline) {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* A phone number in a row is written as text and pressed as a button:
+       an 18px-tall line is too thin to hit. It gets the invisible target
+       below rather than a bigger box, so the row keeps its height. */
+    .tap-inline,
+    a[href^='tel:'] {
       position: relative;
     }
+    a[href^='tel:']::after,
     .tap-inline::after {
       content: '';
       position: absolute;
@@ -3888,3 +3911,68 @@ input[placeholder^="Find" i]:hover, input[placeholder^="Find" i]:focus, input[pl
   box-shadow: none !important;
 }
 .rail-tile svg, .rail-foot svg { stroke-width: 1.75; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NO TEXT UNDER 12PX ON A PHONE OR A TABLET.
+
+   The root is pinned to 14px, so Tailwind's `text-xs` is 10.5px here, and a
+   hundred and seventy hand-written sizes sit at 9, 10, 10.5, 11 and 11.5px:
+   calendar weekday heads, stage chips, "9 pending", the row-level meta under
+   a name. On a desk at arm's length they are captions; on a phone they are
+   the part of the screen that has to be zoomed, and zoom is off (see the
+   touch-action rule above). One floor, 12px -- the eyebrow's size and the
+   one the Focus board already holds its own small type to -- rather than a
+   hundred and seventy edits.
+
+   Unlayered on purpose: the sizes it lifts are utilities, and only an
+   unlayered rule outranks the utilities layer without !important. Below
+   1024 only, so the desk keeps the density those sizes were chosen for. */
+@media (max-width: 1023.98px) {
+  .text-xs,
+  .text-\[9px\], .text-\[9\.5px\], .text-\[10px\], .text-\[10\.5px\],
+  .text-\[11px\], .text-\[11\.5px\] {
+    font-size: 12px;
+  }
+}
+
+/* THE PAGE DOES NOT MOVE (owner, 2026-09-28: "in phone UI the page can be
+   moved, it's rotating all around"). On a phone the document itself could be
+   dragged in every direction: anything a pixel wider than the screen, plus
+   the browser's rubber-band, let the whole app slide and bounce. The document
+   is now pinned; #root is the one scroller, vertical only, with no bounce in
+   either axis, and every scroll area inside it is held to its own width. */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+  width: 100%;
+  touch-action: manipulation;
+}
+#root {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+main, [data-paint='workarea'] {
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* THE 16PX FIELD RULE HAS TO WIN, SO IT LIVES OUT HERE.
+
+   The two copies above sit in @layer base, and any field with a size utility
+   of its own -- `text-[14px]` on the command search, `text-[13.5px]` on the
+   launcher's filter, `text-xs` on the Write with AI selects, the dashboard's
+   section picker -- is in the utilities layer, which beats base whatever the
+   selector. Those were exactly the fields that still zoomed an iPhone in on
+   focus. Unlayered, this outranks every utility; checkboxes, radios, ranges
+   and file inputs draw no text and are left alone. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
