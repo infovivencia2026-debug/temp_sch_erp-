@@ -275,3 +275,38 @@ describe('the LMS', () => {
     expect(sub.body).toMatchObject({ score: 0, timed_out: true })
   })
 })
+
+describe('scheduled lessons and the LMS Admin role', () => {
+  it('a lesson scheduled for later is hidden from the child until then', async () => {
+    const c = await api('teacher', 'GET', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`)
+    const unit = c.body.units[0].id
+    const later = new Date(Date.now() + 86_400_000).toISOString()
+    const l = await api('teacher', 'POST', '/lms/lessons', { unit_id: unit, title: 'Tomorrow', kind: 'text', body: 'Not yet.', day: 2, publish_at: later })
+    expect(l.status).toBe(200)
+    const teacherView = await api('teacher', 'GET', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`)
+    expect(teacherView.body.units[0].lessons.find((x: { id: string }) => x.id === l.body.id)).toMatchObject({ day: 2, publish_at: later })
+    const kid = await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
+    expect(JSON.stringify(kid.body)).not.toContain(l.body.id)
+    await T().prepare(`UPDATE lms_lessons SET publish_at = ? WHERE id = ?`).bind(new Date(Date.now() - 1000).toISOString(), l.body.id).run()
+    const now = await raw(chirag, 'GET', `/portal/lms/course?class_subject_id=${IDS.classSubject}`)
+    expect(JSON.stringify(now.body)).toContain(l.body.id)
+  })
+
+  it('installs as an optional role, is granted beside another role, and reaches every course', async () => {
+    const inst = await api('admin', 'POST', '/admin/roles/install', { key: 'lms_admin' })
+    expect(inst.status).toBe(200)
+    const roles = await api('admin', 'GET', '/admin/assignable-roles')
+    expect(JSON.stringify(roles.body)).toContain('lms_admin')
+    // Finance holds no teaching; with LMS Admin added on the same login, every course opens.
+    expect((await api('finance', 'GET', `/lms/course?section_id=${IDS.section}&class_subject_id=${IDS.classSubject}`)).status).toBe(403)
+    const rid = (await T().prepare(`SELECT id FROM roles WHERE key = 'lms_admin'`).first<{ id: string }>())!.id
+    await T().prepare(`INSERT INTO user_roles (id, institution_id, user_id, role_id, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .bind(crypto.randomUUID(), IDS.school, IDS.finance, rid, new Date().toISOString()).run()
+    const list = await api('finance', 'GET', '/lms/courses')
+    expect(list.body.items.length).toBeGreaterThan(0)
+    const u = await api('finance', 'POST', '/lms/units', { section_id: IDS.section, class_subject_id: IDS.classSubject, title: 'Decimals' })
+    expect(u.status).toBe(200)
+    const perms = await T().prepare(`SELECT permission_key FROM role_permissions WHERE role_id = ?`).bind(rid).all<{ permission_key: string }>()
+    expect(perms.results.map((x) => x.permission_key)).toContain('lms_admin.lms.courses')
+  })
+})

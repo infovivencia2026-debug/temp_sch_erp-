@@ -18,7 +18,8 @@ import { lazy } from 'react'
    both and no way for them to disagree. */
 export const teachingKeys = {
   'faculty.teaching.assignments_submissions': screen(() => import('./Assignments')),
-  'faculty.teaching.lms_study_material_upload': screen(() => import('./LMSUpload')),
+  // The LMS: courses of lessons by day, assignments with a gradebook, quizzes. Supersedes the bare upload.
+  'faculty.teaching.lms_study_material_upload': screen(() => import('./TeacherLMS')),
   'faculty.question_papers_online_tests.question_bank_management': lazy(
     () => import('./QuestionBank'),
   ),

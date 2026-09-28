@@ -255,12 +255,15 @@ export const PLATFORM_ONLY_ROLES = new Set(['super_admin', 'seller_admin'])
 const PLATFORM_ROLES = new Set(['super_admin', 'seller_admin', 'support_admin'])
 const OPTIONAL_ROLES = new Set(['board_member', 'support_admin', 'vice_principal', 'it_admin', 'exam_controller',
   'front_office', 'operations', 'librarian', 'transport_manager', 'hostel_warden', 'driver', 'counsellor', 'nurse',
-  'discipline_officer', 'activity_coord'])
+  'discipline_officer', 'activity_coord', 'lms_admin'])
 
 const SELF = ['self.profile.read', 'self.profile.write']
 
 /** internal/rbac SystemRoles: the capability grants each built-in role carries. */
 export const SYSTEM_ROLES: Record<string, { name: string; permissions: string[] | 'all' }> = {
+  /* Runs the school's LMS: every course, lesson, assignment and quiz, for any section. Grantable beside Teacher or Principal. */
+  lms_admin: { name: 'LMS Admin', permissions: ['students.read', 'students.read.all', 'academics.read', 'academics.timetable.read',
+    'academics.homework.write', ...SELF] },
   institution_admin: { name: 'Institution Admin / Principal', permissions: 'all' },
   vice_principal: { name: 'Vice Principal / Academic Coordinator', permissions: [
     'admissions.read', 'admissions.approve', 'students.read', 'students.read.all', 'academics.read', 'academics.write',

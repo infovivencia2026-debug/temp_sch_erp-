@@ -106,6 +106,18 @@ interface FamilyFees {
   receipts: { receipt_no: string; paid_on: string; amount_paise: number; mode: string; status: string }[]
 }
 
+interface LmsHome {
+  todo: {
+    assignments: { id: string; title: string; subject?: string; due_on?: string | null; overdue: boolean }[]
+    quizzes: { id: string; title: string; subject: string }[]
+    lessons: { id: string; title: string; subject: string }[]
+    returned: { id: string; title: string; subject?: string; marks?: number | null; max_marks?: number | null }[]
+  }
+  marks: { exam: string; subject: string; obtained: number | null; max_marks: number; grade?: string | null; is_absent: number }[]
+  notices: { id: string; title: string; publish_at: string }[]
+  library: { title: string; due_on: string; overdue: boolean }[]
+}
+
 /** Days from today to a yyyy-mm-dd. Negative is overdue. */
 function daysUntil(iso: string) {
   return Math.round(
@@ -136,6 +148,14 @@ export default function StudentDay() {
     queryKey: ['portal-attendance', 'self'],
     queryFn: () => api.get<List<RegisterDay>>('/api/v1/portal/attendance'),
   })
+  /* The second row: learning to-do, recent marks, notices, library. One
+     request (portal/lms.ts GET /portal/lms/home); it degrades per cell. */
+  const more = useQuery({
+    queryKey: ['portal-lms-home', 'self'],
+    queryFn: () => api.get<LmsHome>('/api/v1/portal/lms/home'),
+  })
+  const toCourses = useFeatureHref('student.learning.courses_subjects')
+  const toResults = useFeatureHref('student.exams_results.exams_grades')
   const ledger = useQuery({
     queryKey: ['portal-fees', 'self'],
     queryFn: () => api.get<FamilyFees>('/api/v1/portal/fees'),
@@ -213,6 +233,62 @@ export default function StudentDay() {
 
       <Widget id="absent" label={t('bento.student_day.absent')} size="small" index={4}>
         {(span) => <AbsentCell span={span} s={s} days={days} to={toAttendance} />}
+      </Widget>
+
+      <Widget id="learning" label="Learning to-do" size="small" index={5}>
+        {(span) => {
+          const td = more.data?.todo
+          const n = td ? td.assignments.length + td.quizzes.length : 0
+          const facts = td ? [
+            ...td.assignments.slice(0, 3).map((a) => ({ label: a.subject ?? 'Assignment', value: `${a.title}${a.due_on ? ` · ${a.due_on}` : ''}` })),
+            ...td.quizzes.slice(0, 2).map((z) => ({ label: `Quiz · ${z.subject}`, value: z.title })),
+            ...td.lessons.slice(0, 2).map((l) => ({ label: `Lesson · ${l.subject}`, value: l.title })),
+          ] : []
+          return (
+            <PersonaCard span={span} title="Learning to-do" glyph="✓" value={more.error ? '–' : n} change={more.error ? 'Could not load.' : n ? 'To hand in or take.' : 'Nothing waiting.'} to={toCourses} cueLabel="Open my courses" loading={more.isLoading}>
+              {facts.length ? <Facts items={facts.slice(0, 4)} srLabel="What is waiting" /> : <Say>{td?.lessons.length ? 'Lessons are waiting in your courses.' : 'All caught up.'}</Say>}
+            </PersonaCard>
+          )
+        }}
+      </Widget>
+
+      <Widget id="marks" label="Recent marks" size="small" index={6}>
+        {(span) => {
+          const m = more.data?.marks ?? []
+          const r = more.data?.todo.returned ?? []
+          const facts = [
+            ...r.slice(0, 2).map((x) => ({ label: x.subject ?? 'Assignment', value: `${x.title}: ${x.marks ?? '—'}${x.max_marks ? `/${x.max_marks}` : ''}` })),
+            ...m.slice(0, 4).map((x) => ({ label: `${x.exam} · ${x.subject}`, value: x.is_absent ? 'Absent' : `${x.obtained ?? '—'}/${x.max_marks}${x.grade ? ` (${x.grade})` : ''}` })),
+          ]
+          return (
+            <PersonaCard span={span} title="Recent marks" glyph="★" value={facts.length} change={facts.length ? 'Published results and marked work.' : 'Nothing published yet.'} to={toResults} cueLabel="Open results" loading={more.isLoading}>
+              {facts.length ? <Facts items={facts.slice(0, 4)} srLabel="Recent marks" /> : <Say>No marks published yet.</Say>}
+            </PersonaCard>
+          )
+        }}
+      </Widget>
+
+      <Widget id="notices" label="Notices" size="small" index={7}>
+        {(span) => {
+          const n = more.data?.notices ?? []
+          return (
+            <PersonaCard span={span} title="Notices" glyph="✉" cueLabel="Notices" value={n.length} change={n[0] ? n[0].title : 'No notices for you.'} loading={more.isLoading}>
+              {n.length ? <Facts items={n.slice(0, 4).map((x) => ({ label: x.publish_at.slice(0, 10), value: x.title }))} srLabel="Notices" /> : <Say>No notices for you.</Say>}
+            </PersonaCard>
+          )
+        }}
+      </Widget>
+
+      <Widget id="library" label="Library" size="small" index={8}>
+        {(span) => {
+          const l = more.data?.library ?? []
+          const late = l.filter((x) => x.overdue).length
+          return (
+            <PersonaCard span={span} title="Library" glyph="▤" cueLabel="Library" value={l.length} change={late ? `${late} overdue` : l.length ? 'Books with you.' : 'No books out.'} loading={more.isLoading}>
+              {l.length ? <Facts items={l.slice(0, 4).map((x) => ({ label: `Due ${x.due_on}${x.overdue ? ' · overdue' : ''}`, value: x.title }))} srLabel="Library books" /> : <Say>No library books out.</Say>}
+            </PersonaCard>
+          )
+        }}
       </Widget>
     </PersonaPage>
   )

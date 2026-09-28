@@ -150,6 +150,8 @@ export const FEATURE_COMPONENTS: Record<string, LazyExoticComponent<ComponentTyp
 
   // Homework — the same screen from the teacher's and the child's side.
   'faculty.teaching.homework_classwork': screen(() => import('./workflow/Homework')),
+  // Every course in the school, for the optional LMS Admin role.
+  'lms_admin.lms.courses': screen(() => import('./faculty/TeacherLMS')),
   'student.homework.homework_assignments': screen(() => import('./workflow/Homework')),
   'parent.academics.homework_academics': screen(() => import('./workflow/Homework')),
 

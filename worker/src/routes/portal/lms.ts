@@ -44,7 +44,8 @@ async function classroom(c: Ctx, studentId: string) {
   return r
 }
 
-const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)`
+const lessonVisible = `l.is_published = 1 AND su.is_active = 1 AND (l.section_id IS NULL OR l.section_id = ?)
+  AND (l.publish_at IS NULL OR l.publish_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
 
 async function todo(c: Ctx, sid: string, section: string, classId: string) {
   const today = todayIST()
@@ -66,7 +67,7 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
     c.db.prepare(`SELECT l.id, l.title, l.kind, sub.name AS subject, su.class_subject_id, su.title AS unit
         FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id JOIN class_subjects cs ON cs.id = su.class_subject_id JOIN subjects sub ON sub.id = cs.subject_id
         WHERE cs.class_id = ? AND ${lessonVisible} AND NOT EXISTS (SELECT 1 FROM lms_lesson_progress p WHERE p.lesson_id = l.id AND p.student_id = ?)
-        ORDER BY su.sequence, l.sequence LIMIT 8`).bind(classId, section, sid),
+        ORDER BY su.sequence, l.day IS NULL, l.day, l.sequence LIMIT 8`).bind(classId, section, sid),
     c.db.prepare(`SELECT h.id, h.title, sub.name AS subject, h.class_subject_id, CAST(hs.marks AS REAL) AS marks, CAST(h.max_marks AS REAL) AS max_marks, hs.feedback, hs.status, hs.returned_at
         FROM homework_submissions hs JOIN homework h ON h.id = hs.homework_id LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
         WHERE hs.student_id = ? AND hs.returned_at IS NOT NULL ORDER BY hs.returned_at DESC LIMIT 5`).bind(sid),
@@ -109,10 +110,10 @@ export function registerPortalLMS(r: Router) {
     if (!co) throw notFound()
     const [units, lessons, hw, quizzes] = await c.db.batch([
       c.db.prepare(`SELECT id, title, description, sequence FROM syllabus_units WHERE class_subject_id = ? AND is_active = 1 ORDER BY sequence, created_at`).bind(cs),
-      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, p.completed_at
+      c.db.prepare(`SELECT l.id, l.unit_id, l.title, l.kind, l.body, l.file_id, f.original_name AS file_name, l.url, l.sequence, l.day, p.completed_at
           FROM lms_lessons l JOIN syllabus_units su ON su.id = l.unit_id LEFT JOIN files f ON f.id = l.file_id AND f.deleted_at IS NULL
           LEFT JOIN lms_lesson_progress p ON p.lesson_id = l.id AND p.student_id = ?
-          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.sequence, l.created_at`).bind(sid, cs, k.section_id),
+          WHERE su.class_subject_id = ? AND ${lessonVisible} ORDER BY l.day IS NULL, l.day, l.sequence, l.created_at`).bind(sid, cs, k.section_id),
       c.db.prepare(`SELECT h.id, h.kind, h.title, h.instructions, h.assigned_on, h.due_on, CAST(h.max_marks AS REAL) AS max_marks, h.rubric, h.allow_submission,
           COALESCE(hs.status, 'pending') AS status, hs.submitted_at, hs.text_answer, hs.file_id, f.original_name AS file_name, hs.returned_at,
           CASE WHEN hs.returned_at IS NOT NULL THEN CAST(hs.marks AS REAL) END AS marks,

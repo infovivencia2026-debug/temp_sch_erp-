@@ -33,7 +33,7 @@ export interface Role {
   sections: Section[]
 }
 
-/** 23 roles, 414 features. */
+/** 24 roles, 415 features. */
 export const ROLES: Role[] = [
   {
     key: 'seller_admin',
@@ -1443,6 +1443,20 @@ export const ROLES: Role[] = [
         features: [
           { key: 'it_admin.my_profile.profile', slug: 'profile', name: 'Profile', scope: 'self', tier: 'core', summary: 'Your own name, phone, email and password.' },
           { key: 'it_admin.my_profile.my_pay', slug: 'my_pay', name: 'My pay', scope: 'self', tier: 'core', summary: 'Your own payslips month by month, what was taken off and how much of it was tax, the days you were marked present, and the leave you have left. Only ever your own.' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'lms_admin',
+    name: 'LMS Admin',
+    sections: [
+      {
+        slug: 'lms',
+        name: 'LMS',
+        workspace: 'LMS',
+        features: [
+          { key: 'lms_admin.lms.courses', slug: 'courses', name: 'Courses & material', scope: 'institution', tier: 'core', summary: 'Every course in the school, one subject in one section: units and lessons by day with scheduled publishing, assignments with rubrics and marking, and timed MCQ quizzes. Open any course to add material or see who has finished it.' },
         ],
       },
     ],

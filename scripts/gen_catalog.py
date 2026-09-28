@@ -37,6 +37,8 @@ ROLE_KEYS = {
     # librarian borrowed them from there, so trimming the principal's copy
     # would have taken the librarian's with it.
     "Librarian": "librarian",
+    # Runs the LMS for the whole school; an optional role granted beside Teacher or Principal.
+    "LMS Admin": "lms_admin",
     # The transport office. Same reason as the library: this role held no
     # catalogue of its own and borrowed the principal's transport section.
     "Transport Manager": "transport_manager",

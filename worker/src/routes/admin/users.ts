@@ -228,6 +228,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   parent: "A guardian's view of their children.",
 }
 const OPTIONAL_ROLE_NOTES: Record<string, string> = {
+  lms_admin: 'Runs the LMS: every course, lesson, assignment and quiz in the school. Give it alongside Teacher or Principal on the same login.',
   vice_principal: 'Runs teaching and learning. Timetable, exams and monitoring, but no fees or salaries.',
   hod: 'Only if departments are real in your school.',
   it_admin: 'Accounts, roles and integrations, with no access to fees, marks or health records.',

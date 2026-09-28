@@ -14,7 +14,7 @@ import { lazy } from 'react'
    agent does not own; the integration lead splices it in and runs `make
    catalog` so internal/api/implemented_gen.go agrees with it. */
 export const learningKeys = {
-  'student.learning.courses_subjects': screen(() => import('../learning/Courses')),
+  'student.learning.courses_subjects': screen(() => import('../learning/StudentCourses')),
   'student.learning.e_learning_resource_hub': screen(() => import('../learning/Resources')),
   'student.learning.peer_tutoring_study_groups': screen(() => import('../learning/StudyGroups')),
   'student.learning.student_portfolio_management': screen(() => import('../learning/Portfolio')),
