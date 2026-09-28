@@ -218,7 +218,7 @@ function InvoiceRow({ i, onChange }: { i: BillingInvoice; onChange: () => void }
           <Td colSpan={8}>
             <div className="flex flex-wrap items-center gap-2">
               <Input value={amount} onChange={setAmount} placeholder={`Rs ${(i.balance_paise / 100).toFixed(2)}`} className="w-[130px]" srLabel="Amount in rupees" />
-              <select className="h-9 rounded-md border bg-background px-2 text-[14px]" value={method} onChange={(e) => setMethod(e.target.value)} aria-label="Method">
+              <select className="field w-auto" value={method} onChange={(e) => setMethod(e.target.value)} aria-label="Method">
                 <option value="neft">NEFT / RTGS / IMPS</option>
                 <option value="upi">UPI</option>
                 <option value="cheque">Cheque</option>

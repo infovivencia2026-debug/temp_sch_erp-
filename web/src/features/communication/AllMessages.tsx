@@ -198,9 +198,8 @@ export default function AllMessages() {
             <Input value={person} onChange={setPerson} placeholder="A name" />
           </Field>
           {filtered && (
-            <button
-              type="button"
-              className="h-9 rounded-md border px-3 text-[13px] font-medium hover:bg-accent"
+            <Button
+              variant="secondary"
               onClick={() => {
                 setFrom('')
                 setTo('')
@@ -209,7 +208,7 @@ export default function AllMessages() {
               }}
             >
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
         <p className="text-[12px] text-muted-foreground">

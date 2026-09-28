@@ -120,7 +120,7 @@ function Gallery() {
         </Section>
 
         <Section id="inputs" title="Inputs and a row of controls">
-          <Card className="p-[var(--card-pad)]">
+          <Card>
             <FormGrid>
               <Field label="Text input" hint="A hint under the field">
                 <Input value={text} onChange={setText} placeholder="Type a name" />

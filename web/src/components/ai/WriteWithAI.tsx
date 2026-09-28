@@ -87,7 +87,7 @@ export default function WriteWithAI({
     }
   }
 
-  const sel = 'h-8 rounded-md border bg-background px-2 text-sm'
+  const sel = 'field'
   return (
     <div className="relative inline-block" ref={box}>
       <Button variant="outline" size="sm" onClick={() => setOpen((o) => !o)} ariaHasPopup="dialog" ariaExpanded={open}>

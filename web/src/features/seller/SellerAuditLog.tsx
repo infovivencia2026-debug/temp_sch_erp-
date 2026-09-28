@@ -76,7 +76,7 @@ export function SellerAuditLog({ base, showSchool, title, schools }: {
           <Field label="Action starts with"><Input value={action} onChange={reset(setAction)} placeholder="e.g. lifecycle, restore, seller.tenants" /></Field>
           {showSchool && schools && (
             <Field label="School">
-              <select className="h-9 w-full rounded-md border bg-card px-2 text-[14px]" value={school} onChange={(e) => reset(setSchool)(e.target.value)}>
+              <select className="field" value={school} onChange={(e) => reset(setSchool)(e.target.value)}>
                 <option value="">Every school</option>
                 {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
