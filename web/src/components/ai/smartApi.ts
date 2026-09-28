@@ -41,6 +41,9 @@ export const warningsApi = {
   digest: () => api.get<{ open: number; high: number; new_this_week: number; resolved_this_week: number; text: string }>('/api/v1/ai/warnings/digest'),
   setStatus: (id: string, status: WarningStatus, note: string) => api.post<Warning>(`/api/v1/ai/warnings/${id}/status`, { status, note }),
   run: () => api.post<{ raised: number; cleared: number; explained: number; ai: boolean }>('/api/v1/ai/warnings/run'),
+  dismiss: (id: string) => api.post<{ id: string }>(`/api/v1/ai/warnings/${id}/dismiss`),
+  dismissAll: () => api.post<{ ids: string[]; count: number }>('/api/v1/ai/warnings/dismiss-all'),
+  undismiss: (ids: string[]) => api.post<{ count: number }>('/api/v1/ai/warnings/undismiss', { ids }),
 }
 
 // ---- smart import --------------------------------------------------------------

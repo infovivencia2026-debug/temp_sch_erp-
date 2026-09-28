@@ -173,6 +173,9 @@ export async function runWarnings(db: D1Database, instId: string, today: string,
   for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50))
   const cl = await db.prepare(`UPDATE ai_warnings SET cleared_at = ? WHERE cleared_at IS NULL AND last_seen_at < ?`).bind(started, started).run()
   res.cleared = Number(cl.meta?.changes ?? 0)
+  /* A flag that went away forgets who dismissed it, so if the check raises
+     it again later it reaches everyone afresh. */
+  try { await db.prepare(`DELETE FROM ai_warning_dismissals WHERE warning_id IN (SELECT id FROM ai_warnings WHERE cleared_at IS NOT NULL)`).run() } catch { /* table not there yet */ }
 
   // Explanations: cached ones first, then the AI for what is left (bounded per run).
   const need = (await db.prepare(`SELECT w.id, w.rule, w.subject_name, w.evidence, w.evidence_hash, w.reason, w.next_step, x.text AS cached

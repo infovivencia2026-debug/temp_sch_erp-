@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Check, Eye, RotateCcw, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, Eye, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useToast } from '@/components/Toast'
 import { Badge, Button, ErrorState, FormNotice, Loading, PageBody, PageHead, Panel } from '@/components/ui'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,16 @@ function WarningRow({ w }: { w: Warning }) {
   const set = useMutation({
     mutationFn: (v: { status: WarningStatus; note: string }) => warningsApi.setStatus(w.id, v.status, v.note),
     onSuccess: () => { setNoting(null); setNote(''); qc.invalidateQueries({ queryKey: KEY }) },
+  })
+  /* Dismiss is for me only: gone from my list, still there for anyone else
+     it concerns. Undo on the confirmation brings it straight back. */
+  const toast = useToast()
+  const dismiss = useMutation({
+    mutationFn: () => warningsApi.dismiss(w.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY })
+      toast.ok('Dismissed', () => { warningsApi.undismiss([w.id]).then(() => qc.invalidateQueries({ queryKey: KEY })) })
+    },
   })
   return (
     <li className="border-t px-4 py-3 first:border-t-0">
@@ -73,6 +84,13 @@ function WarningRow({ w }: { w: Warning }) {
             {w.status === 'open' && <Button size="sm" variant="ghost" onClick={() => setNoting('acknowledged')}><Eye className="h-3.5 w-3.5" /> Seen</Button>}
             {w.status !== 'resolved' && <Button size="sm" variant="ghost" onClick={() => setNoting('resolved')}><Check className="h-3.5 w-3.5" /> Resolve</Button>}
             {w.status === 'resolved' && <Button size="sm" variant="ghost" onClick={() => set.mutate({ status: 'open', note: '' })}><RotateCcw className="h-3.5 w-3.5" /> Reopen</Button>}
+            {w.status !== 'resolved' && (
+              <button type="button" aria-label={`Dismiss the warning about ${w.subject_name}`} title="Dismiss for me"
+                onClick={() => dismiss.mutate()}
+                className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -86,12 +104,24 @@ export function NeedsAttentionPanel({ limit, sectionId, title = 'Early warnings'
   const q = useQuery({ queryKey: [...KEY, status, sectionId ?? ''], queryFn: () => warningsApi.list({ status, section_id: sectionId }) })
   const items = q.data?.items ?? []
   const shown = limit ? items.slice(0, limit) : items
+  const qc = useQueryClient()
+  const toast = useToast()
+  const clearAll = useMutation({
+    mutationFn: warningsApi.dismissAll,
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: KEY })
+      if (r.count) toast.ok(`Cleared ${r.count}`, () => { warningsApi.undismiss(r.ids).then(() => qc.invalidateQueries({ queryKey: KEY })) })
+    },
+  })
   return (
     <Panel className="overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <h3 className="text-[14px] font-semibold">{title}</h3>
         {q.data && <span className="text-[12.5px] text-muted-foreground">{items.length} {status === 'active' ? 'need attention' : 'resolved'}</span>}
-        <div className="ml-auto flex gap-1">
+        <div className="ml-auto flex flex-wrap gap-1">
+          {status === 'active' && items.length > 0 && (
+            <Button size="sm" variant="ghost" pending={clearAll.isPending} onClick={() => clearAll.mutate()}><X className="h-3.5 w-3.5" /> Clear all</Button>
+          )}
           <Button size="sm" variant={status === 'active' ? 'secondary' : 'ghost'} onClick={() => setStatus('active')}>Open</Button>
           <Button size="sm" variant={status === 'resolved' ? 'secondary' : 'ghost'} onClick={() => setStatus('resolved')}>Resolved</Button>
         </div>

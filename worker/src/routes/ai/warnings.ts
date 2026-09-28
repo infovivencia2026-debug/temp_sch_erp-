@@ -52,7 +52,12 @@ export function registerAIWarnings(r: Router): void {
     const status = q.get('status') ?? 'active'
     const where = [v.sql, 'w.cleared_at IS NULL']
     const args = [...v.args]
-    if (status === 'active') where.push(`w.status IN ('open','acknowledged')`)
+    if (status === 'active') {
+      where.push(`w.status IN ('open','acknowledged')`)
+      // Not the ones this person waved away.
+      where.push(`NOT EXISTS (SELECT 1 FROM ai_warning_dismissals d WHERE d.warning_id = w.id AND d.user_id = ?)`)
+      args.push(c.id.userId)
+    }
     else if (['open', 'acknowledged', 'resolved'].includes(status)) { where.push('w.status = ?'); args.push(status) }
     const sec = q.get('section_id'); if (sec) { where.push('w.section_id = ?'); args.push(sec) }
     const rule = q.get('rule'); if (rule) { where.push('w.rule = ?'); args.push(rule) }
@@ -92,6 +97,43 @@ export function registerAIWarnings(r: Router): void {
       .bind(status, note, c.id.userId, new Date().toISOString(), id).run()
     const out = await c.db.prepare(`SELECT ${COLS} FROM ai_warnings w WHERE w.id = ?`).bind(id).first<Record<string, unknown>>()
     return ok(shape(out!))
+  })
+
+  /* Dismiss for me: gone from my list, untouched for everyone else. */
+  r.post('/ai/warnings/{id}/dismiss', 'auth', async (c) => {
+    const id = uuidParam(c.params.id)
+    const v = await visibility(c)
+    const row = await c.db.prepare(`SELECT w.id FROM ai_warnings w WHERE w.id = ? AND ${v.sql}`).bind(id, ...v.args).first()
+    if (!row) throw notFound('resource not found')
+    await c.db.prepare(`INSERT OR REPLACE INTO ai_warning_dismissals (warning_id, user_id, dismissed_at) VALUES (?, ?, ?)`)
+      .bind(id, c.id.userId, new Date().toISOString()).run()
+    return ok({ id, dismissed: true })
+  })
+  r.del('/ai/warnings/{id}/dismiss', 'auth', async (c) => {
+    const id = uuidParam(c.params.id)
+    await c.db.prepare(`DELETE FROM ai_warning_dismissals WHERE warning_id = ? AND user_id = ?`).bind(id, c.id.userId).run()
+    return ok({ id, dismissed: false })
+  })
+  /* Clear all: every active warning I can see, dismissed for me in one go.
+     Returns the ids so the screen can offer Undo. */
+  r.post('/ai/warnings/dismiss-all', 'auth', async (c) => {
+    const v = await visibility(c)
+    const ids = ((await c.db.prepare(`SELECT w.id FROM ai_warnings w WHERE ${v.sql} AND w.cleared_at IS NULL AND w.status IN ('open','acknowledged')
+        AND NOT EXISTS (SELECT 1 FROM ai_warning_dismissals d WHERE d.warning_id = w.id AND d.user_id = ?)`).bind(...v.args, c.id.userId)
+      .all<{ id: string }>()).results ?? []).map((r) => r.id)
+    if (ids.length) {
+      const at = new Date().toISOString()
+      await c.db.prepare(`INSERT OR REPLACE INTO ai_warning_dismissals (warning_id, user_id, dismissed_at) SELECT value, ?, ? FROM json_each(?)`)
+        .bind(c.id.userId, at, JSON.stringify(ids)).run()
+    }
+    return ok({ ids, count: ids.length })
+  })
+  r.post('/ai/warnings/undismiss', 'auth', async (c) => {
+    const body = await readJSON<{ ids?: string[] }>(c.req)
+    const ids = (body.ids ?? []).filter((x) => typeof x === 'string').slice(0, 500)
+    if (ids.length) await c.db.prepare(`DELETE FROM ai_warning_dismissals WHERE user_id = ? AND warning_id IN (SELECT value FROM json_each(?))`)
+      .bind(c.id.userId, JSON.stringify(ids)).run()
+    return ok({ count: ids.length })
   })
 
   // Recompute now (the nightly job's work), for the principal after fixing data.
