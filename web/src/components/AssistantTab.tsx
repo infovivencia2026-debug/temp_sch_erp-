@@ -1055,7 +1055,7 @@ export function AssistantTab() {
                         <Wand2 className="size-3.5 text-[hsl(var(--brand-accent,var(--primary)))]" aria-hidden />
                         {turn.action.title}
                         {turn.action.sensitive && (
-                          <span className="ml-auto rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">Sensitive</span>
+                          <span className="ml-auto rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive">Sensitive</span>
                         )}
                       </div>
                       <p className="mt-1.5 text-[13px] leading-snug">{turn.action.summary}</p>

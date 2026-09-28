@@ -15,7 +15,7 @@ export function ConfirmCard({ card, onConfirm, onCancel }: { card: AgentCard; on
         <Wand2 className="size-3.5" style={{ color: accent }} aria-hidden />
         {card.title}
         {card.sensitive && (
-          <span className="ml-auto rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">Check carefully</span>
+          <span className="ml-auto rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive">Check carefully</span>
         )}
       </div>
       <p className="mt-1.5 text-[13px] leading-snug">{card.summary}</p>

@@ -367,7 +367,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
         <section>
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <p className="eyebrow">Needs your attention</p>
-            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive sm:hidden">
+            <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[12px] font-medium text-destructive sm:hidden">
               {items.length} pending
             </span>
           </div>
@@ -545,7 +545,7 @@ export function StatusPill({ status, className }: { status: string; className?: 
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[11px] font-medium leading-4',
+        'inline-flex items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[12px] font-medium leading-tight',
         TONE_CLASS[tone],
         className,
       )}

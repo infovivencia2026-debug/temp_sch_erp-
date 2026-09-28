@@ -157,7 +157,7 @@ export default function TodaysClasses() {
                     </span>
                   </span>
                   {isNow && (
-                    <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
+                    <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[12px] font-medium text-primary">
                       Now
                     </span>
                   )}

@@ -47,7 +47,7 @@ export const aiApi = {
 /** The small label every AI output carries. */
 export function AiLabel({ text = 'AI draft' }: { text?: string }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-dashed px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+    <span className="inline-flex items-center rounded-md border border-dashed px-1.5 py-0.5 text-[12px] font-medium text-muted-foreground"
       title="Written by AI from the school's records. Check it and edit before you use it.">
       {text}
     </span>
