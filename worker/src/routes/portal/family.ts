@@ -6,7 +6,8 @@ import {
   fullName, institutionId, inList, marks, js, notifyStmt, nowInIndia, ownsStudent, requirePerm, resolveScope,
   scopeFilter, shortName, studentPredicate, todayIST, weekdayIST,
 } from '../teaching/common'
-import { defaultReportCardCSS, defaultReportCardHTML } from '../exams/template'
+import { defaultReportCardHTML, reportCardCSS } from '../exams/template'
+import { readableAccent, schoolFacts } from '../../services/document'
 
 /* The family's own side of the school: the children switcher, the day's
    summary, the attendance calendar, the household record, fees and results,
@@ -682,7 +683,10 @@ async function loadTemplate(c: Ctx): Promise<{ html: string; css: string }> {
     .first<{ f: string | null }>()
   let font = 'times'
   if (fontRow?.f && fontRow.f.toLowerCase() in reportCardFonts) font = fontRow.f.toLowerCase()
-  const css = defaultReportCardCSS.split('__FONT__').join(reportCardFonts[font])
+  const inst = await c.env.CONTROL.prepare('SELECT id, name, primary_color, logo_key, tagline FROM institutions WHERE id = ?').bind(institutionId(c))
+    .first<{ id: string; name: string; primary_color: string | null; logo_key: string | null; tagline: string | null }>()
+  const accent = inst ? (await schoolFacts(c.db, inst)).accent : readableAccent(null)
+  const css = reportCardCSS(reportCardFonts[font], accent)
   const t = await c.db.prepare(`SELECT template_html FROM report_card_templates WHERE institution_id = ?`)
     .bind(institutionId(c)).first<{ template_html: string }>()
   // An imported design brings its own styling: Go returned an empty css for it.
@@ -694,6 +698,15 @@ function imgTag(id: string): string {
   if (!isUUID(v)) return ''
   return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="width:100%;height:100%;max-width:100%;object-fit:cover;display:block">`
 }
+/* The crest keeps its own proportions at the card's crest height: the photo
+   and signature tag fills its box, and a logo given that treatment filled
+   the page. */
+function logoTag(id: string): string {
+  const v = id.trim()
+  if (!isUUID(v)) return ''
+  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="height:18mm;width:auto;max-width:60mm;object-fit:contain;display:inline-block">`
+}
+
 function stripUnknownPlaceholders(v: string): string {
   for (;;) {
     const i = v.indexOf('{{'); if (i < 0) return v
@@ -735,7 +748,7 @@ function fillReportCard(tpl: string, values: Record<string, string>, subjects: R
     out = out.split('{{performance_chart}}').join(ch)
   }
   out = out.split('{{photo}}').join(imgTag(values.photo_file_id ?? ''))
-  out = out.split('{{school_logo}}').join(imgTag(values.logo_file_id ?? ''))
+  out = out.split('{{school_logo}}').join(logoTag(values.logo_file_id ?? ''))
   out = out.split('{{class_teacher_sign}}').join(imgTag(values.teacher_sign_file_id ?? ''))
   out = out.split('{{principal_sign}}').join(imgTag(values.principal_sign_file_id ?? ''))
   for (const [k, v] of Object.entries(values)) {
@@ -747,7 +760,9 @@ function fillReportCard(tpl: string, values: Record<string, string>, subjects: R
 
 async function gatherReportCard(c: Ctx, cardId: string): Promise<{ values: Record<string, string>; subjects: Record<string, string>[] }> {
   const row = await c.db.prepare(`
-    SELECT i.name AS school, i.logo_key, (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
+    SELECT COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school,
+           COALESCE((SELECT NULLIF(b.logo_key, '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.logo_key) AS logo_key,
+           (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
            ${fullName('st')} AS student, COALESCE(c.name,'') AS class, COALESCE(sec.name,'') AS section, st.admission_no,
            e.roll_no, st.date_of_birth, st.admission_date, st.photo_file_id,
            (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1) AS father,

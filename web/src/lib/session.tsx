@@ -161,6 +161,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           name: data.institution.display_name || data.institution.name,
           tagline: data.institution.tagline,
           logoKey: data.institution.logo_key,
+          accent: data.institution.primary_color,
+          address: data.institution.address,
+          phone: data.institution.phone,
+          email: data.institution.email,
+          affiliation: data.institution.affiliation,
           printedBy: data.user?.full_name,
         }
       : null,

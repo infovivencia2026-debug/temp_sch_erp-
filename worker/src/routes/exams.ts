@@ -4,7 +4,8 @@ import { can } from '../identity'
 import { badRequest, bool, forbidden, isUUID, notFound, ok, created, readJSON, uuid, uuidParam, now } from '../http'
 import { coded, dateOf, escapeHtml, inList, items, js, minuteOf, nameOf, nextNumber, notifyStmt, num, numOr0,
   numberInWords, requireOpenYear, resolveScope, sign, str, todayIST, trimFloat, uuidsOf } from './exams/common'
-import { defaultReportCardCSS, defaultReportCardHTML } from './exams/template'
+import { defaultReportCardHTML, reportCardCSS } from './exams/template'
+import { DOC_PRINT_CSS, documentHTML, inr, schoolFacts, type SchoolFacts } from '../services/document'
 import { Messenger, scopeOf } from '../services/messaging'
 import { enqueueMany } from '../services/jobs'
 
@@ -986,7 +987,7 @@ async function loadReportCardTemplate(c: Ctx): Promise<ReportCardTemplate> {
     .first<{ f: string | null }>()
   let font = defaultReportCardFont
   if (fontRow?.f && (fontRow.f.toLowerCase() in reportCardFonts)) font = fontRow.f.toLowerCase()
-  const css = defaultReportCardCSS.split('__FONT__').join(reportCardFonts[font])
+  const css = reportCardCSS(reportCardFonts[font], (await schoolFacts(c.db, c.id.institution!)).accent)
   const t = await c.db.prepare(`SELECT t.name, t.template_html, ${minuteOf('t.updated_at')} AS at, u.full_name AS by
       FROM report_card_templates t LEFT JOIN users u ON u.id = t.updated_by WHERE t.institution_id = ?`)
     .bind(c.id.institution!.id).first<{ name: string; template_html: string; at: string; by: string | null }>()
@@ -1000,6 +1001,15 @@ function imgTag(id: string): string {
   const v = id.trim()
   if (!isUUID(v)) return ''
   return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="width:100%;height:100%;max-width:100%;object-fit:cover;display:block">`
+}
+
+/* The crest keeps its own proportions at the card's crest height: the photo
+   and signature tag fills its box, and a logo given that treatment filled
+   the page. */
+function logoTag(id: string): string {
+  const v = id.trim()
+  if (!isUUID(v)) return ''
+  return `<img src="/api/v1/files/${escapeHtml(v)}" alt="" style="height:18mm;width:auto;max-width:60mm;object-fit:contain;display:inline-block">`
 }
 
 function stripUnknownPlaceholders(s: string): string {
@@ -1046,7 +1056,7 @@ function fillReportCard(tpl: string, card: RenderedCard): string {
     out = out.split('{{performance_chart}}').join(ch)
   }
   out = out.split('{{photo}}').join(imgTag(card.values.photo_file_id ?? ''))
-  out = out.split('{{school_logo}}').join(imgTag(card.values.logo_file_id ?? ''))
+  out = out.split('{{school_logo}}').join(logoTag(card.values.logo_file_id ?? ''))
   out = out.split('{{class_teacher_sign}}').join(imgTag(card.values.teacher_sign_file_id ?? ''))
   out = out.split('{{principal_sign}}').join(imgTag(card.values.principal_sign_file_id ?? ''))
   for (const [k, v] of Object.entries(card.values)) {
@@ -1060,7 +1070,9 @@ const ddmmyyyy = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}
 
 async function gatherReportCard(c: Ctx, cardId: string): Promise<RenderedCard> {
   const row = await c.db.prepare(`
-    SELECT i.name AS school, i.logo_key, (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
+    SELECT COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school,
+           COALESCE((SELECT NULLIF(b.logo_key, '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.logo_key) AS logo_key,
+           (SELECT b.tagline FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1) AS motto,
            ${NAME} AS student, COALESCE(c.name,'') AS class, COALESCE(sec.name,'') AS section, st.admission_no,
            e.roll_no, st.date_of_birth, st.admission_date, st.photo_file_id,
            (SELECT g.full_name FROM student_guardians sg JOIN guardians g ON g.id = sg.guardian_id WHERE sg.student_id = st.id AND g.relation = 'father' LIMIT 1) AS father,
@@ -1544,8 +1556,8 @@ function registerLifecycle(r: Router) {
     if (body.trim() !== '') {
       rendered = body
       for (const [k, v] of Object.entries(fields)) rendered = rendered.split('{{' + k + '}}').join(escapeHtml(v))
-    } else rendered = plainCertificate(str(row.type_name), str(row.code), fields)
-    return ok({ html: rendered, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '' })
+    } else rendered = plainCertificate(str(row.type_name), str(row.code), fields, await schoolFacts(c.db, c.id.institution!))
+    return ok({ html: rendered, css: body.trim() !== '' ? undefined : DOC_PRINT_CSS, name: `${row.type_name} ${row.serial_no}`, template: body.trim() !== '' })
   })
 
   r.post('/lifecycle/certificates/{id}/decide', STUDENTS_WRITE, async (c) => {
@@ -1607,28 +1619,56 @@ const tcLines: [string, string][] = [
   ['dues_override_by', 'Dues outstanding at issue, allowed by'],
 ]
 
-function plainCertificate(typeName: string, code: string, f: Record<string, string>): string {
-  let b = '<div style="font-family:Georgia,serif;max-width:190mm;margin:0 auto;padding:16mm;line-height:1.5">'
-  b += `<h2 style="text-align:center;margin:0">${escapeHtml(f.school_name ?? '')}</h2>`
-  b += `<h3 style="text-align:center;margin:4px 0 16px;letter-spacing:.08em;text-transform:uppercase">${escapeHtml(typeName)}</h3>`
-  b += '<table style="width:100%;border-collapse:collapse;font-size:14px">'
-  const lines: [string, string][] = code === 'TC' ? tcLines : Object.keys(f).sort().map((k) => [k, k.split('_').join(' ')])
+function plainCertificate(typeName: string, code: string, f: Record<string, string>, facts: SchoolFacts): string {
+  /* The standard design: the school's letterhead (services/document.ts), the
+     certificate's particulars as numbered facts with hairline rules, then the
+     date and the signatory. A school that has imported its own design never
+     comes here. */
+  const isoToDMY = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v.slice(8, 10)}-${v.slice(5, 7)}-${v.slice(0, 4)}` : v
+  const val = (k: string) => {
+    const v = (f[k] ?? '').trim()
+    if (k.endsWith('_paise')) return v === '' ? '' : inr(Number(v) || 0)
+    return isoToDMY(v)
+  }
+  let b = ''
+  const name = f.student_name || f.name || ''
+  if (code === 'BONAFIDE' || code === 'CONDUCT') {
+    /* The certificate is the sentence; the facts under it are what an office
+       checks it against. */
+    const cls = [f.class, f.section].filter(Boolean).join(' - ')
+    const ward = f.guardian_name ? `, ward of ${escapeHtml(f.guardian_name)},` : ''
+    b += `<p style="margin:6pt 0 12pt;font-size:11pt;line-height:1.7">This is to certify that <strong>${escapeHtml(name)}</strong>${ward} ` +
+      (code === 'BONAFIDE'
+        ? `is a bonafide student of this school${cls ? `, studying in <strong>${escapeHtml(cls)}</strong>` : ''}${f.academic_year ? ` in the academic year ${escapeHtml(f.academic_year)}` : ''}.`
+        : `has been a student of this school${cls ? ` (${escapeHtml(cls)})` : ''}, and that to the best of our knowledge their conduct and character have been ${escapeHtml(f.conduct || 'good')}.`) +
+      `</p>`
+    if (f.reason) b += `<p style="margin:0 0 14pt;font-size:10.5pt">Issued on request, for: ${escapeHtml(f.reason)}.</p>`
+  }
+  const hidden = new Set(['school_name', 'serial_no', 'signatory', 'signatory_role', 'issued_at', 'name', 'student_name', 'issued_on', 'reason', 'date_of_issue'])
+  const labelOf = (k: string) => ({ admission_no: 'Admission no.', apaar_id: 'APAAR ID', attendance_percent: 'Attendance (%)', dues_paise: 'Fees outstanding', date_of_birth: 'Date of birth', admission_date: 'Date of admission' } as Record<string, string>)[k]
+    ?? k.split('_').join(' ').replace(/^./, (ch) => ch.toUpperCase())
+  const lines: [string, string][] = code === 'TC' ? tcLines
+    : [['student_name', 'Name of the student'] as [string, string]].concat(Object.keys(f).sort().filter((k) => !hidden.has(k)).map((k) => [k, labelOf(k)] as [string, string]))
+  b += `<table style="width:100%;border-collapse:collapse;font-size:10.5pt;table-layout:fixed">` +
+    `<colgroup><col style="width:2.2em"><col style="width:46%"><col></colgroup>`
+  const cell = 'border:0;border-bottom:0.75pt solid #e5e7eb;vertical-align:top;'
   let n = 0
   for (const [key, label] of lines) {
     if (!(key in f)) continue
-    let v = f[key]
+    let v = val(key)
     if (v === '' && key === 'dues_override_by') continue
     n++
     if (v === '') v = '-'
-    b += `<tr><td style="padding:4px 8px 4px 0;width:2em;vertical-align:top">${n}.</td>` +
-      `<td style="padding:4px 8px;vertical-align:top">${escapeHtml(label)}</td>` +
-      `<td style="padding:4px 0;font-weight:600;vertical-align:top">${escapeHtml(v)}</td></tr>`
+    b += `<tr><td style="${cell}padding:5pt 6pt 5pt 0;color:#6b7280">${n}.</td>` +
+      `<td style="${cell}padding:5pt 8pt;color:#374151">${escapeHtml(label)}</td>` +
+      `<td style="${cell}padding:5pt 0;font-weight:600;overflow-wrap:anywhere">${escapeHtml(v)}</td></tr>`
   }
   b += '</table>'
-  b += `<p style="margin-top:32px;font-size:13px">Date: ${escapeHtml(f.date_of_issue ?? '')}</p>`
-  b += `<p style="text-align:right;margin-top:40px">${escapeHtml(f.signatory || 'Principal')}<br><span style="font-size:12px">${escapeHtml(f.signatory_role || 'Signature with seal')}</span></p>`
-  b += '</div>'
-  return b
+  b += `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:48pt;font-size:10pt">` +
+    `<div style="color:#4b5563">Date of issue: ${escapeHtml(f.date_of_issue ?? '')}</div>` +
+    `<div style="text-align:center;min-width:55mm;border-top:0.75pt solid #9ca3af;padding-top:4pt">${escapeHtml(f.signatory || 'Principal')}` +
+    `<div style="font-size:8.5pt;color:#6b7280">${escapeHtml(f.signatory_role || 'Signature with seal')}</div></div></div>`
+  return documentHTML(facts, { title: typeName, subtitle: f.student_name || undefined, docNo: f.serial_no || undefined, date: f.date_of_issue || undefined }, b)
 }
 
 const ordinalSmall: Record<number, string> = {

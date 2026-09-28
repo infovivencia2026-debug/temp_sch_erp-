@@ -60,6 +60,13 @@ export const defaultReportCardHTML = `<div class="card">
   </footer>
 </div>`
 
+/** The built-in card's colour is the school's own brand colour (the
+ *  frame, the title band, the table heads, the rule under the name),
+ *  substituted for __ACCENT__ with the font. */
+export function reportCardCSS(font: string, accent: string): string {
+  return defaultReportCardCSS.split('__FONT__').join(font).split('__ACCENT__').join(accent)
+}
+
 export const defaultReportCardCSS = `
 /* A CARD MEASURED AGAINST THE PAPER, NOT AGAINST A GUESS ABOUT IT.
 
@@ -85,7 +92,7 @@ export const defaultReportCardCSS = `
    the application prints at a 14mm margin and leaves 182mm. */
 .card { width: 190mm; max-width: 100%; margin: 0 auto; padding: 8mm;
         box-sizing: border-box;
-        border: 2px solid #1e3a5f;
+        border: 2px solid __ACCENT__;
         /* The face is the school's choice, substituted below. A fallback chain
            would have meant the card printed in whichever of the three happened
            to be on the machine, which is a different document in the office
@@ -102,8 +109,8 @@ export const defaultReportCardCSS = `
 .card .motto { font-size: 9.5pt; font-style: italic; color: #4a5568; margin-top: 1mm; }
 .card h1 { margin: 0; font-size: 20pt; letter-spacing: .5px; text-transform: uppercase; }
 .card h2 { margin: 3mm 0 1mm; font-size: 12pt; letter-spacing: 3px;
-           background: #1e3a5f; color: #fff; display: inline-block; padding: 1.5mm 8mm; }
-.card .rule { height: 1px; background: #c9a227; margin: 2mm 0; }
+           background: __ACCENT__; color: #fff; display: inline-block; padding: 1.5mm 8mm; }
+.card .rule { height: 1px; background: __ACCENT__; margin: 2mm 0; }
 .card .meta { font-size: 9.5pt; color: #4a5568; }
 .card .who { display: flex; gap: 6mm; margin: 5mm 0; align-items: flex-start; }
 .card .photo { width: 28mm; height: 34mm; border: 1px solid #cbd5e0; flex: 0 0 auto;
@@ -134,7 +141,7 @@ export const defaultReportCardCSS = `
 .card table.marks { width: 100%; border-collapse: collapse; font-size: 10pt; }
 .card table.marks th, .card table.marks td { border: 1px solid #99a; padding: 1.6mm 2mm; }
 .card table.marks thead th, .card table.marks tfoot th {
-        background: #1e3a5f; color: #fff; }
+        background: __ACCENT__; color: #fff; }
 .card table.marks td:first-child, .card table.marks th:first-child { text-align: left; }
 .card table.marks td { text-align: center; }
 .card .summary { display: flex; gap: 4mm; margin: 5mm 0; }

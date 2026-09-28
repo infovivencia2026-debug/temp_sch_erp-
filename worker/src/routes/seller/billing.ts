@@ -2,7 +2,7 @@ import type { Ctx, Router } from '../../router'
 import type { Env } from '../../env'
 import { badRequest, conflict, created, forbidden, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { institutionById, tenantDb, type Institution } from '../../tenant'
-import { FlowPDF } from '../../services/pdf'
+import { SchoolPDF, inr, pdfResponse } from '../../services/document'
 import { Messenger, SENT_BY_PLATFORM } from '../../services/messaging'
 import { BUILTIN_TEMPLATES } from '../admin/msg_templates'
 import { registerJob } from '../../services/jobs'
@@ -369,47 +369,38 @@ SCHEDULES.push({ name: 'billing_daily', spec: '15 6 * * *', kind: 'billing:daily
 
 export async function invoicePDF(env: Env, inv: InvoiceRow): Promise<Uint8Array> {
   const s = await billingSettings(env)
-  const pdf = await FlowPDF.create()
-  pdf.setFont('B', 16); pdf.multiCell(8, inv.status === 'void' ? 'TAX INVOICE (VOID)' : 'TAX INVOICE')
-  pdf.ln(2)
-  pdf.setFont('B', 11); pdf.multiCell(5.5, s.seller_name || 'Seller name not set')
-  pdf.setFont('', 10)
-  if (s.seller_address) pdf.multiCell(5, s.seller_address)
-  if (inv.seller_gstin || s.seller_gstin) pdf.multiCell(5, 'GSTIN: ' + (inv.seller_gstin || s.seller_gstin))
-  if (s.seller_email) pdf.multiCell(5, s.seller_email)
-  pdf.ln(4)
-  pdf.setFont('B', 10); pdf.multiCell(5, `Invoice ${inv.number}`)
-  pdf.setFont('', 10)
-  pdf.multiCell(5, `Issued ${inv.issued_on}    Due ${inv.due_on}`)
-  pdf.ln(3)
-  pdf.setFont('B', 10); pdf.multiCell(5, 'Bill to')
-  pdf.setFont('', 10); pdf.multiCell(5, inv.school ?? '')
-  if (inv.school_gstin) pdf.multiCell(5, 'GSTIN: ' + inv.school_gstin)
-  pdf.ln(4)
-  pdf.setFont('B', 10); pdf.multiCell(5, 'Description')
-  pdf.setFont('', 10); pdf.multiCell(5, inv.description + '    (SAC 998431)')
-  pdf.ln(3)
+  /* The seller's own tax invoice to a school, so the letterhead is the
+     seller's, in the shared document design (services/document.ts). */
+  const gstin = inv.seller_gstin || s.seller_gstin
+  const pdf = await SchoolPDF.create(
+    { name: s.seller_name || 'Seller name not set', accent: '#1f2937', address: s.seller_address || undefined,
+      email: s.seller_email || undefined, affiliation: gstin ? 'GSTIN ' + gstin : undefined },
+    { title: inv.status === 'void' ? 'Tax invoice (void)' : 'Tax invoice', subtitle: inv.school ?? undefined, docNo: inv.number,
+      date: inv.issued_on, watermark: inv.status === 'void' ? 'VOID' : undefined },
+  )
+  const facts: [string, string][] = [['Bill to', inv.school ?? '-']]
+  if (inv.school_gstin) facts.push(['School GSTIN', inv.school_gstin])
+  facts.push(['Invoice date', inv.issued_on], ['Due date', inv.due_on])
+  if (inv.period_from && inv.period_to) facts.push(['Period', `${inv.period_from} to ${inv.period_to}`])
+  pdf.facts(facts)
   const pct = (inv.gst_rate_bp / 100).toFixed(inv.gst_rate_bp % 100 ? 2 : 0)
-  pdf.multiCell(6, `Taxable value: ${rupees(inv.amount_paise)}`)
-  pdf.multiCell(6, `GST @ ${pct}%: ${rupees(inv.gst_paise)}`)
-  pdf.setFont('B', 11); pdf.multiCell(7, `Total: ${rupees(inv.total_paise)}`)
-  pdf.setFont('', 10)
-  if (inv.paid_paise > 0) pdf.multiCell(6, `Paid: ${rupees(inv.paid_paise)}`)
-  if (inv.status !== 'void') pdf.multiCell(6, `Balance due: ${rupees(inv.total_paise - inv.paid_paise)}`)
-  pdf.ln(5)
+  pdf.table(
+    [{ label: 'Description', width: 5 }, { label: 'SAC', width: 1.2 }, { label: 'Amount', width: 1.8, align: 'right' }],
+    [[inv.description, '998431', inr(inv.amount_paise, true)],
+     [`GST @ ${pct}%`, '', inr(inv.gst_paise, true)],
+     ['Total', '', inr(inv.total_paise, true)]],
+    { strong: new Set([2]) },
+  )
+  if (inv.paid_paise > 0) pdf.total('Paid', inr(inv.paid_paise, true))
+  if (inv.status !== 'void') pdf.total('Balance due', inr(inv.total_paise - inv.paid_paise, true), true)
   if (s.bank_details || s.upi_vpa) {
-    pdf.setFont('B', 10); pdf.multiCell(5, 'How to pay')
-    pdf.setFont('', 10)
-    if (s.upi_vpa) pdf.multiCell(5, 'UPI: ' + s.upi_vpa)
-    if (s.bank_details) pdf.multiCell(5, s.bank_details)
-    pdf.multiCell(5, `Quote ${inv.number} as the reference.`)
+    pdf.heading('How to pay')
+    if (s.upi_vpa) pdf.paragraph('UPI: ' + s.upi_vpa)
+    if (s.bank_details) pdf.paragraph(s.bank_details)
+    pdf.paragraph(`Quote ${inv.number} as the reference.`)
   }
-  if (inv.notes) { pdf.ln(3); pdf.multiCell(5, inv.notes) }
+  if (inv.notes) { pdf.heading('Notes'); pdf.paragraph(inv.notes) }
   return pdf.save()
-}
-
-function pdfResponse(bytes: Uint8Array, name: string): Response {
-  return new Response(bytes, { headers: { 'content-type': 'application/pdf', 'content-disposition': `inline; filename="${name.replace(/[^A-Za-z0-9._-]/g, '_')}.pdf"`, 'cache-control': 'no-store' } })
 }
 
 // ---------------------------------------------------------------------------

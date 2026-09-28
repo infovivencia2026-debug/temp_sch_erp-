@@ -5,7 +5,7 @@ import {
   Card, CardHeader, Button, PrintButton, Checkbox, EmptyState, FormNotice,
 } from '@/components/ui'
 import FilePicker, { type UploadedFile } from '@/components/FilePicker'
-import { useCan } from '@/lib/session'
+import { useCan, useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 /* ID cards, actually printed.
@@ -94,6 +94,11 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
     queryFn: () => api.get<Branding>('/api/v1/setup/institution'),
     retry: false,
   })
+  /* The name the school brands itself by (display_name), the same one the
+     letterhead carries, rather than the registered name. */
+  const inst = useSession().institution
+  const schoolName = inst?.display_name || inst?.name || school.data?.name || ''
+  const logoURL = inst?.logo_key ? `/api/v1/files/${inst.logo_key}?inline=1` : school.data?.logo_url
 
   const toggle = (id: string) =>
     setPicked((v) => {
@@ -190,7 +195,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
               >
                 {picked.size === staff.length ? 'Clear all' : 'Select everybody'}
               </Button>
-              {picked.size > 0 && <PrintButton label={`Print ${picked.size}`} />}
+              {picked.size > 0 && <PrintButton label={`Print ${picked.size}`} title="Staff ID cards" subtitle={`${picked.size} card${picked.size === 1 ? '' : 's'}`} sourceSelector="#staff-id-cards" />}
             </div>
           }
         />
@@ -209,7 +214,7 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
       </Card>
 
       {chosen.length > 0 && (
-        <div className="flex flex-wrap gap-3">
+        <div id="staff-id-cards" className="flex flex-wrap gap-3">
           {chosen.map((e) => (
             <div
               key={e.id}
@@ -235,11 +240,11 @@ export default function IDCards({ staff }: { staff: Employee[] }) {
                   printing our crest on top of theirs is worse than either. */}
               {!frontArt && (
                 <div className="flex items-center gap-2 border-b pb-1.5">
-                  {school.data?.logo_url && (
-                    <img src={school.data.logo_url} alt="" className="h-6 w-6 object-contain" />
+                  {logoURL && (
+                    <img src={logoURL} alt="" className="h-6 w-6 object-contain" />
                   )}
                   <span className="text-[11px] font-semibold uppercase tracking-wide">
-                    {school.data?.name ?? ''}
+                    {schoolName}
                   </span>
                 </div>
               )}

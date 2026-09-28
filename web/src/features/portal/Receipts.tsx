@@ -143,35 +143,12 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
   if (!d) return null
 
   return (
-    <div id="receipt-sheet">
+    <div id="receipt-sheet" data-print-source="">
     <Card>
-      {/* THE SHEET IS THE RECEIPT, NOT THE PAGE IT SITS ON.
-
-          Printing gave a parent the breadcrumb, the three summary cards and
-          the receipt underneath — a page about receipts rather than the
-          receipt they asked for, and the thing they are taking to the office
-          was the last third of it.
-
-          visibility rather than display: hiding an ancestor hides its
-          descendants whatever they say, so the receipt has to stay visible
-          inside a hidden page — which is exactly what visibility allows and
-          display does not. */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          #receipt-sheet, #receipt-sheet * { visibility: visible !important; }
-          #receipt-sheet {
-            position: absolute !important;
-            left: 0; top: 0; width: 100%;
-            border: none !important;
-          }
-          /* No controls on the sheet. The full-screen toggle on a table
-             header printed as a small square over the word "Amount", which is
-             a button somebody is holding a piece of paper trying to press. */
-          #receipt-sheet .no-print,
-          #receipt-sheet button { display: none !important; }
-        }
-      `}</style>
+      {/* THE SHEET IS THE RECEIPT, NOT THE PAGE IT SITS ON. Print copies
+          this card alone onto the school's letterhead (lib/print.ts). The
+          stylesheet that used to live here hid `body *` at print time, which
+          hid the print sheet as well and printed a blank page. */}
       <CardHeader
         title={t('portal.receipts.detail_title', { number: d.receipt_no })}
         description={t('portal.receipts.detail_description', { institution: d.institution, year: d.financial_year })}
@@ -180,7 +157,7 @@ function PrintableReceipt({ paymentId }: { paymentId: string }) {
             {/* One button. Two that open the same dialog read as two things
                 the product does, and the second one promised a file rather
                 than a dialog — which is what it was asked to stop doing. */}
-            <PrintButton label="Print" />
+            <PrintButton label="Print" scope="card" title="Fee receipt" docNo={d.receipt_no} subtitle={`${d.student_name} · ${d.financial_year}`} />
           </span>
         }
       />

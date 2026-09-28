@@ -1,4 +1,5 @@
 import type { Router } from '../../router'
+import { DOC_PRINT_CSS, documentHTML, schoolFacts } from '../../services/document'
 import type { Employee, HRAlert, HRAway, HRDashboard, Page } from '@shared/api'
 import { badRequest, bool, clampInt, isUUID, notFound, now, ok, readJSON, uuid } from '../../http'
 import { can } from '../../identity'
@@ -192,21 +193,21 @@ function staffOverviewSection(ov: StaffOverview): string {
 
 const staffOverviewCSS = `
 body { font-family: sans-serif; color: #222; margin: 0; }
-.report { padding: 24px; }
+.report { padding: 0; }
+.report + .report { margin-top: 18pt; }
 .report h1 { font-size: 20px; margin: 0 0 12px; }
-.report h2 { font-size: 14px; margin: 18px 0 6px; color: #3f6bbf; }
+.report h2 { font-size: 12pt; margin: 14pt 0 6pt; color: #111827; }
 .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 .stat { border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 14px; min-width: 90px; }
 .stat .num { font-size: 20px; font-weight: 700; }
 .stat .lbl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .04em; }
 .ct { font-size: 12px; color: #444; margin: 4px 0 10px; }
 .empty { font-style: italic; color: #888; }
-.page-break { page-break-before: always; }
-.page-break:first-child { page-break-before: avoid; }
+.page-break + .page-break { page-break-before: always; }
 @media print {
   body { margin: 0; }
-  .report { padding: 12mm; }
-  .page-break { page-break-before: always; }
+  .report { padding: 0; }
+  .page-break + .page-break { page-break-before: always; }
   .stat { border: 1px solid #ccc; }
 }
 `
@@ -400,7 +401,8 @@ export function registerStaff(r: Router) {
       page += `<div class="report page-break"><h1>${esc(staffReportTitle(ov))}</h1>${staffOverviewSection(ov)}</div>`
     }
     if (page === '') page = `<div class="report"><p class="empty">No teaching staff to report on yet.</p></div>`
-    return ok({ html: page, css: staffOverviewCSS, filename: 'staff-overview-all.pdf' })
+    const facts = await schoolFacts(c.db, c.id.institution!)
+    return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: `${refs.results.length} teaching staff` }, page), css: staffOverviewCSS + DOC_PRINT_CSS, filename: 'staff-overview-all.pdf' })
   })
 
   r.get('/hr/employees/{id}/detail', READ, async (c) => {
@@ -451,7 +453,8 @@ export function registerStaff(r: Router) {
     if (!isUUIDish(c.params.id)) throw badRequest('invalid employee id')
     const ov = await resolveStaffOverview(c.db, c.params.id)
     if (!ov) throw notFound()
-    return ok({ html: `<div class="report"><h1>${esc(staffReportTitle(ov))}</h1>${staffOverviewSection(ov)}</div>`, css: staffOverviewCSS, filename: `staff-overview-${c.params.id}.pdf` })
+    const facts = await schoolFacts(c.db, c.id.institution!)
+    return ok({ html: documentHTML(facts, { title: 'Staff overview', subtitle: staffReportTitle(ov) }, `<div class="report">${staffOverviewSection(ov)}</div>`), css: staffOverviewCSS + DOC_PRINT_CSS, filename: `staff-overview-${c.params.id}.pdf` })
   })
 
   r.get('/hr/documents', READ, async (c) => {

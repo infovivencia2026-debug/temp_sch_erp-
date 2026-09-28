@@ -725,7 +725,7 @@ async function getStudentIDCard(c: Ctx): Promise<Response> {
   const v = await c.db.prepare(`
       SELECT st.id AS student_id, ${fullName('st')} AS full_name, st.admission_no, cl.name AS class_name,
              sec.name AS section_name, en.roll_no, st.date_of_birth, st.blood_group, sh.allergies, h.name AS house,
-             st.photo_file_id, gd.full_name AS guardian_name, gd.phone AS guardian_phone, i.name AS school_name,
+             st.photo_file_id, gd.full_name AS guardian_name, gd.phone AS guardian_phone, COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school_name,
              cam.name AS campus_name, st.status
         FROM students st
         JOIN institutions i ON i.id = st.institution_id
@@ -763,7 +763,7 @@ async function getParentIDCard(c: Ctx): Promise<Response> {
   const u = await c.db.prepare(`
       SELECT u.id AS user_id, u.full_name, u.phone, u.email,
              (SELECT g.relation FROM guardians g WHERE g.user_id = u.id LIMIT 1) AS relation,
-             i.name AS school_name
+             COALESCE((SELECT NULLIF(TRIM(b.display_name), '') FROM branding_profiles b WHERE b.campus_id IS NULL LIMIT 1), i.name) AS school_name
         FROM users u
         JOIN institutions i ON i.id = u.institution_id
        WHERE u.id = ?`).bind(c.id.userId).first<{

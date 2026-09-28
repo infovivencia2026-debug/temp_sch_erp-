@@ -90,28 +90,69 @@ html[data-printing] { overflow: hidden; }
   .print-sheet__paper { margin-top: 0; padding: 10mm 6mm 8mm; min-height: 0; box-shadow: none; }
 }
 
-/* Letterhead: the logo, the name, one strong rule. */
+/* THE DOCUMENT DESIGN, shared by every printed page in the product.
+
+   One white-labelled look: the school's logo and name at the top left, its
+   address and contact in small grey type under the name, a rule in the
+   school's own colour (--doc-accent, set by lib/print.ts from the brand
+   colour and darkened to a neutral when too pale to read), then the
+   document's title with its number and date set against the right margin.
+   Tables have a tinted head and hairline rules. Type is the system's own
+   sans, in points, black on white. */
+.print-sheet__paper { --doc-accent: #1f2937; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Telugu', 'Helvetica Neue', Arial, sans-serif; }
 .print-sheet__head {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 14pt;
   padding-bottom: 10pt;
   margin-bottom: 14pt;
-  border-bottom: 2px solid #000;
+  border-bottom: 2.5pt solid var(--doc-accent);
+  break-inside: avoid;
 }
-.print-sheet__logo { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
-.print-sheet__school { margin: 0; font-size: 17pt; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
-.print-sheet__tagline { margin: 2px 0 0; font-size: 10pt; color: #444; }
+.print-sheet__logo { height: 52px; width: auto; max-width: 140px; object-fit: contain; flex: none; }
+.print-sheet__head-text { min-width: 0; }
+.print-sheet__school {
+  margin: 0;
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: #111827;
+  overflow-wrap: anywhere;
+}
+.print-sheet__tagline { margin: 2pt 0 0; font-size: 10pt; font-style: italic; color: #4b5563; }
+.print-sheet__contact { margin: 3pt 0 0; font-size: 8.5pt; line-height: 1.4; color: #4b5563; overflow-wrap: anywhere; }
+.print-sheet__sep { margin: 0 5pt; color: #9ca3af; }
 
-.print-sheet__title { margin: 0 0 12pt; }
-.print-sheet__title h1 { margin: 0; font-size: 15pt; font-weight: 700; line-height: 1.25; }
-.print-sheet__title p { margin: 2pt 0 0; font-size: 10.5pt; color: #444; }
+.print-sheet__title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16pt;
+  margin: 0 0 14pt;
+  break-after: avoid;
+}
+.print-sheet__title-text { min-width: 0; border-left: 3pt solid var(--doc-accent); padding-left: 8pt; }
+.print-sheet__title h1 { margin: 0; font-size: 15pt; font-weight: 700; line-height: 1.25; color: #111827; overflow-wrap: anywhere; }
+.print-sheet__title p { margin: 2pt 0 0; font-size: 10pt; color: #4b5563; overflow-wrap: anywhere; }
+.print-sheet__meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 8pt;
+  row-gap: 1pt;
+  margin: 0;
+  flex: none;
+  font-size: 9pt;
+  text-align: right;
+}
+.print-sheet__meta dt { color: #6b7280; font-weight: 500; }
+.print-sheet__meta dd { margin: 0; color: #111827; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* The body is the screen's own markup, so most of it already knows how to
    lay itself out; this only takes the screen out of it. */
 .print-sheet__body { color: #000; }
 .print-sheet__source { max-width: none; overflow: visible; }
-.print-sheet__body [data-page-enter] { display: none; }
+.print-sheet__body [data-page-head] { display: none; }
 .print-sheet__body .card,
 .print-sheet__body .cell,
 .print-sheet__body .cell-grid,
@@ -122,11 +163,40 @@ html[data-printing] { overflow: hidden; }
   box-shadow: none;
   background-image: none;
 }
-.print-sheet__body .card { break-inside: avoid; margin-bottom: 10pt; }
-.print-sheet__body table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.print-sheet__body .card { break-inside: avoid; margin-bottom: 10pt; border: 0.75pt solid #e5e7eb; border-radius: 6pt; overflow: visible; }
+/* A card longer than a page has to be allowed to break, or it is pushed
+   whole onto the next sheet and clipped there. */
+.print-sheet__body .card:has(table) { break-inside: auto; }
+.print-sheet__body table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: auto; }
 .print-sheet__body th,
-.print-sheet__body td { padding: 4pt 6pt; border-bottom: 1px solid #ccc; vertical-align: top; text-align: left; }
-.print-sheet__body thead th { border-bottom: 1.5px solid #000; font-weight: 700; position: static; background: #fff; }
+.print-sheet__body td {
+  padding: 4pt 6pt;
+  border-bottom: 0.75pt solid #e5e7eb;
+  border-left: 0;
+  border-right: 0;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-width: none;
+  white-space: normal;
+}
+.print-sheet__body thead th {
+  border-bottom: 1pt solid var(--doc-accent);
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #374151;
+  position: static;
+  background: color-mix(in srgb, var(--doc-accent) 7%, #fff);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* Left unless the screen said otherwise: zero specificity, so a column the
+   screen right-aligned (an amount) stays right-aligned on paper. */
+:where(.print-sheet__body) :where(th, td) { text-align: left; }
+.print-sheet__body .truncate { overflow: visible; text-overflow: clip; white-space: normal; }
+.print-sheet__body [class*='line-clamp'] { -webkit-line-clamp: unset; display: block; overflow: visible; }
 .print-sheet__body thead { display: table-header-group; }
 .print-sheet__body tr { break-inside: avoid; }
 .print-sheet__body .tabular-nums,
@@ -154,10 +224,13 @@ html[data-printing] { overflow: hidden; }
   gap: 12px;
   margin-top: 18pt;
   padding-top: 6pt;
-  border-top: 1px solid #999;
-  font-size: 8.5pt;
-  color: #555;
+  border-top: 0.75pt solid #d1d5db;
+  font-size: 8pt;
+  color: #6b7280;
+  break-inside: avoid;
 }
+.print-sheet__foot > :first-child { flex: none; }
+.print-sheet__foot > :last-child { min-width: 0; text-align: right; overflow-wrap: anywhere; }
 
 /* On paper the chrome goes and the paper is the page. The sheet is the
    only thing left on the body, so the global print block's hiding of
@@ -173,7 +246,11 @@ html[data-printing] { overflow: hidden; }
     padding: 0;
   }
   .print-sheet__bar { display: none !important; }
-  .print-sheet__paper {
+  /* Both selectors: the landscape rule above is more specific than a bare
+     class, and its min-height of 210mm left a blank second page under every
+     wide table. */
+  .print-sheet__paper,
+  .print-sheet[data-landscape] .print-sheet__paper {
     width: auto;
     min-height: 0;
     margin: 0;
@@ -182,3 +259,7 @@ html[data-printing] { overflow: hidden; }
   }
   .print-sheet__head { break-inside: avoid; }
 }
+
+/* A card's title stays with the first rows of its table rather than being
+   left alone at the foot of a page. */
+.print-sheet__body .card > :first-child { break-after: avoid; }

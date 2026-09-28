@@ -100,7 +100,7 @@ export function PageHead({
     /* No bottom border. The rule under a page title is the most-repeated line
        in the product and it separates a heading from its own content -- the
        28px of space below does the same job without drawing anything. */
-    <div data-page-enter="" className={cn('px-[var(--page-gutter)] pb-[var(--page-head-gap)] pt-[var(--page-top)]', WIDTH[width])}>
+    <div data-page-enter="" data-page-head="" className={cn('px-[var(--page-gutter)] pb-[var(--page-head-gap)] pt-[var(--page-top)]', WIDTH[width])}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 max-w-3xl">
           {/* The breadcrumb must not break mid-word.
@@ -2094,12 +2094,41 @@ import { useOpenState } from '@/lib/motion'
  * that admits printing is a first-class action in a school rather than
  * something the browser menu handles. Hidden from the printout itself.
  */
-export function PrintButton({ label = 'Print' }: { label?: string }) {
+export function PrintButton({
+  label = 'Print', scope = 'page', title, subtitle, docNo, sourceSelector,
+}: {
+  label?: string
+  /** 'page' prints the whole screen; 'card' prints only the card (or the
+   *  nearest [data-print-source]) the button sits in -- a ticket, a receipt,
+   *  a slip -- rather than the list around it. */
+  scope?: 'page' | 'card'
+  title?: string
+  subtitle?: string
+  docNo?: string
+  /** Print this element (a CSS selector) rather than the page or the card. */
+  sourceSelector?: string
+}) {
+  const anchor = useRef<HTMLSpanElement>(null)
   return (
-    <Button variant="secondary" size="sm" onClick={() => printDocument()} className="no-print">
+    <>
+    <span ref={anchor} hidden />
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => {
+        const at = anchor.current
+        const picked = sourceSelector ? document.querySelector<HTMLElement>(sourceSelector) : null
+        const source = picked ?? (scope === 'card' && at
+          ? (at.closest('[data-print-source]') ?? at.closest('.card')) as HTMLElement | null
+          : undefined)
+        printDocument({ source, title, subtitle, docNo })
+      }}
+      className="no-print"
+    >
       <Printer className="h-3.5 w-3.5" />
       {label}
     </Button>
+    </>
   )
 }
 

@@ -564,7 +564,7 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
      (lib/print.ts), so the ref marks where the receipt starts and ends. */
   const sheet = useRef<HTMLDivElement>(null)
   return (
-    <div ref={sheet}>
+    <div>
     <Card className="border-success/40 print:border-0">
       <CardHeader
         title="Payment received"
@@ -577,7 +577,8 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
                 printDocument({
                   source: sheet.current,
                   title: 'Fee receipt',
-                  subtitle: `Receipt ${receipt.receipt_no} · ${receipt.financial_year}`,
+                  subtitle: `${receipt.student_name} · ${receipt.financial_year}`,
+                  docNo: receipt.receipt_no,
                 })
               }
             >
@@ -587,8 +588,10 @@ function ReceiptView({ receipt, onClose }: { receipt: Receipt; onClose: () => vo
           </div>
         }
       />
-      <div className="p-6 text-[14px]">
-        <div className="mb-5 text-center">
+      <div ref={sheet} className="p-6 text-[14px]">
+        {/* The school's name and logo, on screen. On paper the letterhead
+            already carries them, so the copy leaves this out. */}
+        <div className="no-print mb-5 text-center">
           {logoKey && (
             <img
               src={`/api/v1/files/${logoKey}?inline=1`}

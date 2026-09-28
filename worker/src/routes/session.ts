@@ -6,6 +6,7 @@ import { institutionById, tenantDb } from '../tenant'
 import { entitlementFor } from './misc/shell'
 import type { Ctx } from '../router'
 import { simulatedPayEnabled } from './portal/family'
+import { letterheadFacts } from '../services/document'
 
 /* GET /api/v1/session: the boot call. Same JSON as internal/api/session.go
    so the web client needs no change. Permissions and roles come from the
@@ -39,8 +40,8 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
     db.prepare(`SELECT DISTINCT rp.permission_key AS key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
                 WHERE ur.user_id = ? ORDER BY rp.permission_key`).bind(s.user_id)
       .all<{ key: string }>(),
-    db.prepare('SELECT display_name, tagline, logo_key, favicon_key, primary_color, accent_color FROM branding_profiles WHERE campus_id IS NULL LIMIT 1')
-      .first<{ display_name: string | null; tagline: string | null; logo_key: string | null; favicon_key: string | null; primary_color: string | null; accent_color: string | null }>()
+    db.prepare('SELECT display_name, tagline, logo_key, favicon_key, primary_color, accent_color, support_email, support_phone FROM branding_profiles WHERE campus_id IS NULL LIMIT 1')
+      .first<{ display_name: string | null; tagline: string | null; logo_key: string | null; favicon_key: string | null; primary_color: string | null; accent_color: string | null; support_email: string | null; support_phone: string | null }>()
       .catch(() => null),
     env.CONTROL.prepare('SELECT s.plan_code, p.name AS plan_name, s.status, s.renews_on, s.trial_ends_on, p.modules FROM subscriptions s JOIN plans p ON p.code = s.plan_code WHERE s.institution_id = ?')
       .bind(inst.id).first<{ plan_code: string; plan_name: string; status: string; renews_on: string | null; trial_ends_on: string | null; modules: string }>(),
@@ -51,7 +52,7 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
      (module_settings), and `subscription` is the entitlement the gate uses,
      with `active` -- the flag the app reads to decide whether the school is
      switched on. */
-  const [modRows, ent, pay] = await Promise.all([
+  const [modRows, ent, pay, lh] = await Promise.all([
     db.prepare('SELECT module, enabled FROM module_settings ORDER BY module').all<{ module: string; enabled: number }>()
       .catch(() => ({ results: [] as { module: string; enabled: number }[] })),
     entitlementFor({ env, id: { institution: inst } } as unknown as Ctx),
@@ -61,6 +62,7 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
        Without them the fee page offered a parent no way to pay at all. */
     db.prepare(`SELECT COALESCE(upi_vpa,'') AS vpa, COALESCE(NULLIF(upi_payee_name,''), name) AS payee FROM institutions WHERE id = ?`)
       .bind(inst.id).first<{ vpa: string; payee: string }>().catch(() => null),
+    letterheadFacts(db, inst.id),
   ])
   const modules = modRows.results.map((m) => ({ module: m.module, enabled: !!m.enabled }))
   const ALL_MODULES = ['students', 'academics', 'attendance', 'fees', 'communication', 'exams', 'hr', 'transport', 'library', 'hostel', 'inventory']
@@ -87,8 +89,11 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
       accent_color: branding?.accent_color ?? undefined,
       upi_vpa: pay?.vpa || undefined, upi_payee_name: pay?.vpa ? (pay.payee || inst.name) : undefined,
       simulated_pay: simulatedPayEnabled(env),
+      address: lh.address, phone: branding?.support_phone || lh.phone,
+      email: branding?.support_email || lh.email, affiliation: lh.affiliation,
     },
     modules,
     subscription,
   }
 }
+

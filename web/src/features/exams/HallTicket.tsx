@@ -412,7 +412,7 @@ function MyTicket({ examId, picker }: { examId: string; picker: React.ReactNode 
               />
             )}
             {picker}
-            <PrintButton label="Print ticket" />
+            <PrintButton label="Print ticket" title="Hall ticket" subtitle={`${t.student_name} · ${t.exam_name}`} docNo={t.ticket_no} />
           </>
         }
       />

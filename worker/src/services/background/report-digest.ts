@@ -1,6 +1,7 @@
 import type { Env } from '../../env'
 import type { Institution } from '../../tenant'
 import { renderDigestPDF, DIGEST_REPORT_LABELS } from '../pdf'
+import { inr, logoBytes, schoolFacts } from '../document'
 import { specs } from '../../routes/admin/export'
 import { localDate } from './schools'
 import { Messenger, MessagingError } from '../messaging'
@@ -31,7 +32,7 @@ function rangeFor(period: string, today: string): Range {
   return { period: 'daily', from: today, to: today, label: today }
 }
 
-const rupees = (paise: number) => '₹' + (paise / 100).toFixed(2)
+const rupees = (paise: number) => inr(paise)
 
 async function section(db: D1Database, key: string, r: Range): Promise<string> {
   switch (key) {
@@ -145,8 +146,9 @@ export async function sendReportDigest(env: Env, inst: Institution, db: D1Databa
     const atts: DigestAttachment[] = []
     if (ch === 'email') {
       note = ''
+      const facts = await schoolFacts(db, inst)
       atts.push({ filename: `report-digest-${period}-${today}.pdf`, content_type: 'application/pdf',
-        data: await renderDigestPDF(school, periodWord, r.label, byChannel[ch], blocks) })
+        data: await renderDigestPDF(facts, await logoBytes(env, db, facts.logoKey), periodWord, r.label, byChannel[ch], blocks) })
       atts.push(...await csvAttachments(db, byChannel[ch], r, today))
     }
     const body = renderBody(school, periodWord, r, byChannel[ch], blocks, note)

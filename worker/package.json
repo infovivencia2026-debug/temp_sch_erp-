@@ -17,6 +17,7 @@
     "test:unit": "bash scripts/test-provision.sh && bash scripts/test-billing.sh && bash scripts/test-ai.sh"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "bcryptjs": "^3",
     "pdf-lib": "^1.17.1",
     "qrcode-generator": "^2.0.4"

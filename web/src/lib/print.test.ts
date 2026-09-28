@@ -26,8 +26,8 @@ afterEach(() => {
 describe('printDocument', () => {
   it('puts the screen under the letterhead, titled by its own heading, and hides the app', () => {
     screen(`
-      <div data-page-enter=""><h1>Fee collection</h1><p>Today's counter</p></div>
-      <div class="card"><table><tr><th>Receipt</th><th>Amount</th></tr></table></div>
+      <div data-page-enter="" data-page-head=""><h1>Fee collection</h1><p>Today's counter</p></div>
+      <div data-page-enter=""><div class="card"><table><tr><th>Receipt</th><th>Amount</th></tr></table></div></div>
     `)
     const sheet = printDocument({ open: false })!
     expect(printSheet()).toBe(sheet)
@@ -39,6 +39,27 @@ describe('printDocument', () => {
     expect(sheet.querySelectorAll('h1')).toHaveLength(1)
     expect(sheet.querySelector('.print-sheet__body table')).not.toBeNull()
     expect(sheet.querySelector('.print-sheet__foot')?.textContent).toContain('by Asha')
+  })
+
+  it('keeps the page body, which carries the same entrance attribute as the head (the blank-PDF bug)', () => {
+    screen(`
+      <div data-page-enter="" data-page-head=""><h1>Fee overview</h1></div>
+      <div data-page-enter=""><div class="card"><p>₹47,95,200 demanded</p></div></div>
+    `)
+    const sheet = printDocument({ open: false, docNo: 'R-7' })!
+    expect(sheet.querySelector('.print-sheet__body')?.textContent).toContain('₹47,95,200 demanded')
+    expect(sheet.querySelector('.print-sheet__body [data-page-head]')).toBeNull()
+    expect(sheet.querySelector('.print-sheet__meta')?.textContent).toContain('R-7')
+  })
+
+  it('prints a school without a logo, address or colour as its name alone', () => {
+    setPrintLetterhead({ name: 'Plain School' })
+    screen('<h1>Register</h1><p>body</p>')
+    const sheet = printDocument({ open: false })!
+    expect(sheet.querySelector('.print-sheet__logo')).toBeNull()
+    expect(sheet.querySelector('.print-sheet__contact')).toBeNull()
+    expect(sheet.querySelector('.print-sheet__school')?.textContent).toBe('Plain School')
+    expect(sheet.textContent).not.toMatch(/wisen/i)
   })
 
   it('drops what only exists to be clicked and flattens form controls to their value', () => {

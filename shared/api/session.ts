@@ -31,6 +31,13 @@ export interface SessionResponse {
     /** The no-money test payment is offered only where the server allows
         it -- never in production, where the endpoint is 404. */
     simulated_pay?: boolean
+    /** What a printed document's letterhead carries under the name: the main
+        campus's postal address, and the school's phone and email (the
+        branding contact first, the campus's own otherwise). Absent when the
+        school has not entered them. */
+    address?: string; phone?: string; email?: string
+    /** Board affiliation or UDISE code, for the letterhead's small print. */
+    affiliation?: string
   }
   permissions: string[]
   modules?: { module: string; enabled: boolean }[]

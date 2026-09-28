@@ -108,6 +108,9 @@ export default function CardViewer({
           #rc-viewer .rc-chrome { display: none !important; }
           #rc-viewer .rc-scale { transform: none !important; }
           #rc-viewer .rc-scroll { overflow: visible !important; }
+          /* A page number on every sheet of a long document (Chromium draws
+             page margin boxes; other engines leave the margin blank). */
+          @page { margin: 14mm 14mm 16mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt system-ui, sans-serif; color: #6b7280; } }
         }
       `}</style>
       {card.css && <style>{card.css}</style>}
