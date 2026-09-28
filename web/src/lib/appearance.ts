@@ -236,7 +236,7 @@ const PHONE_SCALES: Partial<Scales> = { density: 7.5, borders: 0, corners: 2.7 }
 
 function onPhone(): boolean {
   if (typeof window === 'undefined') return false
-  return window.matchMedia('(max-width: 767px)').matches
+  return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches
 }
 
 function readScales(): Scales {
