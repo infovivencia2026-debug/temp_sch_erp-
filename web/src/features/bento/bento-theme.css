@@ -2416,10 +2416,10 @@ html[data-layout='bento'] body {
      exactly: it was never the size that failed, and a 96px number is already
      as loud as a card can be without swallowing itself. */
   --card-title: calc(clamp(14px, max(5.4cqh, 2.4cqi), 20px) * var(--bento-text, 1));
-  --card-sub: calc(clamp(12px, max(2.8cqh, 1.6cqi), 14px) * var(--bento-text, 1));
+  --card-sub: max(12px, calc(clamp(12px, max(2.8cqh, 1.6cqi), 14px) * var(--bento-text, 1)));
   --card-fig: calc(clamp(30px, 22cqh, 96px) * var(--bento-text, 1));
   --card-change: calc(clamp(12px, max(4.4cqh, 2cqi), 15px) * var(--bento-text, 1));
-  --card-note: calc(clamp(12px, max(4cqh, 1.9cqi), 14px) * var(--bento-text, 1));
+  --card-note: max(12px, calc(clamp(12px, max(4cqh, 1.9cqi), 14px) * var(--bento-text, 1)));
   --card-action: calc(clamp(13px, 3.2cqh, 15px) * var(--bento-text, 1));
 
   /* ONE NUMBER FOR THE EYEBROW'S SHAVE, AND IT IS ABOVE THE FLOOR.
@@ -2522,12 +2522,12 @@ html[data-layout='bento'] body {
 @media (max-width: 1023px) {
   [data-layout='bento'] .bento-cell {
     --card-title:  calc(15px * var(--bento-text, 1));
-    --card-sub:    calc(12px * var(--bento-text, 1));
+    --card-sub:    max(12px, calc(12px * var(--bento-text, 1)));
     /* Still the loudest thing on the card, and still allowed to grow with the
        cell on a tablet, where cells do differ in height. */
     --card-fig:    calc(clamp(34px, 20cqh, 56px) * var(--bento-text, 1));
     --card-change: calc(13px * var(--bento-text, 1));
-    --card-note:   calc(13px * var(--bento-text, 1));
+    --card-note:   max(12px, calc(13px * var(--bento-text, 1)));
     --card-action: calc(14px * var(--bento-text, 1));
   }
 
@@ -3098,6 +3098,16 @@ html:not(.dark)[data-layout='bento'] {
     padding: 0;
   }
 
+  /* Search is the one cell that is a sized button rather than a filler: it
+     keeps its own 36px square (44 on touch), and a sized grid item sits at
+     the START of its column, so its glyph landed ten pixels left of the
+     column's centre with a gap after it -- the bar read as having a missing
+     tab between Search and the next item. Centred in its column like the
+     glyphs of the cells either side. */
+  [data-layout='bento'] .bento-dock > button:has(kbd) {
+    justify-self: center;
+  }
+
   /* The two items whose button is not the cell.
 
      Every other tab is a button filling its cell, so its touch target is the
@@ -3604,9 +3614,9 @@ html:not(.dark)[data-layout='bento'] {
 [data-layout='bento'] .bento-cell {
   padding: 16px;
   --card-title: calc(15px * var(--bento-text, 1));
-  --card-sub: calc(12px * var(--bento-text, 1));
+  --card-sub: max(12px, calc(12px * var(--bento-text, 1)));
   --card-change: calc(13px * var(--bento-text, 1));
-  --card-note: calc(13px * var(--bento-text, 1));
+  --card-note: max(12px, calc(13px * var(--bento-text, 1)));
 }
 
 /* ONE THING PER CARD. On a quiet card the sentence is the news, so it takes
@@ -3645,7 +3655,9 @@ html:not(.dark)[data-layout='bento'] {
   .text-\[length\:min\(10px\2c var\(--card-note\2c 10px\)\)\],
   .text-\[length\:min\(9px\2c var\(--card-note\2c 9px\)\)\]
 ) {
-  font-size: calc(12px * var(--bento-text, 1));
+  /* 12px is the floor, not the start: the board's text scale can grow it
+     but not take it under, where a phone reads 11.4. */
+  font-size: max(12px, calc(12px * var(--bento-text, 1)));
 }
 [data-layout='bento'] .bento-cell { --card-sub-mult: 1; }
 [data-layout='bento'] [data-card] .uppercase {
@@ -3736,8 +3748,8 @@ html:not(.dark)[data-layout='bento'] {
 @media (max-width: 767px) {
   [data-layout='bento'] .bento-board[data-pager] .bento-cell {
     --card-title: calc(clamp(13px, 7.5cqh, 15px) * var(--bento-text, 1));
-    --card-sub: calc(clamp(11px, 6cqh, 12px) * var(--bento-text, 1));
-    --card-note: calc(clamp(12px, 6.5cqh, 13px) * var(--bento-text, 1));
+    --card-sub: max(12px, calc(clamp(11px, 6cqh, 12px) * var(--bento-text, 1)));
+    --card-note: max(12px, calc(clamp(12px, 6.5cqh, 13px) * var(--bento-text, 1)));
     --card-change: calc(clamp(12px, 6.5cqh, 13px) * var(--bento-text, 1));
     --card-fig: calc(clamp(28px, 20cqh, 44px) * var(--bento-text, 1));
   }
@@ -4556,4 +4568,41 @@ body:has(.bento-frost) [data-assistant-orb] {
 @media (prefers-reduced-motion: reduce) {
   .bento-slider::-webkit-slider-thumb { transition: none; }
   .bento-slider:active::-webkit-slider-thumb { transform: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ON A TABLET THE CORNER AND THE ORB STEP UP OVER THE DOCK.
+
+   The dock is centred and about 700px wide with every category showing; the
+   settings corner (cog + Focus | Work) holds x 21-170 and the orb the last
+   77px on the right, all three on the same bottom line. Measured: at 768 the
+   dock ran 70-698, under the corner's switch on the left and the orb on the
+   right; at 1024 it still started at x 161, under the "Work" half of the
+   switch. Three controls in the same pixels, and the one a finger gets is
+   whichever was painted last.
+
+   Narrowing the dock to clear them would fold most of the categories into
+   "+N" at exactly the width a tablet has room for them, so the two small
+   things move instead: up one row, clear of the bar, the way the phone
+   already lifts the orb over its tab bar. From 1100 up there is room on the
+   line for all three and nothing changes. The work area's reserve grows by
+   the same row so the lifted corner never sits on the last line of a page. */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  [data-layout='bento'] .bento-corner {
+    bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 10px);
+  }
+  :root[data-layout='bento'] {
+    --dock-reserve: calc(
+      var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 24px + 16px + 48px +
+      env(safe-area-inset-bottom, 0px)
+    );
+  }
+}
+/* The orb only meets the dock below ~880, where the bar is capped at the
+   viewport less its margins and reaches the right edge. The inline bottom
+   is the phone's --dock-h rule, hence the !important. */
+@media (min-width: 768px) and (max-width: 879.98px) {
+  [data-layout='bento'] [data-assistant-orb] {
+    bottom: calc(24px + var(--dock-btn, 40px) + var(--dock-pad, 8px) * 2 + 4px) !important;
+  }
 }
