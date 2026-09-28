@@ -695,17 +695,15 @@ export function Shell({
                 aria-current={on ? 'true' : undefined}
                 data-tip={ws.name}
                 className={cn(
-                  'rail-item grid size-10 shrink-0 place-items-center rounded-[10px]',
-                  'transition-colors duration-100 focus-visible:outline-none',
-                  'focus-visible:ring-2 focus-visible:ring-ring',
-                  on ? 'bg-surface-hover' : 'hover:bg-surface-hover',
+                  /* A bold tile in the workspace's own colour, which the theme
+                     sets; the one you are in is ringed in the same colour. */
+                  'rail-item rail-tile grid size-10 shrink-0 place-items-center rounded-[12px]',
+                  'transition-[filter,box-shadow,transform] duration-150 focus-visible:outline-none',
+                  on && 'rail-tile-on',
                 )}
+                style={{ ['--tile' as string]: `var(--dom-${hueFor(ws.name)})` }}
               >
-                <Mark
-                  className="size-[18px]"
-                  style={{ color: on ? `var(--dom-${hueFor(ws.name)})` : undefined }}
-                  aria-hidden="true"
-                />
+                <Mark className="size-[18px]" aria-hidden="true" />
               </button>
             )
           })}
