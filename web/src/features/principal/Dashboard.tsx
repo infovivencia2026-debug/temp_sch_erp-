@@ -67,9 +67,6 @@ export default function PrincipalDashboard() {
         {/* Before the numbers, not after them. A school that has not finished
             setting up is looking at zeroes, and the explanation has to arrive
             first or the dashboard reads as broken. */}
-        <SetupProgress />
-        <NeedsAttentionPanel limit={5} />
-        <PrincipalBriefCard />
         <CellGrid cols={4}>
           <Stat label="Students" icon={GraduationCap} period={asOf}
             value={picked ? picked.students : k.students}
@@ -152,6 +149,9 @@ export default function PrincipalDashboard() {
             />
           )}
         </CellGrid>
+        <SetupProgress />
+        <NeedsAttentionPanel limit={5} />
+        <PrincipalBriefCard />
 
         <Card>
           <CardHeader title="Needs attention" description="Items waiting on a decision" />
