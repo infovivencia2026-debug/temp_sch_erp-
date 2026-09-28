@@ -289,7 +289,11 @@ function greeting(): string {
 
 async function todaySummary(c: Ctx, sc: Scope, today: string): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = []
-  if (can(c.id, 'students.read')) {
+  /* The office's Today (admissions desk, head, admin) reads as the day's
+     traffic: enquiries, admissions, fees in, concerns. The roll count is a
+     standing figure, shown in the overview beneath, so it is left out here. */
+  const officeDay = can(c.id, 'admissions.read')
+  if (!officeDay && can(c.id, 'students.read')) {
     const p = studentPredicate(sc, 'st')
     const total = await count(c, `SELECT count(*) FROM students st WHERE st.id IN (SELECT e.student_id FROM enrollments e WHERE e.status = 'active') AND ${p.sql}`, ...p.args)
     if (total > 0) out.push({ label: 'Students', value: String(total) })
@@ -316,13 +320,23 @@ async function todaySummary(c: Ctx, sc: Scope, today: string): Promise<Record<st
     if (done) s.tone = 'good'
     out.push(s)
   }
+  if (officeDay) {
+    const n = await count(c, `SELECT count(*) FROM enquiries WHERE ${istDay('created_at')} = ?`, today)
+    out.push({ label: 'New enquiries', value: String(n) })
+    const a = await count(c, `SELECT count(*) FROM applications WHERE status = 'accepted' AND decided_at IS NOT NULL AND ${istDay('decided_at')} = ?`, today)
+    out.push({ label: 'Admissions today', value: String(a), hint: 'Offers accepted' })
+  }
   if (can(c.id, 'finance.payments.read')) {
     const collected = await count(c, `SELECT COALESCE(sum(amount_paise), 0) FROM payments WHERE status = 'success' AND paid_on = ?`, today)
     out.push({ label: 'Collected today', value: rupees(collected) })
   }
-  if (can(c.id, 'admissions.read')) {
-    const n = await count(c, `SELECT count(*) FROM enquiries WHERE ${istDay('created_at')} = ?`, today)
-    out.push({ label: 'New enquiries', value: String(n) })
+  if (officeDay && can(c.id, 'office.front_desk.read')) {
+    const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE status IN ('open','in_progress','waiting')) AS open,
+        count(*) FILTER (WHERE ${istDay('created_at')} = ?1) AS fresh FROM support_tickets`).bind(today).first<{ open: number; fresh: number }>()
+    const open = Number(r?.open ?? 0), fresh = Number(r?.fresh ?? 0)
+    const st: Record<string, unknown> = { label: 'Concerns', value: String(open), hint: fresh ? `${fresh} new today` : 'Open' }
+    if (open === 0) st.tone = 'good'
+    out.push(st)
   }
   if (can(c.id, 'hr.employees.read')) {
     const r = await c.db.prepare(`SELECT count(*) FILTER (WHERE status IN ('present','late','half_day')) AS present, count(*) AS marked
