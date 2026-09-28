@@ -18,6 +18,8 @@ const GroupReport = lazy(() => import('@/features/shared/GroupReport'))
 const BillingSchool = lazy(() => import('@/features/seller/BillingSchool'))
 const NeedsAttentionPage = lazy(() => import('@/components/ai/EarlyWarnings'))
 const ConcernsPage = lazy(() => import('@/features/me/MyConcerns'))
+// The design reference sheet: platform admins, or ?elements=1. In no navigation.
+const ElementsGallery = lazy(() => import('@/features/design/ElementsGallery'))
 import {
   CatalogProvider, useCatalog, useResolvedRole, useFeature, featurePath, firstUsable,
 } from '@/lib/catalog'
@@ -473,6 +475,7 @@ export function AppRoutes({ location }: { location?: string }) {
       <Route path="/billing" element={<Suspense fallback={<SkeletonPage />}><BillingSchool /></Suspense>} />
       <Route path="/group-report" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
       <Route path="/group-report/:groupId" element={<Suspense fallback={<SkeletonPage />}><GroupReport /></Suspense>} />
+      <Route path="/design/elements" element={<Suspense fallback={<SkeletonPage />}><ElementsGallery /></Suspense>} />
       <Route path="/" element={<Home />} />
       {/* Role-agnostic links, for anything that is written down
           before anybody knows who will read it — a notification,
