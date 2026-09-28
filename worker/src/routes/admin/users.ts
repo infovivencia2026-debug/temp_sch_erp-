@@ -537,7 +537,11 @@ export function registerAdminUsers(r: Router): void {
     }
     await userExists(c, target)
     const q = inList(desired)
-    const stmts = [c.db.prepare(`DELETE FROM user_permissions WHERE user_id = ? AND permission_key NOT IN ${q.sql}`).bind(target, ...q.args)]
+    /* An empty list means "take them all away": NOT IN over an empty list
+       matched nothing, so clearing every grant used to leave them all. */
+    const stmts = [desired.length === 0
+      ? c.db.prepare(`DELETE FROM user_permissions WHERE user_id = ?`).bind(target)
+      : c.db.prepare(`DELETE FROM user_permissions WHERE user_id = ? AND permission_key NOT IN ${q.sql}`).bind(target, ...q.args)]
     for (const k of desired) stmts.push(c.db.prepare(`INSERT OR IGNORE INTO user_permissions (user_id, institution_id, permission_key, granted_by, granted_at) VALUES (?, ?, ?, ?, ?)`)
       .bind(target, institutionId(c), k, c.id.userId, now()))
     await c.db.batch(stmts)

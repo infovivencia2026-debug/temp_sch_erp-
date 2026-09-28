@@ -53,7 +53,10 @@ export function paging(c: Ctx, defLimit = 50, maxLimit = 200): { limit: number; 
 
 /** SQL `IN (?,?,?)` for a list; an empty list yields a predicate that matches nothing. */
 export function inList(ids: readonly string[]): { sql: string; args: string[] } {
-  if (ids.length === 0) return { sql: '(NULL)', args: [] }
+  /* An empty set, not NULL: "x IN (NULL)" and "x NOT IN (NULL)" are both
+     unknown, so a NOT IN over nothing matched no rows and "remove every
+     grant" removed none. json_each('[]') is a real empty set. */
+  if (ids.length === 0) return { sql: "(SELECT value FROM json_each('[]'))", args: [] }
   return { sql: '(SELECT value FROM json_each(?))', args: [JSON.stringify(ids)] }
 }
 

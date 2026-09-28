@@ -260,8 +260,11 @@ async function getCatalog(c: Ctx): Promise<CatalogResponse> {
   const features = allCatalogFeatureKeys()
   const directFeatures = new Set<string>()
   if (!c.id.platformAdmin) {
-    const rows = await c.db.prepare(`SELECT permission_key FROM user_permissions WHERE user_id = ?`).bind(c.id.userId).all<{ permission_key: string }>()
-    for (const r of rows.results) if (features.has(r.permission_key)) directFeatures.add(r.permission_key)
+    /* Every feature this person holds, however they came by it: granted to
+       them directly, or through a custom role the school built. Features of a
+       built-in role they hold are emitted with that role below; anything else
+       lands under "Granted to you" rather than vanishing. */
+    for (const k of c.id.permissions) if (features.has(k)) directFeatures.add(k)
   }
 
   // Evidence and stage gates, each asked at most once per response.

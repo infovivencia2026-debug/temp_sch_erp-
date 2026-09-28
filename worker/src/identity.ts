@@ -79,9 +79,10 @@ export async function identityFrom(env: Env, req: Request): Promise<Identity | n
     db.prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ?`).bind(s.user_id).all<{ key: string }>(),
     db.prepare(`SELECT DISTINCT rp.permission_key AS key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = ?`)
       .bind(s.user_id).all<{ key: string }>(),
-    // acting.go merges user_permissions in the entered school; at home the session never did.
-    institution === home ? Promise.resolve({ results: [] as { key: string }[] })
-      : db.prepare(`SELECT DISTINCT permission_key AS key FROM user_permissions WHERE user_id = ?`).bind(s.user_id).all<{ key: string }>(),
+    /* Direct grants ("give this person that feature") count everywhere,
+       at home too. The port skipped them at home, so an access given on
+       Logins & access or Roles never reached the person's feature list. */
+    db.prepare(`SELECT DISTINCT permission_key AS key FROM user_permissions WHERE user_id = ?`).bind(s.user_id).all<{ key: string }>(),
   ])
   if (!u) return null
   /* platform.* keys belong to the vendor. A school role can come to hold one (a copy of a platform

@@ -37,8 +37,12 @@ export async function sessionBody(env: Env, req: Request): Promise<SessionRespon
       .first<{ full_name: string; avatar_key: string | null; must_change_password: number }>(),
     db.prepare('SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = ? ORDER BY r.key').bind(s.user_id)
       .all<{ key: string }>(),
-    db.prepare(`SELECT DISTINCT rp.permission_key AS key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id
-                WHERE ur.user_id = ? ORDER BY rp.permission_key`).bind(s.user_id)
+    /* Role grants AND direct grants, the same set the server checks
+       (identity.ts), so the app never hides what the person may open. */
+    db.prepare(`SELECT key FROM (
+                  SELECT rp.permission_key AS key FROM user_roles ur JOIN role_permissions rp ON rp.role_id = ur.role_id WHERE ur.user_id = ?1
+                  UNION SELECT permission_key AS key FROM user_permissions WHERE user_id = ?1)
+                WHERE key NOT LIKE 'platform.%' ORDER BY key`).bind(s.user_id)
       .all<{ key: string }>(),
     db.prepare('SELECT display_name, tagline, logo_key, favicon_key, primary_color, accent_color, support_email, support_phone FROM branding_profiles WHERE campus_id IS NULL LIMIT 1')
       .first<{ display_name: string | null; tagline: string | null; logo_key: string | null; favicon_key: string | null; primary_color: string | null; accent_color: string | null; support_email: string | null; support_phone: string | null }>()
