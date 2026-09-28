@@ -4018,6 +4018,8 @@ main, [data-paint='workarea'] {
    Every coloured glow below multiplies its alpha by --glow-k. */
 :root { --glow-k: 0.4; }
 :root[data-glow='off'] { --glow-k: 0; }
+:root[data-glow='faint'] { --glow-k: 0.2; }
+:root[data-glow='medium'] { --glow-k: 0.7; }
 :root[data-glow='strong'] { --glow-k: 1; }
 
 /* COLOUR, AFTER caller_perf (owner, 2026-09-28: "the UI looks too pale and

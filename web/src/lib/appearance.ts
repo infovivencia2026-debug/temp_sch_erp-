@@ -53,7 +53,7 @@ export type IconSize = 'small' | 'default' | 'large'
    should not have to re-learn its own day. */
 export type Clock = '12h' | '24h'
 /** How strongly cards glow in their colour: off, subtle (default), strong. */
-export type Glow = 'off' | 'subtle' | 'strong'
+export type Glow = 'off' | 'faint' | 'subtle' | 'medium' | 'strong'
 
 export const DENSITIES: readonly Density[] = ['hairline', 'compact', 'comfortable', 'relaxed', 'spacious'] as const
 export const CORNERS: readonly Corners[] = ['sharp', 'default', 'round'] as const
@@ -75,7 +75,7 @@ export const CONTRASTS: readonly Contrast[] =
 export const DOCK_SIZES: readonly DockSize[] = ['compact', 'default', 'large'] as const
 export const ICON_SIZES: readonly IconSize[] = ['small', 'default', 'large'] as const
 export const CLOCKS: readonly Clock[] = ['12h', '24h'] as const
-export const GLOWS: readonly Glow[] = ['off', 'subtle', 'strong'] as const
+export const GLOWS: readonly Glow[] = ['off', 'faint', 'subtle', 'medium', 'strong'] as const
 
 /* The continuous axes.
 

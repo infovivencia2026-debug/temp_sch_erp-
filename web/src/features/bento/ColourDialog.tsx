@@ -16,7 +16,7 @@ import { useAppearance, GLOWS, type Glow } from '@/lib/appearance'
    Subtle is the default; Off keeps plain shadows; Strong is the full bloom. */
 function GlowRow() {
   const { appearance, set } = useAppearance()
-  const label: Record<Glow, string> = { off: 'Off', subtle: 'Subtle', strong: 'Strong' }
+  const label: Record<Glow, string> = { off: 'Off', faint: 'Faint', subtle: 'Subtle', medium: 'Medium', strong: 'Strong' }
   return (
     <div className="px-5 pt-4">
       <p className={cn('mb-2 text-[11px] font-semibold uppercase tracking-[0.06em]', INK)}>Glow</p>
