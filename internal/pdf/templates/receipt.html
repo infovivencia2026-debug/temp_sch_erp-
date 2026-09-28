@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fee receipt {{.R.ReceiptNo}}</title>
+<style>
+  @page { size: {{.PageW}}mm {{.PageH}}mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body {
+    font-family: "Liberation Sans", "DejaVu Sans", "Noto Sans", "Noto Sans Telugu", "Noto Sans Devanagari", Arial, sans-serif;
+    font-size: {{.D.Font}}pt;
+    line-height: 1.3;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* A copy grows with its content and is never clipped: a copy too tall for
+     its half of the sheet pushes the document onto a second page, which the
+     renderer notices and answers with the next, tighter, layout. */
+  .copy {
+    width: {{.PageW}}mm;
+    min-height: {{.CopyH}}mm;
+    padding: {{.D.Pad}}mm {{.D.PadX}}mm;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .copy + .copy { border-top: 0.3mm dashed #000; }
+  .cutnote {
+    position: absolute; top: -2.2mm; left: 0; right: 0; text-align: center;
+    font-size: 6.5pt; letter-spacing: 0.3mm;
+  }
+  .cutnote span { background: #fff; padding: 0 2mm; }
+
+  .head { display: flex; align-items: center; gap: 3.5mm; }
+  .logo { width: {{.D.Logo}}mm; height: {{.D.Logo}}mm; flex: none; object-fit: contain; }
+  .school { flex: 1; text-align: center; }
+  .school .name { font-size: {{.D.Name}}pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2mm; }
+  .school .line { font-size: {{.D.Small}}pt; margin-top: 0.4mm; }
+  .copylabel {
+    flex: none; border: 0.3mm solid #000; padding: 0.8mm 2mm;
+    font-size: {{.D.Small}}pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2mm;
+  }
+  .logo-spacer { width: {{.D.Logo}}mm; flex: none; }
+
+  .rule { border-top: 0.5mm solid #000; margin: {{.D.Gap}}mm 0 0; }
+  .titlebar { display: flex; align-items: center; justify-content: center; position: relative; margin: {{.D.Gap}}mm 0; }
+  .title { font-size: {{.D.Title}}pt; font-weight: 700; letter-spacing: 0.8mm; }
+  .dup {
+    position: absolute; right: 0; border: 0.4mm solid #000; padding: 0.4mm 2mm;
+    font-size: {{.D.Small}}pt; font-weight: 700; letter-spacing: 0.4mm;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  .facts td { border: 0.25mm solid #000; padding: {{.D.Cell}}mm 1.8mm; vertical-align: top; }
+  .facts .k { display: block; font-size: {{.D.Small}}pt; }
+  .facts .v { display: block; font-weight: 700; }
+
+  .items { margin-top: {{.D.Gap}}mm; }
+  .items th, .items td { border: 0.25mm solid #000; padding: {{.D.Cell}}mm 1.8mm; vertical-align: top; }
+  .items th { font-weight: 700; text-align: left; background: #f0f0f0; }
+  .items .n { width: 9mm; text-align: center; }
+  .items .inv { width: 30mm; }
+  .items .amt { width: 30mm; text-align: right; white-space: nowrap; }
+  .items tfoot td { font-weight: 700; }
+
+  .words { margin-top: {{.D.Gap}}mm; }
+  .meta { margin-top: {{.D.Gap}}mm; display: flex; flex-wrap: wrap; gap: 0.6mm 8mm; }
+  .note { margin-top: {{.D.Gap}}mm; border: 0.3mm solid #000; padding: 1mm 2mm; font-weight: 700; }
+
+  .grow { flex: 1; min-height: 4mm; }
+  .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; }
+  .foot .left { font-size: {{.D.Small}}pt; }
+  .sign { text-align: center; min-width: 48mm; }
+  .sign .line { border-top: 0.25mm solid #000; margin-top: 11mm; padding-top: 0.8mm; font-size: {{.D.Small}}pt; }
+
+  /* Anything that is not a completed payment says so across the copy. */
+  .stamp {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%) rotate(-18deg);
+    text-align: center; pointer-events: none;
+  }
+  .stamp span {
+    display: inline-block; border: 1.2mm solid rgba(0,0,0,0.28); color: rgba(0,0,0,0.28);
+    padding: 2mm 6mm; font-size: 30pt; font-weight: 700; letter-spacing: 1.5mm;
+  }
+</style>
+</head>
+<body>
+{{- range $i, $copy := .Copies}}
+<section class="copy">
+  {{- if gt $i 0}}<div class="cutnote"><span>&#9986; cut here</span></div>{{end}}
+  <div class="head">
+    {{- if $.R.Logo}}<img class="logo" src="{{$.R.Logo}}" alt="">{{else}}<div class="logo-spacer"></div>{{end}}
+    <div class="school">
+      <div class="name">{{$.R.SchoolName}}</div>
+      {{- if $.R.Address}}<div class="line">{{$.R.Address}}</div>{{end}}
+      {{- if $.R.Contact}}<div class="line">{{$.R.Contact}}</div>{{end}}
+      {{- if $.R.Affiliation}}<div class="line">{{$.R.Affiliation}}</div>{{end}}
+    </div>
+    {{- if $copy}}<div class="copylabel">{{$copy}}</div>{{else}}<div class="logo-spacer"></div>{{end}}
+  </div>
+  <div class="rule"></div>
+  <div class="titlebar">
+    <div class="title">FEE RECEIPT</div>
+    {{- if $.R.Duplicate}}<div class="dup">DUPLICATE</div>{{end}}
+  </div>
+
+  <table class="facts">
+    <tr>
+      <td><span class="k">Receipt No.</span><span class="v">{{$.R.ReceiptNo}}</span></td>
+      <td><span class="k">Date</span><span class="v">{{$.R.Date}}</span></td>
+      <td><span class="k">Financial Year</span><span class="v">{{$.R.FinancialYear}}</span></td>
+    </tr>
+    <tr>
+      <td><span class="k">Student</span><span class="v">{{$.R.StudentName}}</span></td>
+      <td><span class="k">Admission No.</span><span class="v">{{$.R.AdmissionNo}}</span></td>
+      <td><span class="k">Class &amp; Section</span><span class="v">{{$.R.ClassSection}}</span></td>
+    </tr>
+  </table>
+
+  <table class="items">
+    <thead>
+      <tr><th class="n">S.No.</th><th>Particulars</th><th class="inv">Invoice No.</th><th class="amt">Amount (&#8377;)</th></tr>
+    </thead>
+    <tbody>
+      {{- range $n, $l := $.R.Lines}}
+      <tr><td class="n">{{inc $n}}</td><td>{{$l.Particulars}}</td><td class="inv">{{$l.InvoiceNo}}</td><td class="amt">{{$l.Amount}}</td></tr>
+      {{- end}}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3" style="text-align:right">Total</td><td class="amt">{{$.R.Total}}</td></tr>
+    </tfoot>
+  </table>
+
+  <div class="words"><b>Amount in words:</b> {{$.R.AmountWords}}</div>
+  <div class="meta">
+    <div><b>Mode of payment:</b> {{$.R.Mode}}</div>
+    {{- if $.R.Reference}}<div><b>Reference No.:</b> {{$.R.Reference}}</div>{{end}}
+    {{- if $.R.CollectedBy}}<div><b>Received by:</b> {{$.R.CollectedBy}}</div>{{end}}
+  </div>
+  {{- if $.R.Note}}<div class="note">{{$.R.Note}}</div>{{end}}
+
+  <div class="grow"></div>
+  <div class="foot">
+    <div class="left">
+      This is a computer-generated receipt.<br>
+      Printed on {{$.R.PrintedAt}}
+    </div>
+    <div class="sign"><div class="line">Authorised Signatory</div></div>
+  </div>
+  {{- if $.R.Stamp}}<div class="stamp"><span>{{$.R.Stamp}}</span></div>{{end}}
+</section>
+{{- end}}
+</body>
+</html>

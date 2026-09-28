@@ -12,6 +12,7 @@ import (
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/httpx"
 	"github.com/school-erp/erp/internal/live"
+	"github.com/school-erp/erp/internal/pdf"
 	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/ratelimit"
 	"github.com/school-erp/erp/internal/rbac"
@@ -34,6 +35,9 @@ type Server struct {
 	// path is fine on a page the browser is already on and useless in an SMS,
 	// so anything that leaves the building has to carry this.
 	BaseURL string
+	// PDF prints documents (receipts first) through the private renderer.
+	// Nil or unconfigured: the print endpoints answer 503. See print_receipt.go.
+	PDF *pdf.Client
 
 	// RateLimits is where this Server's four rate limiters count. Nil means a
 	// private in-memory store, which is what every test that writes
@@ -861,6 +865,8 @@ func (s *Server) Routes() http.Handler {
 			r.With(httpx.RequirePermission(rbac.WalletManage), s.RequireFresh).Post("/wallet/adjustments", s.walletAdjust)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite), s.RequireFresh).Post("/payments", s.collectFee)
 			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/receipts/{id}", s.getReceipt)
+			// The same receipt as a one-page PDF; see print_receipt.go.
+			r.With(httpx.RequirePermission(rbac.PaymentsRead)).Get("/receipts/{id}/pdf", s.getReceiptPDF)
 			r.With(httpx.RequirePermission(rbac.PaymentsWrite)).Post("/payments/{id}/clear", s.clearCheque)
 			/* A penalty somebody decided on, rather than one a rule worked out.
 			   Same right as taking money: whoever may put a payment on a

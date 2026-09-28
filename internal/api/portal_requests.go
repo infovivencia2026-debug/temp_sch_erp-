@@ -86,6 +86,7 @@ func (s *Server) mountParentPortal(r chi.Router) {
 	// Fee receipts.
 	r.Get("/receipts", s.listPortalReceipts)
 	r.Get("/receipts/{id}", s.getPortalReceipt)
+	r.Get("/receipts/{id}/pdf", s.getPortalReceiptPDF)
 
 	// Certificates and documents.
 	r.Get("/requests", s.listPortalRequests)

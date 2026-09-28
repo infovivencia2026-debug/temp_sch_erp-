@@ -153,6 +153,10 @@ spec:
               value: production
             - name: BASE_URL
               value: "BASE_URL_VALUE"
+            # The private PDF renderer (service-pdf.yaml). Empty when it is
+            # not deployed; printing then answers 503 rather than failing.
+            - name: PDF_URL
+              value: "PDF_URL_VALUE"
             - name: SESSION_TTL
               value: 12h
             - name: SESSION_IDLE_TTL

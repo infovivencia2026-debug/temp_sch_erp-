@@ -25,12 +25,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/school-erp/erp/internal/api"
-	"github.com/school-erp/erp/internal/live"
 	"github.com/school-erp/erp/internal/auth"
 	"github.com/school-erp/erp/internal/config"
 	"github.com/school-erp/erp/internal/database"
 	"github.com/school-erp/erp/internal/eventlog"
 	"github.com/school-erp/erp/internal/httpx"
+	"github.com/school-erp/erp/internal/live"
+	"github.com/school-erp/erp/internal/pdf"
 	"github.com/school-erp/erp/internal/queue"
 	"github.com/school-erp/erp/internal/ratelimit"
 	"github.com/school-erp/erp/internal/static"
@@ -122,6 +123,7 @@ func run() error {
 		Storage:      store,
 		FileStoreDir: cfg.FileStoreDir,
 		BaseURL:      cfg.BaseURL,
+		PDF:          pdf.New(cfg.PDFURL),
 		Production:   cfg.IsProduction(),
 	}
 	// Sign-in attempts are written to login_events and raise the
