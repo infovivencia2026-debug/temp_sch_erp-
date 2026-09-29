@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard, IssueOneCard, IssueOneStaffCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneStaffCard } from './StudentLoginsCard'
 import { RosterLogins } from './RosterLogins'
 
 /* Who can sign in to this school.
@@ -315,8 +315,8 @@ export default function Logins() {
         {/* The roll first. A school whose children have no logins yet has
             nothing to act on in a list of accounts, and that is the school
             that needs this screen. */}
-        {record === 'student' && <IssueOneCard kind="students" />}
-        {record === 'guardian' && <IssueOneCard kind="guardians" />}
+
+
         {record === 'student' && <StudentLoginsCard policyOnly />}
         {record === 'guardian' && <ParentLoginsCard />}
         {/* The parents' bulk card is gone: the roll above it has the same
@@ -364,7 +364,13 @@ export default function Logins() {
         )}
         <FormNotice error={resetPw.error} />
 
-        {record !== 'sessions' && (
+        {/* FOUR CARDS WERE DOING ONE JOB.
+            The roll searches, filters by class and section, issues, resets,
+            prints and exports. Beside it sat a single-person search, a second
+            class picker, and an account table that showed the same people
+            again -- minus the ones with no login, who are the half the office
+            came for. On a children's or families' tab the roll is the screen. */}
+        {record !== 'sessions' && !simple && (
         <Card>
           <CardHeader
             title="Logins"

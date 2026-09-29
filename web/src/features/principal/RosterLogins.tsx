@@ -118,13 +118,26 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
   })
 
   const items = sections.data?.items ?? []
-  const targets = [
-    ...[...new Map(items.map((s) => [s.class_id, s])).values()].map((s) => ({
-      value: 'class:' + s.class_id,
-      label: s.class_name + ', every section',
-    })),
-    ...items.map((s) => ({ value: 'section:' + s.id, label: s.class_name + ' ' + s.name })),
-  ]
+  /* Each class, then its own sections under it. Listing every class first and
+     every section afterwards meant scrolling past twelve classes to reach the
+     first section name, and a school picks "6-B" far more often than it picks
+     "the whole of 6". */
+  const targets = useMemo(() => {
+    const byClass = new Map<string, Section[]>()
+    for (const s of items) {
+      if (!byClass.has(s.class_id)) byClass.set(s.class_id, [])
+      byClass.get(s.class_id)!.push(s)
+    }
+    const out: { value: string; label: string }[] = []
+    for (const [classID, list] of byClass) {
+      const className = list[0].class_name
+      out.push({ value: 'class:' + classID, label: className + ' — every section' })
+      for (const s of [...list].sort((a, b) => a.name.localeCompare(b.name))) {
+        out.push({ value: 'section:' + s.id, label: '    ' + className + ' ' + s.name })
+      }
+    }
+    return out
+  }, [items])
   const children = roster.data?.items ?? []
 
   /* One flat list of people, whichever tab this is. A child's row is the child;
@@ -278,6 +291,35 @@ export function RosterLogins({ kind }: { kind: 'students' | 'guardians' }) {
           Export CSV
         </Button>
       </div>
+
+      {/* A PASSWORD IS SHOWN ONCE.
+
+          It appears in the row as well, but a row is easy to lose in forty of
+          them and the thing cannot be asked for again -- so the ones issued in
+          this sitting are also gathered here, at the top, until the page is
+          left. */}
+      {Object.keys(issued).length > 0 && (
+        <div className="mx-[var(--card-pad)] mt-4 rounded-lg border border-success/40 bg-success/5 p-4">
+          <p className="text-[14px] font-medium">
+            {Object.keys(issued).length} password{Object.keys(issued).length === 1 ? '' : 's'} issued just now
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Shown once and never again. Print the slips or download the list before you leave this page.
+          </p>
+          <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {rows
+              .filter((r) => issued[r.id]?.password)
+              .map((r) => (
+                <div key={r.id} className="flex items-baseline justify-between gap-3 rounded-md bg-card px-3 py-1.5">
+                  <span className="truncate text-[13px]">{r.name}</span>
+                  <span className="whitespace-nowrap font-mono text-[13px]">
+                    {issued[r.id].signIn || r.signIn} · {issued[r.id].password}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       <FormNotice error={issue.error ?? roster.error} />
 
