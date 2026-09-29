@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { workingYearFor, yearExists } from '../../services/refcache'
 import { HttpError, badRequest, forbidden, now, uuid } from '../../http'
 import { can } from '../../identity'
 
@@ -257,14 +258,12 @@ export async function workingYear(c: Ctx, explicit = ''): Promise<string | null>
   explicit = explicit.trim() || (c.url.searchParams.get('academic_year_id') ?? '').trim()
   if (explicit) {
     if (!/^[0-9a-f-]{36}$/i.test(explicit)) throw badRequest('academic_year_id must be a uuid')
-    const r = await c.db.prepare(`SELECT id FROM academic_years WHERE id = ?`).bind(explicit).first<{ id: string }>()
+    const r = ((await yearExists(c.db, explicit)) ? { id: explicit } : null)
     if (!r) throw badRequest('no academic year with that id')
     return r.id
   }
-  const chosen = await c.db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`)
-    .bind(c.id.userId).first<{ id: string }>()
-  if (chosen) return chosen.id
-  const latest = await c.db.prepare(`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).first<{ id: string }>()
+  // Cached per school until classes/years change (services/refcache.ts).
+  const latest = await workingYearFor(c.db, c.id.userId).then((id) => (id ? { id } : null))
   return latest?.id ?? null
 }
 

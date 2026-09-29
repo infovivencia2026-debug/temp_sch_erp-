@@ -1,4 +1,5 @@
 import type { Ctx } from '../../router'
+import { workingYearFor, yearExists } from '../../services/refcache'
 import { HttpError, badRequest, uuid, now } from '../../http'
 import { school } from '../school'
 
@@ -214,14 +215,12 @@ export async function workingYear(c: Ctx, explicit = ''): Promise<string> {
 export async function workingYearIn(c: Ctx, explicit: string): Promise<string> {
   explicit = explicit.trim()
   if (explicit) {
-    const row = await c.db.prepare(`SELECT id FROM academic_years WHERE id = ?`).bind(explicit).first<{ id: string }>()
+    const row = ((await yearExists(c.db, explicit)) ? { id: explicit } : null)
     if (!row) throw errUnknownYear()
     return row.id
   }
-  const mine = await c.db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`)
-    .bind(c.id.userId).first<{ id: string }>()
-  if (mine) return mine.id
-  const latest = await c.db.prepare(`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).first<{ id: string }>()
+  // Cached per school until classes/years change (services/refcache.ts).
+  const latest = await workingYearFor(c.db, c.id.userId).then((id) => (id ? { id } : null))
   if (!latest) throw errNoAcademicYear()
   return latest.id
 }

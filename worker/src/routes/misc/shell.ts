@@ -1,5 +1,6 @@
 import type { Router, Ctx } from '../../router'
 import type { Env } from '../../env'
+import { academicYears, refLists, workingYearFor, yearExists } from '../../services/refcache'
 import type { CatalogResponse, WorkingYearResponse } from '@shared/api'
 import { badRequest, bool, isUUID, now, ok, readJSON } from '../../http'
 import { can } from '../../identity'
@@ -15,13 +16,10 @@ import { CATALOG_ROLES, IMPLEMENTED_FEATURES, allCatalogFeatureKeys, catalogLook
 // --- ref-data ----------------------------------------------------------------
 
 async function refData(c: Ctx): Promise<Response> {
-  const [years, classes, sections, subjects] = await c.db.batch<Record<string, unknown>>([
-    c.db.prepare(`SELECT id, name, starts_on, ends_on, is_current FROM academic_years ORDER BY starts_on DESC`),
-    c.db.prepare(`SELECT id, name, level, stream FROM classes ORDER BY level, name`),
-    c.db.prepare(`SELECT sec.id, sec.class_id, c.name AS class_name, sec.academic_year_id, sec.name, sec.capacity, sec.room
-        FROM sections sec JOIN classes c ON c.id = sec.class_id ORDER BY c.level, sec.name`),
-    c.db.prepare(`SELECT id, name, code, is_scholastic FROM subjects ORDER BY name`),
-  ])
+  // Cached per school until any of these tables changes (services/refcache.ts).
+  const [allYears, lists] = await Promise.all([academicYears(c.db), refLists(c.db)])
+  const years = { results: [...allYears].sort((a, b) => (a.starts_on < b.starts_on ? 1 : a.starts_on > b.starts_on ? -1 : 0)) as unknown as Record<string, unknown>[] }
+  const classes = { results: lists.classes }, sections = { results: lists.sections }, subjects = { results: lists.subjects }
   return ok({
     academic_years: years.results.map((y) => ({ id: y.id, name: y.name, starts_on: y.starts_on, ends_on: y.ends_on, is_current: bool(y.is_current) })),
     classes: classes.results.map((k) => ({ id: k.id, name: k.name, level: k.level, stream: k.stream ?? undefined })),
@@ -40,14 +38,12 @@ export async function workingYear(c: Ctx, explicit = ''): Promise<string | null>
   explicit = explicit.trim() || (c.url.searchParams.get('academic_year_id') ?? '').trim()
   if (explicit !== '') {
     if (!isUUID(explicit)) throw badRequest(ERR_UNKNOWN_YEAR)
-    const y = await c.db.prepare(`SELECT id FROM academic_years WHERE id = ?`).bind(explicit).first<{ id: string }>()
+    const y = ((await yearExists(c.db, explicit)) ? { id: explicit } : null)
     if (!y) throw badRequest(ERR_UNKNOWN_YEAR)
     return y.id
   }
-  const chosen = await c.db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`)
-    .bind(c.id.userId).first<{ id: string }>()
-  if (chosen) return chosen.id
-  const latest = await c.db.prepare(`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).first<{ id: string }>()
+  // Cached per school until classes/years change (services/refcache.ts).
+  const latest = await workingYearFor(c.db, c.id.userId).then((id) => (id ? { id } : null))
   return latest?.id ?? null
 }
 

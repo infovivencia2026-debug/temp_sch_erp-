@@ -1,4 +1,5 @@
 import { HttpError, bool, now, uuid } from '../../http'
+import { workingYearFor, yearExists } from '../../services/refcache'
 
 /* Helpers shared by the admissions and HR ports. Everything here mirrors a
    small Go helper (daterange.go, fees.NextNumber, working_year.go,
@@ -231,13 +232,12 @@ export async function workingYear(db: D1Database, userId: string, explicit = '')
   explicit = explicit.trim()
   if (explicit !== '') {
     if (!isUUIDish(explicit)) throw errUnknownYear()
-    const row = await db.prepare(`SELECT id FROM academic_years WHERE id = ?`).bind(explicit).first<{ id: string }>()
+    const row = ((await yearExists(db, explicit)) ? { id: explicit } : null)
     if (!row) throw errUnknownYear()
     return row.id
   }
-  const mine = await db.prepare(`SELECT y.id FROM user_working_years w JOIN academic_years y ON y.id = w.academic_year_id WHERE w.user_id = ?`).bind(userId).first<{ id: string }>()
-  if (mine) return mine.id
-  const latest = await db.prepare(`SELECT id FROM academic_years ORDER BY is_current DESC, starts_on DESC LIMIT 1`).first<{ id: string }>()
+  // Cached per school until classes/years change (services/refcache.ts).
+  const latest = await workingYearFor(db, userId).then((id) => (id ? { id } : null))
   if (!latest) throw new HttpError(400, 'this school has no academic year yet')
   return latest.id
 }
