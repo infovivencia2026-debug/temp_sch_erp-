@@ -8,6 +8,7 @@ import {
 import { formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface ClubEvent {
   id: string
@@ -98,7 +99,7 @@ export default function ClubEvents() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="Events are offered by year group." />
+          <ChooseChild title="Choose a child" body="Events are offered by year group." />
         ) : (
           <>
             <CellGrid cols={3}>

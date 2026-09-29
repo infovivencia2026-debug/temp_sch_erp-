@@ -4,6 +4,7 @@ import { PageHead, PageBody, Select, ErrorState, EmptyState } from '@/components
 import DayTimeline from '@/components/DayTimeline'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 /* Your child's week.
  *
@@ -71,7 +72,7 @@ export default function ChildTimetable() {
             body="Once the school links your child, their week appears here."
           />
         ) : !ready ? (
-          <EmptyState title="Choose a child above to see their week." />
+          <ChooseChild title="Choose a child above to see their week." />
         ) : !sectionId ? (
           <EmptyState
             title={`${child?.full_name ?? 'Your child'} is not placed in a section yet.`}

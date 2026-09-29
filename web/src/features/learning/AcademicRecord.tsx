@@ -3,11 +3,12 @@ import { ScrollText, CalendarCheck, Percent } from 'lucide-react'
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  PrintButton, SkeletonTable, ErrorState, EmptyState,
+  PrintButton, SkeletonTable, ErrorState, 
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface RecordYear {
   academic_year: string
@@ -85,7 +86,7 @@ export default function AcademicRecord() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="A record belongs to one child." />
+          <ChooseChild title="Choose a child" body="A record belongs to one child." />
         ) : (
           <>
             <CellGrid cols={4}>

@@ -6,11 +6,12 @@ import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
   Button, ConfirmButton, Field, FormGrid, FormNotice, Input, Select, Textarea,
-  Checkbox, SkeletonTiles, ErrorState, EmptyState,
+  Checkbox, SkeletonTiles, ErrorState, 
 } from '@/components/ui'
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Entry {
   id: string
@@ -153,7 +154,7 @@ export default function Universities() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="A shortlist belongs to one child." />
+          <ChooseChild title="Choose a child" body="A shortlist belongs to one child." />
         ) : (
           <>
             <CellGrid cols={3}>

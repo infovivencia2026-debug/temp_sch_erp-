@@ -9,6 +9,7 @@ import {
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Entry {
   on_date: string
@@ -108,7 +109,7 @@ export default function Calendar() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState
+          <ChooseChild
             title="Choose a child"
             body="Exam dates differ by class, so the calendar is built per child."
           />

@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { Freshness, ScreenSkeleton } from './screen-state'
 import { useChildren, childOptions, readyFor } from './use-children'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 /* Update my details.
  *
@@ -147,7 +148,7 @@ export default function MyDetails() {
         ) : kids.length === 0 ? (
           <EmptyState title="No child is linked to this account yet." />
         ) : !ready ? (
-          <EmptyState title="Choose a child above." />
+          <ChooseChild title="Choose a child above." />
         ) : details.isLoading || !d || !draft ? (
           <ScreenSkeleton rows={8} label="Loading the record" />
         ) : details.error ? (

@@ -3,11 +3,12 @@ import { BookOpen, GraduationCap, FolderOpen, ClipboardList } from 'lucide-react
 import { api } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  SkeletonTable, ErrorState, EmptyState,
+  SkeletonTable, ErrorState, 
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Course {
   class_subject_id: string
@@ -73,7 +74,7 @@ export default function Courses() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState
+          <ChooseChild
             title="Choose a child"
             body="Each child follows their own class, so the subject list is theirs."
           />

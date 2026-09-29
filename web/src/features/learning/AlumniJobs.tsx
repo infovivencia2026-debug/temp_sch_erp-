@@ -9,6 +9,7 @@ import {
 import { formatDate, formatPaise } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Job {
   id: string
@@ -106,7 +107,7 @@ export default function AlumniJobs() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState
+          <ChooseChild
             title="Choose a child"
             body="Postings are filtered by year group, so the board differs per child."
           />

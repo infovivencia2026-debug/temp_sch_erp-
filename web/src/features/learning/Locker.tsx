@@ -8,6 +8,7 @@ import {
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface AccessEvent {
   action: string
@@ -107,7 +108,7 @@ export default function Locker() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="Lockers are allotted to one child each." />
+          <ChooseChild title="Choose a child" body="Lockers are allotted to one child each." />
         ) : !l?.assigned ? (
           <EmptyState
             title="No locker allotted"

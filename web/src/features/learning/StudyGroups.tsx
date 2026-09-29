@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface StudyGroup {
   id: string
@@ -128,7 +129,7 @@ export default function StudyGroups() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState
+          <ChooseChild
             title="Choose a child"
             body="Groups are arranged within a class, so each child sees their own."
           />

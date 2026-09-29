@@ -8,6 +8,7 @@ import {
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface CreditEntry {
   id: string
@@ -75,7 +76,7 @@ export default function CreditBank() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="An APAAR belongs to one child." />
+          <ChooseChild title="Choose a child" body="An APAAR belongs to one child." />
         ) : (
           <>
             <CellGrid cols={3}>

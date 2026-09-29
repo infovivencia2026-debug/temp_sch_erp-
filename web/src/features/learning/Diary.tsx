@@ -10,6 +10,7 @@ import {
 import { cn, formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Entry {
   on_date: string
@@ -156,7 +157,7 @@ export default function Diary() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="Each child has their own day." />
+          <ChooseChild title="Choose a child" body="Each child has their own day." />
         ) : (
           <>
             <CellGrid cols={3}>

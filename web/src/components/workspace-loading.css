@@ -134,3 +134,11 @@
    the session) carries on where the first left off: no fade-in, no rise,
    so the mark does not blink out and back. */
 .ws-opening[data-continued], .ws-opening[data-continued] .ws-mark { animation: none !important; }
+
+/* While the opening stands, the page beneath it is still assembling: the
+   greeting lands, the overview's chunk arrives and pushes the next block
+   down. Nobody sees it (the opening covers it), but it moved, and a browser
+   counts that as layout shift. Held invisible until the opening starts to
+   leave, the page is laid out once, where it will stay, and fades in under
+   the leaving mark. */
+body:has(.ws-opening:not([data-leaving])) main { visibility: hidden; }

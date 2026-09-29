@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Profile {
   id: string
@@ -156,7 +157,7 @@ export default function AlumniNetwork() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="A registration is in one leaver's name." />
+          <ChooseChild title="Choose a child" body="A registration is in one leaver's name." />
         ) : (
           <>
             <CellGrid cols={3}>

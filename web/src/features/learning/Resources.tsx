@@ -11,6 +11,7 @@ import StoryViewer, { initials, type StoryGroup, type StoryItem, type StoryMedia
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
 import { useOpenState } from '@/lib/motion'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Resource {
   id: string
@@ -164,7 +165,7 @@ export default function Resources() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState
+          <ChooseChild
             title="Choose a child"
             body="Resources follow the class, so the list is different for each child."
           />

@@ -8,6 +8,7 @@ import {
 import { usePhone } from '@/lib/viewport'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 /* Days in a row.
 
@@ -79,7 +80,7 @@ export default function Streak() {
       <PageBody width={phone ? 'form' : 'operational'}>
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
         {!ready || !s ? (
-          <EmptyState title="Choose a child" body="Each child keeps their own streak." />
+          <ChooseChild title="Choose a child" body="Each child keeps their own streak." />
         ) : phone ? (
           <>
             <Card className="p-5 text-center">

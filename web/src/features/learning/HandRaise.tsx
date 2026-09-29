@@ -9,6 +9,7 @@ import {
 } from '@/components/ui'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface LiveClass {
   id: string
@@ -119,7 +120,7 @@ export default function HandRaise() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="Hands go up in a child's own name." />
+          <ChooseChild title="Choose a child" body="Hands go up in a child's own name." />
         ) : (
           <>
             <CellGrid cols={3}>

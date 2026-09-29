@@ -4,12 +4,13 @@ import { Library, BookMarked, Hourglass } from 'lucide-react'
 import { api, type List } from '@/lib/api'
 import {
   PageHead, PageBody, Card, CardHeader, CellGrid, Stat, Table, Td, Badge,
-  Button, ConfirmButton, Field, FormNotice, Input, SkeletonTable, ErrorState, EmptyState,
+  Button, ConfirmButton, Field, FormNotice, Input, SkeletonTable, ErrorState, 
 } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
 import { useDebouncedValue } from '@/lib/debounce'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 interface Title {
   id: string
@@ -131,7 +132,7 @@ export default function LibraryHolds() {
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
 
         {!ready ? (
-          <EmptyState title="Choose a child" body="A hold is placed in one reader's name." />
+          <ChooseChild title="Choose a child" body="A hold is placed in one reader's name." />
         ) : (
           <>
             <CellGrid cols={3}>

@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/utils'
 import { useChildren, studentQuery, readyFor } from './use-student'
 import { ChildBar } from './ChildBar'
 import type { StreakBadge } from './Streak'
+import { ChooseChild } from '@/features/portal/ChooseChild'
 
 /* Every badge the child holds, in one place.
 
@@ -53,7 +54,7 @@ export default function Badges() {
       <PageBody width={phone ? 'form' : 'operational'}>
         <ChildBar kids={children} value={chosen} onChange={setChosen} />
         {!ready || !q.data ? (
-          <EmptyState title="Choose a child" body="Badges belong to one child each." />
+          <ChooseChild title="Choose a child" body="Badges belong to one child each." />
         ) : q.data.earned === 0 ? (
           <EmptyState
             title="No badge yet"
