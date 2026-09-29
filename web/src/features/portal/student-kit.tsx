@@ -117,7 +117,7 @@ export function hm(s?: string | null): number | null {
 }
 /** "12 min", "1 h 5 min", "45 s". */
 export function countdown(sec: number) {
-  if (sec < 60) return `${Math.max(0, sec)} s`
+  if (sec < 600) return `${Math.floor(Math.max(0, sec) / 60)}:${String(Math.max(0, sec) % 60).padStart(2, '0')}`
   const m = Math.ceil(sec / 60)
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`
 }

@@ -212,7 +212,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
             <Card>
               <div className="flex flex-wrap items-center gap-4 px-[var(--card-pad)] py-4">
                 <ProgressRing pct={allDays.length ? Math.round((100 * daysDone) / allDays.length) : 0} size={56} />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-44">
                   <p className="text-[15px] font-semibold">{allDays.length ? `${daysDone} of ${allDays.length} days done` : 'Nothing to do yet'}</p>
                   <p className="text-[13px] text-muted-foreground">{d.course.teacher ? `Taught by ${d.course.teacher}` : 'Teacher not set'} · {tops.length} module{tops.length === 1 ? '' : 's'}</p>
                 </div>

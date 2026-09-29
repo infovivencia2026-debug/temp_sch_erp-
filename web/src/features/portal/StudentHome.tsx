@@ -95,7 +95,7 @@ export default function StudentHome() {
   const cont = last && toCourses
     ? { href: placeHref(toCourses, last), title: last.title ?? 'Pick up where you left off', sub: last.subject ?? 'Your course' }
     : nextLesson && toCourses
-      ? { href: placeHref(toCourses, { cs: nextLesson.class_subject_id }), title: nextLesson.title, sub: `${nextLesson.subject} · ${nextLesson.unit}` }
+      ? { href: placeHref(toCourses, { cs: nextLesson.class_subject_id, item: `lesson:${nextLesson.id}` }), title: nextLesson.title, sub: `${nextLesson.subject} · ${nextLesson.unit}` }
       : null
   const totalLessons = courses.data?.items.reduce((a, c) => a + c.lessons, 0) ?? 0
   const doneLessons = courses.data?.items.reduce((a, c) => a + c.completed, 0) ?? 0
