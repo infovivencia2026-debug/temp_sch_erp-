@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard } from './StudentLoginsCard'
 
 /* Who can sign in to this school.
 
@@ -173,6 +173,16 @@ export default function Logins() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [devicesFor, setDevicesFor] = useState<AdminUser | null>(null)
+  /* The new password exists for one moment. It is shown until dismissed rather
+     than in a toast that takes it away again while somebody is writing it on a
+     slip of paper. */
+  const [issued, setIssued] = useState<{ name: string; password: string } | null>(null)
+  const resetPw = useMutation({
+    mutationFn: (u: AdminUser) =>
+      api.post<{ temporary_password?: string }>(`/api/v1/admin/users/${u.id}/reset-password`, {})
+        .then((r) => ({ name: u.full_name, password: r.temporary_password ?? '' })),
+    onSuccess: (r) => setIssued(r),
+  })
 
   const setStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -212,14 +222,20 @@ export default function Logins() {
             ['student', 'Students'],
             ['guardian', 'Parents'],
             ...(orphans.length > 0 ? [['none', 'No record']] as [string, string][] : []),
+            /* Sessions, sign-in attempts, the day code and the session rules
+               are not a kind of person, and they were on screen whichever kind
+               you had picked -- so opening Parents showed four panels about
+               staff devices before the parents. They are their own errand and
+               now their own tab. */
+            ['sessions', 'Sessions & security'] as [string, string],
           ] as [string, string][]).map(([k, label]) => {
-            const n = k ? all.filter((u) => u.record === k).length : all.length
+            const n = k === 'sessions' ? null : k ? all.filter((u) => u.record === k).length : all.length
             const on = record === k
             return (
               <button key={k || 'all'} type="button" role="tab" aria-selected={on} onClick={() => setRecord(k)}
                 className={cn('min-h-9 flex-1 rounded-full px-4 text-[13.5px] font-medium transition-colors sm:flex-none',
                   on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
-                {label}{!isLoading && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
+                {label}{!isLoading && n !== null && <span className="ml-1.5 tabular-nums text-muted-foreground">{n}</span>}
               </button>
             )
           })}
@@ -265,12 +281,17 @@ export default function Logins() {
         )}
 
         {record === 'student' && <StudentLoginsCard />}
+        {record === 'guardian' && <IssueLoginsCard kind="guardians" />}
+        {record === 'staff' && <IssueLoginsCard kind="staff" />}
 
-        <OnlineNow />
-        <SignInAttempts />
-        <SessionActivityDesk />
-
-        {(record === '' || record === 'staff') && <DayCodeCard />}
+        {record === 'sessions' && (
+          <>
+            <OnlineNow />
+            <SignInAttempts />
+            <SessionActivityDesk />
+            <DayCodeCard />
+          </>
+        )}
 
         {creating && (
           <AccountForm roles={roles} presets={presets} onClose={() => setCreating(false)} />
@@ -287,6 +308,21 @@ export default function Logins() {
           <Devices user={devicesFor} onClose={() => setDevicesFor(null)} />
         )}
 
+        {issued && (
+          <Card className="p-5">
+            <p className="text-[14px] font-medium">{issued.name} can sign in with this password</p>
+            <p className="mt-1 font-mono text-[18px]">{issued.password || 'sent to them instead'}</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Shown once. Write it down or send it now; it cannot be read back.
+            </p>
+            <div className="mt-3">
+              <Button size="sm" variant="secondary" onClick={() => setIssued(null)}>Done</Button>
+            </div>
+          </Card>
+        )}
+        <FormNotice error={resetPw.error} />
+
+        {record !== 'sessions' && (
         <Card>
           <CardHeader
             title="Logins"
@@ -365,10 +401,23 @@ export default function Logins() {
                     <Badge tone={STATUS_TONE[u.status] ?? 'neutral'}>{u.status}</Badge>
                   </Td>
                   <Td className="whitespace-nowrap">
+                    {/* Resetting was two screens away: open Roles, find the
+                        button inside. It is the commonest thing anybody comes
+                        to this table to do -- somebody cannot get in -- so it
+                        is in the row, beside the person it concerns. */}
+                    <ConfirmButton
+                      tone="danger"
+                      disabled={resetPw.isPending}
+                      question={`Give ${u.full_name} a new password? The one they have now stops working, and the new one is shown once.`}
+                      confirmLabel="Reset it"
+                      onConfirm={() => resetPw.mutate(u)}
+                    >
+                      <KeyRound className="h-3.5 w-3.5" /> Reset password
+                    </ConfirmButton>
                     <Button
                       size="sm"
                       variant="ghost"
-                      title="Change roles, or reset the password"
+                      title="Change roles"
                       onClick={() => { setCreating(false); setDevicesFor(null); setEditing(u) }}
                     >
                       <Pencil className="h-3.5 w-3.5" /> Roles
@@ -408,7 +457,8 @@ export default function Logins() {
             </div>
           )}
         </Card>
-        <SessionRules />
+        )}
+        {record === 'sessions' && <SessionRules />}
       </PageBody>
     </>
   )
