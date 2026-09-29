@@ -888,6 +888,78 @@ export function registerStaff(r: Router): void {
     return ok(out)
   })
 
+  /* THE CLASS AS IT STANDS, BEFORE ANYBODY ISSUES ANYTHING.
+
+     Logins & access could only show accounts that already existed, so a school
+     of four hundred children with no logins yet saw "Students 0" and had
+     nothing to act on -- the very school that needs the screen most. The
+     question an office actually asks is the other way round: here is 6-B, who
+     in it can sign in and who cannot, and give me the ones who cannot.
+
+     So this answers with the roll, not the register: every child in the class
+     or section, each with their guardians beside them, and for each of them
+     whether a login exists and what they would type. A child with a mother and
+     a father comes back with both, because that is the sheet the class teacher
+     needs -- one line per family, not one per account.
+
+     usable, not merely "has a user row": an account that exists but was never
+     given a password cannot sign in, and telling the office it can is how a
+     parent is left at a login page being told they are wrong. */
+  r.get('/setup/logins/roster', 'auth', async (c) => {
+    requireInstitution(c)
+    if (!can(c.id, 'students.write')) throw forbidden('missing permission: reading the login roster')
+    const q = c.url.searchParams
+    const section = isUUID(trim(q.get('section_id'))) ? trim(q.get('section_id')) : null
+    const classId = isUUID(trim(q.get('class_id'))) ? trim(q.get('class_id')) : null
+    if (!section && !classId) throw badRequest('choose a class or a section')
+
+    const usable = `(u.password_hash IS NOT NULL AND u.status = 'active')`
+    const rows = await c.db.prepare(`
+      SELECT st.id, TRIM(st.first_name || ' ' || COALESCE(st.last_name, '')) AS name, st.admission_no,
+             e.roll_no, cl.name AS class_name, sec.name AS section_name,
+             st.user_id AS student_user, COALESCE(su.username, su.phone, su.email, '') AS student_sign_in,
+             COALESCE(${usable.replace(/u\./g, 'su.')}, 0) AS student_usable
+        FROM students st
+        JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
+        JOIN classes cl ON cl.id = e.class_id
+        LEFT JOIN sections sec ON sec.id = e.section_id
+        LEFT JOIN users su ON su.id = st.user_id
+       WHERE st.status = 'active' AND (? IS NULL OR e.section_id = ?) AND (? IS NULL OR e.class_id = ?)
+       ORDER BY e.roll_no IS NULL, e.roll_no, st.admission_no`)
+      .bind(section, section, classId, classId).all<Record<string, unknown>>()
+
+    const ids = rows.results.map((r) => String(r.id))
+    /* One query for every guardian in the class rather than one per child:
+       D1 takes at most a hundred bound parameters, so the ids go in as JSON
+       and json_each unpacks them. */
+    const guardians = ids.length === 0 ? { results: [] as Record<string, unknown>[] } : await c.db.prepare(`
+      SELECT sg.student_id, g.id, g.full_name, g.relation, COALESCE(g.phone, '') AS phone,
+             g.user_id, COALESCE(gu.username, gu.phone, gu.email, '') AS sign_in,
+             COALESCE(${usable.replace(/u\./g, 'gu.')}, 0) AS usable
+        FROM student_guardians sg
+        JOIN guardians g ON g.id = sg.guardian_id
+        LEFT JOIN users gu ON gu.id = g.user_id
+       WHERE sg.student_id IN (SELECT value FROM json_each(?))
+       ORDER BY sg.is_primary DESC, g.full_name`).bind(JSON.stringify(ids)).all<Record<string, unknown>>()
+
+    const byStudent = new Map<string, Record<string, unknown>[]>()
+    for (const g of guardians.results) {
+      const k = String(g.student_id)
+      if (!byStudent.has(k)) byStudent.set(k, [])
+      byStudent.get(k)!.push(g)
+    }
+
+    return ok({ items: rows.results.map((r) => ({
+      id: String(r.id), name: String(r.name), admission_no: String(r.admission_no ?? ''),
+      roll_no: r.roll_no ?? undefined, class_name: String(r.class_name ?? ''), section_name: String(r.section_name ?? ''),
+      has_login: bool(r.student_usable), sign_in_as: String(r.student_sign_in ?? ''),
+      guardians: (byStudent.get(String(r.id)) ?? []).map((g) => ({
+        id: String(g.id), full_name: String(g.full_name), relation: String(g.relation ?? ''),
+        phone: String(g.phone ?? ''), has_login: bool(g.usable), sign_in_as: String(g.sign_in ?? ''),
+      })),
+    })) })
+  })
+
   r.post('/setup/logins/bulk', 'auth', async (c) => {
     requireInstitution(c)
     const req = await readJSON<{ kind?: string; section_id?: string; class_id?: string; reset?: boolean }>(c.req)

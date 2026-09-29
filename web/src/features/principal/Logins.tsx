@@ -17,6 +17,7 @@ import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
 import { StudentLoginsCard, IssueLoginsCard, IssueOneCard, IssueOneStaffCard } from './StudentLoginsCard'
+import { RosterLogins } from './RosterLogins'
 
 /* Who can sign in to this school.
 
@@ -293,6 +294,11 @@ export default function Logins() {
         {/* One person first: it is what somebody at the office counter is
             nearly always holding -- a parent on the phone who cannot get in --
             and the class-sized job is the rarer, once-a-term one. */}
+        {/* The roll first. A school whose children have no logins yet has
+            nothing to act on in a list of accounts, and that is the school
+            that needs this screen. */}
+        {record === 'student' && <RosterLogins kind="students" />}
+        {record === 'guardian' && <RosterLogins kind="guardians" />}
         {record === 'student' && <IssueOneCard kind="students" />}
         {record === 'guardian' && <IssueOneCard kind="guardians" />}
         {record === 'student' && <StudentLoginsCard />}
