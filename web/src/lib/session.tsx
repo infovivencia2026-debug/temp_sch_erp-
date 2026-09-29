@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type SessionResponse } from './api'
 import { setOutboxUser } from './outbox'
 import { forgetCachedDataOnUserChange } from './sw-data'
-import { adoptPersistedQueries, forgetPersistedQueries } from './query-persist'
+import { adoptPersistedQueries, forgetEverythingOnSignOut } from './query-persist'
 import { registerPushToken } from './push'
 /* Both are seen by someone who is not yet in the app (a visitor on /, a first
    sign-in setting a password), so they load on their own, not with the shell. */
@@ -79,7 +79,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     /* A session that has ended is the second of the three sign-out paths in
        lib/query-persist.ts: the parent's stored answers go before anybody is
        sent to /login, so whoever signs in next on this phone starts clean. */
-    forgetPersistedQueries()
+    forgetEverythingOnSignOut()
     /* THE ROOT ADDRESS IS A FRONT DOOR, NOT A FORM.
 
        Everything used to go straight to /login. A school looking at the

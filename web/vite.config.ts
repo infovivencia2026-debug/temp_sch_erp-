@@ -216,6 +216,9 @@ export default defineConfig({
           if (id.includes('@tanstack')) return 'query'
           /* The map engine is ~800kB and two screens use it. */
           if (id.includes('maplibre-gl')) return 'maplibre'
+          /* Icons stay one chunk: split per screen, lucide became sixty
+             one-icon files, each a request on a slow line. */
+          if (id.includes('lucide-react')) return 'icons'
           /* EVERYTHING ELSE GOES WHERE IT IS USED.
            *
            * There used to be a catch-all `vendor` chunk here, and an `icons`

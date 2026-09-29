@@ -135,10 +135,16 @@ function read(): Blob | null {
 }
 
 /** Throws the blob away. Safe to call from anywhere, any number of times. */
-export function forgetPersistedQueries() {
-  // The menu snapshot goes with it: same sign-out paths, same reason.
+/** Sign-out only (the /logout click, a session that comes back signed out):
+    the parent blob, the menu snapshot and every stored query answer. Not
+    forgetPersistedQueries, which also runs on every staff load. */
+export function forgetEverythingOnSignOut() {
+  forgetPersistedQueries()
   forgetCatalogSnapshots()
   forgetAllPersisted()
+}
+
+export function forgetPersistedQueries() {
   try {
     localStorage.removeItem(KEY)
   } catch {
@@ -275,7 +281,7 @@ export function clearPersistedQueriesOnSignOut() {
       }
       if (path === '/logout') {
         stopPersisting()
-        forgetPersistedQueries()
+        forgetEverythingOnSignOut()
       }
     },
     true,
