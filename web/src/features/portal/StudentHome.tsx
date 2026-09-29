@@ -111,7 +111,7 @@ export default function StudentHome() {
         {/* Hello, and the two small chips. */}
         <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 gap-y-2">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[24px] font-semibold leading-tight">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
+            <h1 className="text-[22px] font-semibold leading-tight">{s ? `${greeting()}, ${first}` : <Bone className="h-7 w-56" />}</h1>
             <p className="text-[13px] text-muted-foreground">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
           {streak.data && (
@@ -167,7 +167,7 @@ export default function StudentHome() {
                 <li key={h.id}>
                   <Link to={`${toHomework}?open=${h.id}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2 active:bg-muted/50">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-medium">{h.title}</span>
+                      <span className="line-clamp-2 block text-[15px] font-medium leading-snug">{h.title}</span>
                       <span className="block truncate text-[13px] text-muted-foreground">{h.subject ?? 'Homework'}</span>
                     </span>
                     <DueChip due={h.due_on} />

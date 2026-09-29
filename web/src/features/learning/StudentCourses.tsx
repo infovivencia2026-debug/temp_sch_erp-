@@ -81,7 +81,7 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                   {rows.map((r) => (
                     <li key={r.id}>
                       <Button variant="ghost" onClick={() => r.cs && onOpen(r.cs)}
-                        className="h-auto min-h-[64px] w-full justify-start gap-3 whitespace-normal rounded-none px-[var(--card-pad)] py-2.5 text-left">
+                        className="h-auto min-h-[64px] w-full justify-start gap-3 whitespace-normal rounded-none text-foreground px-[var(--card-pad)] py-2.5 text-left">
                         <span className="min-w-0 flex-1">
                           <span className="block text-[15px] font-medium leading-snug [overflow-wrap:anywhere]">{r.title}</span>
                           <span className="block text-[13px] font-normal text-muted-foreground">{r.meta}</span>
@@ -99,7 +99,7 @@ function List({ onOpen }: { onOpen: (cs: string) => void }) {
                   const pct = c.lessons ? Math.round((100 * c.completed) / c.lessons) : 0
                   return (
                     <Button key={c.class_subject_id} variant="secondary" onClick={() => onOpen(c.class_subject_id)}
-                      className="card h-auto min-h-[132px] w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-4 text-left font-normal">
+                      className="card h-auto min-h-[132px] w-full flex-col text-foreground items-stretch justify-start gap-0 whitespace-normal p-4 text-left font-normal text-foreground">
                       <span className="flex items-center gap-3">
                         <span className="min-w-0 flex-1">
                           <span className="block text-[16px] font-semibold">{c.subject}</span>
@@ -277,7 +277,7 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
                 })}
                 {loose.length > 0 && (
                   <li>
-                    <Button variant="secondary" onClick={() => setWhere({ day: OTHER, item: null })} className="card h-auto min-h-[76px] w-full justify-start gap-3 whitespace-normal px-[var(--card-pad)] py-4 text-left font-normal">
+                    <Button variant="secondary" onClick={() => setWhere({ day: OTHER, item: null })} className="card h-auto min-h-[76px] w-full justify-start gap-3 whitespace-normal px-[var(--card-pad)] py-4 text-left font-normal text-foreground">
                       <ProgressRing pct={Math.round((100 * loose.filter((x) => x.done).length) / loose.length)} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[16px] font-semibold">Other work</span>
