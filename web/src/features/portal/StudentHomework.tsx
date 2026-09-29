@@ -36,6 +36,10 @@ export default function StudentHomework() {
   const [justDone, setJustDone] = useState<string | null>(null)
   const [toast, setToast] = useState<{ text: string; bad?: boolean } | null>(null)
   const [showDone, setShowDone] = useState(false)
+  /* The row just handed in stays where it was for a moment, so its check can
+     be seen drawing, then moves down to Handed in. */
+  const [linger, setLinger] = useState<string | null>(null)
+  useEffect(() => { if (!linger) return; const t = setTimeout(() => setLinger(null), 1600); return () => clearTimeout(t) }, [linger])
 
   useEffect(() => {
     if (!open) return
@@ -60,6 +64,7 @@ export default function StudentHomework() {
 
   const onHanded = (h: StudentHomework, el: Element | null) => {
     setJustDone(h.id)
+    setLinger(h.id)
     setOpen(null)
     setToast({ text: `Handed in: ${h.title}` })
     const left = items.filter((x) => !x.submitted && x.id !== h.id && x.due_on && daysFrom(x.due_on) <= 1).length
@@ -87,7 +92,7 @@ export default function StudentHomework() {
         ) : !items.length ? (
           <div className="card px-4 py-8 text-center text-[15px] text-muted-foreground">No homework yet. Enjoy the free time!</div>
         ) : GROUPS.map((g) => {
-          const rows = items.filter(g.test).sort((a, b) => (g.key === 'done' ? (b.due_on ?? '').localeCompare(a.due_on ?? '') : (a.due_on ?? '9').localeCompare(b.due_on ?? '9')))
+          const rows = items.filter((h) => g.test(h.id === linger ? { ...h, submitted: false } : h)).sort((a, b) => (g.key === 'done' ? (b.due_on ?? '').localeCompare(a.due_on ?? '') : (a.due_on ?? '9').localeCompare(b.due_on ?? '9')))
           if (!rows.length) return null
           const collapsed = g.key === 'done' && !showDone
           return (

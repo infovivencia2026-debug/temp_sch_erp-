@@ -186,7 +186,11 @@ function Course({ cs, back, initial }: { cs: string; back: () => void; initial: 
     ...d.quizzes.filter((z) => !z.lms_unit_id).map((z) => ({ type: 'quiz' as const, id: z.id, section: 'assessment' as Section, required: false, done: z.attempts > 0, pass_percent: null, locked: false })),
   ] : []
   const otherModule: SModule = { id: OTHER, title: 'Other work', state: 'open', days_done: 0, days: [{ key: OTHER, day: null, label: 'Other work', name: 'Other work', state: 'open', reason: null, done: loose.filter((x) => x.done).length, total: loose.length, opens_at: null, items: loose }] }
-  const dayStops = where.day === OTHER ? loose.map((it) => ({ m: otherModule, d: otherModule.days[0], it })) : stops
+  /* A link that names only the item (the home's Quiz time) may point at work
+     that is on no day; it is then found among the other work. */
+  const looseStops = loose.map((it) => ({ m: otherModule, d: otherModule.days[0], it }))
+  const inLoose = !where.day && !!where.item && !stops.some((s) => `${s.it.type}:${s.it.id}` === where.item) && looseStops.some((s) => `${s.it.type}:${s.it.id}` === where.item)
+  const dayStops = where.day === OTHER || inLoose ? looseStops : stops
   const cur = where.day ? (where.day === OTHER ? { m: otherModule, d: otherModule.days[0] } : (() => { for (const m of modules) { const x = m.days.find((y) => y.key === where.day); if (x) return { m, d: x } } return null })()) : null
   const item = where.item ? dayStops.find((s) => `${s.it.type}:${s.it.id}` === where.item) ?? null : null
   const titleOf = (it: SItem) => it.type === 'lesson' ? it.lesson?.title ?? '' : it.type === 'quiz' ? d?.quizzes.find((z) => z.id === it.id)?.title ?? 'Quiz' : d?.assignments.find((a) => a.id === it.id)?.title ?? 'Assignment'
