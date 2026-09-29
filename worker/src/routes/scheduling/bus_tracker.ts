@@ -1,4 +1,5 @@
 import type { Env } from '../../env'
+import { publishTopic } from '../../services/live'
 import { notifyApproaching as notifyApproachingNotice, notifyArrived, notifyTripStarted } from '../../services/transport_notices'
 import { json } from '../../env'
 import { getObject, serveObject } from '../../services/files'
@@ -660,6 +661,8 @@ async function ingestPositions(dev: Dev, req: Request): Promise<Response> {
     await walkGeofences(dev, tripId, trip.route_id, trip.direction, policy, fixes)
     await trackSpeeding(dev, trip.vehicle_id, tripId, policy, fixes)
     try { await notifyApproaching(dev, tripId, trip.route_id, trip.direction, fixes) } catch (e) { console.warn('approach notice', e) }
+    // Every open bus map and child-bus screen refetches now, instead of polling (services/live.ts topics).
+    await publishTopic(dev.env, dev.inst, { topic: 'transport', type: 'bus', keys: { vehicle: trip.vehicle_id, trip: tripId } })
   }
   return json({ accepted, ping_seconds: policy.pingSeconds, paused: dev.paused, trip_open: tripOpen })
 }
