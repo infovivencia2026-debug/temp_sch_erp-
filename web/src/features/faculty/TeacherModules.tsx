@@ -593,10 +593,11 @@ function ItemRow({ d, u, it, arrows, refresh, onTab }: { d: CourseDetail; u: Uni
         <button type="button" className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-md px-2 text-left hover:bg-muted/50" onClick={() => setOpen(open === 'preview' ? null : 'preview')} aria-expanded={open === 'preview'}>
           <KindChip kind={kind} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[14px] font-medium">{it.title}</span>
-            <span className="block truncate text-[13px] text-muted-foreground">{meta}</span>
+            <span className="block text-[14px] font-medium leading-snug [overflow-wrap:anywhere] sm:truncate">{it.title}</span>
+            <span className="block text-[13px] text-muted-foreground sm:truncate">{meta}</span>
+            <span className="mt-1 flex flex-wrap items-center gap-2 sm:hidden">{right}</span>
           </span>
-          <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">{right}</span>
+          <span className="hidden shrink-0 flex-wrap items-center justify-end gap-2 sm:flex">{right}</span>
         </button>
         <button type="button" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label={`Actions for ${it.title}`} aria-expanded={open === 'menu'} onClick={() => setOpen(open === 'menu' ? null : 'menu')}>
           <MoreHorizontal className="h-4 w-4" />
