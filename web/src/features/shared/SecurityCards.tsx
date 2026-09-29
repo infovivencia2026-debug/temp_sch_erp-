@@ -155,6 +155,12 @@ export function MyDevicesCard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['own-sessions'] }),
   })
   const rows = data?.items ?? []
+  /* Five, the current one first, and the rest behind a button. An account
+     signed in on hundreds of browsers drew a card twelve thousand pixels tall
+     that pushed everything under it off the page as it arrived. */
+  const [all, setAll] = useState(false)
+  const ordered = [...rows.filter((s) => s.current), ...rows.filter((s) => !s.current)]
+  const shown = all ? ordered : ordered.slice(0, 5)
   return (
     <Card>
       <CardHeader
@@ -175,7 +181,7 @@ export function MyDevicesCard() {
         }
       />
       <ul className="divide-y">
-        {rows.map((s) => (
+        {shown.map((s) => (
           <li key={s.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-[13.5px]">
             <span>
               <span className="font-medium">{s.device}</span>
@@ -189,6 +195,13 @@ export function MyDevicesCard() {
         ))}
         {!rows.length && !error && <li className="px-4 py-3 text-[13.5px] text-muted-foreground">Loading…</li>}
       </ul>
+      {rows.length > 5 && (
+        <div className="border-t px-4 py-2.5">
+          <Button variant="ghost" size="sm" onClick={() => setAll((v) => !v)}>
+            {all ? 'Show fewer' : `Show all ${rows.length}`}
+          </Button>
+        </div>
+      )}
       {(error || others.error) && (
         <div className="border-t px-4 py-3">
           <FormNotice error={(error ?? others.error) as ApiError} />

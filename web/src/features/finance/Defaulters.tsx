@@ -181,6 +181,9 @@ export default function Defaulters() {
             A school sets this once a year and then chases by hand only the
             families the automation has not moved. Putting it first says which
             of the two is meant to do most of the work. */}
+        {/* Its space is held while it loads, so the figures and the list below
+            do not drop half a screen when it lands. */}
+        {!plan && schedule.isLoading && <Card><Loading shape="form" rows={3} /></Card>}
         {plan && (
           <Card>
             <CardHeader
