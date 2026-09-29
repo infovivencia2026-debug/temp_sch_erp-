@@ -1,5 +1,5 @@
 import type { Ctx, Router } from '../router'
-import { autoIssueStudentLogin } from './setup/staff'
+import { autoIssueFamilyLogins } from './setup/staff'
 import { reply } from '../router'
 import type { Page, Student, StudentCounts, StudentFullDetail, StudentProfile, StudentRecord } from '@shared/api'
 import { HttpError, badRequest, bool, clampInt, created, like, ok, opt, optStr, readJSON, uuid, isUUID, now } from '../http'
@@ -239,7 +239,7 @@ async function createStudent(c: Ctx) {
   try { plan = await planUpsertStudent(c, req) } catch (err) { runUpsertErrors(err) }
   await batch(c, plan.stmts)
   // A login by default, when the school has student logins on.
-  if (plan.created) { try { await autoIssueStudentLogin(c, plan.studentId) } catch (e) { console.error('auto login', e) } }
+  if (plan.created) await autoIssueFamilyLogins(c, plan.studentId)
   return reply({ id: plan.studentId, admission_no: plan.admissionNo }, 201)
 }
 
@@ -1358,7 +1358,9 @@ async function importStudents(c: Ctx) {
   out.run_id = runId
   // Logins by default for everyone just imported (when the school has them on).
   let logins = 0
-  for (const id of createdIds) { try { if (await autoIssueStudentLogin(c, id)) logins++ } catch (e) { console.error('auto login', e) } }
+  let parentLogins = 0
+  for (const id of createdIds) { const r = await autoIssueFamilyLogins(c, id); if (r.student) logins++; parentLogins += r.parents }
+  ;(out as Record<string, unknown>).parent_logins_issued = parentLogins
   ;(out as Record<string, unknown>).logins_issued = logins
   return ok(out)
 }

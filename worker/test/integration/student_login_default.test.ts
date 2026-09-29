@@ -35,3 +35,23 @@ describe('student logins by default', () => {
     expect(u?.m).toBe(1)
   })
 })
+
+describe('parent logins by default', () => {
+  const guardianUser = (phone: string) => E.TENANT_TEST.prepare(`SELECT g.user_id AS uid, u.username, u.must_change_password AS m
+      FROM guardians g LEFT JOIN users u ON u.id = g.user_id WHERE g.phone = ?`).bind(phone).all<{ uid: string | null; username: string | null; m: number | null }>()
+
+  it('a parent with a phone gets a login when their child is added, and a sibling joins the same account', async () => {
+    const r1 = await api('admin', 'POST', '/students', { first_name: 'Sib', last_name: 'One', admission_no: 'AUTO-SIB-1', section_id: IDS.section,
+      guardian_name: 'Ravi Sib', guardian_phone: '9000011111', guardian_relation: 'father' })
+    expect(r1.status).toBe(201)
+    const g1 = (await guardianUser('9000011111')).results
+    expect(g1.length).toBe(1)
+    expect(g1[0].uid).toBeTruthy()
+    expect(g1[0].m).toBe(1)
+    const r2 = await api('admin', 'POST', '/students', { first_name: 'Sib', last_name: 'Two', admission_no: 'AUTO-SIB-2', section_id: IDS.section,
+      guardian_name: 'Ravi Sib', guardian_phone: '9000011111', guardian_relation: 'father' })
+    expect(r2.status).toBe(201)
+    const g2 = (await guardianUser('9000011111')).results
+    expect(new Set(g2.map((x) => x.uid)).size).toBe(1)
+  })
+})

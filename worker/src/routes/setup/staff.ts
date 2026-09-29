@@ -139,6 +139,52 @@ export async function autoIssueStudentLogin(c: Ctx, studentId: string): Promise<
   return true
 }
 
+/* PARENTS TOO (owner, 2026-09-29): a guardian with a phone or email gets a
+   parent login by default, with no message sent. The phone (else the email)
+   is the username and first password, which must be changed at first
+   sign-in. A number that already signs a parent in here simply gains this
+   child, so a family keeps one account. Skipped, not failed, when the number
+   is a staff account's or the guardian has neither. Returns true when a
+   login was created or attached. */
+export async function autoIssueGuardianLogin(c: Ctx, guardianId: string): Promise<boolean> {
+  const g = await c.db.prepare(`SELECT user_id, full_name, email, phone FROM guardians WHERE id = ?`).bind(guardianId)
+    .first<{ user_id: string | null; full_name: string; email: string | null; phone: string | null }>()
+  if (!g || g.user_id) return false
+  const email = nullStr(g.email), phone = nullStr(g.phone)
+  if (!email && !phone) return false
+  const attach = await c.db.prepare(`SELECT u.id FROM users u WHERE u.institution_id = ? AND ((? IS NOT NULL AND u.email = ?) OR (? IS NOT NULL AND u.phone = ?))
+      AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.key = 'parent') ORDER BY u.created_at LIMIT 1`)
+    .bind(instId(c), email, email, phone, phone).first<{ id: string }>()
+  if (attach) {
+    await c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ? AND user_id IS NULL`).bind(attach.id, guardianId).run()
+    return true
+  }
+  const clash = await c.db.prepare(`SELECT 1 AS x FROM users WHERE institution_id = ? AND ((? IS NOT NULL AND email = ?) OR (? IS NOT NULL AND phone = ?))`)
+    .bind(instId(c), email, email, phone, phone).first()
+  if (clash) return false
+  const { password, known } = issuedPassword(g.phone ?? '', g.email ?? '')
+  const pwHash = await hash(c, password)
+  const username = await uniqueUsername(c, phone ?? g.full_name)
+  const newId = uuid(), t = now()
+  await c.db.batch([
+    c.db.prepare(`INSERT INTO users (id, institution_id, username, email, phone, full_name, password_hash, status, must_change_password, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`).bind(newId, instId(c), username, email, phone, g.full_name, pwHash, known ? 1 : 0, t, t),
+    c.db.prepare(`UPDATE guardians SET user_id = ? WHERE id = ? AND user_id IS NULL`).bind(newId, guardianId),
+  ])
+  await grantRole(c, newId, 'parent')
+  await indexLogin(c, newId)
+  return true
+}
+
+/** Logins by default for a new student and everyone looking after them. */
+export async function autoIssueFamilyLogins(c: Ctx, studentId: string): Promise<{ student: boolean; parents: number }> {
+  let student = false, parents = 0
+  try { student = await autoIssueStudentLogin(c, studentId) } catch (e) { console.error('auto student login', e) }
+  const gs = (await c.db.prepare(`SELECT guardian_id AS id FROM student_guardians WHERE student_id = ?`).bind(studentId).all<{ id: string }>()).results ?? []
+  for (const g of gs) { try { if (await autoIssueGuardianLogin(c, g.id)) parents++ } catch (e) { console.error('auto parent login', e) } }
+  return { student, parents }
+}
+
 export function registerStaff(r: Router): void {
   /* --- employees --- */
 
