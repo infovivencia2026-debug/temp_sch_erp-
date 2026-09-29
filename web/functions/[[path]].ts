@@ -21,6 +21,11 @@
 interface Env {
   /** e.g. https://temperp-web-xyz-el.a.run.app — no trailing slash. */
   API_ORIGIN: string
+  /** Optional Service Binding to the Worker backend (the test project's
+      wrangler.toml: [[services]] binding = "API"). When present, requests go
+      to the Worker inside Cloudflare, with no public hop or TLS handshake;
+      API_ORIGIN is then only used to rewrite Location headers. */
+  API?: { fetch: (req: Request) => Promise<Response> }
   /** Optional. When set, every proxied request carries it as X-Origin-Secret,
       and the Go side (ORIGIN_SHARED_SECRET, httpx.RealIP) believes
       CF-Connecting-IP only on requests that carry it. Without it a caller
@@ -75,11 +80,12 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (NOT_PROXIED.includes(url.pathname)) return new Response('Not Found', { status: 404 })
 
   const origin = context.env.API_ORIGIN
-  if (!origin) {
+  const api = context.env.API
+  if (!origin && !api) {
     return new Response('API_ORIGIN is not configured for this Pages project', { status: 503 })
   }
 
-  const upstream = new URL(url.pathname + url.search, origin)
+  const upstream = new URL(url.pathname + url.search, origin || url.origin)
   const headers = new Headers(context.request.headers)
   /* The server decides redirects and cookie scope from the host it was asked
      for, and behind this proxy that must be the Pages host, not the run.app
@@ -103,9 +109,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     headers.set('X-Forwarded-For', prior ? `${prior}, ${client}` : client)
   }
 
-  /* The visitor, for session activity (worker services/session_activity.ts):
-     past this hop CF-Connecting-IP and request.cf describe this function, not
-     the person. Always set or removed here, never copied from the visitor. */
+  /* The visitor, for login throttling, session activity and audit: past this
+     hop CF-Connecting-IP and request.cf describe this function, not the
+     person. Always set or removed here, never copied from the visitor. The
+     Worker believes X-Visitor-* only on a request whose X-Origin-Secret
+     checks out (worker/src/origin.ts), so the secret signs them. */
   const cf = (context.request as unknown as { cf?: Record<string, unknown> }).cf ?? {}
   const visitor: Record<string, unknown> = { 'X-Visitor-IP': client, 'X-Visitor-City': cf.city, 'X-Visitor-Region': cf.region, 'X-Visitor-Country': cf.country }
   for (const [k, v] of Object.entries(visitor)) {
@@ -121,12 +129,15 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // followed here against the upstream host.
     redirect: 'manual',
   }
-  const response = await fetch(upstream.toString(), init)
+  const response = api ? await api.fetch(new Request(upstream.toString(), init)) : await fetch(upstream.toString(), init)
+
+  // A WebSocket upgrade (/api/v1/live/socket) must be handed back as is: rebuilding it drops the socket.
+  if (response.status === 101) return response
 
   /* Rewrite a Location that names the upstream host back to this origin, so
      a server-side redirect after sign-in lands the browser where it started. */
   const out = new Headers(response.headers)
   const loc = out.get('Location')
-  if (loc && loc.startsWith(origin)) out.set('Location', loc.slice(origin.length) || '/')
+  if (loc && origin && loc.startsWith(origin)) out.set('Location', loc.slice(origin.length) || '/')
   return new Response(response.body, { status: response.status, headers: out })
 }
