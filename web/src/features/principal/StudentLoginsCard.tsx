@@ -57,11 +57,16 @@ export function StudentLoginsCard() {
     ...p.classes.filter((c) => eligibleClass(c.id)).map((c) => ({ value: `class:${c.id}`, label: `${c.name}, every section` })),
     ...(sections.data?.items ?? []).filter((s) => eligibleClass(s.class_id)).map((s) => ({ value: `section:${s.id}`, label: `${s.class_name} ${s.name}` })),
   ]
-  const issued = result?.rows.filter((r) => r.password) ?? []
+  /* The whole class goes on the sheet, not only the codes issued just now.
+     A child who already had a login is on it too, with their sign-in name:
+     their password cannot be read back, so the slip says so and how to get a
+     new one, instead of the child being missing from the class list. */
+  const sheet = result?.rows.filter((r) => r.sign_in_as) ?? []
+  const pw = (r: Row) => r.password ?? 'Already set. Ask the office to reset it if it is lost.'
 
   const download = () => {
     const lines = [['Class', 'Section', 'Roll', 'Admission no', 'Name', 'Sign in as', 'Temporary password'].map(csvCell).join(',')]
-    for (const r of issued) lines.push([r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, r.password].map(csvCell).join(','))
+    for (const r of sheet) lines.push([r.class_name, r.section_name, r.roll_no, r.admission_no, r.name, r.sign_in_as, pw(r)].map(csvCell).join(','))
     const url = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/csv' }))
     const a = document.createElement('a')
     a.href = url; a.download = 'student-logins.csv'; a.click()
@@ -76,10 +81,11 @@ export function StudentLoginsCard() {
       body{font:13px system-ui,sans-serif;margin:16px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
       .s{border:1px dashed #888;padding:10px 12px;break-inside:avoid}.n{font-weight:600;font-size:14px}.k{font-family:ui-monospace,monospace;font-size:15px}
       .m{color:#555;font-size:11px}@media print{h1{display:none}}</style>
-      <h1>Student logins, cut along the lines</h1><div class="g">${issued.map((r) => `<div class="s">
+      <h1>Student logins, cut along the lines</h1><div class="g">${sheet.map((r) => `<div class="s">
       <div class="n">${esc(r.name)}</div><div class="m">${esc([r.class_name, r.section_name].filter(Boolean).join(' '))}${r.roll_no ? ` · Roll ${esc(r.roll_no)}` : ''} · ${esc(r.admission_no)}</div>
-      <div>Sign in as: <span class="k">${esc(r.sign_in_as)}</span></div><div>Password: <span class="k">${esc(r.password)}</span></div>
-      <div class="m">Sign in at ${esc(site)}. You will choose your own password the first time.</div></div>`).join('')}</div>`)
+      <div>Sign in as: <span class="k">${esc(r.sign_in_as)}</span></div>${r.password ? `<div>Password: <span class="k">${esc(r.password)}</span></div>
+      <div class="m">Sign in at ${esc(site)}. You will choose your own password the first time.</div>` : `<div>Password: <span class="m">${esc(pw(r))}</span></div>
+      <div class="m">Sign in at ${esc(site)}.</div>`}</div>`).join('')}</div>`)
     w.document.close()
     w.focus()
     w.print()
@@ -156,7 +162,7 @@ export function StudentLoginsCard() {
             <p>
               <strong>{result.created}</strong> issued, {result.existing} already had one{result.skipped ? `, ${result.skipped} skipped` : ''}. {result.note}
             </p>
-            {issued.length > 0 && (
+            {sheet.length > 0 && (
               <div className="flex gap-2">
                 <Button onClick={print}>Print slips for the class teacher</Button>
                 <Button variant="secondary" onClick={download}>Download CSV</Button>
