@@ -8,6 +8,10 @@ import { PROVIDER as PHONE_PROVIDER, isPhoneGatewayConfig, smsGatewayReason } fr
 import { sendSMTP } from './smtp'
 import { sendPush, pushConfigured } from './push'
 import { deliverFamilyAlerts } from '../routes/portal/school_life'
+import {
+  afterQuietHours, channelStatus, dedupKeyOf, isDuplicate, liveMap, loadPolicies, loadSettings, looksEmail, messageType, messageTypeOf,
+  phoneOf, sentToday, type DeliverySettings, type Policy,
+} from './delivery'
 
 /* The message pipeline of internal/api/messaging.go on the Worker:
    QueueMessage (queueWith), DispatchMessages, the provider adapters (SMTP,
@@ -36,6 +40,10 @@ export class MessagingError extends Error {
     super(message)
   }
 }
+/** A provider refused this message for a reason retrying will not change (a bad number,
+    no approved template): with a rung left on the ladder, it moves on at once. */
+export class PermanentSendError extends Error {}
+
 export const ERR_NOT_CONFIGURED = 'messaging provider is not configured'
 export const ERR_NO_RECIPIENT = 'no address on file for this recipient'
 export const ERR_NO_CREDITS = 'out of message credits for this channel, top up to resume sending'
@@ -45,7 +53,14 @@ export const ERR_NO_CREDITS = 'out of message credits for this channel, top up t
 
 export interface Attachment { filename: string; content_type: string; data: Uint8Array }
 export interface WATemplateSend { name: string; language: string; params: string[] }
-export interface Outbound { to: string; subject: string; body: string; dlt: string; wa?: WATemplateSend | null; attachments?: Attachment[] }
+export interface Media { kind: 'document' | 'image' | 'video'; url: string; filename?: string }
+export interface Outbound {
+  to: string; subject: string; body: string; dlt: string; wa?: WATemplateSend | null; attachments?: Attachment[]
+  /** "<school id>:<message id>": echoed back by provider webhooks (WhatsApp biz_opaque_callback_data, Resend tags). */
+  ref?: string
+  /** A file to carry on WhatsApp (template header, or a media message inside the 24-hour window). */
+  media?: Media | null
+}
 
 export interface Provider {
   channel: string
@@ -105,9 +120,15 @@ function resendProvider(apiKey: string, from: string, fromName: string): Provide
         to: [m.to], subject: m.subject.replace(/[\r\n]/g, ' '), text: m.body,
       }
       if (m.attachments?.length) body.attachments = m.attachments.map((a) => ({ filename: a.filename, content: b64(a.data), content_type: a.content_type || 'application/octet-stream' }))
+      const headers: Record<string, string> = { authorization: 'Bearer ' + apiKey, 'content-type': 'application/json' }
+      if (m.ref) {
+        // Resend tags carry the message back on its webhooks (routes/comms/message_webhooks.ts);
+        // the idempotency key makes a retried send of the same row a no-op at Resend.
+        body.tags = [{ name: 'ref', value: m.ref.replace(/[^A-Za-z0-9_-]/g, '_') }]
+        headers['Idempotency-Key'] = m.ref
+      }
       const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST', signal: timeout(),
-        headers: { authorization: 'Bearer ' + apiKey, 'content-type': 'application/json' }, body: JSON.stringify(body),
+        method: 'POST', signal: timeout(), headers, body: JSON.stringify(body),
       })
       const raw = (await res.text()).slice(0, 2048)
       if (res.status >= 300) throw new Error(`resend ${res.status}: ${raw.trim()}`)
@@ -143,10 +164,31 @@ function gatewayProvider(channel: string, cfg: Record<string, unknown>, apiKey: 
       if (ah) headers[s(cfg.auth_header_name).trim() || 'Authorization'] = sub(ah)
       const res = await fetch(url, { method, headers, body, signal: timeout() })
       const raw = (await res.text()).slice(0, 2048)
-      if (res.status >= 300) throw new Error(`gateway ${res.status} ${res.statusText}: ${raw.trim()}`)
-      return raw.trim()
+      if (res.status >= 300) {
+        const msg = `gateway ${res.status} ${res.statusText}: ${raw.trim()}`
+        throw res.status >= 400 && res.status < 500 && res.status !== 429 ? new PermanentSendError(msg) : new Error(msg)
+      }
+      return gatewayMessageId(raw)
     },
   }
+}
+
+/** The vendor's message id out of a gateway answer, for delivery reports to find the row
+    (Fast2SMS request_id, MSG91 request id / message, Gupshup messageId); the raw answer otherwise. */
+export function gatewayMessageId(raw: string): string {
+  const t = raw.trim()
+  try {
+    const v = JSON.parse(t) as Record<string, unknown>
+    for (const k of ['request_id', 'requestId', 'messageId', 'message_id', 'msgid', 'id']) {
+      const x = v[k]
+      if (typeof x === 'string' && x.trim()) return x.trim()
+      if (typeof x === 'number') return String(x)
+    }
+    const r = v.response as Record<string, unknown> | undefined
+    if (r && typeof r.id === 'string') return r.id
+    if (v.type === 'success' && typeof v.message === 'string') return v.message
+  } catch { /* not JSON */ }
+  return t
 }
 
 // --- WhatsApp Cloud API (whatsapp.go) -------------------------------------
@@ -193,6 +235,8 @@ const META_ADVICE: Record<number, string> = {
   133015: 'the number is being deregistered or moved and cannot send',
 }
 
+const META_TRANSIENT = new Set([4, 80007, 130429, 131016, 131056, 133004])
+
 export function explainMetaError(status: number, raw: string): Error {
   let e: { message?: string; code?: number; error_subcode?: number; error_data?: { details?: string }; fbtrace_id?: string } | undefined
   try { e = (JSON.parse(raw) as { error?: typeof e }).error } catch { /* below */ }
@@ -205,7 +249,8 @@ export function explainMetaError(status: number, raw: string): Error {
   const d = (e.error_data?.details ?? '').trim()
   if (d && d !== e.message) out += ' - ' + d
   if (e.fbtrace_id) out += ' [trace ' + e.fbtrace_id + ']'
-  return new Error(trunc(out, 480))
+  // Rate limits and Meta's own outages pass; everything else is about this message or account.
+  return META_TRANSIENT.has(code) ? new Error(trunc(out, 480)) : new PermanentSendError(trunc(out, 480))
 }
 
 function whatsappCloudProvider(cfg: Record<string, unknown>, token: string): Provider {
@@ -224,16 +269,24 @@ function whatsappCloudProvider(cfg: Record<string, unknown>, token: string): Pro
       if (m.wa && m.wa.name.trim() !== '') {
         const lang = m.wa.language.trim() || s(cfg.default_language).trim() || 'en'
         const tmpl: Record<string, unknown> = { name: m.wa.name.trim(), language: { code: lang } }
-        if (m.wa.params.length) tmpl.components = [{ type: 'body', parameters: m.wa.params.map((v) => ({ type: 'text', text: v })) }]
+        const components: Record<string, unknown>[] = []
+        // A template approved with a media header takes the file as its header parameter.
+        if (m.media?.url) components.push({ type: 'header', parameters: [waMedia(m.media)] })
+        if (m.wa.params.length) components.push({ type: 'body', parameters: m.wa.params.map((v) => ({ type: 'text', text: v })) })
+        if (components.length) tmpl.components = components
         payload = { messaging_product: 'whatsapp', to, type: 'template', template: tmpl }
       } else if (cfg.allow_free_text === true) {
-        payload = { messaging_product: 'whatsapp', to, type: 'text', text: { body: m.body, preview_url: false } }
+        payload = m.media?.url
+          ? { messaging_product: 'whatsapp', to, type: m.media.kind, [m.media.kind]: { ...waMediaObject(m.media), caption: trunc(m.body, 1024) } }
+          : { messaging_product: 'whatsapp', to, type: 'text', text: { body: m.body, preview_url: false } }
       } else {
         throw new MessagingError('provider_not_configured', `whatsapp: ${ERR_NOT_CONFIGURED}: no approved template is mapped for this message, ` +
           'and WhatsApp accepts free text only inside a 24-hour window opened by the ' +
           "parent's own reply. Which this product cannot observe, having no inbound " +
           'webhook. Map this template to an approved WhatsApp template name')
       }
+      // Echoed back on every status webhook for this message (routes/comms/message_webhooks.ts).
+      if (m.ref) payload.biz_opaque_callback_data = m.ref
       const v = s(cfg.api_version).trim() || 'v21.0'
       let res: Response
       try {
@@ -250,6 +303,15 @@ function whatsappCloudProvider(cfg: Record<string, unknown>, token: string): Pro
       return id
     },
   }
+}
+
+function waMediaObject(m: Media): Record<string, unknown> {
+  const o: Record<string, unknown> = { link: m.url }
+  if (m.kind === 'document' && m.filename) o.filename = m.filename
+  return o
+}
+function waMedia(m: Media): Record<string, unknown> {
+  return { type: m.kind, [m.kind]: waMediaObject(m) }
 }
 
 function redact(v: string): string { v = v.trim(); return v === '' ? '' : '…' + v.slice(-4) }
@@ -375,6 +437,7 @@ export async function resolveTemplate(db: D1Database, code: string, channel: str
 // queueing
 
 export interface SendRequest {
+  /** email | sms | whatsapp | in_app, or 'auto' for the message type's ladder. */
   channel: string
   template_code: string
   vars?: Record<string, unknown>
@@ -387,21 +450,53 @@ export interface SendRequest {
   /** ISO timestamp; held until then. */
   send_after?: string | null
   attachments?: Attachment[]
+  /** A second queue() with the same key is a duplicate, whatever else differs. */
+  idempotency_key?: string | null
+  /** Send on exactly this channel: no ladder, no digest, no cap (a person chose it). */
+  exact_channel?: boolean
+  /** Skip de-duplication, the digest, the cap and quiet hours (an office resend). */
+  force?: boolean
+  /** A file for WhatsApp to carry (email carries attachments). */
+  media?: Media | null
 }
-export interface SendResult { id: string | null; duplicate: boolean }
+export interface SendResult {
+  id: string | null
+  duplicate: boolean
+  /** Held for the recipient's daily digest ('digest') or over their daily cap ('cap'). */
+  held?: 'digest' | 'cap'
+  /** The channel the first rung went out on. */
+  channel?: string
+}
 
 /** Where to queue: the school's database and id. */
 export interface MsgScope { env: Env; db: D1Database; inst: string }
 
 export const scopeOf = (c: Ctx): MsgScope => ({ env: c.env, db: c.db, inst: c.id.institution!.id })
 
-async function addressFor(db: D1Database, user: string, channel: string): Promise<string> {
+interface Contact { email: string; phone: string }
+
+async function contactOf(db: D1Database, user: string): Promise<Contact | null> {
   const u = await db.prepare(`SELECT email, phone FROM users WHERE id = ?`).bind(user).first<{ email: string | null; phone: string | null }>()
+  return u ? { email: u.email ?? '', phone: u.phone ?? '' } : null
+}
+
+async function addressFor(db: D1Database, user: string, channel: string): Promise<string> {
+  const u = await contactOf(db, user)
   if (!u) throw new MessagingError('no_recipient', ERR_NO_RECIPIENT)
   if (channel === 'email' && u.email) return u.email
   if ((channel === 'sms' || channel === 'whatsapp') && u.phone) return u.phone
   if (channel === 'in_app') return user
   throw new MessagingError('no_recipient', ERR_NO_RECIPIENT)
+}
+
+/** Ladder bookkeeping written with a row. */
+interface RowExtra {
+  message_type?: string | null
+  ladder?: string[]
+  dedup_key?: string | null
+  idempotency_key?: string | null
+  urgent?: boolean
+  fallback_of?: string | null
 }
 
 /**
@@ -413,6 +508,9 @@ export class Messenger {
   private schoolSet: ProviderSet | null = null
   private platformSet: ProviderSet | null = null
   private schoolName: string | null = null
+  private settings: DeliverySettings | null = null
+  private policies: Record<string, Policy> | null = null
+  private live: Record<string, boolean> | null = null
   private kicks = false
   constructor(public m: MsgScope) {}
 
@@ -421,21 +519,91 @@ export class Messenger {
     return (this.schoolSet ??= await loadProviders(this.m.env, this.m.db, this.m.inst))
   }
 
+  /** Which channels are live right now (provider set up and, if metered, in credit). */
+  async liveChannels(): Promise<Record<string, boolean>> {
+    return (this.live ??= liveMap(await channelStatus(this.m.env, this.m.db, this.m.inst)))
+  }
+
   /** QueueMessage. Throws MessagingError for the refusals Go returned as errors. */
   async queue(req: SendRequest): Promise<SendResult> {
-    const { db, inst } = this.m
-    if (!knownChannel(req.channel)) throw new MessagingError('unknown_channel', `unknown channel "${req.channel}"`)
-    const set = await this.providers(req.template_code)
-    let p = set[req.channel]
-    if (!p || !p.configured) {
-      if (!SENT_BY_PLATFORM[req.template_code]) throw notConfigured(req.channel, p ? p.why : 'not set up yet')
-      if (!p) p = unconfigured(req.channel, 'platform channel not set up yet')
+    const { db } = this.m
+    if (!knownChannel(req.channel) && req.channel !== 'auto') throw new MessagingError('unknown_channel', `unknown channel "${req.channel}"`)
+    const idem = (req.idempotency_key ?? '').trim() || null
+    if (idem) {
+      const ex = await db.prepare(`SELECT id FROM message_log WHERE idempotency_key = ?`).bind(idem).first<{ id: string }>()
+      if (ex) return { id: ex.id, duplicate: true }
     }
-    let recipient = (req.recipient ?? '').trim()
-    if (recipient === '' && req.to_user_id) recipient = await addressFor(db, req.to_user_id, req.channel)
-    if (recipient === '') throw new MessagingError('no_recipient', ERR_NO_RECIPIENT)
+    let type: string | null = messageTypeOf(req.template_code)
+    if (req.exact_channel || SENT_BY_PLATFORM[req.template_code] || (req.channel === 'email' && req.attachments?.length)) type = null
+    if (type === null && req.channel === 'auto') type = 'other'
+    if (type === null) return this.insert(req, req.channel, { idempotency_key: idem })
+    return this.ladder(req, type, idem)
+  }
 
-    const vars: Record<string, unknown> = { ...(req.vars ?? {}) }
+  /** The ladder path: dedup, digest, cap, quiet hours, then the first rung that can reach the person. */
+  private async ladder(req: SendRequest, typeKey: string, idem: string | null): Promise<SendResult> {
+    const { db, inst } = this.m
+    const t = messageType(typeKey)
+    const settings = (this.settings ??= await loadSettings(db))
+    const pol = (this.policies ??= await loadPolicies(db))[typeKey] ?? { ladder: t.ladder, mode: t.mode }
+    const user = req.to_user_id || null
+    const raw = (req.recipient ?? '').trim()
+    const who = user ?? raw
+    if (!who) throw new MessagingError('no_recipient', ERR_NO_RECIPIENT)
+    const contact: Contact = user ? (await contactOf(db, user)) ?? { email: '', phone: '' } : { email: looksEmail(raw) ? raw : '', phone: looksEmail(raw) ? '' : raw }
+    if (raw) { if (looksEmail(raw)) contact.email = raw; else if (phoneOf(raw)) contact.phone = raw }
+    const dedup = await dedupKeyOf(inst, req.template_code, who, req.student_id, req.vars)
+    if (!req.force && await isDuplicate(db, dedup, settings.dedup_minutes)) return { id: null, duplicate: true }
+
+    if (!req.force && !t.urgent && typeKey !== 'digest') {
+      let held: 'digest' | 'cap' | null = pol.mode === 'digest' ? 'digest' : null
+      if (!held && settings.daily_cap > 0 && await sentToday(db, user, contact.phone || contact.email || who) >= settings.daily_cap) held = 'cap'
+      if (held) {
+        await this.hold(req, typeKey, user, contact.phone || contact.email || who, dedup, held)
+        return { id: null, duplicate: false, held }
+      }
+    }
+
+    const live = await this.liveChannels()
+    const reach = (ch: string) => ch === 'in_app' ? !!user
+      : ch === 'email' ? live.email && contact.email !== ''
+      : live[ch] && phoneOf(contact.phone) !== ''
+    let rungs = pol.ladder.filter(reach)
+    // Nothing on the ladder can reach them, but they have an account: the bell is free and always there.
+    if (!rungs.length && user) rungs = ['in_app']
+    if (!rungs.length) {
+      const why = pol.ladder.map((ch) => ch === 'in_app' ? 'in-app needs an account' : live[ch] ? `${ch}: no address on file` : `${ch}: not live`).join('; ')
+      throw notConfigured(req.channel === 'auto' ? pol.ladder[0] ?? 'in_app' : req.channel, `no channel on the ${t.label.toLowerCase()} ladder can reach this recipient (${why})`)
+    }
+    let sendAfter = req.send_after ?? null
+    if (!t.urgent && !req.force) {
+      const base = sendAfter ? Math.max(Date.parse(sendAfter), Date.now()) : Date.now()
+      const q = afterQuietHours(base, settings.quiet_from, settings.quiet_to)
+      if (q > base) sendAfter = new Date(q).toISOString()
+    }
+    const first = rungs[0]
+    const recipient = first === 'in_app' ? user! : first === 'email' ? contact.email : contact.phone
+    return this.insert({ ...req, recipient, send_after: sendAfter }, first,
+      { message_type: typeKey, ladder: rungs.slice(1), dedup_key: dedup, idempotency_key: idem, urgent: t.urgent })
+  }
+
+  /** Put a non-urgent item in the recipient's next digest. */
+  private async hold(req: SendRequest, typeKey: string, user: string | null, recipient: string, dedup: string, reason: 'digest' | 'cap'): Promise<void> {
+    const { db, inst } = this.m
+    const vars = await this.withSchool(req.vars)
+    const t = await resolveTemplate(db, req.template_code, 'in_app')
+    const body = t ? renderTemplate(t.body, vars).trim() : ''
+    let title = t ? renderTemplate(t.subject, vars).trim() : ''
+    if (!title) title = String(vars.title ?? '').trim() || body.split('\n')[0].slice(0, 120) || req.template_code
+    await db.prepare(`INSERT INTO message_digest_items (id, institution_id, user_id, recipient, message_type, template_code, title, body,
+        source_kind, source_id, dedup_key, reason, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(), inst, user, recipient, typeKey, req.template_code, trunc(title, 200), trunc(body, 1000),
+        (req.source_kind ?? '').trim() || null, req.source_id ?? null, dedup, reason, new Date().toISOString()).run()
+  }
+
+  private async withSchool(v: Record<string, unknown> | undefined): Promise<Record<string, unknown>> {
+    const { db, inst } = this.m
+    const vars: Record<string, unknown> = { ...(v ?? {}) }
     if (inst && !Object.prototype.hasOwnProperty.call(vars, 'school_name')) {
       if (this.schoolName === null) {
         const r = await db.prepare(`SELECT name FROM institutions WHERE id = ?`).bind(inst).first<{ name: string }>()
@@ -443,9 +611,28 @@ export class Messenger {
       }
       if (this.schoolName) vars.school_name = this.schoolName
     }
-    const t = await resolveTemplate(db, req.template_code, req.channel)
+    return vars
+  }
+
+  /** Write one message_log row on one channel (Go's QueueMessage insert). */
+  async insert(req: SendRequest, channel: string, extra: RowExtra = {}): Promise<SendResult> {
+    const { db, inst } = this.m
+    if (!knownChannel(channel)) throw new MessagingError('unknown_channel', `unknown channel "${channel}"`)
+    const set = await this.providers(req.template_code)
+    let p = set[channel]
+    if (!p || !p.configured) {
+      if (!SENT_BY_PLATFORM[req.template_code] && !extra.message_type) throw notConfigured(channel, p ? p.why : 'not set up yet')
+      if (!p) p = unconfigured(channel, 'platform channel not set up yet')
+    }
+    let recipient = (req.recipient ?? '').trim()
+    if (recipient === '' && req.to_user_id) recipient = await addressFor(db, req.to_user_id, channel)
+    if (recipient === '') throw new MessagingError('no_recipient', ERR_NO_RECIPIENT)
+
+    const vars = await this.withSchool(req.vars)
+    if (req.media?.url) vars.__media = req.media
+    const t = await resolveTemplate(db, req.template_code, channel)
     if (!t) {
-      throw new MessagingError('no_template', `there is no ${req.channel} wording for "${req.template_code}" yet, add it under Communication → ` +
+      throw new MessagingError('no_template', `there is no ${channel} wording for "${req.template_code}" yet, add it under Communication → ` +
         'Message channels → Wording')
     }
     const subject = renderTemplate(t.subject, vars), body = renderTemplate(t.body, vars)
@@ -453,20 +640,23 @@ export class Messenger {
     const sk = (req.source_kind ?? '').trim() === '' ? null : req.source_kind!
     const ok = (req.occurrence_key ?? '') === '' ? null : req.occurrence_key!
     const r = await db.prepare(`INSERT INTO message_log (id, institution_id, channel, template_code, recipient, user_id, student_id,
-          subject, body, status, provider, source_kind, source_id, occurrence_key, send_after, template_vars, queued_at, attempts)
-        VALUES (?,?,?,?,?,?,?,?,?,'queued',?,?,?,?,?,?,?,0)
+          subject, body, status, provider, source_kind, source_id, occurrence_key, send_after, template_vars, queued_at, attempts,
+          message_type, ladder, dedup_key, idempotency_key, urgent, fallback_of)
+        VALUES (?,?,?,?,?,?,?,?,?,'queued',?,?,?,?,?,?,?,0,?,?,?,?,?,?)
         ON CONFLICT DO NOTHING RETURNING id`)
-      .bind(id, inst, req.channel, req.template_code, recipient, req.to_user_id ?? null, req.student_id ?? null,
+      .bind(id, inst, channel, req.template_code, recipient, req.to_user_id ?? null, req.student_id ?? null,
         subject.trim() === '' ? null : subject, body, p.name, sk, req.source_id ?? null, ok, req.send_after ?? null,
-        JSON.stringify(req.vars === undefined && Object.keys(vars).length === 0 ? null : vars), at)
+        JSON.stringify(req.vars === undefined && Object.keys(vars).length === 0 ? null : vars), at,
+        extra.message_type ?? null, extra.ladder?.length ? JSON.stringify(extra.ladder) : null, extra.dedup_key ?? null,
+        extra.idempotency_key ?? null, extra.urgent ? 1 : 0, extra.fallback_of ?? null)
       .first<{ id: string }>()
     if (!r) return { id: null, duplicate: true }
-    if (req.channel === 'email' && req.attachments?.length) {
+    if (channel === 'email' && req.attachments?.length) {
       await db.batch(req.attachments.map((a) => db.prepare(`INSERT INTO message_attachments (id, institution_id, message_log_id, filename, content_type, bytes, created_at)
           VALUES (?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), inst, id, a.filename, a.content_type, a.data, at)))
     }
     if (!req.send_after || Date.parse(req.send_after) <= Date.now()) this.kicks = true
-    return { id, duplicate: false }
+    return { id, duplicate: false, channel }
   }
 
   /** Enqueue the dispatch job(s) for everything queued through this messenger. */
@@ -512,7 +702,12 @@ export async function routeFor(env: Env, db: D1Database, inst: string, ch: strin
   return Number(conf?.n ?? 0) > 0 ? 'own' : 'edu_cloud'
 }
 
-async function creditBalance(env: Env, db: D1Database, inst: string, ch: string, route: string): Promise<[number, boolean]> {
+/** [balance, metered] for a channel on a route (the half of creditBalance that needs only the school's database). */
+export async function creditBalanceOf(db: D1Database, ch: string, route: string): Promise<[number, boolean]> {
+  return creditBalance(null, db, '', ch, route)
+}
+
+async function creditBalance(_env: Env | null, db: D1Database, _inst: string, ch: string, route: string): Promise<[number, boolean]> {
   if (!metered(ch)) return [0, false]
   const r = await db.prepare(`SELECT balance FROM message_credits WHERE channel = ?`).bind(ch).first<{ balance: number }>()
   if (!r) return [0, route === 'edu_cloud']
@@ -611,10 +806,10 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
 
   for (let i = 0; i < limit; i++) {
     const at = new Date().toISOString()
-    const row = await db.prepare(`SELECT id, channel, recipient, subject, body, template_code, attempts, template_vars, send_after
+    const row = await db.prepare(`SELECT id, channel, recipient, subject, body, template_code, attempts, template_vars, send_after, ladder, user_id
         FROM message_log WHERE status = 'queued' AND (send_after IS NULL OR send_after <= ?)
-        ORDER BY queued_at LIMIT 1`).bind(at)
-      .first<{ id: string; channel: string; recipient: string; subject: string | null; body: string | null; template_code: string | null; attempts: number; template_vars: string | null; send_after: string | null }>()
+        ORDER BY urgent DESC, queued_at LIMIT 1`).bind(at)
+      .first<{ id: string; channel: string; recipient: string; subject: string | null; body: string | null; template_code: string | null; attempts: number; template_vars: string | null; send_after: string | null; ladder: string | null; user_id: string | null }>()
     if (!row) return { sent, failed, more: false }
     // Claim it: a lease on send_after stands in for FOR UPDATE SKIP LOCKED.
     const lease = new Date(Date.now() + LEASE_SECONDS * 1000).toISOString()
@@ -643,10 +838,13 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
 
     let sendErr: Error | null = null, msgId = ''
     let wa: WATemplateSend | null = null
-    if (row.channel === 'whatsapp' && row.template_code) {
+    let media: Media | null = null
+    if (row.channel === 'whatsapp') {
       let vars: Record<string, unknown> = {}
       try { const v = JSON.parse(row.template_vars ?? 'null'); if (v && typeof v === 'object') vars = v } catch { /* empty */ }
-      try { wa = await whatsappSendFor(db, row.template_code, vars) } catch (e) { sendErr = e as Error }
+      const mv = vars.__media as Media | undefined
+      if (mv && typeof mv.url === 'string' && ['document', 'image', 'video'].includes(mv.kind)) media = mv
+      if (row.template_code) { try { wa = await whatsappSendFor(db, row.template_code, vars) } catch (e) { sendErr = e as Error } }
     }
     if (!sendErr && p.configured) {
       const [bal, isMetered] = await creditBalance(env, db, inst, row.channel, route)
@@ -660,15 +858,22 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
     }
     if (!sendErr) {
       try {
-        msgId = await p.send({ to: row.recipient, subject: row.subject ?? '', body: row.body ?? '', dlt, wa, attachments: atts })
+        msgId = await p.send({ to: row.recipient, subject: row.subject ?? '', body: row.body ?? '', dlt, wa, attachments: atts, ref: `${inst}:${row.id}`, media })
       } catch (e) { sendErr = e instanceof Error ? e : new Error(String(e)) }
     }
     if (sendErr) {
       failed++
       const [retry, delay] = retrySchedule(Number(row.attempts) + 1)
-      if (!retry) {
-        await db.prepare(`UPDATE message_log SET status = 'failed', error = ?, attempts = attempts + 1, provider = ?, send_after = ? WHERE id = ?`)
-          .bind(trunc(sendErr.message, 500), p.name, row.send_after, row.id).run()
+      // With a rung left on the ladder, a refusal that cannot change (not set up, no address,
+      // no credit) or a second transient failure moves on to it rather than waiting hours.
+      const hasLadder = !!row.ladder && row.ladder !== '[]'
+      const giveUp = !retry || (hasLadder && (sendErr instanceof MessagingError || sendErr instanceof PermanentSendError || Number(row.attempts) + 1 >= 2))
+      if (giveUp) {
+        const t = new Date().toISOString()
+        await db.prepare(`UPDATE message_log SET status = 'failed', error = ?, attempts = attempts + 1, provider = ?, send_after = ?, failed_at = ? WHERE id = ?`)
+          .bind(trunc(sendErr.message, 500), p.name, row.send_after, t, row.id).run()
+        await recordEvent(db, inst, row.id, 'failed', p.name, sendErr.message, t)
+        if (hasLadder) await queueFallback(m, row.id, sendErr.message)
       } else {
         await db.prepare(`UPDATE message_log SET status = 'queued', error = ?, attempts = attempts + 1, provider = ?, send_after = ? WHERE id = ?`)
           .bind(trunc(sendErr.message, 500), p.name, new Date(Date.now() + delay * 1000).toISOString(), row.id).run()
@@ -676,9 +881,11 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
       continue
     }
     sent++
+    const sentAt = new Date().toISOString()
     await db.prepare(`UPDATE message_log SET status = 'sent', sent_at = ?, attempts = attempts + 1, provider = ?,
         provider_msg_id = NULLIF(?, ''), error = NULL, send_after = ? WHERE id = ?`)
-      .bind(new Date().toISOString(), p.name, trunc(msgId, 200), row.send_after, row.id).run()
+      .bind(sentAt, p.name, trunc(msgId, 200), row.send_after, row.id).run()
+    await recordEvent(db, inst, row.id, 'sent', p.name, null, sentAt)
     await spendCredit(m, row.channel, row.id)
     if (row.channel === 'in_app') {
       const r = await db.prepare(`INSERT INTO notifications (id, institution_id, user_id, student_id, kind, title, body, source_kind, source_id, link, created_at)
@@ -700,6 +907,11 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
              AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.source_kind = 'message' AND n.source_id = m.id)`)
         .bind(crypto.randomUUID(), new Date().toISOString(), row.id).run()
       inAppSent += r.meta.changes ?? 0
+      // The bell always has it; the ladder goes on only if nobody will be told.
+      if (row.ladder && row.ladder !== '[]' && row.user_id) {
+        const hasToken = pushConfigured(env) && !!(await db.prepare(`SELECT 1 AS x FROM push_tokens WHERE user_id = ? LIMIT 1`).bind(row.user_id).first())
+        if (!hasToken) await queueFallback(m, row.id, pushConfigured(env) ? 'no phone with the app to push to' : 'app push is not set up')
+      }
     }
   }
   if (inAppSent > 0 && pushConfigured(env)) await enqueue(env, 'push.pump', { institution_id: inst }, { institution_id: inst })
@@ -711,11 +923,11 @@ export async function dispatchMessages(env: Env, db: D1Database, inst: string, l
 
 const PUSH_FRESHNESS_MS = 24 * 3600_000
 
-export async function pushOnce(env: Env, db: D1Database): Promise<void> {
+export async function pushOnce(env: Env, db: D1Database, inst = ''): Promise<void> {
   if (!pushConfigured(env)) return
-  const rows = (await db.prepare(`SELECT id, user_id, kind, title, body, link, created_at FROM notifications
+  const rows = (await db.prepare(`SELECT id, user_id, kind, title, body, link, created_at, source_kind, source_id FROM notifications
       WHERE pushed_at IS NULL ORDER BY created_at LIMIT 200`)
-    .all<{ id: string; user_id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string }>()).results
+    .all<{ id: string; user_id: string; kind: string; title: string; body: string | null; link: string | null; created_at: string; source_kind: string | null; source_id: string | null }>()).results
   if (!rows.length) return
   const users = [...new Set(rows.map((r) => r.user_id))]
   const tokens = new Map<string, string[]>()
@@ -727,16 +939,22 @@ export async function pushOnce(env: Env, db: D1Database): Promise<void> {
   }
   const base = s(env.PUBLIC_BASE_URL).replace(/\/+$/, '')
   const dead: string[] = []
+  const unreached: string[] = []
   for (const r of rows) {
     if (Date.now() - Date.parse(r.created_at) > PUSH_FRESHNESS_MS) continue
-    for (const t of tokens.get(r.user_id) ?? []) {
+    let delivered = false
+    const held = tokens.get(r.user_id) ?? []
+    for (const t of held) {
       let link = r.link ?? ''
       if (link.startsWith('/')) link = base + link
       try {
         const res = await sendPush(env, t, { title: r.title, body: r.body ?? '', link, kind: r.kind, id: r.id })
         if (res === 'unregistered') dead.push(t)
+        else delivered = true
       } catch (e) { console.warn('push: send', e) }
     }
+    // Every phone refused it: the message's ladder moves on (WhatsApp, then SMS).
+    if (!delivered && held.length && r.source_kind === 'message' && r.source_id) unreached.push(r.source_id)
   }
   const at = new Date().toISOString()
   const stmts: D1PreparedStatement[] = []
@@ -749,6 +967,11 @@ export async function pushOnce(env: Env, db: D1Database): Promise<void> {
     stmts.push(db.prepare(`DELETE FROM push_tokens WHERE token IN (SELECT value FROM json_each(?))`).bind(JSON.stringify(part)))
   }
   await db.batch(stmts)
+  if (unreached.length && inst) {
+    for (const id of unreached) {
+      try { await queueFallback({ env, db, inst }, id, 'the push to every phone failed') } catch (e) { console.warn('push: fallback', id, e) }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -783,7 +1006,7 @@ registerJob<{ institution_id: string; materialise?: boolean }>('push.pump', asyn
   if (job.payload.materialise) {
     try { await materialiseForTokenHolders(db) } catch (e) { console.warn('push: materialise', e) }
   }
-  await pushOnce(env, db)
+  await pushOnce(env, db, inst)
 })
 
 async function materialiseForTokenHolders(db: D1Database): Promise<void> {
@@ -810,16 +1033,21 @@ export { b64 as base64Bytes }
 
 /* Go's message:send task (queue.TypeMessageSend -> QueueOutbound): queue one
    templated message to an account, keyed on the job so a retry is a duplicate. */
-registerJob<{ channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; job_id?: string }>('message:send', async (env, job) => {
+interface MessageSendJob { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; job_id?: string; source_kind?: string; source_id?: string }
+registerJob<MessageSendJob>('message:send', async (env, job) => {
   const inst = job.institution_id ?? (job.payload as { institution_id?: string }).institution_id
   if (!inst) return
   const db = await schoolDb(env, inst)
   if (!db) return
   const p = job.payload
   try {
+    const jobId = p.job_id ?? job.id ?? null
     await queueMessage({ env, db, inst }, {
       channel: p.channel, template_code: p.template_key, vars: p.vars, to_user_id: p.to_user_id || null,
-      source_kind: 'queue_task', source_id: p.job_id ?? job.id ?? null, occurrence_key: p.template_key,
+      // A notice's fan-out names its notice, so the delivery screen can count it.
+      source_kind: p.source_kind || 'queue_task', source_id: p.source_id || jobId,
+      occurrence_key: p.source_kind ? `${p.to_user_id}:${p.channel}` : p.template_key,
+      idempotency_key: jobId ? `job:${jobId}:${p.channel}` : null,
     })
   } catch (e) {
     if (e instanceof MessagingError) { console.warn('message:send not queued', inst, p.template_key, e.message); return }
@@ -829,7 +1057,7 @@ registerJob<{ channel: string; template_key: string; to_user_id: string; vars?: 
 
 /** Go's s.Queue.Enqueue(TypeMessageSend, ...) for many recipients: one 'message:send' job each. */
 export async function enqueueMessageSends(env: Env, inst: string,
-  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown> }[]): Promise<void> {
+  items: { channel: string; template_key: string; to_user_id: string; vars?: Record<string, unknown>; source_kind?: string; source_id?: string }[]): Promise<void> {
   if (!items.length) return
   await enqueueMany(env, items.map((i) => ({ type: 'message:send', institution_id: inst,
     payload: { institution_id: inst, ...i, job_id: crypto.randomUUID() } as Record<string, unknown> })))
@@ -840,4 +1068,88 @@ export function longDateIST(): string {
   const d = new Date(Date.now() + 330 * 60_000)
   const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   return `${d.getUTCDate()} ${M[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}
+
+// ---------------------------------------------------------------------------
+// receipts and the ladder's next rung
+
+/** One line of a message's receipt trail. Never throws. */
+export async function recordEvent(db: D1Database, inst: string, msgId: string, status: string, provider: string | null, detail: string | null, at: string): Promise<void> {
+  try {
+    await db.prepare(`INSERT INTO message_events (id, institution_id, message_log_id, status, provider, detail, occurred_at) VALUES (?,?,?,?,?,?,?)`)
+      .bind(crypto.randomUUID(), inst, msgId, status, provider, detail ? trunc(detail, 500) : null, at).run()
+  } catch (e) { console.warn('message event not recorded', msgId, status, e) }
+}
+
+/**
+ * The next rung of a message's ladder, queued as its own row pointing back
+ * at this one. Claims the ladder first (sets it NULL), so a push failure and
+ * a webhook arriving together queue it once. Returns the new row's id, or
+ * null when there was no rung left or none could reach the person.
+ */
+export async function queueFallback(m: MsgScope, msgId: string, reason: string): Promise<string | null> {
+  const { db } = m
+  const row = await db.prepare(`SELECT id, template_code, template_vars, user_id, student_id, recipient, source_kind, source_id, occurrence_key,
+      ladder, dedup_key, message_type, urgent FROM message_log WHERE id = ?`).bind(msgId)
+    .first<{ id: string; template_code: string | null; template_vars: string | null; user_id: string | null; student_id: string | null; recipient: string;
+      source_kind: string | null; source_id: string | null; occurrence_key: string | null; ladder: string | null; dedup_key: string | null; message_type: string | null; urgent: number }>()
+  if (!row || !row.ladder) return null
+  const claim = await db.prepare(`UPDATE message_log SET ladder = NULL WHERE id = ? AND ladder IS NOT NULL`).bind(msgId).run()
+  if (!claim.meta.changes) return null
+  let rungs: string[] = []
+  try { const v = JSON.parse(row.ladder); if (Array.isArray(v)) rungs = v.map(String) } catch { return null }
+  let vars: Record<string, unknown> = {}
+  try { const v = JSON.parse(row.template_vars ?? 'null'); if (v && typeof v === 'object') vars = v } catch { /* none */ }
+  const media = (vars.__media ?? null) as Media | null
+  delete vars.__media
+  const ms = new Messenger(m)
+  const live = await ms.liveChannels()
+  const contact: Contact = row.user_id ? (await contactOf(db, row.user_id)) ?? { email: '', phone: '' }
+    : { email: looksEmail(row.recipient) ? row.recipient : '', phone: looksEmail(row.recipient) ? '' : row.recipient }
+  while (rungs.length) {
+    const ch = rungs.shift()!
+    const to = ch === 'in_app' ? row.user_id ?? '' : ch === 'email' ? contact.email : phoneOf(contact.phone) ? contact.phone : ''
+    if (!to || (ch !== 'in_app' && !live[ch])) continue
+    try {
+      const res = await ms.insert({ channel: ch, template_code: row.template_code ?? 'messaging.direct', vars, to_user_id: row.user_id, student_id: row.student_id,
+        recipient: to, source_kind: row.source_kind, source_id: row.source_id, occurrence_key: row.occurrence_key, media },
+      ch, { message_type: row.message_type, ladder: rungs, dedup_key: row.dedup_key, urgent: !!row.urgent, fallback_of: row.id })
+      if (res.id) {
+        await recordEvent(db, m.inst, row.id, 'fallback', ch, reason, new Date().toISOString())
+        await ms.kick()
+        return res.id
+      }
+    } catch (e) {
+      console.warn('fallback rung skipped', ch, (e as Error).message)
+    }
+  }
+  return null
+}
+
+const RANK: Record<string, number> = { queued: 0, sent: 1, delivered: 2, read: 3 }
+
+/**
+ * A provider's report on one message (WhatsApp status, email webhook, SMS
+ * delivery report). Statuses only move forward (sent < delivered < read); a
+ * failure after 'sent' marks the row failed and moves the ladder on.
+ */
+export async function applyStatus(m: MsgScope, msgId: string, status: 'sent' | 'delivered' | 'read' | 'failed', provider: string, detail: string | null, at: string): Promise<boolean> {
+  const { db, inst } = m
+  const row = await db.prepare(`SELECT status FROM message_log WHERE id = ?`).bind(msgId).first<{ status: string }>()
+  if (!row) return false
+  await recordEvent(db, inst, msgId, status, provider, detail, at)
+  if (status === 'failed') {
+    const r = await db.prepare(`UPDATE message_log SET status = 'failed', failed_at = ?, error = COALESCE(?, error) WHERE id = ? AND status IN ('queued','sent')`)
+      .bind(at, detail ? trunc(detail, 500) : 'the provider reported the message undelivered', msgId).run()
+    if (r.meta.changes) await queueFallback(m, msgId, detail ?? 'undelivered')
+    return true
+  }
+  const lower = Object.keys(RANK).filter((k) => RANK[k] < RANK[status])
+  await db.prepare(`UPDATE message_log SET status = ?,
+      sent_at = COALESCE(sent_at, ?),
+      delivered_at = CASE WHEN ? IN ('delivered','read') THEN COALESCE(delivered_at, ?) ELSE delivered_at END,
+      read_at = CASE WHEN ? = 'read' THEN COALESCE(read_at, ?) ELSE read_at END
+    WHERE id = ? AND status IN (SELECT value FROM json_each(?))`)
+    .bind(status, at, status, at, status, at, msgId, JSON.stringify(lower)).run()
+  return true
 }

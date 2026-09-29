@@ -177,6 +177,10 @@ export const BUILTIN_TEMPLATES: Record<string, BuiltinTemplate> = {
     subject: '{{student_name}} - report card ready',
     body: 'Dear parent,\n\nThe {{exam_name}} report card for {{student_name}} has been published. Sign in to see the marks, the grade and the attendance.\n\n{{school_name}}',
   },
+  'digest.daily': {
+    subject: '{{count}} updates from {{school_name}} today',
+    body: 'Today from {{school_name}}:\n{{items}}\n\nOpen the app for the details.',
+  },
   'announcement.published': {
     subject: '{{title}}',
     body: '{{title}}\n\n{{body}}\n\n{{school_name}}',

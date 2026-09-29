@@ -241,7 +241,7 @@ export function registerFacultyComms(r: Router) {
 
   r.post('/teaching/broadcasts', P, async (c) => {
     requirePerm(c, 'comms.announcements.write')
-    const req = await readJSON<{ title?: string; body?: string; section_ids?: string[]; student_ids?: string[]; requires_ack?: boolean; send_email?: boolean; send_sms?: boolean; send_whatsapp?: boolean; client_ref?: string }>(c.req)
+    const req = await readJSON<{ title?: string; body?: string; section_ids?: string[]; student_ids?: string[]; requires_ack?: boolean; send_email?: boolean; send_sms?: boolean; send_whatsapp?: boolean; notify?: boolean; client_ref?: string }>(c.req)
     const title = (req.title ?? '').trim(), body = (req.body ?? '').trim()
     if (!title || !body) throw badRequest('title and body are required')
     const sectionIds = req.section_ids ?? [], studentIds = req.student_ids ?? []
@@ -275,7 +275,8 @@ export function registerFacultyComms(r: Router) {
     }
     const recipients = (await countStmt.first<{ n: number }>())?.n ?? 0
     if (duplicate) return ok({ id: annId, recipients, sections: sectionIds.length, students: studentIds.length, messages_queued: 0, duplicate: true })
-    const channels = [req.send_email && 'email', req.send_sms && 'sms', req.send_whatsapp && 'whatsapp'].filter(Boolean)
+    // notify: the school's ladder for notices picks the channel (services/delivery.ts).
+    const channels = req.notify ? ['auto'] : [req.send_email && 'email', req.send_sms && 'sms', req.send_whatsapp && 'whatsapp'].filter(Boolean)
     const out: Record<string, unknown> = { id: annId, recipients, sections: sectionIds.length, students: studentIds.length, messages_queued: 0 }
     if (channels.length) {
       // One message:send job per household per channel (announcement.published), as Go's fan-out.
@@ -284,7 +285,8 @@ export function registerFacultyComms(r: Router) {
             JOIN guardians g ON g.id = sg.guardian_id AND g.user_id IS NOT NULL LEFT JOIN enrollments e ON e.student_id = st.id AND e.status = 'active'
             WHERE ${target}`).bind(js(sectionIds), js(studentIds)).all<{ user_id: string }>()).results
         const jobs = to.flatMap((u) => channels.map((ch) => ({ type: 'message:send', institution_id: inst,
-          payload: { institution_id: inst, channel: ch as string, template_key: 'announcement.published', to_user_id: u.user_id, job_id: uuid(), vars: { title, body } } })))
+          payload: { institution_id: inst, channel: ch as string, template_key: 'announcement.published', to_user_id: u.user_id, job_id: uuid(), vars: { title, body },
+            source_kind: 'announcement', source_id: annId } })))
         try { await enqueueMany(c.env, jobs); out.messages_queued = jobs.length } catch { out.messages_failed = jobs.length }
       } catch {
         out.send_error = 'the notice was published but could not be handed to the sender'

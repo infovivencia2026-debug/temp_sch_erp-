@@ -36,7 +36,7 @@ export function registerPayroll(r: Router): void {
    fan-out and the delivery report. ?1 = 1 when no sections are named, ?2..
    the section ids, then the audience role. Built per call because the
    section list is variable-length. */
-function circularRecipients(sections: string[]): { sql: string; args: unknown[] } {
+export function circularRecipients(sections: string[]): { sql: string; args: unknown[] } {
   const all = sections.length === 0 ? 1 : 0
   const list = inList(sections)
   const sql = `
@@ -174,7 +174,7 @@ function registerCommunication(r: Router) {
 
   r.post('/communication/circulars', ANNOUNCEMENTS_WRITE, async (c) => {
     const req = await readJSON<{ title?: string; body?: string; kind?: string; audience_role?: string; section_ids?: string[]; requires_ack?: boolean
-      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; attachment_file_id?: string }>(c.req)
+      send_sms?: boolean; send_email?: boolean; send_whatsapp?: boolean; notify?: boolean; attachment_file_id?: string }>(c.req)
     const title = req.title ?? '', body = req.body ?? ''
     if (title.trim() === '' || body.trim() === '') throw badRequest('title and body are required')
     const kind = req.kind || 'circular'
@@ -214,16 +214,18 @@ function registerCommunication(r: Router) {
       id: annId, recipients, without_login: withoutLogin, unreachable_children: unreachable,
       sms_queued: 0, email_queued: 0, whatsapp_queued: 0,
     }
-    const channels = [req.send_sms && 'sms', req.send_email && 'email', req.send_whatsapp && 'whatsapp'].filter(Boolean) as string[]
+    // notify: the school's ladder for notices (services/delivery.ts) picks the channel; the three
+    // send_* flags are kept for older clients and go through the same ladder.
+    const channels = req.notify ? ['auto'] : [req.send_sms && 'sms', req.send_email && 'email', req.send_whatsapp && 'whatsapp'].filter(Boolean) as string[]
     if (channels.length) {
       // The fan-out, as publishCircular: a message:send job per account per channel, then the
       // families with no account queued directly by address. Failures are swallowed, as Go.
       let msgBody = body
       if (attachment !== '') msgBody += '\n\nAttached: ' + new URL(c.req.url).origin + '/api/v1/files/' + attachment
-      const queued: Record<string, number> = { sms: 0, email: 0, whatsapp: 0 }
+      const queued: Record<string, number> = { sms: 0, email: 0, whatsapp: 0, auto: 0 }
       try {
         const to = (await c.db.prepare(rc.sql).bind(audience, ...rc.args).all<{ user_id: string }>()).results
-        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody } })))
+        const jobs = to.filter((u) => u.user_id).flatMap((u) => channels.map((ch) => ({ channel: ch, template_key: 'announcement.published', to_user_id: u.user_id, vars: { title, body: msgBody }, source_kind: 'announcement', source_id: annId })))
         try { await enqueueMessageSends(c.env, inst, jobs); for (const j of jobs) queued[j.channel]++ } catch { /* not queued */ }
         if (audience !== 'staff') {
           const co = circularContactOnly(sections)
@@ -243,7 +245,7 @@ function registerCommunication(r: Router) {
           }
         }
       } catch (e) { console.warn('circular fan-out', e) }
-      out.sms_queued = queued.sms; out.email_queued = queued.email; out.whatsapp_queued = queued.whatsapp
+      out.sms_queued = queued.sms; out.email_queued = queued.email; out.whatsapp_queued = queued.whatsapp; out.notified = queued.auto
     }
     return created(out)
   })

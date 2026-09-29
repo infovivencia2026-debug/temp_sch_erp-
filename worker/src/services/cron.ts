@@ -41,6 +41,10 @@ export const SCHEDULES: Schedule[] = [
   { name: 'push_pump', spec: '* * * * *', kind: 'push.pump', perInstitution: true,
     only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM push_tokens LIMIT 1`).first()),
     payload: (i) => ({ institution_id: i!.id, materialise: true }) },
+  // The daily digest (services/digest.ts): runs every 15 minutes where something is held; sends once the school's digest time has passed.
+  { name: 'message_digest', spec: '*/15 * * * *', kind: 'message:digest', perInstitution: true,
+    only: async (db) => !!(await db.prepare(`SELECT 1 AS x FROM message_digest_items WHERE bundled_at IS NULL LIMIT 1`).first().catch(() => null)),
+    payload: (i) => ({ institution_id: i!.id }) },
   { name: 'message_plans', spec: '*/15 * * * *', kind: 'message:plans', perInstitution: true, payload: env0 },
   { name: 'report_digest_daily', spec: '0 7 * * *', kind: 'report:digest_daily', perInstitution: true, payload: env0 },
   { name: 'report_digest_weekly', spec: '0 7 * * 1', kind: 'report:digest_weekly', perInstitution: true, payload: env0 },
