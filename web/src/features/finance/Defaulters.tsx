@@ -183,7 +183,7 @@ export default function Defaulters() {
             of the two is meant to do most of the work. */}
         {/* Its space is held while it loads, so the figures and the list below
             do not drop half a screen when it lands. */}
-        {!plan && schedule.isLoading && <Card><Loading shape="form" rows={3} /></Card>}
+        {!plan && schedule.isLoading && <Card className="min-h-[468px] sm:min-h-[300px] lg:min-h-[250px]"><Loading shape="form" rows={3} /></Card>}
         {plan && (
           <Card>
             <CardHeader

@@ -4228,3 +4228,10 @@ main, [data-paint='workarea'] {
 .fetch-bar[data-on] { opacity: .85; transition-delay: 150ms; animation: fetch-bar-run 1.1s linear infinite; }
 @keyframes fetch-bar-run { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .fetch-bar[data-on] { animation: none; } }
+
+/* HOME: NOTHING UNDER THE OVERVIEW UNTIL THE OVERVIEW HAS ITS SIZE.
+   The role's overview renders empty, then as a skeleton, then as itself,
+   and each step pushed the shortcuts and alerts beneath it further down the
+   screen. They wait (not drawn at all) until it has settled; an engine
+   without :has() simply draws them at once, as before. */
+.home-overview:is(:empty, :has(.skeleton, [aria-busy='true'])) ~ * { display: none; }

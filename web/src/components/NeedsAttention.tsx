@@ -204,7 +204,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
             {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-[102px] rounded-xl" />)}
           </div>
         </section>
-        <Suspense fallback={<Loading shape="cards" rows={3} />}>{afterToday && <section><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}</Suspense>
+        <Suspense fallback={<Loading shape="cards" rows={3} />}>{afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}</Suspense>
       </div>
     )
   }
@@ -338,7 +338,7 @@ export default function NeedsAttention({ name, afterToday }: { name?: string; af
           first and were then pushed half a screen down when the overview's
           code arrived. Now the rest waits for it, under a skeleton. */}
       <Suspense fallback={<Loading shape="cards" rows={3} />}>
-      {afterToday && <section><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
+      {afterToday && <section className="home-overview"><EmbeddedPage.Provider value>{afterToday}</EmbeddedPage.Provider></section>}
 
       {/* WHAT SOMEBODY PUT HERE THEMSELVES.
        *
