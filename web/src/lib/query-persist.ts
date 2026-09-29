@@ -64,6 +64,8 @@
    was stored and keeps stored entries the cache no longer holds, up to the
    age limit below. */
 
+import { forgetCatalogSnapshots } from './catalog-snapshot'
+import { forgetAllPersisted } from './query-persist-idb'
 import { dehydrate, hydrate, type QueryClient, type DehydratedState } from '@tanstack/react-query'
 
 const KEY = 'erp.parent-cache.v1'
@@ -134,6 +136,9 @@ function read(): Blob | null {
 
 /** Throws the blob away. Safe to call from anywhere, any number of times. */
 export function forgetPersistedQueries() {
+  // The menu snapshot goes with it: same sign-out paths, same reason.
+  forgetCatalogSnapshots()
+  forgetAllPersisted()
   try {
     localStorage.removeItem(KEY)
   } catch {

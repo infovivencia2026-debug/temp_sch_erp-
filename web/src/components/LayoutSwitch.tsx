@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useT } from '@/lib/i18n'
 import { useLayout, reconcileLayout, LAYOUTS, type Layout } from '@/lib/layout'
@@ -23,6 +24,7 @@ const LABEL: Record<Layout, 'shell.layout.classic' | 'shell.layout.bento'> = {
 export function LayoutSwitch() {
   const { layout, setLayout } = useLayout()
   const t = useT()
+  const qc = useQueryClient()
 
   /* localStorage gave a correct first paint on this device; the account row is
      the truth across devices. Reconciled once on mount, exactly as the theme
@@ -31,9 +33,15 @@ export function LayoutSwitch() {
     let cancelled = false
     void (async () => {
       try {
-        const res = await api.get<{ preference?: { layout?: string } }>(
-          '/api/v1/portal/preferences/display',
-        )
+        /* Through the shared ['display-preferences'] query, staleTime 0: every
+           mount still reads the row fresh, but the copies of this switch that
+           mount together (rail, header, phone bar) and the board's own reader
+           share one request instead of making one each. */
+        const res = await qc.fetchQuery({
+          queryKey: ['display-preferences'],
+          queryFn: () => api.get<{ preference?: { layout?: string } }>('/api/v1/portal/preferences/display'),
+          staleTime: 0,
+        })
         if (!cancelled) reconcileLayout(res.preference?.layout)
       } catch {
         /* signed out, or offline: the device's own choice stands */
@@ -42,7 +50,7 @@ export function LayoutSwitch() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [qc])
 
   return (
     <div

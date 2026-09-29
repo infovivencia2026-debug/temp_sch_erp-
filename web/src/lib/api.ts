@@ -9,6 +9,8 @@ import type { Api } from '@shared/api'
 import type { PathParams, QueryValue } from '@shared/api/contract'
 import { takeOffline } from './outbox'
 import { noteWrite } from './save-feedback'
+import { bootstrapped } from './bootstrap'
+import type { BootstrapResponse } from '@shared/api'
 
 export class ApiError extends Error {
   constructor(
@@ -60,7 +62,36 @@ export function setActingInstitution(id: string | null) {
   }
 }
 
+/* Read-your-writes on D1 read replicas (worker/src/tenant.ts tenantSession).
+ * Every answer from the school's database carries X-D1-Bookmark; the newest
+ * one goes back on the next request so that request reads from a copy at
+ * least as new as what this person last saw or wrote. Kept for the tab only. */
+const BOOKMARK = 'X-D1-Bookmark'
+let d1Bookmark: string | null = (() => {
+  try { return sessionStorage.getItem('d1-bookmark') } catch { return null }
+})()
+function noteBookmark(res: Response) {
+  const bm = res.headers.get(BOOKMARK)
+  if (!bm || bm === d1Bookmark) return
+  d1Bookmark = bm
+  try { sessionStorage.setItem('d1-bookmark', bm) } catch { /* private mode */ }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  /* The first read of each first-screen path is answered from GET /bootstrap
+     when it can be (lib/bootstrap.ts); everything else goes to the network. */
+  if (!init?.method || init.method.toUpperCase() === 'GET') {
+    const hit = await bootstrapped<T>(
+      path,
+      () => send<BootstrapResponse>('/api/v1/bootstrap'),
+      (e) => (e instanceof ApiError ? e.status : undefined),
+    )
+    if (hit !== undefined) return hit
+  }
+  return send<T>(path, init)
+}
+
+async function send<T>(path: string, init?: RequestInit): Promise<T> {
   const acting = actingInstitution()
   const method = (init?.method ?? 'GET').toUpperCase()
 
@@ -83,9 +114,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(acting ? { 'X-Acting-Institution': acting } : {}),
         ...(idem ? { 'Idempotency-Key': idem } : {}),
+        ...(d1Bookmark ? { [BOOKMARK]: d1Bookmark } : {}),
         ...init?.headers,
       },
     })
+    noteBookmark(res)
   } catch (e) {
     /* fetch rejects only when nothing came back at all: no route to the host,
        DNS gone, the radio off, the tab killed mid-flight. Every answered
@@ -169,6 +202,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
      `servedFromCache(data)` and write "no connection" under its title. */
   if (body && typeof body === 'object' && res.headers.get('X-From-Cache')) {
     cachedBodies.add(body)
+    // A bootstrap answer from the cache: each part it hands out is cached too.
+    if (path === '/api/v1/bootstrap') {
+      for (const v of Object.values(body)) if (v && typeof v === 'object') cachedBodies.add(v)
+    }
   }
   return body as T
 }

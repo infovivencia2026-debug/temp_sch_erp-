@@ -37,7 +37,7 @@
  */
 
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
-import { get, set, del, createStore, type UseStore } from 'idb-keyval'
+import { get, set, del, keys, clear, createStore, type UseStore } from 'idb-keyval'
 
 /** Seven days: a returning user's screens survive a relaunch, a weekend, or
  *  a sign-out and back in, while anything genuinely old is refetched the
@@ -124,4 +124,37 @@ export function perUserPersister(userId: string, institutionId: string | undefin
     /* Batches the burst of cache events a screen mount fires into one write. */
     throttleTime: 1000,
   })
+}
+
+/* CLEARED ON SIGN-OUT, AND ONE PERSON AT A TIME.
+
+   The key already keeps two people's answers apart. These make sure the
+   device does not keep them at all once they are not the one signed in:
+   sign-out empties the store (called from forgetPersistedQueries, on the
+   /logout click and again when a session comes back signed out, in case the
+   navigation cut the first one short), and a sign-in removes every other
+   person's store. Best effort: a failure leaves the keyed isolation in place. */
+export function forgetAllPersisted() {
+  try {
+    const s = getStore()
+    if (s) void clear(s).catch(() => {})
+  } catch {
+    /* no IndexedDB: nothing stored */
+  }
+}
+
+export function forgetOtherPersisted(namespace: string) {
+  try {
+    const s = getStore()
+    if (!s) return
+    void keys(s)
+      .then((all) => {
+        // rq-cache:v2:<user>:<school> -- another school of the same person stays.
+        const user = namespace.split(':')[2]
+        return Promise.all(all.filter((k) => String(k).split(':')[2] !== user).map((k) => del(k, s)))
+      })
+      .catch(() => {})
+  } catch {
+    /* no IndexedDB */
+  }
 }

@@ -1,8 +1,10 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useParams } from 'react-router-dom'
 import { api } from './api'
 import { WorkspaceLoading } from '@/components/WorkspaceLoading'
+import { useSessionIfAny } from './session'
+import { catalogSnapshotKey, readCatalogSnapshot, writeCatalogSnapshot } from './catalog-snapshot'
 import type {
   CatalogFeature as ApiFeature, CatalogSection as ApiSection, CatalogRole as ApiRole, CatalogResponse,
 } from '@shared/api'
@@ -55,8 +57,15 @@ export function setAllRoles(on: boolean) {
 }
 
 export function CatalogProvider({ children }: { children: ReactNode }) {
-  const { data, isLoading, isError, error } = useQuery({
+  const session = useSessionIfAny()
+  const snapKey = catalogSnapshotKey(session?.user?.id, session?.institution?.id, allRolesOn())
+  const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
     queryKey: ['catalog', allRolesOn()],
+    /* Last load's menu for this same person at this same school, painted at
+       once and refetched at once (updated-at 0 is always stale). See
+       lib/catalog-snapshot.ts. */
+    initialData: () => readCatalogSnapshot(snapKey),
+    initialDataUpdatedAt: 0,
     queryFn: () => api.call('GET /catalog', { query: { all_roles: allRolesOn() ? '1' : undefined } }),
     /* The menu is authority, not convenience: a feature just granted must show
        on the next load. That freshness comes from being EXCLUDED from the
@@ -66,6 +75,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
        catalogue every time, which was making Ctrl-K slow. */
     staleTime: 60_000,
   })
+  useEffect(() => {
+    if (data && dataUpdatedAt > 0) writeCatalogSnapshot(snapKey, data)
+  }, [data, dataUpdatedAt, snapKey])
 
   /* The workspace opening (components/WorkspaceLoading.tsx), the same one the
      cold load shows: this is the state a person sees every time a workspace
