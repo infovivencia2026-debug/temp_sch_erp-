@@ -5,8 +5,7 @@ import { ApiError } from '@/lib/api'
 import { printDocument } from '@/lib/print'
 import {
   Children, cloneElement, createContext, useContext, Fragment, isValidElement, useEffect, useRef, useState,
-  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode,
-} from 'react'
+  type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition } from './anchored'
 import {
@@ -608,6 +607,56 @@ function rowsToCSV(labels: string[], rows: ReactNode[]): string {
     lines.push(cells.map((c) => csvField(cellText(c))).join(','))
   }
   return lines.join('\r\n')
+}
+
+/* A TABLE THAT IS NOT THE Table.
+
+   Four screens draw their own <table> rather than using the component above --
+   the section grid, the shop's shelf, the admission fee sheet and three in the
+   setup panels -- because each wanted a shape the component does not offer. The
+   reader does not care which of the two they are looking at, so the export
+   cannot care either.
+
+   This one reads the rendered table instead of React children, which is the
+   honest tool for markup this file did not write: whatever is on the page is
+   what comes out. Cells marked no-print, and anything that exists to be
+   pressed, are left out for the same reason as above -- a column of Edit
+   buttons is not a column of data.
+*/
+export function ExportTable({ tableId, name }: { tableId: string; name: string }) {
+  const take = () => {
+    /* Found by id rather than held in a ref: these tables live inside
+       components this button is not part of, and an id costs them one
+       attribute where a ref would cost them a hook and a wrapper. */
+    const el = document.getElementById(tableId)
+    if (!el) return
+    const text = (cell: Element) => {
+      const c = cell.cloneNode(true) as HTMLElement
+      c.querySelectorAll('button, a[role="button"], input, select, .no-print').forEach((n) => n.remove())
+      return csvField(c.textContent ?? '')
+    }
+    const lines: string[] = []
+    el.querySelectorAll('tr').forEach((tr) => {
+      const cells = [...tr.querySelectorAll('th, td')]
+      if (cells.length) lines.push(cells.map(text).join(','))
+    })
+    if (!lines.length) return
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+  return (
+    <Button variant="secondary" size="sm" className="no-print" onClick={take} title="Download this table as CSV">
+      <Download className="h-3.5 w-3.5" />
+      Export
+    </Button>
+  )
 }
 
 export function Table({
