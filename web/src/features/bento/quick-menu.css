@@ -67,7 +67,7 @@
    label, not a row: no hover, not walkable. */
 .bento-menu__head {
   padding: 6px 10px 2px;
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.6;

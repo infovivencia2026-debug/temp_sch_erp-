@@ -70,6 +70,7 @@ export default {
       borderRadius: {
         /* By component weight: controls tightest, dialogs loosest. Pills are
            reserved for status and tags, never for buttons. */
+        DEFAULT: 'var(--radius-control)', /* plain `rounded`: a chip or kbd, not 3.5px */
         sm: 'var(--radius-control)',   /* 6px  buttons, chips */
         md: 'var(--radius-input)',     /* 8px  inputs, selects */
         lg: 'var(--radius-card)',      /* 10px cards */
@@ -116,6 +117,12 @@ export default {
       fontSize: {
         /* The scale, named by role rather than by size, so a component says
            what a value is for instead of how big it happens to be. */
+        /* Tailwind's own names, onto the same scale. On a 14px root text-xs
+           was 10.5px (under the 12px floor) and text-sm 12.25px. */
+        xs: ['12px', { lineHeight: '1.4' }],
+        sm: ['13px', { lineHeight: '1.45' }],
+        lg: ['16px', { lineHeight: '1.5' }],
+        xl: ['18px', { lineHeight: '1.35' }],
         caption: ['12px', { lineHeight: '1.4' }],
         secondary: ['13px', { lineHeight: '1.45' }],
         body: ['14px', { lineHeight: '1.5' }],

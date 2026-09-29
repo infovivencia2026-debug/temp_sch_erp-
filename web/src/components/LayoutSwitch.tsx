@@ -63,7 +63,7 @@ export function LayoutSwitch() {
             className={cn(
               'h-8 rounded-[6px] px-2.5 text-[12.5px] transition-colors duration-100',
               active
-                ? 'bg-primary font-[550] text-primary-foreground shadow-[var(--elev-1)]'
+                ? 'bg-primary font-medium text-primary-foreground shadow-[var(--elev-1)]'
                 : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
             )}
           >

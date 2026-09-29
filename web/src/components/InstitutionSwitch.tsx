@@ -70,7 +70,7 @@ export function InstitutionSwitch() {
         title="The school you are working inside. Every number on the page is about this school."
       >
         <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className="min-w-0 max-w-[6.5rem] truncate font-[550] text-foreground sm:max-w-[11rem]">
+        <span className="min-w-0 max-w-[6.5rem] truncate font-medium text-foreground sm:max-w-[11rem]">
           {currentItem.name}{currentItem.is_home ? ' (home)' : ''}
         </span>
       </span>

@@ -264,7 +264,7 @@ function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: Retu
   return (
     <section className="px-1">
       <header className="mb-4 flex items-baseline justify-between border-b-2 border-foreground pb-3">
-        <h2 className="text-[22px] font-black tracking-[-0.02em]">{name}</h2>
+        <h2 className="text-[22px] font-bold tracking-[-0.02em]">{name}</h2>
         <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
           {t('portal.calendar.entry_count', { count: rows.length })}
         </span>
@@ -275,7 +275,7 @@ function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: Retu
             key={`s${i}`}
             className="my-4 flex flex-wrap items-center justify-between gap-2 bg-foreground px-3.5 py-3 text-background"
           >
-            <span className="text-[13px] font-extrabold uppercase tracking-[0.04em]">
+            <span className="text-[13px] font-bold uppercase tracking-[0.04em]">
               {b.strip.title}
               {b.strip.student_name && <span className="font-medium normal-case tracking-normal"> · {b.strip.student_name}</span>}
             </span>
@@ -286,7 +286,7 @@ function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: Retu
         ) : (
           <div key={b.day.date} className="flex border-b border-border py-4">
             <div className="w-[64px] shrink-0">
-              <div className="text-[20px] font-black leading-none">{b.day.date.slice(8, 10)}</div>
+              <div className="text-[20px] font-bold leading-none">{b.day.date.slice(8, 10)}</div>
               <div className="mt-1 text-[11px] font-bold uppercase">{weekday(b.day.date)}</div>
             </div>
             <ul className="flex min-w-0 flex-1 flex-col gap-3">
@@ -301,7 +301,7 @@ function MonthSchedule({ name, rows, t }: { name: string; rows: Entry[]; t: Retu
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.08em]">
+                  <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em]">
                     {label(e.kind, t)}
                   </span>
                 </li>

@@ -130,7 +130,7 @@
 .bento-gallery__group {
   grid-column: 1 / -1;
   margin: 10px 2px 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -179,7 +179,7 @@
   margin: 0;
   padding: 32px 16px 36px;
   text-align: center;
-  font-size: 13.5px;
+  font-size: 14px;
   opacity: 0.7;
 }
 .bento-gallery__keys {
@@ -187,7 +187,7 @@
   margin: 0;
   padding: 6px 14px 10px;
   border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.6;
 }
 
@@ -221,7 +221,7 @@
 }
 .bento-gallery__sub {
   margin-top: -4px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.3;
   opacity: 0.65;
   overflow: hidden;
@@ -312,7 +312,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
   transition: background-color var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
@@ -322,7 +322,7 @@
 }
 .bento-gallery[data-phone] .bento-gallery__size {
   min-height: 44px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .bento-gallery__size[data-default] .bento-gallery__size-name {
   font-weight: 600;
@@ -367,7 +367,7 @@
   border-radius: 999px;
   background: var(--bento-ink);
   color: var(--bento-card-base);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   animation: bento-gallery-pop var(--bento-dur-fast, 150ms) var(--bento-ease, ease);
 }

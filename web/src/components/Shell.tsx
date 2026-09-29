@@ -149,7 +149,7 @@ function navItem(active: boolean, depth: 0 | 1, dim = false) {
        darkening of the ink, so pointing at a row shows it can be pressed. That
        is the whole button — it is drawn by the cursor and put away after. */
     active
-      ? 'font-[560] text-foreground hover:bg-surface-hover'
+      ? 'font-medium text-foreground hover:bg-surface-hover'
       : dim
         // Unbuilt, and only on screen because the roadmap toggle is on. A
         // lighter weight says so without a chip beside every second label.
@@ -887,12 +887,12 @@ export function Shell({
                       navigate(`/${r.key}`)
                     }}
                     className={cn(
-                      'flex w-full items-center gap-2 px-3 py-2 text-left text-[calc(13.5px*var(--font-scale,1))]',
+                      'flex w-full items-center gap-2 px-3 py-2 text-left text-[calc(14px*var(--font-scale,1))]',
                       'transition-colors',
                       // Same rule as the rail: the check says which one, so
                       // the row does not also have to be a filled card.
                       r.key === role?.key
-                        ? 'font-[560] text-foreground hover:bg-surface-hover'
+                        ? 'font-medium text-foreground hover:bg-surface-hover'
                         : 'text-secondary-foreground hover:bg-surface-hover hover:text-foreground',
                     )}
                   >
@@ -1001,7 +1001,7 @@ export function Shell({
                            decoration, and "GETTING STARTED" is exactly what
                            somebody scans for when they do not yet know where
                            anything is. */
-                        <p className="px-2.5 pb-1.5 text-[calc(11.5px*var(--font-scale,1))] font-medium uppercase tracking-[0.09em] text-muted-foreground/75">
+                        <p className="px-2.5 pb-1.5 text-[calc(12px*var(--font-scale,1))] font-medium uppercase tracking-[0.09em] text-muted-foreground/75">
                           {section.name}
                         </p>
                       )}
@@ -1100,7 +1100,7 @@ export function Shell({
               means anything, and the sidebar answers "where am I" rather than
               "whose". Plain text, not a bordered dropdown: three chips up here
               would be three more rectangles. */}
-          <p className="scope-glass min-w-0 truncate rounded-full border px-3.5 py-1.5 text-[calc(13.5px*var(--font-scale,1))]">
+          <p className="scope-glass min-w-0 truncate rounded-full border px-3.5 py-1.5 text-[calc(14px*var(--font-scale,1))]">
             {/* Who is signed in, first: on a shared office machine the
                 name is what stops one clerk working as another. */}
             {session.user?.full_name && (

@@ -1177,6 +1177,14 @@
     margin-inline: var(--card-pad);
   }
   .card:not(.empty-state) > :is(p, label, button, a.btn, .field, .form-notice):last-child { margin-bottom: var(--card-pad); }
+  /* A body padded by hand with p-4 or p-5 sat 14 or 17.5px in from the edge
+     while the header above it sat at --card-pad (16 / 20px), so the text of
+     a card did not line up with its own title. Block children padded that
+     way take the card's inset; buttons and chips keep their own padding. */
+  .card > :is(div, p, dl, ul, ol, section, form, header, footer):is(.p-4, .px-4, .p-5, .px-5),
+  .card > :is(dl, ul, ol, div) > :is(div, li, dt, dd, p):is(.px-4, .px-5) {
+    padding-inline: var(--card-pad);
+  }
 
   /* Content settles in once, on mount. Short and small: a long slide is
      theatre, and an operator opening the same screen forty times a day will
@@ -1569,7 +1577,7 @@
   width: max-content;
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   /* Small text wants air, and the typeface has stopped providing it by this
      point in the scale: measured, an 11px string is the same width with the
      optical axis free as with it pinned to 14, which is the axis saying it has
@@ -1878,7 +1886,7 @@
 
 /* Given real room, the supporting matter is allowed to breathe again. */
 .bento-widget[data-w='4'] .bento-note,
-.bento-widget[data-w='5'] .bento-note { font-size: 12.5px; }
+.bento-widget[data-w='5'] .bento-note { font-size: 13px; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    MOTION, EVERYWHERE — one setting, not a per-component decision.
@@ -2727,7 +2735,7 @@ body[data-scroll-lock] {
    credit to stay visible, so it is only made to sit quietly in the theme
    rather than hidden. */
 .maplibregl-ctrl-attrib {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -3227,34 +3235,55 @@ body[data-scroll-lock] {
    and the grid are px and stay px: this axis is the text, and a person asking
    for larger text is not asking for a magnified page they have to scroll
    sideways. */
-  html .text-\[8px\] { font-size: calc(8px * var(--font-scale)); }
-  html .text-\[8.5px\] { font-size: calc(8.5px * var(--font-scale)); }
-  html .text-\[9px\] { font-size: calc(9px * var(--font-scale)); }
-  html .text-\[10px\] { font-size: calc(10px * var(--font-scale)); }
-  html .text-\[10.5px\] { font-size: calc(10.5px * var(--font-scale)); }
-  html .text-\[11px\] { font-size: calc(11px * var(--font-scale)); }
-  html .text-\[11.5px\] { font-size: calc(11.5px * var(--font-scale)); }
+  /* ONE TYPE SCALE (2026-09-29). The rules below used to carry every size the
+     source happened to use, so 12.5, 13.5 and 14.5 sat beside 12, 13 and 14
+     and a row of labels never quite matched the row beside it. Each utility
+     now lands on the scale -- 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 40
+     -- the nearest step up, and nothing is below the 12px floor. The class
+     names stay so no call site changes; the value is what they now mean. */
+  html .text-\[8px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[8.5px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[9px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[10px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[10.5px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[11px\] { font-size: calc(12px * var(--font-scale)); }
+  html .text-\[11.5px\] { font-size: calc(12px * var(--font-scale)); }
   html .text-\[12px\] { font-size: calc(12px * var(--font-scale)); }
-  html .text-\[12.5px\] { font-size: calc(12.5px * var(--font-scale)); }
+  html .text-\[12.5px\] { font-size: calc(13px * var(--font-scale)); }
   html .text-\[13px\] { font-size: calc(13px * var(--font-scale)); }
-  html .text-\[13.5px\] { font-size: calc(13.5px * var(--font-scale)); }
+  html .text-\[13.5px\] { font-size: calc(14px * var(--font-scale)); }
   html .text-\[14px\] { font-size: calc(14px * var(--font-scale)); }
-  html .text-\[14.5px\] { font-size: calc(14.5px * var(--font-scale)); }
+  html .text-\[14.5px\] { font-size: calc(15px * var(--font-scale)); }
   html .text-\[15px\] { font-size: calc(15px * var(--font-scale)); }
   html .text-\[16px\] { font-size: calc(16px * var(--font-scale)); }
-  html .text-\[17px\] { font-size: calc(17px * var(--font-scale)); }
+  html .text-\[17px\] { font-size: calc(18px * var(--font-scale)); }
   html .text-\[18px\] { font-size: calc(18px * var(--font-scale)); }
-  html .text-\[19px\] { font-size: calc(19px * var(--font-scale)); }
+  html .text-\[19px\] { font-size: calc(20px * var(--font-scale)); }
   html .text-\[20px\] { font-size: calc(20px * var(--font-scale)); }
-  html .text-\[21px\] { font-size: calc(21px * var(--font-scale)); }
+  html .text-\[21px\] { font-size: calc(22px * var(--font-scale)); }
   html .text-\[22px\] { font-size: calc(22px * var(--font-scale)); }
   html .text-\[24px\] { font-size: calc(24px * var(--font-scale)); }
-  html .text-\[26px\] { font-size: calc(26px * var(--font-scale)); }
+  html .text-\[26px\] { font-size: calc(28px * var(--font-scale)); }
   html .text-\[28px\] { font-size: calc(28px * var(--font-scale)); }
-  html .text-\[30px\] { font-size: calc(30px * var(--font-scale)); }
+  html .text-\[30px\] { font-size: calc(32px * var(--font-scale)); }
   html .text-\[32px\] { font-size: calc(32px * var(--font-scale)); }
-  html .text-\[34px\] { font-size: calc(34px * var(--font-scale)); }
+  html .text-\[34px\] { font-size: calc(32px * var(--font-scale)); }
   html .text-\[40px\] { font-size: calc(40px * var(--font-scale)); }
+
+/* ONE SET OF CORNERS (2026-09-29). Hand-written radii -- 6, 7, 8, 10, 12, 13,
+   14 and 16px -- sat beside the four tokens, did not follow the Corners
+   setting, and gave a card 10px on one screen and 14px on the next. Each lands
+   on its token here, by weight: a control, a field, a card, a dialog. The chat
+   bubble keeps its own shape (it cuts one corner off). */
+html .rounded-\[6px\], html .rounded-\[7px\], html .rounded-\[7\.5px\] { border-radius: var(--radius-control); }
+html .rounded-\[8px\]:not(.chat-bubble) { border-radius: var(--radius-input); }
+html .rounded-\[10px\], html .rounded-\[11px\], html .rounded-\[12px\],
+html .rounded-\[13px\], html .rounded-\[14px\] { border-radius: var(--radius-card); }
+html .rounded-\[16px\] { border-radius: var(--radius-dialog); }
+@media (min-width: 640px) {
+  html .sm\:rounded-\[12px\] { border-radius: var(--radius-card); }
+  html .sm\:rounded-\[16px\] { border-radius: var(--radius-dialog); }
+}
 
 @media (min-width: 640px) {
   html .sm\:text-\[13px\] { font-size: calc(13px * var(--font-scale)); }

@@ -560,7 +560,7 @@ export function CardShell({
           'card-note line-clamp-2 leading-tight opacity-70',
           quiet
             ? 'font-normal text-[length:max(13px,var(--card-change,11px))]'
-            : 'font-light text-[length:var(--card-change,11px)]',
+            : 'font-normal text-[length:var(--card-change,11px)]',
         )}>
           {said}
         </p>
@@ -1564,7 +1564,7 @@ export function Segments({
         {shown.map((p, i) => (
           <li key={p.label} className="flex items-center gap-1">
             <span className="h-2 w-2 shrink-0" style={{ background: ink(88 - i * 20) }} />
-            <span className="truncate font-light">{p.label}</span>
+            <span className="truncate font-normal">{p.label}</span>
             <b className="tabular-nums [font-weight:650]">
               {Math.round((num(p.value) / sum) * 100)}%
             </b>
@@ -1606,7 +1606,7 @@ export function Ladder({
               background: ink(88 - i * 14),
             }}
           />
-          <span className="truncate font-light text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-75">
+          <span className="truncate font-normal text-[length:min(8.5px,var(--card-note,8.5px))] leading-none opacity-75">
             {s.label}
           </span>
         </div>
@@ -1718,7 +1718,7 @@ export function Ranked({
                         text-[length:min(var(--card-fig,22px),22px)] [font-weight:650]">
             {String(i + 1).padStart(2, '0')}
           </b>
-          <span className="mt-0.5 block truncate font-light text-[length:min(8px,var(--card-note,8px))]
+          <span className="mt-0.5 block truncate font-normal text-[length:min(8px,var(--card-note,8px))]
                            uppercase leading-none tracking-[0.07em] opacity-75">
             {it.label}
           </span>

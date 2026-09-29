@@ -240,7 +240,7 @@ html[data-printing] { overflow: hidden; }
   html[data-printing] { overflow: visible; }
   .print-sheet {
     position: static;
-    inset: auto;
+    top: auto; right: auto; bottom: auto; left: auto;
     overflow: visible;
     background: none;
     padding: 0;

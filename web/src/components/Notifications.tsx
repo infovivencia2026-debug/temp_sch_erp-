@@ -237,7 +237,7 @@ export default function Notifications() {
                to the corner the badge sat squarely on the bell in the first
                and floated clear of it in the second. */
             className="absolute left-[calc(50%+1px)] top-[calc(50%-16px)] grid h-4 min-w-4 place-items-center rounded-full
-                       bg-destructive px-1 text-[12px] font-medium leading-none text-white"
+                       bg-destructive px-1 text-[12px] font-medium leading-none text-destructive-foreground"
             aria-hidden
           >
             {unread > 9 ? '9+' : unread}

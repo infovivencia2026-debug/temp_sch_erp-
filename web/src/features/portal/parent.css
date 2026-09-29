@@ -234,7 +234,7 @@
    is a thing rather than a region. */
 [data-role='parent'] .card,
 [data-role='parent'] .cell-grid {
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   box-shadow: var(--edge-lip), var(--elev-1);
 }
 [data-role='parent'] .card .border-b {
@@ -282,7 +282,7 @@
     display: none;
   }
   [data-role='parent'] .cell p.text-\[13px\] {
-    font-size: 12.5px;
+    font-size: 13px;
   }
 
   /* Card headers a shade lighter, and the body's own padding a shade tighter,
@@ -324,7 +324,7 @@
      stack up between the field and the button, so they are set small and
      quiet rather than in the body size. */
   [data-role='parent'] .card p.text-muted-foreground {
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.4;
   }
 }
@@ -354,7 +354,7 @@
   padding: 0 20px;
   max-width: 1040px;
   width: 100%;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.3;
   color: color-mix(in srgb, currentColor 58%, transparent);
   font-variant-numeric: tabular-nums;
@@ -371,7 +371,7 @@
   padding: 0 10px;
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 8%, transparent);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   color: inherit;
 }
@@ -403,7 +403,7 @@
 }
 .parent-skeleton__card {
   margin: 0 8px;
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   border: 1px solid color-mix(in srgb, currentColor 6%, transparent);
   background: var(--bento-card, hsl(var(--card)));
   overflow: hidden;
@@ -494,7 +494,7 @@
     font-size: 16px;
   }
   [data-role='parent'] .responsive-table td[data-label]::before {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 400;
     letter-spacing: 0;
     text-transform: none;
@@ -594,7 +594,7 @@
   }
   [data-role='parent'] dt.text-\[12px\],
   [data-role='parent'] .card .text-\[12px\] {
-    font-size: 12.5px;
+    font-size: 13px;
   }
 
   /* NOTHING SELECTS ON A LONG PRESS.
