@@ -513,22 +513,33 @@ export function registerStaff(r: Router): void {
     const e = await c.db.prepare(`SELECT user_id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name, employee_code, email, phone, staff_number, status FROM employees WHERE id = ?`)
       .bind(empId).first<{ user_id: string | null; full_name: string; employee_code: string; email: string | null; phone: string | null; staff_number: number | null; status: string }>()
     if (!e) throw new HttpError(404, 'no such employee', { code: 'not_found' })
+    const sch = await c.db.prepare('SELECT school_code FROM institutions LIMIT 1')
+      .first<{ school_code: string | null }>()
     if (e.status !== 'active') {
       throw badRequest('this member of staff is not on the roll, so there is nobody to give a login to. Put them back on the roll first, their record, their ' +
         'service and their old attendance are all still here, and then a login can be issued.')
     }
     const errNoContact = 'this person has no staff number, email or phone on their record, add one first, or they will have nothing to sign in with'
-    /* THE CODE ON THE BADGE, NOT THE ROW NUMBER.
+    /* ONE ERP, MANY SCHOOLS, SO THE NAME HAS TO SAY WHICH.
 
-       A member of staff signed in as their staff_number -- 1010 -- which is an
-       ordinal the school never says out loud. Their employee code is what is on
-       the badge, in the register and on every letter, so that is what they are
-       asked to type. It is unique per school by the same index that stops two
-       staff records sharing one, which is what makes it safe as a sign-in name.
+       A member of staff signed in as their staff_number -- 1010 -- an ordinal
+       the school never says out loud, and one that the school next door hands
+       out as well. Every identifier here is looked up across every school at
+       once, so a name that is unique in one building is not unique enough: two
+       people with the same one are an "opens accounts at more than one school"
+       error that neither of them can do anything about.
 
-       Falls back to the old number, then to nothing, so a record without a code
-       still gets a login on its phone or email rather than being refused. */
-    const staffNoText = String(e.employee_code ?? '').trim() ||
+       Their own number, then the school's four letters. The number is theirs
+       and the code says whose staff they are, so it is unique across the
+       platform by construction and still a thing a clerk can read down a phone.
+
+       The fallbacks matter as much as the rule: no school code, or no phone,
+       and it drops to the employee code and then the old staff number, so a
+       half-filled record still gets a login rather than being refused one. */
+    const schoolCode = String(sch?.school_code ?? '').trim().toUpperCase()
+    const staffPhone = String(e.phone ?? '').trim()
+    const staffNoText = (schoolCode && staffPhone ? `${staffPhone}.${schoolCode}` : '') ||
+      String(e.employee_code ?? '').trim() ||
       (e.staff_number === null ? null : String(e.staff_number))
     const { password, known } = issuedPassword(e.phone ?? '', e.email ?? '')
     const pwHash = await hash(c, password)
