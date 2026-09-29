@@ -414,6 +414,47 @@ export function registerPortalLMS(r: Router) {
       quiz: { id: q.id, title: q.title, instructions: q.instructions, duration_minutes: q.duration_minutes }, questions })
   })
 
+  /* Check one answer the moment it is chosen, so a quiz plays one question at
+     a time with instant feedback. The answer is LOCKED: it is written as the
+     response now and hand-in keeps it, so checking cannot be used to try every
+     option. The right option is named only once no attempt is left (the same
+     rule as the review at hand-in), otherwise the child learns right or wrong. */
+  r.post('/portal/lms/quizzes/{id}/check', PERM, async (c) => {
+    const me = await self(c)
+    const id = str(c.params.id)
+    if (!isUUID(id)) throw notFound()
+    const b = await readJSON<Body>(c.req)
+    const aid = str(b.attempt_id), qid = str(b.test_question_id), opt = str(b.option_id)
+    if (!isUUID(aid) || !isUUID(qid) || !isUUID(opt)) throw badRequest('attempt_id, test_question_id and option_id are required')
+    const a = await c.db.prepare(`SELECT a.id, a.started_at, a.status, t.duration_minutes, t.closes_at, t.max_attempts,
+        (SELECT count(*) FROM online_test_attempts x WHERE x.test_id = t.id AND x.student_id = a.student_id) AS used FROM online_test_attempts a JOIN online_tests t ON t.id = a.test_id
+        WHERE a.id = ? AND a.test_id = ? AND a.student_id = ?`).bind(aid, id, me.id)
+      .first<{ id: string; started_at: string; status: string; duration_minutes: number | null; closes_at: string | null; max_attempts: number; used: number }>()
+    if (!a) throw notFound()
+    if (a.status !== 'in_progress') throw new HttpError(409, 'this attempt has already been handed in', { code: 'already_submitted' })
+    let deadline = a.duration_minutes ? Date.parse(a.started_at) + a.duration_minutes * 60_000 : Infinity
+    if (a.closes_at) deadline = Math.min(deadline, Date.parse(a.closes_at))
+    if (Date.now() > deadline + GRACE_MS) throw new HttpError(409, 'the time is up', { code: 'time_up' })
+    const k = await c.db.prepare(`SELECT tq.id, CAST(tq.marks AS REAL) AS marks, CAST(tq.negative_marks AS REAL) AS neg,
+        (SELECT o.id FROM question_bank_options o WHERE o.question_id = tq.question_id AND o.is_correct = 1 ORDER BY o.sequence LIMIT 1) AS correct,
+        EXISTS (SELECT 1 FROM question_bank_options o WHERE o.question_id = tq.question_id AND o.id = ?) AS valid,
+        (SELECT selected_option_ids FROM online_test_responses r WHERE r.attempt_id = ? AND r.test_question_id = tq.id LIMIT 1) AS locked
+        FROM online_test_questions tq WHERE tq.id = ? AND tq.test_id = ?`).bind(opt, a.id, qid, id)
+      .first<{ id: string; marks: number; neg: number; correct: string | null; valid: number; locked: string | null }>()
+    if (!k) throw notFound()
+    let chosen = opt
+    if (k.locked) {
+      try { chosen = (JSON.parse(k.locked) as string[])[0] ?? opt } catch { /* keep opt */ }
+    } else {
+      if (!k.valid) throw badRequest('that option is not on this question')
+      const right0 = opt === k.correct
+      await c.db.prepare(`INSERT INTO online_test_responses (id, institution_id, attempt_id, test_question_id, selected_option_ids, is_correct, marks_awarded, answered_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(uuid(), institutionId(c), a.id, k.id, JSON.stringify([opt]), right0 ? 1 : 0, String(right0 ? k.marks : -k.neg), now()).run()
+    }
+    const right = !!k.correct && chosen === k.correct
+    return ok({ test_question_id: k.id, chosen, right, locked: !!k.locked, correct: a.used >= a.max_attempts ? k.correct : null })
+  })
+
   /* Hand in a quiz: marked at once. After the time limit (plus a minute's grace) the answers are not accepted. */
   r.post('/portal/lms/quizzes/{id}/submit', PERM, async (c) => {
     const me = await self(c)
@@ -434,7 +475,15 @@ export function registerPortalLMS(r: Router) {
     const key = await c.db.prepare(`SELECT tq.id, CAST(tq.marks AS REAL) AS marks, CAST(tq.negative_marks AS REAL) AS neg,
         (SELECT o.id FROM question_bank_options o WHERE o.question_id = tq.question_id AND o.is_correct = 1 ORDER BY o.sequence LIMIT 1) AS correct
         FROM online_test_questions tq WHERE tq.test_id = ?`).bind(id).all<{ id: string; marks: number; neg: number; correct: string | null }>()
-    const answers = (!timedOut && b.answers && typeof b.answers === 'object') ? b.answers as Record<string, unknown> : {}
+    const answers: Record<string, unknown> = { ...((!timedOut && b.answers && typeof b.answers === 'object') ? b.answers as Record<string, unknown> : {}) }
+    /* Answers already checked one at a time are locked: they were given in
+       time, they stand, and they are not written twice. */
+    const lockedRows = await c.db.prepare(`SELECT test_question_id, selected_option_ids FROM online_test_responses WHERE attempt_id = ?`).bind(a.id).all<{ test_question_id: string; selected_option_ids: string | null }>()
+    const locked = new Set<string>()
+    for (const l of lockedRows.results) {
+      try { const v = (JSON.parse(l.selected_option_ids ?? '[]') as string[])[0]; if (v) answers[l.test_question_id] = v } catch { /* unreadable: leave the body's answer */ }
+      locked.add(l.test_question_id)
+    }
     let score = 0, max = 0
     const t = now(), inst = institutionId(c)
     const stmts: D1PreparedStatement[] = []
@@ -446,7 +495,7 @@ export function registerPortalLMS(r: Router) {
       const got = right ? k.marks : chosen ? -k.neg : 0
       score += got
       review.push({ test_question_id: k.id, chosen, correct: k.correct, right })
-      if (chosen) stmts.push(c.db.prepare(`INSERT INTO online_test_responses (id, institution_id, attempt_id, test_question_id, selected_option_ids, is_correct, marks_awarded, answered_at)
+      if (chosen && !locked.has(k.id)) stmts.push(c.db.prepare(`INSERT INTO online_test_responses (id, institution_id, attempt_id, test_question_id, selected_option_ids, is_correct, marks_awarded, answered_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(uuid(), inst, a.id, k.id, JSON.stringify([chosen]), right ? 1 : 0, String(got), t))
     }
     score = Math.max(0, score)
