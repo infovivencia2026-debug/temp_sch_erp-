@@ -16,7 +16,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils'
 import { RolePicker, useRoleCatalog, type Role } from '../super_admin/RolePicker'
 import { useOpenState } from '@/lib/motion'
 import { SessionActivityDesk } from './SessionActivityDesk'
-import { StudentLoginsCard, IssueLoginsCard, IssueOneCard } from './StudentLoginsCard'
+import { StudentLoginsCard, IssueLoginsCard, IssueOneCard, IssueOneStaffCard } from './StudentLoginsCard'
 
 /* Who can sign in to this school.
 
@@ -288,6 +288,7 @@ export default function Logins() {
         {record === 'student' && <StudentLoginsCard />}
         {record === 'guardian' && <ParentLoginsCard />}
         {record === 'guardian' && <IssueLoginsCard kind="guardians" />}
+        {record === 'staff' && <IssueOneStaffCard />}
         {record === 'staff' && <IssueLoginsCard kind="staff" />}
 
         {record === 'sessions' && (

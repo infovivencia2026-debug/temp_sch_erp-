@@ -486,13 +486,59 @@ export const changes = (r: D1Result | undefined): number => Number(r?.meta?.chan
 /** Writes a school user's email, phone and username into CONTROL's login_index,
  *  which is where /login looks first. A user created here without it exists in
  *  the school's database but can never sign in. Idempotent. */
+/* THE ONE NAME THAT NEVER CHANGES.
+
+   A phone number changes, a surname changes, a child's admission number is
+   reissued when a school renumbers, and an employee code is only unique inside
+   one school. Every identifier a person signs in with is therefore borrowed
+   from something that can move. This one is the account's own: ten characters,
+   drawn at random, never reused, and the same for the life of the login.
+
+   0, O, 1, I and L are left out of the alphabet on purpose. These are read down
+   a telephone to a parent and written by hand on a slip, and the pairs that
+   look alike are where that goes wrong.
+
+   The uniqueness that matters is across the whole ERP, not one school, because
+   a code that means two people is worse than no code at all -- so a candidate
+   is checked against CONTROL, where every school's identifiers meet. */
+const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
+async function freshLoginCode(c: Ctx): Promise<string> {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const bytes = new Uint8Array(10)
+    crypto.getRandomValues(bytes)
+    const code = [...bytes].map((v) => CODE_ALPHABET[v % CODE_ALPHABET.length]).join('')
+    const taken = await c.env.CONTROL.prepare('SELECT 1 FROM login_index WHERE value = ? LIMIT 1')
+      .bind(code).first()
+    if (!taken) return code
+  }
+  /* Six collisions against 31^10 is not chance, it is a fault -- an empty
+     alphabet, a broken random source. Better to raise it than to hand out a
+     code that might already be somebody's. */
+  throw new Error('could not draw an unused login code')
+}
+
 export async function indexLogin(c: Ctx, userId: string): Promise<void> {
-  const u = await c.db.prepare('SELECT institution_id, email, phone, username FROM users WHERE id = ?')
-    .bind(userId).first<{ institution_id: string; email: string | null; phone: string | null; username: string | null }>()
+  const u = await c.db.prepare('SELECT institution_id, email, phone, username, login_code FROM users WHERE id = ?')
+    .bind(userId).first<{ institution_id: string; email: string | null; phone: string | null; username: string | null; login_code: string | null }>()
   if (!u) return
+  /* Given here rather than at each of the six places an account can be born,
+     for the same reason the index itself is: every one of them already ends up
+     in this function, and the seventh that somebody writes next year will too. */
+  let code = String(u.login_code ?? '').trim()
+  if (!code) {
+    code = await freshLoginCode(c)
+    await c.db.prepare('UPDATE users SET login_code = ?, updated_at = ? WHERE id = ?')
+      .bind(code, now(), userId).run()
+  }
   const t = now()
   const stmts: D1PreparedStatement[] = []
-  for (const [kind, value] of [['email', u.email], ['phone', u.phone], ['username', u.username]] as const) {
+  /* The code is filed as a username, not a kind of its own: login_index
+     carries CHECK (kind IN ('email','phone','username')), and because the
+     insert is OR IGNORE a fourth kind was rejected in silence -- 369 codes
+     written and none of them able to sign anybody in. The lookup matches on
+     the value, so what it is filed under changes nothing. */
+  for (const [kind, value] of [['email', u.email], ['phone', u.phone], ['username', u.username], ['username', code]] as const) {
     if (!value || value.trim() === '') continue
     stmts.push(c.env.CONTROL.prepare('INSERT OR IGNORE INTO login_index (kind, value, institution_id, user_id, created_at) VALUES (?,?,?,?,?)')
       .bind(kind, value, u.institution_id, userId, t))

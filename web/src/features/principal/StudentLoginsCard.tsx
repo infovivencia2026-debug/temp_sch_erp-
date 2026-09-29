@@ -500,3 +500,92 @@ export function IssueOneCard({ kind }: { kind: 'students' | 'guardians' }) {
     </Card>
   )
 }
+
+/* ONE MEMBER OF STAFF, FROM THE SAME SCREEN.
+
+   The staff equivalent lived on HR > Employees, which is the right place for
+   somebody already working through the roll and the wrong place for somebody
+   answering the phone to a teacher who cannot get in.
+
+   The roll is fetched whole and filtered here rather than asked for by name,
+   because GET /hr/employees has no text search and a school has tens of staff,
+   not thousands: two hundred rows is a smaller thing to ask of the server than
+   a new endpoint, and it lets the code, the name and the phone all match. */
+export function IssueOneStaffCard() {
+  const qc = useQueryClient()
+  const [needle, setNeedle] = useState('')
+  const [done, setDone] = useState<{ name: string; signIn: string; password: string } | null>(null)
+
+  const staff = useQuery({
+    queryKey: ['issue-one-staff'],
+    queryFn: () => api.get<{ items: { id: string; employee_code?: string; name?: string; full_name?: string; phone?: string }[] }>(
+      '/api/v1/hr/employees?status=active&limit=200&with_total=0'),
+  })
+
+  const issue = useMutation({
+    mutationFn: (v: { id: string; name: string; reset: boolean }) =>
+      api.post<{ sign_in_as?: string; password?: string; temporary_password?: string }>(
+        `/api/v1/setup/employees/${v.id}/login${v.reset ? '?reset=true' : ''}`, {})
+        .then((r) => ({ name: v.name, signIn: r.sign_in_as ?? '', password: r.password ?? r.temporary_password ?? '' })),
+    onSuccess: (r) => { setDone(r); qc.invalidateQueries({ queryKey: ['admin-users'] }) },
+  })
+
+  const term = needle.trim().toLowerCase()
+  const rows = (staff.data?.items ?? [])
+    .map((e) => ({ ...e, label: e.full_name ?? e.name ?? '' }))
+    .filter((e) => !term || `${e.label} ${e.employee_code ?? ''} ${e.phone ?? ''}`.toLowerCase().includes(term))
+    .slice(0, 8)
+
+  return (
+    <Card>
+      <CardHeader
+        title="Issue a login for one member of staff"
+        description="Search by name, staff code or phone."
+      />
+      <div className="space-y-4 px-[var(--card-pad)] py-4 text-[14px]">
+        <Field label="Member of staff">
+          <Input value={needle} onChange={setNeedle} placeholder="Name, code or phone" />
+        </Field>
+        {term.length >= 2 && (
+          <Table head={['Name', 'Code', 'Phone', '']} empty={!rows.length}
+                 emptyLabel={staff.isLoading ? 'Reading the roll…' : 'Nobody matches that.'}>
+            {rows.map((e) => (
+              <tr key={e.id}>
+                <Td>{e.label}</Td>
+                <Td className="text-muted-foreground">{e.employee_code ?? '—'}</Td>
+                <Td>{e.phone ?? '—'}</Td>
+                <Td className="whitespace-nowrap">
+                  <Button size="sm" pending={issue.isPending}
+                    onClick={() => issue.mutate({ id: e.id, name: e.label, reset: false })}>
+                    Issue
+                  </Button>
+                  <Button size="sm" variant="secondary" pending={issue.isPending}
+                    onClick={() => { if (window.confirm(`Give ${e.label} a new password? The one they hold now stops working.`)) issue.mutate({ id: e.id, name: e.label, reset: true }) }}>
+                    Reset
+                  </Button>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        <FormNotice error={issue.error} />
+        {done && (
+          <div className="space-y-2 border-t pt-4">
+            <p className="font-medium">{done.name} can sign in</p>
+            <p>Sign in as: <span className="font-mono">{done.signIn || '—'}</span></p>
+            <p>
+              Password:{' '}
+              {done.password
+                ? <span className="font-mono text-[16px]">{done.password}</span>
+                : <span className="text-muted-foreground">already set, reset it to see one</span>}
+            </p>
+            <p className="text-[13px] text-muted-foreground">
+              Shown once. Write it down or send it now; it cannot be read back.
+            </p>
+            <Button size="sm" variant="secondary" onClick={() => { setDone(null); setNeedle('') }}>Do another</Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
