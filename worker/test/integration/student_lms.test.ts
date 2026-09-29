@@ -62,7 +62,8 @@ describe('student logins: the school switch', () => {
     for (const r of b.body.rows) {
       expect(r).toMatchObject({ class_name: 'Class 5', section_name: 'A', existing: false })
       expect(r.sign_in_as.toLowerCase()).toBe(String(r.admission_no).toLowerCase())
-      expect(r.password).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/)
+      // First password is the admission number; the child must change it.
+      expect(r.password).toBe(String(r.admission_no))
       creds[r.admission_no] = r
     }
     const u = await T().prepare(`SELECT u.must_change_password AS m FROM users u JOIN students s ON s.user_id = u.id WHERE s.id = ?`).bind(IDS.child).first<{ m: number }>()

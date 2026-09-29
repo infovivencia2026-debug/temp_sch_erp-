@@ -102,6 +102,15 @@ function statusInWords(status: string): string {
   return ({ present: 'Present', absent: 'Absent', late: 'Late', half_day: 'Half day', leave: 'On leave', holiday: 'Holiday', week_off: 'Week off' } as Record<string, string>)[status] ?? status
 }
 
+/* A STUDENT'S FIRST PASSWORD IS THEIR ADMISSION NUMBER (owner,
+   2026-09-28), the one number every child already knows. It is only ever
+   the first: the account is marked must-change, so the child chooses their
+   own at the first sign-in and the admission number stops working. */
+function studentFirstPassword(admissionNo: string | undefined): { password: string; known: boolean } {
+  const a = String(admissionNo ?? '').trim()
+  return a.length >= 3 ? { password: a, known: true } : { password: temporaryPassword(), known: false }
+}
+
 export function registerStaff(r: Router): void {
   /* --- employees --- */
 
@@ -671,11 +680,11 @@ export function registerStaff(r: Router): void {
     requireInstitution(c)
     const studentId = uuidParam(c.params.id)
     const reset = c.url.searchParams.get('reset') === 'true'
-    const password = temporaryPassword()
-    const pwHash = await hash(c, password)
     const s = await c.db.prepare(`SELECT user_id, admission_no, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS full_name FROM students WHERE id = ?`).bind(studentId)
       .first<{ user_id: string | null; admission_no: string; full_name: string }>()
     if (!s) throw new HttpError(404, 'no such student', { code: 'not_found' })
+    const password = studentFirstPassword(s.admission_no).password
+    const pwHash = await hash(c, password)
     if (!s.user_id || reset) {
       const why = await studentLoginRefusal(c.db, studentId)
       if (why) throw new HttpError(409, why, { code: 'student_logins_off' })
@@ -840,7 +849,7 @@ export function registerStaff(r: Router): void {
     }
     for (const p of people.results) {
       if (p.user_id && (!bool(p.usable) || req.reset === true)) {
-        const { password, known } = issuedPassword(p.phone, p.email)
+        const { password, known } = kind === 'students' ? studentFirstPassword(p.admission_no) : issuedPassword(p.phone, p.email)
         const h = await hash(c, password)
         await c.db.prepare(`UPDATE users SET password_hash = ?, status = 'active', must_change_password = ?, updated_at = ? WHERE id = ?`).bind(h, known || kind === 'students' ? 1 : 0, t, p.user_id).run()
         if (kind === 'students') await revokeSessions(c, p.user_id)
@@ -861,7 +870,7 @@ export function registerStaff(r: Router): void {
         continue
       }
       const username = await uniqueUsername(c, p.username === '' ? p.name : p.username)
-      const { password, known } = issuedPassword(p.phone, p.email)
+      const { password, known } = kind === 'students' ? studentFirstPassword(p.admission_no) : issuedPassword(p.phone, p.email)
       const pwHash = await hash(c, password)
       /* users has no unique index on email or phone in the D1 schema, so the
          collisions Go caught as 23505 are found by asking first, and the

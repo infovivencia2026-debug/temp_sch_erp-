@@ -132,8 +132,8 @@ export function StudentLoginsCard() {
           <div className="space-y-3 border-t pt-4">
             <p className="font-medium">Issue logins for a class or section</p>
             <p className="text-muted-foreground">
-              Each child signs in with their admission number and a temporary code, and chooses their own password the first time.
-              Children who already have a login keep it. Print the slips or download the list: the codes are shown only once.
+              Each child signs in with their admission number as both the username and the first password, and chooses their own password the first time.
+              Children who already have a login keep it. Print the slips or download the list for class teachers.
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-72">
