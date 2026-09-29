@@ -158,7 +158,7 @@ export function computeSteps(s: PStructure, p: PProgress): PStepState[] {
   const unit = new Map(s.units.map((u) => [u.id, u]))
   const name = (st: PStep, from: PStep) => {
     const d = dayName(st.day, st.label)
-    return st.unit_id === from.unit_id ? d : `${d} of ${unit.get(st.unit_id)?.title ?? 'the module before'}`
+    return st.unit_id === from.unit_id ? d : `${d} (${unit.get(st.unit_id)?.title ?? 'the module before'})`
   }
   const out: PStepState[] = []
   let prevOpen = true, prevDone = true

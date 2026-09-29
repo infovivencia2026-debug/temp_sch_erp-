@@ -85,9 +85,17 @@ async function todo(c: Ctx, sid: string, section: string, classId: string) {
         FROM homework_submissions hs JOIN homework h ON h.id = hs.homework_id LEFT JOIN class_subjects cs ON cs.id = h.class_subject_id LEFT JOIN subjects sub ON sub.id = cs.subject_id
         WHERE hs.student_id = ? AND hs.returned_at IS NOT NULL ORDER BY hs.returned_at DESC LIMIT 5`).bind(sid),
   ])
+  /* One by one: "up next" leaves out what is on a locked day. */
+  const ls = lessons.results as { id: string; class_subject_id: string }[]
+  const hidden = new Set<string>()
+  for (const cs of new Set(ls.map((l) => l.class_subject_id))) {
+    const st = await loadStructure(c, section, cs, true)
+    const states = computeSteps(st, (await loadProgress(c, st, [sid])).get(sid)!)
+    st.steps.forEach((x, i) => { if (states[i].state === 'locked') for (const it of x.items) if (it.type === 'lesson') hidden.add(it.id) })
+  }
   return {
     assignments: (hw.results as Record<string, unknown>[]).map((h) => ({ ...h, overdue: !!h.overdue })),
-    quizzes: quizzes.results, lessons: lessons.results, returned: returned.results,
+    quizzes: quizzes.results, lessons: ls.filter((l) => !hidden.has(l.id)), returned: returned.results,
   }
 }
 

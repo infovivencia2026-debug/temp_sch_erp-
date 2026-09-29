@@ -81,7 +81,7 @@ describe('one by one', () => {
     expect(d2.items.find((i: any) => i.type === 'lesson').lesson).toMatchObject({ locked: true, body: null })
     expect(dayOf(d, B, 1)).toMatchObject({ state: 'locked' })
     // The reason names the first day still to finish, and its module when it is another one.
-    expect(dayOf(d, B, 1).reason).toBe('Finish Day 1: Basics of Fractions to unlock')
+    expect(dayOf(d, B, 1).reason).toBe('Finish Day 1: Basics (Fractions) to unlock')
     expect(d.resume).toMatchObject({ type: 'lesson', id: L.d1opt, day_name: 'Day 1: Basics', section: 'prereq' })
     // Sections are in order: pre-requisites first.
     expect(dayOf(d, A, 1).items.map((i: any) => i.section)).toEqual(['prereq', 'resources'])
