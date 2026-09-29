@@ -70,10 +70,11 @@ describe('student logins: the school switch', () => {
     expect(u?.m).toBe(1)
     const roles = await T().prepare(`SELECT r.key FROM user_roles ur JOIN roles r ON r.id = ur.role_id JOIN students s ON s.user_id = ur.user_id WHERE s.id = ?`).bind(IDS.child).all<{ key: string }>()
     expect(roles.results.map((x) => x.key)).toEqual(['student'])
-    // A second run keeps what was issued and shows no password.
+    // A second run keeps what was issued; while a login is unused, its first
+    // password (the admission number) is shown again for the slip.
     const again = await api('admin', 'POST', '/setup/logins/bulk', { kind: 'students', section_id: IDS.section })
     expect(again.body).toMatchObject({ created: 0, existing: 2 })
-    expect(again.body.rows.every((r: { password?: string }) => !r.password)).toBe(true)
+    expect(again.body.rows.every((r: { password?: string; admission_no?: string }) => r.password === String(r.admission_no))).toBe(true)
   })
 
   it('makes the child choose a password before anything else, with no skip', async () => {

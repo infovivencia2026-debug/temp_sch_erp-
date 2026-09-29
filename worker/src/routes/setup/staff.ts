@@ -893,8 +893,8 @@ export function registerStaff(r: Router): void {
         if (kind === 'students' && p.admission_no) {
           const u = await c.db.prepare(`SELECT must_change_password AS m FROM users WHERE id = ?`).bind(p.user_id).first<{ m: number }>()
           if (u && Number(u.m) === 1) {
-            out.created++
-            out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), password: studentFirstPassword(p.admission_no).password, existing: false })
+            out.existing++
+            out.rows.push({ ...studentCols(p), name: p.name, sign_in_as: await signInAs(c, p.user_id, 'username'), password: studentFirstPassword(p.admission_no).password, existing: true, first_password: true })
             continue
           }
         }
