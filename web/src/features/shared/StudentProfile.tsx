@@ -1143,7 +1143,7 @@ export default function StudentProfile() {
                 <div className="p-5">
                   <div className="mx-auto h-[34mm] w-[28mm] overflow-hidden rounded border bg-muted/30">
                     {p.photo_file_id && (
-                      <img
+                      <img loading="lazy" decoding="async"
                         src={`/api/v1/files/${p.photo_file_id}?inline=1`}
                         alt={`Photograph of ${p.full_name}`}
                         className="h-full w-full object-cover"
@@ -2074,7 +2074,7 @@ function Guardians({ p, onIssue, mayEdit, onChanged }: {
                   {(g.photo_file_id || (mayEdit && g.id)) && (
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted/30">
                       {g.photo_file_id && (
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={`/api/v1/files/${g.photo_file_id}?inline=1`}
                           alt={`Photograph of ${g.full_name}`}
                           className="h-full w-full object-cover"

@@ -155,7 +155,7 @@ export default function FilePicker({
           <p className="mb-2 text-[12.5px] font-medium">About to upload</p>
           <div className="flex flex-wrap items-center gap-3">
             {preview ? (
-              <img
+              <img loading="lazy" decoding="async"
                 src={preview}
                 alt=""
                 className="h-14 w-14 rounded border object-cover"

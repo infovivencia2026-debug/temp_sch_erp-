@@ -1154,7 +1154,7 @@ function BrandingForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void
             </Field>
             <Field label="Logo" hint="A square PNG or JPEG, under 512 KB, also makes the app icons. Saved straight away.">
               <div className="flex items-center gap-3">
-                {b.logo_url && <img src={b.logo_url} alt="" className="h-10 w-10 rounded border bg-white object-contain" />}
+                {b.logo_url && <img loading="lazy" decoding="async" src={b.logo_url} alt="" className="h-10 w-10 rounded border bg-white object-contain" />}
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/svg+xml"

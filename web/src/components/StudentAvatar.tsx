@@ -76,7 +76,7 @@ export default function StudentAvatar({
       style={{ width: size, height: size }}
     >
       {show ? (
-        <img
+        <img loading="lazy" decoding="async"
           /* inline=1, or the endpoint answers with Content-Disposition:
              attachment -- which is the right default for an uploaded file and
              the wrong one for a face in a list, where it means the browser is

@@ -801,7 +801,7 @@ export function ChatThread({
               {files.map((f) => (
                 <span key={f.file_id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-background py-1 pl-1 pr-2 text-[12.5px]">
                   {isImage(f) ? (
-                    <img src={viewUrl(f)} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                    <img loading="lazy" decoding="async" src={viewUrl(f)} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
                   ) : (
                     <FileText className="ml-1 h-3.5 w-3.5 shrink-0" />
                   )}
@@ -823,7 +823,7 @@ export function ChatThread({
                   className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-dashed py-1 pl-1 pr-2 text-[12.5px] text-muted-foreground"
                 >
                   {p.preview ? (
-                    <img src={p.preview} alt="" className="h-8 w-8 shrink-0 animate-pulse rounded object-cover" />
+                    <img loading="lazy" decoding="async" src={p.preview} alt="" className="h-8 w-8 shrink-0 animate-pulse rounded object-cover" />
                   ) : (
                     <FileText className="ml-1 h-3.5 w-3.5 shrink-0 animate-pulse" />
                   )}
@@ -1113,7 +1113,7 @@ function AttachmentView({ a, lifted }: { a: Attachment; lifted?: boolean }) {
           className="relative mb-1 block w-fit"
           title={lifted ? a.name : `View ${a.name}`}
         >
-          <img
+          <img decoding="async"
             src={viewUrl(a)}
             alt={a.name}
             loading="lazy"
@@ -1180,7 +1180,7 @@ function ImageViewer({ a, onClose }: { a: Attachment; onClose: () => void }) {
         aria-label="Close"
         className="flex min-h-0 flex-1 cursor-default items-center justify-center p-3"
       >
-        <img src={viewUrl(a)} alt={a.name} className="max-h-full max-w-full object-contain" />
+        <img loading="lazy" decoding="async" src={viewUrl(a)} alt={a.name} className="max-h-full max-w-full object-contain" />
       </button>
     </div>
   )

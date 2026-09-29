@@ -192,7 +192,7 @@ function BoardPersonaPage({
       <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {logoKey && (
-            <img
+            <img loading="lazy" decoding="async"
               src={`/api/v1/files/${logoKey}?inline=1`}
               alt={schoolName ?? ''}
               className="h-8 w-8 shrink-0 rounded-md bg-white object-contain p-0.5 sm:h-11 sm:w-11"

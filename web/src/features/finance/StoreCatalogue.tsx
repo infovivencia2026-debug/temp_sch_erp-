@@ -67,7 +67,7 @@ function ProductCard({ product }: { product: CatalogueProduct }) {
     <Card className="overflow-hidden">
       <div className="aspect-square w-full bg-muted">
         {product.image_url ? (
-          <img
+          <img decoding="async"
             src={product.image_url}
             alt={product.name}
             className="h-full w-full object-cover"

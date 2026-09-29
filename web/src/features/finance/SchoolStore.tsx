@@ -694,7 +694,7 @@ function ProductEditor({
           <Field label="Picture" wide hint="Shown to parents on the store catalogue. Optional.">
             {imageKey ? (
               <div className="flex flex-wrap items-center gap-3">
-                <img
+                <img loading="lazy" decoding="async"
                   src={`/api/v1/files/${imageKey}?inline=1`}
                   alt=""
                   className="h-16 w-16 rounded border object-cover"

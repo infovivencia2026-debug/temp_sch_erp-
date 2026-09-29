@@ -438,7 +438,7 @@ export default function StudentPhotos() {
                   return (
                     <tr key={r.file.name}>
                       <Td>
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={r.preview}
                           alt=""
                           className="h-12 w-10 rounded border object-cover"
