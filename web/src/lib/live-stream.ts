@@ -266,6 +266,40 @@ function targetFromEvent(ev: LiveEvent): TypingTarget | null {
   }
 }
 
+/* TOPICS AND THE SOCKET.
+
+   The preferred transport is a WebSocket on /api/v1/live/socket, held by
+   the school's LiveHub with the hibernation API (idle sockets cost the
+   server nothing). It also carries topic hints -- 'bus' when any bus of the
+   school reports a position -- which screens subscribe to with
+   useLiveTopic() instead of polling. If the socket cannot open (an old
+   proxy, a network that strips upgrades) the EventSource below is used, as
+   before; topic screens then keep their poll, which they read from
+   useLiveConnected(). */
+const topicListeners = new Map<string, Set<(keys: Record<string, string>) => void>>()
+let socketUp = false
+const upListeners = new Set<() => void>()
+function setSocketUp(v: boolean) { if (socketUp !== v) { socketUp = v; for (const l of upListeners) l() } }
+
+/** Call `fn` whenever the server hints this topic event ('bus'). */
+export function useLiveTopic(event: string, fn: (keys: Record<string, string>) => void) {
+  useEffect(() => {
+    const set = topicListeners.get(event) ?? new Set()
+    set.add(fn)
+    topicListeners.set(event, set)
+    return () => { set.delete(fn) }
+  }, [event, fn])
+}
+
+/** Whether the live socket (and so topic hints) is connected right now. */
+export function useLiveConnected(): boolean {
+  return useSyncExternalStore(
+    (cb) => { upListeners.add(cb); return () => { upListeners.delete(cb) } },
+    () => socketUp,
+    () => false,
+  )
+}
+
 export function useLiveStream() {
   const qc = useQueryClient()
   const me = useSession().user?.id
@@ -279,11 +313,18 @@ export function useLiveStream() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('EventSource' in window)) return
     let es: EventSource | null = null
+    let ws: WebSocket | null = null
+    let wsFailures = 0
+    let keepAlive: number | undefined
+    let retry: number | undefined
+    let stopped = false
 
     const onEvent = (raw: MessageEvent) => {
       let ev: LiveEvent
       try { ev = JSON.parse(raw.data) } catch { return }
       const k = ev.keys ?? {}
+      const topic = topicListeners.get(ev.type as string)
+      if (topic) { for (const fn of topic) fn(k); return }
       switch (ev.type) {
         case 'message':
           // The principal's All messages desk lists every channel; any
@@ -346,13 +387,52 @@ export function useLiveStream() {
       }
     }
 
-    const open = () => {
-      if (es || document.hidden) return
+    const openSSE = () => {
+      if (es) return
       es = new EventSource('/api/v1/live/stream')
       for (const name of ['message', 'read', 'notification', 'typing']) es.addEventListener(name, onEvent as EventListener)
       // On error the browser retries by itself; nothing to do but stay quiet.
     }
-    const close = () => { es?.close(); es = null }
+    const openSocket = () => {
+      if (ws || stopped) return
+      let opened = false
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      try {
+        ws = new WebSocket(`${proto}//${window.location.host}/api/v1/live/socket?topics=transport`)
+      } catch { ws = null; wsFailures = 99; openSSE(); return }
+      ws.onopen = () => {
+        opened = true
+        wsFailures = 0
+        setSocketUp(true)
+        // A text "ping" is answered by the runtime without waking the hub.
+        keepAlive = window.setInterval(() => { try { ws?.send('ping') } catch { /* closing */ } }, 25_000)
+      }
+      ws.onmessage = (m) => { if (typeof m.data === 'string' && m.data !== 'pong') onEvent(m) }
+      ws.onclose = () => {
+        window.clearInterval(keepAlive)
+        ws = null
+        setSocketUp(false)
+        if (stopped) return
+        if (!opened) wsFailures++
+        // Two refusals before ever opening: this network or proxy does not do sockets.
+        if (wsFailures >= 2) { openSSE(); return }
+        retry = window.setTimeout(openSocket, Math.min(30_000, 1000 * 2 ** Math.max(wsFailures, 1)))
+      }
+    }
+    const open = () => {
+      if (document.hidden) return
+      if (wsFailures >= 2 || !('WebSocket' in window)) openSSE()
+      else openSocket()
+    }
+    const close = () => {
+      stopped = true
+      window.clearTimeout(retry)
+      window.clearInterval(keepAlive)
+      es?.close(); es = null
+      try { ws?.close() } catch { /* already */ }
+      ws = null
+      setSocketUp(false)
+    }
     /* KEPT OPEN WHILE THE TAB IS HIDDEN — that is the whole point.
 
        The message a person needs told about is the one that lands while they

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { FileText, Mail, MessageSquare, Phone } from 'lucide-react'
+import { FileText, Mail, MessageSquare, Phone, ListOrdered, CheckCheck } from 'lucide-react'
 import { PageHead, PageBody, Card, Loading, tabClass } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { HealthWarnings, useMessagingHealth } from './delivery-lib'
 
 /* The school's own senders, on the school's own screen.
 
@@ -29,6 +30,8 @@ const WhatsAppApi = lazy(() => import('../super_admin/WhatsAppApi'))
 const MessageTemplates = lazy(() => import('./MessageTemplates'))
 const SmsVendor = lazy(() => import('./SmsVendor'))
 const ChannelRoute = lazy(() => import('./ChannelRoute'))
+const DeliveryRules = lazy(() => import('./DeliveryRules'))
+const DeliveryReceipts = lazy(() => import('./DeliveryReceipts'))
 
 /* THE OFFICE HANDSET, ARCHIVED RATHER THAN DELETED.
  *
@@ -69,6 +72,18 @@ const TABS = [
     blurb: 'Read more than either, and the strictest: outside a 24-hour window only approved templates send.',
   },
   {
+    id: 'rules',
+    label: 'Delivery rules',
+    icon: ListOrdered,
+    blurb: 'Which channel each kind of message tries first (cheapest first), what waits for the daily digest, quiet hours and the daily cap.',
+  },
+  {
+    id: 'delivery',
+    label: 'Delivery',
+    icon: CheckCheck,
+    blurb: 'What each notice reached, as the providers reported it, and who it missed. Resend to them by another channel.',
+  },
+  {
     id: 'templates',
     label: 'Wording',
     icon: FileText,
@@ -88,6 +103,7 @@ export default function ChannelSetup() {
   const [tab, setTab] = useState<string | null>(null)
   const active = tab ?? TAB_FOR[featureSlug ?? ''] ?? 'email'
   const current = TABS.find((t) => t.id === active) ?? TABS[0]
+  const health = useMessagingHealth()
 
   return (
     <>
@@ -120,6 +136,10 @@ export default function ChannelSetup() {
             })}
           </div>
           <p className="px-5 py-3 text-[13px] text-muted-foreground">{current.blurb}</p>
+          {/* Honest status: a channel that is not set up or has no credit says so here, on every tab. */}
+          {health.data && health.data.warnings.length > 0 && active !== 'rules' && (
+            <div className="px-5 pb-4"><HealthWarnings warnings={health.data.warnings} compact /></div>
+          )}
         </Card>
 
         {/* Each panel is the platform workspace's own, unchanged. The save it
@@ -145,6 +165,8 @@ export default function ChannelSetup() {
             </ChannelRoute>
           )}
           {active === 'templates' && <MessageTemplates />}
+          {active === 'rules' && <DeliveryRules />}
+          {active === 'delivery' && <DeliveryReceipts />}
         </Suspense>
       </PageBody>
     </>

@@ -324,7 +324,8 @@ function ParentThread({ item, onClose }: { item: Item; onClose: () => void }) {
   const thread = useQuery({
     queryKey: ['admin-inbox-thread', item.key],
     queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/thread?${coords}`),
-    refetchInterval: 15_000,
+    // The live stream invalidates this on every message hint; the poll is only the net.
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   })
   const reply = useMutation({
@@ -401,7 +402,8 @@ function StaffThread({
   const thread = useQuery({
     queryKey: ['admin-inbox-staff-thread', item.key],
     queryFn: () => api.get<{ items: ThreadMsg[] }>(`/api/v1/admin/inbox/staff-thread?a=${a}&b=${b}`),
-    refetchInterval: 15_000,
+    // The live stream invalidates this on every message hint; the poll is only the net.
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   })
   const [left] = item.title.split(' ↔ ')

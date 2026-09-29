@@ -134,6 +134,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // A WebSocket upgrade (/api/v1/live/socket) must be handed back as is: rebuilding it drops the socket.
   if (response.status === 101) return response
 
+  // A WebSocket upgrade (/api/v1/live/socket) must be handed back as is: rebuilding it drops the socket.
+  if (response.status === 101) return response
+
   /* Rewrite a Location that names the upstream host back to this origin, so
      a server-side redirect after sign-in lands the browser where it started. */
   const out = new Headers(response.headers)

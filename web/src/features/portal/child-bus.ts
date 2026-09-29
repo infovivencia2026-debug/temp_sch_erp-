@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLiveConnected, useLiveTopic } from '@/lib/live-stream'
 
 /* What both parent bus screens agree on.
 
@@ -189,7 +190,21 @@ export function usePoll(rows: ChildBusRow[], enabled: boolean, refetch: () => vo
      back as refresh_seconds when the family has not chosen one. Polling
      slower than the phone reports is a marker that jumps; polling faster is
      a request that finds nothing new. Five is the policy's own minimum. */
-  const every = rows.length ? Math.max(5, Math.min(...rows.map((r) => r.refresh_seconds || 15))) : 0
+  const polled = rows.length ? Math.max(5, Math.min(...rows.map((r) => r.refresh_seconds || 15))) : 0
+  /* With the live socket up, a bus that reports is a hint on it ('bus', from
+     the tracker ingest) and the screen refetches then, throttled to the
+     bus's own interval; the poll drops to once a minute as a safety net. */
+  const socket = useLiveConnected()
+  const every = socket && polled ? 60 : polled
+  const last = useRef(0)
+  const fn = useRef(refetch)
+  fn.current = refetch
+  const onBus = useCallback(() => {
+    if (!enabled || Date.now() - last.current < Math.max(3, polled / 2) * 1000) return
+    last.current = Date.now()
+    fn.current()
+  }, [enabled, polled])
+  useLiveTopic('bus', onBus)
   useEffect(() => {
     // Nothing is moving: a parked fleet does not need a request every twenty
     // seconds, and the next run will be picked up when the tab is looked at.

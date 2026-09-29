@@ -10,6 +10,7 @@ import {
 import { useToast } from '@/components/Toast'
 import { formatDate } from '@/lib/utils'
 import { useMyClasses, useRoster, type Broadcast } from './comms'
+import { EstimateLine, type Estimate } from '../communication/delivery-lib'
 
 /* Writing home.
 
@@ -121,6 +122,10 @@ function Compose({ onClose }: { onClose: () => void }) {
     send_email: false,
     send_sms: false,
     send_whatsapp: false,
+    /* The school's delivery rules pick the channel (app push first, then
+       WhatsApp, then SMS; notices usually wait for the evening digest), so
+       the cost is the school's policy and is shown before sending. */
+    notify: true,
   })
 
   /* One reference for this composed notice, minted when the form opens and
@@ -128,6 +133,13 @@ function Compose({ onClose }: { onClose: () => void }) {
      after a dropped response, answer with the notice already published rather
      than texting the class a second time. */
   const [clientRef] = useState(() => crypto.randomUUID())
+
+  const estimate = useQuery({
+    queryKey: ['broadcast-estimate', target, sectionID],
+    queryFn: () => api.post<Estimate>('/api/v1/admin/messaging/estimate', { message_type: 'notice', audience_role: 'parents', section_ids: [sectionID] }),
+    enabled: f.notify && target === 'class' && !!sectionID,
+    staleTime: 60_000,
+  })
 
   const send = useMutation({
     mutationFn: () =>
@@ -142,9 +154,7 @@ function Compose({ onClose }: { onClose: () => void }) {
         title: f.title,
         body: f.body,
         requires_ack: f.requires_ack,
-        send_email: f.send_email,
-        send_sms: f.send_sms,
-        send_whatsapp: f.send_whatsapp,
+        notify: f.notify,
         // One or the other, never both: a notice addressed to a child and to
         // their whole class reaches the class, which is not what was meant.
         section_ids: target === 'class' && sectionID ? [sectionID] : [],
@@ -252,23 +262,13 @@ function Compose({ onClose }: { onClose: () => void }) {
         {/* The same three the principal's circular offers. A notice that only
             lands in the portal reaches whichever families opened the app that
             evening, which for most of them is none. */}
-        <div className="flex flex-wrap items-center gap-4">
-          <Checkbox
-            checked={f.send_email}
-            onChange={(v) => setF({ ...f, send_email: v })}
-            label="Also send email"
-          />
-          <Checkbox
-            checked={f.send_sms}
-            onChange={(v) => setF({ ...f, send_sms: v })}
-            label="Also send SMS"
-          />
-          <Checkbox
-            checked={f.send_whatsapp}
-            onChange={(v) => setF({ ...f, send_whatsapp: v })}
-            label="Also send WhatsApp"
-          />
-        </div>
+        <Checkbox
+          checked={f.notify}
+          onChange={(v) => setF({ ...f, notify: v })}
+          label="Notify the families"
+          hint="By the school's delivery rules: app push first, then WhatsApp, then SMS."
+        />
+        {f.notify && estimate.data && <EstimateLine e={estimate.data} />}
 
         <FormNotice error={send.error} />
         <div className="flex items-center gap-2">

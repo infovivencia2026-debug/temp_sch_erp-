@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLiveConnected, useLiveTopic } from '@/lib/live-stream'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BatteryWarning, BusFront, MapPin, RadioTower, TriangleAlert } from 'lucide-react'
 import { api, type List } from '@/lib/api'
@@ -148,13 +149,25 @@ export default function LiveVehicleMap() {
      exist until after `useQuery` has been called; the shared hook only gives
      the visibility half, and this is the one screen that wants the other half
      from its data. */
+  /* The live socket carries a 'bus' hint each time any bus reports; the map
+     refetches on it (at most every few seconds) and the poll becomes a
+     once-a-minute safety net while the socket is up. */
+  const socket = useLiveConnected()
+  const lastHint = useRef(0)
+  const onBus = useCallback(() => {
+    if (!visible || Date.now() - lastHint.current < 3000) return
+    lastHint.current = Date.now()
+    void live.refetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
+  useLiveTopic('bus', onBus)
   useEffect(() => {
     if (!visible) return
-    const ms = Math.max(5, ping) * 1000
+    const ms = socket ? 60_000 : Math.max(5, ping) * 1000
     const t = setInterval(() => void live.refetch(), ms)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, ping])
+  }, [visible, ping, socket])
 
   /* The server sends this; the fallback mirrors staleAfter() in
      internal/api/bus_tracking_views.go, three pings plus a margin, so a

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui'
 import { cn, formatDate } from '@/lib/utils'
 import { useSMSGateway } from '../communication/sms-gateway-lib'
+import { EstimateLine, type Estimate } from '../communication/delivery-lib'
 import { PendingApprovals } from '../communication/SmsGateway'
 import WriteWithAI from '@/components/ai/WriteWithAI'
 import TranslateNotice from '@/components/ai/TranslateNotice'
@@ -81,10 +82,8 @@ export default function Circulars() {
      as 'all' and the fan-out ran over guardians regardless — a notice for
      students was delivered to their parents. */
   const [audience, setAudience] = useState('all')
-  const [sendEmail, setSendEmail] = useState(false)
+  const [notify, setNotify] = useState(true)
   const [requiresAck, setRequiresAck] = useState(true)
-  const [sendSMS, setSendSMS] = useState(false)
-  const [sendWhatsApp, setSendWhatsApp] = useState(false)
   /* The attachment, uploaded before the circular is published.
    *
    * Half of what a school circulates is a document — the holiday list, the fee
@@ -138,6 +137,16 @@ export default function Circulars() {
     queryKey: ['circulars'],
     queryFn: () => api.get<List<Circular>>('/api/v1/communication/circulars'),
   })
+  /* Before sending: who it reaches on which channel, what it costs, and a
+     plain warning when a channel is not live (services/delivery.ts). */
+  const estimate = useQuery({
+    queryKey: ['circular-estimate', audience, [...sectionIds].sort().join(',')],
+    queryFn: () => api.post<Estimate>('/api/v1/admin/messaging/estimate', {
+      message_type: 'notice', audience_role: audience, section_ids: [...sectionIds],
+    }),
+    enabled: canPublish && notify,
+    staleTime: 60_000,
+  })
   const publish = useMutation({
     mutationFn: () =>
       api.post<{
@@ -148,7 +157,7 @@ export default function Circulars() {
         {
           title, body, section_ids: [...sectionIds],
           audience_role: audience,
-          requires_ack: requiresAck, send_sms: sendSMS, send_email: sendEmail, send_whatsapp: sendWhatsApp,
+          requires_ack: requiresAck, notify,
           attachment_file_id: file?.id ?? '',
         },
       ),
@@ -362,26 +371,21 @@ export default function Circulars() {
                     what "also" means -- so they are shown as three things that
                     can be switched on rather than four checkboxes of which one
                     is a different kind of thing entirely. */}
-                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Also by</span>
-                {([
-                  ['SMS', sendSMS, setSendSMS],
-                  ['Email', sendEmail, setSendEmail],
-                  ['WhatsApp', sendWhatsApp, setSendWhatsApp],
-                ] as const).map(([label, on, set]) => (
-                  <button
-                    key={label} type="button" onClick={() => set(!on)} aria-pressed={on}
-                    className={cn(
-                      'rounded-md border px-2.5 py-1 text-[13px] transition-colors',
-                      on ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+                <span className="w-16 shrink-0 text-[13px] text-muted-foreground">Also</span>
+                <button
+                  type="button" onClick={() => setNotify(!notify)} aria-pressed={notify}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1 text-[13px] transition-colors',
+                    notify ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                  )}
+                >
+                  Notify families
+                </button>
                 <span className="text-[13px] text-muted-foreground">
-                  The portal copy always goes.
+                  The portal copy always goes. Notifying uses the school’s delivery rules: app push first, then WhatsApp, then SMS.
                 </span>
               </div>
+              {notify && estimate.data && <EstimateLine e={estimate.data} />}
             </div>
 
             {/* Acknowledgement is not a delivery channel and no longer sits in
@@ -453,7 +457,7 @@ export default function Circulars() {
                 {!title.trim() || !body.trim()
                   ? 'A title and a body are needed before this can go out.'
                   : summarisePublish(audience, sectionIds.size,
-                      [sendSMS && 'SMS', sendEmail && 'email', sendWhatsApp && 'WhatsApp'])}
+                      [notify && 'app, WhatsApp or SMS by the delivery rules'])}
               </p>
               <Button type="submit" disabled={!title.trim() || !body.trim() || publish.isPending}>
                 <Send className="h-4 w-4" />
