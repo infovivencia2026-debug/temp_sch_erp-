@@ -27,6 +27,15 @@ export default function ProfileView() {
     queryKey: ['profile'],
     queryFn: () => api.get<Profile>('/api/v1/profile'),
   })
+  /* The cards below fetch their own lists. Asked for here too, under the same
+     keys, so the page draws once with all of them: the day code arriving late
+     slid in above the password card, and the device list grew from one line
+     to many, and both pushed everything under them down. */
+  const extras = [
+    useQuery({ queryKey: ['my-day-code'], queryFn: () => api.get<unknown>('/api/v1/me/day-code'), retry: false }),
+    useQuery({ queryKey: ['own-sessions'], queryFn: () => api.get<unknown>('/api/v1/profile/sessions'), retry: false }),
+    useQuery({ queryKey: ['own-session-activity'], queryFn: () => api.get<unknown>('/api/v1/profile/session-activity'), retry: false }),
+  ]
 
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -89,7 +98,7 @@ export default function ProfileView() {
     },
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading || extras.some((q) => q.isLoading)) return <Loading />
   if (error) return <ErrorState error={error} />
 
   return (

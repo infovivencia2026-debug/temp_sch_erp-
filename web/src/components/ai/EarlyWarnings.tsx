@@ -126,14 +126,14 @@ export function NeedsAttentionPanel({ limit, sectionId, title = 'Early warnings'
           <Button size="sm" variant={status === 'resolved' ? 'secondary' : 'ghost'} onClick={() => setStatus('resolved')}>Resolved</Button>
         </div>
       </div>
-      {q.isLoading ? <div className="p-4"><Loading shape="table" rows={1} /></div>
+      {q.isLoading ? <div className="min-h-[98px] p-4" aria-busy="true"><Loading shape="table" rows={1} /></div>
         : q.error ? <div className="p-4"><ErrorState error={q.error} /></div>
         : shown.length === 0 ? <p className="px-4 py-6 text-[13px] text-muted-foreground">{status === 'active' ? 'Nothing needs attention. The checks run every night.' : 'Nothing resolved yet.'}</p>
         : <ul>{shown.map((w) => <WarningRow key={w.id} w={w} />)}</ul>}
       {limit && items.length > limit && (
         <a href="/needs-attention" className="block border-t px-4 py-2 text-[13px] underline underline-offset-2">See all {items.length}</a>
       )}
-      {q.data?.computed_at && <p className="border-t px-4 py-1.5 text-[11.5px] text-muted-foreground">Checked {new Date(q.data.computed_at).toLocaleString()}{q.data.ai ? '' : ' · sentences from rules (AI not set up)'}</p>}
+      {q.data?.computed_at && <p className="border-t px-4 py-1.5 text-[12px] text-muted-foreground">Checked {new Date(q.data.computed_at).toLocaleString()}{q.data.ai ? '' : ' · sentences from rules (AI not set up)'}</p>}
     </Panel>
   )
 }

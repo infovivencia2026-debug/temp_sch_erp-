@@ -145,6 +145,10 @@ export default function CollectionSummaries() {
           )}
         </Card>
 
+        {/* The cards below the day book wait for every figure: the day book
+            grows from its skeleton to however many days the range holds, and
+            anything already drawn under it was shoved down the page. */}
+        {daily.isLoading || heads.isLoading || collectors.isLoading || tie.isLoading ? null : (<>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader
@@ -240,6 +244,7 @@ export default function CollectionSummaries() {
             </>
           ) : null}
         </Card>
+        </>)}
       </PageBody>
     </>
   )

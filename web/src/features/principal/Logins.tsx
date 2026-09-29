@@ -243,7 +243,7 @@ export default function Logins() {
 
         <CellGrid cols={4}>
           <Stat label="Logins" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : users.length} icon={ShieldCheck} />
-          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? undefined : `${users.length - active} cannot`} />
+          <Stat label="Can sign in" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : active} hint={isLoading ? '\u00a0' : `${users.length - active} cannot`} />
           <Stat label="Signed in now" value={isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : signedIn} hint="Holding a live session" />
           <Stat
             label="No linked record"
@@ -252,33 +252,6 @@ export default function Logins() {
             hint="Active logins whose person is gone"
           />
         </CellGrid>
-
-        {/* An account outlives the person it was made for.
-
-            Deleting a student, a guardian link or an employee removes the
-            record, not the login. The account stays active, keeps its roles
-            and can still sign in, and until this screen existed nobody at the
-            school could see that had happened. Naming it at the top rather
-            than leaving it to be noticed in a column is the difference between
-            a fact being available and a fact being known. */}
-        {orphans.length > 0 && record !== 'none' && (
-          <Card className="p-5">
-            <p className="text-[14px] font-medium">
-              {orphans.length} active login{orphans.length === 1 ? ' has' : 's have'} no staff,
-              student or guardian record
-            </p>
-            <p className="mt-1 text-[14px] text-muted-foreground">
-              Deleting somebody’s record does not close their login. These accounts can still
-              sign in. Review them and deactivate the ones that should be closed, deactivating
-              also signs out every device they are currently on.
-            </p>
-            <div className="mt-3">
-              <Button size="sm" variant="secondary" onClick={() => setRecord('none')}>
-                Show them
-              </Button>
-            </div>
-          </Card>
-        )}
 
         {record === 'student' && <StudentLoginsCard />}
         {record === 'guardian' && <ParentLoginsCard />}
@@ -459,6 +432,34 @@ export default function Logins() {
           )}
         </Card>
         )}
+
+        {/* An account outlives the person it was made for.
+
+            Deleting a student, a guardian link or an employee removes the
+            record, not the login. The account stays active, keeps its roles
+            and can still sign in, and until this screen existed nobody at the
+            school could see that had happened. Naming it at the top rather
+            than leaving it to be noticed in a column is the difference between
+            a fact being available and a fact being known. */}
+        {orphans.length > 0 && record !== 'none' && (
+          <Card className="p-5">
+            <p className="text-[14px] font-medium">
+              {orphans.length} active login{orphans.length === 1 ? ' has' : 's have'} no staff,
+              student or guardian record
+            </p>
+            <p className="mt-1 text-[14px] text-muted-foreground">
+              Deleting somebody’s record does not close their login. These accounts can still
+              sign in. Review them and deactivate the ones that should be closed, deactivating
+              also signs out every device they are currently on.
+            </p>
+            <div className="mt-3">
+              <Button size="sm" variant="secondary" onClick={() => setRecord('none')}>
+                Show them
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {record === 'sessions' && <SessionRules />}
       </PageBody>
     </>

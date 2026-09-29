@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Card, CardHeader, Badge, Button, Loading, ErrorState, EmptyState } from '@/components/ui'
+import { Card, CardHeader, Badge, Button, ErrorState, EmptyState } from '@/components/ui'
 import { formatDate, formatTime, cn } from '@/lib/utils'
 
 /* THE MONTH, AS ONE PICTURE.
@@ -266,12 +266,15 @@ export function MonthGrid({
             })}
           </div>
 
-          {legend.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* Always there, one row tall at least, and no skeleton under the
+              grid while a month loads (the grid dims instead): either one
+              appearing or vanishing moved the day card below it. */}
+          {(
+            <div className="mt-3 flex min-h-[24px] flex-wrap gap-1.5">
               {legend.map((k) => (
                 <span
                   key={k}
-                  className={cn('rounded border px-1.5 py-0.5 text-[11px]', kindOf(k).tone)}
+                  className={cn('rounded border px-1.5 py-0.5 text-[12px]', kindOf(k).tone)}
                 >
                   {kindOf(k).label}
                 </span>
@@ -279,7 +282,7 @@ export function MonthGrid({
             </div>
           )}
 
-          {loading && <Loading label="Reading the month…" />}
+          {loading && <span className="sr-only" role="status">Reading the month…</span>}
         </div>
       </Card>
 

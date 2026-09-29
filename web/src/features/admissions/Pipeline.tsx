@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Skeleton } from '@/components/Skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type List, type AcademicYear } from '@/lib/api'
 import {
@@ -30,6 +31,8 @@ interface Section { id: string; class_id: string; class_name: string; name: stri
    draft all rendered as the same undifferentiated grey — the states a
    counsellor most needs to tell apart were exactly the ones that looked
    identical. One vocabulary, rendered one way, everywhere. */
+
+const FUNNEL_STAGES = ['Enquiries', 'Applications received', 'Assessed', 'Offered or accepted', 'Enrolled']
 
 /** The admissions pipeline: merit ranking, seat availability against quota,
     and the decisions that move an applicant to enrolled. */
@@ -137,7 +140,12 @@ export default function Pipeline() {
      copies of the same JSX with the middle one moved. */
   const statsCard = (
           <CellGrid cols={4}>
-            {stages.map((s) => <Stat key={s.stage} label={s.stage} value={s.count} />)}
+            {/* The funnel always has these five stages, so the tiles stand in
+                their places while it loads rather than appearing on top of
+                the seat matrix and pushing it down. */}
+            {funnel.isLoading
+              ? FUNNEL_STAGES.map((l) => <Stat key={l} label={l} value={<Skeleton className="mt-1 h-7 w-10" />} />)
+              : stages.map((s) => <Stat key={s.stage} label={s.stage} value={s.count} />)}
           </CellGrid>
 
   )
@@ -266,9 +274,17 @@ export default function Pipeline() {
   /* What the reader came for goes first. Every view still carries all
      three: somebody who opened RTE Quota still wants the ranking under it,
      and somebody who opened the report still wants the matrix. */
-  const order = view?.lead === 'stages' ? [statsCard, seatsCard, meritCard]
-    : view?.lead === 'seats' ? [seatsCard, meritCard, statsCard]
-    : [meritCard, statsCard, seatsCard]
+  const S = [statsCard, funnel.isLoading] as const
+  const T = [seatsCard, seats.isLoading] as const
+  const M = [meritCard, merit.isLoading] as const
+  const ranked = view?.lead === 'stages' ? [S, T, M]
+    : view?.lead === 'seats' ? [T, M, S]
+    : [M, S, T]
+  /* A card is drawn only once every card above it has its data: the merit
+     list grows from a six-row placeholder to the whole intake, and a card
+     already drawn under it was pushed off the screen. */
+  const firstLoading = ranked.findIndex(([, loading]) => loading)
+  const order = (firstLoading < 0 ? ranked : ranked.slice(0, firstLoading + 1)).map(([card]) => card)
 
   return (
     <>

@@ -147,6 +147,10 @@ export default function HRReports() {
           )}
         </Card>
 
+        {/* Everything under the establishment table waits for all the
+            figures, so a table growing from its placeholder never pushes a
+            card that is already on screen. */}
+        {headcount.isLoading || movement.isLoading || workload.isLoading || attendance.isLoading || expiries.isLoading ? null : (<>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader
@@ -282,6 +286,7 @@ export default function HRReports() {
             </Table>
           )}
         </Card>
+        </>)}
       </PageBody>
     </>
   )

@@ -9,6 +9,7 @@ import {
   RangePicker, rangeQuery, useRange, type RangeOption,
 } from '@/components/ui'
 import { NeedsAttentionPanel } from '@/components/ai/EarlyWarnings'
+import { warningsApi } from '@/components/ai/smartApi'
 import { cn, formatDate } from '@/lib/utils'
 
 /* How is this one doing?
@@ -113,6 +114,13 @@ export default function MyClasses() {
     queryKey: ['support-plans'],
     queryFn: () => api.get<List<Plan>>('/api/v1/students/support-plans'),
   })
+  /* The early-warnings panel sits above the figures. Fetched here, under the
+     panel's own key, so the page waits for it instead of the panel arriving
+     late and pushing the whole roster down. */
+  const warnings = useQuery({
+    queryKey: ['ai-warnings', 'active', ''],
+    queryFn: () => warningsApi.list({ status: 'active', section_id: undefined }),
+  })
   const session = useQuery({
     queryKey: ['session'],
     queryFn: () => api.call('GET /session'),
@@ -128,7 +136,7 @@ export default function MyClasses() {
     { key: 'full_name' },
   )
 
-  if (progress.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
+  if (progress.isLoading || warnings.isLoading) return <SkeletonTiles count={4} label="Working out how each child is doing…" />
   if (progress.error) return <ErrorState error={progress.error} />
 
   const attention = rows.filter((r) => r.risk_band !== 'none')

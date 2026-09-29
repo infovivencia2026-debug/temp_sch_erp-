@@ -145,6 +145,9 @@ export default function ChannelSetup() {
         {/* Each panel is the platform workspace's own, unchanged. The save it
             calls was always scoped to the caller's institution, so a principal
             here configures their school and nobody else's. */}
+        {/* The health line lands inside the card above, so the panel waits
+            for it: arriving after the panel, it pushed the panel down. */}
+        {health.isLoading ? <Loading label="Opening…" /> : (
         <Suspense fallback={<Loading label="Opening…" />}>
           {/* Every channel answers the same first question — whose account
               does this leave by — so the same control opens each of them, and
@@ -168,6 +171,7 @@ export default function ChannelSetup() {
           {active === 'rules' && <DeliveryRules />}
           {active === 'delivery' && <DeliveryReceipts />}
         </Suspense>
+        )}
       </PageBody>
     </>
   )
