@@ -44,12 +44,24 @@ function serviceWorker(): Plugin {
        * Fonts are left out for the same reason and one more: a missing font
        * falls back to the system stack and the page still reads, so paying
        * 528KB up front to avoid that is a bad trade on a bad line. */
-      /* The legacy chunks (plugin-legacy, below) are excluded: a browser that
-       * runs this worker is by definition a modern one and would never fetch
-       * them, so precaching them is pure waste. */
-      const shell = /^assets\/(index|react|router|query|vendor|icons)-(?!legacy-)[^/]*\.js$/
+      /* The shell is computed, not named: the entry chunk and everything it
+       * imports statically (walked through the bundle graph), plus the
+       * stylesheets and the modern polyfills. Naming chunks by pattern broke
+       * the moment chunking followed the screens instead of a hand-made
+       * vendor split — a shared chunk the entry needs would have been left
+       * out, and a cold offline start would have failed on it. */
+      const chunks = Object.values(bundle).filter((c) => c.type === 'chunk')
+      const entry = chunks.find((c) => c.type === 'chunk' && c.isEntry && /^assets\/index-/.test(c.fileName))
+      const seen = new Set<string>()
+      const walk = (f: string) => {
+        if (seen.has(f)) return
+        seen.add(f)
+        const c = bundle[f]
+        if (c && c.type === 'chunk') c.imports.forEach(walk)
+      }
+      if (entry) walk(entry.fileName)
       const assets = Object.keys(bundle)
-        .filter((f) => f.endsWith('.css') || shell.test(f))
+        .filter((f) => f.endsWith('.css') || seen.has(f) || /^assets\/polyfills-/.test(f))
         .map((f) => '/' + f)
       const src = readFileSync(path.resolve(__dirname, 'src/sw-src.js'), 'utf8')
         .replace(/__BUILD__/g, build)
@@ -62,6 +74,41 @@ function serviceWorker(): Plugin {
   }
 }
 
+
+/* THE POLYFILL CHUNK, LOADED ONLY WHERE IT IS MISSING.
+ *
+ * plugin-legacy's modern polyfills are a plain <script type=module> before the
+ * entry, so every browser — including the Chrome 150 every school actually
+ * runs — downloaded and parsed 134KB (50KB gzipped) to be told it already had
+ * all of it. This rewrites the two tags into one tiny loader: the entry is
+ * preloaded as before, a feature test runs, and only an engine that fails it
+ * imports the polyfills first. The test names the newest things the chunk
+ * provides (Set methods, iterator helpers, toSorted, structuredClone), so any
+ * engine that passes is newer than everything the chunk would add. */
+function conditionalPolyfills(): Plugin {
+  return {
+    name: 'erp-conditional-polyfills',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_opts, bundle) {
+      const html = bundle['index.html']
+      if (!html || html.type !== 'asset') return
+      let src = String(html.source)
+      const poly = src.match(/<script type="module" crossorigin src="(\/assets\/polyfills-[^"]+\.js)"><\/script>\s*/)
+      const entry = src.match(/<script type="module" crossorigin src="(\/assets\/index-[^"]+\.js)"><\/script>/)
+      if (!poly || !entry) return
+      const test =
+        "[].at&&[].flat&&[].findLast&&[].toSorted&&Object.fromEntries&&Object.hasOwn&&''.replaceAll" +
+        "&&Promise.allSettled&&self.structuredClone&&Set.prototype.union&&typeof Iterator=='function'&&Iterator.prototype.map"
+      const loader =
+        `<link rel="modulepreload" crossorigin href="${entry[1]}">\n` +
+        `    <script type="module">(${test}?Promise.resolve():import(${JSON.stringify(poly[1])}))` +
+        `.then(function(){return import(${JSON.stringify(entry[1])})})</script>`
+      src = src.replace(poly[0], '').replace(entry[0], loader)
+      html.source = src
+    },
+  }
+}
 
 export default defineConfig({
   /* THE OLD BROWSER THAT COULD NOT SAVE.
@@ -105,13 +152,29 @@ export default defineConfig({
      *
      * build.target below drops the syntax floor to match, so neither bundle
      * ships syntax one of these engines cannot parse. */
+    /* NO SECOND BUNDLE ANY MORE — ONLY THE POLYFILLS, AND ONLY FOR THOSE WHO NEED THEM.
+     *
+     * The nomodule bundle served browsers without ES modules. The login
+     * records of every school on the Worker (login_events.user_agent, read
+     * 2026-09-29) hold none: the oldest engine is Chrome 124, then iOS 18
+     * Safari, Android 10 Chrome 152+. The apps are WebView shells on Android
+     * minSdk 24 (WebView updates through Play) and iOS 16. So the legacy
+     * bundle was half the build and never downloaded; it is gone
+     * (renderLegacyChunks: false).
+     *
+     * The middle band above is still real — a module-capable but old WebView
+     * that lacks Object.fromEntries or Array.at — so modernPolyfills stays.
+     * What changes is who pays for it: see conditionalPolyfills() below, which
+     * loads the 50KB chunk only on an engine that fails a feature test. */
     legacy({
       targets: [
         'chrome >= 61', 'firefox >= 60', 'safari >= 11', 'edge >= 18',
         'android >= 5', 'ios >= 11', 'samsung >= 8',
       ],
       modernPolyfills: true,
+      renderLegacyChunks: false,
     }),
+    conditionalPolyfills(),
     serviceWorker(),
   ],
   resolve: { alias: { '@': path.resolve(__dirname, 'src'), '@shared': path.resolve(__dirname, '../shared') } },
@@ -149,16 +212,21 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react'
-          if (id.includes('react-router')) return 'router'
+          if (id.includes('react-router') || id.includes('@remix-run')) return 'router'
           if (id.includes('@tanstack')) return 'query'
-          if (id.includes('recharts') || id.includes('d3-')) return 'charts'
-          /* The map engine is ~800kB and two screens use it. In the shared
-             vendor chunk every parent checking fees and every teacher marking
-             attendance downloads a renderer they will never open, so it gets
-             its own chunk and is imported lazily by the map component. */
+          /* The map engine is ~800kB and two screens use it. */
           if (id.includes('maplibre-gl')) return 'maplibre'
-          if (id.includes('lucide-react')) return 'icons'
-          return 'vendor'
+          /* EVERYTHING ELSE GOES WHERE IT IS USED.
+           *
+           * There used to be a catch-all `vendor` chunk here, and an `icons`
+           * and a `charts` one. The entry imported all three, so every
+           * student opening the timetable downloaded DOMPurify (the card
+           * viewer), qrcode (bus stickers), pmtiles and the protomaps styles
+           * (the bus map), and recharts' helpers (two finance dashboards):
+           * 110KB gzipped of other people's screens. Returning nothing lets
+           * Rollup put a library beside the screens that import it, and a
+           * library two lazy screens share into a chunk both of them load. */
+          return undefined
         },
       },
     },
