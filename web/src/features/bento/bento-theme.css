@@ -4631,3 +4631,28 @@ body:has(.bento-frost) [data-assistant-orb] {
 @media (min-width: 768px) {
   [data-layout='bento'] .bento-dock { width: max-content; }
 }
+
+/* DRAWINGS GIVE WAY WHOLE ON A DESK TOO. The rule above measured the drawing
+   row only on the phone pager; on a desk board a card's last list row or
+   fact was cut through the middle of its letters at the foot of the card
+   ("Vehicle", "Exam" half drawn). The same measure, at every width. */
+[data-layout='bento'] .bento-board:not([data-pager]) .card-drawing {
+  container-type: size;
+  container-name: drawing;
+  overflow: clip;
+}
+@container drawing (max-height: 7.8em) {
+  .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 5), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 5) { display: none; }
+}
+@container drawing (max-height: 6.2em) {
+  .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 4), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 4) { display: none; }
+}
+@container drawing (max-height: 4.65em) {
+  .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 3), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 3) { display: none; }
+}
+@container drawing (max-height: 3.1em) {
+  .bento-board:not([data-pager]) .parent-list > li:nth-child(n + 2), .bento-board:not([data-pager]) .card-facts > div:nth-child(n + 2) { display: none; }
+}
+@container drawing (max-height: 2.9em) {
+  .bento-board:not([data-pager]) .card-drawing > * { display: none; }
+}
