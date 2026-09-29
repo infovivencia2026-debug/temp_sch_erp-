@@ -58,9 +58,10 @@ describe('student logins: the school switch', () => {
     expect((await api('admin', 'PUT', '/admin/student-logins', { enabled: true, min_level: 5 })).status).toBe(200)
     const b = await api('admin', 'POST', '/setup/logins/bulk', { kind: 'students', section_id: IDS.section })
     expect(b.status).toBe(200)
-    expect(b.body.created).toBe(2)
+    // Switching on already issued them (by default); the bulk run lists them with their first password.
+    expect(b.body.created + b.body.existing).toBe(2)
     for (const r of b.body.rows) {
-      expect(r).toMatchObject({ class_name: 'Class 5', section_name: 'A', existing: false })
+      expect(r).toMatchObject({ class_name: 'Class 5', section_name: 'A' })
       expect(r.sign_in_as.toLowerCase()).toBe(String(r.admission_no).toLowerCase())
       // First password is the admission number; the child must change it.
       expect(r.password).toBe(String(r.admission_no))
